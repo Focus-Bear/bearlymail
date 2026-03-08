@@ -86,10 +86,9 @@ describe('useEmailManagement', () => {
 
   describe('initialization', () => {
     it('should initialize with empty state', () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       expect(result.current.emails).toEqual([]);
       expect(result.current.loading).toBe(true);
@@ -99,10 +98,9 @@ describe('useEmailManagement', () => {
     });
 
     it('should provide fetchEmails function', () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       expect(result.current.fetchEmails).toBe(mockFetchEmails);
     });
@@ -110,43 +108,36 @@ describe('useEmailManagement', () => {
 
   describe('handleMarkAsRead', () => {
     it('should mark email as read successfully', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       // Set initial emails
-      result.current.setEmails([
-        { id: '1', isRead: false } as any,
-        { id: '2', isRead: false } as any,
-      ]);
+      result.current.setEmails([{ id: '1', isRead: false } as any, { id: '2', isRead: false } as any]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
       await result.current.handleMarkAsRead('1');
 
       await waitFor(() => {
-        expect(mockedAxios.put).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/1/read')
-        );
+        expect(mockedAxios.put).toHaveBeenCalledWith(expect.stringContaining('/emails/1/read'));
       });
 
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        const email1 = emails.find((event) => event.id === '1');
+        const email1 = emails.find(event => event.id === '1');
         return email1?.isRead === true;
       });
       const emails = result.current.emails;
-      const email1 = emails.find((event) => event.id === '1');
+      const email1 = emails.find(event => event.id === '1');
       expect(email1?.isRead).toBe(true);
     });
 
     it('should handle errors when marking as read', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       result.current.setEmails([{ id: '1', isRead: false } as any]);
 
@@ -156,52 +147,42 @@ describe('useEmailManagement', () => {
       await result.current.handleMarkAsRead('1');
 
       await waitFor(() => {
-        expect(console.error).toHaveBeenCalledWith(
-          'Error marking email as read:',
-          error
-        );
+        expect(console.error).toHaveBeenCalledWith('Error marking email as read:', error);
       });
     });
   });
 
   describe('handleMarkAsUnread', () => {
     it('should mark email as unread successfully', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
-      result.current.setEmails([
-        { id: '1', isRead: true } as any,
-        { id: '2', isRead: true } as any,
-      ]);
+      result.current.setEmails([{ id: '1', isRead: true } as any, { id: '2', isRead: true } as any]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
       await result.current.handleMarkAsUnread('1');
 
       await waitFor(() => {
-        expect(mockedAxios.put).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/1/unread')
-        );
+        expect(mockedAxios.put).toHaveBeenCalledWith(expect.stringContaining('/emails/1/unread'));
       });
 
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        const email1 = emails.find((event) => event.id === '1');
+        const email1 = emails.find(event => event.id === '1');
         return email1?.isRead === false;
       });
       const emails = result.current.emails;
-      const email1 = emails.find((event) => event.id === '1');
+      const email1 = emails.find(event => event.id === '1');
       expect(email1?.isRead).toBe(false);
     });
 
     it('should handle errors when marking as unread', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       result.current.setEmails([{ id: '1', isRead: true } as any]);
 
@@ -211,21 +192,19 @@ describe('useEmailManagement', () => {
       await result.current.handleMarkAsUnread('1');
 
       await waitFor(() => {
-        expect(console.error).toHaveBeenCalledWith(
-          'Error marking email as unread:',
-          error
-        );
+        expect(console.error).toHaveBeenCalledWith('Error marking email as unread:', error);
       });
     });
   });
 
   describe('handleBulkMarkAsRead', () => {
     it('should bulk mark emails as read successfully', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({
-          mode: 'triage',
-          onSuggestionRemove: mockOnSuggestionRemove,
-        }),
+      const { result } = renderHook(
+        () =>
+          useEmailManagement({
+            mode: 'triage',
+            onSuggestionRemove: mockOnSuggestionRemove,
+          }),
         { wrapper: createWrapper(testStore) }
       );
 
@@ -243,32 +222,31 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((event) => event.id === '1')?.isRead === true;
+        return emails.find(event => event.id === '1')?.isRead === true;
       });
       const emails1 = result.current.emails;
-      expect(emails1.find((event) => event.id === '1')?.isRead).toBe(true);
-      
-      await waitFor(() => {
-        const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((event) => event.id === '2')?.isRead === true;
-      });
-      const emails2 = result.current.emails;
-      expect(emails2.find((event) => event.id === '2')?.isRead).toBe(true);
-      
-      await waitFor(() => {
-        const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((event) => event.id === '3')?.isRead === false;
-      });
-      const emails3 = result.current.emails;
-      expect(emails3.find((event) => event.id === '3')?.isRead).toBe(false);
+      expect(emails1.find(event => event.id === '1')?.isRead).toBe(true);
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/bulk/read'),
-          { emailIds: ['1', '2'] }
-        );
+        const emails = result.current.emails;
+        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
+        return emails.find(event => event.id === '2')?.isRead === true;
+      });
+      const emails2 = result.current.emails;
+      expect(emails2.find(event => event.id === '2')?.isRead).toBe(true);
+
+      await waitFor(() => {
+        const emails = result.current.emails;
+        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
+        return emails.find(event => event.id === '3')?.isRead === false;
+      });
+      const emails3 = result.current.emails;
+      expect(emails3.find(event => event.id === '3')?.isRead).toBe(false);
+
+      await waitFor(() => {
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/emails/bulk/read'), {
+          emailIds: ['1', '2'],
+        });
       });
 
       expect(mockOnSuggestionRemove).toHaveBeenCalledWith('1');
@@ -276,10 +254,9 @@ describe('useEmailManagement', () => {
     });
 
     it('should not make API call for empty array', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       await result.current.handleBulkMarkAsRead([]);
 
@@ -287,10 +264,9 @@ describe('useEmailManagement', () => {
     });
 
     it('should refresh emails on error', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       result.current.setEmails([{ id: '1', isRead: false } as any]);
 
@@ -307,18 +283,16 @@ describe('useEmailManagement', () => {
 
   describe('handleBulkMarkAsUnread', () => {
     it('should bulk mark emails as unread successfully', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({
-          mode: 'triage',
-          onSuggestionRemove: mockOnSuggestionRemove,
-        }),
+      const { result } = renderHook(
+        () =>
+          useEmailManagement({
+            mode: 'triage',
+            onSuggestionRemove: mockOnSuggestionRemove,
+          }),
         { wrapper: createWrapper(testStore) }
       );
 
-      result.current.setEmails([
-        { id: '1', isRead: true } as any,
-        { id: '2', isRead: true } as any,
-      ]);
+      result.current.setEmails([{ id: '1', isRead: true } as any, { id: '2', isRead: true } as any]);
 
       mockedAxios.post.mockResolvedValue({ data: {} });
 
@@ -327,25 +301,23 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((event) => event.id === '1')?.isRead === false;
+        return emails.find(event => event.id === '1')?.isRead === false;
       });
       const emails = result.current.emails;
-      expect(emails.find((event) => event.id === '1')?.isRead).toBe(false);
-      expect(emails.find((event) => event.id === '2')?.isRead).toBe(false);
+      expect(emails.find(event => event.id === '1')?.isRead).toBe(false);
+      expect(emails.find(event => event.id === '2')?.isRead).toBe(false);
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/bulk/unread'),
-          { emailIds: ['1', '2'] }
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/emails/bulk/unread'), {
+          emailIds: ['1', '2'],
+        });
       });
     });
 
     it('should not make API call for empty array', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       await result.current.handleBulkMarkAsUnread([]);
 
@@ -355,10 +327,9 @@ describe('useEmailManagement', () => {
 
   describe('handleCheckUrgent', () => {
     it('should check for urgent emails successfully', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       const mockResponse = {
         hasUrgent: true,
@@ -371,9 +342,7 @@ describe('useEmailManagement', () => {
       const response = await result.current.handleCheckUrgent();
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/check-urgent')
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/emails/check-urgent'));
       });
 
       expect(response).toEqual({
@@ -384,10 +353,9 @@ describe('useEmailManagement', () => {
     });
 
     it('should return default values on error', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       mockedAxios.post.mockRejectedValue(new Error('Check failed'));
 
@@ -401,12 +369,11 @@ describe('useEmailManagement', () => {
     });
 
     it('should set refreshing state during check', async () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
-      const delayedResponse = new Promise((resolve) => {
+      const delayedResponse = new Promise(resolve => {
         setTimeout(() => resolve({ data: { hasUrgent: false } }), 100);
       });
       mockedAxios.post.mockImplementation(() => delayedResponse);
@@ -424,31 +391,27 @@ describe('useEmailManagement', () => {
 
   describe('delegated functions', () => {
     it('should delegate handleSetStarCount to useEmailActionsBase', () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       expect(result.current.handleSetStarCount).toBe(mockHandleSetStarCount);
     });
 
     it('should delegate handleArchive to useEmailActionsBase', () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       expect(result.current.handleArchive).toBe(mockHandleArchive);
     });
 
     it('should delegate handleSnooze to useEmailActionsBase', () => {
-      const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' }),
-        { wrapper: createWrapper(testStore) }
-      );
+      const { result } = renderHook(() => useEmailManagement({ mode: 'triage' }), {
+        wrapper: createWrapper(testStore),
+      });
 
       expect(result.current.handleSnooze).toBe(mockHandleSnooze);
     });
   });
 });
-

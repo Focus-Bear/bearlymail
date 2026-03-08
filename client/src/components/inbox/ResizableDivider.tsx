@@ -1,4 +1,4 @@
-import React, { useEffect,useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { theme } from 'theme/theme';
 
 interface ResizableDividerProps {
@@ -21,13 +21,15 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
-      if (!isDraggingRef.current || !containerRef?.current) return;
+      if (!isDraggingRef.current || !containerRef?.current) {
+        return;
+      }
 
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
       const mouseX = event.clientX - containerRect.left;
-      
+
       // Calculate new position as percentage
       const newPosition = (mouseX / containerWidth) * 100;
       onResize(newPosition);
@@ -43,7 +45,9 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
     };
 
     const handleTouchMove = (event: TouchEvent) => {
-      if (!isDraggingRef.current || !containerRef?.current) return;
+      if (!isDraggingRef.current || !containerRef?.current) {
+        return;
+      }
       event.preventDefault();
 
       const container = containerRef.current;
@@ -51,7 +55,7 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
       const containerWidth = containerRect.width;
       const touch = event.touches[0];
       const touchX = touch.clientX - containerRect.left;
-      
+
       const newPosition = (touchX / containerWidth) * 100;
       onResize(newPosition);
     };
@@ -106,10 +110,10 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
         transition: 'background-color 0.2s ease',
         zIndex: 10,
       }}
-      onMouseEnter={(event) => {
+      onMouseEnter={event => {
         event.currentTarget.style.backgroundColor = theme.colors.primary.main;
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={event => {
         if (!isDraggingRef.current) {
           event.currentTarget.style.backgroundColor = theme.colors.border.light;
         }
@@ -123,4 +127,3 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
     />
   );
 };
-

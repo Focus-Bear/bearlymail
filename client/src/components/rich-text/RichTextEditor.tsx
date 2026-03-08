@@ -9,7 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
-import { EditorContent, Extension,useEditor } from '@tiptap/react';
+import { EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { theme } from 'theme/theme';
 
@@ -45,41 +45,63 @@ const createLinkShortcut = (onTrigger: () => void) =>
 function buildPasteHandler(onPasteFiles?: (files: File[]) => void) {
   return (_view: any, event: ClipboardEvent): boolean => {
     const items = event.clipboardData?.items;
-    if (!items) return false;
+    if (!items) {
+      return false;
+    }
     const files: File[] = [];
     const imageFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.kind === FILE_KIND) {
         const file = item.getAsFile();
-        if (file) { if (file.type.startsWith('image/')) { imageFiles.push(file); } else { files.push(file); } }
+        if (file) {
+          if (file.type.startsWith('image/')) {
+            imageFiles.push(file);
+          } else {
+            files.push(file);
+          }
+        }
       }
     }
     if (imageFiles.length > 0) {
       event.preventDefault();
-      imageFiles.forEach((file) => {
+      imageFiles.forEach(file => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result;
-          if (typeof result === TYPEOF_STRING) { _view.dispatch(_view.state.tr.replaceSelectionWith(_view.state.schema.nodes.image.create({ src: result }))); }
+          if (typeof result === TYPEOF_STRING) {
+            _view.dispatch(_view.state.tr.replaceSelectionWith(_view.state.schema.nodes.image.create({ src: result })));
+          }
         };
         reader.readAsDataURL(file);
       });
       return true;
     }
-    if (files.length > 0 && onPasteFiles) { event.preventDefault(); onPasteFiles(files); return true; }
+    if (files.length > 0 && onPasteFiles) {
+      event.preventDefault();
+      onPasteFiles(files);
+      return true;
+    }
     return false;
   };
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange, placeholder = '', disabled = false, hasToneError = false, onPasteFiles, minHeight = '200px' }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+  content,
+  onChange,
+  placeholder = '',
+  disabled = false,
+  hasToneError = false,
+  onPasteFiles,
+  minHeight = '200px',
+}) => {
   const isInternalUpdate = useRef(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const linkShortcutCallbackRef = useRef(() => setLinkDialogOpen(true));
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3], }, bulletList: false, orderedList: false, listItem: false, }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false, orderedList: false, listItem: false }),
       BulletList.extend({
         addInputRules() {
           return [];
@@ -92,12 +114,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
       }),
       ListItem,
       Underline,
-      Link.configure({ openOnClick: false, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer', }, }),
-      TextAlign.configure({ types: ['heading', 'paragraph'], }),
-      Placeholder.configure({ placeholder, }),
+      Link.configure({ openOnClick: false, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder }),
       TextStyle,
       Color,
-      Image.configure({ inline: true, allowBase64: true, }),
+      Image.configure({ inline: true, allowBase64: true }),
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
     content: content || '',
@@ -118,7 +140,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
       const editorIsEmpty = editor.isEmpty;
       const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
 
-      if (editorIsEmpty && contentIsEmpty) return;
+      if (editorIsEmpty && contentIsEmpty) {
+        return;
+      }
       if (currentContent !== newContent) {
         editor.commands.setContent(newContent);
       }
@@ -132,15 +156,24 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
     }
   }, [disabled, editor]);
 
-  const handleInsertEmoji = useCallback((emoji: string) => {
-    if (editor) {
-      editor.chain().focus().insertContent(emoji).run();
-    }
-  }, [editor]);
+  const handleInsertEmoji = useCallback(
+    (emoji: string) => {
+      if (editor) {
+        editor.chain().focus().insertContent(emoji).run();
+      }
+    },
+    [editor]
+  );
 
   return (
     <div
-      style={{ border: `1px solid ${hasToneError ? theme.colors.accent.error : theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, overflow: 'visible', opacity: disabled ? OPACITY_DISABLED : 1, backgroundColor: theme.colors.background.subtle, }}
+      style={{
+        border: `1px solid ${hasToneError ? theme.colors.accent.error : theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        overflow: 'visible',
+        opacity: disabled ? OPACITY_DISABLED : 1,
+        backgroundColor: theme.colors.background.subtle,
+      }}
     >
       <RichTextToolbar
         editor={editor}
@@ -151,7 +184,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
       />
       <EditorContent
         editor={editor}
-        style={{ minHeight, padding: theme.spacing.lg, fontSize: theme.typography.fontSize.base, fontFamily: theme.typography.fontFamily, lineHeight: theme.typography.lineHeight.relaxed, }}
+        style={{
+          minHeight,
+          padding: theme.spacing.lg,
+          fontSize: theme.typography.fontSize.base,
+          fontFamily: theme.typography.fontFamily,
+          lineHeight: theme.typography.lineHeight.relaxed,
+        }}
       />
       <style>{`
         .tiptap { outline: none; min-height: ${minHeight}; }

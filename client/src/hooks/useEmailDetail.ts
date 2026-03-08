@@ -5,7 +5,7 @@
  * underlying API shape. Will be deleted in a follow-up cleanup once those tests are migrated.
  * See #698 for context.
  */
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -50,9 +50,7 @@ export const useEmailDetail = (emailId: string): UseEmailDetailResult => {
 
       if (response.data.threadId) {
         try {
-          const threadResponse = await axios.get(
-            `${API_URL}/emails/thread/${response.data.threadId}`
-          );
+          const threadResponse = await axios.get(`${API_URL}/emails/thread/${response.data.threadId}`);
           setThreadEmails(threadResponse.data);
           setExpandedThreadItems(new Set([emailId]));
         } catch (error) {
@@ -71,7 +69,7 @@ export const useEmailDetail = (emailId: string): UseEmailDetailResult => {
   }, [fetchEmail]);
 
   const toggleThreadItem = (id: string) => {
-    setExpandedThreadItems((prev) => {
+    setExpandedThreadItems(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -90,11 +88,3 @@ export const useEmailDetail = (emailId: string): UseEmailDetailResult => {
     toggleThreadItem,
   };
 };
-
-
-
-
-
-
-
-

@@ -9,9 +9,7 @@ jest.mock('./useResponsiveBreakpoints', () => ({
   useResponsiveBreakpoints: jest.fn(),
 }));
 
-const mockedUseResponsiveBreakpoints = useResponsiveBreakpoints as jest.MockedFunction<
-  typeof useResponsiveBreakpoints
->;
+const mockedUseResponsiveBreakpoints = useResponsiveBreakpoints as jest.MockedFunction<typeof useResponsiveBreakpoints>;
 
 const STORAGE_KEY = 'bearlymail_split_position';
 const DEFAULT_SPLIT_POSITION = 50;
@@ -218,10 +216,7 @@ describe('useSplitView', () => {
       });
 
       await waitFor(() => {
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-          STORAGE_KEY,
-          '65'
-        );
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, '65');
       });
     });
 
@@ -241,10 +236,7 @@ describe('useSplitView', () => {
       await waitFor(() => {
         expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1);
       });
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-        STORAGE_KEY,
-        '70'
-      );
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, '70');
     });
 
     it('should handle localStorage errors gracefully', async () => {
@@ -263,10 +255,7 @@ describe('useSplitView', () => {
       });
 
       await waitFor(() => {
-        expect(console.error).toHaveBeenCalledWith(
-          'Error saving split position to localStorage:',
-          expect.any(Error)
-        );
+        expect(console.error).toHaveBeenCalledWith('Error saving split position to localStorage:', expect.any(Error));
       });
     });
   });
@@ -338,4 +327,3 @@ describe('useSplitView', () => {
     });
   });
 });
-

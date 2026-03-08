@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { CATEGORY_DANGEROUS_PHISHING, PHISHING_CONFIDENCE_HIGH,PHISHING_CONFIDENCE_MEDIUM } from 'constants/strings';
+import { CATEGORY_DANGEROUS_PHISHING, PHISHING_CONFIDENCE_HIGH, PHISHING_CONFIDENCE_MEDIUM } from 'constants/strings';
 
 export type PhishingConfidence = 'low' | 'medium' | 'high';
 
@@ -15,10 +15,9 @@ interface EmailPhishingWarningProps {
  * Determines whether a phishing warning banner should be shown.
  * Exported as a standalone helper so callers can gate rendering cheaply.
  */
-export function shouldShowPhishingAlert(
-  confidence: PhishingConfidence | null | undefined,
-): boolean {
-  return confidence === PHISHING_CONFIDENCE_MEDIUM || confidence === PHISHING_CONFIDENCE_HIGH;}
+export function shouldShowPhishingAlert(confidence: PhishingConfidence | null | undefined): boolean {
+  return confidence === PHISHING_CONFIDENCE_MEDIUM || confidence === PHISHING_CONFIDENCE_HIGH;
+}
 const CONFIDENCE_COLORS: Record<PhishingConfidence, { bg: string; border: string; text: string }> = {
   low: { bg: '#fff8e1', border: '#ffe082', text: '#7c5a00' },
   medium: { bg: '#fff3e0', border: '#ffb74d', text: '#7c3a00' },
@@ -35,10 +34,7 @@ const CONFIDENCE_ICONS: Record<PhishingConfidence, string> = {
  * Visible warning banner for emails flagged as potential phishing.
  * Category label: {@link CATEGORY_DANGEROUS_PHISHING}
  */
-export const EmailPhishingWarning: React.FC<EmailPhishingWarningProps> = ({
-  confidence,
-  reason,
-}) => {
+export const EmailPhishingWarning: React.FC<EmailPhishingWarningProps> = ({ confidence, reason }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const colors = CONFIDENCE_COLORS[confidence];
@@ -97,9 +93,7 @@ export const EmailPhishingWarning: React.FC<EmailPhishingWarningProps> = ({
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          <strong>{t('phishing.confidence')}:</strong>{' '}
-          {t(`phishing.confidenceLevel.${confidence}`)}{' '}
-          &nbsp;|&nbsp;
+          <strong>{t('phishing.confidence')}:</strong> {t(`phishing.confidenceLevel.${confidence}`)} &nbsp;|&nbsp;
           <strong>{t('phishing.reason')}:</strong> {reason}
         </div>
       )}

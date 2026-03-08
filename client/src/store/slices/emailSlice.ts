@@ -85,9 +85,16 @@ const emailSlice = createSlice({
       // whose ID matches an incoming email (they may have been loaded under a
       // different category due to concurrent fetches or backend category-sync races).
       state.emails = state.emails.filter(event => {
-        if (incomingIds.has(event.id)) return false;
+        if (incomingIds.has(event.id)) {
+          return false;
+        }
         if (isOther) {
-          return event.category !== null && event.category !== undefined && event.category !== '' && event.category !== CATEGORY_OTHER;
+          return (
+            event.category !== null &&
+            event.category !== undefined &&
+            event.category !== '' &&
+            event.category !== CATEGORY_OTHER
+          );
         }
         return event.category !== categoryKey;
       });
@@ -108,9 +115,7 @@ const emailSlice = createSlice({
       }
     },
     removeOptimisticArchive: (state, action: PayloadAction<string>) => {
-      state.optimisticallyArchived = state.optimisticallyArchived.filter(
-        id => id !== action.payload
-      );
+      state.optimisticallyArchived = state.optimisticallyArchived.filter(id => id !== action.payload);
     },
     addOptimisticSnooze: (state, action: PayloadAction<string>) => {
       if (!state.optimisticallySnoozed.includes(action.payload)) {
@@ -118,9 +123,7 @@ const emailSlice = createSlice({
       }
     },
     removeOptimisticSnooze: (state, action: PayloadAction<string>) => {
-      state.optimisticallySnoozed = state.optimisticallySnoozed.filter(
-        id => id !== action.payload
-      );
+      state.optimisticallySnoozed = state.optimisticallySnoozed.filter(id => id !== action.payload);
     },
     removeEmail: (state, action: PayloadAction<string>) => {
       state.emails = state.emails.filter(email => email.id !== action.payload);
@@ -198,7 +201,7 @@ const emailSlice = createSlice({
       // Existing emails (if any) are intentionally preserved.
       state.loadingCategoryNames = state.loadingCategoryNames.filter(name => name !== action.payload);
     },
-    clearCategoryState: (state) => {
+    clearCategoryState: state => {
       state.categorySummary = null;
       // Set summaryLoading = true immediately so isRefetchingWithoutData is true
       // from the moment we clear, preventing empty-state flashes.
@@ -207,9 +210,8 @@ const emailSlice = createSlice({
       state.loadingCategoryNames = [];
     },
     decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } = typeof action.payload === TYPEOF_STRING
-        ? { categoryName: action.payload, count: 1 }
-        : action.payload;
+      const { categoryName, count } =
+        typeof action.payload === TYPEOF_STRING ? { categoryName: action.payload, count: 1 } : action.payload;
       if (state.categorySummary) {
         const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {
@@ -218,9 +220,8 @@ const emailSlice = createSlice({
       }
     },
     incrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } = typeof action.payload === TYPEOF_STRING
-        ? { categoryName: action.payload, count: 1 }
-        : action.payload;
+      const { categoryName, count } =
+        typeof action.payload === TYPEOF_STRING ? { categoryName: action.payload, count: 1 } : action.payload;
       if (state.categorySummary) {
         const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {
@@ -263,4 +264,3 @@ export const {
 } = emailSlice.actions;
 
 export default emailSlice.reducer;
-

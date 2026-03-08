@@ -59,4 +59,3 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({ rows }) => {
     </div>
   );
 };
-

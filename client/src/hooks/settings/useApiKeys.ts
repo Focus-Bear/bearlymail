@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
@@ -6,9 +6,18 @@ import { API_URL } from 'config/api';
 import { TOAST_DURATION_MS } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 
-async function createGitHubConnectToken(userId: string | undefined, includeRepo: boolean, apiUrl: string): Promise<string | null> {
-  if (!userId) return null;
-  const response = await axios.post(`${apiUrl}/github/create-connect-token`, includeRepo ? { includeRepo: true } : undefined);
+async function createGitHubConnectToken(
+  userId: string | undefined,
+  includeRepo: boolean,
+  apiUrl: string
+): Promise<string | null> {
+  if (!userId) {
+    return null;
+  }
+  const response = await axios.post(
+    `${apiUrl}/github/create-connect-token`,
+    includeRepo ? { includeRepo: true } : undefined
+  );
   return response.data.token;
 }
 
@@ -63,20 +72,25 @@ export const useApiKeys = () => {
     }
   }, [t]);
 
-  const connectGitHubCommon = useCallback(async (includeRepo: boolean) => {
-    if (!user?.id) {
-      console.error('Cannot connect GitHub: user not authenticated');
-      alert(t('settings.githubConnectError'));
-      return;
-    }
-    try {
-      const token = await createGitHubConnectToken(user.id, includeRepo, API_URL);
-      if (token) window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
-    } catch (error) {
-      console.error('Error creating GitHub connect token:', error);
-      alert(t('settings.githubConnectError'));
-    }
-  }, [user, t]);
+  const connectGitHubCommon = useCallback(
+    async (includeRepo: boolean) => {
+      if (!user?.id) {
+        console.error('Cannot connect GitHub: user not authenticated');
+        alert(t('settings.githubConnectError'));
+        return;
+      }
+      try {
+        const token = await createGitHubConnectToken(user.id, includeRepo, API_URL);
+        if (token) {
+          window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
+        }
+      } catch (error) {
+        console.error('Error creating GitHub connect token:', error);
+        alert(t('settings.githubConnectError'));
+      }
+    },
+    [user, t]
+  );
 
   const connectGitHub = useCallback(() => connectGitHubCommon(false), [connectGitHubCommon]);
   const connectGitHubWithRepoAccess = useCallback(() => connectGitHubCommon(true), [connectGitHubCommon]);
@@ -111,5 +125,3 @@ export const useApiKeys = () => {
     disconnectGitHub,
   };
 };
-
-

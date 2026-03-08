@@ -14,25 +14,32 @@ export const BulkSendResults: React.FC<BulkSendResultsProps> = ({ sendResults })
   }
 
   return (
-    <div style={{
-      marginTop: theme.spacing.md,
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.background.default,
-      borderRadius: theme.borderRadius.md,
-    }}>
-      <div style={{
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.xs,
-      }}>
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.default,
+        borderRadius: theme.borderRadius.md,
+      }}
+    >
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {t('inbox.sendResults')}
       </div>
       {Array.from(sendResults.entries()).map(([id, result]) => (
-        <div key={id} style={{
-          padding: theme.spacing.xs,
-          color: result.success ? theme.colors.success.main : theme.colors.error.main,
-          fontSize: theme.typography.fontSize.xs,
-        }}>
+        <div
+          key={id}
+          style={{
+            padding: theme.spacing.xs,
+            color: result.success ? theme.colors.success.main : theme.colors.error.main,
+            fontSize: theme.typography.fontSize.xs,
+          }}
+        >
           {result.success ? '✓ ' : '✗ '}
           {result.error || t('inbox.sent')}
         </div>
@@ -40,9 +47,3 @@ export const BulkSendResults: React.FC<BulkSendResultsProps> = ({ sendResults })
     </div>
   );
 };
-
-
-
-
-
-

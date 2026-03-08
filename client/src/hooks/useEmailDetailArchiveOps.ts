@@ -75,37 +75,61 @@ export function useEmailDetailArchiveOps({
   const emails = useSelector(selectEmails);
 
   const performArchiveAfterReply = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     const emailToArchive = emails.find(event => event.id === id);
     dispatch(removeEmail(id));
     dispatch(addOptimisticArchive(id));
-    if (options.onArchiveComplete) { options.onArchiveComplete(id); } else { navigate(getInboxPath()); }
-    axios.put(`${API_URL}/emails/${id}/archive`).catch((error) => {
+    if (options.onArchiveComplete) {
+      options.onArchiveComplete(id);
+    } else {
+      navigate(getInboxPath());
+    }
+    axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
       console.error('Error archiving email after reply:', error);
       dispatch(removeOptimisticArchive(id));
-      if (emailToArchive) dispatch(restoreEmail(emailToArchive));
+      if (emailToArchive) {
+        dispatch(restoreEmail(emailToArchive));
+      }
     });
   }, [id, emails, dispatch, options, navigate, getInboxPath]);
 
-  const performSnoozeAfterReply = useCallback(async (duration: string) => {
-    if (!id) return;
-    const emailToSnooze = emails.find(event => event.id === id);
-    dispatch(removeEmail(id));
-    dispatch(addOptimisticSnooze(id));
-    if (options.onSnoozeComplete) { options.onSnoozeComplete(id); } else { navigate(getInboxPath()); }
-    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch((error) => {
-      console.error('Error snoozing email after reply:', error);
-      dispatch(removeOptimisticSnooze(id));
-      if (emailToSnooze) dispatch(restoreEmail(emailToSnooze));
-    });
-  }, [id, emails, dispatch, options, navigate, getInboxPath]);
+  const performSnoozeAfterReply = useCallback(
+    async (duration: string) => {
+      if (!id) {
+        return;
+      }
+      const emailToSnooze = emails.find(event => event.id === id);
+      dispatch(removeEmail(id));
+      dispatch(addOptimisticSnooze(id));
+      if (options.onSnoozeComplete) {
+        options.onSnoozeComplete(id);
+      } else {
+        navigate(getInboxPath());
+      }
+      axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+        console.error('Error snoozing email after reply:', error);
+        dispatch(removeOptimisticSnooze(id));
+        if (emailToSnooze) {
+          dispatch(restoreEmail(emailToSnooze));
+        }
+      });
+    },
+    [id, emails, dispatch, options, navigate, getInboxPath]
+  );
 
   const handleArchive = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     captureEvent('email_archive_clicked', { email_id: id });
     const emailToArchive = emails.find(event => event.id === id);
     if (options.onArchiveComplete) {
-      if (emailToArchive) { dispatch(removeEmail(id)); dispatch(addOptimisticArchive(id)); }
+      if (emailToArchive) {
+        dispatch(removeEmail(id));
+        dispatch(addOptimisticArchive(id));
+      }
       try {
         await executeArchiveRequest(id, emailToArchive, dispatch);
         options.onArchiveComplete(id);
@@ -113,41 +137,63 @@ export function useEmailDetailArchiveOps({
         options.onArchiveComplete(id);
       }
     } else {
-      if (emailToArchive) { dispatch(removeEmail(id)); dispatch(addOptimisticArchive(id)); }
+      if (emailToArchive) {
+        dispatch(removeEmail(id));
+        dispatch(addOptimisticArchive(id));
+      }
       await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
       navigate('/inbox');
-      axios.put(`${API_URL}/emails/${id}/archive`).catch((error) => {
+      axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
         console.error('Error archiving email:', error);
-        if (emailToArchive) { dispatch(restoreEmail(emailToArchive)); dispatch(removeOptimisticArchive(id)); }
+        if (emailToArchive) {
+          dispatch(restoreEmail(emailToArchive));
+          dispatch(removeOptimisticArchive(id));
+        }
       });
     }
   }, [id, triggerAnimation, navigate, options, dispatch, emails]);
 
-  const handleSnooze = useCallback(async (durationOverride?: string) => {
-    const duration = durationOverride || snoozeInput.trim();
-    if (!id || !duration) return;
-    captureEvent('email_snooze_confirmed', { email_id: id, snooze_input_length: duration.length });
-    const emailToSnooze = emails.find(event => event.id === id);
-    if (emailToSnooze) { dispatch(removeEmail(id)); dispatch(addOptimisticSnooze(id)); }
-    if (!durationOverride) { setSnoozeInput(''); setShowSnoozeInput(false); }
-    if (options.onSnoozeComplete) {
-      try {
-        await executeSnoozeRequest(id, duration, emailToSnooze, dispatch);
-        options.onSnoozeComplete(id);
-      } catch {
-        options.onSnoozeComplete(id);
+  const handleSnooze = useCallback(
+    async (durationOverride?: string) => {
+      const duration = durationOverride || snoozeInput.trim();
+      if (!id || !duration) {
+        return;
       }
-    } else {
-      navigate('/inbox');
-      axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
-        console.error('Error snoozing email:', error);
-        if (emailToSnooze) { dispatch(restoreEmail(emailToSnooze)); dispatch(removeOptimisticSnooze(id)); }
-      });
-    }
-  }, [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]);
+      captureEvent('email_snooze_confirmed', { email_id: id, snooze_input_length: duration.length });
+      const emailToSnooze = emails.find(event => event.id === id);
+      if (emailToSnooze) {
+        dispatch(removeEmail(id));
+        dispatch(addOptimisticSnooze(id));
+      }
+      if (!durationOverride) {
+        setSnoozeInput('');
+        setShowSnoozeInput(false);
+      }
+      if (options.onSnoozeComplete) {
+        try {
+          await executeSnoozeRequest(id, duration, emailToSnooze, dispatch);
+          options.onSnoozeComplete(id);
+        } catch {
+          options.onSnoozeComplete(id);
+        }
+      } else {
+        navigate('/inbox');
+        axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+          console.error('Error snoozing email:', error);
+          if (emailToSnooze) {
+            dispatch(restoreEmail(emailToSnooze));
+            dispatch(removeOptimisticSnooze(id));
+          }
+        });
+      }
+    },
+    [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]
+  );
 
   const handleDelete = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     captureEvent('email_delete_clicked', { email_id: id });
     await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
     navigate('/inbox');

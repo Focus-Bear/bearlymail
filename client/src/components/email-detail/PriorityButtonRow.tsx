@@ -22,11 +22,7 @@ interface PriorityButtonRowProps {
  *
  * Previously copy-pasted verbatim in two different files — consolidated as part of #698.
  */
-export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({
-  emailId,
-  starCount,
-  onSetStarCount,
-}) => {
+export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({ emailId, starCount, onSetStarCount }) => {
   const { t } = useTranslation();
 
   return (
@@ -58,7 +54,7 @@ export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({
           return (
             <button
               key={value}
-              onClick={(event) => {
+              onClick={event => {
                 event.stopPropagation();
                 onSetStarCount(emailId, newCount, event);
               }}

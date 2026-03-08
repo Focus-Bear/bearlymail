@@ -22,11 +22,10 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
     <RichTextEditor
       content={draft}
       onChange={onDraftChange}
-      placeholder={loadingReplies ? "Generating reply suggestions..." : "Type your reply here..."}
+      placeholder={loadingReplies ? 'Generating reply suggestions...' : 'Type your reply here...'}
       disabled={false}
       hasToneError={hasToneError}
       onPasteFiles={onPasteFiles}
     />
   );
 };
-

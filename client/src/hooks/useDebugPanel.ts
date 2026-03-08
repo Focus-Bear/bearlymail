@@ -1,4 +1,4 @@
-import { useCallback, useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
 
@@ -15,7 +15,6 @@ interface SyncStatus {
     timezone: string;
   } | null;
 }
-
 
 interface DebugOrphanData {
   totalEmailsInDb: number;
@@ -105,7 +104,7 @@ async function fetchDebugEndpoint<T>(
   url: string,
   setLoading: (v: boolean) => void,
   setData: (v: T) => void,
-  label: string,
+  label: string
 ): Promise<void> {
   setLoading(true);
   try {
@@ -136,43 +135,63 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
 
   const fetchSyncStatus = useCallback(
     () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-status`, setLoadingSyncStatus, setSyncStatus, 'sync status'),
-    [],
+    []
   );
   const fetchSyncHistory = useCallback(
-    () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-history`, setLoadingSyncHistory, setSyncHistory, 'sync history'),
-    [],
+    () =>
+      fetchDebugEndpoint(`${API_URL}/emails/debug/sync-history`, setLoadingSyncHistory, setSyncHistory, 'sync history'),
+    []
   );
   const fetchDebugStarredThreads = useCallback(
-    () => fetchDebugEndpoint(`${API_URL}/emails/debug/starred-threads`, setLoadingDebugData, setDebugStarredData, 'starred threads'),
-    [],
+    () =>
+      fetchDebugEndpoint(
+        `${API_URL}/emails/debug/starred-threads`,
+        setLoadingDebugData,
+        setDebugStarredData,
+        'starred threads'
+      ),
+    []
   );
   const fetchDebugOrphanEmails = useCallback(
-    () => fetchDebugEndpoint(`${API_URL}/emails/debug/orphan-emails`, setLoadingOrphanData, setDebugOrphanData, 'orphan emails'),
-    [],
+    () =>
+      fetchDebugEndpoint(
+        `${API_URL}/emails/debug/orphan-emails`,
+        setLoadingOrphanData,
+        setDebugOrphanData,
+        'orphan emails'
+      ),
+    []
   );
 
   useEffect(() => {
-    if (debugViewOpen && !syncStatus && !loadingSyncStatus) { fetchSyncStatus(); }
+    if (debugViewOpen && !syncStatus && !loadingSyncStatus) {
+      fetchSyncStatus();
+    }
   }, [debugViewOpen, syncStatus, loadingSyncStatus, fetchSyncStatus]);
 
-  const handleFixOrphanEmails = useCallback(async (onSuccessCallback?: () => void) => {
-    setFixingOrphans(true);
-    try {
-      const response = await axios.post(`${API_URL}/emails/debug/fix-orphan-emails`);
-      alert(`Fixed ${response.data.fixed} orphan emails. Errors: ${response.data.errors.length}`);
-      fetchDebugOrphanEmails();
-      onSuccessCallback?.();
-      onSuccess?.();
-    } catch (error) {
-      console.error('Error fixing orphan emails:', error);
-      alert('Failed to fix orphan emails');
-    } finally {
-      setFixingOrphans(false);
-    }
-  }, [fetchDebugOrphanEmails, onSuccess]);
+  const handleFixOrphanEmails = useCallback(
+    async (onSuccessCallback?: () => void) => {
+      setFixingOrphans(true);
+      try {
+        const response = await axios.post(`${API_URL}/emails/debug/fix-orphan-emails`);
+        alert(`Fixed ${response.data.fixed} orphan emails. Errors: ${response.data.errors.length}`);
+        fetchDebugOrphanEmails();
+        onSuccessCallback?.();
+        onSuccess?.();
+      } catch (error) {
+        console.error('Error fixing orphan emails:', error);
+        alert('Failed to fix orphan emails');
+      } finally {
+        setFixingOrphans(false);
+      }
+    },
+    [fetchDebugOrphanEmails, onSuccess]
+  );
 
   const lookupThread = useCallback(async (threadId: string) => {
-    if (!threadId.trim()) return;
+    if (!threadId.trim()) {
+      return;
+    }
     setLoadingThreadLookup(true);
     setThreadLookupResult(null);
     try {
@@ -180,9 +199,14 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
       setThreadLookupResult(response.data);
     } catch (error) {
       console.error('Error looking up thread:', error);
-      setThreadLookupResult({ found: false, threadId, thread: null, emails: [],
+      setThreadLookupResult({
+        found: false,
+        threadId,
+        thread: null,
+        emails: [],
         visibility: { wouldShowInTriage: false, wouldShowInAction: false, wouldShowInFollowUp: false },
-        reasons: ['Error looking up thread - please check the thread ID and try again'] });
+        reasons: ['Error looking up thread - please check the thread ID and try again'],
+      });
     } finally {
       setLoadingThreadLookup(false);
     }
@@ -202,13 +226,27 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   }, []);
 
   return {
-    debugViewOpen, setDebugViewOpen, syncStatus, loadingSyncStatus, syncHistory, loadingSyncHistory,
-    debugStarredData, loadingDebugData, debugOrphanData, loadingOrphanData, fixingOrphans,
-    threadLookupResult, loadingThreadLookup, allEmails, loadingAllEmails,
-    fetchSyncStatus, fetchSyncHistory, fetchDebugStarredThreads, fetchDebugOrphanEmails,
-    handleFixOrphanEmails, lookupThread, fetchAllEmails,
+    debugViewOpen,
+    setDebugViewOpen,
+    syncStatus,
+    loadingSyncStatus,
+    syncHistory,
+    loadingSyncHistory,
+    debugStarredData,
+    loadingDebugData,
+    debugOrphanData,
+    loadingOrphanData,
+    fixingOrphans,
+    threadLookupResult,
+    loadingThreadLookup,
+    allEmails,
+    loadingAllEmails,
+    fetchSyncStatus,
+    fetchSyncHistory,
+    fetchDebugStarredThreads,
+    fetchDebugOrphanEmails,
+    handleFixOrphanEmails,
+    lookupThread,
+    fetchAllEmails,
   };
 }
-
-
-

@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -30,7 +30,7 @@ export function useEmailDetailToneCheck() {
       const currentTime = new Date().toISOString();
       const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft, currentTime });
       setToneCheckResult(toneResponse.data);
-      
+
       if (!toneResponse.data.isOk) {
         setCheckingTone(false);
         return false;
@@ -44,30 +44,29 @@ export function useEmailDetailToneCheck() {
     }
   }, []);
 
-  const disputeToneCheck = useCallback(async (
-    emailText: string,
-    suggestions: string[],
-    userArgument: string,
-  ): Promise<DisputeResult | null> => {
-    setDisputing(true);
-    try {
-      const response = await axios.post(`${API_URL}/llm/dispute-tone-check`, {
-        emailText,
-        suggestions,
-        userArgument,
-      });
-      setDisputeResult(response.data);
-      if (response.data.accepted) {
-        setToneCheckResult({ isOk: true, suggestions: [] });
+  const disputeToneCheck = useCallback(
+    async (emailText: string, suggestions: string[], userArgument: string): Promise<DisputeResult | null> => {
+      setDisputing(true);
+      try {
+        const response = await axios.post(`${API_URL}/llm/dispute-tone-check`, {
+          emailText,
+          suggestions,
+          userArgument,
+        });
+        setDisputeResult(response.data);
+        if (response.data.accepted) {
+          setToneCheckResult({ isOk: true, suggestions: [] });
+        }
+        return response.data;
+      } catch (error) {
+        console.error('Error disputing tone check:', error);
+        return null;
+      } finally {
+        setDisputing(false);
       }
-      return response.data;
-    } catch (error) {
-      console.error('Error disputing tone check:', error);
-      return null;
-    } finally {
-      setDisputing(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const clearDisputeResult = useCallback(() => {
     setDisputeResult(null);
@@ -84,8 +83,3 @@ export function useEmailDetailToneCheck() {
     clearDisputeResult,
   };
 }
-
-
-
-
-

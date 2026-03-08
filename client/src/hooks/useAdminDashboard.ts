@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -68,39 +68,48 @@ export function useAdminDashboard() {
     fetchUsers();
   }, [user, navigate, fetchWaitlist, fetchUsers]);
 
-  const handleExtendTrial = useCallback(async (userId: string) => {
-    try {
-      await axios.post(`${API_URL}/subscriptions/extend-trial`, {
-        userId,
-        days: extendDays,
-      });
-      alert(`Trial extended by ${extendDays} days successfully!`);
-      setExtendingUserId(null);
-      setExtendDays(DEFAULT_EXTEND_DAYS);
-      await fetchUsers();
-    } catch (error: any) {
-      console.error('Error extending trial:', error);
-      alert(error.response?.data?.message || 'Failed to extend trial');
-    }
-  }, [extendDays, fetchUsers]);
+  const handleExtendTrial = useCallback(
+    async (userId: string) => {
+      try {
+        await axios.post(`${API_URL}/subscriptions/extend-trial`, {
+          userId,
+          days: extendDays,
+        });
+        alert(`Trial extended by ${extendDays} days successfully!`);
+        setExtendingUserId(null);
+        setExtendDays(DEFAULT_EXTEND_DAYS);
+        await fetchUsers();
+      } catch (error: any) {
+        console.error('Error extending trial:', error);
+        alert(error.response?.data?.message || 'Failed to extend trial');
+      }
+    },
+    [extendDays, fetchUsers]
+  );
 
-  const handleApprove = useCallback(async (id: string) => {
-    try {
-      await axios.put(`${API_URL}/waitlist/${id}/approve`);
-      await fetchWaitlist();
-    } catch (error) {
-      console.error('Error approving:', error);
-    }
-  }, [fetchWaitlist]);
+  const handleApprove = useCallback(
+    async (id: string) => {
+      try {
+        await axios.put(`${API_URL}/waitlist/${id}/approve`);
+        await fetchWaitlist();
+      } catch (error) {
+        console.error('Error approving:', error);
+      }
+    },
+    [fetchWaitlist]
+  );
 
-  const handleDecline = useCallback(async (id: string) => {
-    try {
-      await axios.delete(`${API_URL}/waitlist/${id}`);
-      await fetchWaitlist();
-    } catch (error) {
-      console.error('Error declining:', error);
-    }
-  }, [fetchWaitlist]);
+  const handleDecline = useCallback(
+    async (id: string) => {
+      try {
+        await axios.delete(`${API_URL}/waitlist/${id}`);
+        await fetchWaitlist();
+      } catch (error) {
+        console.error('Error declining:', error);
+      }
+    },
+    [fetchWaitlist]
+  );
 
   const pending = waitlist.filter(waitlistItem => !waitlistItem.approved);
   const approved = waitlist.filter(waitlistItem => waitlistItem.approved);
@@ -122,4 +131,3 @@ export function useAdminDashboard() {
     approved,
   };
 }
-

@@ -14,26 +14,35 @@ type IsCurrentUserFn = (addr: string) => boolean;
 function buildReplyAllRecipients(
   latestEmail: any,
   isCurrentUser: IsCurrentUserFn,
-  isLatestFromCurrentUser: boolean | '' | undefined,
+  isLatestFromCurrentUser: boolean | '' | undefined
 ): { recipients: string; cc: string | null } {
   const recipients: string[] = [];
   if (isLatestFromCurrentUser) {
     if (latestEmail.to) {
-      const toRecipients = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
+      const toRecipients = latestEmail.to
+        .split(',')
+        .map((recipientStr: string) => recipientStr.trim())
+        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
     }
   } else {
     const replyToAddress = latestEmail.replyTo || latestEmail.from;
     recipients.push(replyToAddress);
     if (latestEmail.to) {
-      const toRecipients = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
+      const toRecipients = latestEmail.to
+        .split(',')
+        .map((recipientStr: string) => recipientStr.trim())
+        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
     }
   }
   const uniqueRecipients = [...new Set(recipients)];
   let cc: string | null = null;
   if (latestEmail.cc) {
-    const ccRecipients = latestEmail.cc.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
+    const ccRecipients = latestEmail.cc
+      .split(',')
+      .map((recipientStr: string) => recipientStr.trim())
+      .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
     if (ccRecipients.length > 0) {
       cc = ccRecipients.join(', ');
     }
@@ -47,15 +56,14 @@ function buildReplyRecipientsForMode(
   mode: string,
   latestEmail: any,
   threadEmails: any[],
-  userEmail: string | undefined,
+  userEmail: string | undefined
 ): { recipients: string; cc: string | null } {
   const normalizedUserEmail = userEmail?.toLowerCase();
   const extractEmail = (addr: string): string => {
     const match = addr.match(/<([^>]+)>/);
     return match ? match[1].toLowerCase() : addr.toLowerCase();
   };
-  const isCurrentUser: IsCurrentUserFn = (addr) =>
-    !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
+  const isCurrentUser: IsCurrentUserFn = addr => !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
   const isLatestFromCurrentUser = normalizedUserEmail && isCurrentUser(latestEmail.from);
 
   if (mode === REPLY_MODE_REPLY_ALL) {
@@ -69,7 +77,10 @@ function buildReplyRecipientsForMode(
       return { recipients: otherPersonEmail.from, cc: null };
     }
     if (latestEmail.to) {
-      const firstRecipient = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr))[0];
+      const firstRecipient = latestEmail.to
+        .split(',')
+        .map((recipientStr: string) => recipientStr.trim())
+        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr))[0];
       return { recipients: firstRecipient || latestEmail.to, cc: null };
     }
     return { recipients: latestEmail.from, cc: null };
@@ -81,31 +92,48 @@ function buildReplyRecipientsForMode(
 // Does NOT touch setDraft — the user's typed content must never be overwritten by suggestion generation.
 function resetDraftToCustom(
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
-  setSelectedReplyOption: (i: number) => void,
+  setSelectedReplyOption: (i: number) => void
 ): void {
   setReplyOptions([{ label: 'Custom', text: '' }]);
   setSelectedReplyOption(0);
 }
 
-type DraftOpsState = Pick<EmailDetailState,
-  | 'email' | 'threadEmails' | 'replyOptions'
-  | 'setReplyOptions' | 'setDraft' | 'setSelectedReplyOption'
-  | 'setLoadingReplies' | 'setReplyMode' | 'setShowReplyComposer'
-  | 'setToneCheckResult' | 'setReplyRecipients' | 'setReplyCc'
-  | 'setReplyBcc' | 'setShowCc' | 'setShowBcc'
+type DraftOpsState = Pick<
+  EmailDetailState,
+  | 'email'
+  | 'threadEmails'
+  | 'replyOptions'
+  | 'setReplyOptions'
+  | 'setDraft'
+  | 'setSelectedReplyOption'
+  | 'setLoadingReplies'
+  | 'setReplyMode'
+  | 'setShowReplyComposer'
+  | 'setToneCheckResult'
+  | 'setReplyRecipients'
+  | 'setReplyCc'
+  | 'setReplyBcc'
+  | 'setShowCc'
+  | 'setShowBcc'
 >;
 
-export function useEmailDetailDraftOps(
-  id: string | undefined,
-  state: DraftOpsState,
-  userEmail: string | undefined,
-) {
+export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsState, userEmail: string | undefined) {
   const {
-    email, threadEmails, replyOptions,
-    setReplyOptions, setDraft, setSelectedReplyOption,
-    setLoadingReplies, setReplyMode, setShowReplyComposer,
-    setToneCheckResult, setReplyRecipients, setReplyCc,
-    setReplyBcc, setShowCc, setShowBcc,
+    email,
+    threadEmails,
+    replyOptions,
+    setReplyOptions,
+    setDraft,
+    setSelectedReplyOption,
+    setLoadingReplies,
+    setReplyMode,
+    setShowReplyComposer,
+    setToneCheckResult,
+    setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
   } = state;
 
   const draftCrud = useEmailDraftCrud(email?.threadId);
@@ -113,7 +141,9 @@ export function useEmailDetailDraftOps(
   const draftGenerationEmailIdRef = useRef<string | null>(null);
 
   const handleGenerateDraft = useCallback(async () => {
-    if (!id || !email) return;
+    if (!id || !email) {
+      return;
+    }
     if (email.id !== id) {
       console.warn('[handleGenerateDraft] Skipping - email.id mismatch', { emailId: email.id, propId: id });
       return;
@@ -132,10 +162,12 @@ export function useEmailDetailDraftOps(
       const response = await axios.post(
         `${API_URL}/llm/suggest-replies`,
         { originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body } },
-        { signal: controller.signal },
+        { signal: controller.signal }
       );
 
-      if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) return;
+      if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
+        return;
+      }
 
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         captureEvent('reply_draft_generated', { email_id: id, draft_count: response.data.length });
@@ -148,8 +180,12 @@ export function useEmailDetailDraftOps(
         resetDraftToCustom(setReplyOptions, setSelectedReplyOption);
       }
     } catch (error) {
-      if (axios.isCancel(error)) return;
-      if (draftGenerationEmailIdRef.current !== currentEmailId) return;
+      if (axios.isCancel(error)) {
+        return;
+      }
+      if (draftGenerationEmailIdRef.current !== currentEmailId) {
+        return;
+      }
       console.error('Error generating draft:', error);
       resetDraftToCustom(setReplyOptions, setSelectedReplyOption);
     } finally {
@@ -160,38 +196,58 @@ export function useEmailDetailDraftOps(
   }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
 
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
-    captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
-    setReplyMode(mode);
-    setShowReplyComposer(true);
-    setToneCheckResult(null);
-    setReplyCc('');
-    setReplyBcc('');
-    setShowCc(false);
-    setShowBcc(false);
+  const handleOpenReplyComposer = useCallback(
+    (mode: 'reply' | 'replyAll') => {
+      captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
+      setReplyMode(mode);
+      setShowReplyComposer(true);
+      setToneCheckResult(null);
+      setReplyCc('');
+      setReplyBcc('');
+      setShowCc(false);
+      setShowBcc(false);
 
-    const latestEmail = threadEmails.length > 0
-      ? threadEmails.reduce((latest, current) =>
-          new Date(current.receivedAt) > new Date(latest.receivedAt) ? current : latest
-        )
-      : email;
+      const latestEmail =
+        threadEmails.length > 0
+          ? threadEmails.reduce((latest, current) =>
+              new Date(current.receivedAt) > new Date(latest.receivedAt) ? current : latest
+            )
+          : email;
 
-    if (latestEmail) {
-      const { recipients, cc } = buildReplyRecipientsForMode(mode, latestEmail, threadEmails, userEmail);
-      setReplyRecipients(recipients);
-      if (cc) {
-        setReplyCc(cc);
-        setShowCc(true);
+      if (latestEmail) {
+        const { recipients, cc } = buildReplyRecipientsForMode(mode, latestEmail, threadEmails, userEmail);
+        setReplyRecipients(recipients);
+        if (cc) {
+          setReplyCc(cc);
+          setShowCc(true);
+        }
       }
-    }
 
-    if (!replyOptions || replyOptions.length === 0) {
-      setDraft('');
-      handleGenerateDraft();
-    } else {
-      setDraft('');
-    }
-  }, [id, email, threadEmails, replyOptions, userEmail, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
+      if (!replyOptions || replyOptions.length === 0) {
+        setDraft('');
+        handleGenerateDraft();
+      } else {
+        setDraft('');
+      }
+    },
+    [
+      id,
+      email,
+      threadEmails,
+      replyOptions,
+      userEmail,
+      setReplyMode,
+      setShowReplyComposer,
+      setDraft,
+      setToneCheckResult,
+      setReplyRecipients,
+      setReplyCc,
+      setReplyBcc,
+      setShowCc,
+      setShowBcc,
+      handleGenerateDraft,
+    ]
+  );
 
   return {
     ...draftCrud,

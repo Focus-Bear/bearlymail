@@ -58,4 +58,3 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
     </span>
   );
 };
-

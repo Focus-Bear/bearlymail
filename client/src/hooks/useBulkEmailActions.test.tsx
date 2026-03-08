@@ -35,9 +35,7 @@ const createTestStore = (emails: Email[] = []) => {
 };
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
-  return ({ children }: { children: React.ReactNode }) => (
-    <Provider store={store}>{children}</Provider>
-  );
+  return ({ children }: { children: React.ReactNode }) => <Provider store={store}>{children}</Provider>;
 };
 
 describe('useBulkEmailActions', () => {
@@ -60,13 +58,14 @@ describe('useBulkEmailActions', () => {
   describe('handleBulkArchive', () => {
     it('should do nothing when no emails selected', async () => {
       const store = createTestStore();
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: new Set(),
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -86,13 +85,14 @@ describe('useBulkEmailActions', () => {
       ];
       const store = createTestStore(testEmails);
       const selectedIds = new Set(['1', '2', '3']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -102,10 +102,9 @@ describe('useBulkEmailActions', () => {
 
       // Should make a single bulk API call instead of 3 individual calls
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/emails/bulk/archive'),
-        { emailIds: ['1', '2', '3'] }
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/emails/bulk/archive'), {
+        emailIds: ['1', '2', '3'],
+      });
       expect(mockedCaptureEvent).toHaveBeenCalledWith('bulk_archive_clicked', {
         selected_count: 3,
       });
@@ -113,19 +112,17 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should clear selection after archiving', async () => {
-      const testEmails: Email[] = [
-        { id: '1', subject: 'Test 1' } as Email,
-        { id: '2', subject: 'Test 2' } as Email,
-      ];
+      const testEmails: Email[] = [{ id: '1', subject: 'Test 1' } as Email, { id: '2', subject: 'Test 2' } as Email];
       const store = createTestStore(testEmails);
       const selectedIds = new Set(['1', '2']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -142,13 +139,14 @@ describe('useBulkEmailActions', () => {
   describe('handleBulkStar', () => {
     it('should do nothing when no emails selected', async () => {
       const store = createTestStore();
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: new Set(),
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -162,13 +160,14 @@ describe('useBulkEmailActions', () => {
     it('should set star count for all selected emails', async () => {
       const store = createTestStore();
       const selectedIds = new Set(['1', '2']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -189,13 +188,14 @@ describe('useBulkEmailActions', () => {
     it('should handle star count 0', async () => {
       const store = createTestStore();
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -210,14 +210,15 @@ describe('useBulkEmailActions', () => {
   describe('handleBulkMarkAsRead', () => {
     it('should do nothing when no emails selected', async () => {
       const store = createTestStore();
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: new Set(),
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-          handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+            handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -231,13 +232,14 @@ describe('useBulkEmailActions', () => {
     it('should do nothing when handler not provided', async () => {
       const store = createTestStore();
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -251,14 +253,15 @@ describe('useBulkEmailActions', () => {
     it('should mark all selected emails as read', async () => {
       const store = createTestStore();
       const selectedIds = new Set(['1', '2', '3']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-          handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+            handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -277,14 +280,15 @@ describe('useBulkEmailActions', () => {
   describe('handleBulkMarkAsUnread', () => {
     it('should do nothing when no emails selected', async () => {
       const store = createTestStore();
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: new Set(),
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-          handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: new Set(),
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+            handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -298,14 +302,15 @@ describe('useBulkEmailActions', () => {
     it('should mark all selected emails as unread', async () => {
       const store = createTestStore();
       const selectedIds = new Set(['1', '2']);
-      const { result } = renderHook(() =>
-        useBulkEmailActions({
-          selectedEmailIds: selectedIds,
-          setSelectedEmailIds: mockSetSelectedEmailIds,
-          handleArchive: mockHandleArchive,
-          handleSetStarCount: mockHandleSetStarCount,
-          handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
-        }),
+      const { result } = renderHook(
+        () =>
+          useBulkEmailActions({
+            selectedEmailIds: selectedIds,
+            setSelectedEmailIds: mockSetSelectedEmailIds,
+            handleArchive: mockHandleArchive,
+            handleSetStarCount: mockHandleSetStarCount,
+            handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
+          }),
         { wrapper: createWrapper(store) }
       );
 
@@ -321,6 +326,3 @@ describe('useBulkEmailActions', () => {
     });
   });
 });
-
-
-

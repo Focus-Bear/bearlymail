@@ -3,11 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
-import {
-  MODE_ACTION,
-  MODE_AUTORESPONDED,
-  MODE_TRIAGE,
-} from 'constants/strings';
+import { MODE_ACTION, MODE_AUTORESPONDED, MODE_TRIAGE } from 'constants/strings';
 
 interface EmptyStateProps {
   mode: InboxMode;
@@ -21,16 +17,28 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ mode }) => {
   const { t } = useTranslation();
 
   const getTitle = (): string => {
-    if (mode === MODE_TRIAGE) return t('inbox.noTriageEmails');
-    if (mode === MODE_ACTION) return t('inbox.noActionEmails');
-    if (mode === MODE_AUTORESPONDED) return t('inbox.noAutoRespondedEmails');
+    if (mode === MODE_TRIAGE) {
+      return t('inbox.noTriageEmails');
+    }
+    if (mode === MODE_ACTION) {
+      return t('inbox.noActionEmails');
+    }
+    if (mode === MODE_AUTORESPONDED) {
+      return t('inbox.noAutoRespondedEmails');
+    }
     return t('inbox.noFollowUpEmails');
   };
 
   const getMessage = (): string => {
-    if (mode === MODE_TRIAGE) return t('inbox.triageCaughtUp');
-    if (mode === MODE_ACTION) return t('inbox.actionCaughtUp');
-    if (mode === MODE_AUTORESPONDED) return t('inbox.autoRespondedCaughtUp');
+    if (mode === MODE_TRIAGE) {
+      return t('inbox.triageCaughtUp');
+    }
+    if (mode === MODE_ACTION) {
+      return t('inbox.actionCaughtUp');
+    }
+    if (mode === MODE_AUTORESPONDED) {
+      return t('inbox.autoRespondedCaughtUp');
+    }
     return t('inbox.followUpCaughtUp');
   };
 
@@ -58,9 +66,3 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ mode }) => {
     </div>
   );
 };
-
-
-
-
-
-

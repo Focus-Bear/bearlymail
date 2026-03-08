@@ -12,47 +12,65 @@ export const SearchProgress: React.FC<SearchProgressProps> = ({ progressStep }) 
   const { t } = useTranslation();
 
   const getEmoji = () => {
-    if (progressStep.includes('Crafting')) return '✏️';
-    if (progressStep.includes('Searching for emails')) return '🔍';
-    if (progressStep.includes('Filtering')) return '🤖';
-    if (progressStep.includes('Generating explanations')) return '💡';
+    if (progressStep.includes('Crafting')) {
+      return '✏️';
+    }
+    if (progressStep.includes('Searching for emails')) {
+      return '🔍';
+    }
+    if (progressStep.includes('Filtering')) {
+      return '🤖';
+    }
+    if (progressStep.includes('Generating explanations')) {
+      return '💡';
+    }
     return '🔍';
   };
 
   return (
-    <div style={{
-      textAlign: 'center',
-      padding: theme.spacing['3xl'],
-      color: theme.colors.text.secondary,
-    }}>
-      <div style={{
-        fontSize: theme.typography.fontSize['2xl'],
-        marginBottom: theme.spacing.md,
-      }}>
+    <div
+      style={{
+        textAlign: 'center',
+        padding: theme.spacing['3xl'],
+        color: theme.colors.text.secondary,
+      }}
+    >
+      <div
+        style={{
+          fontSize: theme.typography.fontSize['2xl'],
+          marginBottom: theme.spacing.md,
+        }}
+      >
         {getEmoji()}
       </div>
-      <div style={{
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.medium,
-        marginBottom: theme.spacing.sm,
-        color: theme.colors.text.primary,
-      }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.medium,
+          marginBottom: theme.spacing.sm,
+          color: theme.colors.text.primary,
+        }}
+      >
         {progressStep || t('search.searching')}
       </div>
-      <div style={{
-        width: `${MAX_TEXTAREA_HEIGHT_PX}px`,
-        height: '4px',
-        backgroundColor: theme.colors.background.subtle,
-        borderRadius: theme.borderRadius.full,
-        margin: '0 auto',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          width: '100%',
-          height: '100%',
-          backgroundColor: theme.colors.primary.main,
-          animation: 'pulse 1.5s ease-in-out infinite',
-        }} />
+      <div
+        style={{
+          width: `${MAX_TEXTAREA_HEIGHT_PX}px`,
+          height: '4px',
+          backgroundColor: theme.colors.background.subtle,
+          borderRadius: theme.borderRadius.full,
+          margin: '0 auto',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundColor: theme.colors.primary.main,
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}
+        />
       </div>
       <style>{`
         @keyframes pulse {
@@ -63,5 +81,3 @@ export const SearchProgress: React.FC<SearchProgressProps> = ({ progressStep }) 
     </div>
   );
 };
-
-

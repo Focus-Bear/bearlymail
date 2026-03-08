@@ -1,9 +1,15 @@
-import { type MutableRefObject,useCallback, useEffect, useRef, useState } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { devDebug,devError, devLog } from 'utils/dev-logger';
+import { devDebug, devError, devLog } from 'utils/dev-logger';
 
 import { API_URL } from 'config/api';
-import { DELAY_1_SECOND_MS,LONG_TIMEOUT_MS, MAX_RETRIES_POLLING, POLLING_DELAY_MS, POLLING_INTERVAL_MS } from 'constants/numbers';
+import {
+  DELAY_1_SECOND_MS,
+  LONG_TIMEOUT_MS,
+  MAX_RETRIES_POLLING,
+  POLLING_DELAY_MS,
+  POLLING_INTERVAL_MS,
+} from 'constants/numbers';
 
 // Static stage-order mapping — defined at module level so it is stable across renders
 const STAGE_ORDER: Record<string, number> = {
@@ -66,7 +72,9 @@ const resolveEffectiveMessageKey = ({
   }
 
   if (currentStageOrder < highWaterStageOrder && highWaterMessageKey) {
-    devLog(`Message stage went backwards (${messageKey} order ${currentStageOrder} < ${highWaterMessageKey} order ${highWaterStageOrder}), using high water mark: ${highWaterMessageKey}`);
+    devLog(
+      `Message stage went backwards (${messageKey} order ${currentStageOrder} < ${highWaterMessageKey} order ${highWaterStageOrder}), using high water mark: ${highWaterMessageKey}`
+    );
     return highWaterMessageKey;
   }
 
@@ -83,13 +91,13 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     error: null,
     isComplete: false,
   });
-  
+
   // Refs to track polling state across renders (needed because closures capture stale state)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cancelledRef = useRef(false);
   const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
   const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
-  
+
   // Stage order is now a stable module-level constant (STAGE_ORDER)
 
   const startAnalysis = useCallback(async () => {
@@ -97,22 +105,27 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     console.log('[FRONTEND] ===== Starting Context Analysis =====');
     devDebug('Setting analyzing state to true');
     console.log('[FRONTEND] Setting analyzing state to true');
-    
+
     // Reset cancellation flag and high water marks when starting new analysis
     cancelledRef.current = false;
     progressHighWaterMark.current = 0;
     messageKeyHighWaterMark.current = null;
-    
+
     setAnalyzing(true);
-    setAnalyzeProgress({ show: true, progress: { current: 0, total: 100, messageKey: 'settings.analysis.progress.starting' }, error: null, isComplete: false });
-    
+    setAnalyzeProgress({
+      show: true,
+      progress: { current: 0, total: 100, messageKey: 'settings.analysis.progress.starting' },
+      error: null,
+      isComplete: false,
+    });
+
     try {
       devLog(`Making POST request to ${API_URL}/context/analyze`);
       console.log(`[FRONTEND] Making POST request to ${API_URL}/context/analyze`);
       const response = await axios.post(`${API_URL}/context/analyze`);
       devLog('POST request successful', response.data);
       console.log('[FRONTEND] POST request successful', response.data);
-      
+
       // Store analysis ID from response
       if (response.data.analysisId) {
         setAnalysisId(response.data.analysisId);
@@ -145,7 +158,9 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   useEffect(() => {
     // Don't start polling until BOTH analyzing is true AND analysisId is set
     // This prevents the first poll from using an old/null analysisId
-    if (!analyzing) return;
+    if (!analyzing) {
+      return;
+    }
     if (!analysisId) {
       devDebug('Waiting for analysisId before starting to poll...');
       return; // Wait for analysisId to be set - effect will re-run when it changes
@@ -172,18 +187,16 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }, LONG_TIMEOUT_MS);
     };
 
-    const handleProgressResponse = async (
-      progressData: any,
-      timeoutId: NodeJS.Timeout | null
-    ) => {
+    const handleProgressResponse = async (progressData: any, timeoutId: NodeJS.Timeout | null) => {
       // CRITICAL: Check if cancelled before updating state
       if (cancelledRef.current) {
         devDebug('handleProgressResponse skipped - cancelled');
         return;
       }
-      
-      const { current, total, messageKey, messageValues, threadCount, analyzedCount, batchStatus, stats, insights } = progressData;
-      
+
+      const { current, total, messageKey, messageValues, threadCount, analyzedCount, batchStatus, stats, insights } =
+        progressData;
+
       // CRITICAL: Use high water mark to prevent progress from going backwards
       // This handles race conditions where polling catches intermediate database states
       const effectiveCurrent = Math.max(current, progressHighWaterMark.current);
@@ -191,20 +204,22 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         progressHighWaterMark.current = current;
         devLog(`High water mark updated: ${progressHighWaterMark.current}%`);
       } else if (current < progressHighWaterMark.current) {
-        devLog(`Progress went backwards (${current}% < ${progressHighWaterMark.current}%), using high water mark: ${effectiveCurrent}%`);
+        devLog(
+          `Progress went backwards (${current}% < ${progressHighWaterMark.current}%), using high water mark: ${effectiveCurrent}%`
+        );
       }
-      
+
       const isComplete = total > 0 && effectiveCurrent >= total;
       errorCount = 0;
       retryCount = 0;
-      
+
       // CRITICAL: Use stage-based high water mark for messageKey to prevent message going backwards
       // (e.g., showing "fetching" after "analyzing" due to backend race conditions)
       const effectiveMessageKey = resolveEffectiveMessageKey({
         messageKey,
         messageKeyHighWaterMark,
       });
-      
+
       setAnalyzeProgress({
         show: true,
         progress: {
@@ -221,7 +236,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         error: null,
         isComplete,
       });
-      
+
       if (isComplete) {
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -269,7 +284,8 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }
       setAnalyzing(false);
       setAnalysisId(null); // Clear analysis ID on fetch error
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
+      const errorMessage =
+        error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
       setAnalyzeProgress({
         show: true,
         progress: null,
@@ -280,8 +296,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
 
     // Use setTimeout-based polling that waits 2s AFTER receiving response, not fixed interval
     let isPolling = false;
-    
-    
+
     const pollProgress = async () => {
       // CRITICAL: Don't poll until we have an analysisId - prevents fetching old completed analyses
       if (!analysisId) {
@@ -294,22 +309,22 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         }, POLLING_DELAY_MS);
         return;
       }
-      
+
       if (isPolling) {
         return; // Skip if previous request is still in progress
       }
-      
+
       isPolling = true;
 
       try {
         // Pass analysis ID in polling request - now always has value due to check above
         const url = `${API_URL}/context/analyze-progress?analysisId=${analysisId}`;
         devDebug(`Polling progress from ${url}`);
-        
+
         const response = await axios.get(url);
 
         devDebug('Progress response:', response.data);
-        
+
         if (response.data.error) {
           devError('Progress check returned error:', response.data.error);
           handleErrorResponse(
@@ -319,16 +334,18 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           isPolling = false;
           return;
         }
-        
+
         if (response.data.progress) {
           const rawPercent = response.data.progress.current;
-          devLog(`[RAW] Progress update from backend: ${rawPercent}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}, high water mark: ${progressHighWaterMark.current}`);
+          devLog(
+            `[RAW] Progress update from backend: ${rawPercent}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}, high water mark: ${progressHighWaterMark.current}`
+          );
           await handleProgressResponse(response.data.progress, pollingTimeoutRef.current);
         } else {
           devDebug('No progress in response, calling handleNoProgressResponse');
           await handleNoProgressResponse(pollingTimeoutRef.current);
         }
-        
+
         // Wait 2 seconds AFTER receiving response before next poll
         // CRITICAL: Check cancelledRef (not analyzing state) to ensure cancellation is seen
         if (!cancelledRef.current) {
@@ -352,7 +369,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         isPolling = false;
       }
     };
-    
+
     // Start polling immediately
     pollProgress();
 
@@ -367,17 +384,17 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   const dismissProgress = useCallback(() => {
     // Stop polling when user dismisses - use ref to ensure closure sees the cancellation
     cancelledRef.current = true;
-    
+
     // Clear any pending timeout
     if (pollingTimeoutRef.current) {
       clearTimeout(pollingTimeoutRef.current);
       pollingTimeoutRef.current = null;
     }
-    
+
     setAnalyzing(false);
     setAnalysisId(null);
     setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
-    
+
     devLog('Analysis dismissed - polling cancelled');
   }, []);
 
@@ -390,5 +407,3 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     dismissProgress,
   };
 };
-
-

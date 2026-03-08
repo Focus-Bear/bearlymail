@@ -80,5 +80,3 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
     </ModalBackdrop>
   );
 };
-
-

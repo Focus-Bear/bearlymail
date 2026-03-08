@@ -17,10 +17,7 @@ interface GmailAccountItemProps {
   onFetchData: () => Promise<void>;
 }
 
-export const GmailAccountItem: React.FC<GmailAccountItemProps> = ({
-  account,
-  onFetchData,
-}) => {
+export const GmailAccountItem: React.FC<GmailAccountItemProps> = ({ account, onFetchData }) => {
   return (
     <div
       key={account.id}
@@ -39,4 +36,3 @@ export const GmailAccountItem: React.FC<GmailAccountItemProps> = ({
     </div>
   );
 };
-

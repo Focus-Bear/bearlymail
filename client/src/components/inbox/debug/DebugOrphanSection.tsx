@@ -70,7 +70,9 @@ export const DebugOrphanSection: React.FC<DebugOrphanSectionProps> = ({
         }}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
-        <h4 style={{ margin: 0 }}>{EMOJI_LINK} {t('debug.orphan.sectionTitle')}</h4>
+        <h4 style={{ margin: 0 }}>
+          {EMOJI_LINK} {t('debug.orphan.sectionTitle')}
+        </h4>
         <button
           onClick={onFetchDebugOrphan}
           disabled={loadingOrphanData}
@@ -107,6 +109,3 @@ export const DebugOrphanSection: React.FC<DebugOrphanSectionProps> = ({
     </div>
   );
 };
-
-
-

@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -8,7 +8,9 @@ export function useEmailDetailNotes(email: { threadId: string } | null) {
   const [notesCollapsed, setNotesCollapsed] = useState(true);
 
   const fetchNote = useCallback(async () => {
-    if (!email?.threadId) return;
+    if (!email?.threadId) {
+      return;
+    }
     try {
       const response = await axios.get(`${API_URL}/notes/thread/${email.threadId}`);
       if (response.data) {
@@ -29,7 +31,9 @@ export function useEmailDetailNotes(email: { threadId: string } | null) {
   }, [email?.threadId, fetchNote]);
 
   const handleSaveNote = useCallback(async () => {
-    if (!email) return;
+    if (!email) {
+      return;
+    }
     try {
       await axios.post(`${API_URL}/notes/thread/${email.threadId}`, { content: noteContent });
     } catch (error) {
@@ -45,5 +49,3 @@ export function useEmailDetailNotes(email: { threadId: string } | null) {
     handleSaveNote,
   };
 }
-
-

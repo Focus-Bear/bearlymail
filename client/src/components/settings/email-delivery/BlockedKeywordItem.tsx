@@ -18,10 +18,7 @@ interface BlockedKeywordItemProps {
   onUnblock: (id: string) => Promise<void>;
 }
 
-export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
-  keyword,
-  onUnblock,
-}) => {
+export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({ keyword, onUnblock }) => {
   const { t } = useTranslation();
 
   return (
@@ -38,40 +35,48 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
       }}
     >
       <div>
-        <div style={{
-          color: theme.colors.text.primary,
-          fontWeight: theme.typography.fontWeight.medium,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.primary,
+            fontWeight: theme.typography.fontWeight.medium,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
           <span>{keyword.keyword}</span>
           {keyword.exactMatch && (
-            <span style={{
-              fontSize: theme.typography.fontSize.xs,
-              backgroundColor: theme.colors.primary.main,
-              color: COLOR_NAMED_WHITE,
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius.sm,
-            }}>
+            <span
+              style={{
+                fontSize: theme.typography.fontSize.xs,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_NAMED_WHITE,
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+              }}
+            >
               {t('settings.blockedKeywords.exactMatch')}
             </span>
           )}
         </div>
         {keyword.reason && (
-          <div style={{
-            color: theme.colors.text.tertiary,
-            fontSize: theme.typography.fontSize.xs,
-            marginTop: theme.spacing.xs,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.tertiary,
+              fontSize: theme.typography.fontSize.xs,
+              marginTop: theme.spacing.xs,
+            }}
+          >
             {t('settings.blockedKeywords.reason')}: {keyword.reason}
           </div>
         )}
-        <div style={{
-          color: theme.colors.text.tertiary,
-          fontSize: theme.typography.fontSize.xs,
-          marginTop: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.tertiary,
+            fontSize: theme.typography.fontSize.xs,
+            marginTop: theme.spacing.xs,
+          }}
+        >
           {t('settings.blockedKeywords.blocked')} {new Date(keyword.blockedAt).toLocaleDateString()}
         </div>
       </div>

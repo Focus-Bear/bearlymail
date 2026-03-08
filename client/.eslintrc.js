@@ -140,11 +140,11 @@ module.exports = {
     // Disallow reassigning function parameters
     'no-param-reassign': ['warn', { props: false }],
 
-    // Require curly braces for all control statements (off - too strict)
-    curly: 'off',
+    // Require curly braces for all control statements
+    curly: ['error', 'all'],
 
-    // Enforce consistent brace style (off - too strict)
-    'brace-style': 'off',
+    // Enforce consistent brace style — opening brace on same line, body on new line
+    'brace-style': ['error', '1tbs', { allowSingleLine: false }],
 
     // ===========================================
     // REACT SPECIFIC CLEAN CODE

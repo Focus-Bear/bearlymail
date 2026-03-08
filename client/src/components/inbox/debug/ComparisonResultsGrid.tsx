@@ -14,7 +14,7 @@ export const ComparisonResultsGrid: React.FC<ComparisonResultsGridProps> = ({
   actionTabResults,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -33,11 +33,7 @@ export const ComparisonResultsGrid: React.FC<ComparisonResultsGridProps> = ({
         }}
       >
         <strong>{t('debug.comparison.inGmailNotInDb')}:</strong> {inGmailNotInDb.length}
-        {inGmailNotInDb.length > 0 && (
-          <div style={{ fontSize: '0.6rem' }}>
-            {inGmailNotInDb.join(', ')}
-          </div>
-        )}
+        {inGmailNotInDb.length > 0 && <div style={{ fontSize: '0.6rem' }}>{inGmailNotInDb.join(', ')}</div>}
       </div>
       <div
         style={{
@@ -45,11 +41,7 @@ export const ComparisonResultsGrid: React.FC<ComparisonResultsGridProps> = ({
         }}
       >
         <strong>{t('debug.comparison.inDbNotInGmail')}:</strong> {inDbNotInGmail.length}
-        {inDbNotInGmail.length > 0 && (
-          <div style={{ fontSize: '0.6rem' }}>
-            {inDbNotInGmail.join(', ')}
-          </div>
-        )}
+        {inDbNotInGmail.length > 0 && <div style={{ fontSize: '0.6rem' }}>{inDbNotInGmail.join(', ')}</div>}
       </div>
       <div>
         <strong>{t('debug.comparison.actionTabResults')}:</strong> {actionTabResults}
@@ -57,5 +49,3 @@ export const ComparisonResultsGrid: React.FC<ComparisonResultsGridProps> = ({
     </div>
   );
 };
-
-

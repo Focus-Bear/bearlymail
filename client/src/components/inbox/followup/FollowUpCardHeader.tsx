@@ -11,32 +11,32 @@ interface FollowUpCardHeaderProps {
   hasError: boolean;
 }
 
-export const FollowUpCardHeader: React.FC<FollowUpCardHeaderProps> = ({
-  thread,
-  isGenerating,
-  hasError,
-}) => {
+export const FollowUpCardHeader: React.FC<FollowUpCardHeaderProps> = ({ thread, isGenerating, hasError }) => {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.xs,
+      }}
+    >
       <div style={{ flex: 1 }}>
-        <h4 style={{
-          margin: 0,
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.base,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.primary,
-        }}>
+        <h4
+          style={{
+            margin: 0,
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.base,
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+          }}
+        >
           {thread.subject}
         </h4>
         <ThreadMetadata thread={thread} />
       </div>
-      
+
       <StatusBadge isGenerating={isGenerating} hasError={hasError} />
     </div>
   );
 };
-
-
-
-
-

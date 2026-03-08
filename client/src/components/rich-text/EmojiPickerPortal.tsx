@@ -18,7 +18,9 @@ export const EmojiPickerPortal: React.FC<EmojiPickerPortalProps> = ({ onSelect, 
   const [emojiPickerPosition, setEmojiPickerPosition] = useState<{ top: number; left: number } | null>(null);
 
   const updateEmojiPickerPosition = useCallback(() => {
-    if (!emojiButtonRef.current) return;
+    if (!emojiButtonRef.current) {
+      return;
+    }
 
     const triggerRect = emojiButtonRef.current.getBoundingClientRect();
     const pickerRect = emojiPickerRef.current?.getBoundingClientRect();
@@ -34,11 +36,13 @@ export const EmojiPickerPortal: React.FC<EmojiPickerPortalProps> = ({ onSelect, 
 
     const maxLeft = Math.max(viewportPadding, window.innerWidth - pickerWidth - viewportPadding);
     const nextLeft = Math.max(viewportPadding, Math.min(triggerRect.right - pickerWidth, maxLeft));
-    const preferredTop = shouldOpenAbove ? triggerRect.top - pickerHeight - pickerOffset : triggerRect.bottom + pickerOffset;
+    const preferredTop = shouldOpenAbove
+      ? triggerRect.top - pickerHeight - pickerOffset
+      : triggerRect.bottom + pickerOffset;
     const maxTop = Math.max(viewportPadding, window.innerHeight - pickerHeight - viewportPadding);
     const nextTop = Math.max(viewportPadding, Math.min(preferredTop, maxTop));
 
-    setEmojiPickerPosition((previousPosition) => {
+    setEmojiPickerPosition(previousPosition => {
       if (previousPosition?.top === nextTop && previousPosition?.left === nextLeft) {
         return previousPosition;
       }
@@ -94,16 +98,22 @@ export const EmojiPickerPortal: React.FC<EmojiPickerPortalProps> = ({ onSelect, 
         createPortal(
           <div
             ref={emojiPickerRef}
-            style={{ position: 'fixed', top: `${emojiPickerPosition?.top ?? 0}px`, left: `${emojiPickerPosition?.left ?? 0}px`, zIndex: Z_INDEX_POPUP, visibility: emojiPickerPosition ? 'visible' : 'hidden' }}
+            style={{
+              position: 'fixed',
+              top: `${emojiPickerPosition?.top ?? 0}px`,
+              left: `${emojiPickerPosition?.left ?? 0}px`,
+              zIndex: Z_INDEX_POPUP,
+              visibility: emojiPickerPosition ? 'visible' : 'hidden',
+            }}
           >
             <EmojiPicker
-              onSelect={(emoji) => {
+              onSelect={emoji => {
                 onSelect(emoji);
                 setShowEmojiPicker(false);
               }}
             />
           </div>,
-          document.body,
+          document.body
         )}
     </div>
   );

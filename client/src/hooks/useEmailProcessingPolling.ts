@@ -12,10 +12,7 @@ interface UseEmailProcessingPollingProps {
   onPoll: () => Promise<void>;
 }
 
-export function useEmailProcessingPolling({
-  emails,
-  onPoll,
-}: UseEmailProcessingPollingProps) {
+export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessingPollingProps) {
   useEffect(() => {
     const processingEmails = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary);
 
@@ -34,10 +31,3 @@ export function useEmailProcessingPolling({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length]);
 }
-
-
-
-
-
-
-

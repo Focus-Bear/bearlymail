@@ -30,48 +30,48 @@ export const IssueResultItem: React.FC<IssueResultItemProps> = ({ issue }) => {
         display: 'block',
         transition: theme.transitions.fast,
       }}
-      onMouseEnter={(event) => {
+      onMouseEnter={event => {
         event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
         event.currentTarget.style.borderColor = theme.colors.primary.main;
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={event => {
         event.currentTarget.style.backgroundColor = theme.colors.background.default;
         event.currentTarget.style.borderColor = theme.colors.border.medium;
       }}
     >
-      <div style={{
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <div
+        style={{
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {issue.title}
       </div>
-      <div style={{
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {issue.repository} #{issue.number} · {issue.state}
       </div>
       {issue.body && (
-        <div style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginTop: theme.spacing.xs,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-        }}>
+        <div
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginTop: theme.spacing.xs,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
           {issue.body}
         </div>
       )}
     </a>
   );
 };
-
-
-
-
-
-

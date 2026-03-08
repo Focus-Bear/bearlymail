@@ -242,7 +242,6 @@ export const INPUT_TYPE_URL = 'url' as const;
 export const INPUT_TYPE_TEXT = 'text' as const;
 export const INPUT_TYPE_TEL = 'tel' as const;
 
-
 // Notification/Toast types
 export const NOTIFICATION_TYPE_SUCCESS = 'success' as const;
 export const NOTIFICATION_TYPE_ERROR = 'error' as const;
@@ -393,8 +392,19 @@ export const STRING_LOST = 'lost' as const;
 export const STRING_STALE = 'stale' as const;
 
 // Error type keys for context analysis
-export const ERROR_TYPE_RATE_LIMIT    = 'rate_limit'    as const;
-export const ERROR_TYPE_TIMEOUT       = 'timeout'       as const;
-export const ERROR_TYPE_TOKEN_LIMIT   = 'token_limit'   as const;
-export const ERROR_TYPE_PARSE_ERROR   = 'parse_error'   as const;
+export const ERROR_TYPE_RATE_LIMIT = 'rate_limit' as const;
+export const ERROR_TYPE_TIMEOUT = 'timeout' as const;
+export const ERROR_TYPE_TOKEN_LIMIT = 'token_limit' as const;
+export const ERROR_TYPE_PARSE_ERROR = 'parse_error' as const;
 export const ERROR_TYPE_NETWORK_ERROR = 'network_error' as const;
+
+// URL / API parameter names
+export const PARAM_CATEGORY_IDS = 'categoryIds' as const;
+export const PARAM_CATEGORIES = 'categories' as const;
+
+// Built-in email category names
+export const CATEGORY_NEWSLETTERS = 'Newsletters' as const;
+export const CATEGORY_SALES = 'Sales' as const;
+export const CATEGORY_PARTNERSHIPS = 'Partnerships' as const;
+export const CATEGORY_CUSTOMER_SUPPORT = 'Customer Support' as const;
+export const CATEGORY_HR_ADMIN = 'HR Admin' as const;

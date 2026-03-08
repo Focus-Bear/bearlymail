@@ -16,27 +16,36 @@ interface GitHubLinkHeaderProps {
   isMerged: boolean;
 }
 
-export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({
-  link,
-  status,
-  isIssue,
-  isOpen,
-  isMerged,
-}) => {
+export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({ link, status, isIssue, isOpen, isMerged }) => {
   const getStatusBadgeColor = (): string => {
-    if (isOpen) return theme.colors.accent.success || '#10b981';
-    if (isMerged) return theme.colors.primary.main;
+    if (isOpen) {
+      return theme.colors.accent.success || '#10b981';
+    }
+    if (isMerged) {
+      return theme.colors.primary.main;
+    }
     return theme.colors.text.tertiary;
   };
 
   const getStatusText = (): string => {
-    if (isMerged) return 'Merged';
-    if (isOpen) return 'Open';
+    if (isMerged) {
+      return 'Merged';
+    }
+    if (isOpen) {
+      return 'Open';
+    }
     return 'Closed';
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.sm }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.sm,
+      }}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={link.url}
@@ -57,38 +66,34 @@ export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({
           }}
         >
           {isIssue ? '🔵' : '🟣'} {link.owner}/{link.repo}#{link.number}
-          <span style={{ fontSize: theme.typography.fontSize.xs, opacity: 0.7 }}>
-            ({isIssue ? 'Issue' : 'PR'})
-          </span>
+          <span style={{ fontSize: theme.typography.fontSize.xs, opacity: 0.7 }}>({isIssue ? 'Issue' : 'PR'})</span>
         </a>
         {status.title && (
-          <div style={{
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.xs,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.xs,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}
+          >
             {status.title}
           </div>
         )}
       </div>
-      <div style={{
-        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        backgroundColor: getStatusBadgeColor(),
-        color: COLOR_NAMED_WHITE,
-        borderRadius: theme.borderRadius.sm,
-        fontSize: theme.typography.fontSize.xs,
-        fontWeight: theme.typography.fontWeight.semibold,
-        textTransform: 'uppercase',
-      }}>
+      <div
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: getStatusBadgeColor(),
+          color: COLOR_NAMED_WHITE,
+          borderRadius: theme.borderRadius.sm,
+          fontSize: theme.typography.fontSize.xs,
+          fontWeight: theme.typography.fontWeight.semibold,
+          textTransform: 'uppercase',
+        }}
+      >
         {getStatusText()}
       </div>
     </div>
   );
 };
-
-
-
-
-
-

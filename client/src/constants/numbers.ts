@@ -216,6 +216,4 @@ export const HTML_CUT_POINT_OFFSET_50 = 50; // Offset for finding HTML cut point
 export const BLOCKQUOTE_MIN_POSITION = 20; // Minimum position before blockquote detection
 export const SIGNATURE_MIN_CONTENT_PLAINTEXT = 100; // Minimum content for plain text signature detection
 
-
-
 export const MAX_BADGE_DISPLAY = 99; // Maximum badge count before showing 99+

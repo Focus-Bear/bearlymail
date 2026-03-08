@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link,useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -11,15 +11,12 @@ const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const {
-    isCollapsed,
-    isMobileMenuOpen,
-    toggleCollapse,
-    closeMobileMenu,
-  } = useSidebarState();
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState();
 
   const getArticleContent = () => {
-    if (!articleId) return null;
+    if (!articleId) {
+      return null;
+    }
 
     const contentKey = `help.articles.${articleId}.content`;
     const titleKey = `help.articles.${articleId}.title`;
@@ -30,8 +27,10 @@ const HelpArticle: React.FC = () => {
     while (true) {
       const sectionKey = `${contentKey}.section${sectionIndex}`;
       const sectionTitle = t(`${sectionKey}.title`, { defaultValue: '' });
-      if (!sectionTitle && sectionIndex > 0) break;
-      
+      if (!sectionTitle && sectionIndex > 0) {
+        break;
+      }
+
       sections.push({
         title: sectionTitle || (sectionIndex === 0 ? t(titleKey) : ''),
         content: t(`${sectionKey}.content`, { defaultValue: '' }),
@@ -44,7 +43,9 @@ const HelpArticle: React.FC = () => {
       while (true) {
         const itemKey = `${sectionKey}.item${itemIndex}`;
         const item = t(itemKey, { defaultValue: '' });
-        if (!item) break;
+        if (!item) {
+          break;
+        }
         items.push(item);
         itemIndex++;
       }
@@ -109,65 +110,77 @@ const HelpArticle: React.FC = () => {
               </Link>
             </div>
 
-            <h1 style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize['3xl'],
-              marginBottom: theme.spacing.xl,
-              fontWeight: theme.typography.fontWeight.bold,
-            }}>
+            <h1
+              style={{
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize['3xl'],
+                marginBottom: theme.spacing.xl,
+                fontWeight: theme.typography.fontWeight.bold,
+              }}
+            >
               {article.title}
             </h1>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xl }}>
               {article.sections.map((section, index) => {
                 // Generate anchor ID from section title
-                const anchorId = section.title 
-                  ? section.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                const anchorId = section.title
+                  ? section.title
+                      .toLowerCase()
+                      .replace(/[^a-z0-9]+/g, '-')
+                      .replace(/^-|-$/g, '')
                   : `section-${index}`;
-                
+
                 return (
-                <div key={anchorId || `section-${section.title}`} id={anchorId}>
-                  {section.title && (
-                    <h2 style={{
-                      color: theme.colors.text.primary,
-                      fontSize: theme.typography.fontSize.xl,
-                      marginBottom: theme.spacing.md,
-                      fontWeight: theme.typography.fontWeight.semibold,
-                      scrollMarginTop: '80px', // Offset for fixed headers
-                    }}>
-                      {section.title}
-                    </h2>
-                  )}
-                  {section.content && (
-                    <div
-                      style={{
-                        color: theme.colors.text.secondary,
-                        fontSize: theme.typography.fontSize.base,
-                        lineHeight: theme.typography.lineHeight.relaxed,
-                        marginBottom: theme.spacing.md,
-                        whiteSpace: 'pre-line',
-                      }}
-                    >
-                      {section.content}
-                    </div>
-                  )}
-                  {section.items.length > 0 && (
-                    <ul style={{
-                      color: theme.colors.text.secondary,
-                      fontSize: theme.typography.fontSize.base,
-                      lineHeight: theme.typography.lineHeight.relaxed,
-                      paddingLeft: theme.spacing.lg,
-                      marginBottom: theme.spacing.md,
-                    }}>
-                      {section.items.map((item, itemIndex) => (
-                        <li key={`${section.title}-${item.substring(0, 100)}`} style={{ marginBottom: theme.spacing.xs }}>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
+                  <div key={anchorId || `section-${section.title}`} id={anchorId}>
+                    {section.title && (
+                      <h2
+                        style={{
+                          color: theme.colors.text.primary,
+                          fontSize: theme.typography.fontSize.xl,
+                          marginBottom: theme.spacing.md,
+                          fontWeight: theme.typography.fontWeight.semibold,
+                          scrollMarginTop: '80px', // Offset for fixed headers
+                        }}
+                      >
+                        {section.title}
+                      </h2>
+                    )}
+                    {section.content && (
+                      <div
+                        style={{
+                          color: theme.colors.text.secondary,
+                          fontSize: theme.typography.fontSize.base,
+                          lineHeight: theme.typography.lineHeight.relaxed,
+                          marginBottom: theme.spacing.md,
+                          whiteSpace: 'pre-line',
+                        }}
+                      >
+                        {section.content}
+                      </div>
+                    )}
+                    {section.items.length > 0 && (
+                      <ul
+                        style={{
+                          color: theme.colors.text.secondary,
+                          fontSize: theme.typography.fontSize.base,
+                          lineHeight: theme.typography.lineHeight.relaxed,
+                          paddingLeft: theme.spacing.lg,
+                          marginBottom: theme.spacing.md,
+                        }}
+                      >
+                        {section.items.map((item, itemIndex) => (
+                          <li
+                            key={`${section.title}-${item.substring(0, 100)}`}
+                            style={{ marginBottom: theme.spacing.xs }}
+                          >
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
               })}
             </div>
           </div>

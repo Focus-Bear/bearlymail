@@ -14,7 +14,7 @@ interface SnoozeButtonProps {
 
 export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze }) => {
   const { t } = useTranslation();
-  
+
   return (
     <button
       onClick={() => {
@@ -33,14 +33,14 @@ export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze 
         gap: theme.spacing.xs,
         color: theme.colors.text.tertiary,
       }}
-      onMouseEnter={(event) => event.currentTarget.style.opacity = String(OPACITY_FULL)}
-      onMouseLeave={(event) => event.currentTarget.style.opacity = String(OPACITY_DISABLED)}
+      onMouseEnter={event => (event.currentTarget.style.opacity = String(OPACITY_FULL))}
+      onMouseLeave={event => (event.currentTarget.style.opacity = String(OPACITY_DISABLED))}
     >
       {/* eslint-disable-next-line i18next/no-literal-string */}
       <span>{EMOJI_CLOCK}</span>
-      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('emailDetail.snooze')}</span>
+      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        {t('emailDetail.snooze')}
+      </span>
     </button>
   );
 };
-
-

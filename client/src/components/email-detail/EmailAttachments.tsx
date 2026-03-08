@@ -22,23 +22,40 @@ interface EmailAttachmentsProps {
  * Format file size in human-readable format
  */
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) {
+    return '0 Bytes';
+  }
   const kb = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(kb));
-  return `${Math.round((bytes / Math.pow(kb, i)) * 100) / 100} ${sizes[i]}`;};
+  return `${Math.round((bytes / Math.pow(kb, i)) * 100) / 100} ${sizes[i]}`;
+};
 
 /**
  * Get file icon based on MIME type
  */
 const getFileIcon = (mimeType: string): string => {
-  if (mimeType.startsWith('image/')) return '🖼️';
-  if (mimeType.startsWith('video/')) return '🎥';
-  if (mimeType.startsWith('audio/')) return '🎵';
-  if (mimeType.includes('pdf')) return '📄';
-  if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
-  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊';
-  if (mimeType.includes('zip') || mimeType.includes('archive')) return '📦';
+  if (mimeType.startsWith('image/')) {
+    return '🖼️';
+  }
+  if (mimeType.startsWith('video/')) {
+    return '🎥';
+  }
+  if (mimeType.startsWith('audio/')) {
+    return '🎵';
+  }
+  if (mimeType.includes('pdf')) {
+    return '📄';
+  }
+  if (mimeType.includes('word') || mimeType.includes('document')) {
+    return '📝';
+  }
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+    return '📊';
+  }
+  if (mimeType.includes('zip') || mimeType.includes('archive')) {
+    return '📦';
+  }
   return '📎';
 };
 
@@ -107,7 +124,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
         {t('emailDetail.attachments', { count: attachments.length })}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-        {attachments.map((attachment) => (
+        {attachments.map(attachment => (
           <button
             key={attachment.attachmentId}
             onClick={() => downloadAttachment(emailId, attachment.attachmentId, attachment.filename)}
@@ -124,18 +141,16 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               textAlign: 'left',
               width: '100%',
             }}
-            onMouseEnter={(event) => {
+            onMouseEnter={event => {
               event.currentTarget.style.backgroundColor = theme.colors.primary.light;
               event.currentTarget.style.borderColor = theme.colors.primary.main;
             }}
-            onMouseLeave={(event) => {
+            onMouseLeave={event => {
               event.currentTarget.style.backgroundColor = theme.colors.background.paper;
               event.currentTarget.style.borderColor = theme.colors.border.light;
             }}
           >
-            <span style={{ fontSize: theme.typography.fontSize.lg }}>
-              {getFileIcon(attachment.mimeType)}
-            </span>
+            <span style={{ fontSize: theme.typography.fontSize.lg }}>{getFileIcon(attachment.mimeType)}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
@@ -160,9 +175,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               </div>
             </div>
             {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>
-              ⬇️
-            </span>
+            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>⬇️</span>
           </button>
         ))}
       </div>

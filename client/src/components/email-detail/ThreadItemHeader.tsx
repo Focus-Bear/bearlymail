@@ -1,4 +1,4 @@
-import React, { useCallback,useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
@@ -10,10 +10,15 @@ const COPY_ICON = '⧉';
 const getHeaderBgColor = (isCurrentEmail: boolean): string =>
   isCurrentEmail ? theme.colors.primary.subtle : theme.colors.background.subtle;
 
-interface AddressFieldProps { label: string; value: string }
+interface AddressFieldProps {
+  label: string;
+  value: string;
+}
 const AddressField: React.FC<AddressFieldProps> = ({ label, value }) => (
   /* eslint-disable i18next/no-literal-string */
-  <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>
+  <div
+    style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}
+  >
     <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{label}:</span> {value}
   </div>
   /* eslint-enable i18next/no-literal-string */
@@ -69,9 +74,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
     >
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-          <strong style={{ color: theme.colors.text.primary }}>
-            {fromName || from}
-          </strong>
+          <strong style={{ color: theme.colors.text.primary }}>{fromName || from}</strong>
           {from && fromName && (
             <span
               style={{
@@ -81,7 +84,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               }}
             >
               <span
-                onClick={(event) => {
+                onClick={event => {
                   event.stopPropagation();
                   handleCopyEmail();
                 }}
@@ -97,7 +100,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               </span>
               <button
                 type="button"
-                onClick={(event) => {
+                onClick={event => {
                   event.stopPropagation();
                   handleCopyEmail();
                 }}
@@ -117,22 +120,12 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               </button>
             </span>
           )}
-          <span style={{ color: theme.colors.text.secondary }}>
-            {humanizeTimestamp(new Date(receivedAt))}
-          </span>
+          <span style={{ color: theme.colors.text.secondary }}>{humanizeTimestamp(new Date(receivedAt))}</span>
         </div>
-                {to && <AddressField label="To" value={to} />}
-                {cc && <AddressField label="CC" value={cc} />}
+        {to && <AddressField label="To" value={to} />}
+        {cc && <AddressField label="CC" value={cc} />}
       </div>
-      <span style={{ color: theme.colors.text.tertiary }}>
-        {isExpanded ? '▼' : '▶'}
-      </span>
+      <span style={{ color: theme.colors.text.tertiary }}>{isExpanded ? '▼' : '▶'}</span>
     </div>
   );
 };
-
-
-
-
-
-

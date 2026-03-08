@@ -1,4 +1,4 @@
-import React, { useEffect,useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
 
 interface InfoTooltipProps {
@@ -77,7 +77,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, children }) =
             color: theme.colors.text.primary,
             lineHeight: theme.typography.lineHeight.normal,
           }}
-          onClick={(event) => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
         >
           {content}
         </div>
@@ -85,12 +85,3 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, children }) =
     </div>
   );
 };
-
-
-
-
-
-
-
-
-

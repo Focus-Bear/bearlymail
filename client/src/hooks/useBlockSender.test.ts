@@ -1,5 +1,5 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { act,renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
@@ -81,9 +81,7 @@ describe('useBlockSender', () => {
       expect(typeof setEmailsCall).toBe('function');
       const filteredEmails = setEmailsCall(mockEmails);
       expect(filteredEmails).toEqual([mockEmails[1]]);
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/emails/${blockEmail.id}/block-sender`
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/emails/${blockEmail.id}/block-sender`);
     });
 
     it('should perform optimistic update', async () => {
@@ -105,9 +103,7 @@ describe('useBlockSender', () => {
       });
 
       // Should remove email immediately (optimistic update)
-      expect(mockSetEmails).toHaveBeenCalledWith(
-        expect.not.arrayContaining([blockEmail])
-      );
+      expect(mockSetEmails).toHaveBeenCalledWith(expect.not.arrayContaining([blockEmail]));
     });
 
     it('should revert on error', async () => {
@@ -184,14 +180,8 @@ describe('useBlockSender', () => {
       });
 
       await waitFor(() => {
-        expect(console.error).toHaveBeenCalledWith(
-          'Error refreshing after block:',
-          fetchError
-        );
+        expect(console.error).toHaveBeenCalledWith('Error refreshing after block:', fetchError);
       });
     });
   });
 });
-
-
-

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
-import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
+import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
 import { OverrideReasonType } from 'components/priority/types';
 import { API_URL } from 'config/api';
@@ -22,14 +22,22 @@ interface PriorityOverrideModalProps {
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
 function getPriorityLabel(tFunc: TFunction, isHighPriority: boolean, score: number): string {
-  if (isHighPriority) return tFunc('priority.high');
-  if (score >= 0) return tFunc('priority.low');
+  if (isHighPriority) {
+    return tFunc('priority.high');
+  }
+  if (score >= 0) {
+    return tFunc('priority.low');
+  }
   return tFunc('priority.veryLow');
 }
 
 function getDescription(
-  tFunc: TFunction, context: string, isHighPriority: boolean,
-  origScore: number, newScore: number, priorityLabel: string,
+  tFunc: TFunction,
+  context: string,
+  isHighPriority: boolean,
+  origScore: number,
+  newScore: number,
+  priorityLabel: string
 ): string {
   if (context === CONTEXT_ARCHIVE) {
     const key = isHighPriority ? 'priority.override.archiveHighPriority' : 'priority.override.archiveLowPriority';
@@ -55,7 +63,9 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   const priorityLabel = getPriorityLabel(t, isHighPriority, originalPriorityScore);
 
   const handleSubmit = async () => {
-    if (!selectedReason) return;
+    if (!selectedReason) {
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -64,7 +74,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
         reasonType: selectedReason,
         reasonText: reasonText.trim() || undefined,
       });
-      
+
       if (onSubmitted) {
         onSubmitted();
       }
@@ -77,40 +87,48 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     }
   };
 
-  const description = getDescription(t, context, isHighPriority, originalPriorityScore, newPriorityScore, priorityLabel);
+  const description = getDescription(
+    t,
+    context,
+    isHighPriority,
+    originalPriorityScore,
+    newPriorityScore,
+    priorityLabel
+  );
 
   return (
     <ModalBackdrop onClose={onClose}>
       <ModalContent>
         <ModalHeader title={t('priority.override.title')} />
 
-        <p style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.md,
-          lineHeight: theme.typography.lineHeight.relaxed,
-        }}>
+        <p
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            lineHeight: theme.typography.lineHeight.relaxed,
+          }}
+        >
           {description}
         </p>
 
-        <ReasonTypeSelector
-          selectedReason={selectedReason}
-          onReasonChange={setSelectedReason}
-        />
+        <ReasonTypeSelector selectedReason={selectedReason} onReasonChange={setSelectedReason} />
 
         <div style={{ marginBottom: theme.spacing.md }}>
-          <label style={{
-            display: 'block',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.xs,
-          }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
             {t('priority.override.additionalDetails')}:
           </label>
           <textarea
             value={reasonText}
-            onChange={(event) => setReasonText(event.target.value)}
+            onChange={event => setReasonText(event.target.value)}
             placeholder={t('priority.override.placeholder')}
             style={{
               width: '100%',
@@ -135,8 +153,3 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     </ModalBackdrop>
   );
 };
-
-
-
-
-

@@ -43,11 +43,35 @@ interface CategorySectionProps {
 
 // eslint-disable-next-line max-lines-per-function -- category section renders accordion with email items, proto-sub-accordions, and conditional UI
 export const CategorySection: React.FC<CategorySectionProps> = ({
-  categoryItem, catIdx, displayCategories, expandedCategories, loadedCategoryNames, emailCategoryMap, mode,
-  selectedEmailIds, selectedEmailIndex, triageSuggestions, followUpDataMap, priorityTooltip, keyboardHint,
-  snoozeInput, emailActions, modals, onEmailClick, onEmailSelect, updateDraft, handleSendFollowUp,
-  onBulkArchive, onToggleCategory, otherProtoGroups, protoCategories, isReanalysingOther,
-  convertingProtoCategoryId, deletingProtoCategoryId, handleReanalyseOther, handleConvertProtoCategory,
+  categoryItem,
+  catIdx,
+  displayCategories,
+  expandedCategories,
+  loadedCategoryNames,
+  emailCategoryMap,
+  mode,
+  selectedEmailIds,
+  selectedEmailIndex,
+  triageSuggestions,
+  followUpDataMap,
+  priorityTooltip,
+  keyboardHint,
+  snoozeInput,
+  emailActions,
+  modals,
+  onEmailClick,
+  onEmailSelect,
+  updateDraft,
+  handleSendFollowUp,
+  onBulkArchive,
+  onToggleCategory,
+  otherProtoGroups,
+  protoCategories,
+  isReanalysingOther,
+  convertingProtoCategoryId,
+  deletingProtoCategoryId,
+  handleReanalyseOther,
+  handleConvertProtoCategory,
   handleDeleteProtoCategoryFromInbox,
 }) => {
   const categoryName = categoryItem.name;
@@ -73,41 +97,98 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   }
 
   const renderEmailItem = (email: Email, emailIndex: number) => {
-    const suggestion = mode === MODE_TRIAGE ? (triageSuggestions.get(email.id) || null) : null;
+    const suggestion = mode === MODE_TRIAGE ? triageSuggestions.get(email.id) || null : null;
     const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === emailIndex;
     const followUpData = mode === MODE_FOLLOW_UP ? followUpDataMap.get(email.threadId) : null;
     return (
-      <EmailListItem key={email.id} email={email} index={emailIndex} mode={mode} isSelected={isSelected} suggestion={suggestion} priorityTooltip={priorityTooltip} keyboardHint={keyboardHint} snoozeInput={snoozeInput} onEmailClick={onEmailClick} onEmailSelect={onEmailSelect} onSetStarCount={emailActions.handleSetStarCount} onArchive={emailActions.handleArchive} onBlockSender={emailActions.handleBlockSender} onSnooze={emailActions.handleSnooze} onOverrideUrgency={() => { if (email.emailThreadId && email.urgencyScore !== undefined) modals.showUrgencyOverride(email.emailThreadId, email.urgencyScore); }} onProvideFeedback={() => { priorityTooltip.hidePriorityTooltip(); modals.showPriorityFeedback(email.id, getEmailPriorityScore(email)); }} followUpData={followUpData} onUpdateDraft={updateDraft} onSendFollowUp={(followUpId: string, draft: string) => handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)} recipientName={(email as any).otherPersonName} />
+      <EmailListItem
+        key={email.id}
+        email={email}
+        index={emailIndex}
+        mode={mode}
+        isSelected={isSelected}
+        suggestion={suggestion}
+        priorityTooltip={priorityTooltip}
+        keyboardHint={keyboardHint}
+        snoozeInput={snoozeInput}
+        onEmailClick={onEmailClick}
+        onEmailSelect={onEmailSelect}
+        onSetStarCount={emailActions.handleSetStarCount}
+        onArchive={emailActions.handleArchive}
+        onBlockSender={emailActions.handleBlockSender}
+        onSnooze={emailActions.handleSnooze}
+        onOverrideUrgency={() => {
+          if (email.emailThreadId && email.urgencyScore !== undefined) {
+            modals.showUrgencyOverride(email.emailThreadId, email.urgencyScore);
+          }
+        }}
+        onProvideFeedback={() => {
+          priorityTooltip.hidePriorityTooltip();
+          modals.showPriorityFeedback(email.id, getEmailPriorityScore(email));
+        }}
+        followUpData={followUpData}
+        onUpdateDraft={updateDraft}
+        onSendFollowUp={(followUpId: string, draft: string) =>
+          handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)
+        }
+        recipientName={(email as any).otherPersonName}
+      />
     );
   };
 
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
-  const protoGroupedEmailIds = hasProtoGroups ? new Set(otherProtoGroups.flatMap(grp => grp.emails.map(event => event.id))) : new Set<string>();
-  const uncategorizedOtherEmails = hasProtoGroups ? categoryEmails.filter(event => !protoGroupedEmailIds.has(event.id)) : [];
+  const protoGroupedEmailIds = hasProtoGroups
+    ? new Set(otherProtoGroups.flatMap(grp => grp.emails.map(event => event.id)))
+    : new Set<string>();
+  const uncategorizedOtherEmails = hasProtoGroups
+    ? categoryEmails.filter(event => !protoGroupedEmailIds.has(event.id))
+    : [];
 
   return (
-    <CategoryAccordion key={categoryKey} category={categoryName} emails={categoryEmails} count={isLoaded ? categoryEmails.length : categoryItem.count} isLoadingContent={isExpanded && !isLoaded} isExpanded={isExpanded} onToggle={() => onToggleCategory(categoryKey)} onArchiveAll={onBulkArchive} onReanalyseOther={handleReanalyseOther} isReanalysingOther={isReanalysingOther}>
-      {hasProtoGroups ? (() => {
-        let offset = 0;
-        return (
-          <>
-            {otherProtoGroups.map(grp => {
-              const groupStart = offset;
-              offset += grp.emails.length;
-              const protoCategory = protoCategories.find((pc: any) => pc.name === grp.name);
-              return (
-                <ProtoCategorySubAccordion key={grp.name} name={grp.name} description={protoCategory?.description} emailCount={grp.emails.length} onConvertToCategory={() => handleConvertProtoCategory(protoCategory?.id ?? '', grp.name)} isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined} onArchiveAll={onBulkArchive} emailIds={grp.emails.map(email => email.id)} onDelete={protoCategory ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id) : undefined} isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}>
-                  {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}
-                </ProtoCategorySubAccordion>
-              );
-            })}
-            {uncategorizedOtherEmails.map((email, idx) => renderEmailItem(email, globalIndex + offset + idx))}
-          </>
-        );
-      })() : (
-        categoryEmails.map((email, idx) => renderEmailItem(email, globalIndex + idx))
-      )}
+    <CategoryAccordion
+      key={categoryKey}
+      category={categoryName}
+      emails={categoryEmails}
+      count={isLoaded ? categoryEmails.length : categoryItem.count}
+      isLoadingContent={isExpanded && !isLoaded}
+      isExpanded={isExpanded}
+      onToggle={() => onToggleCategory(categoryKey)}
+      onArchiveAll={onBulkArchive}
+      onReanalyseOther={handleReanalyseOther}
+      isReanalysingOther={isReanalysingOther}
+    >
+      {hasProtoGroups
+        ? (() => {
+            let offset = 0;
+            return (
+              <>
+                {otherProtoGroups.map(grp => {
+                  const groupStart = offset;
+                  offset += grp.emails.length;
+                  const protoCategory = protoCategories.find((pc: any) => pc.name === grp.name);
+                  return (
+                    <ProtoCategorySubAccordion
+                      key={grp.name}
+                      name={grp.name}
+                      description={protoCategory?.description}
+                      emailCount={grp.emails.length}
+                      onConvertToCategory={() => handleConvertProtoCategory(protoCategory?.id ?? '', grp.name)}
+                      isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                      onArchiveAll={onBulkArchive}
+                      emailIds={grp.emails.map(email => email.id)}
+                      onDelete={protoCategory ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id) : undefined}
+                      isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                    >
+                      {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}
+                    </ProtoCategorySubAccordion>
+                  );
+                })}
+                {uncategorizedOtherEmails.map((email, idx) => renderEmailItem(email, globalIndex + offset + idx))}
+              </>
+            );
+          })()
+        : categoryEmails.map((email, idx) => renderEmailItem(email, globalIndex + idx))}
     </CategoryAccordion>
   );
 };

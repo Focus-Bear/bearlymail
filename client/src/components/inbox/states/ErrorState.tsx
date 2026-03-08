@@ -17,7 +17,7 @@ interface ErrorStateProps {
  */
 export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -65,7 +65,3 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => {
     </div>
   );
 };
-
-
-
-

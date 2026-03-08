@@ -28,26 +28,33 @@ export const OpenAIApiKeySection: React.FC<OpenAIApiKeySectionProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div id="api-key" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
-      marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
-    }}>
-      <h2 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xl,
-        scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-      }}>
+    <div
+      id="api-key"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
+    >
+      <h2
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.xl,
+          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
+        }}
+      >
         {t('settings.openAiTitle')}
       </h2>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
         {t('settings.openAiDesc')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
@@ -67,4 +74,3 @@ export const OpenAIApiKeySection: React.FC<OpenAIApiKeySectionProps> = ({
     </div>
   );
 };
-

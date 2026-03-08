@@ -1,4 +1,4 @@
-import { useCallback, useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -10,19 +10,20 @@ const MAX_POLL_ATTEMPTS = 15;
 async function pollForPriorityCompletion(
   emailId: string,
   setPriorityExplanation: (explanation: PriorityExplanation) => void,
-  attempts = 0,
+  attempts = 0
 ): Promise<void> {
   try {
     const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
     const explanation = response.data;
     const hasCalculatingItems = explanation?.breakdown?.some(
       (item: { description?: string }) =>
-        item.description === PRIORITY_CALCULATING_TEXT ||
-        item.description?.includes(PRIORITY_CALCULATING_TEXT),
+        item.description === PRIORITY_CALCULATING_TEXT || item.description?.includes(PRIORITY_CALCULATING_TEXT)
     );
     if (!hasCalculatingItems || attempts >= MAX_POLL_ATTEMPTS) {
       setPriorityExplanation(explanation);
-      if (attempts >= MAX_POLL_ATTEMPTS) console.warn('Priority calculation expedite: Max polling attempts reached');
+      if (attempts >= MAX_POLL_ATTEMPTS) {
+        console.warn('Priority calculation expedite: Max polling attempts reached');
+      }
       return;
     }
     setTimeout(() => pollForPriorityCompletion(emailId, setPriorityExplanation, attempts + 1), POLL_INTERVAL_MS);
@@ -56,49 +57,55 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const [priorityExplanation, setPriorityExplanation] = useState<PriorityExplanation | null>(null);
   const [loadingPriorityExplanation, setLoadingPriorityExplanation] = useState(false);
 
-  const fetchPriorityExplanation = useCallback(async (emailId: string) => {
-    // Don't return early if loading - allow it to fetch for the current email
-    if (loadingPriorityExplanation) {
-      return;
-    }
-    
-    setLoadingPriorityExplanation(true);
-    try {
-      // Add timeout of 10 seconds to prevent infinite loading
-      const TIMEOUT_MS = 10000;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Priority explanation request timed out'));
-        }, TIMEOUT_MS);
-      });
+  const fetchPriorityExplanation = useCallback(
+    async (emailId: string) => {
+      // Don't return early if loading - allow it to fetch for the current email
+      if (loadingPriorityExplanation) {
+        return;
+      }
 
-      const response = await Promise.race([
-        axios.get(`${API_URL}/emails/${emailId}/priority-explanation`),
-        timeoutPromise,
-      ]);
-      
-      setPriorityExplanation(response.data);
-    } catch (error) {
-      console.error('Error fetching priority explanation:', error);
-      // Don't set explanation on error - keep previous state or null
-    } finally {
-      // Always reset loading state, even on timeout or error
-      setLoadingPriorityExplanation(false);
-    }
-  }, [loadingPriorityExplanation]);
+      setLoadingPriorityExplanation(true);
+      try {
+        // Add timeout of 10 seconds to prevent infinite loading
+        const TIMEOUT_MS = 10000;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Priority explanation request timed out'));
+          }, TIMEOUT_MS);
+        });
 
-  const togglePriorityTooltip = useCallback((emailId: string) => {
-    if (hoveredPriorityEmailId === emailId) {
-      setHoveredPriorityEmailId(null);
-      setPriorityExplanation(null);
-      setLoadingPriorityExplanation(false);
-    } else {
-      // Clear previous explanation when switching to a different email
-      setPriorityExplanation(null);
-      setHoveredPriorityEmailId(emailId);
-      fetchPriorityExplanation(emailId);
-    }
-  }, [hoveredPriorityEmailId, fetchPriorityExplanation]);
+        const response = await Promise.race([
+          axios.get(`${API_URL}/emails/${emailId}/priority-explanation`),
+          timeoutPromise,
+        ]);
+
+        setPriorityExplanation(response.data);
+      } catch (error) {
+        console.error('Error fetching priority explanation:', error);
+        // Don't set explanation on error - keep previous state or null
+      } finally {
+        // Always reset loading state, even on timeout or error
+        setLoadingPriorityExplanation(false);
+      }
+    },
+    [loadingPriorityExplanation]
+  );
+
+  const togglePriorityTooltip = useCallback(
+    (emailId: string) => {
+      if (hoveredPriorityEmailId === emailId) {
+        setHoveredPriorityEmailId(null);
+        setPriorityExplanation(null);
+        setLoadingPriorityExplanation(false);
+      } else {
+        // Clear previous explanation when switching to a different email
+        setPriorityExplanation(null);
+        setHoveredPriorityEmailId(emailId);
+        fetchPriorityExplanation(emailId);
+      }
+    },
+    [hoveredPriorityEmailId, fetchPriorityExplanation]
+  );
 
   const hidePriorityTooltip = useCallback(() => {
     setHoveredPriorityEmailId(null);
@@ -122,7 +129,7 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
       const target = event.target as HTMLElement;
       const isClickOnPriorityBadge = target.closest('[data-priority-badge]');
       const isClickOnTooltip = target.closest('[data-priority-tooltip]');
-      
+
       if (!isClickOnPriorityBadge && !isClickOnTooltip && hoveredPriorityEmailId) {
         hidePriorityTooltip();
       }
@@ -144,4 +151,3 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
     expeditePriorityCalculation,
   };
 }
-

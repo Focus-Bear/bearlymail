@@ -41,7 +41,7 @@ export const FrequentContactsList: React.FC<FrequentContactsListProps> = ({
         {t('compose.frequentContacts')}:
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        {frequentContacts.map((contact) => (
+        {frequentContacts.map(contact => (
           <button
             key={contact.id || contact.email}
             onClick={() => onAddRecipient(contact, 'to')}
@@ -94,8 +94,3 @@ export const FrequentContactsList: React.FC<FrequentContactsListProps> = ({
     </div>
   );
 };
-
-
-
-
-

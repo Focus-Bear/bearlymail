@@ -1,4 +1,4 @@
-import { useCallback, useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Email, InboxMode } from 'types/email';
 
 interface UseEmailSelectionReturn {
@@ -22,39 +22,40 @@ export function useEmailSelection(mode: InboxMode, emailsLength: number): UseEma
     setSelectedEmailIds(new Set());
   }, [mode, emailsLength]);
 
-  const handleEmailClick = useCallback((emailId: string, index: number, event: React.MouseEvent, emails: Email[]) => {
-    // Handle multi-select with shift key
-    if (event.shiftKey && lastSelectedIndex >= 0) {
-      const start = Math.min(lastSelectedIndex, index);
-      const end = Math.max(lastSelectedIndex, index);
-      const newSelected = new Set(selectedEmailIds);
-      for (let i = start; i <= end; i++) {
-        if (emails[i]) {
-          newSelected.add(emails[i].id);
+  const handleEmailClick = useCallback(
+    (emailId: string, index: number, event: React.MouseEvent, emails: Email[]) => {
+      // Handle multi-select with shift key
+      if (event.shiftKey && lastSelectedIndex >= 0) {
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        const newSelected = new Set(selectedEmailIds);
+        for (let i = start; i <= end; i++) {
+          if (emails[i]) {
+            newSelected.add(emails[i].id);
+          }
         }
+        setSelectedEmailIds(newSelected);
+      } else if (event.ctrlKey || event.metaKey) {
+        // Handle toggle select with ctrl/cmd key
+        setSelectedEmailIds(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(emailId)) {
+            newSet.delete(emailId);
+          } else {
+            newSet.add(emailId);
+          }
+          return newSet;
+        });
+        setLastSelectedIndex(index);
+      } else {
+        // Regular click - select single
+        setSelectedEmailIds(new Set([emailId]));
+        setLastSelectedIndex(index);
       }
-      setSelectedEmailIds(newSelected);
-    }
-    // Handle toggle select with ctrl/cmd key
-    else if (event.ctrlKey || event.metaKey) {
-      setSelectedEmailIds(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(emailId)) {
-          newSet.delete(emailId);
-        } else {
-          newSet.add(emailId);
-        }
-        return newSet;
-      });
-      setLastSelectedIndex(index);
-    }
-    // Regular click - select single
-    else {
-      setSelectedEmailIds(new Set([emailId]));
-      setLastSelectedIndex(index);
-    }
-    setSelectedEmailIndex(index);
-  }, [lastSelectedIndex, selectedEmailIds]);
+      setSelectedEmailIndex(index);
+    },
+    [lastSelectedIndex, selectedEmailIds]
+  );
 
   const clearSelection = useCallback(() => {
     setSelectedEmailIds(new Set());

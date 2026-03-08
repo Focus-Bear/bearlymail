@@ -63,15 +63,17 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
   onAddKeyword,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div id="email-delivery" style={{ marginBottom: theme.spacing.xl }}>
-      <h2 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.lg,
-        fontSize: theme.typography.fontSize['2xl'],
-        fontWeight: theme.typography.fontWeight.semibold,
-      }}>
+      <h2
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.lg,
+          fontSize: theme.typography.fontSize['2xl'],
+          fontWeight: theme.typography.fontWeight.semibold,
+        }}
+      >
         {t('settings.nav.emailDelivery')}
       </h2>
       <EmailAccountsSection
@@ -86,10 +88,7 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
         onBatchScheduleChange={onBatchScheduleChange}
         onNewDeliveryTimeChange={onNewDeliveryTimeChange}
       />
-      <BlockedSendersSection
-        blockedSenders={blockedSenders}
-        onUnblockSender={onUnblockSender}
-      />
+      <BlockedSendersSection blockedSenders={blockedSenders} onUnblockSender={onUnblockSender} />
       <BlockedKeywordsSection
         blockedKeywords={blockedKeywords}
         onUnblockKeyword={onUnblockKeyword}
@@ -98,4 +97,3 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
     </div>
   );
 };
-

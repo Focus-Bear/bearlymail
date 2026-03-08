@@ -32,10 +32,21 @@ interface UseInboxContentDataParams {
 }
 
 export function useInboxContentData({
-  mode, emails, categorySummary, stableCategoryOrder, expandedCategories,
-  onUpdateStableCategoryOrder, onSplitViewArchive, onSplitViewSnooze,
-  onSplitViewPrioritySet, updateDraft, bulkSend, fetchThreadsWithDrafts,
-  onLoadMore, hasMore, loading,
+  mode,
+  emails,
+  categorySummary,
+  stableCategoryOrder,
+  expandedCategories,
+  onUpdateStableCategoryOrder,
+  onSplitViewArchive,
+  onSplitViewSnooze,
+  onSplitViewPrioritySet,
+  updateDraft,
+  bulkSend,
+  fetchThreadsWithDrafts,
+  onLoadMore,
+  hasMore,
+  loading,
 }: UseInboxContentDataParams) {
   const { isMobile } = useResponsiveBreakpoints();
   const summaryLoading = useSelector(selectSummaryLoading);
@@ -47,15 +58,30 @@ export function useInboxContentData({
   const protoCategoryMgmt = useProtoCategoryManagement();
 
   const handleLoadMore = useCallback(async () => {
-    if (!onLoadMore || isLoadingMoreRef.current || !hasMore) return;
+    if (!onLoadMore || isLoadingMoreRef.current || !hasMore) {
+      return;
+    }
     isLoadingMoreRef.current = true;
-    try { await onLoadMore(); } finally { isLoadingMoreRef.current = false; }
+    try {
+      await onLoadMore();
+    } finally {
+      isLoadingMoreRef.current = false;
+    }
   }, [onLoadMore, hasMore]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
-    const observer = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) handleLoadMore(); }, { rootMargin: '200px' });
+    if (!sentinel || !hasMore) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, handleLoadMore]);
@@ -88,7 +114,9 @@ export function useInboxContentData({
     otherEmails.forEach(email => {
       const protoName = (email as any).protoCategoryName;
       if (protoName) {
-        if (!groups.has(protoName)) groups.set(protoName, []);
+        if (!groups.has(protoName)) {
+          groups.set(protoName, []);
+        }
         groups.get(protoName)!.push(email);
       }
     });
@@ -104,7 +132,9 @@ export function useInboxContentData({
         onUpdateStableCategoryOrder(summaryKeys);
       } else {
         const newKeys = summaryKeys.filter(key => !stableCategoryOrder.includes(key));
-        if (newKeys.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+        if (newKeys.length > 0) {
+          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+        }
       }
     } else if (!summaryCategories) {
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
@@ -112,8 +142,12 @@ export function useInboxContentData({
         if (stableCategoryOrder.length === 0) {
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
-          const newKeys = categoryGroups.filter(grp => !stableCategoryOrder.includes(grp.category)).map(grp => grp.category);
-          if (newKeys.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+          const newKeys = categoryGroups
+            .filter(grp => !stableCategoryOrder.includes(grp.category))
+            .map(grp => grp.category);
+          if (newKeys.length > 0) {
+            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+          }
         }
       }
     }
@@ -121,33 +155,76 @@ export function useInboxContentData({
 
   const displayCategories = useMemo(() => {
     if (!summaryCategories) {
-      return stableCategoryOrder.map(key => ({ id: null as string | null, name: key, count: emailCategoryMap.get(key)?.emails.length ?? 0 }));
+      return stableCategoryOrder.map(key => ({
+        id: null as string | null,
+        name: key,
+        count: emailCategoryMap.get(key)?.emails.length ?? 0,
+      }));
     }
     const summaryMap = new Map(summaryCategories.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
-    return stableCategoryOrder.map(key => summaryMap.get(key) ?? { id: null, name: key, count: emailCategoryMap.get(key)?.emails.length ?? 0 });
+    return stableCategoryOrder.map(
+      key => summaryMap.get(key) ?? { id: null, name: key, count: emailCategoryMap.get(key)?.emails.length ?? 0 }
+    );
   }, [summaryCategories, stableCategoryOrder, emailCategoryMap]);
 
-  const handleSplitViewArchive = useCallback((emailId: string) => { if (onSplitViewArchive && emailId) onSplitViewArchive(emailId); }, [onSplitViewArchive]);
-  const handleSplitViewSnooze = useCallback((emailId: string) => { if (onSplitViewSnooze && emailId) onSplitViewSnooze(emailId); }, [onSplitViewSnooze]);
-  const handleSplitViewPrioritySet = useCallback((emailId: string, starCount: number) => { if (onSplitViewPrioritySet && emailId) onSplitViewPrioritySet(emailId, starCount); }, [onSplitViewPrioritySet]);
+  const handleSplitViewArchive = useCallback(
+    (emailId: string) => {
+      if (onSplitViewArchive && emailId) {
+        onSplitViewArchive(emailId);
+      }
+    },
+    [onSplitViewArchive]
+  );
+  const handleSplitViewSnooze = useCallback(
+    (emailId: string) => {
+      if (onSplitViewSnooze && emailId) {
+        onSplitViewSnooze(emailId);
+      }
+    },
+    [onSplitViewSnooze]
+  );
+  const handleSplitViewPrioritySet = useCallback(
+    (emailId: string, starCount: number) => {
+      if (onSplitViewPrioritySet && emailId) {
+        onSplitViewPrioritySet(emailId, starCount);
+      }
+    },
+    [onSplitViewPrioritySet]
+  );
 
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
       const response = await axios.post(`${API_URL}/follow-ups/${followUpId}/review-draft`, { draft, recipientName });
-      if (response.data !== draft && updateDraft) await updateDraft(followUpId, response.data);
-      if (bulkSend) await bulkSend([followUpId]);
+      if (response.data !== draft && updateDraft) {
+        await updateDraft(followUpId, response.data);
+      }
+      if (bulkSend) {
+        await bulkSend([followUpId]);
+      }
       fetchThreadsWithDrafts();
     } catch (error) {
       console.error('Error reviewing or sending follow-up:', error);
-      if (bulkSend) await bulkSend([followUpId]);
+      if (bulkSend) {
+        await bulkSend([followUpId]);
+      }
       fetchThreadsWithDrafts();
     }
   };
 
   return {
-    isMobile, isRefetchingWithoutData, splitViewContainerRef, sentinelRef,
-    filteredEmails, emailCategoryMap, otherProtoGroups, displayCategories,
-    handleSplitViewArchive, handleSplitViewSnooze, handleSplitViewPrioritySet,
-    handleSendFollowUp, protoCategoryMgmt, loading,
+    isMobile,
+    isRefetchingWithoutData,
+    splitViewContainerRef,
+    sentinelRef,
+    filteredEmails,
+    emailCategoryMap,
+    otherProtoGroups,
+    displayCategories,
+    handleSplitViewArchive,
+    handleSplitViewSnooze,
+    handleSplitViewPrioritySet,
+    handleSendFollowUp,
+    protoCategoryMgmt,
+    loading,
   };
 }

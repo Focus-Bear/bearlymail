@@ -17,7 +17,7 @@ export const GitHubLabels: React.FC<GitHubLabelsProps> = ({ labels }) => {
 
   return (
     <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
-      {labels.map((label) => (
+      {labels.map(label => (
         <span
           key={`label-${label.name}-${label.color}`}
           style={{
@@ -36,9 +36,3 @@ export const GitHubLabels: React.FC<GitHubLabelsProps> = ({ labels }) => {
     </div>
   );
 };
-
-
-
-
-
-

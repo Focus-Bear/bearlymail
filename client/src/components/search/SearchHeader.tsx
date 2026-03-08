@@ -6,31 +6,36 @@ import { captureEvent } from 'utils/posthog';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
-
 export const SearchHeader: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   return (
-    <header style={{
-      padding: theme.spacing.lg,
-      borderBottom: `1px solid ${theme.colors.border.light}`,
-      backgroundColor: theme.colors.background.paper,
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
+    <header
+      style={{
+        padding: theme.spacing.lg,
+        borderBottom: `1px solid ${theme.colors.border.light}`,
+        backgroundColor: theme.colors.background.paper,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-          <h1 style={{
-            fontSize: theme.typography.fontSize['2xl'],
-            fontWeight: theme.typography.fontWeight.bold,
-            color: theme.colors.text.primary,
-            margin: 0,
-          }}>
+          <h1
+            style={{
+              fontSize: theme.typography.fontSize['2xl'],
+              fontWeight: theme.typography.fontWeight.bold,
+              color: theme.colors.text.primary,
+              margin: 0,
+            }}
+          >
             {t('search.title')}
           </h1>
           <Link
@@ -41,11 +46,11 @@ export const SearchHeader: React.FC = () => {
               color: theme.colors.text.tertiary,
               textDecoration: 'none',
             }}
-            onMouseEnter={(event) => {
+            onMouseEnter={event => {
               event.currentTarget.style.color = theme.colors.primary.main;
               event.currentTarget.style.textDecoration = 'underline';
             }}
-            onMouseLeave={(event) => {
+            onMouseLeave={event => {
               event.currentTarget.style.color = theme.colors.text.tertiary;
               event.currentTarget.style.textDecoration = 'none';
             }}
@@ -73,8 +78,3 @@ export const SearchHeader: React.FC = () => {
     </header>
   );
 };
-
-
-
-
-

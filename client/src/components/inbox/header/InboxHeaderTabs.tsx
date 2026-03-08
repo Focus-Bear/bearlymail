@@ -53,9 +53,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   const getTabStyle = (tabMode: InboxMode) => {
     const isActive = mode === tabMode;
     return {
-      padding: isMobile
-        ? `${theme.spacing.xs} ${theme.spacing.sm}`
-        : `${theme.spacing.sm} ${theme.spacing.lg}`,
+      padding: isMobile ? `${theme.spacing.xs} ${theme.spacing.sm}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
       backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
       color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
       border: STRING_NONE,
@@ -128,8 +126,3 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     </div>
   );
 };
-
-
-
-
-

@@ -61,24 +61,23 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div id="context" style={{
-      marginBottom: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-      borderBottom: `1px solid ${theme.colors.border.light}`,
-    }}>
+    <div
+      id="context"
+      style={{
+        marginBottom: theme.spacing.md,
+        paddingBottom: theme.spacing.sm,
+        borderBottom: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
       <ContextAboutMeHeader />
       <ContextImpactInfo />
 
       {onUpdateProfile && (
-        <ProfileSettingsSection
-          displayName={displayName}
-          jobTitle={jobTitle}
-          onUpdate={onUpdateProfile}
-        />
+        <ProfileSettingsSection displayName={displayName} jobTitle={jobTitle} onUpdate={onUpdateProfile} />
       )}
 
       <AnalyzeContextButton analyzing={analyzing} onAnalyzeContext={onAnalyzeContext} />
-      
+
       {contexts.length === 0 && (
         <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('settings.noContext')}
@@ -103,4 +102,3 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
     </div>
   );
 };
-

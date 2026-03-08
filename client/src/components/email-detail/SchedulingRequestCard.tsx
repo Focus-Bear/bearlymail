@@ -1,4 +1,4 @@
-import React, { useCallback,useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -17,10 +17,7 @@ interface SchedulingRequestCardProps {
   onDraftReply?: (draft: string) => void;
 }
 
-export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({
-  email,
-  onDraftReply,
-}) => {
+export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [linkCopied, setLinkCopied] = useState(false);
@@ -38,7 +35,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({
     }
   }, [email.id, user?.id]);
 
-  const handleDraftReply= useCallback(async () => {
+  const handleDraftReply = useCallback(async () => {
     setDrafting(true);
     captureEvent('scheduling_draft_reply_clicked', { email_id: email.id });
     try {
@@ -54,36 +51,85 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({
   }, [email.id, onDraftReply]);
 
   return (
-    <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.primary.main}`, padding: theme.spacing.md, marginBottom: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, marginBottom: theme.spacing.xs, }}>
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.primary.main}`,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.md,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing.sm,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, marginBottom: theme.spacing.xs }}>
         <span style={{ fontSize: theme.typography.fontSize.lg }}>{EMOJI_CALENDAR}</span>
-        <span style={{ fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, }}>
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+          }}
+        >
           {t('emailDetail.schedulingRequest.title')}
         </span>
       </div>
 
-      <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, lineHeight: theme.typography.lineHeight.normal, }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          lineHeight: theme.typography.lineHeight.normal,
+        }}
+      >
         {t('emailDetail.schedulingRequest.description')}
       </div>
 
-      <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', }}>
+      <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
         <button
           onClick={handleCopyLink}
-          style={{ flex: 1, minWidth: '120px', padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, fontWeight: theme.typography.fontWeight.semibold, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs, }}
+          style={{
+            flex: 1,
+            minWidth: '120px',
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.xs,
+          }}
         >
-          {linkCopied
-            ? t('emailDetail.schedulingRequest.linkCopied')
-            : t('emailDetail.schedulingRequest.copyLink')}
+          {linkCopied ? t('emailDetail.schedulingRequest.linkCopied') : t('emailDetail.schedulingRequest.copyLink')}
         </button>
 
         <button
           onClick={handleDraftReply}
           disabled={drafting}
-          style={{ flex: 1, minWidth: '120px', padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: drafting ? theme.colors.border.medium : 'transparent', color: drafting ? 'white' : theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontWeight: theme.typography.fontWeight.semibold, cursor: drafting ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs, }}
+          style={{
+            flex: 1,
+            minWidth: '120px',
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            backgroundColor: drafting ? theme.colors.border.medium : 'transparent',
+            color: drafting ? 'white' : theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+            cursor: drafting ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.xs,
+          }}
         >
-          {drafting
-            ? t('emailDetail.schedulingRequest.drafting')
-            : t('emailDetail.schedulingRequest.draftReply')}
+          {drafting ? t('emailDetail.schedulingRequest.drafting') : t('emailDetail.schedulingRequest.draftReply')}
         </button>
       </div>
     </div>

@@ -5,27 +5,42 @@ import { CategoryDebugData } from './CategoryDebugModal.types';
 function appendEmailSection(lines: string[], email: CategoryDebugData['email']): void {
   const fromDisplay = email.fromName ? `${email.fromName} <${email.from}>` : email.from;
   lines.push('### Email', `- **From**: ${fromDisplay}`);
-  if (email.senderJobTitle) { lines.push(`- **Job Title**: ${email.senderJobTitle}`); }
+  if (email.senderJobTitle) {
+    lines.push(`- **Job Title**: ${email.senderJobTitle}`);
+  }
   lines.push(`- **Subject**: ${email.subject}`);
-  if (email.bodyPreview) { lines.push('- **Body Preview**:', '  ```', `  ${email.bodyPreview.replace(/\n/g, '\n  ')}`, '  ```'); }
+  if (email.bodyPreview) {
+    lines.push('- **Body Preview**:', '  ```', `  ${email.bodyPreview.replace(/\n/g, '\n  ')}`, '  ```');
+  }
   lines.push('');
 }
 
 function appendCategorySection(lines: string[], thread: CategoryDebugData['thread']): void {
   lines.push('### Current Category', `- **Category**: ${thread.category ?? 'None'}`);
-  if (thread.categoryExplanation) { lines.push(`- **Explanation**: ${thread.categoryExplanation}`); }
+  if (thread.categoryExplanation) {
+    lines.push(`- **Explanation**: ${thread.categoryExplanation}`);
+  }
   lines.push('');
 }
 
 function appendCategoriesList(lines: string[], categories: CategoryDebugData['emailCategories'], header: string): void {
   lines.push(header);
-  if (categories.length === 0) { lines.push('None'); }
-  else { categories.forEach(cat => lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`)); }
+  if (categories.length === 0) {
+    lines.push('None');
+  } else {
+    categories.forEach(cat => lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`));
+  }
   lines.push('');
 }
 
-function appendContextItemList(lines: string[], label: string, items: Array<{value: string; explanation?: string; priority?: number}>): void {
-  if (items.length === 0) return;
+function appendContextItemList(
+  lines: string[],
+  label: string,
+  items: Array<{ value: string; explanation?: string; priority?: number }>
+): void {
+  if (items.length === 0) {
+    return;
+  }
   lines.push(`**${label}:**`);
   items.forEach(item => {
     let extra = '';
@@ -42,9 +57,17 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
   const lines: string[] = ['## Category Debug Report', ''];
   appendEmailSection(lines, debugInfo.email);
   appendCategorySection(lines, debugInfo.thread);
-  appendCategoriesList(lines, debugInfo.emailCategories, `### Available Categories (${debugInfo.emailCategories.length})`);
+  appendCategoriesList(
+    lines,
+    debugInfo.emailCategories,
+    `### Available Categories (${debugInfo.emailCategories.length})`
+  );
   if (debugInfo.protoCategories.length > 0) {
-    appendCategoriesList(lines, debugInfo.protoCategories, `### Proto Categories (${debugInfo.protoCategories.length})`);
+    appendCategoriesList(
+      lines,
+      debugInfo.protoCategories,
+      `### Proto Categories (${debugInfo.protoCategories.length})`
+    );
   }
   lines.push('### User Context');
   const { urgentItems, notUrgentItems, goals, workingOn, dontCare } = debugInfo.userContext;

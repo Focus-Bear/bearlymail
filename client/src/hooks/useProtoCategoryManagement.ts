@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
@@ -32,8 +32,16 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
 
   const fetchProtoCategories = useCallback(async () => {
     try {
-      const response = await axios.get<Array<{ id: string; name: string; description: string | null; emailCount: number }>>(`${API_URL}/proto-categories`);
-      setProtoCategories(response.data.map((cat: { id: string; name: string; description: string | null; emailCount: number }) => ({ id: cat.id, name: cat.name, description: cat.description })));
+      const response = await axios.get<
+        Array<{ id: string; name: string; description: string | null; emailCount: number }>
+      >(`${API_URL}/proto-categories`);
+      setProtoCategories(
+        response.data.map((cat: { id: string; name: string; description: string | null; emailCount: number }) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+        }))
+      );
     } catch (error) {
       console.error('Error fetching proto categories:', error);
     }
@@ -45,7 +53,10 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
       const response = await axios.post(`${API_URL}/context/generate-categories-from-other`);
       const { newCategoriesCount, reclassifyJobsQueued } = response.data;
       if (newCategoriesCount > 0) {
-        showNotification(t('inbox.category.reanalyseSuccess', { count: newCategoriesCount, reclassifyCount: reclassifyJobsQueued }), 'success');
+        showNotification(
+          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount, reclassifyCount: reclassifyJobsQueued }),
+          'success'
+        );
       } else {
         showNotification(t('inbox.category.reanalyseNoNewCategories'), 'info');
       }
@@ -57,20 +68,25 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
     }
   };
 
-  const handleConvertProtoCategory = useCallback(async (protoCategoryId: string, name: string) => {
-    if (!protoCategoryId) return;
-    setConvertingProtoCategoryId(protoCategoryId);
-    try {
-      await axios.post(`${API_URL}/proto-categories/${protoCategoryId}/promote`);
-      setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
-      showNotification(t('inbox.protoCategory.convertSuccess', { name }), 'success');
-    } catch (error) {
-      console.error('Error converting proto category:', error);
-      showNotification(t('inbox.protoCategory.convertError'), 'error');
-    } finally {
-      setConvertingProtoCategoryId(null);
-    }
-  }, [showNotification, t]);
+  const handleConvertProtoCategory = useCallback(
+    async (protoCategoryId: string, name: string) => {
+      if (!protoCategoryId) {
+        return;
+      }
+      setConvertingProtoCategoryId(protoCategoryId);
+      try {
+        await axios.post(`${API_URL}/proto-categories/${protoCategoryId}/promote`);
+        setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
+        showNotification(t('inbox.protoCategory.convertSuccess', { name }), 'success');
+      } catch (error) {
+        console.error('Error converting proto category:', error);
+        showNotification(t('inbox.protoCategory.convertError'), 'error');
+      } finally {
+        setConvertingProtoCategoryId(null);
+      }
+    },
+    [showNotification, t]
+  );
 
   const handleDeleteProtoCategoryFromInbox = useCallback(async (protoCategoryId: string) => {
     setDeletingProtoCategoryId(protoCategoryId);

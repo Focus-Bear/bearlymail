@@ -117,8 +117,8 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
         <div className="priority-emoji-float" aria-hidden="true" />
       )}
       <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
-        <EmailCardHeader 
-          email={email} 
+        <EmailCardHeader
+          email={email}
           priorityTooltip={priorityTooltip}
           onOverrideUrgency={onOverrideUrgency}
           onProvideFeedback={onProvideFeedback}
@@ -126,15 +126,9 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
         <EmailSubject email={email} />
         <EmailPreview email={email} />
         <MetadataIndicators email={email} />
-        {mode === MODE_FOLLOW_UP && (
-          <FollowUpMetadata email={email as any} />
-        )}
+        {mode === MODE_FOLLOW_UP && <FollowUpMetadata email={email as any} />}
         {mode === MODE_FOLLOW_UP && followUpData && (
-          <FollowUpDraft
-            followUpData={followUpData}
-            onUpdateDraft={onUpdateDraft}
-            onSendFollowUp={onSendFollowUp}
-          />
+          <FollowUpDraft followUpData={followUpData} onUpdateDraft={onUpdateDraft} onSendFollowUp={onSendFollowUp} />
         )}
         <EmailActionsRow
           email={email}
@@ -148,14 +142,9 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
           onSnooze={onSnooze}
         />
         {email.githubMetadata?.links && email.githubMetadata.links.length > 0 && (
-          <GitHubProjectBadges 
-            emailId={email.id} 
-            initialLinks={email.githubMetadata.links}
-            skipFetch
-          />
+          <GitHubProjectBadges emailId={email.id} initialLinks={email.githubMetadata.links} skipFetch />
         )}
       </EmailCard>
     </div>
   );
 };
-

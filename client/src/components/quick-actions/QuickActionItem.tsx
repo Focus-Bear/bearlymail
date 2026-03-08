@@ -20,34 +20,55 @@ interface QuickActionItemProps {
 
 const getActionIcon = (type: string): string => {
   if (type.startsWith(GITHUB_ACTION_PREFIX)) {
-    if (type === ACTION_TYPE_GITHUB_CREATE_ISSUE) return '🐛';
-    if (type === ACTION_TYPE_GITHUB_UPDATE_STATUS) return '🔄';
-    if (type === ACTION_TYPE_GITHUB_ADD_COMMENT) return '💬';
-    if (type === ACTION_TYPE_GITHUB_SEARCH_ISSUES) return '🔍';
+    if (type === ACTION_TYPE_GITHUB_CREATE_ISSUE) {
+      return '🐛';
+    }
+    if (type === ACTION_TYPE_GITHUB_UPDATE_STATUS) {
+      return '🔄';
+    }
+    if (type === ACTION_TYPE_GITHUB_ADD_COMMENT) {
+      return '💬';
+    }
+    if (type === ACTION_TYPE_GITHUB_SEARCH_ISSUES) {
+      return '🔍';
+    }
     return '🐙';
   }
   if (type.startsWith(CALENDAR_ACTION_PREFIX)) {
-    if (type === ACTION_TYPE_CALENDAR_CREATE_INVITE) return '📅';
-    if (type === ACTION_TYPE_CALENDAR_FIND_EVENTS) return '🔎';
+    if (type === ACTION_TYPE_CALENDAR_CREATE_INVITE) {
+      return '📅';
+    }
+    if (type === ACTION_TYPE_CALENDAR_FIND_EVENTS) {
+      return '🔎';
+    }
     return '📆';
   }
   return '⚡';
 };
 
 const getActionTitle = (type: string): string => {
-  if (type === ACTION_TYPE_GITHUB_CREATE_ISSUE) return 'Create GitHub Issue';
-  if (type === ACTION_TYPE_GITHUB_UPDATE_STATUS) return 'Update Issue Status';
-  if (type === ACTION_TYPE_GITHUB_ADD_COMMENT) return 'Add Comment to Issue';
-  if (type === ACTION_TYPE_GITHUB_SEARCH_ISSUES) return 'Search Similar Issues';
-  if (type === ACTION_TYPE_CALENDAR_CREATE_INVITE) return 'Create Calendar Invite';
-  if (type === ACTION_TYPE_CALENDAR_FIND_EVENTS) return 'Find Calendar Events';
+  if (type === ACTION_TYPE_GITHUB_CREATE_ISSUE) {
+    return 'Create GitHub Issue';
+  }
+  if (type === ACTION_TYPE_GITHUB_UPDATE_STATUS) {
+    return 'Update Issue Status';
+  }
+  if (type === ACTION_TYPE_GITHUB_ADD_COMMENT) {
+    return 'Add Comment to Issue';
+  }
+  if (type === ACTION_TYPE_GITHUB_SEARCH_ISSUES) {
+    return 'Search Similar Issues';
+  }
+  if (type === ACTION_TYPE_CALENDAR_CREATE_INVITE) {
+    return 'Create Calendar Invite';
+  }
+  if (type === ACTION_TYPE_CALENDAR_FIND_EVENTS) {
+    return 'Find Calendar Events';
+  }
   return 'Action';
 };
 
-export const QuickActionItem: React.FC<QuickActionItemProps> = ({
-  action,
-  onSelect,
-}) => {
+export const QuickActionItem: React.FC<QuickActionItemProps> = ({ action, onSelect }) => {
   return (
     <button
       onClick={() => onSelect(action)}
@@ -63,39 +84,37 @@ export const QuickActionItem: React.FC<QuickActionItemProps> = ({
         alignItems: 'flex-start',
         gap: theme.spacing.md,
       }}
-      onMouseEnter={(event) => {
+      onMouseEnter={event => {
         event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
         event.currentTarget.style.borderColor = theme.colors.primary.main;
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={event => {
         event.currentTarget.style.backgroundColor = theme.colors.background.default;
         event.currentTarget.style.borderColor = theme.colors.border.medium;
       }}
     >
-      <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>
-        {getActionIcon(action.type)}
-      </span>
+      <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{getActionIcon(action.type)}</span>
       <div style={{ flex: 1 }}>
-        <div style={{
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.base,
-        }}>
+        <div
+          style={{
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.base,
+          }}
+        >
           {getActionTitle(action.type)}
         </div>
-        <div style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          lineHeight: theme.typography.lineHeight.relaxed,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: theme.typography.lineHeight.relaxed,
+          }}
+        >
           {action.reason}
         </div>
       </div>
     </button>
   );
 };
-
-
-
-

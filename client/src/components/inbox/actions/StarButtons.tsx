@@ -2,7 +2,7 @@ import React from 'react';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
-import { OPACITY_HALF,TOAST_DURATION_MS } from 'components/inbox/constants';
+import { OPACITY_HALF, TOAST_DURATION_MS } from 'components/inbox/constants';
 
 interface StarButtonsProps {
   email: Email;
@@ -13,25 +13,23 @@ interface StarButtonsProps {
   onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
 }
 
-export const StarButtons: React.FC<StarButtonsProps> = ({
-  email,
-  keyboardHint,
-  onSetStarCount,
-}) => {
+export const StarButtons: React.FC<StarButtonsProps> = ({ email, keyboardHint, onSetStarCount }) => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: theme.spacing.xs,
-      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
       {[1, 2, 3].map(count => (
         <button
           key={count}
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
             const currentCount = email.starCount || 0;
             const newCount = currentCount === count ? 0 : count;
@@ -42,7 +40,11 @@ export const StarButtons: React.FC<StarButtonsProps> = ({
               setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
             }
           }}
-          title={(email.starCount || 0) === count ? `Remove stars (or press ${count})` : `Set ${count} star${count > 1 ? 's' : ''} (or press ${count})`}
+          title={
+            (email.starCount || 0) === count
+              ? `Remove stars (or press ${count})`
+              : `Set ${count} star${count > 1 ? 's' : ''} (or press ${count})`
+          }
           style={{
             background: 'transparent',
             border: 'none',
@@ -53,11 +55,11 @@ export const StarButtons: React.FC<StarButtonsProps> = ({
             opacity: (email.starCount || 0) >= count ? 1 : OPACITY_HALF,
             transition: theme.transitions.fast,
           }}
-          onMouseEnter={(event) => {
+          onMouseEnter={event => {
             event.currentTarget.style.opacity = '1';
             event.currentTarget.style.transform = 'scale(1.2)';
           }}
-          onMouseLeave={(event) => {
+          onMouseLeave={event => {
             const currentCount = email.starCount || 0;
             event.currentTarget.style.opacity = currentCount >= count ? '1' : String(OPACITY_HALF);
             event.currentTarget.style.transform = 'scale(1)';
@@ -69,4 +71,3 @@ export const StarButtons: React.FC<StarButtonsProps> = ({
     </div>
   );
 };
-

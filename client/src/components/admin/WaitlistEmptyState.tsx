@@ -10,19 +10,16 @@ export const WaitlistEmptyState: React.FC<WaitlistEmptyStateProps> = ({ messageK
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      padding: theme.spacing.xl,
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.md,
-      textAlign: 'center',
-      color: theme.colors.text.secondary,
-    }}>
+    <div
+      style={{
+        padding: theme.spacing.xl,
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.md,
+        textAlign: 'center',
+        color: theme.colors.text.secondary,
+      }}
+    >
       {t(messageKey)}
     </div>
   );
 };
-
-
-
-
-

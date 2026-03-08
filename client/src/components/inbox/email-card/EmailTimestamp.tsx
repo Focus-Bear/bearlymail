@@ -22,4 +22,3 @@ export const EmailTimestamp: React.FC<EmailTimestampProps> = ({ receivedAt }) =>
     </span>
   );
 };
-

@@ -31,7 +31,16 @@ interface UIStateParams {
  * Also includes background polling and the inbox-viewed tracking effect.
  * Extracted from useInboxState to reduce its statement count.
  */
-export function useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading }: UIStateParams) {
+export function useInboxUIState({
+  user,
+  authLoading,
+  refreshUser,
+  fetchEmails,
+  refreshInPlace,
+  mode,
+  emails,
+  loading,
+}: UIStateParams) {
   const { t } = useTranslation();
   const snoozeInput = useSnoozeInput();
   const onboarding = useOnboarding({ user, authLoading, refreshUser });
@@ -58,5 +67,15 @@ export function useInboxUIState({ user, authLoading, refreshUser, fetchEmails, r
     { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
   ];
 
-  return { snoozeInput, onboarding, urgentNotification, debugPanel, modals, priorityTooltip, keyboardHint, splitView, tourSteps };
+  return {
+    snoozeInput,
+    onboarding,
+    urgentNotification,
+    debugPanel,
+    modals,
+    priorityTooltip,
+    keyboardHint,
+    splitView,
+    tourSteps,
+  };
 }

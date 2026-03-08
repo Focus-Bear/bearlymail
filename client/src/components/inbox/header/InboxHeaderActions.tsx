@@ -61,30 +61,72 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
         <button
           onClick={onToggleDebug}
           title={t('inbox.toggleDebug')}
-          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.base, borderRadius: theme.borderRadius.md, border: debugViewOpen ? `1px solid ${theme.colors.warning.main}` : `1px solid ${theme.colors.border.medium}`, backgroundColor: debugViewOpen ? theme.colors.warning.light : theme.colors.background.paper, color: theme.colors.text.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: theme.spacing.xs, transition: theme.transitions.fast, }}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            fontSize: theme.typography.fontSize.base,
+            borderRadius: theme.borderRadius.md,
+            border: debugViewOpen
+              ? `1px solid ${theme.colors.warning.main}`
+              : `1px solid ${theme.colors.border.medium}`,
+            backgroundColor: debugViewOpen ? theme.colors.warning.light : theme.colors.background.paper,
+            color: theme.colors.text.primary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            transition: theme.transitions.fast,
+          }}
         >
           <span>{EMOJI_BUG}</span>
         </button>
       )}
       <div style={{ position: 'relative' }} ref={menuRef}>
         <button
-          onClick={() => setMenuOpen((prev) => !prev)}
+          onClick={() => setMenuOpen(prev => !prev)}
           title={t('inbox.moreInboxActions')}
           aria-label={t('inbox.moreInboxActions')}
-          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.base, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', }}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            fontSize: theme.typography.fontSize.base,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.medium}`,
+            backgroundColor: theme.colors.background.paper,
+            color: theme.colors.text.primary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+          }}
         >
           <FiMoreVertical size={14} />
         </button>
         {menuOpen && (
           <div
-            style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 20, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: '190px', }}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 'calc(100% + 4px)',
+              zIndex: 20,
+              backgroundColor: theme.colors.background.paper,
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.md,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: '190px',
+            }}
           >
             <button
               onClick={() => {
                 onViewBlockedEmails?.();
                 setMenuOpen(false);
               }}
-              style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', color: theme.colors.text.primary, }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: 'transparent',
+                border: 'none',
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                cursor: 'pointer',
+                color: theme.colors.text.primary,
+              }}
             >
               {t('inbox.viewBlockedEmails')}
             </button>
@@ -93,7 +135,15 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
                 onViewAutoRespondedEmails?.();
                 setMenuOpen(false);
               }}
-              style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', color: theme.colors.text.primary, }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: 'transparent',
+                border: 'none',
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                cursor: 'pointer',
+                color: theme.colors.text.primary,
+              }}
             >
               {t('inbox.viewAutoRespondedEmails')}
             </button>
@@ -102,7 +152,15 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
                 navigate(ROUTE_SCHEDULED);
                 setMenuOpen(false);
               }}
-              style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', color: theme.colors.text.primary, }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: 'transparent',
+                border: 'none',
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                cursor: 'pointer',
+                color: theme.colors.text.primary,
+              }}
             >
               🕐 {t('nav.scheduled')}
             </button>
@@ -115,4 +173,3 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
     </div>
   );
 };
-

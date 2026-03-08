@@ -26,12 +26,16 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
   const { t } = useTranslation();
 
   const getButtonBackgroundColor = (): string => {
-    if (snoozeInput.trim()) return theme.colors.primary.main;
+    if (snoozeInput.trim()) {
+      return theme.colors.primary.main;
+    }
     return theme.colors.background.subtle;
   };
 
   const getButtonColor = (): string => {
-    if (snoozeInput.trim()) return 'white';
+    if (snoozeInput.trim()) {
+      return 'white';
+    }
     return theme.colors.text.tertiary;
   };
 
@@ -46,8 +50,8 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
         placeholder={t('emailActions.snoozePlaceholder')}
         autoFocus
         value={snoozeInput}
-        onChange={(event) => onSnoozeInputChange(event.target.value)}
-        onKeyDown={(event) => {
+        onChange={event => onSnoozeInputChange(event.target.value)}
+        onKeyDown={event => {
           if (event.key === KEY_ENTER) {
             event.preventDefault();
             if (snoozeInput.trim()) {
@@ -105,8 +109,3 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
     </div>
   );
 };
-
-
-
-
-

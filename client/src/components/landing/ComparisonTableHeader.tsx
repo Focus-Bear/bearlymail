@@ -37,6 +37,3 @@ export const ComparisonTableHeader: React.FC = () => {
     </thead>
   );
 };
-
-
-

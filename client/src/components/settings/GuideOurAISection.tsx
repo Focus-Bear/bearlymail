@@ -115,13 +115,16 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onRefreshContexts,
 }) => {
   return (
-    <div id="guide-our-ai" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
-      marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
-    }}>
+    <div
+      id="guide-our-ai"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
+    >
       <GuideOurAISectionHeader />
 
       <ContextAboutMeSection
@@ -174,4 +177,3 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
     </div>
   );
 };
-

@@ -26,7 +26,14 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
   onProvideFeedback,
 }) => {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.xs,
+      }}
+    >
       <EmailHeaderLeft
         email={email}
         priorityTooltip={priorityTooltip}
@@ -37,4 +44,3 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
     </div>
   );
 };
-

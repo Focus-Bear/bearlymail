@@ -1,11 +1,11 @@
-import React, { useCallback,useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Email, getEmailPriorityScore,InboxMode } from 'types/email';
+import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
 
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
-import { CategoryAccordion, CategoryGroup,groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
+import { CategoryAccordion, CategoryGroup, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
 import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
@@ -15,7 +15,14 @@ import { ResizableDivider } from 'components/inbox/ResizableDivider';
 import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
-import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
+import {
+  CATEGORY_OTHER,
+  MODE_FOLLOW_UP,
+  MODE_TRIAGE,
+  PARAM_CATEGORIES,
+  PARAM_CATEGORY_IDS,
+  STRING_NONE,
+} from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -95,8 +102,12 @@ function computeCanRenderCategories(
   fetchError: string | null | undefined,
   categoriesCount: number
 ): boolean {
-  if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) return false;
-  if (loadingModeSwitch || fetchError || categoriesCount === 0) return false;
+  if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) {
+    return false;
+  }
+  if (loadingModeSwitch || fetchError || categoriesCount === 0) {
+    return false;
+  }
   return true;
 }
 
@@ -107,7 +118,9 @@ function computeIsEmailsEmpty(
   loadingModeSwitch: boolean,
   emailsCount: number
 ): boolean {
-  if (isRefetchingWithoutData) return false;
+  if (isRefetchingWithoutData) {
+    return false;
+  }
   if (categorySummary !== null && categorySummary !== undefined) {
     return categorySummary.length === 0 && !loading && !loadingModeSwitch;
   }
@@ -188,7 +201,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   } = useProtoCategoryManagement();
 
   const handleLoadMore = useCallback(async () => {
-    if (!onLoadMore || isLoadingMoreRef.current || !hasMore) return;
+    if (!onLoadMore || isLoadingMoreRef.current || !hasMore) {
+      return;
+    }
     isLoadingMoreRef.current = true;
     try {
       await onLoadMore();
@@ -200,27 +215,24 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Infinite scroll: trigger loadMore when the sentinel element enters the viewport
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
+    if (!sentinel || !hasMore) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         if (entries[0].isIntersecting) {
           handleLoadMore();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '200px' }
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, handleLoadMore]);
 
-
-
-  const filteredEmails = useMemo(() =>
-    emails.filter(email => !email.isArchived),
-    [emails]
-  );
+  const filteredEmails = useMemo(() => emails.filter(email => !email.isArchived), [emails]);
 
   // Build per-category email map from the loaded flat email array.
   // Primary path: emails have already been keyed by normalizeCategoryEmails in
@@ -253,8 +265,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
    * Direct map lookup — no fuzzy matching needed since both keys and email.category
    * are normalised to the same UUID-or-name format by normalizeCategoryEmails.
    */
-  const getCategoryGroup = (categoryKey: string): CategoryGroup | undefined =>
-    emailCategoryMap.get(categoryKey);
+  const getCategoryGroup = (categoryKey: string): CategoryGroup | undefined => emailCategoryMap.get(categoryKey);
 
   // Group "Other" category emails by their proto category name for sub-accordions
   const otherProtoGroups = useMemo(() => {
@@ -263,7 +274,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     otherEmails.forEach(email => {
       const protoName = email.protoCategoryName;
       if (protoName) {
-        if (!groups.has(protoName)) groups.set(protoName, []);
+        if (!groups.has(protoName)) {
+          groups.set(protoName, []);
+        }
         groups.get(protoName)!.push(email);
       }
     });
@@ -295,7 +308,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
-          console.log('[InboxContent] Initialising stableCategoryOrder from emails (no summary):', categoryGroups.map(grp => grp.category));
+          console.log(
+            '[InboxContent] Initialising stableCategoryOrder from emails (no summary):',
+            categoryGroups.map(grp => grp.category)
+          );
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
           const newKeys = categoryGroups
@@ -318,7 +334,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   const displayCategories = useMemo((): Array<{ id: string | null; name: string; count: number }> => {
     const source: Array<{ id: string | null; name: string; count: number }> =
       summaryCategories ??
-      groupEmailsByCategory(filteredEmails, mode).map((grp) => ({
+      groupEmailsByCategory(filteredEmails, mode).map(grp => ({
         id: null,
         name: grp.category,
         count: grp.emails.length,
@@ -327,7 +343,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     // Filter out categories with count=0 from the source.
     const nonEmptySource = source.filter(cat => cat.count > 0);
 
-    if (stableCategoryOrder.length === 0) return nonEmptySource;
+    if (stableCategoryOrder.length === 0) {
+      return nonEmptySource;
+    }
 
     // stableCategoryOrder stores category keys (UUID or name); match by key
     const orderMap = new Map(stableCategoryOrder.map((key, idx) => [key, idx]));
@@ -349,41 +367,47 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     }
   }, [expandedCategories, displayCategories, fetchProtoCategories]);
 
-  const selectedEmailForPanel = useMemo(() =>
-    splitView.selectedEmailId ? emails.find(event => event.id === splitView.selectedEmailId) : undefined,
+  const selectedEmailForPanel = useMemo(
+    () => (splitView.selectedEmailId ? emails.find(event => event.id === splitView.selectedEmailId) : undefined),
     [emails, splitView.selectedEmailId]
   );
 
-  const handleSplitViewArchive = useCallback((emailId: string) => {
-    if (onSplitViewArchive && emailId) {
-      onSplitViewArchive(emailId);
-    }
-  }, [onSplitViewArchive]);
+  const handleSplitViewArchive = useCallback(
+    (emailId: string) => {
+      if (onSplitViewArchive && emailId) {
+        onSplitViewArchive(emailId);
+      }
+    },
+    [onSplitViewArchive]
+  );
 
-  const handleSplitViewSnooze = useCallback((emailId: string) => {
-    if (onSplitViewSnooze && emailId) {
-      onSplitViewSnooze(emailId);
-    }
-  }, [onSplitViewSnooze]);
+  const handleSplitViewSnooze = useCallback(
+    (emailId: string) => {
+      if (onSplitViewSnooze && emailId) {
+        onSplitViewSnooze(emailId);
+      }
+    },
+    [onSplitViewSnooze]
+  );
 
-  const handleSplitViewPrioritySet = useCallback((emailId: string, starCount: number) => {
-    if (onSplitViewPrioritySet && emailId) {
-      onSplitViewPrioritySet(emailId, starCount);
-    }
-  }, [onSplitViewPrioritySet]);
+  const handleSplitViewPrioritySet = useCallback(
+    (emailId: string, starCount: number) => {
+      if (onSplitViewPrioritySet && emailId) {
+        onSplitViewPrioritySet(emailId, starCount);
+      }
+    },
+    [onSplitViewPrioritySet]
+  );
 
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/follow-ups/${followUpId}/review-draft`,
-        { draft, recipientName }
-      );
+      const response = await axios.post(`${API_URL}/follow-ups/${followUpId}/review-draft`, { draft, recipientName });
       const reviewedDraft = response.data;
-      
+
       if (reviewedDraft !== draft && updateDraft) {
         await updateDraft(followUpId, reviewedDraft);
       }
-      
+
       if (bulkSend) {
         await bulkSend([followUpId]);
       }
@@ -398,22 +422,26 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={splitViewContainerRef}
-      style={{ 
-        flex: 1, 
-        display: 'flex', 
+      style={{
+        flex: 1,
+        display: 'flex',
         overflow: 'hidden',
       }}
     >
       {/* Email List */}
-      <div 
+      <div
         ref={emailListRef}
         tabIndex={0}
-        style={{ 
+        style={{
           flex: (() => {
-            if (splitView.panelExpanded && splitView.selectedEmailId) return 0;
-            if (splitView.selectedEmailId) return `0 0 ${splitView.splitPosition}%`;
+            if (splitView.panelExpanded && splitView.selectedEmailId) {
+              return 0;
+            }
+            if (splitView.selectedEmailId) {
+              return `0 0 ${splitView.splitPosition}%`;
+            }
             return 1;
           })(),
           overflowY: 'auto',
@@ -424,13 +452,16 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           borderRight: computeEmailListBorderRight(splitView),
         }}
       >
-        <div style={{ maxWidth: splitView.selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
-          {mode === MODE_TRIAGE && (
-            <BatchInfoBar
-              nextDelivery={nextDelivery}
-              lastUrgentCheck={lastUrgentCheck}
-            />
-          )}
+        <div
+          style={{
+            maxWidth: splitView.selectedEmailId ? '100%' : '1000px',
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: isMobile ? theme.spacing.xs : theme.spacing.md,
+          }}
+        >
+          {mode === MODE_TRIAGE && <BatchInfoBar nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck} />}
           {mode === MODE_FOLLOW_UP && (
             <FollowUpActions
               onGenerateDrafts={onGenerateDrafts}
@@ -445,11 +476,24 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             loadingModeSwitch={loadingModeSwitch}
             decrypting={decrypting}
             fetchError={fetchError}
-            emailsEmpty={computeIsEmailsEmpty(isRefetchingWithoutData, categorySummary, loading, loadingModeSwitch, emails.length)}
+            emailsEmpty={computeIsEmailsEmpty(
+              isRefetchingWithoutData,
+              categorySummary,
+              loading,
+              loadingModeSwitch,
+              emails.length
+            )}
             mode={mode}
             onRetry={onRetry}
           />
-          {computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, displayCategories.length) && (
+          {computeCanRenderCategories(
+            loading,
+            isRefetchingWithoutData,
+            hasInitiallyLoaded,
+            loadingModeSwitch,
+            fetchError,
+            displayCategories.length
+          ) &&
             displayCategories.map((categoryItem, catIdx) => {
               const categoryName = categoryItem.name;
               // categoryKey is the UUID when available, name otherwise — used for all
@@ -465,16 +509,24 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               // vanishing when the fetch returns 0 emails due to a race/backend issue while
               // the summary still shows a non-zero count — that would be a false disappearance.
               if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-                console.debug('[InboxContent] Hiding empty category (isLoaded=true, 0 emails, count=0):', categoryName, '(key:', categoryKey, ')');
+                console.debug(
+                  '[InboxContent] Hiding empty category (isLoaded=true, 0 emails, count=0):',
+                  categoryName,
+                  '(key:',
+                  categoryKey,
+                  ')'
+                );
                 return null;
               }
 
               // Warn when the fetch completed but no emails matched the category key.
               if (isLoaded && categoryEmails.length === 0 && categoryItem.count > 0) {
-                console.warn(
-                  '[InboxContent] Category loaded but shows 0 emails despite summary count > 0:',
-                  { categoryName, categoryKey, summaryCount: categoryItem.count, mapKeys: Array.from(emailCategoryMap.keys()) },
-                );
+                console.warn('[InboxContent] Category loaded but shows 0 emails despite summary count > 0:', {
+                  categoryName,
+                  categoryKey,
+                  summaryCount: categoryItem.count,
+                  mapKeys: Array.from(emailCategoryMap.keys()),
+                });
               }
 
               // Compute global index for keyboard navigation (across categories)
@@ -486,7 +538,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               }
 
               const renderEmailItem = (email: Email, emailIndex: number) => {
-                const suggestion = mode === MODE_TRIAGE ? (triageSuggestions.get(email.id) || null) : null;
+                const suggestion = mode === MODE_TRIAGE ? triageSuggestions.get(email.id) || null : null;
                 const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === emailIndex;
                 const followUpData = mode === MODE_FOLLOW_UP ? followUpDataMap.get(email.threadId) : null;
                 return (
@@ -547,7 +599,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   isExpanded={isExpanded}
                   onToggle={() => onToggleCategory(categoryKey)}
                   onArchiveAll={async (catName: string, ids: string[]) => {
-                    if (!onBulkArchive) return;
+                    if (!onBulkArchive) {
+                      return;
+                    }
                     if (ids && ids.length > 0) {
                       await onBulkArchive(ids);
                       return;
@@ -558,9 +612,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                       params.append('mode', mode);
                       // Use UUID when available to avoid name encoding issues
                       if (categoryItem.id) {
-                        params.append('categoryIds', categoryItem.id);
+                        params.append(PARAM_CATEGORY_IDS, categoryItem.id);
                       } else {
-                        params.append('categories', catName);
+                        params.append(PARAM_CATEGORIES, catName);
                       }
                       params.append('limit', INBOX_FETCH_LIMIT.toString());
                       params.append('offset', '0');
@@ -578,56 +632,57 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   onReanalyseOther={handleReanalyseOther}
                   isReanalysingOther={isReanalysingOther}
                 >
-                  {hasProtoGroups ? (() => {
-                    let offset = 0;
-                    return (
-                      <>
-                        {otherProtoGroups.map(group => {
-                          const groupStart = offset;
-                          offset += group.emails.length;
-                          const protoCategory = protoCategories.find(pc => pc.name === group.name);
-                          return (
-                            <ProtoCategorySubAccordion
-                              key={group.name}
-                              name={group.name}
-                              description={protoCategory?.description}
-                              emailCount={group.emails.length}
-                              onConvertToCategory={() =>
-                                handleConvertProtoCategory(protoCategory?.id ?? '', group.name)
-                              }
-                              isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
-                              onArchiveAll={onBulkArchive}
-                              emailIds={group.emails.map(email => email.id)}
-                              onDelete={protoCategory ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id) : undefined}
-                              isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
-                            >
-                              {group.emails.map((email, i) =>
-                                renderEmailItem(email, globalIndex + groupStart + i)
-                              )}
-                            </ProtoCategorySubAccordion>
-                          );
-                        })}
-                        {uncategorizedOtherEmails.map((email, i) =>
-                          renderEmailItem(email, globalIndex + offset + i)
-                        )}
-                      </>
-                    );
-                  })() : (
-                    categoryEmails.map((email, indexInCategory) =>
-                      renderEmailItem(email, globalIndex + indexInCategory)
-                    )
-                  )}
+                  {hasProtoGroups
+                    ? (() => {
+                        let offset = 0;
+                        return (
+                          <>
+                            {otherProtoGroups.map(group => {
+                              const groupStart = offset;
+                              offset += group.emails.length;
+                              const protoCategory = protoCategories.find(pc => pc.name === group.name);
+                              return (
+                                <ProtoCategorySubAccordion
+                                  key={group.name}
+                                  name={group.name}
+                                  description={protoCategory?.description}
+                                  emailCount={group.emails.length}
+                                  onConvertToCategory={() =>
+                                    handleConvertProtoCategory(protoCategory?.id ?? '', group.name)
+                                  }
+                                  isConverting={
+                                    convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined
+                                  }
+                                  onArchiveAll={onBulkArchive}
+                                  emailIds={group.emails.map(email => email.id)}
+                                  onDelete={
+                                    protoCategory
+                                      ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id)
+                                      : undefined
+                                  }
+                                  isDeleting={
+                                    deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined
+                                  }
+                                >
+                                  {group.emails.map((email, i) => renderEmailItem(email, globalIndex + groupStart + i))}
+                                </ProtoCategorySubAccordion>
+                              );
+                            })}
+                            {uncategorizedOtherEmails.map((email, i) =>
+                              renderEmailItem(email, globalIndex + offset + i)
+                            )}
+                          </>
+                        );
+                      })()
+                    : categoryEmails.map((email, indexInCategory) =>
+                        renderEmailItem(email, globalIndex + indexInCategory)
+                      )}
                 </CategoryAccordion>
               );
-            })
-          )}
+            })}
           {/* Sentinel element for infinite scroll — triggers loadMore via IntersectionObserver */}
           {computeHasInfiniteSentinel(hasMore, loading, loadingModeSwitch, hasInitiallyLoaded) && (
-            <div
-              ref={sentinelRef}
-              style={{ height: '1px', visibility: 'hidden' }}
-              aria-hidden="true"
-            />
+            <div ref={sentinelRef} style={{ height: '1px', visibility: 'hidden' }} aria-hidden="true" />
           )}
           <DebugView emails={emails} />
         </div>

@@ -1,4 +1,4 @@
-import { useCallback,useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import axios from 'axios';
 import { Contact } from 'types/contact';
 
@@ -47,9 +47,7 @@ export const useContactSearch = (): UseContactSearchResult => {
 
     setSearching(true);
     try {
-      const response = await axios.get(
-        `${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`,
-      );
+      const response = await axios.get(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
       setSearchResults(response.data);
       setSelectedSuggestionIndex(-1);
     } catch (err) {
@@ -62,9 +60,13 @@ export const useContactSearch = (): UseContactSearchResult => {
 
   const handleSearchInput = useCallback(
     (value: string, field: 'to' | 'cc' | 'bcc') => {
-      if (field === EMAIL_FIELD_TO) setToSearch(value);
-      else if (field === EMAIL_FIELD_CC) setCcSearch(value);
-      else setBccSearch(value);
+      if (field === EMAIL_FIELD_TO) {
+        setToSearch(value);
+      } else if (field === EMAIL_FIELD_CC) {
+        setCcSearch(value);
+      } else {
+        setBccSearch(value);
+      }
 
       setActiveField(field);
 
@@ -76,16 +78,20 @@ export const useContactSearch = (): UseContactSearchResult => {
         searchContacts(value);
       }, DEBOUNCE_DELAY_200_MS);
     },
-    [searchContacts],
+    [searchContacts]
   );
 
   const getSearchValue = useCallback(
     (field: 'to' | 'cc' | 'bcc'): string => {
-      if (field === EMAIL_FIELD_TO) return toSearch;
-      if (field === EMAIL_FIELD_CC) return ccSearch;
+      if (field === EMAIL_FIELD_TO) {
+        return toSearch;
+      }
+      if (field === EMAIL_FIELD_CC) {
+        return ccSearch;
+      }
       return bccSearch;
     },
-    [toSearch, ccSearch, bccSearch],
+    [toSearch, ccSearch, bccSearch]
   );
 
   const clearSearch = useCallback(() => {
@@ -97,20 +103,22 @@ export const useContactSearch = (): UseContactSearchResult => {
   }, []);
 
   // Backward-compat helpers for Contacts.tsx (single-field search)
-  const setSearchQuery = useCallback((query: string) => {
-    setToSearch(query);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      searchContacts(query);
-    }, DEBOUNCE_DELAY_200_MS);
-  }, [searchContacts]);
+  const setSearchQuery = useCallback(
+    (query: string) => {
+      setToSearch(query);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      searchTimeoutRef.current = setTimeout(() => {
+        searchContacts(query);
+      }, DEBOUNCE_DELAY_200_MS);
+    },
+    [searchContacts]
+  );
 
   const filteredContacts = useCallback(
-    (baseContacts: Contact[]): Contact[] =>
-      searchResults.length > 0 ? searchResults : baseContacts,
-    [searchResults],
+    (baseContacts: Contact[]): Contact[] => (searchResults.length > 0 ? searchResults : baseContacts),
+    [searchResults]
   );
 
   return {

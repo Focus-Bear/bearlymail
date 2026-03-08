@@ -30,16 +30,20 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        margin: 0,
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.semibold,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.sm,
-      }}>
+    <div
+      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
+    >
+      <h3
+        style={{
+          color: theme.colors.text.primary,
+          margin: 0,
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
         ✅ {t('emailDetail.actionItems')}
       </h3>
       <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
@@ -86,5 +90,3 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
     </div>
   );
 };
-
-

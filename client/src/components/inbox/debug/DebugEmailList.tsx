@@ -15,22 +15,26 @@ interface DebugEmailListProps {
  */
 export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) => {
   const getBackgroundColor = (isArchived: boolean, isInWrongTab: boolean): string => {
-    if (isArchived) return '#FFE6E6';
-    if (isInWrongTab) return '#F8D7DA';
+    if (isArchived) {
+      return '#FFE6E6';
+    }
+    if (isInWrongTab) {
+      return '#F8D7DA';
+    }
     return '#D1ECF1';
   };
 
   const getBorderColor = (isArchived: boolean, isInWrongTab: boolean): string => {
-    if (isArchived || isInWrongTab) return '#F5C6CB';
+    if (isArchived || isInWrongTab) {
+      return '#F5C6CB';
+    }
     return '#BEE5EB';
   };
 
   return (
     <>
-      <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0` }}>
-        📧 Current Tab Emails ({emails.length})
-      </h4>
-      {emails.map((email) => {
+      <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0` }}>📧 Current Tab Emails ({emails.length})</h4>
+      {emails.map(email => {
         const starCount = email.starCount ?? 0;
         const shouldBeIn = starCount > 0 ? 'action' : 'triage';
         const isInWrongTab = shouldBeIn !== mode;
@@ -69,12 +73,10 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                 <span style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   <strong>ThreadID:</strong> {email.threadId?.substring(0, 8)}...
                   <br />
-                  <strong>EmailID:</strong> {email.id.substring(0, 8)}... |
-                  <strong> StarCount:</strong> {starCount} |
+                  <strong>EmailID:</strong> {email.id.substring(0, 8)}... |<strong> StarCount:</strong> {starCount} |
                   <strong> Archived:</strong> {isArchived ? 'YES' : 'NO'}
                   <br />
-                  <strong>Should be in:</strong> {shouldBeIn} |
-                  <strong> Current tab:</strong> {mode} |
+                  <strong>Should be in:</strong> {shouldBeIn} |<strong> Current tab:</strong> {mode} |
                   <strong> Priority:</strong> {getEmailPriorityScore(email).toFixed(1)}
                   {email.lastCheckedAt && (
                     <>
@@ -82,9 +84,7 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                       <strong>Last checked:</strong> {new Date(email.lastCheckedAt).toLocaleString()}
                     </>
                   )}
-                  {isArchived && (
-                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>
-                  )}
+                  {isArchived && <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>}
                   {isInWrongTab && !isArchived && (
                     <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ❌ WRONG TAB!</span>
                   )}
@@ -103,11 +103,8 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
         );
       })}
       {emails.length === 0 && (
-        <div style={{ color: theme.colors.text.secondary }}>
-          No threads to display in debug view
-        </div>
+        <div style={{ color: theme.colors.text.secondary }}>No threads to display in debug view</div>
       )}
     </>
   );
 };
-

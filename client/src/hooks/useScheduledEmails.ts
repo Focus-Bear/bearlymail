@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -49,10 +49,7 @@ export function useScheduledEmails() {
   const fetchTimeSuggestions = useCallback(async (userTimezone?: string) => {
     try {
       const params = userTimezone ? { timezone: userTimezone } : {};
-      const response = await axios.get<TimeSuggestion[]>(
-        `${API_URL}/scheduled-emails/suggestions`,
-        { params }
-      );
+      const response = await axios.get<TimeSuggestion[]>(`${API_URL}/scheduled-emails/suggestions`, { params });
       setTimeSuggestions(response.data);
       return response.data;
     } catch (error) {
@@ -63,10 +60,9 @@ export function useScheduledEmails() {
 
   const checkSendTime = useCallback(async (scheduledSendAt: Date): Promise<TimeCheckResult> => {
     try {
-      const response = await axios.post<TimeCheckResult>(
-        `${API_URL}/scheduled-emails/check-time`,
-        { scheduledSendAt: scheduledSendAt.toISOString() }
-      );
+      const response = await axios.post<TimeCheckResult>(`${API_URL}/scheduled-emails/check-time`, {
+        scheduledSendAt: scheduledSendAt.toISOString(),
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to check send time:', error);

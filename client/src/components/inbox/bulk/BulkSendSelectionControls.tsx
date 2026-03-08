@@ -41,32 +41,31 @@ export const BulkSendSelectionControls: React.FC<BulkSendSelectionControlsProps>
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}
         </button>
-        
-        <span style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-        }}>
+
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+          }}
+        >
           {selectedCount} {selectedCount === 1 ? t('inbox.followUp') : t('inbox.followUps')} {t('common.selected')}
         </span>
       </div>
-      
+
       {isOverLimit && (
-        <div style={{
-          marginTop: theme.spacing.xs,
-          padding: theme.spacing.sm,
-          backgroundColor: theme.colors.warning.light,
-          borderRadius: theme.borderRadius.sm,
-          color: theme.colors.warning.main,
-          fontSize: theme.typography.fontSize.sm,
-        }}>
+        <div
+          style={{
+            marginTop: theme.spacing.xs,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.warning.light,
+            borderRadius: theme.borderRadius.sm,
+            color: theme.colors.warning.main,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('inbox.maxFollowUpsWarning', { max: maxAllowed })}
         </div>
       )}
     </div>
   );
 };
-
-
-
-
-

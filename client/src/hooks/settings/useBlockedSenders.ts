@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -24,19 +24,22 @@ export const useBlockedSenders = () => {
     }
   }, []);
 
-  const removeBlockedSender = useCallback(async (id: string) => {
-    const deletedSender = blockedSenders.find(sender => sender.id === id);
-    setBlockedSenders(prev => prev.filter(sender => sender.id !== id));
-    
-    try {
-      await axios.delete(`${API_URL}/blocked-senders/${id}`);
-    } catch (error) {
-      console.error('Error unblocking sender:', error);
-      if (deletedSender) {
-        setBlockedSenders(prev => [...prev, deletedSender]);
+  const removeBlockedSender = useCallback(
+    async (id: string) => {
+      const deletedSender = blockedSenders.find(sender => sender.id === id);
+      setBlockedSenders(prev => prev.filter(sender => sender.id !== id));
+
+      try {
+        await axios.delete(`${API_URL}/blocked-senders/${id}`);
+      } catch (error) {
+        console.error('Error unblocking sender:', error);
+        if (deletedSender) {
+          setBlockedSenders(prev => [...prev, deletedSender]);
+        }
       }
-    }
-  }, [blockedSenders]);
+    },
+    [blockedSenders]
+  );
 
   return {
     blockedSenders,
@@ -45,8 +48,3 @@ export const useBlockedSenders = () => {
     removeBlockedSender,
   };
 };
-
-
-
-
-

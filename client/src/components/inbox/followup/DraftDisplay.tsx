@@ -4,7 +4,12 @@ import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { FOLLOW_UP_SEND_STATUS_FAILED, FOLLOW_UP_SEND_STATUS_SENDING, FOLLOW_UP_SEND_STATUS_SENT, STRING_NONE } from 'constants/strings';
+import {
+  FOLLOW_UP_SEND_STATUS_FAILED,
+  FOLLOW_UP_SEND_STATUS_SENDING,
+  FOLLOW_UP_SEND_STATUS_SENT,
+  STRING_NONE,
+} from 'constants/strings';
 
 interface DraftDisplayProps {
   draftFollowUp: string;
@@ -14,43 +19,48 @@ interface DraftDisplayProps {
   sendError: string | null;
 }
 
-const getSendButtonText = (sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null, tFunc: (key: string) => string): string => {
-  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENDING) return tFunc('inbox.sending');
-  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) return tFunc('inbox.sent');
+const getSendButtonText = (
+  sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null,
+  tFunc: (key: string) => string
+): string => {
+  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENDING) {
+    return tFunc('inbox.sending');
+  }
+  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) {
+    return tFunc('inbox.sent');
+  }
   return tFunc('common.send');
 };
 
 const getSendButtonBg = (sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null): string => {
-  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) return theme.colors.success.main;
+  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) {
+    return theme.colors.success.main;
+  }
   return theme.colors.primary.main;
 };
 
-export const DraftDisplay: React.FC<DraftDisplayProps> = ({
-  draftFollowUp,
-  onEdit,
-  onSend,
-  sendStatus,
-  sendError,
-}) => {
+export const DraftDisplay: React.FC<DraftDisplayProps> = ({ draftFollowUp, onEdit, onSend, sendStatus, sendError }) => {
   const { t } = useTranslation();
   const isDisabled = sendStatus === FOLLOW_UP_SEND_STATUS_SENDING || sendStatus === FOLLOW_UP_SEND_STATUS_SENT;
 
   return (
     <>
-      <div style={{
-        padding: theme.spacing.sm,
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.sm,
-        marginBottom: theme.spacing.sm,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        whiteSpace: 'pre-wrap',
-      }}>
+      <div
+        style={{
+          padding: theme.spacing.sm,
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.sm,
+          marginBottom: theme.spacing.sm,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          whiteSpace: 'pre-wrap',
+        }}
+      >
         {draftFollowUp}
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
             onEdit();
           }}
@@ -68,7 +78,7 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
           {t('common.edit')}
         </button>
         <button
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
             onSend();
           }}
@@ -88,10 +98,12 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
           {getSendButtonText(sendStatus, t)}
         </button>
         {sendStatus === FOLLOW_UP_SEND_STATUS_FAILED && sendError && (
-          <span style={{
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.error.main,
-          }}>
+          <span
+            style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.error.main,
+            }}
+          >
             {t('inbox.sendFailed')}: {sendError}
           </span>
         )}

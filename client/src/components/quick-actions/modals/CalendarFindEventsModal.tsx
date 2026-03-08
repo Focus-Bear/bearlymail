@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -7,17 +7,14 @@ import { ModalContent } from 'components/modal/ModalContent';
 import { CalendarEventsList } from 'components/quick-actions/modals/CalendarEventsList';
 import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { API_URL } from 'config/api';
-import { CALENDAR_DAYS_AHEAD, CALENDAR_DAYS_BACK, MODAL_WIDTH_LARGE,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
+import { CALENDAR_DAYS_AHEAD, CALENDAR_DAYS_BACK, MODAL_WIDTH_LARGE, VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface CalendarFindEventsModalProps {
   attendeeEmail: string;
   onClose: () => void;
 }
 
-export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = ({
-  attendeeEmail,
-  onClose,
-}) => {
+export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = ({ attendeeEmail, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [events, setEvents] = useState<any[]>([]);
@@ -50,34 +47,40 @@ export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = (
       <ModalContent maxWidth={`${MODAL_WIDTH_LARGE}px`} maxHeight={VIEWPORT_HEIGHT_90}>
         <CalendarModalHeader title={`🔎 Calendar Events with ${attendeeEmail}`} onClose={onClose} />
         {loading && (
-          <div style={{
-            padding: theme.spacing.xl,
-            textAlign: 'center',
-            color: theme.colors.text.secondary,
-          }}>
-            <span style={{
-              display: 'inline-block',
-              width: '24px',
-              height: '24px',
-              border: `3px solid ${theme.colors.primary.main}`,
-              borderTop: '3px solid transparent',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              marginRight: theme.spacing.sm,
-            }} />
+          <div
+            style={{
+              padding: theme.spacing.xl,
+              textAlign: 'center',
+              color: theme.colors.text.secondary,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                width: '24px',
+                height: '24px',
+                border: `3px solid ${theme.colors.primary.main}`,
+                borderTop: '3px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                marginRight: theme.spacing.sm,
+              }}
+            />
             Loading events...
           </div>
         )}
         {error && (
-          <div style={{
-            marginBottom: theme.spacing.md,
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.sunray.light4,
-            border: `1px solid ${theme.colors.accent.error}`,
-            borderRadius: theme.borderRadius.md,
-            color: theme.colors.accent.error,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <div
+            style={{
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: theme.colors.sunray.light4,
+              border: `1px solid ${theme.colors.accent.error}`,
+              borderRadius: theme.borderRadius.md,
+              color: theme.colors.accent.error,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {error}
           </div>
         )}
@@ -86,5 +89,3 @@ export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = (
     </ModalBackdrop>
   );
 };
-
-

@@ -53,10 +53,11 @@ export const EmailThreadList: React.FC<EmailThreadListProps> = ({
           color: theme.colors.text.primary,
         }}
       >
-        {t('emailDetail.thread')} ({threadEmails.length} {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
+        {t('emailDetail.thread')} ({threadEmails.length}{' '}
+        {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {threadEmails.map((threadEmail) => (
+        {threadEmails.map(threadEmail => (
           <EmailThreadItem
             key={threadEmail.id}
             threadEmail={threadEmail}
@@ -69,8 +70,3 @@ export const EmailThreadList: React.FC<EmailThreadListProps> = ({
     </div>
   );
 };
-
-
-
-
-

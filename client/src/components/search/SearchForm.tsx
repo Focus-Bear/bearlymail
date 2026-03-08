@@ -12,25 +12,22 @@ interface SearchFormProps {
   onSubmit: (event: React.FormEvent) => void;
 }
 
-export const SearchForm: React.FC<SearchFormProps> = ({
-  query,
-  loading,
-  onQueryChange,
-  onSubmit,
-}) => {
+export const SearchForm: React.FC<SearchFormProps> = ({ query, loading, onQueryChange, onSubmit }) => {
   const { t } = useTranslation();
 
   return (
     <form onSubmit={onSubmit} style={{ marginBottom: theme.spacing.xl }}>
-      <div style={{
-        display: 'flex',
-        gap: theme.spacing.md,
-        alignItems: 'center',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: theme.spacing.md,
+          alignItems: 'center',
+        }}
+      >
         <input
           type="text"
           value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
+          onChange={event => onQueryChange(event.target.value)}
           placeholder={t('search.placeholder')}
           style={{
             flex: 1,
@@ -59,18 +56,15 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           {loading ? t('search.searching') : t('search.search')}
         </button>
       </div>
-      <p style={{
-        marginTop: theme.spacing.sm,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-      }}>
+      <p
+        style={{
+          marginTop: theme.spacing.sm,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+        }}
+      >
         {t('search.hint')}
       </p>
     </form>
   );
 };
-
-
-
-
-

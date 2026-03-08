@@ -45,7 +45,11 @@ export function useInboxCategoryAccordion({
   const toggleCategory = useCallback((categoryKey: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
-      if (next.has(categoryKey)) { next.delete(categoryKey); } else { next.add(categoryKey); }
+      if (next.has(categoryKey)) {
+        next.delete(categoryKey);
+      } else {
+        next.add(categoryKey);
+      }
       return next;
     });
   }, []);
@@ -60,7 +64,12 @@ export function useInboxCategoryAccordion({
       if (!hasAutoExpandedRef.current) {
         hasAutoExpandedRef.current = true;
         const autoExpand = new Set(categoryKeys.slice(0, INITIAL_PRELOAD_COUNT));
-        console.log('[Accordion] Auto-expanding first', INITIAL_PRELOAD_COUNT, 'categories (keys):', Array.from(autoExpand));
+        console.log(
+          '[Accordion] Auto-expanding first',
+          INITIAL_PRELOAD_COUNT,
+          'categories (keys):',
+          Array.from(autoExpand)
+        );
         setExpandedCategories(autoExpand);
       }
     }
@@ -83,7 +92,9 @@ export function useInboxCategoryAccordion({
   // Uses refs for loaded/loading checks so fetchCategoryEmails stays stable and this
   // effect doesn't re-run just because another category finished loading.
   useEffect(() => {
-    if (!categorySummary) return;
+    if (!categorySummary) {
+      return;
+    }
 
     // Build a key→item map for fast lookup
     const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
@@ -91,8 +102,19 @@ export function useInboxCategoryAccordion({
     const toFetch = Array.from(expandedCategories).filter(
       key => !loadedCategoryNamesRef.current.includes(key) && !loadingCategoryNamesRef.current.includes(key)
     );
-    if (toFetch.length === 0) return;
-    console.log('[Accordion] Effect1 queuing fetch for keys:', toFetch, '| expanded:', Array.from(expandedCategories), '| loaded:', loadedCategoryNamesRef.current, '| loading:', loadingCategoryNamesRef.current);
+    if (toFetch.length === 0) {
+      return;
+    }
+    console.log(
+      '[Accordion] Effect1 queuing fetch for keys:',
+      toFetch,
+      '| expanded:',
+      Array.from(expandedCategories),
+      '| loaded:',
+      loadedCategoryNamesRef.current,
+      '| loading:',
+      loadingCategoryNamesRef.current
+    );
     toFetch.forEach(categoryKey => {
       const item = keyToItem.get(categoryKey);
       // item?.id is the UUID; item?.name is the display name.
@@ -119,7 +141,9 @@ export function useInboxCategoryAccordion({
   // React batches cause both effects to evaluate before the first dispatch lands).
   const limboDispatchedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!categorySummary) return;
+    if (!categorySummary) {
+      return;
+    }
 
     const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
 
@@ -127,16 +151,29 @@ export function useInboxCategoryAccordion({
       key =>
         !loadedCategoryNames.includes(key) &&
         !loadingCategoryNames.includes(key) &&
-        !limboDispatchedRef.current.has(key),
+        !limboDispatchedRef.current.has(key)
     );
-    if (limboCategories.length === 0) return;
-    console.log('[Accordion] Effect2 (limbo) re-fetching keys:', limboCategories, '| expanded:', Array.from(expandedCategoriesRef.current), '| loaded:', loadedCategoryNames, '| loading:', loadingCategoryNames);
+    if (limboCategories.length === 0) {
+      return;
+    }
+    console.log(
+      '[Accordion] Effect2 (limbo) re-fetching keys:',
+      limboCategories,
+      '| expanded:',
+      Array.from(expandedCategoriesRef.current),
+      '| loaded:',
+      loadedCategoryNames,
+      '| loading:',
+      loadingCategoryNames
+    );
     limboCategories.forEach(categoryKey => {
       limboDispatchedRef.current.add(categoryKey);
       const item = keyToItem.get(categoryKey);
       fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined)
         .catch(err => console.error(`[limbo-recovery] Error re-fetching category key "${categoryKey}":`, err))
-        .finally(() => { limboDispatchedRef.current.delete(categoryKey); });
+        .finally(() => {
+          limboDispatchedRef.current.delete(categoryKey);
+        });
     });
     // expandedCategories intentionally omitted — see comment above.
     // eslint-disable-next-line react-hooks/exhaustive-deps

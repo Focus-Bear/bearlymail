@@ -2,7 +2,17 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_BG_NEUTRAL, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_GREY_MED, COLOR_INFO_VIOLET, COLOR_NAMED_WHITE, COLOR_SUCCESS_DARK, COLOR_WARNING_DARK, COLOR_WHITE } from 'constants/colors';
+import {
+  COLOR_BG_NEUTRAL,
+  COLOR_BG_WARNING,
+  COLOR_ERROR_DARK,
+  COLOR_GREY_MED,
+  COLOR_INFO_VIOLET,
+  COLOR_NAMED_WHITE,
+  COLOR_SUCCESS_DARK,
+  COLOR_WARNING_DARK,
+  COLOR_WHITE,
+} from 'constants/colors';
 import { EMOJI_SEARCH } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
@@ -13,7 +23,6 @@ interface DebugThreadLookupSectionProps {
   loadingThreadLookup: boolean;
   onLookupThread: (threadId: string) => void;
 }
-
 
 interface VisibilityPanelProps {
   visibility: {
@@ -36,7 +45,7 @@ const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
     <div style={{ marginBottom: theme.spacing.md }}>
       <strong>{t('debug.threadLookup.visibility')}:</strong>
       <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-        {items.map((item) => (
+        {items.map(item => (
           <li key={item.key} style={{ color: item.value ? yesColor : noColor }}>
             {item.label}: {item.value ? 'Yes' : 'No'}
           </li>
@@ -46,7 +55,6 @@ const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
   );
 };
 /* eslint-enable i18next/no-literal-string */
-
 
 interface GmailApiResult {
   foundInGmailApi: boolean;
@@ -62,15 +70,46 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
   const bgColor = gmailApiResult.foundInGmailApi ? '#E3F2FD' : '#F5F5F5';
   const borderColor = gmailApiResult.foundInGmailApi ? '#90CAF9' : '#E0E0E0';
   return (
-    <div style={{ marginTop: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: bgColor, borderRadius: theme.borderRadius.sm, border: `1px solid ${borderColor}`, fontSize: theme.typography.fontSize.xs }}>
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.sm,
+        backgroundColor: bgColor,
+        borderRadius: theme.borderRadius.sm,
+        border: `1px solid ${borderColor}`,
+        fontSize: theme.typography.fontSize.xs,
+      }}
+    >
       <strong>{t('debug.threadLookup.gmailApiResult')}:</strong>
       {gmailApiResult.foundInGmailApi ? (
         <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-          <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{gmailApiResult.apiThreadId}</code></li>
-          <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{gmailApiResult.apiMessageId}</code></li>
-          {gmailApiResult.subject && <li><strong>Subject:</strong> {gmailApiResult.subject}</li>}
-          {gmailApiResult.from && <li><strong>From:</strong> {gmailApiResult.from}</li>}
-          {gmailApiResult.receivedAt && <li><strong>Date:</strong> {new Date(gmailApiResult.receivedAt).toLocaleString()}</li>}
+          <li>
+            <strong>Gmail API Thread ID:</strong>{' '}
+            <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
+              {gmailApiResult.apiThreadId}
+            </code>
+          </li>
+          <li>
+            <strong>Gmail API Message ID:</strong>{' '}
+            <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
+              {gmailApiResult.apiMessageId}
+            </code>
+          </li>
+          {gmailApiResult.subject && (
+            <li>
+              <strong>Subject:</strong> {gmailApiResult.subject}
+            </li>
+          )}
+          {gmailApiResult.from && (
+            <li>
+              <strong>From:</strong> {gmailApiResult.from}
+            </li>
+          )}
+          {gmailApiResult.receivedAt && (
+            <li>
+              <strong>Date:</strong> {new Date(gmailApiResult.receivedAt).toLocaleString()}
+            </li>
+          )}
         </ul>
       ) : (
         <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
@@ -99,12 +138,17 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
   return (
     <div
-      style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, }}
+      style={{
+        marginBottom: theme.spacing.lg,
+        padding: theme.spacing.md,
+        backgroundColor: COLOR_WHITE,
+        borderRadius: theme.borderRadius.md,
+      }}
     >
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md, }}
-      >
-        <h4 style={{ margin: 0 }}>{EMOJI_SEARCH} {t('debug.threadLookup.sectionTitle')}</h4>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+        <h4 style={{ margin: 0 }}>
+          {EMOJI_SEARCH} {t('debug.threadLookup.sectionTitle')}
+        </h4>
       </div>
 
       <form onSubmit={handleSubmit} style={{ marginBottom: theme.spacing.md }}>
@@ -112,14 +156,29 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           <input
             type="text"
             value={threadIdInput}
-            onChange={(event) => setThreadIdInput(event.target.value)}
+            onChange={event => setThreadIdInput(event.target.value)}
             placeholder={t('debug.threadLookup.placeholder')}
-            style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontFamily: 'monospace', fontSize: theme.typography.fontSize.sm, }}
+            style={{
+              flex: 1,
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.sm,
+              fontFamily: 'monospace',
+              fontSize: theme.typography.fontSize.sm,
+            }}
           />
           <button
             type="submit"
             disabled={loadingThreadLookup || !threadIdInput.trim()}
-            style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: loadingThreadLookup || !threadIdInput.trim() ? 'not-allowed' : 'pointer', opacity: loadingThreadLookup || !threadIdInput.trim() ? OPACITY_DISABLED : OPACITY_FULL, }}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: theme.colors.primary.main,
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
+              borderRadius: theme.borderRadius.sm,
+              cursor: loadingThreadLookup || !threadIdInput.trim() ? 'not-allowed' : 'pointer',
+              opacity: loadingThreadLookup || !threadIdInput.trim() ? OPACITY_DISABLED : OPACITY_FULL,
+            }}
           >
             {loadingThreadLookup ? t('common.loading') : t('debug.threadLookup.lookupButton')}
           </button>
@@ -128,7 +187,12 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
       {threadLookupResult && (
         <div
-          style={{ backgroundColor: threadLookupResult.found ? '#E8F5E9' : '#FFEBEE', padding: theme.spacing.md, borderRadius: theme.borderRadius.sm, border: `1px solid ${threadLookupResult.found ? '#A5D6A7' : '#EF9A9A'}`, }}
+          style={{
+            backgroundColor: threadLookupResult.found ? '#E8F5E9' : '#FFEBEE',
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${threadLookupResult.found ? '#A5D6A7' : '#EF9A9A'}`,
+          }}
         >
           <div style={{ marginBottom: theme.spacing.md }}>
             <strong>{t('debug.threadLookup.threadId')}:</strong>{' '}
@@ -148,7 +212,12 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
           {threadLookupResult.thread && (
             <div
-              style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_BG_NEUTRAL, borderRadius: theme.borderRadius.sm, }}
+              style={{
+                marginBottom: theme.spacing.md,
+                padding: theme.spacing.sm,
+                backgroundColor: COLOR_BG_NEUTRAL,
+                borderRadius: theme.borderRadius.sm,
+              }}
             >
               <strong>{t('debug.threadLookup.threadDetails')}:</strong>
               <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
@@ -165,9 +234,15 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           <div style={{ marginBottom: theme.spacing.md }}>
             <strong>{t('debug.threadLookup.reasons')}:</strong>
             <ul
-              style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg, backgroundColor: COLOR_BG_WARNING, padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, }}
+              style={{
+                margin: `${theme.spacing.xs} 0 0 0`,
+                paddingLeft: theme.spacing.lg,
+                backgroundColor: COLOR_BG_WARNING,
+                padding: theme.spacing.sm,
+                borderRadius: theme.borderRadius.sm,
+              }}
             >
-              {threadLookupResult.reasons.map((reason) => (
+              {threadLookupResult.reasons.map(reason => (
                 <li key={reason} style={{ marginBottom: theme.spacing.xs }}>
                   {reason}
                 </li>
@@ -177,14 +252,26 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
           {threadLookupResult.emails.length > 0 && (
             <div>
-              <strong>{t('debug.threadLookup.emails')} ({threadLookupResult.emails.length}):</strong>
+              <strong>
+                {t('debug.threadLookup.emails')} ({threadLookupResult.emails.length}):
+              </strong>
               <div
-                style={{ marginTop: theme.spacing.xs, maxHeight: '200px', overflowY: 'auto', fontSize: theme.typography.fontSize.xs, }}
+                style={{
+                  marginTop: theme.spacing.xs,
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  fontSize: theme.typography.fontSize.xs,
+                }}
               >
-                {threadLookupResult.emails.map((email) => (
+                {threadLookupResult.emails.map(email => (
                   <div
                     key={email.id}
-                    style={{ padding: theme.spacing.xs, backgroundColor: COLOR_BG_NEUTRAL, marginBottom: theme.spacing.xs, borderRadius: theme.borderRadius.sm, }}
+                    style={{
+                      padding: theme.spacing.xs,
+                      backgroundColor: COLOR_BG_NEUTRAL,
+                      marginBottom: theme.spacing.xs,
+                      borderRadius: theme.borderRadius.sm,
+                    }}
                   >
                     <div>
                       <strong>Subject:</strong> {email.subject || '(no subject)'}

@@ -19,36 +19,126 @@ interface EmailAccount {
 }
 
 interface EmailAccountsSectionProps {
-  googleAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean; }>;
-  office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; }>;
-  zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; }>;
+  googleAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean }>;
+  office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
+  zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   onFetchData: () => Promise<void>;
 }
 
-const PROVIDER_COLORS: Record<string, string> = { [PROVIDER_GMAIL]: '#EA4335', [PROVIDER_OFFICE365]: '#0078D4', [PROVIDER_ZOHO]: '#C8202F' };
-const PROVIDER_NAMES: Record<string, string> = { [PROVIDER_GMAIL]: 'Gmail', [PROVIDER_OFFICE365]: 'Office 365', [PROVIDER_ZOHO]: 'Zoho Mail' };
+const PROVIDER_COLORS: Record<string, string> = {
+  [PROVIDER_GMAIL]: '#EA4335',
+  [PROVIDER_OFFICE365]: '#0078D4',
+  [PROVIDER_ZOHO]: '#C8202F',
+};
+const PROVIDER_NAMES: Record<string, string> = {
+  [PROVIDER_GMAIL]: 'Gmail',
+  [PROVIDER_OFFICE365]: 'Office 365',
+  [PROVIDER_ZOHO]: 'Zoho Mail',
+};
 const getProviderColor = (provider: string): string => PROVIDER_COLORS[provider] || theme.colors.primary.main;
 const getProviderName = (provider: string): string => PROVIDER_NAMES[provider] || provider;
 
 interface EmailAccountRowProps {
-  account: EmailAccount; t: (k: string) => string;
-  onSetPrimary: (id: string, provider: string) => void; onDisconnect: (id: string, provider: string) => void;
+  account: EmailAccount;
+  t: (k: string) => string;
+  onSetPrimary: (id: string, provider: string) => void;
+  onDisconnect: (id: string, provider: string) => void;
 }
 
 const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrimary, onDisconnect }) => (
-  <div style={{ padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.sm, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  <div
+    style={{
+      padding: theme.spacing.md,
+      border: `1px solid ${theme.colors.border.medium}`,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.sm,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    }}
+  >
     <div style={{ flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
-        <span style={{ fontSize: theme.typography.fontSize.xs, color: COLOR_NAMED_WHITE, backgroundColor: getProviderColor(account.provider), padding: '2px 8px', borderRadius: theme.borderRadius.sm, fontWeight: theme.typography.fontWeight.medium }}>{getProviderName(account.provider)}</span>
-        {account.isPrimary && <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.primary.main, backgroundColor: `${theme.colors.primary.main}20`, padding: '2px 6px', borderRadius: theme.borderRadius.sm }}>{t('settings.gmail.primary')}</span>}
-        {account.isSSO && <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.info, backgroundColor: `${theme.colors.accent.info}20`, padding: '2px 6px', borderRadius: theme.borderRadius.sm }}>{t('settings.gmail.ssoLogin')}</span>}
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: COLOR_NAMED_WHITE,
+            backgroundColor: getProviderColor(account.provider),
+            padding: '2px 8px',
+            borderRadius: theme.borderRadius.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {getProviderName(account.provider)}
+        </span>
+        {account.isPrimary && (
+          <span
+            style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.primary.main,
+              backgroundColor: `${theme.colors.primary.main}20`,
+              padding: '2px 6px',
+              borderRadius: theme.borderRadius.sm,
+            }}
+          >
+            {t('settings.gmail.primary')}
+          </span>
+        )}
+        {account.isSSO && (
+          <span
+            style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.accent.info,
+              backgroundColor: `${theme.colors.accent.info}20`,
+              padding: '2px 6px',
+              borderRadius: theme.borderRadius.sm,
+            }}
+          >
+            {t('settings.gmail.ssoLogin')}
+          </span>
+        )}
       </div>
-      <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>{account.email}</div>
-      {account.name && <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{account.name}</div>}
+      <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
+        {account.email}
+      </div>
+      {account.name && (
+        <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{account.name}</div>
+      )}
     </div>
     <div>
-      {!account.isPrimary && !account.isSSO && <button onClick={() => onSetPrimary(account.id, account.provider)} style={{ marginRight: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.primary.main, border: `1px solid ${theme.colors.primary.main}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.xs, cursor: 'pointer' }}>{t('settings.gmail.setPrimary')}</button>}
-      {!account.isSSO && <button onClick={() => onDisconnect(account.id, account.provider)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.accent.error, border: `1px solid ${theme.colors.accent.error}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.xs, cursor: 'pointer' }}>{t('settings.gmail.disconnect')}</button>}
+      {!account.isPrimary && !account.isSSO && (
+        <button
+          onClick={() => onSetPrimary(account.id, account.provider)}
+          style={{
+            marginRight: theme.spacing.sm,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.primary.main,
+            border: `1px solid ${theme.colors.primary.main}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.xs,
+            cursor: 'pointer',
+          }}
+        >
+          {t('settings.gmail.setPrimary')}
+        </button>
+      )}
+      {!account.isSSO && (
+        <button
+          onClick={() => onDisconnect(account.id, account.provider)}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.accent.error,
+            border: `1px solid ${theme.colors.accent.error}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.xs,
+            cursor: 'pointer',
+          }}
+        >
+          {t('settings.gmail.disconnect')}
+        </button>
+      )}
     </div>
   </div>
 );
@@ -64,14 +154,18 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
 
   // Combine all accounts with provider info
   const allAccounts: EmailAccount[] = [
-    ...googleAccounts.map((acc) => ({ ...acc, provider: PROVIDER_GMAIL as const })),
-    ...office365Accounts.map((acc) => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
-    ...zohoAccounts.map((acc) => ({ ...acc, provider: PROVIDER_ZOHO as const })),
+    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL as const })),
+    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
+    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO as const })),
   ];
 
-  const handleConnectProvider = async (provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
+  const handleConnectProvider = async (
+    provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
+  ) => {
     try {
-      const response = await axios.get(`${API_URL}/${provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider}-accounts/connect-url`);
+      const response = await axios.get(
+        `${API_URL}/${provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider}-accounts/connect-url`
+      );
       window.location.href = response.data.url;
     } catch (error) {
       console.error(`Error connecting ${provider} account:`, error);
@@ -79,14 +173,21 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     }
   };
 
-  const handleDisconnect = async (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
+  const handleDisconnect = async (
+    id: string,
+    provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
+  ) => {
     const getConfirmKey = () => {
-      if (provider === PROVIDER_GMAIL) return 'settings.gmail.confirmDisconnect';
-      if (provider === PROVIDER_OFFICE365) return 'settings.office365.confirmDisconnect';
+      if (provider === PROVIDER_GMAIL) {
+        return 'settings.gmail.confirmDisconnect';
+      }
+      if (provider === PROVIDER_OFFICE365) {
+        return 'settings.office365.confirmDisconnect';
+      }
       return 'settings.zoho.confirmDisconnect';
     };
     const confirmKey = getConfirmKey();
-    
+
     if (window.confirm(t(confirmKey))) {
       try {
         const endpoint = provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider;
@@ -98,7 +199,10 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     }
   };
 
-  const handleSetPrimary = async (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
+  const handleSetPrimary = async (
+    id: string,
+    provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
+  ) => {
     try {
       const endpoint = provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider;
       await axios.post(`${API_URL}/${endpoint}-accounts/${id}/set-primary`);
@@ -110,8 +214,24 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
 
   return (
     <>
-      <div id="email-accounts" style={{ backgroundColor: theme.colors.background.paper, padding: theme.spacing.xl, borderRadius: theme.borderRadius.lg, marginBottom: theme.spacing.lg, border: `1px solid ${theme.colors.border.medium}`, }}>
-        <h3 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.xl, fontWeight: theme.typography.fontWeight.semibold, }}>
+      <div
+        id="email-accounts"
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          padding: theme.spacing.xl,
+          borderRadius: theme.borderRadius.lg,
+          marginBottom: theme.spacing.lg,
+          border: `1px solid ${theme.colors.border.medium}`,
+        }}
+      >
+        <h3
+          style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize.xl,
+            fontWeight: theme.typography.fontWeight.semibold,
+          }}
+        >
           {t('settings.emailAccounts.title')}
         </h3>
 
@@ -122,19 +242,42 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', }}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.md,
+                fontSize: theme.typography.fontSize.sm,
+                cursor: 'pointer',
+              }}
             >
               {t('settings.emailAccounts.connect')}
             </button>
           </div>
         ) : (
           <>
-            {allAccounts.map((account) => (
-              <EmailAccountRow key={`${account.provider}-${account.id}`} account={account} t={t} onSetPrimary={handleSetPrimary} onDisconnect={handleDisconnect} />
+            {allAccounts.map(account => (
+              <EmailAccountRow
+                key={`${account.provider}-${account.id}`}
+                account={account}
+                t={t}
+                onSetPrimary={handleSetPrimary}
+                onDisconnect={handleDisconnect}
+              />
             ))}
             <button
               onClick={() => setIsModalOpen(true)}
-              style={{ marginTop: theme.spacing.md, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.primary.main, border: `1px solid ${theme.colors.primary.main}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', }}
+              style={{
+                marginTop: theme.spacing.md,
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: COLOR_TRANSPARENT,
+                color: theme.colors.primary.main,
+                border: `1px solid ${theme.colors.primary.main}`,
+                borderRadius: theme.borderRadius.md,
+                fontSize: theme.typography.fontSize.sm,
+                cursor: 'pointer',
+              }}
             >
               + {t('settings.emailAccounts.connectAnother')}
             </button>
@@ -150,6 +293,3 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     </>
   );
 };
-
-
-

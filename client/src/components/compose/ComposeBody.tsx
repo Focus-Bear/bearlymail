@@ -13,12 +13,7 @@ interface ComposeBodyProps {
   onBodyChange: (body: string) => void;
 }
 
-export const ComposeBody: React.FC<ComposeBodyProps> = ({
-  subject,
-  body,
-  onSubjectChange,
-  onBodyChange,
-}) => {
+export const ComposeBody: React.FC<ComposeBodyProps> = ({ subject, body, onSubjectChange, onBodyChange }) => {
   const { t } = useTranslation();
 
   return (
@@ -46,7 +41,7 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({
         <input
           type="text"
           value={subject}
-          onChange={(event) => onSubjectChange(event.target.value)}
+          onChange={event => onSubjectChange(event.target.value)}
           placeholder={t('compose.subjectPlaceholder')}
           style={{
             flex: 1,
@@ -68,8 +63,3 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({
     </>
   );
 };
-
-
-
-
-

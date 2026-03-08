@@ -14,9 +14,7 @@ const calculateDaysSinceLastResponse = (thread: ThreadWithFollowUp): number | nu
   if (!lastTheirReplyAt) {
     return null;
   }
-  const days = Math.floor(
-    (new Date().getTime() - new Date(lastTheirReplyAt).getTime()) / MS_PER_DAY
-  );
+  const days = Math.floor((new Date().getTime() - new Date(lastTheirReplyAt).getTime()) / MS_PER_DAY);
   return days;
 };
 
@@ -28,45 +26,51 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
 
   return (
     <div style={{ marginBottom: theme.spacing.xs }}>
-      <p style={{
-        margin: 0,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <p
+        style={{
+          margin: 0,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         <strong>{t('inbox.followUpDetails.with')}:</strong> {otherPersonName}
       </p>
       {daysSinceLastResponse !== null ? (
-        <p style={{
-          margin: 0,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.xs,
-        }}>
-          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceLastResponse} {t('inbox.followUpDetails.day', { count: daysSinceLastResponse })}
+        <p
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
+          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceLastResponse}{' '}
+          {t('inbox.followUpDetails.day', { count: daysSinceLastResponse })}
         </p>
       ) : (
-        <p style={{
-          margin: 0,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           <strong>{t('inbox.followUpDetails.status')}:</strong> {t('inbox.followUpDetails.noReplyReceived')}
         </p>
       )}
       {lastMyReplyAt && (
-        <p style={{
-          margin: 0,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-        }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+          }}
+        >
           <strong>{t('inbox.followUpDetails.youSentLast')}:</strong> {new Date(lastMyReplyAt).toLocaleDateString()}
         </p>
       )}
     </div>
   );
 };
-
-
-

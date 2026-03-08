@@ -8,7 +8,7 @@ import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { OPACITY_DISABLED,TOAST_DURATION_MS } from 'components/inbox/constants';
+import { OPACITY_DISABLED, TOAST_DURATION_MS } from 'components/inbox/constants';
 import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
 import { MODE_TRIAGE } from 'constants/strings';
 
@@ -17,21 +17,58 @@ const EVENT_TYPE_CLICK = 'click';
 const SUGGESTED_EMOJI_MAP: Record<number, string> = { 1: '😌', 2: '😅', 3: '🙀' };
 const getSuggestedEmoji = (count: number): string => SUGGESTED_EMOJI_MAP[count] || '';
 
-interface UnsubscribeOrBlockProps { email: Email; t: (tKey: string) => string; onBlockSender: (emailId: string, event: React.MouseEvent) => void; }
+interface UnsubscribeOrBlockProps {
+  email: Email;
+  t: (tKey: string) => string;
+  onBlockSender: (emailId: string, event: React.MouseEvent) => void;
+}
 const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlockSender }) => {
   const unsubscribeLink = extractUnsubscribeLink((email as any).htmlBody, email.body);
-  const btnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '0 4px', opacity: OPACITY_DISABLED, display: 'flex', alignItems: 'center', gap: theme.spacing.xs };
+  const btnStyle = {
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '1.1rem',
+    padding: '0 4px',
+    opacity: OPACITY_DISABLED,
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  };
   if (unsubscribeLink) {
-    return <button onClick={(event) => { event.stopPropagation(); window.open(unsubscribeLink, '_blank', 'noopener,noreferrer'); captureEvent('email_unsubscribe_clicked', { email_id: email.id }); }} title={t('inbox.unsubscribe')} style={btnStyle}><span>{EMOJI_LINK}</span><span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.unsubscribe')}</span></button>;
+    return (
+      <button
+        onClick={event => {
+          event.stopPropagation();
+          window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
+          captureEvent('email_unsubscribe_clicked', { email_id: email.id });
+        }}
+        title={t('inbox.unsubscribe')}
+        style={btnStyle}
+      >
+        <span>{EMOJI_LINK}</span>
+        <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+          {t('inbox.unsubscribe')}
+        </span>
+      </button>
+    );
   }
-  return <button onClick={(event) => onBlockSender(email.id, event)} title={t('inbox.blockSender')} style={btnStyle}><span>{EMOJI_BLOCK}</span><span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.blockSender')}</span></button>;
+  return (
+    <button onClick={event => onBlockSender(email.id, event)} title={t('inbox.blockSender')} style={btnStyle}>
+      <span>{EMOJI_BLOCK}</span>
+      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        {t('inbox.blockSender')}
+      </span>
+    </button>
+  );
 };
 
 const HOVER_OPACITY = '1';
 const DEFAULT_OPACITY = '0.7';
 
 interface SuggestionSectionProps {
-  suggestion: TriageSuggestion; email: Email;
+  suggestion: TriageSuggestion;
+  email: Email;
   onSetStarCount: (emailId: string, starCount: number) => Promise<void>;
   onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
   t: (tKey: string, opts?: Record<string, unknown>) => string;
@@ -45,22 +82,59 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
       {suggestion.suggestedStarCount > 0 ? (
-        <div onClick={async (event) => { event.stopPropagation(); captureEvent('triage_suggestion_accepted', { email_id: email.id, suggested_star_count: suggestion.suggestedStarCount }); await onSetStarCount(email.id, suggestion.suggestedStarCount); }}
-          style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.2s', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}
-          onMouseEnter={(event) => Object.assign(event.currentTarget.style, hoverStyle)}
-          onMouseLeave={(event) => Object.assign(event.currentTarget.style, defaultStyle)}
-          title={t('inbox.clickToSetPriority', { priority: getSuggestedLabel(suggestion.suggestedStarCount) })}>
+        <div
+          onClick={async event => {
+            event.stopPropagation();
+            captureEvent('triage_suggestion_accepted', {
+              email_id: email.id,
+              suggested_star_count: suggestion.suggestedStarCount,
+            });
+            await onSetStarCount(email.id, suggestion.suggestedStarCount);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            cursor: 'pointer',
+            opacity: 0.7,
+            transition: 'opacity 0.2s',
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+          }}
+          onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
+          onMouseLeave={event => Object.assign(event.currentTarget.style, defaultStyle)}
+          title={t('inbox.clickToSetPriority', { priority: getSuggestedLabel(suggestion.suggestedStarCount) })}
+        >
           <span style={{ fontSize: '1.2rem' }}>{getSuggestedEmoji(suggestion.suggestedStarCount)}</span>
-          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('inbox.suggested')}: {getSuggestedLabel(suggestion.suggestedStarCount)}</span>
+          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
+            {t('inbox.suggested')}: {getSuggestedLabel(suggestion.suggestedStarCount)}
+          </span>
         </div>
       ) : (
-        <div onClick={async (event) => { event.stopPropagation(); captureEvent('triage_suggestion_archive_accepted', { email_id: email.id }); await onArchive(email.id, event); }}
-          style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.2s', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}
-          onMouseEnter={(event) => Object.assign(event.currentTarget.style, hoverStyle)}
-          onMouseLeave={(event) => Object.assign(event.currentTarget.style, defaultStyle)}
-          title={t('inbox.clickToArchive')}>
+        <div
+          onClick={async event => {
+            event.stopPropagation();
+            captureEvent('triage_suggestion_archive_accepted', { email_id: email.id });
+            await onArchive(email.id, event);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            cursor: 'pointer',
+            opacity: 0.7,
+            transition: 'opacity 0.2s',
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+          }}
+          onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
+          onMouseLeave={event => Object.assign(event.currentTarget.style, defaultStyle)}
+          title={t('inbox.clickToArchive')}
+        >
           <span>{EMOJI_INBOX}</span>
-          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('inbox.suggested')}: {t('inbox.archive')}</span>
+          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
+            {t('inbox.suggested')}: {t('inbox.archive')}
+          </span>
         </div>
       )}
     </div>
@@ -104,32 +178,68 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   const snoozeValue = snoozeInput.getSnoozeValue(email.id);
 
   return (
-    <div onClick={(event) => event.stopPropagation()}>
+    <div onClick={event => event.stopPropagation()}>
       {/* Actions Card */}
-      <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, marginBottom: theme.spacing.xs, }}>
+      <div
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.md,
+          border: `1px solid ${theme.colors.border.light}`,
+          padding: theme.spacing.md,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing.sm,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {/* Main actions row */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap', }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: theme.spacing.md,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           {/* Prioritise section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', }}>
-            <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, fontWeight: theme.typography.fontWeight.medium, whiteSpace: 'nowrap', }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div
+              style={{
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.tertiary,
+                fontWeight: theme.typography.fontWeight.medium,
+                whiteSpace: 'nowrap',
+              }}
+            >
               {t('inbox.prioritise')}:
             </div>
-            <PrioritySlider
-              email={email}
-              keyboardHint={keyboardHint}
-              onSetStarCount={onSetStarCount}
-            />
+            <PrioritySlider email={email} keyboardHint={keyboardHint} onSetStarCount={onSetStarCount} />
           </div>
 
           {/* Suggested section */}
           {suggestion && mode === MODE_TRIAGE && (
-            <SuggestionSection suggestion={suggestion} email={email} onSetStarCount={onSetStarCount} onArchive={onArchive} t={t} />
+            <SuggestionSection
+              suggestion={suggestion}
+              email={email}
+              onSetStarCount={onSetStarCount}
+              onArchive={onArchive}
+              t={t}
+            />
           )}
 
           {/* Other actions section */}
-          <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap', marginLeft: 'auto', }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: theme.spacing.sm,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              marginLeft: 'auto',
+            }}
+          >
             <button
-              onClick={(event) => {
+              onClick={event => {
                 event.stopPropagation();
                 onArchive(email.id, event);
                 if (event.type === EVENT_TYPE_CLICK && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
@@ -138,17 +248,25 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
                 }
               }}
               title={t('inbox.archiveOrPressDelete')}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center', gap: theme.spacing.xs, }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: '0 4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
             >
               <span>{EMOJI_INBOX}</span>
-              <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.archive')}</span>
+              <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+                {t('inbox.archive')}
+              </span>
             </button>
 
             {mode !== MODE_TRIAGE && !isSnoozeInputVisible && (
-              <SnoozeButton
-                email={email}
-                onShowSnooze={snoozeInput.showSnooze}
-              />
+              <SnoozeButton email={email} onShowSnooze={snoozeInput.showSnooze} />
             )}
 
             <UnsubscribeOrBlock email={email} t={t} onBlockSender={onBlockSender} />
@@ -157,11 +275,11 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
 
         {/* Snooze input row - shown below main actions when snooze is active */}
         {mode !== MODE_TRIAGE && isSnoozeInputVisible && (
-          <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.sm, }}>
+          <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.sm }}>
             <SnoozeInputForm
               email={email}
               snoozeValue={snoozeValue}
-              onValueChange={(value) => snoozeInput.setSnoozeValue(email.id, value)}
+              onValueChange={value => snoozeInput.setSnoozeValue(email.id, value)}
               onConfirm={() => onSnooze(email.id)}
               onCancel={() => snoozeInput.clearSnooze(email.id)}
             />
@@ -171,4 +289,3 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
     </div>
   );
 };
-

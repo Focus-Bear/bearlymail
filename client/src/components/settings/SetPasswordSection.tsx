@@ -1,4 +1,4 @@
-import React, { useCallback,useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -51,7 +51,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
         <input
           type={showPassword ? 'text' : 'password'}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={event => onChange(event.target.value)}
           placeholder={placeholder}
           style={{
             width: '100%',
@@ -85,7 +85,13 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
         )}
       </div>
       {hint && (
-        <p style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, marginTop: theme.spacing.xs }}>
+        <p
+          style={{
+            color: theme.colors.text.tertiary,
+            fontSize: theme.typography.fontSize.xs,
+            marginTop: theme.spacing.xs,
+          }}
+        >
           {hint}
         </p>
       )}
@@ -94,7 +100,9 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
 };
 
 const getSubmitButtonText = (isSaving: boolean, hasPassword: boolean, tFunc: (key: string) => string): string => {
-  if (isSaving) return tFunc('common.saving');
+  if (isSaving) {
+    return tFunc('common.saving');
+  }
   return hasPassword ? tFunc('settings.setPassword.updateButton') : tFunc('settings.setPassword.setButton');
 };
 
@@ -112,8 +120,12 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
   const [showPassword, setShowPassword] = useState(false);
 
   const validatePassword = useCallback((): string | null => {
-    if (password.length < 8) return t('settings.setPassword.passwordTooShort');
-    if (password !== confirmPassword) return t('settings.setPassword.passwordsDoNotMatch');
+    if (password.length < 8) {
+      return t('settings.setPassword.passwordTooShort');
+    }
+    if (password !== confirmPassword) {
+      return t('settings.setPassword.passwordsDoNotMatch');
+    }
     return null;
   }, [password, confirmPassword, t]);
 
@@ -145,19 +157,24 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
   };
 
   const isFormDisabled = isSaving || !password || !confirmPassword;
-  const passwordLabel = hasPassword ? t('settings.setPassword.newPasswordLabel') : t('settings.setPassword.passwordLabel');
+  const passwordLabel = hasPassword
+    ? t('settings.setPassword.newPasswordLabel')
+    : t('settings.setPassword.passwordLabel');
 
-  const buttonStyle = useMemo(() => ({
-    backgroundColor: isFormDisabled ? theme.colors.greyscale[400] : theme.colors.primary.main,
-    color: COLOR_NAMED_WHITE,
-    border: STRING_NONE,
-    borderRadius: theme.borderRadius.md,
-    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-    cursor: isFormDisabled ? 'not-allowed' : 'pointer',
-    fontSize: theme.typography.fontSize.base,
-    fontWeight: theme.typography.fontWeight.medium,
-    transition: theme.transitions.default,
-  }), [isFormDisabled]);
+  const buttonStyle = useMemo(
+    () => ({
+      backgroundColor: isFormDisabled ? theme.colors.greyscale[400] : theme.colors.primary.main,
+      color: COLOR_NAMED_WHITE,
+      border: STRING_NONE,
+      borderRadius: theme.borderRadius.md,
+      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+      cursor: isFormDisabled ? 'not-allowed' : 'pointer',
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: theme.typography.fontWeight.medium,
+      transition: theme.transitions.default,
+    }),
+    [isFormDisabled]
+  );
 
   return (
     <form onSubmit={handleSubmit}>
@@ -183,7 +200,13 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
         disabled={isSaving}
       />
       {error && (
-        <p style={{ color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md }}>
+        <p
+          style={{
+            color: theme.colors.error.main,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+          }}
+        >
           {error}
         </p>
       )}
@@ -217,9 +240,13 @@ export const SetPasswordSection: React.FC = () => {
     setHasPassword(true);
   }, []);
 
-  const description = hasPassword ? t('settings.setPassword.descriptionHasPassword') : t('settings.setPassword.description');
+  const description = hasPassword
+    ? t('settings.setPassword.descriptionHasPassword')
+    : t('settings.setPassword.description');
 
-  if (hasPassword === null) return null;
+  if (hasPassword === null) {
+    return null;
+  }
 
   return (
     <div
@@ -232,10 +259,22 @@ export const SetPasswordSection: React.FC = () => {
         boxShadow: theme.shadows.md,
       }}
     >
-      <h2 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.sm, fontSize: theme.typography.fontSize.xl }}>
+      <h2
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.sm,
+          fontSize: theme.typography.fontSize.xl,
+        }}
+      >
         {t('settings.setPassword.title')}
       </h2>
-      <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm }}>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
         {description}
       </p>
       {success && (

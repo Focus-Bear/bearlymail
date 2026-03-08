@@ -44,10 +44,15 @@ export const useTokenUsageData = (): TokenUsageData => {
   const getDateRangeParams = useCallback((): { startDate?: string } => {
     const now = new Date();
     switch (dateRange) {
-      case DATE_RANGE_24H: return { startDate: new Date(now.getTime() - MS_PER_DAY).toISOString() };
-      case DATE_RANGE_7D: return { startDate: new Date(now.getTime() - 7 * MS_PER_DAY).toISOString() };
-      case DATE_RANGE_30D: return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * MS_PER_DAY).toISOString() };
-      case DATE_RANGE_ALL: default: return {};
+      case DATE_RANGE_24H:
+        return { startDate: new Date(now.getTime() - MS_PER_DAY).toISOString() };
+      case DATE_RANGE_7D:
+        return { startDate: new Date(now.getTime() - 7 * MS_PER_DAY).toISOString() };
+      case DATE_RANGE_30D:
+        return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * MS_PER_DAY).toISOString() };
+      case DATE_RANGE_ALL:
+      default:
+        return {};
     }
   }, [dateRange]);
 
@@ -56,8 +61,11 @@ export const useTokenUsageData = (): TokenUsageData => {
       setExamplesLoading(true);
       const response = await axios.get(`${API_URL}/admin/token-usage/examples`);
       setExamples(response.data.examples || []);
-    } catch (error) { console.error('Error fetching prompt examples:', error); }
-    finally { setExamplesLoading(false); }
+    } catch (error) {
+      console.error('Error fetching prompt examples:', error);
+    } finally {
+      setExamplesLoading(false);
+    }
   }, []);
 
   const fetchUsageData = useCallback(async () => {
@@ -71,26 +79,50 @@ export const useTokenUsageData = (): TokenUsageData => {
       setSummary(summaryResponse.data.summary);
       setLastUpdated(new Date());
       setLoading(false);
-    } catch (error) { console.error('Error fetching token usage:', error); setLoading(false); }
+    } catch (error) {
+      console.error('Error fetching token usage:', error);
+      setLoading(false);
+    }
   }, [getDateRangeParams]);
 
   const resetExamples = async () => {
-    if (!window.confirm(t('admin.tokenUsage.examples.confirmReset'))) return;
+    if (!window.confirm(t('admin.tokenUsage.examples.confirmReset'))) {
+      return;
+    }
     try {
       setResetting(true);
       await axios.post(`${API_URL}/admin/token-usage/examples/reset`);
       setExamples([]);
       setExpandedExample(null);
-    } catch (error) { console.error('Error resetting prompt examples:', error); }
-    finally { setResetting(false); }
+    } catch (error) {
+      console.error('Error resetting prompt examples:', error);
+    } finally {
+      setResetting(false);
+    }
   };
 
   useEffect(() => {
     fetchUsageData();
     fetchExamples();
-    const interval = setInterval(() => { fetchUsageData(); fetchExamples(); }, REFRESH_INTERVAL_MS);
+    const interval = setInterval(() => {
+      fetchUsageData();
+      fetchExamples();
+    }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [dateRange, fetchUsageData, fetchExamples]);
 
-  return { usage, summary, examples, loading, examplesLoading, resetting, lastUpdated, dateRange, setDateRange, expandedExample, setExpandedExample, resetExamples };
+  return {
+    usage,
+    summary,
+    examples,
+    loading,
+    examplesLoading,
+    resetting,
+    lastUpdated,
+    dateRange,
+    setDateRange,
+    expandedExample,
+    setExpandedExample,
+    resetExamples,
+  };
 };

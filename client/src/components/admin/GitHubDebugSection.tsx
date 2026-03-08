@@ -21,11 +21,7 @@ export const GitHubDebugSection: React.FC = () => {
   const debugState = useGitHubDebugData();
 
   if (debugState.loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>
-        {t('admin.dashboard.loading')}
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>{t('admin.dashboard.loading')}</div>;
   }
 
   if (!debugState.debugInfo) {
@@ -44,7 +40,12 @@ export const GitHubDebugSection: React.FC = () => {
         {t('admin.githubDebug.description')}
       </p>
 
-      <StatsGrid debugInfo={debugState.debugInfo} statCardStyle={STAT_CARD_STYLE} statLabelStyle={STAT_LABEL_STYLE} statValueStyle={STAT_VALUE_STYLE} />
+      <StatsGrid
+        debugInfo={debugState.debugInfo}
+        statCardStyle={STAT_CARD_STYLE}
+        statLabelStyle={STAT_LABEL_STYLE}
+        statValueStyle={STAT_VALUE_STYLE}
+      />
       <SilentFailuresPanel debugInfo={debugState.debugInfo} formatDate={debugState.formatDate} />
       <TokenTesterPanel
         testUserId={debugState.testUserId}

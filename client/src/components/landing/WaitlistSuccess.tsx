@@ -75,10 +75,3 @@ export const WaitlistSuccess: React.FC = () => {
     </div>
   );
 };
-
-
-
-
-
-
-

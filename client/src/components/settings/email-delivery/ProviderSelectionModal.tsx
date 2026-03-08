@@ -2,7 +2,13 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_ERROR_DARK_ALT, COLOR_ERROR_GOOGLE, COLOR_INFO_BLUE, COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import {
+  COLOR_ERROR_DARK_ALT,
+  COLOR_ERROR_GOOGLE,
+  COLOR_INFO_BLUE,
+  COLOR_NAMED_WHITE,
+  COLOR_TRANSPARENT,
+} from 'constants/colors';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
 
@@ -19,17 +25,42 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const providers = getProviderOptions(t);
 
-  const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho') => { onSelectProvider(providerId); onClose(); };
-  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget) onClose(); };
-  const handleKeyDown = (event: React.KeyboardEvent) => { if (event.key === KEY_ESCAPE) onClose(); };
+  const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho') => {
+    onSelectProvider(providerId);
+    onClose();
+  };
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === KEY_ESCAPE) {
+      onClose();
+    }
+  };
 
   return (
     <div
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX_MODAL_OVERLAY, padding: theme.spacing.lg, }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: Z_INDEX_MODAL_OVERLAY,
+        padding: theme.spacing.lg,
+      }}
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -37,47 +68,85 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
       aria-labelledby="provider-modal-title"
     >
       <div
-        style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing['2xl'], maxWidth: '600px', width: '100%', boxShadow: theme.shadows.xl, }}
-        onClick={(event) => event.stopPropagation()}
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing['2xl'],
+          maxWidth: '600px',
+          width: '100%',
+          boxShadow: theme.shadows.xl,
+        }}
+        onClick={event => event.stopPropagation()}
       >
         <h2
           id="provider-modal-title"
-          style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.xl, fontSize: theme.typography.fontSize['2xl'], fontWeight: theme.typography.fontWeight.semibold, }}
+          style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.xl,
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.semibold,
+          }}
         >
           {t('settings.emailAccounts.selectProvider')}
         </h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-          {providers.map((provider) => (
+          {providers.map(provider => (
             <button
               key={provider.id}
               onClick={() => handleProviderClick(provider.id)}
-              style={{ padding: theme.spacing.lg, border: `2px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.default, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: theme.spacing.md, }}
-              onMouseEnter={(event) => {
+              style={{
+                padding: theme.spacing.lg,
+                border: `2px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.md,
+                backgroundColor: theme.colors.background.default,
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.md,
+              }}
+              onMouseEnter={event => {
                 event.currentTarget.style.borderColor = provider.color;
                 event.currentTarget.style.backgroundColor = theme.colors.background.paper;
                 event.currentTarget.style.boxShadow = theme.shadows.md;
               }}
-              onMouseLeave={(event) => {
+              onMouseLeave={event => {
                 event.currentTarget.style.borderColor = theme.colors.border.medium;
                 event.currentTarget.style.backgroundColor = theme.colors.background.default;
                 event.currentTarget.style.boxShadow = 'none';
               }}
             >
               <div
-                style={{ width: '48px', height: '48px', borderRadius: theme.borderRadius.md, backgroundColor: provider.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLOR_NAMED_WHITE, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, flexShrink: 0, }}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: theme.borderRadius.md,
+                  backgroundColor: provider.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: COLOR_NAMED_WHITE,
+                  fontSize: theme.typography.fontSize.lg,
+                  fontWeight: theme.typography.fontWeight.bold,
+                  flexShrink: 0,
+                }}
               >
                 {provider.name.charAt(0)}
               </div>
               <div style={{ flex: 1 }}>
                 <div
-                  style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.medium, marginBottom: theme.spacing.xs, }}
+                  style={{
+                    color: theme.colors.text.primary,
+                    fontSize: theme.typography.fontSize.lg,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    marginBottom: theme.spacing.xs,
+                  }}
                 >
                   {provider.name}
                 </div>
-                <div
-                  style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, }}
-                >
+                <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
                   {provider.description}
                 </div>
               </div>
@@ -87,11 +156,21 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
         <button
           onClick={onClose}
-          style={{ marginTop: theme.spacing.xl, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', width: '100%', }}
-          onMouseEnter={(event) => {
+          style={{
+            marginTop: theme.spacing.xl,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+            cursor: 'pointer',
+            width: '100%',
+          }}
+          onMouseEnter={event => {
             event.currentTarget.style.backgroundColor = theme.colors.background.default;
           }}
-          onMouseLeave={(event) => {
+          onMouseLeave={event => {
             event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
           }}
         >
@@ -102,13 +181,25 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   );
 };
 
-
-
-
 function getProviderOptions(tFunc: (key: string) => string) {
   return [
-    { id: 'gmail' as const, name: 'Gmail', description: tFunc('settings.emailAccounts.providers.gmail.description'), color: COLOR_ERROR_GOOGLE },
-    { id: 'office365' as const, name: 'Office 365', description: tFunc('settings.emailAccounts.providers.office365.description'), color: COLOR_INFO_BLUE },
-    { id: 'zoho' as const, name: 'Zoho Mail', description: tFunc('settings.emailAccounts.providers.zoho.description'), color: COLOR_ERROR_DARK_ALT },
+    {
+      id: 'gmail' as const,
+      name: 'Gmail',
+      description: tFunc('settings.emailAccounts.providers.gmail.description'),
+      color: COLOR_ERROR_GOOGLE,
+    },
+    {
+      id: 'office365' as const,
+      name: 'Office 365',
+      description: tFunc('settings.emailAccounts.providers.office365.description'),
+      color: COLOR_INFO_BLUE,
+    },
+    {
+      id: 'zoho' as const,
+      name: 'Zoho Mail',
+      description: tFunc('settings.emailAccounts.providers.zoho.description'),
+      color: COLOR_ERROR_DARK_ALT,
+    },
   ];
 }

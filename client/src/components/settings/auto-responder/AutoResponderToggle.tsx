@@ -9,33 +9,36 @@ interface AutoResponderToggleProps {
   onToggle: (enabled: boolean) => void;
 }
 
-export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({
-  enabled,
-  onToggle,
-}) => {
+export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enabled, onToggle }) => {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: theme.spacing.md,
-      backgroundColor: enabled ? theme.colors.success.light : theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      border: `1px solid ${enabled ? theme.colors.success.main : theme.colors.border.light}`,
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: theme.spacing.md,
+        backgroundColor: enabled ? theme.colors.success.light : theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${enabled ? theme.colors.success.main : theme.colors.border.light}`,
+      }}
+    >
       <div>
-        <div style={{
-          ...theme.typography.body.xLarge,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.primary,
-        }}>
+        <div
+          style={{
+            ...theme.typography.body.xLarge,
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+          }}
+        >
           {enabled ? 'Auto-Responder Enabled' : 'Auto-Responder Disabled'}
         </div>
-        <div style={{
-          ...theme.typography.body.large,
-          color: theme.colors.text.secondary,
-          marginTop: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            ...theme.typography.body.large,
+            color: theme.colors.text.secondary,
+            marginTop: theme.spacing.xs,
+          }}
+        >
           {enabled
             ? 'New emails will receive automatic responses based on your settings.'
             : 'No automatic responses will be sent.'}

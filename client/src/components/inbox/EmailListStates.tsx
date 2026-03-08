@@ -1,7 +1,7 @@
 import React from 'react';
 import { InboxMode } from 'types/email';
 
-import { EmptyState,ErrorState, LoadingState } from 'components/inbox/states';
+import { EmptyState, ErrorState, LoadingState } from 'components/inbox/states';
 
 interface EmailListStatesProps {
   loading: boolean;
@@ -29,13 +29,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   onRetry,
 }) => {
   if (loading || !hasInitiallyLoaded || loadingModeSwitch) {
-    return (
-      <LoadingState
-        decrypting={decrypting}
-        loadingModeSwitch={loadingModeSwitch}
-        mode={mode}
-      />
-    );
+    return <LoadingState decrypting={decrypting} loadingModeSwitch={loadingModeSwitch} mode={mode} />;
   }
 
   if (fetchError) {

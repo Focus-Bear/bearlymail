@@ -115,9 +115,7 @@ describe('useContactSearch', () => {
       await waitFor(() => {
         expect(mockedAxios.get).toHaveBeenCalledTimes(1);
       });
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('test')
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('test'));
     });
 
     it('should not search for queries shorter than 2 characters', async () => {
@@ -154,9 +152,7 @@ describe('useContactSearch', () => {
 
       expect(result.current.searchResults).toEqual(mockResults);
       expect(result.current.selectedSuggestionIndex).toBe(-1);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        `${API_URL}/contacts/search?q=test&limit=8`
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/contacts/search?q=test&limit=8`);
     });
 
     it('should clear results for short queries', async () => {
@@ -293,4 +289,3 @@ describe('useContactSearch', () => {
     });
   });
 });
-

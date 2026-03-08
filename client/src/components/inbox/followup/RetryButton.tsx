@@ -29,8 +29,3 @@ export const RetryButton: React.FC<RetryButtonProps> = ({ onRetry }) => {
     </button>
   );
 };
-
-
-
-
-

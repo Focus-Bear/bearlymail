@@ -74,6 +74,3 @@ export const ClosingStatementContent: React.FC = () => {
     </>
   );
 };
-
-
-

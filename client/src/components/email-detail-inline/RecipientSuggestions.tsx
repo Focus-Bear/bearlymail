@@ -2,7 +2,6 @@ import React from 'react';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
-
 interface RecipientSuggestionsProps {
   contacts: Contact[];
   selectedIndex: number;
@@ -12,7 +11,13 @@ interface RecipientSuggestionsProps {
   field: string; // unused here but kept for parity
 }
 
-export const RecipientSuggestions: React.FC<RecipientSuggestionsProps> = ({ contacts, selectedIndex, onSelect, onHover, dropdownRef }) => (
+export const RecipientSuggestions: React.FC<RecipientSuggestionsProps> = ({
+  contacts,
+  selectedIndex,
+  onSelect,
+  onHover,
+  dropdownRef,
+}) => (
   <div
     ref={dropdownRef}
     style={{
@@ -49,22 +54,32 @@ export const RecipientSuggestions: React.FC<RecipientSuggestionsProps> = ({ cont
         {contact.photoUrl ? (
           <img src={contact.photoUrl} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
         ) : (
-          <div style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            backgroundColor: theme.colors.primary.subtle,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: theme.colors.primary.main,
-            fontSize: '11px',
-            fontWeight: theme.typography.fontWeight.semibold,
-          }}>{(contact.name || contact.email)[0].toUpperCase()}</div>
+          <div
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: theme.colors.primary.subtle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: theme.colors.primary.main,
+              fontSize: '11px',
+              fontWeight: theme.typography.fontWeight.semibold,
+            }}
+          >
+            {(contact.name || contact.email)[0].toUpperCase()}
+          </div>
         )}
         <div>
-          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>{contact.name || contact.email}</div>
-          {contact.name && <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{contact.email}</div>}
+          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+            {contact.name || contact.email}
+          </div>
+          {contact.name && (
+            <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+              {contact.email}
+            </div>
+          )}
         </div>
       </div>
     ))}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act,fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Email } from 'types/email';
 
 import { EmailDetailHeader } from './EmailDetailHeader';
@@ -7,7 +7,9 @@ import { EmailDetailHeader } from './EmailDetailHeader';
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string>) => {
-      if (params) return `${key} ${JSON.stringify(params)}`;
+      if (params) {
+        return `${key} ${JSON.stringify(params)}`;
+      }
       return key;
     },
   }),
@@ -28,7 +30,6 @@ jest.mock('utils/emailUtils', () => ({
     timestamp: _email.receivedAt,
   }),
 }));
-
 
 jest.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({

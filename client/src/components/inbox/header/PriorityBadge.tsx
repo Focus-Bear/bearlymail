@@ -31,7 +31,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   const priority = getPriorityBadge(priorityScore, t);
 
   return (
-    <span 
+    <span
       data-priority-badge={email.id}
       style={{
         fontSize: theme.typography.fontSize.xs,
@@ -48,30 +48,34 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
         position: 'relative',
         zIndex: 10,
       }}
-      onClick={(event) => {
+      onClick={event => {
         event.stopPropagation();
         event.preventDefault();
-        if (email.isProcessingPriority) return;
+        if (email.isProcessingPriority) {
+          return;
+        }
         priorityTooltip.togglePriorityTooltip(email.id);
       }}
     >
       {email.isProcessingPriority ? (
         <>
-          <span style={{ 
-            display: 'inline-block',
-            width: '10px',
-            height: '10px',
-            border: `2px solid ${priority.color}`,
-            borderTop: '2px solid transparent',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-          }} />
+          <span
+            style={{
+              display: 'inline-block',
+              width: '10px',
+              height: '10px',
+              border: `2px solid ${priority.color}`,
+              borderTop: '2px solid transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }}
+          />
           🔄 {t('email.calculating')}
         </>
       ) : (
         `${priority.label} (${priorityScore.toFixed(0)})`
       )}
-      
+
       {priorityTooltip.hoveredPriorityEmailId === email.id && (
         <PriorityTooltip
           emailId={email.id}
@@ -93,9 +97,3 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
     </span>
   );
 };
-
-
-
-
-
-

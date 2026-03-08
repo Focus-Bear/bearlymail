@@ -36,8 +36,12 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
   const { t } = useTranslation();
 
   const previewText = (() => {
-    if (isGeneratingSummary || emailIsProcessingSummary) return t('emailDetail.generatingSummary');
-    if (summary) return summary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (summary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '');
+    if (isGeneratingSummary || emailIsProcessingSummary) {
+      return t('emailDetail.generatingSummary');
+    }
+    if (summary) {
+      return summary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (summary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '');
+    }
     return t('emailDetail.noSummary');
   })();
 
@@ -45,7 +49,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
     <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
       <select
         value={summaryType}
-        onChange={(event) => {
+        onChange={event => {
           if (event.target.value === SUMMARY_TYPE_CUSTOM) {
             onShowRuleModal();
           } else if (event.target.value.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
@@ -76,7 +80,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
         <option value="sender-request">{t('emailDetail.summaryTypes.senderRequest')}</option>
         {customRules.length > 0 && (
           <optgroup label={t('emailDetail.summaryTypes.customRules')}>
-            {customRules.map((rule) => (
+            {customRules.map(rule => (
               <option key={rule.ruleId} value={`custom-${rule.ruleId}`}>
                 {rule.whenToUse}
               </option>
@@ -86,16 +90,18 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
         <option value="custom">{t('emailDetail.createCustomRule')}...</option>
       </select>
       {isGeneratingSummary && (
-        <span style={{
-          display: 'inline-block',
-          width: '14px',
-          height: '14px',
-          border: `2px solid ${theme.colors.section.summary.accent}`,
-          borderTop: '2px solid transparent',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          flexShrink: 0,
-        }} />
+        <span
+          style={{
+            display: 'inline-block',
+            width: '14px',
+            height: '14px',
+            border: `2px solid ${theme.colors.section.summary.accent}`,
+            borderTop: '2px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            flexShrink: 0,
+          }}
+        />
       )}
     </div>
   );
@@ -114,39 +120,51 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
       {(() => {
         if (isGeneratingSummary || emailIsProcessingSummary) {
           return (
-            <div style={{
-              padding: theme.spacing.xl,
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-            }}>
-              <div style={{
-                display: 'inline-block',
-                width: '24px',
-                height: '24px',
-                border: `3px solid ${theme.colors.section.summary.accent}`,
-                borderTop: '3px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                marginBottom: theme.spacing.md,
-              }} />
+            <div
+              style={{
+                padding: theme.spacing.xl,
+                textAlign: 'center',
+                color: theme.colors.text.secondary,
+              }}
+            >
+              <div
+                style={{
+                  display: 'inline-block',
+                  width: '24px',
+                  height: '24px',
+                  border: `3px solid ${theme.colors.section.summary.accent}`,
+                  borderTop: '3px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  marginBottom: theme.spacing.md,
+                }}
+              />
               <div>✨ {t('emailDetail.generatingSummary')}</div>
             </div>
           );
         }
         if (summary) {
           return (
-            <div style={{ whiteSpace: 'pre-wrap', color: theme.colors.text.primary, lineHeight: theme.typography.lineHeight.relaxed }}>
+            <div
+              style={{
+                whiteSpace: 'pre-wrap',
+                color: theme.colors.text.primary,
+                lineHeight: theme.typography.lineHeight.relaxed,
+              }}
+            >
               {summary}
             </div>
           );
         }
         return (
-          <div style={{
-            padding: theme.spacing.lg,
-            textAlign: 'center',
-            color: theme.colors.text.secondary,
-            fontStyle: 'italic',
-          }}>
+          <div
+            style={{
+              padding: theme.spacing.lg,
+              textAlign: 'center',
+              color: theme.colors.text.secondary,
+              fontStyle: 'italic',
+            }}
+          >
             📝 {t('emailDetail.noSummary')}
           </div>
         );

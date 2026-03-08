@@ -44,9 +44,7 @@ export const StarDiscrepancyActions: React.FC<StarDiscrepancyActionsProps> = ({
         disabled={isDisabled}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: hasExplanation && !submitting
-            ? theme.colors.primary.main
-            : theme.colors.background.subtle,
+          backgroundColor: hasExplanation && !submitting ? theme.colors.primary.main : theme.colors.background.subtle,
           color: hasExplanation && !submitting ? 'white' : theme.colors.text.tertiary,
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
@@ -60,6 +58,3 @@ export const StarDiscrepancyActions: React.FC<StarDiscrepancyActionsProps> = ({
     </div>
   );
 };
-
-
-

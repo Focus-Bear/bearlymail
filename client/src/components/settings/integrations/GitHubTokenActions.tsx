@@ -21,7 +21,7 @@ export const GitHubTokenActions: React.FC<GitHubTokenActionsProps> = ({
   onRemoveGithubToken,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ display: 'flex', gap: theme.spacing.md }}>
       <button
@@ -70,5 +70,3 @@ export const GitHubTokenActions: React.FC<GitHubTokenActionsProps> = ({
     </div>
   );
 };
-
-

@@ -1,4 +1,4 @@
-import React, { useCallback,useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { ContactTypeConfig } from 'types/contact';
 
@@ -15,7 +15,9 @@ const listeners = new Map<string, Set<(type: string | null) => void>>();
 const BATCH_DELAY_MS = 100;
 
 function loadConfigs(): Promise<ContactTypeConfig[]> {
-  if (configsCache) return Promise.resolve(configsCache);
+  if (configsCache) {
+    return Promise.resolve(configsCache);
+  }
   return axios.get(`${API_URL}/contacts/types`).then(res => {
     configsCache = res.data;
     return res.data;
@@ -23,12 +25,16 @@ function loadConfigs(): Promise<ContactTypeConfig[]> {
 }
 
 function scheduleBatch() {
-  if (batchTimer) return;
+  if (batchTimer) {
+    return;
+  }
   batchTimer = setTimeout(async () => {
     batchTimer = null;
     const emails = [...pendingEmails];
     pendingEmails.clear();
-    if (emails.length === 0) return;
+    if (emails.length === 0) {
+      return;
+    }
 
     try {
       const response = await axios.get(`${API_URL}/contacts/contact-types-by-emails`, {
@@ -40,13 +46,17 @@ function scheduleBatch() {
         const typeName = contactTypeMap[email] || null;
         typeCache.set(email, typeName);
         const callbacks = listeners.get(email);
-        if (callbacks) callbacks.forEach(callback => callback(typeName));
+        if (callbacks) {
+          callbacks.forEach(callback => callback(typeName));
+        }
       }
     } catch {
       for (const email of emails) {
         typeCache.set(email, null);
         const callbacks = listeners.get(email);
-        if (callbacks) callbacks.forEach(callback => callback(null));
+        if (callbacks) {
+          callbacks.forEach(callback => callback(null));
+        }
       }
     }
   }, BATCH_DELAY_MS);
@@ -73,11 +83,15 @@ export const InboxContactTypeBadge: React.FC<InboxContactTypeBadgeProps> = ({ se
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (!senderEmail) return;
+    if (!senderEmail) {
+      return;
+    }
     const email = senderEmail.toLowerCase();
 
     if (typeCache.has(email)) {
@@ -100,7 +114,9 @@ export const InboxContactTypeBadge: React.FC<InboxContactTypeBadgeProps> = ({ se
     };
   }, [senderEmail, resolveConfig]);
 
-  if (!config) return null;
+  if (!config) {
+    return null;
+  }
 
   return <ContactTypeBadge label={config.label} color={config.color} icon={config.icon} />;
 };

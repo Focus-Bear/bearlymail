@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -80,66 +80,78 @@ const SetupPassword: React.FC = () => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      backgroundColor: theme.colors.background.default,
-      padding: theme.spacing.md,
-    }}>
-      <div style={{
-        backgroundColor: theme.colors.background.paper,
-        padding: theme.spacing['2xl'],
-        borderRadius: theme.borderRadius.lg,
-        boxShadow: theme.shadows.lg,
-        width: '100%',
-        maxWidth: '400px',
-      }}>
-        <h1 style={{
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.lg,
-          fontSize: theme.typography.fontSize['2xl'],
-          fontWeight: theme.typography.fontWeight.bold,
-        }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: theme.colors.background.default,
+        padding: theme.spacing.md,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          padding: theme.spacing['2xl'],
+          borderRadius: theme.borderRadius.lg,
+          boxShadow: theme.shadows.lg,
+          width: '100%',
+          maxWidth: '400px',
+        }}
+      >
+        <h1
+          style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+          }}
+        >
           {t('auth.setupAccountTitle')}
         </h1>
 
-        <p style={{
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.lg,
-          fontSize: theme.typography.fontSize.base,
-        }}>
+        <p
+          style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize.base,
+          }}
+        >
           {t('auth.setupAccountDescription')}
         </p>
 
         {error && (
-          <div style={{
-            backgroundColor: `${theme.colors.accent.error}20`,
-            color: theme.colors.accent.error,
-            padding: theme.spacing.md,
-            borderRadius: theme.borderRadius.md,
-            marginBottom: theme.spacing.md,
-          }}>
+          <div
+            style={{
+              backgroundColor: `${theme.colors.accent.error}20`,
+              color: theme.colors.accent.error,
+              padding: theme.spacing.md,
+              borderRadius: theme.borderRadius.md,
+              marginBottom: theme.spacing.md,
+            }}
+          >
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: theme.spacing.md }}>
-            <label style={{
-              display: 'block',
-              marginBottom: theme.spacing.sm,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: theme.spacing.sm,
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
               {t('auth.password')}
             </label>
             <input
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={event => setPassword(event.target.value)}
               required
               minLength={8}
               style={{
@@ -151,29 +163,33 @@ const SetupPassword: React.FC = () => {
                 fontFamily: theme.typography.fontFamily,
               }}
             />
-            <p style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              marginTop: theme.spacing.xs,
-            }}>
+            <p
+              style={{
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                marginTop: theme.spacing.xs,
+              }}
+            >
               {t('auth.passwordMinLength')}
             </p>
           </div>
 
           <div style={{ marginBottom: theme.spacing.lg }}>
-            <label style={{
-              display: 'block',
-              marginBottom: theme.spacing.sm,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: theme.spacing.sm,
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
               {t('auth.confirmPassword')}
             </label>
             <input
               type="password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={event => setConfirmPassword(event.target.value)}
               required
               minLength={8}
               style={{
@@ -202,12 +218,12 @@ const SetupPassword: React.FC = () => {
               cursor: loading || !token ? 'not-allowed' : 'pointer',
               marginBottom: theme.spacing.md,
             }}
-            onMouseOver={(event) => {
+            onMouseOver={event => {
               if (!loading && token) {
                 event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
               }
             }}
-            onMouseOut={(event) => {
+            onMouseOut={event => {
               if (!loading && token) {
                 event.currentTarget.style.backgroundColor = theme.colors.primary.main;
               }
@@ -222,4 +238,3 @@ const SetupPassword: React.FC = () => {
 };
 
 export default SetupPassword;
-

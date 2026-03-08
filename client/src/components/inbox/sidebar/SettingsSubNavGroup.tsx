@@ -48,13 +48,11 @@ export const SettingsSubNavGroup: React.FC<SettingsSubNavGroupProps> = ({
         }}
       >
         <span>{label}</span>
-        <span style={{ fontSize: theme.typography.fontSize.sm }}>
-          {isExpanded ? '▼' : '▶'}
-        </span>
+        <span style={{ fontSize: theme.typography.fontSize.sm }}>{isExpanded ? '▼' : '▶'}</span>
       </button>
       {isExpanded && (
         <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-          {items.map((subItem) => (
+          {items.map(subItem => (
             <button
               key={subItem.id}
               onClick={() => onScrollToSection(subItem.anchor)}
@@ -79,9 +77,3 @@ export const SettingsSubNavGroup: React.FC<SettingsSubNavGroupProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

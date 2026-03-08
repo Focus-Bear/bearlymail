@@ -7,6 +7,3 @@ export { TourOverlay } from 'components/inbox/overlays/TourOverlay';
 export { UrgentEmailList } from 'components/inbox/overlays/UrgentEmailList';
 export { UrgentNotification } from 'components/inbox/overlays/UrgentNotification';
 export { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
-
-
-

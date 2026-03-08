@@ -16,7 +16,9 @@ afterAll(() => {
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string>) => {
-      if (params) return `${key}:${JSON.stringify(params)}`;
+      if (params) {
+        return `${key}:${JSON.stringify(params)}`;
+      }
       return key;
     },
   }),
@@ -48,7 +50,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <div>Hello world</div>
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
       expect(screen.getByText('Hello world')).toBeInTheDocument();
     });
@@ -59,7 +61,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
       expect(screen.getByText('errorBoundary.title')).toBeInTheDocument();
@@ -71,19 +73,17 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
-      expect(
-        screen.getByText(`errorBoundary.correlationId:${JSON.stringify({ id: 'TESTA' })}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(`errorBoundary.correlationId:${JSON.stringify({ id: 'TESTA' })}`)).toBeInTheDocument();
     });
 
     it('reports the error to PostHog with the correlation ID', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
       expect(posthog.captureException).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe('ErrorBoundary', () => {
         expect.objectContaining({
           correlationId: 'TESTA',
           errorBoundary: true,
-        }),
+        })
       );
     });
 
@@ -99,7 +99,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary fallback={<div>Custom fallback</div>}>
           <ThrowingComponent />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
       expect(screen.getByText('Custom fallback')).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent error={new Error('Network Error')} />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
       expect(screen.getByText('errorBoundary.networkTitle')).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent error={new Error('Network Error')} />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
       expect(posthog.captureException).toHaveBeenCalledWith(
@@ -135,7 +135,7 @@ describe('ErrorBoundary', () => {
         expect.objectContaining({
           isNetworkError: true,
           errorBoundary: true,
-        }),
+        })
       );
     });
 
@@ -143,12 +143,10 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent error={new Error('Network Error')} />
-        </ErrorBoundary>,
+        </ErrorBoundary>
       );
 
-      expect(
-        screen.getByText(`errorBoundary.correlationId:${JSON.stringify({ id: 'TESTA' })}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(`errorBoundary.correlationId:${JSON.stringify({ id: 'TESTA' })}`)).toBeInTheDocument();
     });
   });
 });

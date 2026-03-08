@@ -47,8 +47,12 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
   };
 
   const getFieldMarginBottom = (): string => {
-    if (isMobile) return theme.spacing.md;
-    if (type === INPUT_TYPE_TEXTAREA) return theme.spacing.xl;
+    if (isMobile) {
+      return theme.spacing.md;
+    }
+    if (type === INPUT_TYPE_TEXTAREA) {
+      return theme.spacing.xl;
+    }
     return theme.spacing.md;
   };
 
@@ -58,7 +62,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
       {type === INPUT_TYPE_TEXTAREA ? (
         <textarea
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={event => onChange(event.target.value)}
           onBlur={onBlur}
           required={required}
           rows={rows || (isMobile ? 3 : 4)}
@@ -72,7 +76,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
         <input
           type={type}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={event => onChange(event.target.value)}
           onBlur={onBlur}
           required={required}
           style={inputStyle}
@@ -81,4 +85,3 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
     </div>
   );
 };
-

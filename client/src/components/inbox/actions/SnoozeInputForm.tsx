@@ -40,9 +40,9 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
 
   return (
     <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-      <span 
-        style={{ 
-          fontSize: theme.typography.fontSize.xs, 
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.xs,
           color: theme.colors.text.secondary,
           whiteSpace: 'nowrap',
         }}
@@ -55,7 +55,7 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
         placeholder={t('emailActions.snoozePlaceholder')}
         autoFocus
         value={snoozeValue}
-        onChange={(event) => onValueChange(event.target.value)}
+        onChange={event => onValueChange(event.target.value)}
         onKeyDown={handleKeyDown}
         title={t('emailActions.snoozeTooltip')}
         style={{
@@ -108,6 +108,3 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
     </div>
   );
 };
-
-
-

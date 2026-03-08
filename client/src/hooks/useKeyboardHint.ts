@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface KeyboardHint {
   emailId: string;
@@ -30,13 +30,3 @@ export function useKeyboardHint(): UseKeyboardHintReturn {
     hideHint,
   };
 }
-
-
-
-
-
-
-
-
-
-

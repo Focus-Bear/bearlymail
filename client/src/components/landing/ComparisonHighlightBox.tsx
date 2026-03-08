@@ -55,9 +55,7 @@ export const ComparisonHighlightBox: React.FC = () => {
         marginBottom,
       }}
     >
-      <p style={{ ...paragraphStyle, color: theme.colors.text.secondary }}>
-        {t('landing.comparison.highlight.gmail')}
-      </p>
+      <p style={{ ...paragraphStyle, color: theme.colors.text.secondary }}>{t('landing.comparison.highlight.gmail')}</p>
       <p style={{ ...paragraphStyle, color: theme.colors.text.secondary }}>
         {t('landing.comparison.highlight.superhuman')}
       </p>
@@ -83,6 +81,3 @@ export const ComparisonHighlightBox: React.FC = () => {
     </div>
   );
 };
-
-
-

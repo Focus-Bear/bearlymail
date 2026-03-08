@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { extractCleanHtmlBody,removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
 
@@ -24,9 +24,7 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody
       }}
     >
       {htmlBody ? (
-        <EmailBodyIframe 
-          html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody, true)))}
-        />
+        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody, true)))} />
       ) : (
         <div
           style={{

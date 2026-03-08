@@ -41,10 +41,14 @@ export function useEmailDetailState() {
   const [summaryCollapsed, setSummaryCollapsed] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [customRule, setCustomRule] = useState({ whenToUse: '', howToSummarize: '' });
-  const [customRules, setCustomRules] = useState<Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>>([]);
+  const [customRules, setCustomRules] = useState<Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>>(
+    []
+  );
 
   // Action items state
-  const [actionItems, setActionItems] = useState<Array<{ id?: string; description: string; isCompleted: boolean; source: string }>>([]);
+  const [actionItems, setActionItems] = useState<
+    Array<{ id?: string; description: string; isCompleted: boolean; source: string }>
+  >([]);
   const [newActionItem, setNewActionItem] = useState('');
 
   // Reply state
@@ -60,7 +64,11 @@ export function useEmailDetailState() {
   const [showBcc, setShowBcc] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [sending, setSending] = useState(false);
-  const [toneCheckResult, setToneCheckResult] = useState<{ isOk: boolean; suggestions: string[]; revisedText?: string } | null>(null);
+  const [toneCheckResult, setToneCheckResult] = useState<{
+    isOk: boolean;
+    suggestions: string[];
+    revisedText?: string;
+  } | null>(null);
   const [checkingTone, setCheckingTone] = useState(false);
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<{
@@ -76,8 +84,8 @@ export function useEmailDetailState() {
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
 
   // Priority explanation state
-  const [priorityExplanation, setPriorityExplanation] = useState<{ 
-    score: number; 
+  const [priorityExplanation, setPriorityExplanation] = useState<{
+    score: number;
     breakdown: Array<{ factor: string; value: number; description: string }>;
     dimensions?: {
       urgency: { score: number; reasons: string[] };
@@ -209,6 +217,3 @@ export function useEmailDetailState() {
     setAnimationClass,
   };
 }
-
-
-

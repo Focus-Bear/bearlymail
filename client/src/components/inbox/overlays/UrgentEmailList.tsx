@@ -21,7 +21,7 @@ const getEmailKey = (email: UrgentEmail, index: number): string => {
 
 export const UrgentEmailList: React.FC<UrgentEmailListProps> = ({ emails, count }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
       {emails.slice(0, 3).map((email, index) => (
@@ -73,6 +73,3 @@ export const UrgentEmailList: React.FC<UrgentEmailListProps> = ({ emails, count 
     </div>
   );
 };
-
-
-

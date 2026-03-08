@@ -86,11 +86,3 @@ export const ScanModal: React.FC<ScanModalProps> = ({ onStartScan, onDismissScan
     </div>
   );
 };
-
-
-
-
-
-
-
-

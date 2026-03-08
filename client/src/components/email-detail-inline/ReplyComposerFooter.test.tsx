@@ -1,12 +1,14 @@
 import React from 'react';
-import { fireEvent,render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ReplyComposerFooter } from './ReplyComposerFooter';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
-      if (params) return `${key} ${JSON.stringify(params)}`;
+      if (params) {
+        return `${key} ${JSON.stringify(params)}`;
+      }
       return key;
     },
   }),

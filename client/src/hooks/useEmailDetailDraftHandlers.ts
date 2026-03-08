@@ -23,7 +23,7 @@ export function useEmailDetailDraftHandlers(
   setSelectedReplyOption: (idx: number) => void,
   setReplyOptions: (opts: ReplyOption[] | null) => void,
   setToneCheckResult: (r: any) => void,
-  setShowReplyComposer: (show: boolean) => void,
+  setShowReplyComposer: (show: boolean) => void
 ) {
   // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
   const customDraftRef = useRef<string>('');
@@ -34,14 +34,16 @@ export function useEmailDetailDraftHandlers(
     // Always persist user input so it can be restored if they switch to a suggestion and come back.
     customDraftRef.current = newDraft;
     if (replyOptions) {
-      const customIdx = replyOptions.findIndex((opt) => opt.label === ACTION_TYPE_CUSTOM);
+      const customIdx = replyOptions.findIndex(opt => opt.label === ACTION_TYPE_CUSTOM);
       // If the current tab is not already the Custom tab, switch to it.
-      if (customIdx >= 0) setSelectedReplyOption(customIdx);
+      if (customIdx >= 0) {
+        setSelectedReplyOption(customIdx);
+      }
     }
   };
 
   const handleReplyOptionSelect = (idx: number, text: string) => {
-    const customIdx = replyOptions?.findIndex((opt) => opt.label === ACTION_TYPE_CUSTOM) ?? 0;
+    const customIdx = replyOptions?.findIndex(opt => opt.label === ACTION_TYPE_CUSTOM) ?? 0;
     if (idx === customIdx) {
       // User is switching back to the Custom tab — restore their previously typed content.
       setSelectedReplyOption(idx);

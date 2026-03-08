@@ -75,9 +75,7 @@ function getHeaderStyle(isExpanded: boolean): React.CSSProperties {
     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
     cursor: 'pointer',
     borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-    borderRadius: isExpanded
-      ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0`
-      : theme.borderRadius.md,
+    borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
   };
 }
 
@@ -152,10 +150,7 @@ interface ProtoCategorySubAccordionProps {
   isDeleting?: boolean;
 }
 
-function makeProtoKeyDownHandler(
-  onConfirm: () => void,
-  onCancel: () => void
-): (event: KeyboardEvent) => void {
+function makeProtoKeyDownHandler(onConfirm: () => void, onCancel: () => void): (event: KeyboardEvent) => void {
   return (event: KeyboardEvent) => {
     if (event.key === KEY_Y || event.key === KEY_Y_UPPERCASE) {
       event.stopPropagation();
@@ -204,7 +199,9 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
   }, []);
 
   useEffect(() => {
-    if (!showArchiveConfirmation) return;
+    if (!showArchiveConfirmation) {
+      return;
+    }
     const handleKeyDown = makeProtoKeyDownHandler(handleConfirmArchive, handleCancelArchive);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -221,7 +218,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
           </div>
           {description && <span style={descriptionStyle}>{description}</span>}
         </div>
-        <div style={actionsContainerStyle} onClick={(event) => event.stopPropagation()}>
+        <div style={actionsContainerStyle} onClick={event => event.stopPropagation()}>
           {onArchiveAll && emailCount > 0 && (
             <button
               onClick={handleArchiveAllClick}
@@ -235,20 +232,12 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
               {t('inbox.category.archiveAll')}
             </button>
           )}
-          <button
-            onClick={onConvertToCategory}
-            disabled={isBusy}
-            style={getConvertButtonStyle(isBusy)}
-          >
-            {isConverting
-              ? t('inbox.protoCategory.converting')
-              : t('inbox.protoCategory.convertToCategory')}
+          <button onClick={onConvertToCategory} disabled={isBusy} style={getConvertButtonStyle(isBusy)}>
+            {isConverting ? t('inbox.protoCategory.converting') : t('inbox.protoCategory.convertToCategory')}
           </button>
           {onDelete && (
             <button onClick={onDelete} disabled={isBusy} style={getDeleteButtonStyle(isBusy)}>
-              {isDeleting
-                ? t('settings.protoCategories.deleting')
-                : t('settings.protoCategories.delete')}
+              {isDeleting ? t('settings.protoCategories.deleting') : t('settings.protoCategories.delete')}
             </button>
           )}
         </div>

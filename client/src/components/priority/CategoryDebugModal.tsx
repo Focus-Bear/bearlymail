@@ -16,10 +16,7 @@ const COPY_FEEDBACK_DURATION_MS = 2000;
 
 export type { CategoryDebugModalProps } from './CategoryDebugModal.types';
 
-export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({
-  emailId,
-  onClose,
-}) => {
+export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId, onClose }) => {
   const { t } = useTranslation();
   const [debugInfo, setDebugInfo] = useState<CategoryDebugData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +38,9 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({
   }, [emailId, t]);
 
   const handleCopy = async () => {
-    if (!debugInfo) return;
+    if (!debugInfo) {
+      return;
+    }
     const text = formatForGithubIssue(debugInfo);
     try {
       await navigator.clipboard.writeText(text);
@@ -55,10 +54,7 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({
   return createPortal(
     <ModalBackdrop onClose={onClose} zIndex={10001}>
       <ModalContent>
-        <ModalHeaderWithClose
-          title={t('priority.categoryDebug.title')}
-          onClose={onClose}
-        />
+        <ModalHeaderWithClose title={t('priority.categoryDebug.title')} onClose={onClose} />
 
         {loading && (
           <div style={{ textAlign: 'center', padding: theme.spacing.md, color: theme.colors.text.secondary }}>
@@ -67,9 +63,7 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({
         )}
 
         {error && (
-          <div style={{ color: theme.colors.feedback?.error || '#d32f2f', padding: theme.spacing.sm }}>
-            {error}
-          </div>
+          <div style={{ color: theme.colors.feedback?.error || '#d32f2f', padding: theme.spacing.sm }}>{error}</div>
         )}
 
         {debugInfo && (
@@ -112,6 +106,6 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({
         )}
       </ModalContent>
     </ModalBackdrop>,
-    document.body,
+    document.body
   );
 };

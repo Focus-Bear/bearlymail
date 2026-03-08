@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { Email, GitHubLink } from 'types/email';
@@ -26,58 +26,79 @@ export function useGitHubBatchFetch(emails: Email[], loading: boolean) {
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
 
-  const fetchBatchGitHubStatus = useCallback(async (emailIds: string[]): Promise<string[]> => {
-    if (emailIds.length === 0) return [];
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    try {
-      const response = await axios.post<GitHubBatchResponse>(
-        `${API_URL}/github/batch-status`,
-        { emailIds },
-        { signal: abortControllerRef.current.signal },
-      );
-
-      const responseData = response.data;
-      const pendingIds: string[] = [];
-
-      for (const [emailId, metadata] of Object.entries(responseData)) {
-        if (metadata && metadata.links && metadata.links.length > 0 && !metadata.pending) {
-          dispatch(updateEmail({
-            id: emailId,
-            updates: { githubMetadata: { links: metadata.links } },
-          }));
-        }
-        if (metadata && metadata.pending) {
-          pendingIds.push(emailId);
-        }
+  const fetchBatchGitHubStatus = useCallback(
+    async (emailIds: string[]): Promise<string[]> => {
+      if (emailIds.length === 0) {
+        return [];
       }
 
-      return pendingIds;
-    } catch (error: unknown) {
-      if (axios.isCancel(error)) return [];
-      return [];
-    }
-  }, [dispatch]);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
 
-  const startPolling = useCallback((pendingIds: string[]) => {
-    if (pendingIds.length === 0 || pollCountRef.current >= MAX_POLL_ATTEMPTS) return;
+      try {
+        const response = await axios.post<GitHubBatchResponse>(
+          `${API_URL}/github/batch-status`,
+          { emailIds },
+          { signal: abortControllerRef.current.signal }
+        );
 
-    pollTimerRef.current = setTimeout(async () => {
-      pollCountRef.current += 1;
-      const stillPending = await fetchBatchGitHubStatus(pendingIds);
-      startPolling(stillPending);
-    }, POLL_INTERVAL_MS);
-  }, [fetchBatchGitHubStatus]);
+        const responseData = response.data;
+        const pendingIds: string[] = [];
+
+        for (const [emailId, metadata] of Object.entries(responseData)) {
+          if (metadata && metadata.links && metadata.links.length > 0 && !metadata.pending) {
+            dispatch(
+              updateEmail({
+                id: emailId,
+                updates: { githubMetadata: { links: metadata.links } },
+              })
+            );
+          }
+          if (metadata && metadata.pending) {
+            pendingIds.push(emailId);
+          }
+        }
+
+        return pendingIds;
+      } catch (error: unknown) {
+        if (axios.isCancel(error)) {
+          return [];
+        }
+        return [];
+      }
+    },
+    [dispatch]
+  );
+
+  const startPolling = useCallback(
+    (pendingIds: string[]) => {
+      if (pendingIds.length === 0 || pollCountRef.current >= MAX_POLL_ATTEMPTS) {
+        return;
+      }
+
+      pollTimerRef.current = setTimeout(async () => {
+        pollCountRef.current += 1;
+        const stillPending = await fetchBatchGitHubStatus(pendingIds);
+        startPolling(stillPending);
+      }, POLL_INTERVAL_MS);
+    },
+    [fetchBatchGitHubStatus]
+  );
 
   useEffect(() => {
-    if (loading || emails.length === 0) return;
+    if (loading || emails.length === 0) {
+      return;
+    }
 
-    const emailIdsKey = emails.map(event => event.id).sort().join(',');
-    if (fetchedForRef.current === emailIdsKey) return;
+    const emailIdsKey = emails
+      .map(event => event.id)
+      .sort()
+      .join(',');
+    if (fetchedForRef.current === emailIdsKey) {
+      return;
+    }
     fetchedForRef.current = emailIdsKey;
     pollCountRef.current = 0;
 

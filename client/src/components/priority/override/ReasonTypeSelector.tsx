@@ -9,12 +9,9 @@ interface ReasonTypeSelectorProps {
   onReasonChange: (reason: OverrideReasonType) => void;
 }
 
-export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
-  selectedReason,
-  onReasonChange,
-}) => {
+export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({ selectedReason, onReasonChange }) => {
   const { t } = useTranslation();
-  
+
   const reasonOptions = [
     { value: OverrideReasonType.WRONG_SENDER_PRIORITY, label: t('priority.override.reason.wrongSenderPriority') },
     { value: OverrideReasonType.WRONG_URGENCY, label: t('priority.override.reason.wrongUrgency') },
@@ -24,7 +21,7 @@ export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
 
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      {reasonOptions.map((option) => (
+      {reasonOptions.map(option => (
         <label
           key={option.value}
           style={{
@@ -34,9 +31,7 @@ export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
             marginBottom: theme.spacing.xs,
             cursor: 'pointer',
             borderRadius: theme.borderRadius.sm,
-            backgroundColor: selectedReason === option.value
-              ? theme.colors.primary.subtle
-              : 'transparent',
+            backgroundColor: selectedReason === option.value ? theme.colors.primary.subtle : 'transparent',
             transition: 'background-color 0.2s',
           }}
         >
@@ -45,16 +40,18 @@ export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
             name="reasonType"
             value={option.value}
             checked={selectedReason === option.value}
-            onChange={(event) => onReasonChange(event.target.value as OverrideReasonType)}
+            onChange={event => onReasonChange(event.target.value as OverrideReasonType)}
             style={{
               marginRight: theme.spacing.sm,
               cursor: 'pointer',
             }}
           />
-          <span style={{
-            fontSize: theme.typography.fontSize.sm,
-            color: theme.colors.text.primary,
-          }}>
+          <span
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.primary,
+            }}
+          >
             {option.label}
           </span>
         </label>
@@ -62,7 +59,3 @@ export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
     </div>
   );
 };
-
-
-
-

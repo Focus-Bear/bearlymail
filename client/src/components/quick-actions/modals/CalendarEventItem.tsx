@@ -31,7 +31,7 @@ const formatDate = (dateString: string): string => {
 
 export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -41,39 +41,47 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
         borderRadius: theme.borderRadius.md,
       }}
     >
-      <div style={{
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.xs,
-        color: theme.colors.text.primary,
-      }}>
+      <div
+        style={{
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.xs,
+          color: theme.colors.text.primary,
+        }}
+      >
         {event.summary || t('quickActions.calendar.untitledEvent')}
       </div>
-      <div style={{
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_CALENDAR} {formatDate(event.start)} - {formatDate(event.end)}
       </div>
       {event.location && (
-        <div style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_LOCATION} {event.location}
         </div>
       )}
       {event.attendees && event.attendees.length > 0 && (
-        <div style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          {EMOJI_PEOPLE} {event.attendees.map((attendee) => attendee.email || attendee.displayName).join(', ')}
+          {EMOJI_PEOPLE} {event.attendees.map(attendee => attendee.email || attendee.displayName).join(', ')}
         </div>
       )}
       {event.htmlLink && (
@@ -93,6 +101,3 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
     </div>
   );
 };
-
-
-

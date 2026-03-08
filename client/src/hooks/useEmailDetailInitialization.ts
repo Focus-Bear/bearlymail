@@ -11,7 +11,7 @@ function applyMatchedRule(
   id: string,
   initializedRef: MutableRefObject<string | null>,
   handleUseCustomRule: (rule: any) => void,
-  handleSummarize: (type: string) => void,
+  handleSummarize: (type: string) => void
 ): void {
   const validRule = (rule: any) => rule?.ruleId && rule?.whenToUse && rule?.howToSummarize;
   const ruleToApply = validRule(matchedRule) ? matchedRule : rulesList.find(validRule);
@@ -85,7 +85,7 @@ export const useEmailDetailInitialization = ({
   const expandedItemsSetRef = useRef<string | null>(null);
   // Track which email we've auto-extracted actions for
   const autoExtractedRef = useRef<string | null>(null);
-  
+
   // Clear summary and reset state when email ID changes to prevent showing old data
   useEffect(() => {
     if (id && id !== previousEmailIdRef.current) {
@@ -106,7 +106,7 @@ export const useEmailDetailInitialization = ({
       previousEmailIdRef.current = id;
     }
   }, [id, setSummary, setSummaryType, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
-  
+
   // Track manual summaryType changes
   useEffect(() => {
     if (id && summaryType !== SUMMARY_TYPE_TLDR && initializedEmailIdRef.current !== id) {
@@ -114,25 +114,51 @@ export const useEmailDetailInitialization = ({
       initializedEmailIdRef.current = id;
     }
   }, [id, summaryType]);
-  
+
   useEffect(() => {
-    if (!id || fetchedEmailIdRef.current === id) return;
+    if (!id || fetchedEmailIdRef.current === id) {
+      return;
+    }
     fetchedEmailIdRef.current = id;
-    initializeEmailSummary({ id, isGeneratingSummary, summaryType, summary, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, setSummary, setSummaryType, setSummaryCollapsed, initializedEmailIdRef });
+    initializeEmailSummary({
+      id,
+      isGeneratingSummary,
+      summaryType,
+      summary,
+      fetchCustomRules,
+      fetchEmail,
+      handleUseCustomRule,
+      handleSummarize,
+      setSummary,
+      setSummaryType,
+      setSummaryCollapsed,
+      initializedEmailIdRef,
+    });
     fetchGithubInfo();
     fetchSuggestedActions();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting summary state to prevent re-fetch loops
-  }, [id, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, fetchGithubInfo, fetchSuggestedActions, setSummary, setSummaryCollapsed, setSummaryType]);
+  }, [
+    id,
+    fetchCustomRules,
+    fetchEmail,
+    handleUseCustomRule,
+    handleSummarize,
+    fetchGithubInfo,
+    fetchSuggestedActions,
+    setSummary,
+    setSummaryCollapsed,
+    setSummaryType,
+  ]);
 
   useEffect(() => {
     // Only fetch if we have a threadId and haven't already fetched for this thread
     if (!email?.threadId || fetchedThreadIdRef.current === email.threadId) {
       return;
     }
-    
+
     // Mark as fetched immediately to prevent duplicate calls
     fetchedThreadIdRef.current = email.threadId;
-    
+
     fetchNote();
     fetchThreadEmails();
     const fetchAndAutoExtract = async () => {
@@ -140,7 +166,7 @@ export const useEmailDetailInitialization = ({
         // Fetch action items for the thread (not just this email)
         const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
         setActionItems(response.data);
-        
+
         // Store response for later use in the threadEmails effect
         if (response.data.length === 0 && email.body) {
           // Will be handled in the threadEmails effect below
@@ -150,25 +176,49 @@ export const useEmailDetailInitialization = ({
       }
     };
     fetchAndAutoExtract();
-  }, [email?.threadId, email?.id, email?.body, email?.from, email?.fromName, fetchNote, fetchThreadEmails, setActionItems]);
+  }, [
+    email?.threadId,
+    email?.id,
+    email?.body,
+    email?.from,
+    email?.fromName,
+    fetchNote,
+    fetchThreadEmails,
+    setActionItems,
+  ]);
 
   useThreadEmailsInit({
-    threadEmails, email, actionItems,
-    expandedItemsSetRef, autoExtractedRef,
-    setExpandedThreadItems, setActionItems,
+    threadEmails,
+    email,
+    actionItems,
+    expandedItemsSetRef,
+    autoExtractedRef,
+    setExpandedThreadItems,
+    setActionItems,
   });
 };
 
-
-
-
-function useThreadEmailsInit({ threadEmails, email, actionItems, expandedItemsSetRef, autoExtractedRef, setExpandedThreadItems, setActionItems }: {
-  threadEmails: any[]; email: any; actionItems: any[];
-  expandedItemsSetRef: MutableRefObject<string | null>; autoExtractedRef: MutableRefObject<string | null>;
-  setExpandedThreadItems: (items: Set<string>) => void; setActionItems: (items: any[]) => void;
+function useThreadEmailsInit({
+  threadEmails,
+  email,
+  actionItems,
+  expandedItemsSetRef,
+  autoExtractedRef,
+  setExpandedThreadItems,
+  setActionItems,
+}: {
+  threadEmails: any[];
+  email: any;
+  actionItems: any[];
+  expandedItemsSetRef: MutableRefObject<string | null>;
+  autoExtractedRef: MutableRefObject<string | null>;
+  setExpandedThreadItems: (items: Set<string>) => void;
+  setActionItems: (items: any[]) => void;
 }) {
   useEffect(() => {
-    if (threadEmails.length === 0) return;
+    if (threadEmails.length === 0) {
+      return;
+    }
 
     const mostRecentId = threadEmails[0]?.id;
     if (mostRecentId && expandedItemsSetRef.current !== mostRecentId) {
@@ -194,11 +244,15 @@ async function autoExtractActions(email: any, setActionItems: (items: any[]) => 
     });
     if (extractResponse.data && extractResponse.data.length > 0) {
       const newItems = extractResponse.data.map((item: any) => ({
-        description: item.description, isCompleted: false, source: 'llm',
+        description: item.description,
+        isCompleted: false,
+        source: 'llm',
       }));
-      await Promise.all(newItems.map((item: any) =>
-        axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-      ));
+      await Promise.all(
+        newItems.map((item: any) =>
+          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+        )
+      );
       const updatedResponse = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
       setActionItems(updatedResponse.data);
     }
@@ -207,27 +261,58 @@ async function autoExtractActions(email: any, setActionItems: (items: any[]) => 
   }
 }
 
-async function initializeEmailSummary({ id, isGeneratingSummary, summaryType, summary, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, setSummary, setSummaryType, setSummaryCollapsed, initializedEmailIdRef }: {
-  id: string; isGeneratingSummary: boolean; summaryType: string; summary: string | null;
-  fetchCustomRules: () => Promise<any[]>; fetchEmail: () => Promise<any>;
-  handleUseCustomRule: (rule: any) => Promise<void>; handleSummarize: (type: string) => Promise<void>;
-  setSummary: (s: string | null) => void; setSummaryType: (t: string) => void; setSummaryCollapsed: (c: boolean) => void;
+async function initializeEmailSummary({
+  id,
+  isGeneratingSummary,
+  summaryType,
+  summary,
+  fetchCustomRules,
+  fetchEmail,
+  handleUseCustomRule,
+  handleSummarize,
+  setSummary,
+  setSummaryType,
+  setSummaryCollapsed,
+  initializedEmailIdRef,
+}: {
+  id: string;
+  isGeneratingSummary: boolean;
+  summaryType: string;
+  summary: string | null;
+  fetchCustomRules: () => Promise<any[]>;
+  fetchEmail: () => Promise<any>;
+  handleUseCustomRule: (rule: any) => Promise<void>;
+  handleSummarize: (type: string) => Promise<void>;
+  setSummary: (s: string | null) => void;
+  setSummaryType: (t: string) => void;
+  setSummaryCollapsed: (c: boolean) => void;
   initializedEmailIdRef: MutableRefObject<string | null>;
 }) {
   const rules = await fetchCustomRules();
   const emailData = await fetchEmail();
 
   const shouldAutoSelect =
-    initializedEmailIdRef.current !== id && emailData &&
-    !emailData.summary && !emailData.isProcessingSummary &&
-    !isGeneratingSummary && !summary && summaryType === SUMMARY_TYPE_TLDR;
+    initializedEmailIdRef.current !== id &&
+    emailData &&
+    !emailData.summary &&
+    !emailData.isProcessingSummary &&
+    !isGeneratingSummary &&
+    !summary &&
+    summaryType === SUMMARY_TYPE_TLDR;
 
   if (shouldAutoSelect) {
     const rulesList = rules || [];
     if (rulesList.length > 0) {
       try {
         const response = await axios.post(`${API_URL}/summarize/match-rule/${id}`);
-        applyMatchedRule(response.data?.rule, rulesList, id, initializedEmailIdRef, handleUseCustomRule, handleSummarize);
+        applyMatchedRule(
+          response.data?.rule,
+          rulesList,
+          id,
+          initializedEmailIdRef,
+          handleUseCustomRule,
+          handleSummarize
+        );
       } catch (error) {
         console.error('Error matching rule:', error);
         applyMatchedRule(null, rulesList, id, initializedEmailIdRef, handleUseCustomRule, handleSummarize);

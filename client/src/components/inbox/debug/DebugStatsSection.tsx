@@ -2,7 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { calculateNextDelivery, calculateTimeAgo, DeliverySchedule,formatDeliverySchedule } from 'components/inbox/debug/DebugStatsUtils';
+import {
+  calculateNextDelivery,
+  calculateTimeAgo,
+  DeliverySchedule,
+  formatDeliverySchedule,
+} from 'components/inbox/debug/DebugStatsUtils';
 import { EMOJI_WARNING } from 'constants/emojis';
 import { MS_PER_MINUTE } from 'constants/numbers';
 import { DELIVERY_STATUS_OVERDUE } from 'constants/strings';
@@ -22,22 +27,15 @@ interface DebugStatsSectionProps {
  * Debug stats section component
  * Displays sync status and delivery information
  */
-export const DebugStatsSection: React.FC<DebugStatsSectionProps> = ({
-  syncStatus,
-  loadingSyncStatus,
-}) => {
+export const DebugStatsSection: React.FC<DebugStatsSectionProps> = ({ syncStatus, loadingSyncStatus }) => {
   const { t } = useTranslation();
 
   if (loadingSyncStatus) {
-    return (
-      <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.loading')}</div>
-    );
+    return <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.loading')}</div>;
   }
 
   if (!syncStatus?.lastSyncTime) {
-    return (
-      <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.noSyncHistory')}</div>
-    );
+    return <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.noSyncHistory')}</div>;
   }
 
   const lastSync = new Date(syncStatus.lastSyncTime);
@@ -113,11 +111,11 @@ export const DebugStatsSection: React.FC<DebugStatsSectionProps> = ({
           color: theme.colors.text.secondary,
         }}
       >
-        {t('debug.stats.syncDescription', { minutes: syncFrequencyMins, schedule: scheduleText || t('debug.stats.seeScheduleAbove') })}
+        {t('debug.stats.syncDescription', {
+          minutes: syncFrequencyMins,
+          schedule: scheduleText || t('debug.stats.seeScheduleAbove'),
+        })}
       </div>
     </div>
   );
 };
-
-
-

@@ -9,22 +9,21 @@ interface PriorityTooltipActionsProps {
   onProvideFeedback?: () => void;
 }
 
-export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({
-  emailId,
-  onProvideFeedback,
-}) => {
+export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({ emailId, onProvideFeedback }) => {
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      marginTop: theme.spacing.xs || '4px',
-      paddingTop: theme.spacing.xs || '4px',
-      borderTop: `1px solid ${theme.colors.border.light}`,
-      textAlign: 'center',
-    }}>
+    <div
+      style={{
+        marginTop: theme.spacing.xs || '4px',
+        paddingTop: theme.spacing.xs || '4px',
+        borderTop: `1px solid ${theme.colors.border.light}`,
+        textAlign: 'center',
+      }}
+    >
       <a
         href={`/email/${emailId}`}
-        onClick={(event) => {
+        onClick={event => {
           event.preventDefault();
           event.stopPropagation();
           if (onProvideFeedback) {
@@ -44,6 +43,3 @@ export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({
     </div>
   );
 };
-
-
-

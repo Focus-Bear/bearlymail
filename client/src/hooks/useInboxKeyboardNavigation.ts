@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Email } from 'types/email';
 
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER,KEY_ESCAPE, KEY_TAB } from 'constants/strings';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, KEY_TAB } from 'constants/strings';
 import { useSplitView } from 'hooks/useSplitView';
 
 interface UseInboxKeyboardNavigationProps {
@@ -24,7 +24,9 @@ export function useInboxKeyboardNavigation({
   emailDetailRef,
 }: UseInboxKeyboardNavigationProps) {
   useEffect(() => {
-    if (splitView.isMobile) return;
+    if (splitView.isMobile) {
+      return;
+    }
 
     // eslint-disable-next-line complexity, max-statements -- Keyboard navigation requires handling multiple key combinations and actions
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -86,9 +88,7 @@ export function useInboxKeyboardNavigation({
           setSelectedEmailIndex(newIndex);
           // Scroll the newly selected email into view
           setTimeout(() => {
-            const emailElement = emailListRef.current?.querySelector(
-              `[data-email-index="${newIndex}"]`
-            ) as HTMLElement;
+            const emailElement = emailListRef.current?.querySelector(`[data-email-index="${newIndex}"]`) as HTMLElement;
             if (emailElement) {
               emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -99,9 +99,7 @@ export function useInboxKeyboardNavigation({
           setSelectedEmailIndex(newIndex);
           // Scroll the newly selected email into view
           setTimeout(() => {
-            const emailElement = emailListRef.current?.querySelector(
-              `[data-email-index="${newIndex}"]`
-            ) as HTMLElement;
+            const emailElement = emailListRef.current?.querySelector(`[data-email-index="${newIndex}"]`) as HTMLElement;
             if (emailElement) {
               emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -117,4 +115,3 @@ export function useInboxKeyboardNavigation({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [splitView, selectedEmailIndex, emails, setSelectedEmailIndex, onEmailSelect, emailListRef, emailDetailRef]);
 }
-

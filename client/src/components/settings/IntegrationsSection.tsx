@@ -57,6 +57,3 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
     </>
   );
 };
-
-
-

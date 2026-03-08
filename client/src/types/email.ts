@@ -108,12 +108,7 @@ export interface PriorityExplanation {
   breakdown: Array<{ factor: string; value: number; description: string }>;
 }
 
-export type InboxMode =
-  | 'triage'
-  | 'action'
-  | 'follow-up'
-  | 'blocked'
-  | 'autoresponded';
+export type InboxMode = 'triage' | 'action' | 'follow-up' | 'blocked' | 'autoresponded';
 
 /**
  * Calculate priority score from breakdown array
@@ -126,10 +121,7 @@ export function getEmailPriorityScore(email: Email): number {
     return 0;
   }
 
-  const total = email.priorityExplanation.breakdown.reduce(
-    (sum, item) => sum + (item.value || 0),
-    0,
-  );
+  const total = email.priorityExplanation.breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
 
   // Don't clamp - allow negative scores as breakdown can legitimately be negative
   // (e.g., low urgency = -12, low goal alignment = -5, etc.)

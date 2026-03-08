@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
-import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO,STRING_NONE } from 'constants/strings';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, STRING_NONE } from 'constants/strings';
 
 import RecipientChip from './RecipientChip';
 import RecipientSuggestions from './RecipientSuggestions';
@@ -35,7 +35,13 @@ interface RecipientFieldProps {
   inputValues: Record<FieldType, string>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   handleInputChange: (value: string, field: FieldType) => void;
-  handleKeyDown: (event: React.KeyboardEvent, field: FieldType, results: Contact[], idx: number, removeTag: (i: number, f: FieldType) => void) => void;
+  handleKeyDown: (
+    event: React.KeyboardEvent,
+    field: FieldType,
+    results: Contact[],
+    idx: number,
+    removeTag: (i: number, f: FieldType) => void
+  ) => void;
   handleSelectContact: (contact: Contact, field: FieldType) => void;
   handleRemoveTag: (i: number, field: FieldType) => void;
   handleBlur: (field: FieldType) => void;
@@ -44,41 +50,80 @@ interface RecipientFieldProps {
 }
 
 const RecipientField: React.FC<RecipientFieldProps> = ({
-  label, tags, field, activeField, setActiveField, searchResults,
-  selectedSuggestionIndex, inputValues, dropdownRef,
-  handleInputChange, handleKeyDown, handleSelectContact,
-  handleRemoveTag, handleBlur, setSelectedSuggestionIndex, t,
+  label,
+  tags,
+  field,
+  activeField,
+  setActiveField,
+  searchResults,
+  selectedSuggestionIndex,
+  inputValues,
+  dropdownRef,
+  handleInputChange,
+  handleKeyDown,
+  handleSelectContact,
+  handleRemoveTag,
+  handleBlur,
+  setSelectedSuggestionIndex,
+  t,
 }) => (
   <div style={{ marginBottom: theme.spacing.sm, position: 'relative' }}>
-    <label style={{
-      display: 'block',
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.text.secondary,
-      marginBottom: theme.spacing.xs,
-    }}>{label}:</label>
+    <label
+      style={{
+        display: 'block',
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+        marginBottom: theme.spacing.xs,
+      }}
+    >
+      {label}:
+    </label>
 
     <div
       style={{
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px',
-        padding: '4px 8px', border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md, minHeight: '38px', cursor: 'text',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '4px 8px',
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        minHeight: '38px',
+        cursor: 'text',
       }}
-      onClick={(event) => {
+      onClick={event => {
         const input = event.currentTarget.querySelector('input');
-        if (input) (input as HTMLInputElement).focus();
+        if (input) {
+          (input as HTMLInputElement).focus();
+        }
       }}
     >
       {tags.map((tag, index) => (
-        <RecipientChip key={tag} tag={tag} index={index} onRemove={(i) => handleRemoveTag(i, field)} />
+        <RecipientChip key={tag} tag={tag} index={index} onRemove={i => handleRemoveTag(i, field)} />
       ))}
       <input
         type="text"
         value={inputValues[field]}
-        onChange={(event) => handleInputChange(event.target.value, field)}
+        onChange={event => handleInputChange(event.target.value, field)}
         onFocus={() => setActiveField(field)}
         onBlur={() => handleBlur(field)}
-        onKeyDown={(event) => handleKeyDown(event as unknown as React.KeyboardEvent, field, searchResults, selectedSuggestionIndex, handleRemoveTag)}
-        style={{ flex: 1, minWidth: '120px', border: STRING_NONE, outline: 'none', fontSize: theme.typography.fontSize.sm, padding: '4px 0' }}
+        onKeyDown={event =>
+          handleKeyDown(
+            event as unknown as React.KeyboardEvent,
+            field,
+            searchResults,
+            selectedSuggestionIndex,
+            handleRemoveTag
+          )
+        }
+        style={{
+          flex: 1,
+          minWidth: '120px',
+          border: STRING_NONE,
+          outline: 'none',
+          fontSize: theme.typography.fontSize.sm,
+          padding: '4px 0',
+        }}
         placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
       />
     </div>
@@ -97,21 +142,51 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
 );
 
 export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
-  replyRecipients, replyCc, replyBcc, showCc, showBcc,
-  onRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
+  replyRecipients,
+  replyCc,
+  replyBcc,
+  showCc,
+  showBcc,
+  onRecipientsChange,
+  onCcChange,
+  onBccChange,
+  onShowCc,
+  onShowBcc,
 }) => {
   const { t } = useTranslation();
 
   const {
-    toTags, ccTags, bccTags, activeField, setActiveField, searchResults,
-    selectedSuggestionIndex, inputValues, dropdownRef, handleInputChange,
-    handleKeyDown, handleSelectContact, handleRemoveTag, handleBlur, setSelectedSuggestionIndex,
+    toTags,
+    ccTags,
+    bccTags,
+    activeField,
+    setActiveField,
+    searchResults,
+    selectedSuggestionIndex,
+    inputValues,
+    dropdownRef,
+    handleInputChange,
+    handleKeyDown,
+    handleSelectContact,
+    handleRemoveTag,
+    handleBlur,
+    setSelectedSuggestionIndex,
   } = useRecipients({ replyRecipients, replyCc, replyBcc, onRecipientsChange, onCcChange, onBccChange });
 
   const fieldProps = {
-    activeField, setActiveField, searchResults, selectedSuggestionIndex,
-    inputValues, dropdownRef, handleInputChange, handleKeyDown,
-    handleSelectContact, handleRemoveTag, handleBlur, setSelectedSuggestionIndex, t,
+    activeField,
+    setActiveField,
+    searchResults,
+    selectedSuggestionIndex,
+    inputValues,
+    dropdownRef,
+    handleInputChange,
+    handleKeyDown,
+    handleSelectContact,
+    handleRemoveTag,
+    handleBlur,
+    setSelectedSuggestionIndex,
+    t,
   };
 
   return (
@@ -122,12 +197,34 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         {!showCc && (
-          <button onClick={onShowCc} type="button" style={{ background: STRING_NONE, border: STRING_NONE, color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, padding: '4px 0' }}>
+          <button
+            onClick={onShowCc}
+            type="button"
+            style={{
+              background: STRING_NONE,
+              border: STRING_NONE,
+              color: theme.colors.text.secondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              padding: '4px 0',
+            }}
+          >
             + {t('compose.addCc')}
           </button>
         )}
         {!showBcc && (
-          <button onClick={onShowBcc} type="button" style={{ background: STRING_NONE, border: STRING_NONE, color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, padding: '4px 0' }}>
+          <button
+            onClick={onShowBcc}
+            type="button"
+            style={{
+              background: STRING_NONE,
+              border: STRING_NONE,
+              color: theme.colors.text.secondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              padding: '4px 0',
+            }}
+          >
             + {t('compose.addBcc')}
           </button>
         )}

@@ -11,10 +11,7 @@ interface QuickActionsButtonProps {
   onClick: () => void;
 }
 
-export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({
-  actionCount,
-  onClick,
-}) => {
+export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({ actionCount, onClick }) => {
   const { t } = useTranslation();
   if (actionCount === 0) {
     return null;
@@ -64,7 +61,3 @@ export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({
     </button>
   );
 };
-
-
-
-

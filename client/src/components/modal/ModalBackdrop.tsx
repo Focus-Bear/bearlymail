@@ -7,11 +7,7 @@ interface ModalBackdropProps {
   children: React.ReactNode;
 }
 
-export const ModalBackdrop: React.FC<ModalBackdropProps> = ({
-  onClose,
-  zIndex = 2000,
-  children,
-}) => {
+export const ModalBackdrop: React.FC<ModalBackdropProps> = ({ onClose, zIndex = 2000, children }) => {
   return (
     <div
       style={{
@@ -32,9 +28,3 @@ export const ModalBackdrop: React.FC<ModalBackdropProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

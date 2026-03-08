@@ -57,10 +57,7 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
     >
       <AutoResponderHeader />
 
-      <AutoResponderToggle
-        enabled={config.enabled}
-        onToggle={handleToggle}
-      />
+      <AutoResponderToggle enabled={config.enabled} onToggle={handleToggle} />
 
       {config.enabled && (
         <>

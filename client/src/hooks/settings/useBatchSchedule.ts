@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -27,7 +27,9 @@ export const useBatchSchedule = () => {
       if (response.data) {
         setBatchSchedule({
           // Normalize to numbers: simple-array TypeORM columns return strings from DB
-          deliveryDays: [...new Set((response.data.deliveryDays || [1, 2, 3, 4, 5]).map(Number))].sort((itemA, itemB) => itemA - itemB),
+          deliveryDays: [...new Set((response.data.deliveryDays || [1, 2, 3, 4, 5]).map(Number))].sort(
+            (itemA, itemB) => itemA - itemB
+          ),
           deliveryTimes: response.data.deliveryTimes || ['11:00', '15:00'],
           timezone: response.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           isEnabled: response.data.isEnabled ?? true,
@@ -63,18 +65,26 @@ export const useBatchSchedule = () => {
     }
   }, []);
 
-  const addDeliveryTime = useCallback((time: string) => {
-    if (!time.trim()) return;
-    const newTimes = [...batchSchedule.deliveryTimes, time.trim()];
-    updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
-    setNewDeliveryTime('');
-  }, [batchSchedule, updateBatchSchedule]);
+  const addDeliveryTime = useCallback(
+    (time: string) => {
+      if (!time.trim()) {
+        return;
+      }
+      const newTimes = [...batchSchedule.deliveryTimes, time.trim()];
+      updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
+      setNewDeliveryTime('');
+    },
+    [batchSchedule, updateBatchSchedule]
+  );
 
-  const removeDeliveryTime = useCallback((index: number) => {
-    const newTimes = [...batchSchedule.deliveryTimes];
-    newTimes.splice(index, 1);
-    updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
-  }, [batchSchedule, updateBatchSchedule]);
+  const removeDeliveryTime = useCallback(
+    (index: number) => {
+      const newTimes = [...batchSchedule.deliveryTimes];
+      newTimes.splice(index, 1);
+      updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
+    },
+    [batchSchedule, updateBatchSchedule]
+  );
 
   return {
     batchSchedule,
@@ -87,8 +97,3 @@ export const useBatchSchedule = () => {
     removeDeliveryTime,
   };
 };
-
-
-
-
-

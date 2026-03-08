@@ -50,12 +50,16 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   const isDisabled = !draft || sending || checkingTone;
 
   const getButtonText = (): string => {
-    if (checkingTone) return t('emailDetail.checkingTone');
+    if (checkingTone) {
+      return t('emailDetail.checkingTone');
+    }
     return sending ? t('emailDetail.sending') : t('emailDetail.send');
   };
 
-  const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string => {
-    if (option.labelKey === LABEL_KEY_NONE) return t('emailDetail.expectedReply.none');
+  const getOptionLabel = (option: (typeof EXPECTED_REPLY_OPTIONS)[0]): string => {
+    if (option.labelKey === LABEL_KEY_NONE) {
+      return t('emailDetail.expectedReply.none');
+    }
     return t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
   };
 
@@ -71,14 +75,31 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
       {scheduledSendAt && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', color: theme.colors.primary.main, fontSize: theme.typography.fontSize.sm }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '8px',
+            color: theme.colors.primary.main,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           <span>🕐</span>
           <span>{t('compose.scheduledFor', { time: formatScheduledTime(scheduledSendAt) })}</span>
           {onClearSchedule && (
             <button
               onClick={onClearSchedule}
               title={t('compose.clearSchedule')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.tertiary, fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: theme.colors.text.tertiary,
+                fontSize: '14px',
+                padding: '0 2px',
+                lineHeight: 1,
+              }}
             >
               ×
             </button>
@@ -86,11 +107,13 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          whiteSpace: 'nowrap',
-        }}>
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            whiteSpace: 'nowrap',
+          }}
+        >
           {t('emailDetail.expectedReply.label')}:
         </span>
         <select
@@ -104,22 +127,32 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
             backgroundColor: theme.colors.background.subtle,
             color: theme.colors.text.secondary,
             fontSize: theme.typography.fontSize.xs,
-            cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
+            cursor: sending || checkingTone ? 'not-allowed' : 'pointer',
           }}
         >
-          {EXPECTED_REPLY_OPTIONS.map((option) => (
+          {EXPECTED_REPLY_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
               {getOptionLabel(option)}
             </option>
           ))}
         </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
           <input
             type="checkbox"
             checked={keepInAction}
-            onChange={(event) => setKeepInAction(event.target.checked)}
+            onChange={event => setKeepInAction(event.target.checked)}
             disabled={sending || checkingTone}
-            style={{ cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer' }}
+            style={{ cursor: sending || checkingTone ? 'not-allowed' : 'pointer' }}
           />
           {t('emailDetail.keepInAction')}
         </label>
@@ -134,7 +167,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
-            cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
+            cursor: sending || checkingTone ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
           }}
         >

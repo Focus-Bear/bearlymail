@@ -15,9 +15,7 @@ import { ErrorBoundary } from 'components/ErrorBoundary';
 // format required by PostHog's Error Tracking dashboard.
 initPostHog();
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>

@@ -4,4 +4,3 @@ export enum OverrideReasonType {
   TOPIC_MISMATCH = 'topic_mismatch',
   OTHER = 'other',
 }
-

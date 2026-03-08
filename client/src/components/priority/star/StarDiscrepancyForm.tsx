@@ -6,14 +6,11 @@ interface StarDiscrepancyFormProps {
   onExplanationChange: (value: string) => void;
 }
 
-export const StarDiscrepancyForm: React.FC<StarDiscrepancyFormProps> = ({
-  explanation,
-  onExplanationChange,
-}) => {
+export const StarDiscrepancyForm: React.FC<StarDiscrepancyFormProps> = ({ explanation, onExplanationChange }) => {
   return (
     <textarea
       value={explanation}
-      onChange={(event) => onExplanationChange(event.target.value)}
+      onChange={event => onExplanationChange(event.target.value)}
       placeholder="e.g., This is from my manager, This relates to an urgent deadline, This is just a newsletter..."
       style={{
         width: '100%',
@@ -29,9 +26,3 @@ export const StarDiscrepancyForm: React.FC<StarDiscrepancyFormProps> = ({
     />
   );
 };
-
-
-
-
-
-

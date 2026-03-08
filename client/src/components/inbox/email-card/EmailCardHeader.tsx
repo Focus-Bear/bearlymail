@@ -50,9 +50,7 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
           style={{
             color: isRead ? theme.colors.text.secondary : theme.colors.text.primary,
             fontSize: theme.typography.fontSize.base,
-            fontWeight: isRead
-              ? theme.typography.fontWeight.normal
-              : theme.typography.fontWeight.semibold,
+            fontWeight: isRead ? theme.typography.fontWeight.normal : theme.typography.fontWeight.semibold,
           }}
         >
           {fromName || from}
@@ -70,7 +68,3 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
     </div>
   );
 };
-
-
-
-

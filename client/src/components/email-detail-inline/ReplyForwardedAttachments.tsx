@@ -17,25 +17,26 @@ interface ForwardedAttachmentsListProps {
   onRemove: (attachmentId: string) => void;
 }
 
-export const ForwardedAttachmentsList: React.FC<ForwardedAttachmentsListProps> = ({
-  attachments,
-  onRemove,
-}) => {
+export const ForwardedAttachmentsList: React.FC<ForwardedAttachmentsListProps> = ({ attachments, onRemove }) => {
   const { t } = useTranslation();
 
-  if (attachments.length === 0) return null;
+  if (attachments.length === 0) {
+    return null;
+  }
 
   return (
     <div style={{ marginTop: theme.spacing.md }}>
-      <div style={{
-        fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {t('compose.forwardedAttachments')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-        {attachments.map((attachment) => (
+        {attachments.map(attachment => (
           <div
             key={attachment.attachmentId}
             style={{
@@ -74,10 +75,10 @@ export const ForwardedAttachmentsList: React.FC<ForwardedAttachmentsListProps> =
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.sm,
               }}
-              onMouseEnter={(event) => {
+              onMouseEnter={event => {
                 event.currentTarget.style.color = theme.colors.error.main;
               }}
-              onMouseLeave={(event) => {
+              onMouseLeave={event => {
                 event.currentTarget.style.color = theme.colors.text.secondary;
               }}
               aria-label={t('common.remove')}

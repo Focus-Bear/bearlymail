@@ -47,9 +47,10 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const completedCount = actionItems.filter(i => i.isCompleted).length;
-  const preview = actionItems.length > 0
-    ? `${completedCount}/${actionItems.length} ${t('emailDetail.actionItems').toLowerCase()}`
-    : t('emailDetail.noActionItems') || 'No action items';
+  const preview =
+    actionItems.length > 0
+      ? `${completedCount}/${actionItems.length} ${t('emailDetail.actionItems').toLowerCase()}`
+      : t('emailDetail.noActionItems') || 'No action items';
 
   const controls = (
     <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>

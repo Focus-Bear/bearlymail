@@ -9,7 +9,9 @@ import { API_URL } from 'config/api';
  */
 export function useEmailDraftCrud(threadId: string | undefined) {
   const fetchDraft = useCallback(async () => {
-    if (!threadId) return null;
+    if (!threadId) {
+      return null;
+    }
     try {
       const response = await axios.get(`${API_URL}/drafts/thread/${threadId}`);
       return response.data;
@@ -18,17 +20,24 @@ export function useEmailDraftCrud(threadId: string | undefined) {
     }
   }, [threadId]);
 
-  const saveDraft = useCallback(async (content: string, mode: 'reply' | 'replyAll', recipients: string) => {
-    if (!threadId || !content.trim()) return;
-    try {
-      await axios.post(`${API_URL}/drafts/thread/${threadId}`, { content, replyMode: mode, recipients });
-    } catch (error) {
-      console.error('Error saving draft:', error);
-    }
-  }, [threadId]);
+  const saveDraft = useCallback(
+    async (content: string, mode: 'reply' | 'replyAll', recipients: string) => {
+      if (!threadId || !content.trim()) {
+        return;
+      }
+      try {
+        await axios.post(`${API_URL}/drafts/thread/${threadId}`, { content, replyMode: mode, recipients });
+      } catch (error) {
+        console.error('Error saving draft:', error);
+      }
+    },
+    [threadId]
+  );
 
   const deleteDraft = useCallback(async () => {
-    if (!threadId) return;
+    if (!threadId) {
+      return;
+    }
     try {
       await axios.delete(`${API_URL}/drafts/thread/${threadId}`);
     } catch (error) {

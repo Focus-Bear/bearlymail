@@ -36,13 +36,20 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
         <div>
-          <label style={{ color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+          <label
+            style={{
+              color: theme.colors.text.secondary,
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {t('settings.whenToUse')}
           </label>
           <input
             type="text"
             value={editSummarizationWhen}
-            onChange={(event) => onEditSummarizationWhenChange(event.target.value)}
+            onChange={event => onEditSummarizationWhenChange(event.target.value)}
             style={{
               width: '100%',
               padding: theme.spacing.sm,
@@ -53,12 +60,19 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
           />
         </div>
         <div>
-          <label style={{ color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+          <label
+            style={{
+              color: theme.colors.text.secondary,
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {t('settings.howToSummarize')}
           </label>
           <textarea
             value={editSummarizationHow}
-            onChange={(event) => onEditSummarizationHowChange(event.target.value)}
+            onChange={event => onEditSummarizationHowChange(event.target.value)}
             style={{
               width: '100%',
               minHeight: `${INPUT_WIDTH_PX}px`,
@@ -104,5 +118,3 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
     </div>
   );
 };
-
-

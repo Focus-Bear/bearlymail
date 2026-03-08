@@ -27,7 +27,9 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!explanation.trim()) return;
+    if (!explanation.trim()) {
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -37,7 +39,7 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
         predictedStarCount,
         explanation: explanation.trim(),
       });
-      
+
       if (onSubmitted) {
         onSubmitted();
       }
@@ -53,14 +55,8 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
   return (
     <ModalBackdrop onClose={onClose} zIndex={2000}>
       <ModalContent maxWidth="500px">
-        <StarDiscrepancyHeader
-          predictedStarCount={predictedStarCount}
-          userStarCount={userStarCount}
-        />
-        <StarDiscrepancyForm
-          explanation={explanation}
-          onExplanationChange={setExplanation}
-        />
+        <StarDiscrepancyHeader predictedStarCount={predictedStarCount} userStarCount={userStarCount} />
+        <StarDiscrepancyForm explanation={explanation} onExplanationChange={setExplanation} />
         <StarDiscrepancyActions
           explanation={explanation}
           submitting={submitting}
@@ -71,11 +67,3 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
     </ModalBackdrop>
   );
 };
-
-
-
-
-
-
-
-

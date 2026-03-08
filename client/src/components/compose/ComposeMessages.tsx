@@ -7,12 +7,9 @@ interface ComposeMessagesProps {
   sendSuccess: boolean;
 }
 
-export const ComposeMessages: React.FC<ComposeMessagesProps> = ({
-  error,
-  sendSuccess,
-}) => {
+export const ComposeMessages: React.FC<ComposeMessagesProps> = ({ error, sendSuccess }) => {
   const { t } = useTranslation();
-  
+
   if (!error && !sendSuccess) {
     return null;
   }
@@ -53,4 +50,3 @@ export const ComposeMessages: React.FC<ComposeMessagesProps> = ({
     </>
   );
 };
-

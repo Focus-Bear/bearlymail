@@ -50,7 +50,9 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
   const [disputeArgument, setDisputeArgument] = useState('');
 
   const handleDisputeSubmit = async () => {
-    if (!disputeArgument.trim()) return;
+    if (!disputeArgument.trim()) {
+      return;
+    }
     captureEvent('tone_check_dispute_submitted');
     await onDispute(emailText, suggestions, disputeArgument);
     setDisputeArgument('');
@@ -58,34 +60,50 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
   };
 
   const isSubmitDisabled = !disputeArgument.trim() || disputing;
-  const disputeResultBgColor = disputeResult?.accepted
-    ? theme.colors.sunray.light4
-    : theme.colors.background.default;
-  const disputeResultBorderColor = disputeResult?.accepted
-    ? theme.colors.accent.success
-    : theme.colors.border.medium;
-  const disputeResultTitleColor = disputeResult?.accepted
-    ? theme.colors.accent.success
-    : theme.colors.text.primary;
+  const disputeResultBgColor = disputeResult?.accepted ? theme.colors.sunray.light4 : theme.colors.background.default;
+  const disputeResultBorderColor = disputeResult?.accepted ? theme.colors.accent.success : theme.colors.border.medium;
+  const disputeResultTitleColor = disputeResult?.accepted ? theme.colors.accent.success : theme.colors.text.primary;
 
   return (
-    <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        borderTop: `1px solid ${theme.colors.border.light}`,
+        paddingTop: theme.spacing.md,
+      }}
+    >
       {disputeResult && (
-        <div style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: disputeResultBgColor, border: `1px solid ${disputeResultBorderColor}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, }}>
+        <div
+          style={{
+            marginBottom: theme.spacing.md,
+            padding: theme.spacing.sm,
+            backgroundColor: disputeResultBgColor,
+            border: `1px solid ${disputeResultBorderColor}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           <div style={{ fontWeight: 'bold', color: disputeResultTitleColor, marginBottom: theme.spacing.xs }}>
             {disputeResult.accepted ? t('emailDetail.disputeAccepted') : t('emailDetail.disputeRejected')}
           </div>
-          <div style={{ color: theme.colors.text.secondary }}>
-            {disputeResult.explanation}
-          </div>
+          <div style={{ color: theme.colors.text.secondary }}>{disputeResult.explanation}</div>
           {disputeResult.accepted && disputeResult.rulesToRemove.length > 0 && (
             <div style={{ marginTop: theme.spacing.sm }}>
               <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>
                 {t('emailDetail.rulesRemoved', { count: disputeResult.rulesToRemove.length })}
               </div>
-              <ul style={{ margin: 0, paddingLeft: theme.spacing.lg, color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
-                {disputeResult.rulesToRemove.map((rule) => (
-                  <li key={rule} style={{ marginBottom: theme.spacing.xs }}>{rule}</li>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: theme.spacing.lg,
+                  color: theme.colors.text.tertiary,
+                  fontSize: theme.typography.fontSize.xs,
+                }}
+              >
+                {disputeResult.rulesToRemove.map(rule => (
+                  <li key={rule} style={{ marginBottom: theme.spacing.xs }}>
+                    {rule}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -95,8 +113,19 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
 
       {!showDisputeForm && !disputeResult?.accepted && (
         <button
-          onClick={() => { captureEvent('tone_check_dispute_form_opened'); setShowDisputeForm(true); }}
-          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, }}
+          onClick={() => {
+            captureEvent('tone_check_dispute_form_opened');
+            setShowDisputeForm(true);
+          }}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+          }}
         >
           {t('emailDetail.disputeToneCheck')}
         </button>
@@ -104,26 +133,61 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
 
       {showDisputeForm && (
         <div style={{ marginTop: theme.spacing.sm }}>
-          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>
+          <div
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
             {t('emailDetail.disputeExplanation')}
           </div>
           <textarea
             value={disputeArgument}
-            onChange={(event) => setDisputeArgument(event.target.value)}
+            onChange={event => setDisputeArgument(event.target.value)}
             placeholder={t('emailDetail.disputePlaceholder')}
-            style={{ width: '100%', minHeight: '80px', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, resize: 'vertical', boxSizing: 'border-box', }}
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              fontSize: theme.typography.fontSize.sm,
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
           />
           <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
             <button
               onClick={handleDisputeSubmit}
               disabled={isSubmitDisabled}
-              style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.secondary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: isSubmitDisabled ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, opacity: isSubmitDisabled ? OPACITY_DISABLED : 1, }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: theme.colors.secondary.main,
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.sm,
+                cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                opacity: isSubmitDisabled ? OPACITY_DISABLED : 1,
+              }}
             >
               {disputing ? t('emailDetail.disputeSubmitting') : t('emailDetail.disputeSubmit')}
             </button>
             <button
-              onClick={() => { setShowDisputeForm(false); setDisputeArgument(''); }}
-              style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, }}
+              onClick={() => {
+                setShowDisputeForm(false);
+                setDisputeArgument('');
+              }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: COLOR_TRANSPARENT,
+                color: theme.colors.text.secondary,
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+              }}
             >
               {t('common.cancel')}
             </button>
@@ -136,10 +200,19 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
 
 /** Returns true if any suggestion hint relates to timing (late night / weekend send). */
 const hasSendTimingSuggestion = (suggestions: string[]): boolean => {
-  const timingKeywords = ['late', 'night', 'weekend', 'early', 'morning', 'timing', 'hour', 'after hours', 'business hours', 'off hours'];
-  return suggestions.some((suggestion) =>
-    timingKeywords.some((kw) => suggestion.toLowerCase().includes(kw))
-  );
+  const timingKeywords = [
+    'late',
+    'night',
+    'weekend',
+    'early',
+    'morning',
+    'timing',
+    'hour',
+    'after hours',
+    'business hours',
+    'off hours',
+  ];
+  return suggestions.some(suggestion => timingKeywords.some(kw => suggestion.toLowerCase().includes(kw)));
 };
 
 export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
@@ -159,19 +232,40 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
 
   if (toneCheckResult.isOk) {
     return (
-      <div style={{ marginTop: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: theme.colors.sunray.light4, border: `1px solid ${theme.colors.accent.success}`, borderRadius: theme.borderRadius.md, color: theme.colors.accent.success, fontSize: theme.typography.fontSize.sm, display: 'flex', alignItems: 'center', gap: theme.spacing.sm, }}>
+      <div
+        style={{
+          marginTop: theme.spacing.md,
+          padding: theme.spacing.sm,
+          backgroundColor: theme.colors.sunray.light4,
+          border: `1px solid ${theme.colors.accent.success}`,
+          borderRadius: theme.borderRadius.md,
+          color: theme.colors.accent.success,
+          fontSize: theme.typography.fontSize.sm,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
         <span>{EMOJI_CHECK}</span> {t('emailDetail.toneCheckPassed')}
       </div>
     );
   }
 
   return (
-    <div style={{ marginTop: theme.spacing.md, padding: theme.spacing.md, backgroundColor: theme.colors.sunray.light4, border: `1px solid ${theme.colors.accent.error}`, borderRadius: theme.borderRadius.md, }}>
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.sunray.light4,
+        border: `1px solid ${theme.colors.accent.error}`,
+        borderRadius: theme.borderRadius.md,
+      }}
+    >
       <div style={{ color: theme.colors.accent.error, fontWeight: 'bold', marginBottom: theme.spacing.xs }}>
         {EMOJI_WARNING} {t('emailDetail.toneCheckIssues')}
       </div>
       <ul style={{ margin: 0, paddingLeft: theme.spacing.lg, color: theme.colors.text.primary }}>
-        {toneCheckResult.suggestions.map((suggestion) => (
+        {toneCheckResult.suggestions.map(suggestion => (
           <li key={suggestion}>{suggestion}</li>
         ))}
       </ul>
@@ -181,15 +275,36 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
             captureEvent('tone_check_schedule_for_morning_clicked');
             onScheduleForMorning();
           }}
-          style={{ marginTop: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.light, color: theme.colors.primary.main, border: `1px solid ${theme.colors.primary.main}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
+          style={{
+            marginTop: theme.spacing.sm,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: theme.colors.primary.light,
+            color: theme.colors.primary.main,
+            border: `1px solid ${theme.colors.primary.main}`,
+            borderRadius: theme.borderRadius.sm,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
         >
           🌅 {t('emailDetail.scheduleForMorning')}
         </button>
       )}
       {toneCheckResult.revisedText && (
         <div style={{ marginTop: theme.spacing.md }}>
-          <div style={{ fontWeight: 'bold', fontSize: theme.typography.fontSize.sm }}>{t('emailDetail.suggestedRevision')}</div>
-          <div style={{ padding: theme.spacing.sm, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.sm, marginTop: theme.spacing.xs, whiteSpace: 'pre-wrap', fontSize: theme.typography.fontSize.sm, }}>
+          <div style={{ fontWeight: 'bold', fontSize: theme.typography.fontSize.sm }}>
+            {t('emailDetail.suggestedRevision')}
+          </div>
+          <div
+            style={{
+              padding: theme.spacing.sm,
+              backgroundColor: theme.colors.background.default,
+              borderRadius: theme.borderRadius.sm,
+              marginTop: theme.spacing.xs,
+              whiteSpace: 'pre-wrap',
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {toneCheckResult.revisedText}
           </div>
           <button
@@ -197,7 +312,16 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
               captureEvent('tone_check_revised_text_used');
               onUseRevisedText(toneCheckResult.revisedText!);
             }}
-            style={{ marginTop: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, }}
+            style={{
+              marginTop: theme.spacing.sm,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: theme.colors.primary.main,
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+            }}
           >
             {t('emailDetail.useRevisedText')}
           </button>

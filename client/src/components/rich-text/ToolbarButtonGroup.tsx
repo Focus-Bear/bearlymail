@@ -39,8 +39,12 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
         border: STRING_NONE,
         borderRadius: theme.borderRadius.sm,
         backgroundColor: (() => {
-          if (isActive) return theme.colors.primary.subtle;
-          if (isHovered) return theme.colors.interactive.hover;
+          if (isActive) {
+            return theme.colors.primary.subtle;
+          }
+          if (isHovered) {
+            return theme.colors.interactive.hover;
+          }
           return 'transparent';
         })(),
         color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,

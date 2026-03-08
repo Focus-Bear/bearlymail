@@ -52,28 +52,23 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   return (
     <>
       {/* Sticky container for quick actions button */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        backgroundColor: theme.colors.background.default,
-        paddingTop: theme.spacing.md,
-        paddingBottom: theme.spacing.sm,
-        marginTop: -theme.spacing.md,
-        marginBottom: theme.spacing.sm,
-      }}>
-        <QuickActionsButton
-          actionCount={suggestedActions.length}
-          onClick={onShowMenu}
-        />
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          backgroundColor: theme.colors.background.default,
+          paddingTop: theme.spacing.md,
+          paddingBottom: theme.spacing.sm,
+          marginTop: -theme.spacing.md,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        <QuickActionsButton actionCount={suggestedActions.length} onClick={onShowMenu} />
       </div>
 
       {showQuickActionsMenu && (
-        <QuickActionsMenu
-          actions={suggestedActions}
-          onSelectAction={onSelectAction}
-          onClose={onCloseMenu}
-        />
+        <QuickActionsMenu actions={suggestedActions} onSelectAction={onSelectAction} onClose={onCloseMenu} />
       )}
 
       {selectedAction && (
@@ -98,14 +93,17 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
               onSuccess={onActionSuccess}
             />
           )}
-          {selectedAction.type === ACTION_TYPE_GITHUB_ADD_COMMENT && selectedAction.metadata?.issueInfo && email && email.body && (
-            <GitHubAddCommentModal
-              issueInfo={selectedAction.metadata.issueInfo}
-              email={{ body: email.body }}
-              onClose={onCloseAction}
-              onSuccess={onActionSuccess}
-            />
-          )}
+          {selectedAction.type === ACTION_TYPE_GITHUB_ADD_COMMENT &&
+            selectedAction.metadata?.issueInfo &&
+            email &&
+            email.body && (
+              <GitHubAddCommentModal
+                issueInfo={selectedAction.metadata.issueInfo}
+                email={{ body: email.body }}
+                onClose={onCloseAction}
+                onSuccess={onActionSuccess}
+              />
+            )}
           {selectedAction.type === ACTION_TYPE_GITHUB_SEARCH_ISSUES && email && email.body && (
             <GitHubSearchIssuesModal
               email={{
@@ -128,16 +126,10 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
             />
           )}
           {selectedAction.type === ACTION_TYPE_CALENDAR_FIND_EVENTS && email && (
-            <CalendarFindEventsModal
-              attendeeEmail={email.from}
-              onClose={onCloseAction}
-            />
+            <CalendarFindEventsModal attendeeEmail={email.from} onClose={onCloseAction} />
           )}
         </>
       )}
     </>
   );
 };
-
-
-

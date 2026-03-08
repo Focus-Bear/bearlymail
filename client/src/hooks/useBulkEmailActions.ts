@@ -5,9 +5,16 @@ import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
-import { MODE_ACTION, MODE_FOLLOW_UP,MODE_TRIAGE } from 'constants/strings';
+import { CATEGORY_OTHER, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
-import { addOptimisticArchive, decrementCategorySummaryCount, incrementCategorySummaryCount,removeEmail, removeOptimisticArchive, restoreEmail } from 'store/slices/emailSlice';
+import {
+  addOptimisticArchive,
+  decrementCategorySummaryCount,
+  incrementCategorySummaryCount,
+  removeEmail,
+  removeOptimisticArchive,
+  restoreEmail,
+} from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
 interface UseBulkEmailActionsProps {
@@ -43,80 +50,87 @@ export function useBulkEmailActions({
   const emails = useSelector(selectEmails);
 
   // Core archive implementation - archives a specific list of email IDs with optimistic updates
-  const handleBulkArchiveByIds = useCallback(async (emailIdsToArchive: string[]) => {
-    if (emailIdsToArchive.length === 0) return;
-
-    captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
-
-    // Create a Map for O(1) email lookups (avoids O(N*M) complexity)
-    const emailsById = new Map(emails.map(event => [event.id, event]));
-
-    // Store emails for potential rollback and track category counts
-    const emailsToArchive: Email[] = [];
-    const categoryCountChanges = new Map<string, number>();
-    emailIdsToArchive.forEach(id => {
-      const email = emailsById.get(id);
-      if (email) {
-        emailsToArchive.push(email);
-        // Track category count changes for optimistic update
-        const categoryName = email.category || 'Other';
-        categoryCountChanges.set(categoryName, (categoryCountChanges.get(categoryName) || 0) + 1);
+  const handleBulkArchiveByIds = useCallback(
+    async (emailIdsToArchive: string[]) => {
+      if (emailIdsToArchive.length === 0) {
+        return;
       }
-    });
 
-    // Optimistic update - remove all emails from list and add to optimistic archive
-    emailIdsToArchive.forEach(id => {
-      dispatch(removeEmail(id));
-      dispatch(addOptimisticArchive(id));
-    });
+      captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
 
-    // Optimistically update category summary counts (single dispatch per category)
-    categoryCountChanges.forEach((count, categoryName) => {
-      dispatch(decrementCategorySummaryCount({ categoryName, count }));
-    });
+      // Create a Map for O(1) email lookups (avoids O(N*M) complexity)
+      const emailsById = new Map(emails.map(event => [event.id, event]));
 
-    // Optimistically update tab counts
-    if (onTabCountsUpdateOptimistically) {
-      if (mode === MODE_TRIAGE) {
-        onTabCountsUpdateOptimistically({ triage: -emailIdsToArchive.length });
-      } else if (mode === MODE_ACTION) {
-        onTabCountsUpdateOptimistically({ action: -emailIdsToArchive.length });
-      } else if (mode === MODE_FOLLOW_UP) {
-        onTabCountsUpdateOptimistically({ followUp: -emailIdsToArchive.length });
-      }
-    }
-
-    // Make single bulk API call
-    try {
-      await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds: emailIdsToArchive });
-      console.log(`[BulkArchive] Successfully archived ${emailIdsToArchive.length} emails`);
-    } catch (error) {
-      console.error('[BulkArchive] Failed to archive emails:', error);
-      // Revert optimistic updates on error
-      emailsToArchive.forEach(email => {
-        dispatch(restoreEmail(email));
-        dispatch(removeOptimisticArchive(email.id));
+      // Store emails for potential rollback and track category counts
+      const emailsToArchive: Email[] = [];
+      const categoryCountChanges = new Map<string, number>();
+      emailIdsToArchive.forEach(id => {
+        const email = emailsById.get(id);
+        if (email) {
+          emailsToArchive.push(email);
+          // Track category count changes for optimistic update
+          const categoryName = email.category || CATEGORY_OTHER;
+          categoryCountChanges.set(categoryName, (categoryCountChanges.get(categoryName) || 0) + 1);
+        }
       });
-      // Revert category summary counts (single dispatch per category)
+
+      // Optimistic update - remove all emails from list and add to optimistic archive
+      emailIdsToArchive.forEach(id => {
+        dispatch(removeEmail(id));
+        dispatch(addOptimisticArchive(id));
+      });
+
+      // Optimistically update category summary counts (single dispatch per category)
       categoryCountChanges.forEach((count, categoryName) => {
-        dispatch(incrementCategorySummaryCount({ categoryName, count }));
+        dispatch(decrementCategorySummaryCount({ categoryName, count }));
       });
-      // Revert tab count changes
+
+      // Optimistically update tab counts
       if (onTabCountsUpdateOptimistically) {
         if (mode === MODE_TRIAGE) {
-          onTabCountsUpdateOptimistically({ triage: emailIdsToArchive.length });
+          onTabCountsUpdateOptimistically({ triage: -emailIdsToArchive.length });
         } else if (mode === MODE_ACTION) {
-          onTabCountsUpdateOptimistically({ action: emailIdsToArchive.length });
+          onTabCountsUpdateOptimistically({ action: -emailIdsToArchive.length });
         } else if (mode === MODE_FOLLOW_UP) {
-          onTabCountsUpdateOptimistically({ followUp: emailIdsToArchive.length });
+          onTabCountsUpdateOptimistically({ followUp: -emailIdsToArchive.length });
         }
       }
-    }
-  }, [dispatch, emails, onTabCountsUpdateOptimistically, mode]);
+
+      // Make single bulk API call
+      try {
+        await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds: emailIdsToArchive });
+        console.log(`[BulkArchive] Successfully archived ${emailIdsToArchive.length} emails`);
+      } catch (error) {
+        console.error('[BulkArchive] Failed to archive emails:', error);
+        // Revert optimistic updates on error
+        emailsToArchive.forEach(email => {
+          dispatch(restoreEmail(email));
+          dispatch(removeOptimisticArchive(email.id));
+        });
+        // Revert category summary counts (single dispatch per category)
+        categoryCountChanges.forEach((count, categoryName) => {
+          dispatch(incrementCategorySummaryCount({ categoryName, count }));
+        });
+        // Revert tab count changes
+        if (onTabCountsUpdateOptimistically) {
+          if (mode === MODE_TRIAGE) {
+            onTabCountsUpdateOptimistically({ triage: emailIdsToArchive.length });
+          } else if (mode === MODE_ACTION) {
+            onTabCountsUpdateOptimistically({ action: emailIdsToArchive.length });
+          } else if (mode === MODE_FOLLOW_UP) {
+            onTabCountsUpdateOptimistically({ followUp: emailIdsToArchive.length });
+          }
+        }
+      }
+    },
+    [dispatch, emails, onTabCountsUpdateOptimistically, mode]
+  );
 
   // Use bulk archive API endpoint for efficiency (single API call instead of N calls)
   const handleBulkArchive = useCallback(async () => {
-    if (selectedEmailIds.size === 0) return;
+    if (selectedEmailIds.size === 0) {
+      return;
+    }
 
     const emailIds = Array.from(selectedEmailIds);
 
@@ -126,25 +140,34 @@ export function useBulkEmailActions({
     await handleBulkArchiveByIds(emailIds);
   }, [selectedEmailIds, setSelectedEmailIds, handleBulkArchiveByIds]);
 
-  const handleBulkStar = useCallback(async (starCount: number) => {
-    if (selectedEmailIds.size === 0) return;
-    captureEvent('bulk_star_set', {
-      star_count: starCount,
-      selected_count: selectedEmailIds.size,
-    });
-    await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
-    setSelectedEmailIds(new Set());
-  }, [selectedEmailIds, handleSetStarCount, setSelectedEmailIds]);
+  const handleBulkStar = useCallback(
+    async (starCount: number) => {
+      if (selectedEmailIds.size === 0) {
+        return;
+      }
+      captureEvent('bulk_star_set', {
+        star_count: starCount,
+        selected_count: selectedEmailIds.size,
+      });
+      await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
+      setSelectedEmailIds(new Set());
+    },
+    [selectedEmailIds, handleSetStarCount, setSelectedEmailIds]
+  );
 
   const handleBulkMarkAsReadAction = useCallback(async () => {
-    if (selectedEmailIds.size === 0 || !handleBulkMarkAsRead) return;
+    if (selectedEmailIds.size === 0 || !handleBulkMarkAsRead) {
+      return;
+    }
     captureEvent('bulk_mark_as_read_clicked', { selected_count: selectedEmailIds.size });
     await handleBulkMarkAsRead(Array.from(selectedEmailIds));
     setSelectedEmailIds(new Set());
   }, [selectedEmailIds, handleBulkMarkAsRead, setSelectedEmailIds]);
 
   const handleBulkMarkAsUnreadAction = useCallback(async () => {
-    if (selectedEmailIds.size === 0 || !handleBulkMarkAsUnread) return;
+    if (selectedEmailIds.size === 0 || !handleBulkMarkAsUnread) {
+      return;
+    }
     captureEvent('bulk_mark_as_unread_clicked', { selected_count: selectedEmailIds.size });
     await handleBulkMarkAsUnread(Array.from(selectedEmailIds));
     setSelectedEmailIds(new Set());
@@ -158,6 +181,3 @@ export function useBulkEmailActions({
     handleBulkMarkAsUnread: handleBulkMarkAsUnreadAction,
   };
 }
-
-
-

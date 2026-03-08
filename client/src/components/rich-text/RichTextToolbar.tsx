@@ -21,47 +21,243 @@ interface RichTextToolbarProps {
 
 type EditorLike = NonNullable<ReturnType<typeof useEditor>>;
 
-interface ToolbarSectionProps { editor: EditorLike; handlers: ReturnType<typeof useToolbarHandlers>; disabled: boolean; }
-interface LinkPopupProps extends ToolbarSectionProps { showLinkInput: boolean; linkUrl: string; linkInputRef: React.RefObject<HTMLInputElement | null>; setLinkUrl: (v: string) => void; setShowLinkInput: (v: boolean) => void; handleLinkSubmit: () => void; t: (tKey: string) => string; }
+interface ToolbarSectionProps {
+  editor: EditorLike;
+  handlers: ReturnType<typeof useToolbarHandlers>;
+  disabled: boolean;
+}
+interface LinkPopupProps extends ToolbarSectionProps {
+  showLinkInput: boolean;
+  linkUrl: string;
+  linkInputRef: React.RefObject<HTMLInputElement | null>;
+  setLinkUrl: (v: string) => void;
+  setShowLinkInput: (v: boolean) => void;
+  handleLinkSubmit: () => void;
+  t: (tKey: string) => string;
+}
 
 const ToolbarFormattingSection: React.FC<ToolbarSectionProps> = ({ editor, handlers, disabled }) => (
   <>
-    <ToolbarButton onClick={handlers.toggleBold} isActive={editor.isActive('bold')} disabled={disabled} title="Bold (Cmd+B)"><strong>B</strong></ToolbarButton>
-    <ToolbarButton onClick={handlers.toggleItalic} isActive={editor.isActive('italic')} disabled={disabled} title="Italic (Cmd+I)"><em>I</em></ToolbarButton>
-    <ToolbarButton onClick={handlers.toggleUnderline} isActive={editor.isActive('underline')} disabled={disabled} title="Underline (Cmd+U)"><span style={{ textDecoration: 'underline' }}>U</span></ToolbarButton>
-    <ToolbarButton onClick={handlers.toggleStrike} isActive={editor.isActive('strike')} disabled={disabled} title="Strikethrough (Cmd+Shift+S)"><span style={{ textDecoration: 'line-through' }}>S</span></ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleBold}
+      isActive={editor.isActive('bold')}
+      disabled={disabled}
+      title="Bold (Cmd+B)"
+    >
+      <strong>B</strong>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleItalic}
+      isActive={editor.isActive('italic')}
+      disabled={disabled}
+      title="Italic (Cmd+I)"
+    >
+      <em>I</em>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleUnderline}
+      isActive={editor.isActive('underline')}
+      disabled={disabled}
+      title="Underline (Cmd+U)"
+    >
+      <span style={{ textDecoration: 'underline' }}>U</span>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleStrike}
+      isActive={editor.isActive('strike')}
+      disabled={disabled}
+      title="Strikethrough (Cmd+Shift+S)"
+    >
+      <span style={{ textDecoration: 'line-through' }}>S</span>
+    </ToolbarButton>
     <ToolbarDivider />
-    <ToolbarButton onClick={handlers.unsetColor} disabled={disabled} title="Text color"><span style={{ position: 'relative' }}>A<span style={{ position: 'absolute', bottom: '-2px', left: 0, right: 0, height: '3px', backgroundColor: editor.getAttributes('textStyle').color || theme.colors.text.primary, borderRadius: '1px' }} /></span></ToolbarButton>
-    <input type="color" onChange={(event) => handlers.setColor(event.target.value)} value={editor.getAttributes('textStyle').color || '#000000'} disabled={disabled} title="Pick text color" style={{ width: '20px', height: '20px', padding: 0, border: 'none', borderRadius: '2px', cursor: disabled ? 'not-allowed' : 'pointer', backgroundColor: COLOR_TRANSPARENT }} />
+    <ToolbarButton onClick={handlers.unsetColor} disabled={disabled} title="Text color">
+      <span style={{ position: 'relative' }}>
+        A
+        <span
+          style={{
+            position: 'absolute',
+            bottom: '-2px',
+            left: 0,
+            right: 0,
+            height: '3px',
+            backgroundColor: editor.getAttributes('textStyle').color || theme.colors.text.primary,
+            borderRadius: '1px',
+          }}
+        />
+      </span>
+    </ToolbarButton>
+    <input
+      type="color"
+      onChange={event => handlers.setColor(event.target.value)}
+      value={editor.getAttributes('textStyle').color || '#000000'}
+      disabled={disabled}
+      title="Pick text color"
+      style={{
+        width: '20px',
+        height: '20px',
+        padding: 0,
+        border: 'none',
+        borderRadius: '2px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        backgroundColor: COLOR_TRANSPARENT,
+      }}
+    />
     <ToolbarDivider />
-    <ToolbarButton onClick={handlers.toggleBulletList} isActive={editor.isActive('bulletList')} disabled={disabled} title="Bullet list"><span style={{ fontSize: '16px', lineHeight: 1 }}>•≡</span></ToolbarButton>
-    <ToolbarButton onClick={handlers.toggleOrderedList} isActive={editor.isActive('orderedList')} disabled={disabled} title="Numbered list"><span style={{ fontSize: '12px', lineHeight: 1 }}>1.</span></ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleBulletList}
+      isActive={editor.isActive('bulletList')}
+      disabled={disabled}
+      title="Bullet list"
+    >
+      <span style={{ fontSize: '16px', lineHeight: 1 }}>•≡</span>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleOrderedList}
+      isActive={editor.isActive('orderedList')}
+      disabled={disabled}
+      title="Numbered list"
+    >
+      <span style={{ fontSize: '12px', lineHeight: 1 }}>1.</span>
+    </ToolbarButton>
     <ToolbarDivider />
   </>
 );
 
 const ToolbarAlignSection: React.FC<ToolbarSectionProps> = ({ editor, handlers, disabled }) => (
   <>
-    <ToolbarButton onClick={() => handlers.setTextAlign('left')} isActive={editor.isActive({ textAlign: 'left' })} disabled={disabled} title="Align left"><span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span></ToolbarButton>
-    <ToolbarButton onClick={() => handlers.setTextAlign('center')} isActive={editor.isActive({ textAlign: 'center' })} disabled={disabled} title="Align center"><span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span></ToolbarButton>
-    <ToolbarButton onClick={() => handlers.setTextAlign('right')} isActive={editor.isActive({ textAlign: 'right' })} disabled={disabled} title="Align right"><span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span></ToolbarButton>
+    <ToolbarButton
+      onClick={() => handlers.setTextAlign('left')}
+      isActive={editor.isActive({ textAlign: 'left' })}
+      disabled={disabled}
+      title="Align left"
+    >
+      <span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={() => handlers.setTextAlign('center')}
+      isActive={editor.isActive({ textAlign: 'center' })}
+      disabled={disabled}
+      title="Align center"
+    >
+      <span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={() => handlers.setTextAlign('right')}
+      isActive={editor.isActive({ textAlign: 'right' })}
+      disabled={disabled}
+      title="Align right"
+    >
+      <span style={{ fontSize: '11px', lineHeight: 1 }}>≡</span>
+    </ToolbarButton>
     <ToolbarDivider />
-    <ToolbarButton onClick={handlers.toggleBlockquote} isActive={editor.isActive('blockquote')} disabled={disabled} title="Quote"><span style={{ fontSize: '16px', lineHeight: 1, fontFamily: 'Georgia, serif' }}>"</span></ToolbarButton>
-    <ToolbarButton onClick={handlers.toggleCodeBlock} isActive={editor.isActive('codeBlock')} disabled={disabled} title="Code block"><span style={{ fontSize: '11px', fontFamily: 'monospace' }}>&lt;/&gt;</span></ToolbarButton>
-    <ToolbarButton onClick={handlers.setHorizontalRule} disabled={disabled} title="Horizontal rule">—</ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleBlockquote}
+      isActive={editor.isActive('blockquote')}
+      disabled={disabled}
+      title="Quote"
+    >
+      <span style={{ fontSize: '16px', lineHeight: 1, fontFamily: 'Georgia, serif' }}>"</span>
+    </ToolbarButton>
+    <ToolbarButton
+      onClick={handlers.toggleCodeBlock}
+      isActive={editor.isActive('codeBlock')}
+      disabled={disabled}
+      title="Code block"
+    >
+      <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>&lt;/&gt;</span>
+    </ToolbarButton>
+    <ToolbarButton onClick={handlers.setHorizontalRule} disabled={disabled} title="Horizontal rule">
+      —
+    </ToolbarButton>
     <ToolbarDivider />
   </>
 );
 
-const LinkPopup: React.FC<LinkPopupProps> = ({ showLinkInput, linkUrl, linkInputRef, setLinkUrl, setShowLinkInput, handleLinkSubmit, t }) => {
-  if (!showLinkInput) return null;
+const LinkPopup: React.FC<LinkPopupProps> = ({
+  showLinkInput,
+  linkUrl,
+  linkInputRef,
+  setLinkUrl,
+  setShowLinkInput,
+  handleLinkSubmit,
+  t,
+}) => {
+  if (!showLinkInput) {
+    return null;
+  }
   return (
-    <div style={{ position: 'absolute', top: '100%', left: theme.spacing.sm, zIndex: 1000, display: 'flex', alignItems: 'center', gap: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md }}>
-      <input ref={linkInputRef} type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)}
-        onKeyDown={(event) => { if (event.key === KEY_ENTER) { event.preventDefault(); handleLinkSubmit(); } if (event.key === KEY_ESCAPE) { setShowLinkInput(false); } }}
-        placeholder="https://example.com" style={{ width: '250px', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, outline: 'none' }} />
-      <button type="button" onClick={handleLinkSubmit} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>OK</button>
-      <button type="button" onClick={() => setShowLinkInput(false)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }}>{t('common.cancel')}</button>
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: theme.spacing.sm,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        boxShadow: theme.shadows.md,
+      }}
+    >
+      <input
+        ref={linkInputRef}
+        type="url"
+        value={linkUrl}
+        onChange={event => setLinkUrl(event.target.value)}
+        onKeyDown={event => {
+          if (event.key === KEY_ENTER) {
+            event.preventDefault();
+            handleLinkSubmit();
+          }
+          if (event.key === KEY_ESCAPE) {
+            setShowLinkInput(false);
+          }
+        }}
+        placeholder="https://example.com"
+        style={{
+          width: '250px',
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          border: `1px solid ${theme.colors.border.light}`,
+          borderRadius: theme.borderRadius.sm,
+          fontSize: theme.typography.fontSize.sm,
+          outline: 'none',
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleLinkSubmit}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.sm,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
+        OK
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowLinkInput(false)}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.light}`,
+          borderRadius: theme.borderRadius.sm,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('common.cancel')}
+      </button>
     </div>
   );
 };
@@ -75,15 +271,8 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const {
-    showLinkInput,
-    setShowLinkInput,
-    linkUrl,
-    setLinkUrl,
-    linkInputRef,
-    handleLinkSubmit,
-    handleToggleLink,
-  } = useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange });
+  const { showLinkInput, setShowLinkInput, linkUrl, setLinkUrl, linkInputRef, handleLinkSubmit, handleToggleLink } =
+    useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange });
 
   const handlers = useToolbarHandlers(editor);
 
@@ -92,22 +281,63 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
     return undefined;
   }, []);
 
-  if (!editor) return null;
+  if (!editor) {
+    return null;
+  }
 
   return (
     <div
-      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderBottom: `1px solid ${theme.colors.border.light}`, backgroundColor: theme.colors.background.paper, position: 'relative', }}
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '2px',
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        borderBottom: `1px solid ${theme.colors.border.light}`,
+        backgroundColor: theme.colors.background.paper,
+        position: 'relative',
+      }}
     >
       <ToolbarFormattingSection editor={editor} handlers={handlers} disabled={disabled} />
       <ToolbarAlignSection editor={editor} handlers={handlers} disabled={disabled} />
-      <ToolbarButton onClick={handleToggleLink} isActive={editor.isActive('link')} disabled={disabled} title="Insert link (Cmd+K)"><span style={{ fontSize: '13px' }}>🔗</span></ToolbarButton>
-      <EmojiPickerPortal onSelect={(emoji) => { onInsertEmoji(emoji); }} disabled={disabled} />
+      <ToolbarButton
+        onClick={handleToggleLink}
+        isActive={editor.isActive('link')}
+        disabled={disabled}
+        title="Insert link (Cmd+K)"
+      >
+        <span style={{ fontSize: '13px' }}>🔗</span>
+      </ToolbarButton>
+      <EmojiPickerPortal
+        onSelect={emoji => {
+          onInsertEmoji(emoji);
+        }}
+        disabled={disabled}
+      />
       <ToolbarDivider />
-      <ToolbarButton onClick={handlers.undo} disabled={disabled || !handlers.canUndo()} title="Undo (Cmd+Z)">↩</ToolbarButton>
-      <ToolbarButton onClick={handlers.redo} disabled={disabled || !handlers.canRedo()} title="Redo (Cmd+Shift+Z)">↪</ToolbarButton>
-      {/* eslint-disable-next-line i18next/no-literal-string -- visual icon glyph, not translatable text */}
-      <ToolbarButton onClick={handlers.clearFormatting} disabled={disabled} title="Clear formatting"><span style={{ fontSize: '11px' }}>T̶ₓ</span></ToolbarButton>
-      <LinkPopup showLinkInput={showLinkInput} linkUrl={linkUrl} linkInputRef={linkInputRef} setLinkUrl={setLinkUrl} setShowLinkInput={setShowLinkInput} handleLinkSubmit={handleLinkSubmit} t={t} editor={editor} handlers={handlers} disabled={disabled} />
+      <ToolbarButton onClick={handlers.undo} disabled={disabled || !handlers.canUndo()} title="Undo (Cmd+Z)">
+        ↩
+      </ToolbarButton>
+      <ToolbarButton onClick={handlers.redo} disabled={disabled || !handlers.canRedo()} title="Redo (Cmd+Shift+Z)">
+        ↪
+      </ToolbarButton>
+      {/* eslint-disable i18next/no-literal-string -- visual icon glyph, not translatable text */}
+      <ToolbarButton onClick={handlers.clearFormatting} disabled={disabled} title="Clear formatting">
+        <span style={{ fontSize: '11px' }}>T̶ₓ</span>
+      </ToolbarButton>
+      {/* eslint-enable i18next/no-literal-string */}
+      <LinkPopup
+        showLinkInput={showLinkInput}
+        linkUrl={linkUrl}
+        linkInputRef={linkInputRef}
+        setLinkUrl={setLinkUrl}
+        setShowLinkInput={setShowLinkInput}
+        handleLinkSubmit={handleLinkSubmit}
+        t={t}
+        editor={editor}
+        handlers={handlers}
+        disabled={disabled}
+      />
     </div>
   );
 };

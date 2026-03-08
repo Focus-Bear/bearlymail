@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { act,renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { useComposeForm } from './useComposeForm';
 
@@ -272,6 +272,3 @@ describe('useComposeForm', () => {
     });
   });
 });
-
-
-

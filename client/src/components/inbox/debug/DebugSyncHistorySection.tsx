@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_ERROR_WEB, COLOR_WHITE } from 'constants/colors';
-import { HOURS_PER_DAY,MINUTES_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from 'constants/numbers';
+import { HOURS_PER_DAY, MINUTES_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 export interface SyncHistoryEntry {
@@ -57,8 +57,12 @@ const errorBadgeStyle: React.CSSProperties = {
 };
 
 function formatDuration(ms: number | null): string {
-  if (ms === null) return '—';
-  if (ms < MS_PER_SECOND) return `${ms}ms`;
+  if (ms === null) {
+    return '—';
+  }
+  if (ms < MS_PER_SECOND) {
+    return `${ms}ms`;
+  }
   return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
 }
 
@@ -66,10 +70,16 @@ function formatRelative(dateStr: string): string {
   const date = new Date(dateStr);
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < MINUTES_PER_HOUR) return `${diffMins}m ago`;
+  if (diffMins < 1) {
+    return 'just now';
+  }
+  if (diffMins < MINUTES_PER_HOUR) {
+    return `${diffMins}m ago`;
+  }
   const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
-  if (diffHours < HOURS_PER_DAY) return `${diffHours}h ago`;
+  if (diffHours < HOURS_PER_DAY) {
+    return `${diffHours}h ago`;
+  }
   const diffDays = Math.floor(diffHours / HOURS_PER_DAY);
   return `${diffDays}d ago`;
 }
@@ -86,55 +96,81 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
 
   return (
     <div
-      style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, border: '1px solid #dee2e6', }}
+      style={{
+        marginBottom: theme.spacing.md,
+        padding: theme.spacing.sm,
+        backgroundColor: COLOR_WHITE,
+        borderRadius: theme.borderRadius.sm,
+        border: '1px solid #dee2e6',
+      }}
     >
-      <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
-        {t('debug.syncHistory.sectionTitle')}
-      </h4>
+      <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>{t('debug.syncHistory.sectionTitle')}</h4>
 
       {!syncHistory && !loadingSyncHistory && (
         <button
           onClick={onFetchSyncHistory}
-          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, background: theme.colors.primary, color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.xs, }}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            background: theme.colors.primary,
+            color: COLOR_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.sm,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.xs,
+          }}
         >
           {t('debug.syncHistory.fetchButton')}
         </button>
       )}
 
-      {loadingSyncHistory && (
-        <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.loading')}</div>
-      )}
+      {loadingSyncHistory && <div style={{ color: theme.colors.text.secondary }}>{t('debug.stats.loading')}</div>}
 
       {syncHistory && (
         <>
           <div
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xs, }}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: theme.spacing.xs,
+            }}
           >
             <span style={{ color: theme.colors.text.secondary, fontSize: '0.65rem' }}>
               {t('debug.syncHistory.showingLast', { count: syncHistory.length })}
             </span>
             <button
               onClick={onFetchSyncHistory}
-              style={{ padding: '2px 6px', background: 'transparent', border: '1px solid #adb5bd', borderRadius: '3px', cursor: 'pointer', fontSize: '0.6rem', }}
+              style={{
+                padding: '2px 6px',
+                background: 'transparent',
+                border: '1px solid #adb5bd',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '0.6rem',
+              }}
             >
               {t('debug.syncHistory.refreshButton')}
             </button>
           </div>
 
           {syncHistory.length === 0 && (
-            <div style={{ color: theme.colors.text.secondary }}>
-              {t('debug.syncHistory.noHistory')}
-            </div>
+            <div style={{ color: theme.colors.text.secondary }}>{t('debug.syncHistory.noHistory')}</div>
           )}
 
-          {syncHistory.map((entry) => (
+          {syncHistory.map(entry => (
             <div key={entry.id} style={rowStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                 <span style={{ fontWeight: 'bold', color: entry.errorMessage ? '#dc3545' : '#28a745' }}>
                   {formatRelative(entry.syncedAt)}
                   {entry.isContinuation && (
                     <span
-                      style={{ marginLeft: '4px', fontSize: '0.55rem', background: '#e9ecef', borderRadius: '3px', padding: '1px 3px', }}
+                      style={{
+                        marginLeft: '4px',
+                        fontSize: '0.55rem',
+                        background: '#e9ecef',
+                        borderRadius: '3px',
+                        padding: '1px 3px',
+                      }}
                     >
                       {t('debug.syncHistory.continuation')}
                     </span>
@@ -156,12 +192,12 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
 
               {entry.queries.length > 0 && (
                 <div style={{ marginTop: '2px' }}>
-                  <span style={{ ...labelStyle, fontSize: '0.6rem' }}>
-                    {t('debug.syncHistory.queries')}:
-                  </span>
+                  <span style={{ ...labelStyle, fontSize: '0.6rem' }}>{t('debug.syncHistory.queries')}:</span>
                   <div>
-                    {entry.queries.map((query) => (
-                      <span key={query} style={queryBadgeStyle}>{query}</span>
+                    {entry.queries.map(query => (
+                      <span key={query} style={queryBadgeStyle}>
+                        {query}
+                      </span>
                     ))}
                   </div>
                 </div>

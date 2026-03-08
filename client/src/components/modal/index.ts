@@ -5,6 +5,3 @@ export { ModalBackdrop } from 'components/modal/ModalBackdrop';
 export { ModalContent } from 'components/modal/ModalContent';
 export { ModalFooter } from 'components/modal/ModalFooter';
 export { ModalHeader } from 'components/modal/ModalHeader';
-
-
-

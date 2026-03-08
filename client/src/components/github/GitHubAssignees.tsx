@@ -22,7 +22,7 @@ export const GitHubAssignees: React.FC<GitHubAssigneesProps> = ({ assignees }) =
       <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
         {t('github.assignedTo')}:
       </span>
-      {assignees.map((assignee) => (
+      {assignees.map(assignee => (
         <a
           key={`assignee-${assignee.login}-${assignee.avatar_url}`}
           href={`https://github.com/${assignee.login}`}
@@ -44,10 +44,12 @@ export const GitHubAssignees: React.FC<GitHubAssigneesProps> = ({ assignees }) =
               borderRadius: '50%',
             }}
           />
-          <span style={{
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.primary.main,
-          }}>
+          <span
+            style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.primary.main,
+            }}
+          >
             {assignee.login}
           </span>
         </a>
@@ -55,6 +57,3 @@ export const GitHubAssignees: React.FC<GitHubAssigneesProps> = ({ assignees }) =
     </div>
   );
 };
-
-
-

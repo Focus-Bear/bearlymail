@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { STRING_TRUE } from 'constants/strings';
@@ -21,7 +21,7 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
   const { splitViewActive = false } = options;
   const location = useLocation();
   const isSettingsPage = location.pathname.startsWith('/settings');
-  
+
   const [manuallyExpanded, setManuallyExpanded] = useState<boolean>(() => {
     const stored = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
     return stored === STRING_TRUE;

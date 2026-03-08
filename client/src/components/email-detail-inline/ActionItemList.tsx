@@ -29,12 +29,15 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-      {actionItems.map((item) => (
-        <div key={item.id || `action-${item.description}`} style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}>
+      {actionItems.map(item => (
+        <div
+          key={item.id || `action-${item.description}`}
+          style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}
+        >
           <input
             type="checkbox"
             checked={item.isCompleted}
-            onChange={(event) => {
+            onChange={event => {
               if (item.id) {
                 captureEvent('action_item_toggled', { completed: event.target.checked });
                 onToggleActionItem(item.id, event.target.checked);
@@ -42,21 +45,27 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
             }}
             style={{ marginTop: '4px', cursor: 'pointer' }}
           />
-          <span style={{ 
-            flex: 1,
-            textDecoration: item.isCompleted ? 'line-through' : 'none',
-            color: item.isCompleted ? theme.colors.text.tertiary : theme.colors.text.primary,
-          }}>
+          <span
+            style={{
+              flex: 1,
+              textDecoration: item.isCompleted ? 'line-through' : 'none',
+              color: item.isCompleted ? theme.colors.text.tertiary : theme.colors.text.primary,
+            }}
+          >
             {item.description}
             {item.source === ACTION_ITEM_SOURCE_LLM && (
-              <span style={{ 
-                fontSize: '0.7rem', 
-                backgroundColor: theme.colors.primary.subtle, 
-                color: theme.colors.primary.main,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                marginLeft: theme.spacing.sm,
-              }}>{t('emailDetail.aiBadge')}</span>
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  backgroundColor: theme.colors.primary.subtle,
+                  color: theme.colors.primary.main,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  marginLeft: theme.spacing.sm,
+                }}
+              >
+                {t('emailDetail.aiBadge')}
+              </span>
             )}
           </span>
           {item.id && (
@@ -76,11 +85,11 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
                 alignItems: 'center',
                 opacity: 0.6,
               }}
-              onMouseEnter={(event) => {
+              onMouseEnter={event => {
                 event.currentTarget.style.opacity = '1';
                 event.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
               }}
-              onMouseLeave={(event) => {
+              onMouseLeave={event => {
                 event.currentTarget.style.opacity = '0.6';
                 event.currentTarget.style.color = theme.colors.text.tertiary;
               }}
@@ -95,5 +104,3 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
     </div>
   );
 };
-
-

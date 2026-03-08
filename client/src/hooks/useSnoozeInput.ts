@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface UseSnoozeInputReturn {
   snoozeInput: { [key: string]: string };
@@ -16,9 +16,12 @@ export function useSnoozeInput(): UseSnoozeInputReturn {
   const [snoozeInput, setSnoozeInput] = useState<{ [key: string]: string }>({});
   const [showSnoozeInput, setShowSnoozeInput] = useState<string | null>(null);
 
-  const getSnoozeValue = useCallback((emailId: string) => {
-    return snoozeInput[emailId] || '';
-  }, [snoozeInput]);
+  const getSnoozeValue = useCallback(
+    (emailId: string) => {
+      return snoozeInput[emailId] || '';
+    },
+    [snoozeInput]
+  );
 
   const setSnoozeValue = useCallback((emailId: string, value: string) => {
     setSnoozeInput(prev => ({ ...prev, [emailId]: value }));
@@ -53,13 +56,3 @@ export function useSnoozeInput(): UseSnoozeInputReturn {
     clearSnooze,
   };
 }
-
-
-
-
-
-
-
-
-
-

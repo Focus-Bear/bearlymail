@@ -9,7 +9,12 @@ import { CalendarInviteForm } from 'components/quick-actions/modals/CalendarInvi
 import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { API_URL } from 'config/api';
 import { ISO_DATETIME_STRING_LENGTH } from 'constants/numbers';
-import { DEFAULT_MEETING_DURATION_MINUTES, MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
+import {
+  DEFAULT_MEETING_DURATION_MINUTES,
+  MAX_DESCRIPTION_LENGTH,
+  MODAL_WIDTH_MEDIUM,
+  VIEWPORT_HEIGHT_90,
+} from 'constants/numbers';
 
 interface CalendarCreateInviteModalProps {
   email: {
@@ -29,11 +34,7 @@ const getDefaultStartTime = (): string => {
   return now.toISOString().slice(0, ISO_DATETIME_STRING_LENGTH);
 };
 
-export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps> = ({
-  email,
-  onClose,
-  onSuccess,
-}) => {
+export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps> = ({ email, onClose, onSuccess }) => {
   const [guestEmail, setGuestEmail] = useState(email.from);
   const [guestName, setGuestName] = useState(email.fromName || '');
   const [title, setTitle] = useState(email.subject || '');
@@ -55,7 +56,7 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
 
     try {
       const startTimeISO = new Date(startTime).toISOString();
-      
+
       await axios.post(`${API_URL}/suggested-actions/calendar/create-invite`, {
         guestEmail,
         guestName,
@@ -93,26 +94,23 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
             onDurationChange={setDurationMinutes}
           />
           {error && (
-            <div style={{
-              marginBottom: theme.spacing.md,
-              padding: theme.spacing.sm,
-              backgroundColor: theme.colors.sunray.light4,
-              border: `1px solid ${theme.colors.accent.error}`,
-              borderRadius: theme.borderRadius.md,
-              color: theme.colors.accent.error,
-              fontSize: theme.typography.fontSize.sm,
-            }}>
+            <div
+              style={{
+                marginBottom: theme.spacing.md,
+                padding: theme.spacing.sm,
+                backgroundColor: theme.colors.sunray.light4,
+                border: `1px solid ${theme.colors.accent.error}`,
+                borderRadius: theme.borderRadius.md,
+                color: theme.colors.accent.error,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
               {error}
             </div>
           )}
-          <CalendarInviteActions
-            loading={loading}
-            hasRequiredFields={!!guestEmail && !!startTime}
-            onCancel={onClose}
-          />
+          <CalendarInviteActions loading={loading} hasRequiredFields={!!guestEmail && !!startTime} onCancel={onClose} />
         </form>
       </ModalContent>
     </ModalBackdrop>
   );
 };
-

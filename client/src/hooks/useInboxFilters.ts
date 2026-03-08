@@ -1,4 +1,4 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -67,9 +67,7 @@ export function useInboxFilters() {
   const fetchConnectedAccounts = useCallback(async () => {
     setLoadingAccounts(true);
     try {
-      const response = await axios.get<ConnectedAccount[]>(
-        `${API_URL}/emails/connected-accounts`
-      );
+      const response = await axios.get<ConnectedAccount[]>(`${API_URL}/emails/connected-accounts`);
       setConnectedAccounts(response.data);
     } catch (error) {
       console.error('Failed to fetch connected accounts:', error);
@@ -100,19 +98,19 @@ export function useInboxFilters() {
   }, [isFilterBarVisible, fetchConnectedAccounts, fetchCategories]);
 
   const toggleFilterBar = useCallback(() => {
-    setIsFilterBarVisible((prev) => !prev);
+    setIsFilterBarVisible(prev => !prev);
   }, []);
 
   const setAccountFilter = useCallback((accountIds: string[]) => {
-    setFilters((prev) => ({ ...prev, accountIds }));
+    setFilters(prev => ({ ...prev, accountIds }));
   }, []);
 
   const setCategoryFilter = useCallback((categories: string[]) => {
-    setFilters((prev) => ({ ...prev, categories }));
+    setFilters(prev => ({ ...prev, categories }));
   }, []);
 
   const setPriorityFilter = useCallback((minPriority: number | null) => {
-    setFilters((prev) => ({ ...prev, minPriority }));
+    setFilters(prev => ({ ...prev, minPriority }));
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -124,9 +122,7 @@ export function useInboxFilters() {
   }, []);
 
   const hasActiveFilters =
-    filters.accountIds.length > 0 ||
-    filters.categories.length > 0 ||
-    filters.minPriority !== null;
+    filters.accountIds.length > 0 || filters.categories.length > 0 || filters.minPriority !== null;
 
   return {
     // State

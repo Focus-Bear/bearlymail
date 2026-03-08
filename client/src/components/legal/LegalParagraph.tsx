@@ -6,14 +6,5 @@ interface LegalParagraphProps {
 }
 
 export const LegalParagraph: React.FC<LegalParagraphProps> = ({ children }) => {
-  return (
-    <p style={{ marginBottom: theme.spacing.md }}>
-      {children}
-    </p>
-  );
+  return <p style={{ marginBottom: theme.spacing.md }}>{children}</p>;
 };
-
-
-
-
-

@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Email } from 'types/email';
 
 interface StarDiscrepancyModal {
@@ -41,7 +41,12 @@ interface UseModalsReturn {
   setBlockConfirmEmail: React.Dispatch<React.SetStateAction<Email | null>>;
   showStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
   hideStarDiscrepancy: () => void;
-  showPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
+  showPriorityOverride: (
+    emailId: string,
+    originalPriorityScore: number,
+    newPriorityScore: number,
+    context?: 'archive' | 'star' | 'manual'
+  ) => void;
   hidePriorityOverride: () => void;
   showUrgencyOverride: (threadId: string, currentUrgencyScore: number) => void;
   hideUrgencyOverride: () => void;
@@ -71,15 +76,23 @@ export function useModals(): UseModalsReturn {
     setStarDiscrepancyModal(null);
   }, []);
 
-  const showPriorityOverride = useCallback((emailId: string, originalPriorityScore: number, newPriorityScore: number, context: 'archive' | 'star' | 'manual' = 'manual') => {
-    setPriorityOverrideModal({
-      show: true,
-      emailId,
-      originalPriorityScore,
-      newPriorityScore,
-      context,
-    });
-  }, []);
+  const showPriorityOverride = useCallback(
+    (
+      emailId: string,
+      originalPriorityScore: number,
+      newPriorityScore: number,
+      context: 'archive' | 'star' | 'manual' = 'manual'
+    ) => {
+      setPriorityOverrideModal({
+        show: true,
+        emailId,
+        originalPriorityScore,
+        newPriorityScore,
+        context,
+      });
+    },
+    []
+  );
 
   const hidePriorityOverride = useCallback(() => {
     setPriorityOverrideModal(null);
@@ -140,4 +153,3 @@ export function useModals(): UseModalsReturn {
     hideBlockConfirm,
   };
 }
-

@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -29,8 +29,10 @@ export const useSummarizationRules = () => {
   }, []);
 
   const createSummarizationRule = useCallback(async () => {
-    if (!newSummarizationWhen.trim() || !newSummarizationHow.trim()) return;
-    
+    if (!newSummarizationWhen.trim() || !newSummarizationHow.trim()) {
+      return;
+    }
+
     try {
       await axios.post(`${API_URL}/summarize/rules`, {
         whenToUse: newSummarizationWhen.trim(),
@@ -44,32 +46,38 @@ export const useSummarizationRules = () => {
     }
   }, [newSummarizationWhen, newSummarizationHow, fetchSummarizationRules]);
 
-  const updateSummarizationRule = useCallback(async (ruleId: string) => {
-    try {
-      await axios.put(`${API_URL}/summarize/rules/${ruleId}`, {
-        whenToUse: editSummarizationWhen,
-        howToSummarize: editSummarizationHow,
-      });
-      setEditingSummarizationRule(null);
-      await fetchSummarizationRules();
-    } catch (error) {
-      console.error('Error updating summarization rule:', error);
-    }
-  }, [editSummarizationWhen, editSummarizationHow, fetchSummarizationRules]);
-
-  const deleteSummarizationRule = useCallback(async (ruleId: string) => {
-    const deletedRule = summarizationRules.find(rule => rule.ruleId === ruleId);
-    setSummarizationRules(prev => prev.filter(rule => rule.ruleId !== ruleId));
-    
-    try {
-      await axios.delete(`${API_URL}/summarize/rules/${ruleId}`);
-    } catch (error) {
-      console.error('Error deleting summarization rule:', error);
-      if (deletedRule) {
-        setSummarizationRules(prev => [...prev, deletedRule]);
+  const updateSummarizationRule = useCallback(
+    async (ruleId: string) => {
+      try {
+        await axios.put(`${API_URL}/summarize/rules/${ruleId}`, {
+          whenToUse: editSummarizationWhen,
+          howToSummarize: editSummarizationHow,
+        });
+        setEditingSummarizationRule(null);
+        await fetchSummarizationRules();
+      } catch (error) {
+        console.error('Error updating summarization rule:', error);
       }
-    }
-  }, [summarizationRules]);
+    },
+    [editSummarizationWhen, editSummarizationHow, fetchSummarizationRules]
+  );
+
+  const deleteSummarizationRule = useCallback(
+    async (ruleId: string) => {
+      const deletedRule = summarizationRules.find(rule => rule.ruleId === ruleId);
+      setSummarizationRules(prev => prev.filter(rule => rule.ruleId !== ruleId));
+
+      try {
+        await axios.delete(`${API_URL}/summarize/rules/${ruleId}`);
+      } catch (error) {
+        console.error('Error deleting summarization rule:', error);
+        if (deletedRule) {
+          setSummarizationRules(prev => [...prev, deletedRule]);
+        }
+      }
+    },
+    [summarizationRules]
+  );
 
   const editSummarizationRule = useCallback((rule: SummarizationRule) => {
     setEditingSummarizationRule(rule.ruleId);
@@ -97,8 +105,3 @@ export const useSummarizationRules = () => {
     editSummarizationRule,
   };
 };
-
-
-
-
-

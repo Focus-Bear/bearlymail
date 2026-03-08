@@ -12,7 +12,6 @@ import { EMOJI_SEARCH } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
-
 interface DebugStarredSectionProps {
   debugStarredData: DebugStarredData | null;
   loadingDebugData: boolean;
@@ -39,16 +38,29 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
   return (
     <div
-      style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, }}
+      style={{
+        marginBottom: theme.spacing.lg,
+        padding: theme.spacing.md,
+        backgroundColor: COLOR_WHITE,
+        borderRadius: theme.borderRadius.md,
+      }}
     >
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md, }}
-      >
-        <h4 style={{ margin: 0 }}>{EMOJI_SEARCH} {t('debug.starred.title')}</h4>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+        <h4 style={{ margin: 0 }}>
+          {EMOJI_SEARCH} {t('debug.starred.title')}
+        </h4>
         <button
           onClick={handleCheckStarredSync}
           disabled={loadingDebugData}
-          style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: loadingDebugData ? 'not-allowed' : 'pointer', opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL, }}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+            backgroundColor: theme.colors.primary.main,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.sm,
+            cursor: loadingDebugData ? 'not-allowed' : 'pointer',
+            opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL,
+          }}
         >
           {loadingDebugData ? t('common.loading') : 'Check starred sync'}
         </button>
@@ -57,10 +69,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
       {debugStarredData && (
         <div>
           {debugStarredData.gmail && debugStarredData.database && (
-            <StarredComparisonGrid
-              gmail={debugStarredData.gmail}
-              database={debugStarredData.database}
-            />
+            <StarredComparisonGrid gmail={debugStarredData.gmail} database={debugStarredData.database} />
           )}
           {debugStarredData.comparison && (
             <ComparisonResultsGrid
@@ -76,24 +85,41 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
       {showSyncPopup && debugStarredData && (
         <div
-          style={{ position: 'fixed', inset: 0, backgroundColor: theme.colors.overlay.darkLight, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: theme.colors.overlay.darkLight,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}
           onClick={() => setShowSyncPopup(false)}
         >
           <div
-            style={{ backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, padding: theme.spacing.md, maxWidth: 900, width: '90%', maxHeight: '80vh', overflowY: 'auto', }}
-            onClick={(event) => event.stopPropagation()}
+            style={{
+              backgroundColor: COLOR_WHITE,
+              borderRadius: theme.borderRadius.md,
+              padding: theme.spacing.md,
+              maxWidth: 900,
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={event => event.stopPropagation()}
           >
             <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
             {debugStarredData.gmail && (
               <p style={{ marginTop: 0 }}>
-                Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across {debugStarredData.gmail.starredThreadCount} threads.
+                Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across{' '}
+                {debugStarredData.gmail.starredThreadCount} threads.
               </p>
             )}
-            {debugStarredData.gmailVisibilityChecks?.map((item) => (
+            {debugStarredData.gmailVisibilityChecks?.map(item => (
               <div key={item.threadId} style={{ marginBottom: theme.spacing.sm }}>
                 <strong>{item.threadId}</strong> — {item.visibleInAction ? 'Visible' : 'Hidden'} ({item.syncStatus})
                 <ul style={{ margin: `${theme.spacing.xs} 0` }}>
-                  {item.reasons.map((reason) => (
+                  {item.reasons.map(reason => (
                     <li key={`${item.threadId}-${reason}`}>{reason}</li>
                   ))}
                 </ul>
@@ -104,22 +130,26 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
             {debugStarredData.staleUnsyncedThreads?.length ? (
               <>
                 <ul>
-                  {debugStarredData.staleUnsyncedThreads.map((thread) => (
+                  {debugStarredData.staleUnsyncedThreads.map(thread => (
                     <li key={thread.threadId}>
-                      {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)}, starCount: {thread.starCount})
+                      {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)},
+                      starCount: {thread.starCount})
                     </li>
                   ))}
                 </ul>
                 <button
                   onClick={async () => {
                     try {
-                      const response = await fetch(`${import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'}/emails/debug/fix-stale-unsynced`, {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                      });
+                      const response = await fetch(
+                        `${import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'}/emails/debug/fix-stale-unsynced`,
+                        {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                        }
+                      );
                       if (response.ok) {
                         const result = await response.json();
                         alert(`Fixed ${result.fixed} stale unsynced threads`);
@@ -128,9 +158,18 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                         alert('Failed to fix stale unsynced threads');
                       }
                     } catch (error) {
-                      alert(`Error fixing stale unsynced threads: ${error}`);                    }
+                      alert(`Error fixing stale unsynced threads: ${error}`);
+                    }
                   }}
-                  style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.warning?.main || '#ff9800', color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', marginBottom: theme.spacing.sm, }}
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.warning?.main || '#ff9800',
+                    color: COLOR_WHITE,
+                    border: STRING_NONE,
+                    borderRadius: theme.borderRadius.sm,
+                    cursor: 'pointer',
+                    marginBottom: theme.spacing.sm,
+                  }}
                 >
                   Fix Stale Unsynced Threads
                 </button>
@@ -141,7 +180,14 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
             <button
               onClick={() => setShowSyncPopup(false)}
-              style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+              }}
             >
               Close
             </button>
@@ -151,4 +197,3 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
     </div>
   );
 };
-

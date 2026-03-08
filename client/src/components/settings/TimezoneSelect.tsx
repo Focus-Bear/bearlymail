@@ -8,9 +8,7 @@ interface Props {
 }
 
 export const TimezoneSelect: React.FC<Props> = ({ value, onChange }) => {
-  return (
-    <TimezoneAutocomplete value={value} onChange={onChange} />
-  );
+  return <TimezoneAutocomplete value={value} onChange={onChange} />;
 };
 
 export default TimezoneSelect;

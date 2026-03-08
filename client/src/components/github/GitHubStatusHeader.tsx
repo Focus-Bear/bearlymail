@@ -9,23 +9,24 @@ interface GitHubStatusHeaderProps {
   onRefresh: () => void;
 }
 
-export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({
-  loading,
-  onRefresh,
-}) => {
+export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({ loading, onRefresh }) => {
   const { t } = useTranslation();
-  
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        margin: 0,
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.semibold,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.sm,
-      }}>
+    <div
+      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
+    >
+      <h3
+        style={{
+          color: theme.colors.text.primary,
+          margin: 0,
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_OCTOPUS} {t('github.status')}
       </h3>
@@ -46,15 +47,17 @@ export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({
       >
         {loading ? (
           <>
-            <span style={{
-              display: 'inline-block',
-              width: '12px',
-              height: '12px',
-              border: `2px solid ${theme.colors.primary.main}`,
-              borderTop: '2px solid transparent',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-            }} />
+            <span
+              style={{
+                display: 'inline-block',
+                width: '12px',
+                height: '12px',
+                border: `2px solid ${theme.colors.primary.main}`,
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }}
+            />
             {t('github.refreshing')}
           </>
         ) : (
@@ -67,6 +70,3 @@ export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({
     </div>
   );
 };
-
-
-

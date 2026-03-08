@@ -36,7 +36,6 @@ interface GitHubConnectionStatusSectionProps {
 
 const BUTTON_DISABLED_OPACITY = 0.6;
 
-
 interface GitHubStatusDetailsProps {
   status: ConnectionStatus;
   inaccessibleRepos: RepoStatus[];
@@ -56,168 +55,212 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
   const { t } = useTranslation();
   return (
     <>
-
-          {/* Token status */}
-          <div style={{
-            padding: theme.spacing.md,
-            borderRadius: theme.borderRadius.md,
-            backgroundColor: status.tokenValid ? `${theme.colors.accent.success}10` : `${theme.colors.accent.error}10`,
-            border: `1px solid ${status.tokenValid ? theme.colors.accent.success : theme.colors.accent.error}40`,
-            marginBottom: theme.spacing.md,
-          }}>
-            {status.tokenValid ? (
-              <div>
-                <p style={{ margin: 0, color: theme.colors.accent.success, fontWeight: theme.typography.fontWeight.semibold, fontSize: theme.typography.fontSize.sm }}>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  {t('settings.github.connectionStatus.tokenValid')} — @{status.login}
-                  {status.name ? ` (${status.name})` : ''}
-                </p>
-                {status.scopes && status.scopes.length > 0 && (
-                  <p style={{ margin: `${theme.spacing.xs} 0 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-                    {t('settings.github.connectionStatus.scopes')}: {status.scopes.join(', ')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p style={{ margin: 0, color: theme.colors.accent.error, fontSize: theme.typography.fontSize.sm }}>
-                {t('settings.github.connectionStatus.tokenInvalid')}{status.error ? `: ${status.error}` : ''}
+      {/* Token status */}
+      <div
+        style={{
+          padding: theme.spacing.md,
+          borderRadius: theme.borderRadius.md,
+          backgroundColor: status.tokenValid ? `${theme.colors.accent.success}10` : `${theme.colors.accent.error}10`,
+          border: `1px solid ${status.tokenValid ? theme.colors.accent.success : theme.colors.accent.error}40`,
+          marginBottom: theme.spacing.md,
+        }}
+      >
+        {status.tokenValid ? (
+          <div>
+            <p
+              style={{
+                margin: 0,
+                color: theme.colors.accent.success,
+                fontWeight: theme.typography.fontWeight.semibold,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              {t('settings.github.connectionStatus.tokenValid')} — @{status.login}
+              {status.name ? ` (${status.name})` : ''}
+            </p>
+            {status.scopes && status.scopes.length > 0 && (
+              <p
+                style={{
+                  margin: `${theme.spacing.xs} 0 0 0`,
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.secondary,
+                }}
+              >
+                {t('settings.github.connectionStatus.scopes')}: {status.scopes.join(', ')}
               </p>
             )}
           </div>
+        ) : (
+          <p style={{ margin: 0, color: theme.colors.accent.error, fontSize: theme.typography.fontSize.sm }}>
+            {t('settings.github.connectionStatus.tokenInvalid')}
+            {status.error ? `: ${status.error}` : ''}
+          </p>
+        )}
+      </div>
 
-          {/* Repository access */}
-          {status.repos && status.repos.length > 0 && (
-            <div style={{ marginBottom: theme.spacing.md }}>
-              <h3 style={{
-                fontSize: theme.typography.fontSize.base,
-                fontWeight: theme.typography.fontWeight.semibold,
-                color: theme.colors.text.primary,
-                marginBottom: theme.spacing.sm,
-              }}>
-                {t('settings.github.connectionStatus.reposTitle')}
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                {status.repos.map((repo) => (
-                  <div
-                    key={repo.id}
+      {/* Repository access */}
+      {status.repos && status.repos.length > 0 && (
+        <div style={{ marginBottom: theme.spacing.md }}>
+          <h3
+            style={{
+              fontSize: theme.typography.fontSize.base,
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('settings.github.connectionStatus.reposTitle')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+            {status.repos.map(repo => (
+              <div
+                key={repo.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  borderRadius: theme.borderRadius.md,
+                  border: `1px solid ${repo.accessible ? theme.colors.border.light : theme.colors.accent.error}40`,
+                  backgroundColor: repo.accessible ? 'transparent' : `${theme.colors.accent.error}05`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+                  <span
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      borderRadius: theme.borderRadius.md,
-                      border: `1px solid ${repo.accessible ? theme.colors.border.light : theme.colors.accent.error}40`,
-                      backgroundColor: repo.accessible ? 'transparent' : `${theme.colors.accent.error}05`,
+                      fontSize: theme.typography.fontSize.base,
+                      color: repo.accessible ? theme.colors.accent.success : theme.colors.accent.error,
+                      fontWeight: theme.typography.fontWeight.bold,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-                      <span style={{
-                        fontSize: theme.typography.fontSize.base,
-                        color: repo.accessible ? theme.colors.accent.success : theme.colors.accent.error,
-                        fontWeight: theme.typography.fontWeight.bold,
-                      }}>
-                        {/* eslint-disable-next-line i18next/no-literal-string */}
-                        {repo.accessible ? '✓' : '✗'}
+                    {/* eslint-disable-next-line i18next/no-literal-string */}
+                    {repo.accessible ? '✓' : '✗'}
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: theme.typography.fontWeight.medium,
+                      color: theme.colors.text.primary,
+                      fontSize: theme.typography.fontSize.sm,
+                    }}
+                  >
+                    {/* eslint-disable-next-line i18next/no-literal-string */}
+                    {repo.owner}/{repo.repo}
+                  </span>
+                  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                    {repo.isDefault && (
+                      <span
+                        style={{
+                          backgroundColor: theme.colors.primary.main,
+                          color: COLOR_NAMED_WHITE,
+                          padding: `1px ${theme.spacing.sm}`,
+                          borderRadius: theme.borderRadius.sm,
+                          fontSize: theme.typography.fontSize.xs,
+                        }}
+                      >
+                        {t('settings.github.repoMappings.default')}
                       </span>
-                      <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
-                        {/* eslint-disable-next-line i18next/no-literal-string */}
-                        {repo.owner}/{repo.repo}
-                      </span>
-                      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-                        {repo.isDefault && (
-                          <span style={{
-                            backgroundColor: theme.colors.primary.main,
-                            color: COLOR_NAMED_WHITE,
-                            padding: `1px ${theme.spacing.sm}`,
-                            borderRadius: theme.borderRadius.sm,
-                            fontSize: theme.typography.fontSize.xs,
-                          }}>
-                            {t('settings.github.repoMappings.default')}
-                          </span>
-                        )}
-                        {repo.isPrivate && (
-                          <span style={{
-                            backgroundColor: `${theme.colors.text.tertiary}20`,
-                            color: theme.colors.text.tertiary,
-                            padding: `1px ${theme.spacing.sm}`,
-                            borderRadius: theme.borderRadius.sm,
-                            fontSize: theme.typography.fontSize.xs,
-                          }}>
-                            {t('settings.github.connectionStatus.private')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {!repo.accessible && (
-                      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.error }}>
-                        {t('settings.github.connectionStatus.noAccess')}
+                    )}
+                    {repo.isPrivate && (
+                      <span
+                        style={{
+                          backgroundColor: `${theme.colors.text.tertiary}20`,
+                          color: theme.colors.text.tertiary,
+                          padding: `1px ${theme.spacing.sm}`,
+                          borderRadius: theme.borderRadius.sm,
+                          fontSize: theme.typography.fontSize.xs,
+                        }}
+                      >
+                        {t('settings.github.connectionStatus.private')}
                       </span>
                     )}
                   </div>
-                ))}
+                </div>
+                {!repo.accessible && (
+                  <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.error }}>
+                    {t('settings.github.connectionStatus.noAccess')}
+                  </span>
+                )}
               </div>
-            </div>
-          )}
+            ))}
+          </div>
+        </div>
+      )}
 
-          {status.repos && status.repos.length === 0 && (
-            <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}>
-              {t('settings.github.connectionStatus.noReposMapped')}
-            </p>
-          )}
+      {status.repos && status.repos.length === 0 && (
+        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}>
+          {t('settings.github.connectionStatus.noReposMapped')}
+        </p>
+      )}
 
-          {/* Warning + reconnect if issues found */}
-          {hasIssues && (
-            <div style={{
-              padding: theme.spacing.md,
-              borderRadius: theme.borderRadius.md,
-              backgroundColor: `${theme.colors.accent.warning}10`,
-              border: `1px solid ${theme.colors.accent.warning}60`,
-              marginTop: theme.spacing.md,
-            }}>
-              <p style={{ margin: `0 0 ${theme.spacing.sm} 0`, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
-                {t('settings.github.connectionStatus.issuesFound')}
-              </p>
-              <p style={{ margin: `0 0 ${theme.spacing.md} 0`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-                {inaccessibleRepos.length > 0
-                  ? t('settings.github.connectionStatus.privateRepoHint')
-                  : t('settings.github.connectionStatus.tokenExpiredHint')}
-              </p>
-              {inaccessibleRepos.length > 0 ? (
-                <button
-                  onClick={onConnectGitHubWithRepoAccess}
-                  style={{
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    backgroundColor: theme.colors.primary.main,
-                    color: COLOR_NAMED_WHITE,
-                    border: STRING_NONE,
-                    borderRadius: theme.borderRadius.md,
-                    cursor: 'pointer',
-                    fontSize: theme.typography.fontSize.sm,
-                    fontWeight: theme.typography.fontWeight.medium,
-                  }}
-                >
-                  {t('settings.github.connectionStatus.reconnectWithRepoAccess')}
-                </button>
-              ) : (
-                <button
-                  onClick={onConnectGitHub}
-                  style={{
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    backgroundColor: theme.colors.primary.main,
-                    color: COLOR_NAMED_WHITE,
-                    border: STRING_NONE,
-                    borderRadius: theme.borderRadius.md,
-                    cursor: 'pointer',
-                    fontSize: theme.typography.fontSize.sm,
-                    fontWeight: theme.typography.fontWeight.medium,
-                  }}
-                >
-                  {t('settings.github.connectionStatus.reconnect')}
-                </button>
-              )}
-            </div>
+      {/* Warning + reconnect if issues found */}
+      {hasIssues && (
+        <div
+          style={{
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.md,
+            backgroundColor: `${theme.colors.accent.warning}10`,
+            border: `1px solid ${theme.colors.accent.warning}60`,
+            marginTop: theme.spacing.md,
+          }}
+        >
+          <p
+            style={{
+              margin: `0 0 ${theme.spacing.sm} 0`,
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}
+          >
+            {t('settings.github.connectionStatus.issuesFound')}
+          </p>
+          <p
+            style={{
+              margin: `0 0 ${theme.spacing.md} 0`,
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {inaccessibleRepos.length > 0
+              ? t('settings.github.connectionStatus.privateRepoHint')
+              : t('settings.github.connectionStatus.tokenExpiredHint')}
+          </p>
+          {inaccessibleRepos.length > 0 ? (
+            <button
+              onClick={onConnectGitHubWithRepoAccess}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
+              {t('settings.github.connectionStatus.reconnectWithRepoAccess')}
+            </button>
+          ) : (
+            <button
+              onClick={onConnectGitHub}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
+              {t('settings.github.connectionStatus.reconnect')}
+            </button>
           )}
-            </>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -232,7 +275,9 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   const fetchStatus = useCallback(async () => {
-    if (!hasGithubToken) return;
+    if (!hasGithubToken) {
+      return;
+    }
     setLoading(true);
     try {
       const response = await axios.get<ConnectionStatus>(`${API_URL}/github/my/connection-status`);
@@ -251,9 +296,11 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
     }
   }, [hasGithubToken, fetchStatus]);
 
-  if (!hasGithubToken) return null;
+  if (!hasGithubToken) {
+    return null;
+  }
 
-  const inaccessibleRepos = status?.repos?.filter((repo) => !repo.accessible) ?? [];
+  const inaccessibleRepos = status?.repos?.filter(repo => !repo.accessible) ?? [];
   const hasIssues = status && (!status.tokenValid || inaccessibleRepos.length > 0);
 
   return (
@@ -267,7 +314,14 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
         boxShadow: theme.shadows.md,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.md,
+        }}
+      >
         <h2 style={{ color: theme.colors.text.primary, margin: 0, fontSize: theme.typography.fontSize.xl }}>
           {t('settings.github.connectionStatus.title')}
         </h2>

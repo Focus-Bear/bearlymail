@@ -19,11 +19,7 @@ interface QuickActionsMenuProps {
   onClose: () => void;
 }
 
-export const QuickActionsMenu: React.FC<QuickActionsMenuProps> = ({
-  actions,
-  onSelectAction,
-  onClose,
-}) => {
+export const QuickActionsMenu: React.FC<QuickActionsMenuProps> = ({ actions, onSelectAction, onClose }) => {
   if (actions.length === 0) {
     return null;
   }
@@ -38,7 +34,7 @@ export const QuickActionsMenu: React.FC<QuickActionsMenuProps> = ({
       <ModalContent maxWidth="600px" maxHeight="80vh">
         <QuickActionsHeader onClose={onClose} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-          {actions.map((action) => (
+          {actions.map(action => (
             <QuickActionItem
               key={`${action.type}-${action.confidence}-${action.reason}`}
               action={action}
@@ -50,5 +46,3 @@ export const QuickActionsMenu: React.FC<QuickActionsMenuProps> = ({
     </ModalBackdrop>
   );
 };
-
-

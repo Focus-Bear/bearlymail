@@ -39,7 +39,7 @@ export const PriorityFeedbackModal: React.FC<PriorityFeedbackModalProps> = ({
         feedback: feedback.trim(),
         expectedPriority: expectedPriority,
       });
-      
+
       if (onSubmitted) {
         onSubmitted();
       }
@@ -55,9 +55,7 @@ export const PriorityFeedbackModal: React.FC<PriorityFeedbackModalProps> = ({
   return (
     <ModalBackdrop onClose={onClose}>
       <ModalContent maxWidth="500px" maxHeight="80vh">
-        <h3 style={{ marginTop: 0, marginBottom: theme.spacing.md }}>
-          {t('priority.feedback.title')}
-        </h3>
+        <h3 style={{ marginTop: 0, marginBottom: theme.spacing.md }}>{t('priority.feedback.title')}</h3>
         <PriorityFeedbackForm
           feedback={feedback}
           expectedPriority={expectedPriority}
@@ -75,6 +73,3 @@ export const PriorityFeedbackModal: React.FC<PriorityFeedbackModalProps> = ({
     </ModalBackdrop>
   );
 };
-
-
-

@@ -7,12 +7,16 @@ export const SettingsHeader: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xl }}>
-      <h1 style={{
-        color: theme.colors.text.primary,
-        margin: 0,
-        fontSize: theme.typography.fontSize['3xl'],
-      }}>
+    <div
+      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xl }}
+    >
+      <h1
+        style={{
+          color: theme.colors.text.primary,
+          margin: 0,
+          fontSize: theme.typography.fontSize['3xl'],
+        }}
+      >
         {t('settings.title')}
       </h1>
       <Link
@@ -31,11 +35,11 @@ export const SettingsHeader: React.FC = () => {
           fontWeight: theme.typography.fontWeight.bold,
           transition: theme.transitions.default,
         }}
-        onMouseEnter={(event) => {
+        onMouseEnter={event => {
           event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
           event.currentTarget.style.color = theme.colors.primary.main;
         }}
-        onMouseLeave={(event) => {
+        onMouseLeave={event => {
           event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
           event.currentTarget.style.color = theme.colors.text.secondary;
         }}
@@ -46,8 +50,3 @@ export const SettingsHeader: React.FC = () => {
     </div>
   );
 };
-
-
-
-
-

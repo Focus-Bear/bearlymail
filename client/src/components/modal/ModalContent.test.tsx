@@ -12,7 +12,7 @@ describe('ModalContent', () => {
         <ModalContent>
           <button type="button">Inside modal</button>
         </ModalContent>
-      </div>,
+      </div>
     );
 
     fireEvent.mouseDown(screen.getByRole('button', { name: 'Inside modal' }));

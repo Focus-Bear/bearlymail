@@ -33,27 +33,35 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   onSubmit,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ flex: 1, minWidth: '300px' }}>
-      <h2 style={{ 
-        fontSize: theme.typography.fontSize.lg, 
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md 
-      }}>{t('booking.yourDetails')}</h2>
-      
+      <h2
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+        }}
+      >
+        {t('booking.yourDetails')}
+      </h2>
+
       <form onSubmit={onSubmit}>
         <div style={{ marginBottom: theme.spacing.md }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: theme.spacing.xs,
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.sm
-          }}>{t('auth.name')}</label>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {t('auth.name')}
+          </label>
           <input
             type="text"
             value={guestName}
-            onChange={(event) => onGuestNameChange(event.target.value)}
+            onChange={event => onGuestNameChange(event.target.value)}
             required
             style={{
               width: '100%',
@@ -66,16 +74,20 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         </div>
 
         <div style={{ marginBottom: theme.spacing.lg }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: theme.spacing.xs,
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.sm
-          }}>{t('auth.email')}</label>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {t('auth.email')}
+          </label>
           <input
             type="email"
             value={guestEmail}
-            onChange={(event) => onGuestEmailChange(event.target.value)}
+            onChange={event => onGuestEmailChange(event.target.value)}
             required
             style={{
               width: '100%',
@@ -104,14 +116,16 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         >
           {bookingStatus === BOOKING_STATUS_SUBMITTING ? t('booking.booking') : t('booking.confirmBooking')}
         </button>
-        
+
         {!selectedSlot && (
-          <p style={{ 
-            marginTop: theme.spacing.sm, 
-            color: theme.colors.text.secondary, 
-            fontSize: theme.typography.fontSize.sm,
-            textAlign: 'center'
-          }}>
+          <p
+            style={{
+              marginTop: theme.spacing.sm,
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              textAlign: 'center',
+            }}
+          >
             {t('booking.selectSlotFirst')}
           </p>
         )}
@@ -119,5 +133,3 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     </div>
   );
 };
-
-

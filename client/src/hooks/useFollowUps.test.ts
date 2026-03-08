@@ -124,10 +124,7 @@ describe('useFollowUps', () => {
         await result.current.generateDrafts(threadIds);
       });
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/follow-ups/generate-drafts-for-threads`,
-        { threadIds }
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/follow-ups/generate-drafts-for-threads`, { threadIds });
       expect(mockStartGenerationPolling).toHaveBeenCalled();
     });
 
@@ -164,10 +161,7 @@ describe('useFollowUps', () => {
         await result.current.updateDraft(followUpId, draft);
       });
 
-      expect(mockedAxios.put).toHaveBeenCalledWith(
-        `${API_URL}/follow-ups/${followUpId}/draft`,
-        { draft }
-      );
+      expect(mockedAxios.put).toHaveBeenCalledWith(`${API_URL}/follow-ups/${followUpId}/draft`, { draft });
       expect(mockedAxios.get).toHaveBeenCalled();
     });
 
@@ -179,9 +173,7 @@ describe('useFollowUps', () => {
 
       mockedAxios.put.mockRejectedValue(error);
 
-      await expect(
-        result.current.updateDraft('followup-1', 'draft')
-      ).rejects.toEqual(error);
+      await expect(result.current.updateDraft('followup-1', 'draft')).rejects.toEqual(error);
 
       await waitFor(() => {
         expect(result.current.error).toBe('Update failed');
@@ -203,22 +195,16 @@ describe('useFollowUps', () => {
         expect(response).toEqual(mockResponse);
       });
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/follow-ups/bulk-send`,
-        { followUpIds }
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/follow-ups/bulk-send`, { followUpIds });
     });
 
     it('should throw error when exceeding max bulk send count', async () => {
       const { result } = renderHook(() => useFollowUps());
-      const followUpIds = Array.from(
-        { length: MAX_BULK_SEND_COUNT + 1 },
-        (_, i) => `followup-${i}`
-      );
+      const followUpIds = Array.from({ length: MAX_BULK_SEND_COUNT + 1 }, (_, i) => `followup-${i}`);
 
-      await expect(
-        result.current.bulkSend(followUpIds)
-      ).rejects.toThrow(`Maximum ${MAX_BULK_SEND_COUNT} follow-ups allowed per bulk send`);
+      await expect(result.current.bulkSend(followUpIds)).rejects.toThrow(
+        `Maximum ${MAX_BULK_SEND_COUNT} follow-ups allowed per bulk send`
+      );
     });
 
     it('should poll for send status', async () => {
@@ -238,7 +224,7 @@ describe('useFollowUps', () => {
       mockedAxios.get.mockResolvedValue({ data: threadsWithFollowUps });
 
       act(() => {
-        result.current.threads.push(...threadsWithFollowUps as any);
+        result.current.threads.push(...(threadsWithFollowUps as any));
       });
 
       await act(async () => {
@@ -282,9 +268,7 @@ describe('useFollowUps', () => {
 
       mockedAxios.post.mockRejectedValue(error);
 
-      await expect(
-        result.current.bulkSend(['followup-1'])
-      ).rejects.toEqual(error);
+      await expect(result.current.bulkSend(['followup-1'])).rejects.toEqual(error);
 
       await waitFor(() => {
         expect(result.current.error).toBe('Send failed');
@@ -292,4 +276,3 @@ describe('useFollowUps', () => {
     });
   });
 });
-

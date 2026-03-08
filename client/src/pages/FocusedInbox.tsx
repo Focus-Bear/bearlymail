@@ -63,12 +63,14 @@ const FocusedInbox: React.FC = () => {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-      overflow: 'hidden',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        overflow: 'hidden',
+      }}
+    >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
         {/* Archive Confirmation Toast */}
         {keyboardShortcuts.pendingArchive && (
@@ -125,7 +127,7 @@ const FocusedInbox: React.FC = () => {
           categorySummary={categorySummary}
           loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames}
-          onSplitViewArchive={(archivedEmailId) => {
+          onSplitViewArchive={archivedEmailId => {
             const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
 
             if (visibleEmails.length === 0) {
@@ -134,9 +136,8 @@ const FocusedInbox: React.FC = () => {
             }
 
             const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex = currentIndex < visibleEmails.length
-              ? currentIndex
-              : Math.max(0, visibleEmails.length - 1);
+            const nextIndex =
+              currentIndex < visibleEmails.length ? currentIndex : Math.max(0, visibleEmails.length - 1);
 
             const nextEmail = visibleEmails[nextIndex];
             if (nextEmail) {
@@ -160,9 +161,8 @@ const FocusedInbox: React.FC = () => {
             }
 
             const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex = currentIndex < visibleEmails.length
-              ? currentIndex
-              : Math.max(0, visibleEmails.length - 1);
+            const nextIndex =
+              currentIndex < visibleEmails.length ? currentIndex : Math.max(0, visibleEmails.length - 1);
 
             const nextEmail = visibleEmails[nextIndex];
             if (nextEmail) {

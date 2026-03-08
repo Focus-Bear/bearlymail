@@ -2,11 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
-import {
-  PERCENTAGE_37_5,
-  PERCENTAGE_62_5,
-  PERCENTAGE_87_5,
-} from 'constants/numbers';
+import { PERCENTAGE_37_5, PERCENTAGE_62_5, PERCENTAGE_87_5 } from 'constants/numbers';
 
 import { useStarCountHandler } from './useStarCountHandler';
 
@@ -28,8 +24,26 @@ describe('useStarCountHandler', () => {
   const mockOnShowPriorityOverride = jest.fn();
 
   const mockEmails: Email[] = [
-    { id: '1', threadId: 't1', from: 'test@example.com', subject: 'Test 1', isRead: false, isSnoozed: false, receivedAt: '2024-01-01', starCount: 0 } as Email,
-    { id: '2', threadId: 't2', from: 'test@example.com', subject: 'Test 2', isRead: false, isSnoozed: false, receivedAt: '2024-01-01', starCount: 1 } as Email,
+    {
+      id: '1',
+      threadId: 't1',
+      from: 'test@example.com',
+      subject: 'Test 1',
+      isRead: false,
+      isSnoozed: false,
+      receivedAt: '2024-01-01',
+      starCount: 0,
+    } as Email,
+    {
+      id: '2',
+      threadId: 't2',
+      from: 'test@example.com',
+      subject: 'Test 2',
+      isRead: false,
+      isSnoozed: false,
+      receivedAt: '2024-01-01',
+      starCount: 1,
+    } as Email,
   ];
 
   beforeEach(() => {
@@ -130,11 +144,7 @@ describe('useStarCountHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith(
-          '1',
-          30,
-          PERCENTAGE_87_5
-        );
+        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 30, PERCENTAGE_87_5);
       });
       expect(mockOnShowStarDiscrepancy).not.toHaveBeenCalled();
     });
@@ -275,4 +285,3 @@ describe('useStarCountHandler', () => {
     });
   });
 });
-

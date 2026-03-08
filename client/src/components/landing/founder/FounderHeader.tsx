@@ -10,8 +10,12 @@ export const FounderHeader: React.FC = () => {
   const breakpoints = useResponsiveBreakpoints();
 
   const photoSize = (() => {
-    if (breakpoints.isMobile) return '80px';
-    if (breakpoints.isTablet) return '100px';
+    if (breakpoints.isMobile) {
+      return '80px';
+    }
+    if (breakpoints.isTablet) {
+      return '100px';
+    }
     return '120px';
   })();
 
@@ -80,6 +84,3 @@ export const FounderHeader: React.FC = () => {
     </div>
   );
 };
-
-
-

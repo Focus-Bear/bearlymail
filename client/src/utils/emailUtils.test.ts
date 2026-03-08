@@ -248,10 +248,13 @@ describe('emailUtils', () => {
       });
 
       it('should linkify a complex URL with query params', () => {
-        const url = 'https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&t=7AQd5fv70p6bCnzK-1';
+        const url =
+          'https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&t=7AQd5fv70p6bCnzK-1';
         const html = `<p>Check the Figma file: ${url}</p>`;
         const result = sanitizeAndProcessHtml(html);
-        expect(result).toContain('href="https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&amp;t=7AQd5fv70p6bCnzK-1"');
+        expect(result).toContain(
+          'href="https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&amp;t=7AQd5fv70p6bCnzK-1"'
+        );
         expect(result).toContain('target="_blank"');
       });
 
@@ -278,4 +281,3 @@ describe('emailUtils', () => {
     });
   });
 });
-

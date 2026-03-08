@@ -1,5 +1,5 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { act,renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -60,9 +60,7 @@ describe('useEmailDetail', () => {
         { id: 'email-2', subject: 'Re: Test Email' },
       ];
 
-      mockedAxios.get
-        .mockResolvedValueOnce({ data: mockEmail })
-        .mockResolvedValueOnce({ data: mockThreadEmails });
+      mockedAxios.get.mockResolvedValueOnce({ data: mockEmail }).mockResolvedValueOnce({ data: mockThreadEmails });
 
       const { result } = renderHook(() => useEmailDetail('email-1'));
 
@@ -72,9 +70,7 @@ describe('useEmailDetail', () => {
 
       expect(result.current.threadEmails).toEqual(mockThreadEmails);
       expect(result.current.expandedThreadItems.has('email-1')).toBe(true);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        `${API_URL}/emails/thread/thread-1`
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/thread/thread-1`);
     });
 
     it('should not fetch thread if email has no threadId', async () => {
@@ -118,9 +114,7 @@ describe('useEmailDetail', () => {
       };
       const threadError = new Error('Failed to fetch thread');
 
-      mockedAxios.get
-        .mockResolvedValueOnce({ data: mockEmail })
-        .mockRejectedValueOnce(threadError);
+      mockedAxios.get.mockResolvedValueOnce({ data: mockEmail }).mockRejectedValueOnce(threadError);
 
       const { result } = renderHook(() => useEmailDetail('email-1'));
 
@@ -146,9 +140,7 @@ describe('useEmailDetail', () => {
         { id: 'email-2', subject: 'Re: Test' },
       ];
 
-      mockedAxios.get
-        .mockResolvedValueOnce({ data: mockEmail })
-        .mockResolvedValueOnce({ data: mockThreadEmails });
+      mockedAxios.get.mockResolvedValueOnce({ data: mockEmail }).mockResolvedValueOnce({ data: mockThreadEmails });
 
       const { result } = renderHook(() => useEmailDetail('email-1'));
 
@@ -228,14 +220,11 @@ describe('useEmailDetail', () => {
       const mockEmail1 = { id: 'email-1', subject: 'Email 1' };
       const mockEmail2 = { id: 'email-2', subject: 'Email 2' };
 
-      mockedAxios.get
-        .mockResolvedValueOnce({ data: mockEmail1 })
-        .mockResolvedValueOnce({ data: mockEmail2 });
+      mockedAxios.get.mockResolvedValueOnce({ data: mockEmail1 }).mockResolvedValueOnce({ data: mockEmail2 });
 
-      const { result, rerender } = renderHook(
-        ({ emailId }) => useEmailDetail(emailId),
-        { initialProps: { emailId: 'email-1' } }
-      );
+      const { result, rerender } = renderHook(({ emailId }) => useEmailDetail(emailId), {
+        initialProps: { emailId: 'email-1' },
+      });
 
       await waitFor(() => {
         expect(result.current.email).toEqual(mockEmail1);
@@ -251,4 +240,3 @@ describe('useEmailDetail', () => {
     });
   });
 });
-

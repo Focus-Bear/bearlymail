@@ -55,31 +55,21 @@ export const renderFormattedText = (text: string): React.ReactNode => {
   return parts.length > 0 ? parts : text;
 };
 
-export const renderPreviewWithMergeTags = (
-  template: string,
-  userName: string,
-  stats: any
-): string => {
+export const renderPreviewWithMergeTags = (template: string, userName: string, stats: any): string => {
   let result = template;
-  
+
   result = result.replace(/\{\{userName\}\}/g, userName);
   result = result.replace(/\{\{senderName\}\}/g, 'John Smith');
   result = result.replace(/\{\{actionCount\}\}/g, String(stats.actionCount > 100 ? '100+' : stats.actionCount));
   result = result.replace(/\{\{triageCount\}\}/g, String(stats.triageCount > 100 ? '100+' : stats.triageCount));
   result = result.replace(/\{\{avgResponseTime\}\}/g, stats.avgResponseTime);
   result = result.replace(/\{\{urgentResponseTime\}\}/g, stats.urgentResponseTime);
-  
+
   // Handle conditional blocks - show AI answer section for preview
-  result = result.replace(
-    /\{\{#if hasAiAnswer\}\}([\s\S]*?)\{\{\/if\}\}/g,
-    '$1'
-  );
-  result = result.replace(
-    /\{\{#unless hasAiAnswer\}\}([\s\S]*?)\{\{\/unless\}\}/g,
-    ''
-  );
+  result = result.replace(/\{\{#if hasAiAnswer\}\}([\s\S]*?)\{\{\/if\}\}/g, '$1');
+  result = result.replace(/\{\{#unless hasAiAnswer\}\}([\s\S]*?)\{\{\/unless\}\}/g, '');
   result = result.replace(/\{\{aiAnswer\}\}/g, '[AI-generated answer would appear here based on your Q&A context]');
-  
+
   return result;
 };
 

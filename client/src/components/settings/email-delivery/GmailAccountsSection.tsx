@@ -20,34 +20,36 @@ interface GmailAccountsSectionProps {
   onFetchData: () => Promise<void>;
 }
 
-export const GmailAccountsSection: React.FC<GmailAccountsSectionProps> = ({
-  googleAccounts,
-  onFetchData,
-}) => {
+export const GmailAccountsSection: React.FC<GmailAccountsSectionProps> = ({ googleAccounts, onFetchData }) => {
   const { t } = useTranslation();
-  
+
   return (
-    <div id="google-accounts" style={{
-      backgroundColor: theme.colors.background.paper,
-      padding: theme.spacing.xl,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.medium}`,
-    }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
+    <div
+      id="google-accounts"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        padding: theme.spacing.xl,
+        borderRadius: theme.borderRadius.lg,
         marginBottom: theme.spacing.lg,
-        fontSize: theme.typography.fontSize.xl,
-        fontWeight: theme.typography.fontWeight.semibold,
-      }}>
+        border: `1px solid ${theme.colors.border.medium}`,
+      }}
+    >
+      <h3
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.lg,
+          fontSize: theme.typography.fontSize.xl,
+          fontWeight: theme.typography.fontWeight.semibold,
+        }}
+      >
         {t('settings.gmail.accounts')}
       </h3>
-    
+
       {googleAccounts.length === 0 ? (
         <GmailEmptyState />
       ) : (
         <>
-          {googleAccounts.map((account) => (
+          {googleAccounts.map(account => (
             <GmailAccountItem key={account.id} account={account} onFetchData={onFetchData} />
           ))}
           <button
@@ -72,5 +74,3 @@ export const GmailAccountsSection: React.FC<GmailAccountsSectionProps> = ({
     </div>
   );
 };
-
-

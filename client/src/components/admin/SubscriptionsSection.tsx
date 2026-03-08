@@ -28,27 +28,31 @@ export const SubscriptionsSection: React.FC<SubscriptionsSectionProps> = ({
 
   return (
     <section>
-      <h2 style={{
-        fontSize: theme.typography.fontSize.xl,
-        fontWeight: theme.typography.fontWeight.bold,
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.lg,
-      }}>
+      <h2
+        style={{
+          fontSize: theme.typography.fontSize.xl,
+          fontWeight: theme.typography.fontWeight.bold,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.lg,
+        }}
+      >
         {t('admin.dashboard.allUsers')} ({users.length})
       </h2>
       {users.length === 0 ? (
-        <div style={{
-          padding: theme.spacing.xl,
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.md,
-          textAlign: 'center',
-          color: theme.colors.text.secondary,
-        }}>
+        <div
+          style={{
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.md,
+            textAlign: 'center',
+            color: theme.colors.text.secondary,
+          }}
+        >
           {t('admin.dashboard.noUsersFound')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-          {users.map((userData) => (
+          {users.map(userData => (
             <UserSubscriptionCard
               key={userData.id}
               userData={userData}

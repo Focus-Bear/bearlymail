@@ -28,7 +28,9 @@ export interface EmailDetailState {
   customRules: Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>;
   setCustomRules: (rules: Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>) => void;
   actionItems: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>;
-  setActionItems: React.Dispatch<React.SetStateAction<Array<{ id?: string; description: string; isCompleted: boolean; source: string }>>>;
+  setActionItems: React.Dispatch<
+    React.SetStateAction<Array<{ id?: string; description: string; isCompleted: boolean; source: string }>>
+  >;
   newActionItem: string;
   setNewActionItem: (item: string) => void;
   draft: string | null;
@@ -65,8 +67,22 @@ export interface EmailDetailState {
   setCheckingTone: (checking: boolean) => void;
   disputing: boolean;
   setDisputing: (disputing: boolean) => void;
-  disputeResult: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null;
-  setDisputeResult: (result: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null) => void;
+  disputeResult: {
+    accepted: boolean;
+    rulesToRemove: string[];
+    explanation: string;
+    rulesUpdated: boolean;
+    remainingRules: string[];
+  } | null;
+  setDisputeResult: (
+    result: {
+      accepted: boolean;
+      rulesToRemove: string[];
+      explanation: string;
+      rulesUpdated: boolean;
+      remainingRules: string[];
+    } | null
+  ) => void;
   snoozeInput: string;
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   setSnoozeInput: (input: string) => void;

@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -48,42 +48,98 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
   };
 
   return (
-    <div style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md, }}>
-        <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0, }}>
+    <div
+      style={{
+        marginBottom: theme.spacing.lg,
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.md,
+        }}
+      >
+        <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
           {t('settings.profile.title')}
         </h4>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            style={{ background: STRING_NONE, border: STRING_NONE, color: theme.colors.primary.main, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, }}
+            style={{
+              background: STRING_NONE,
+              border: STRING_NONE,
+              color: theme.colors.primary.main,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+            }}
           >
             {t('common.edit')}
           </button>
         )}
       </div>
 
-      <p style={{ ...theme.typography.body.medium, color: theme.colors.text.tertiary, marginTop: 0, marginBottom: theme.spacing.md, }}>
+      <p
+        style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.text.tertiary,
+          marginTop: 0,
+          marginBottom: theme.spacing.md,
+        }}
+      >
         {t('settings.profile.description')}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <ProfileField label={t('settings.profile.displayNameLabel')} value={displayName} isEditing={isEditing} placeholder={t('settings.profile.displayNamePlaceholder')} onChange={setDisplayName} />
-        <ProfileField label={t('settings.profile.jobTitleLabel')} value={jobTitle} isEditing={isEditing} placeholder={t('settings.profile.jobTitlePlaceholder')} onChange={setJobTitle} />
+        <ProfileField
+          label={t('settings.profile.displayNameLabel')}
+          value={displayName}
+          isEditing={isEditing}
+          placeholder={t('settings.profile.displayNamePlaceholder')}
+          onChange={setDisplayName}
+        />
+        <ProfileField
+          label={t('settings.profile.jobTitleLabel')}
+          value={jobTitle}
+          isEditing={isEditing}
+          placeholder={t('settings.profile.jobTitlePlaceholder')}
+          onChange={setJobTitle}
+        />
 
         {isEditing && (
           <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? SAVING_OPACITY : 1, ...theme.typography.body.medium, }}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
+                borderRadius: theme.borderRadius.md,
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                opacity: isSaving ? SAVING_OPACITY : 1,
+                ...theme.typography.body.medium,
+              }}
             >
               {isSaving ? t('common.saving') : t('common.save')}
             </button>
             <button
               onClick={handleCancel}
               disabled={isSaving}
-              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', ...theme.typography.body.medium, }}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: COLOR_TRANSPARENT,
+                color: theme.colors.text.secondary,
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                ...theme.typography.body.medium,
+              }}
             >
               {t('common.cancel')}
             </button>
@@ -94,15 +150,50 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
   );
 };
 
-const ProfileField: React.FC<{ label: string; value: string; isEditing: boolean; placeholder: string; onChange: (v: string) => void }> = ({ label, value, isEditing, placeholder, onChange }) => {
+const ProfileField: React.FC<{
+  label: string;
+  value: string;
+  isEditing: boolean;
+  placeholder: string;
+  onChange: (v: string) => void;
+}> = ({ label, value, isEditing, placeholder, onChange }) => {
   const { t } = useTranslation();
   return (
     <div>
-      <label style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs }}>{label}</label>
+      <label
+        style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.text.secondary,
+          display: 'block',
+          marginBottom: theme.spacing.xs,
+        }}
+      >
+        {label}
+      </label>
       {isEditing ? (
-        <input type="text" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} style={{ width: '100%', padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, ...theme.typography.body.large }} />
+        <input
+          type="text"
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          placeholder={placeholder}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            ...theme.typography.body.large,
+          }}
+        />
       ) : (
-        <div style={{ ...theme.typography.body.large, color: value ? theme.colors.text.primary : theme.colors.text.tertiary, fontStyle: value ? 'normal' : 'italic' }}>{value || t('settings.profile.notSet')}</div>
+        <div
+          style={{
+            ...theme.typography.body.large,
+            color: value ? theme.colors.text.primary : theme.colors.text.tertiary,
+            fontStyle: value ? 'normal' : 'italic',
+          }}
+        >
+          {value || t('settings.profile.notSet')}
+        </div>
       )}
     </div>
   );

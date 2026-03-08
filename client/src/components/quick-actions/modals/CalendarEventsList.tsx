@@ -20,14 +20,16 @@ interface CalendarEventsListProps {
 
 export const CalendarEventsList: React.FC<CalendarEventsListProps> = ({ events, attendeeEmail }) => {
   const { t } = useTranslation();
-  
+
   if (events.length === 0) {
     return (
-      <div style={{
-        padding: theme.spacing.xl,
-        textAlign: 'center',
-        color: theme.colors.text.secondary,
-      }}>
+      <div
+        style={{
+          padding: theme.spacing.xl,
+          textAlign: 'center',
+          color: theme.colors.text.secondary,
+        }}
+      >
         {t('quickActions.calendar.noEventsFound', { email: attendeeEmail })}
       </div>
     );
@@ -35,17 +37,18 @@ export const CalendarEventsList: React.FC<CalendarEventsListProps> = ({ events, 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-      <div style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.sm,
-        marginBottom: theme.spacing.sm,
-      }}>
+      <div
+        style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
         {t('quickActions.calendar.foundEvents', { count: events.length })}
       </div>
-      {events.map((event) => (
+      {events.map(event => (
         <CalendarEventItem key={`${event.start}-${event.end}-${event.summary || 'untitled'}`} event={event} />
       ))}
     </div>
   );
 };
-

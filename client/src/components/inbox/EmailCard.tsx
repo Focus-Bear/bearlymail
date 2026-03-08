@@ -16,19 +16,19 @@ interface EmailCardProps {
 }
 
 const getBorderColor = (isSelected: boolean, isRead: boolean, wasDeliveredEarly: boolean): string => {
-  if (wasDeliveredEarly) return theme.colors.warning.main;
-  if (isSelected) return theme.colors.primary.main;
-  if (isRead) return theme.colors.border.light;
+  if (wasDeliveredEarly) {
+    return theme.colors.warning.main;
+  }
+  if (isSelected) {
+    return theme.colors.primary.main;
+  }
+  if (isRead) {
+    return theme.colors.border.light;
+  }
   return theme.colors.primary.light;
 };
 
-export const EmailCard: React.FC<EmailCardProps> = ({
-  email,
-  isSelected,
-  onCardClick,
-  children,
-  mode,
-}) => {
+export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardClick, children, mode }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
@@ -47,18 +47,20 @@ export const EmailCard: React.FC<EmailCardProps> = ({
         padding: cardPadding,
         paddingTop: cardPaddingTop,
         border: `2px solid ${getBorderColor(isSelected, email.isRead, showEmergencyRibbon)}`,
-        borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${showEmergencyRibbon ? theme.colors.warning.main : theme.colors.primary.main}`,
+        borderLeft: email.isRead
+          ? `1px solid ${theme.colors.border.light}`
+          : `4px solid ${showEmergencyRibbon ? theme.colors.warning.main : theme.colors.primary.main}`,
         boxShadow: theme.shadows.sm,
         cursor: 'pointer',
         transition: theme.transitions.default,
         position: 'relative',
         overflow: 'hidden',
       }}
-      onMouseEnter={(event) => {
+      onMouseEnter={event => {
         event.currentTarget.style.transform = 'translateY(-2px)';
         event.currentTarget.style.boxShadow = theme.shadows.md;
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={event => {
         event.currentTarget.style.transform = 'translateY(0)';
         event.currentTarget.style.boxShadow = theme.shadows.sm;
       }}

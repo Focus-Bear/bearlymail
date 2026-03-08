@@ -49,7 +49,7 @@ export const useAuthInitialization = (
 
     const token = localStorage.getItem('token');
     console.log('Checking for token on app load:', token ? 'FOUND' : 'NOT FOUND');
-    
+
     if (token) {
       if (isTokenExpired(token)) {
         console.log('Token is expired, clearing');
@@ -57,12 +57,13 @@ export const useAuthInitialization = (
         setLoading(false);
         return;
       }
-      
+
       console.log('Token found and valid, verifying with server...');
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      axios.get(`${API_URL}/users/me`)
-        .then((response) => {
+      axios
+        .get(`${API_URL}/users/me`)
+        .then(response => {
           const userData = response.data;
           console.log('User data fetched successfully:', userData?.email || 'no email');
           setUser(userData);
@@ -72,20 +73,23 @@ export const useAuthInitialization = (
             });
           }
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('Failed to fetch user:', {
             status: error.response?.status,
             message: error.message,
             url: error.config?.url,
           });
-          
+
           if (error.response?.status === HTTP_UNAUTHORIZED || isTokenExpired(token)) {
             console.log('Auth failed (401 or expired), clearing token and user state');
             localStorage.removeItem('token');
             delete axios.defaults.headers.common['Authorization'];
             setUser(null);
           } else {
-            console.warn('Failed to fetch user (non-auth error), keeping token but setting user to null:', error.message);
+            console.warn(
+              'Failed to fetch user (non-auth error), keeping token but setting user to null:',
+              error.message
+            );
             setUser(null);
           }
         })
@@ -95,5 +99,3 @@ export const useAuthInitialization = (
     }
   }, [setUser, setLoading]);
 };
-
-

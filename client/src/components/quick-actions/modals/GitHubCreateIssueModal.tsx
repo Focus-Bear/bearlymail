@@ -8,7 +8,7 @@ import { ModalFormActions } from 'components/modal/ModalFormActions';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { GitHubIssueForm } from 'components/quick-actions/modals/github/GitHubIssueForm';
 import { API_URL } from 'config/api';
-import { MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
+import { MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM, VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface GitHubCreateIssueModalProps {
   email: {
@@ -96,5 +96,3 @@ export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
     </ModalBackdrop>
   );
 };
-
-

@@ -15,6 +15,3 @@ export const LegalList: React.FC<LegalListProps> = ({ items }) => {
     </ul>
   );
 };
-
-
-

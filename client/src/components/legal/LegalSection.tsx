@@ -10,24 +10,28 @@ interface LegalSectionProps {
 export const LegalSection: React.FC<LegalSectionProps> = ({ title, children, subsections }) => {
   return (
     <section style={{ marginBottom: theme.spacing.xl }}>
-      <h2 style={{
-        fontSize: theme.typography.fontSize.xl,
-        fontWeight: theme.typography.fontWeight.bold,
-        marginBottom: theme.spacing.md,
-        marginTop: theme.spacing.lg,
-      }}>
+      <h2
+        style={{
+          fontSize: theme.typography.fontSize.xl,
+          fontWeight: theme.typography.fontWeight.bold,
+          marginBottom: theme.spacing.md,
+          marginTop: theme.spacing.lg,
+        }}
+      >
         {title}
       </h2>
       {children}
       {subsections?.map((subsection, index) => (
         // eslint-disable-next-line react/no-array-index-key
         <div key={index}>
-          <h3 style={{
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: theme.spacing.sm,
-            marginTop: theme.spacing.md,
-          }}>
+          <h3
+            style={{
+              fontSize: theme.typography.fontSize.lg,
+              fontWeight: theme.typography.fontWeight.semibold,
+              marginBottom: theme.spacing.sm,
+              marginTop: theme.spacing.md,
+            }}
+          >
             {subsection.title}
           </h3>
           {subsection.content}
@@ -36,4 +40,3 @@ export const LegalSection: React.FC<LegalSectionProps> = ({ title, children, sub
     </section>
   );
 };
-

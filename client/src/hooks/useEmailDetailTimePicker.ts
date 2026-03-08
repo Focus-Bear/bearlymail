@@ -30,18 +30,21 @@ export const useEmailDetailTimePicker = (): UseEmailDetailTimePickerResult => {
     setShowTimePicker(true);
   }, [fetchTimeSuggestions]);
 
-  const handleTimeSelect = useCallback(async (time: Date) => {
-    const checkResult = await checkSendTime(time);
-    if (!checkResult.isAppropriate) {
-      setTimeWarning(checkResult.warning);
-      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
-    } else {
-      setTimeWarning(undefined);
-      setSuggestedTime(undefined);
-      setScheduledSendAt(time);
-      setShowTimePicker(false);
-    }
-  }, [checkSendTime]);
+  const handleTimeSelect = useCallback(
+    async (time: Date) => {
+      const checkResult = await checkSendTime(time);
+      if (!checkResult.isAppropriate) {
+        setTimeWarning(checkResult.warning);
+        setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
+      } else {
+        setTimeWarning(undefined);
+        setSuggestedTime(undefined);
+        setScheduledSendAt(time);
+        setShowTimePicker(false);
+      }
+    },
+    [checkSendTime]
+  );
 
   const handleCancelTimePicker = useCallback(() => {
     setTimeWarning(undefined);

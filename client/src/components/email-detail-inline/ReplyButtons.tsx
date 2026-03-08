@@ -11,10 +11,7 @@ interface ReplyButtonsProps {
   onReplyAll: () => void;
 }
 
-export const ReplyButtons: React.FC<ReplyButtonsProps> = ({
-  onReply,
-  onReplyAll,
-}) => {
+export const ReplyButtons: React.FC<ReplyButtonsProps> = ({ onReply, onReplyAll }) => {
   const { t } = useTranslation();
 
   return (
@@ -62,5 +59,3 @@ export const ReplyButtons: React.FC<ReplyButtonsProps> = ({
     </div>
   );
 };
-
-

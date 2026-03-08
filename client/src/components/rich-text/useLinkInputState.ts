@@ -21,7 +21,9 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
 
   useEffect(() => {
     if (linkDialogOpen && !showLinkInput) {
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
       if (editor.isActive('link')) {
         editor.chain().focus().unsetLink().run();
       } else {
@@ -40,7 +42,9 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
   }, [showLinkInput]);
 
   const handleLinkSubmit = useCallback(() => {
-    if (!editor || !linkUrl) return;
+    if (!editor || !linkUrl) {
+      return;
+    }
     let url = linkUrl.trim();
     if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
@@ -51,7 +55,9 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
   }, [editor, linkUrl]);
 
   const handleToggleLink = useCallback(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     if (editor.isActive('link')) {
       editor.chain().focus().unsetLink().run();
       return;

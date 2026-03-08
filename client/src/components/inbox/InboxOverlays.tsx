@@ -1,12 +1,6 @@
 import React, { RefObject } from 'react';
 
-import {
-  ReloginBanner,
-  ScanModal,
-  ScanNotification,
-  TourOverlay,
-  UrgentNotification,
-} from 'components/inbox/overlays';
+import { ReloginBanner, ScanModal, ScanNotification, TourOverlay, UrgentNotification } from 'components/inbox/overlays';
 
 interface TourStep {
   title: string;
@@ -88,13 +82,9 @@ export const InboxOverlays: React.FC<InboxOverlaysProps> = ({
         />
       )}
 
-      {showScanModal && !isScanning && (
-        <ScanModal onStartScan={onStartScan} onDismissScan={onDismissScan} />
-      )}
+      {showScanModal && !isScanning && <ScanModal onStartScan={onStartScan} onDismissScan={onDismissScan} />}
 
-      {scanNotification.show && (
-        <ScanNotification progress={scanNotification.progress} />
-      )}
+      {scanNotification.show && <ScanNotification progress={scanNotification.progress} />}
 
       {urgentNotification.show && (
         <UrgentNotification

@@ -8,10 +8,7 @@ interface AnalyzeContextButtonProps {
   onAnalyzeContext: () => Promise<void>;
 }
 
-export const AnalyzeContextButton: React.FC<AnalyzeContextButtonProps> = ({
-  analyzing,
-  onAnalyzeContext,
-}) => {
+export const AnalyzeContextButton: React.FC<AnalyzeContextButtonProps> = ({ analyzing, onAnalyzeContext }) => {
   const { t } = useTranslation();
 
   return (
@@ -35,22 +32,19 @@ export const AnalyzeContextButton: React.FC<AnalyzeContextButtonProps> = ({
         }}
       >
         {analyzing && (
-          <div style={{
-            width: '16px',
-            height: '16px',
-            border: `2px solid ${theme.colors.text.secondary}`,
-            borderTop: '2px solid transparent',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-          }} />
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
+              border: `2px solid ${theme.colors.text.secondary}`,
+              borderTop: '2px solid transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }}
+          />
         )}
         {analyzing ? t('settings.analyzing') : t('settings.analyzeEmails')}
       </button>
     </div>
   );
 };
-
-
-
-
-

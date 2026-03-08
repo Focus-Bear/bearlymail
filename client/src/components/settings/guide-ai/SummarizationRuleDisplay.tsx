@@ -17,11 +17,7 @@ interface SummarizationRuleDisplayProps {
   onDelete: () => void;
 }
 
-export const SummarizationRuleDisplay: React.FC<SummarizationRuleDisplayProps> = ({
-  rule,
-  onEdit,
-  onDelete,
-}) => {
+export const SummarizationRuleDisplay: React.FC<SummarizationRuleDisplayProps> = ({ rule, onEdit, onDelete }) => {
   const { t } = useTranslation();
 
   return (
@@ -35,19 +31,23 @@ export const SummarizationRuleDisplay: React.FC<SummarizationRuleDisplayProps> =
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1 }}>
-          <div style={{
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.base,
-            fontWeight: theme.typography.fontWeight.medium,
-            marginBottom: theme.spacing.xs,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.base,
+              fontWeight: theme.typography.fontWeight.medium,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
             📋 {rule.whenToUse}
           </div>
-          <div style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.xs,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
             → {rule.howToSummarize}
           </div>
         </div>
@@ -85,8 +85,3 @@ export const SummarizationRuleDisplay: React.FC<SummarizationRuleDisplayProps> =
     </div>
   );
 };
-
-
-
-
-

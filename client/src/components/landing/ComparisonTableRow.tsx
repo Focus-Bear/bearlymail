@@ -45,7 +45,10 @@ export const ComparisonTableRow: React.FC<ComparisonTableRowProps> = ({ row, isL
 
   const bearlyMailCellStyle: React.CSSProperties = {
     ...dataCellStyle,
-    fontWeight: row.label === t('landing.comparison.table.rows.philosophy.label') ? theme.typography.fontWeight.medium : undefined,
+    fontWeight:
+      row.label === t('landing.comparison.table.rows.philosophy.label')
+        ? theme.typography.fontWeight.medium
+        : undefined,
   };
 
   const rowKey = `row-${row.label.toLowerCase().replace(/\s+/g, '-')}`;
@@ -59,6 +62,3 @@ export const ComparisonTableRow: React.FC<ComparisonTableRowProps> = ({ row, isL
     </tr>
   );
 };
-
-
-

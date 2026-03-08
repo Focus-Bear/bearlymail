@@ -13,11 +13,3 @@ interface AcceptConsentParams {
 export const acceptConsent = async (params: AcceptConsentParams): Promise<void> => {
   await axios.post(`${API_URL}/users/accept-consent`, params);
 };
-
-
-
-
-
-
-
-

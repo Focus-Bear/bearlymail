@@ -8,20 +8,24 @@ import { STRING_NONE } from 'constants/strings';
 
 export const GmailEmptyState: React.FC = () => {
   const { t } = useTranslation();
-  
+
   return (
-    <div style={{
-      padding: theme.spacing.xl,
-      textAlign: 'center',
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      marginBottom: theme.spacing.md,
-    }}>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.lg,
-        fontSize: theme.typography.fontSize.base,
-      }}>
+    <div
+      style={{
+        padding: theme.spacing.xl,
+        textAlign: 'center',
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.lg,
+          fontSize: theme.typography.fontSize.base,
+        }}
+      >
         {t('settings.gmail.emptyState')}
       </p>
       <button
@@ -44,5 +48,3 @@ export const GmailEmptyState: React.FC = () => {
     </div>
   );
 };
-
-

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef,useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { TIMEOUT_300_MS } from 'constants/numbers';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -60,15 +60,18 @@ export function useSplitView(): UseSplitViewReturn {
       } catch (error) {
         console.error('Error saving split position to localStorage:', error);
       }
-      }, TIMEOUT_300_MS); // Debounce by 300ms
+    }, TIMEOUT_300_MS); // Debounce by 300ms
   }, []);
 
-  const setSplitPosition = useCallback((position: number) => {
-    // Clamp position between min and max
-    const clampedPosition = Math.max(MIN_SPLIT_POSITION, Math.min(MAX_SPLIT_POSITION, position));
-    setSplitPositionState(clampedPosition);
-    savePosition(clampedPosition);
-  }, [savePosition]);
+  const setSplitPosition = useCallback(
+    (position: number) => {
+      // Clamp position between min and max
+      const clampedPosition = Math.max(MIN_SPLIT_POSITION, Math.min(MAX_SPLIT_POSITION, position));
+      setSplitPositionState(clampedPosition);
+      savePosition(clampedPosition);
+    },
+    [savePosition]
+  );
 
   const startResize = useCallback(() => {
     setIsResizing(true);
@@ -127,4 +130,3 @@ export function useSplitView(): UseSplitViewReturn {
     endResize,
   };
 }
-

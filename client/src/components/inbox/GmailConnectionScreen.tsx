@@ -8,38 +8,46 @@ import { STRING_NONE } from 'constants/strings';
 
 export const GmailConnectionScreen: React.FC = () => {
   const { t } = useTranslation();
-  
+
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-      padding: theme.spacing.xl,
-    }}>
-      <div style={{
-        backgroundColor: theme.colors.background.paper,
-        padding: theme.spacing['2xl'],
-        borderRadius: theme.borderRadius.lg,
-        boxShadow: theme.shadows.lg,
-        maxWidth: '500px',
-        textAlign: 'center',
-      }}>
-        <h1 style={{
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.lg,
-          fontSize: theme.typography.fontSize['2xl'],
-          fontWeight: theme.typography.fontWeight.bold,
-        }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        padding: theme.spacing.xl,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          padding: theme.spacing['2xl'],
+          borderRadius: theme.borderRadius.lg,
+          boxShadow: theme.shadows.lg,
+          maxWidth: '500px',
+          textAlign: 'center',
+        }}
+      >
+        <h1
+          style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+          }}
+        >
           {t('gmail.connectTitle')}
         </h1>
-        <p style={{
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.xl,
-          fontSize: theme.typography.fontSize.base,
-          lineHeight: 1.6,
-        }}>
+        <p
+          style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xl,
+            fontSize: theme.typography.fontSize.base,
+            lineHeight: 1.6,
+          }}
+        >
           {t('gmail.connectDescription')}
         </p>
         <button
@@ -60,11 +68,13 @@ export const GmailConnectionScreen: React.FC = () => {
         >
           {t('gmail.connectButton')}
         </button>
-        <p style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.tertiary,
-          marginTop: theme.spacing.lg,
-        }}>
+        <p
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.tertiary,
+            marginTop: theme.spacing.lg,
+          }}
+        >
           {t('gmail.connectMultipleHint')}
         </p>
       </div>

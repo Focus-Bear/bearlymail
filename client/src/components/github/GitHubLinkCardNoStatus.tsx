@@ -13,12 +13,14 @@ interface GitHubLinkCardNoStatusProps {
 export const GitHubLinkCardNoStatus: React.FC<GitHubLinkCardNoStatusProps> = ({ link }) => {
   const { t } = useTranslation();
   return (
-    <div style={{
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
+    <div
+      style={{
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
       <a
         href={link.url}
         target="_blank"
@@ -36,16 +38,15 @@ export const GitHubLinkCardNoStatus: React.FC<GitHubLinkCardNoStatusProps> = ({ 
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {link.type === LINK_TYPE_ISSUE ? EMOJI_ISSUE : EMOJI_PR} {link.owner}/{link.repo}#{link.number}
       </a>
-      <p style={{
-        margin: `${theme.spacing.xs} 0 0`,
-        fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.text.tertiary,
-      }}>
+      <p
+        style={{
+          margin: `${theme.spacing.xs} 0 0`,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.tertiary,
+        }}
+      >
         {t('github.statusUnavailable')}
       </p>
     </div>
   );
 };
-
-
-

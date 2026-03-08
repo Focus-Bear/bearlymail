@@ -55,10 +55,10 @@ export const LandingFooter: React.FC = () => {
         <a
           href="https://app.bearlymail.com/privacy"
           style={linkStyle}
-          onMouseEnter={(event) => {
+          onMouseEnter={event => {
             event.currentTarget.style.textDecoration = 'underline';
           }}
-          onMouseLeave={(event) => {
+          onMouseLeave={event => {
             event.currentTarget.style.textDecoration = 'none';
           }}
         >
@@ -68,10 +68,10 @@ export const LandingFooter: React.FC = () => {
         <a
           href="https://app.bearlymail.com/terms"
           style={linkStyle}
-          onMouseEnter={(event) => {
+          onMouseEnter={event => {
             event.currentTarget.style.textDecoration = 'underline';
           }}
-          onMouseLeave={(event) => {
+          onMouseLeave={event => {
             event.currentTarget.style.textDecoration = 'none';
           }}
         >

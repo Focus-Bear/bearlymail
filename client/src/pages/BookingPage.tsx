@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -10,7 +10,16 @@ import { BookingSuccessState } from 'components/booking/BookingSuccessState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
 import { DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
-import { BOOKING_ERROR, BOOKING_IDLE, BOOKING_STATUS_SUCCESS, BOOKING_SUBMITTING, BOOKING_SUCCESS, STRING_AUTO, STRING_HIDDEN,STRING_WHITE } from 'constants/strings';
+import {
+  BOOKING_ERROR,
+  BOOKING_IDLE,
+  BOOKING_STATUS_SUCCESS,
+  BOOKING_SUBMITTING,
+  BOOKING_SUCCESS,
+  STRING_AUTO,
+  STRING_HIDDEN,
+  STRING_WHITE,
+} from 'constants/strings';
 
 interface TimeSlot {
   start: string;
@@ -29,7 +38,9 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [daysAhead, setDaysAhead] = useState(DAYS_IN_MONTH_30);
-  const [bookingStatus, setBookingStatus] = useState<typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR>(BOOKING_IDLE);
+  const [bookingStatus, setBookingStatus] = useState<
+    typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR
+  >(BOOKING_IDLE);
   const [error, setError] = useState('');
 
   const fetchSlots = async (days: number, append = false) => {
@@ -72,7 +83,9 @@ const BookingPage: React.FC = () => {
 
   const handleBook = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedSlot || !guestEmail || !userId) return;
+    if (!selectedSlot || !guestEmail || !userId) {
+      return;
+    }
 
     setBookingStatus(BOOKING_SUBMITTING);
     try {
@@ -99,38 +112,46 @@ const BookingPage: React.FC = () => {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: theme.colors.background.default,
-      fontFamily: theme.typography.fontFamily,
-      padding: theme.spacing.xl,
-    }}>
-      <div style={{
-        maxWidth: `${MAX_WIDTH_600_PX}px`,
-        margin: STRING_AUTO,
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.lg,
-        boxShadow: theme.shadows.lg,
-        overflow: STRING_HIDDEN,
-      }}>
-        <div style={{
-          padding: theme.spacing.xl,
-          backgroundColor: theme.colors.primary.main,
-          color: STRING_WHITE,
-        }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: theme.colors.background.default,
+        fontFamily: theme.typography.fontFamily,
+        padding: theme.spacing.xl,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: `${MAX_WIDTH_600_PX}px`,
+          margin: STRING_AUTO,
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          boxShadow: theme.shadows.lg,
+          overflow: STRING_HIDDEN,
+        }}
+      >
+        <div
+          style={{
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.primary.main,
+            color: STRING_WHITE,
+          }}
+        >
           <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>{t('booking.title')}</h1>
           <p style={{ marginTop: theme.spacing.sm, opacity: OPACITY_90_PERCENT }}>{t('booking.subtitle')}</p>
         </div>
 
         <div style={{ padding: theme.spacing.xl }}>
           {error && (
-            <div style={{
-              backgroundColor: `${theme.colors.accent.error}20`,
-              color: theme.colors.accent.error,
-              padding: theme.spacing.md,
-              borderRadius: theme.borderRadius.md,
-              marginBottom: theme.spacing.lg,
-            }}>
+            <div
+              style={{
+                backgroundColor: `${theme.colors.accent.error}20`,
+                color: theme.colors.accent.error,
+                padding: theme.spacing.md,
+                borderRadius: theme.borderRadius.md,
+                marginBottom: theme.spacing.lg,
+              }}
+            >
               {error}
             </div>
           )}
@@ -162,5 +183,3 @@ const BookingPage: React.FC = () => {
 };
 
 export default BookingPage;
-
-

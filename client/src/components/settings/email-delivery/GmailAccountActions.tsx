@@ -18,12 +18,9 @@ interface GmailAccountActionsProps {
   onFetchData: () => Promise<void>;
 }
 
-export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({
-  account,
-  onFetchData,
-}) => {
+export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({ account, onFetchData }) => {
   const { t } = useTranslation();
-  
+
   const handleSetPrimary = async () => {
     try {
       const axios = (await import('axios')).default;
@@ -46,7 +43,9 @@ export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({
     }
   };
 
-  if (account.isSSO) return null;
+  if (account.isSSO) {
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', gap: theme.spacing.sm }}>
@@ -83,5 +82,3 @@ export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({
     </div>
   );
 };
-
-

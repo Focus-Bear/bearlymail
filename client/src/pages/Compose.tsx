@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef,useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -15,8 +15,8 @@ import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { API_URL } from 'config/api';
-import { DELAY_1_5_SECONDS_MS,OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { EMAIL_FIELD_CC,EMAIL_FIELD_TO } from 'constants/strings';
+import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
@@ -27,24 +27,13 @@ import { useScheduledEmails } from 'hooks/useScheduledEmails';
 const Compose: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  
+
   const form = useComposeForm();
   const search = useContactSearch();
   const { showError } = useNotifications();
-  const {
-    checkingTone,
-    toneCheckResult,
-    setToneCheckResult,
-    checkTone,
-    disputing,
-    disputeResult,
-    disputeToneCheck,
-  } = useEmailDetailToneCheck();
-  const {
-    timeSuggestions,
-    checkSendTime,
-    fetchTimeSuggestions,
-  } = useScheduledEmails();
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, disputing, disputeResult, disputeToneCheck } =
+    useEmailDetailToneCheck();
+  const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
 
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -88,26 +77,35 @@ const Compose: React.FC = () => {
     }
   };
 
-  const handleAddRecipient = useCallback((contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
-    const isFromSearch = search.searchResults.some(searchContact => searchContact.email === contact.email);
-    const contactSource = isFromSearch ? 'search' : 'frequent';
-    captureEvent('compose_contact_selected', { contact_source: contactSource });
+  const handleAddRecipient = useCallback(
+    (contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
+      const isFromSearch = search.searchResults.some(searchContact => searchContact.email === contact.email);
+      const contactSource = isFromSearch ? 'search' : 'frequent';
+      captureEvent('compose_contact_selected', { contact_source: contactSource });
 
-    form.addRecipient(contact, field);
-    search.clearSearch();
-  }, [form, search]);
+      form.addRecipient(contact, field);
+      search.clearSearch();
+    },
+    [form, search]
+  );
 
-  const handleSearchQueryChange = useCallback((query: string) => {
-    if (search.activeField) {
-      search.handleSearchInput(query, search.activeField);
-    }
-  }, [search]);
+  const handleSearchQueryChange = useCallback(
+    (query: string) => {
+      if (search.activeField) {
+        search.handleSearchInput(query, search.activeField);
+      }
+    },
+    [search]
+  );
 
-  const handleSelectSearchResult = useCallback((contact: Contact) => {
-    if (search.activeField) {
-      handleAddRecipient(contact, search.activeField);
-    }
-  }, [search.activeField, handleAddRecipient]);
+  const handleSelectSearchResult = useCallback(
+    (contact: Contact) => {
+      if (search.activeField) {
+        handleAddRecipient(contact, search.activeField);
+      }
+    },
+    [search.activeField, handleAddRecipient]
+  );
 
   const handleSend = async () => {
     if (form.to.length === 0) {
@@ -126,7 +124,9 @@ const Compose: React.FC = () => {
     setError(null);
 
     const toneOk = await checkTone(form.body.trim());
-    if (!toneOk) return;
+    if (!toneOk) {
+      return;
+    }
 
     setSending(true);
     captureEvent('compose_sent', {
@@ -171,19 +171,22 @@ const Compose: React.FC = () => {
     setShowTimePicker(true);
   }, [fetchTimeSuggestions]);
 
-  const handleTimeSelect = useCallback(async (time: Date) => {
-    setLastSelectedTime(time);
-    const checkResult = await checkSendTime(time);
-    if (!checkResult.isAppropriate) {
-      setTimeWarning(checkResult.warning);
-      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
-    } else {
-      setTimeWarning(undefined);
-      setSuggestedTime(undefined);
-      setScheduledSendAt(time);
-      setShowTimePicker(false);
-    }
-  }, [checkSendTime]);
+  const handleTimeSelect = useCallback(
+    async (time: Date) => {
+      setLastSelectedTime(time);
+      const checkResult = await checkSendTime(time);
+      if (!checkResult.isAppropriate) {
+        setTimeWarning(checkResult.warning);
+        setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
+      } else {
+        setTimeWarning(undefined);
+        setSuggestedTime(undefined);
+        setScheduledSendAt(time);
+        setShowTimePicker(false);
+      }
+    },
+    [checkSendTime]
+  );
 
   const handleOverrideTime = useCallback((time: Date) => {
     setScheduledSendAt(time);
@@ -332,7 +335,7 @@ const Compose: React.FC = () => {
 
           <ToneCheckResult
             toneCheckResult={toneCheckResult}
-            onUseRevisedText={(text) => {
+            onUseRevisedText={text => {
               form.setBody(text);
               setToneCheckResult({ isOk: true, suggestions: [] });
             }}
@@ -346,10 +349,7 @@ const Compose: React.FC = () => {
             }}
           />
 
-          <ComposeMessages
-            error={error}
-            sendSuccess={sendSuccess}
-          />
+          <ComposeMessages error={error} sendSuccess={sendSuccess} />
         </div>
 
         <ComposeActions

@@ -17,8 +17,10 @@ import { NODE_NAME_ANCHOR } from 'constants/strings';
  */
 // eslint-disable-next-line complexity, max-statements -- Signature detection requires complex logic to handle various email formats and edge cases
 export function removeSignature(content: string, isHtml: boolean = false): string {
-  if (!content) return '';
-  
+  if (!content) {
+    return '';
+  }
+
   if (isHtml) {
     // For HTML, look for signature patterns directly in HTML structure
     const htmlSignaturePatterns = [
@@ -32,9 +34,9 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
       // Look for mobile signatures
       /(<div[^>]*>[\s\S]*?(?:Sent from my|Get Outlook for|Sent from Mail|Sent from iPhone|Sent from iPad)[\s\S]*?<\/div>)/i,
     ];
-    
+
     let cutoffIndex = content.length;
-    
+
     for (const pattern of htmlSignaturePatterns) {
       const match = content.match(pattern);
       if (match && match.index !== undefined) {
@@ -45,13 +47,13 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
         }
       }
     }
-    
+
     // Also check plain text representation for additional patterns
     // Parse safely to prevent triggering network requests (e.g., tracking pixels)
     const cleanedContent = removeCidImagesFromString(content);
     const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
     const text = doc.body.textContent || doc.body.innerText || '';
-    
+
     const textSignaturePatterns = [
       /\n\n--\s*$/m,
       /\n\n-{3,}\s*$/m,
@@ -59,7 +61,7 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
       /\n\n(Best regards?|Kind regards?|Regards?|Thanks?|Thank you|Cheers?|Sincerely|Yours truly|Warm regards?|Best|All the best)[\s\S]*$/i,
       /\n\nRMIT[\s\S]*?(Privacy|www\.rmit\.edu\.au)[\s\S]*$/i,
     ];
-    
+
     for (const pattern of textSignaturePatterns) {
       const match = text.match(pattern);
       if (match && match.index !== undefined) {
@@ -71,11 +73,11 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
         }
       }
     }
-    
+
     if (cutoffIndex < content.length) {
       return content.substring(0, cutoffIndex).trim();
     }
-    
+
     return content;
   } else {
     // Plain text signature removal
@@ -88,9 +90,9 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
       /\n\nRESEARCH CONTRACTS TEAM[\s\S]*?Privacy[\s\S]*$/i,
       /\n\nRMIT[\s\S]*?(Privacy|www\.rmit\.edu\.au)[\s\S]*$/i,
     ];
-    
+
     let cutoffIndex = content.length;
-    
+
     for (const pattern of signaturePatterns) {
       const match = content.match(pattern);
       if (match && match.index !== undefined) {
@@ -100,12 +102,12 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
         }
       }
     }
-    
+
     if (cutoffIndex < content.length) {
       return content.substring(0, cutoffIndex).trim();
     }
   }
-  
+
   return content;
 }
 
@@ -114,7 +116,9 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
  * This prevents the browser from attempting to load embedded email images
  */
 function removeCidImagesFromString(html: string): string {
-  if (!html) return '';
+  if (!html) {
+    return '';
+  }
   return html.replace(/<img[^>]*src=["']cid:[^"']*["'][^>]*>/gi, '');
 }
 
@@ -122,15 +126,17 @@ function removeCidImagesFromString(html: string): string {
  * Helper function to clean HTML body by removing quoted/forwarded email content
  */
 export function extractCleanHtmlBody(htmlBody: string): string {
-  if (!htmlBody) return '';
-  
+  if (!htmlBody) {
+    return '';
+  }
+
   // Remove cid: images before parsing to prevent browser from trying to load them
   const cleanedHtml = removeCidImagesFromString(htmlBody);
-  
+
   // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
   const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
   const textContent = doc.body.textContent || doc.body.innerText || '';
-  
+
   // Simple patterns that catch most email boundaries
   const boundaryPatterns = [
     // "On [date] at [time] [name] <email> wrote:" - Gmail style
@@ -144,7 +150,7 @@ export function extractCleanHtmlBody(htmlBody: string): string {
     // "Date: ... From: ... To: ... Subject: ..."
     /Date:\s+.*?\nFrom:\s+.*?\nTo:\s+.*?\nSubject:/i,
   ];
-  
+
   let cutoffIndex = textContent.length;
   for (const pattern of boundaryPatterns) {
     const match = textContent.search(pattern);
@@ -155,7 +161,7 @@ export function extractCleanHtmlBody(htmlBody: string): string {
       }
     }
   }
-  
+
   // If we found a boundary, find it in the HTML
   if (cutoffIndex < textContent.length) {
     const textBeforeBoundary = textContent.substring(0, cutoffIndex);
@@ -171,13 +177,13 @@ export function extractCleanHtmlBody(htmlBody: string): string {
       return htmlBody.substring(0, cutPoint).trim();
     }
   }
-  
+
   // Also check for HTML blockquote tags
   const blockquoteMatch = htmlBody.search(/<blockquote[^>]*>/i);
   if (blockquoteMatch > BLOCKQUOTE_MIN_POSITION) {
     return htmlBody.substring(0, blockquoteMatch).trim();
   }
-  
+
   return htmlBody;
 }
 
@@ -186,7 +192,9 @@ const URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g
 function isInsideAnchor(node: Node): boolean {
   let parent = node.parentNode;
   while (parent) {
-    if (parent.nodeName === NODE_NAME_ANCHOR) return true;
+    if (parent.nodeName === NODE_NAME_ANCHOR) {
+      return true;
+    }
     parent = parent.parentNode;
   }
   return false;
@@ -202,9 +210,13 @@ function linkifyTextNodes(root: HTMLElement): void {
   }
 
   for (const textNode of textNodes) {
-    if (isInsideAnchor(textNode)) continue;
+    if (isInsideAnchor(textNode)) {
+      continue;
+    }
     const text = textNode.nodeValue || '';
-    if (!URL_REGEX.test(text)) continue;
+    if (!URL_REGEX.test(text)) {
+      continue;
+    }
     URL_REGEX.lastIndex = 0;
 
     const fragment = document.createDocumentFragment();
@@ -238,20 +250,72 @@ function linkifyTextNodes(root: HTMLElement): void {
 // Email-compatible allowed tags- comprehensive list for proper email rendering
 const EMAIL_ALLOWED_TAGS = [
   // Text formatting
-  'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
-  'mark', 'small', 'big', 'sub', 'sup', 'font', 'center',
+  'p',
+  'br',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  's',
+  'strike',
+  'del',
+  'ins',
+  'mark',
+  'small',
+  'big',
+  'sub',
+  'sup',
+  'font',
+  'center',
   // Headings
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
   // Structure
-  'div', 'span', 'section', 'article', 'header', 'footer', 'main', 'aside', 'nav',
+  'div',
+  'span',
+  'section',
+  'article',
+  'header',
+  'footer',
+  'main',
+  'aside',
+  'nav',
   // Lists
-  'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+  'ul',
+  'ol',
+  'li',
+  'dl',
+  'dt',
+  'dd',
   // Tables (full support for email layouts)
-  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'colgroup', 'col',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'caption',
+  'colgroup',
+  'col',
   // Media
-  'img', 'figure', 'figcaption',
+  'img',
+  'figure',
+  'figcaption',
   // Other common elements
-  'a', 'blockquote', 'pre', 'code', 'hr', 'address', 'cite', 'q',
+  'a',
+  'blockquote',
+  'pre',
+  'code',
+  'hr',
+  'address',
+  'cite',
+  'q',
   // Styles (needed for email CSS)
   'style',
 ];
@@ -259,16 +323,33 @@ const EMAIL_ALLOWED_TAGS = [
 // Email-compatible allowed attributes - includes table layout attributes common in emails
 const EMAIL_ALLOWED_ATTR = [
   // Links and images
-  'href', 'src', 'alt', 'title',
+  'href',
+  'src',
+  'alt',
+  'title',
   // Styling
-  'class', 'style', 'id',
+  'class',
+  'style',
+  'id',
   // Link behavior
-  'target', 'rel',
+  'target',
+  'rel',
   // Table layout attributes (heavily used in email HTML)
-  'width', 'height', 'align', 'valign', 'bgcolor', 'background',
-  'border', 'cellpadding', 'cellspacing', 'colspan', 'rowspan',
+  'width',
+  'height',
+  'align',
+  'valign',
+  'bgcolor',
+  'background',
+  'border',
+  'cellpadding',
+  'cellspacing',
+  'colspan',
+  'rowspan',
   // Font attributes (legacy but common in emails)
-  'color', 'size', 'face',
+  'color',
+  'size',
+  'face',
 ];
 
 /**
@@ -276,8 +357,10 @@ const EMAIL_ALLOWED_ATTR = [
  * This function sanitizes first (for XSS protection), then adds target="_blank" to links
  */
 export function sanitizeAndProcessHtml(html: string): string {
-  if (!html) return '';
-  
+  if (!html) {
+    return '';
+  }
+
   // Step 1: Sanitize the HTML first to prevent XSS attacks
   // DOMPurify removes dangerous content and attributes
   const sanitized = DOMPurify.sanitize(html, {
@@ -288,34 +371,34 @@ export function sanitizeAndProcessHtml(html: string): string {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange'],
   });
-  
+
   // Step 2: Remove problematic images
   // First remove cid: images from string to prevent browser from trying to load them
   const sanitizedWithoutCid = removeCidImagesFromString(sanitized);
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = sanitizedWithoutCid;
-  
+
   // Remove all images with cid: URLs (embedded email images that can't be resolved)
   const cidImages = tempDiv.querySelectorAll('img[src^="cid:"]');
-  cidImages.forEach((img) => img.remove());
-  
+  cidImages.forEach(img => img.remove());
+
   // Remove avatar images entirely - they're small profile pics that look bad when expanded
   const avatarImages = tempDiv.querySelectorAll('img[src*="avatars.githubusercontent.com"]');
-  avatarImages.forEach((img) => img.remove());
-  
+  avatarImages.forEach(img => img.remove());
+
   // Step 3: Auto-linkify plain URLs in text nodes that aren't already inside <a> tags
   linkifyTextNodes(tempDiv);
-  
+
   // Step 4: Process links to add target="_blank" and rel="noopener noreferrer"
   const links = tempDiv.querySelectorAll('a[href]');
-  links.forEach((link) => {
+  links.forEach(link => {
     const href = link.getAttribute('href');
     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
       link.setAttribute('target', '_blank');
       link.setAttribute('rel', 'noopener noreferrer');
     }
   });
-  
+
   return tempDiv.innerHTML;
 }
 
@@ -325,9 +408,13 @@ export function sanitizeAndProcessHtml(html: string): string {
  * Preserves semantic line breaks from block elements (p, div, br, etc.).
  */
 export function stripHtmlTags(html: string): string {
-  if (!html) return '';
-  if (!html.includes('<')) return html;
-  
+  if (!html) {
+    return '';
+  }
+  if (!html.includes('<')) {
+    return html;
+  }
+
   // Replace block-level elements and line breaks with newlines before extracting text
   // This preserves semantic line breaks from HTML structure
   const processed = html
@@ -337,11 +424,11 @@ export function stripHtmlTags(html: string): string {
     .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, '</$1>\n')
     // Add newline before opening block-level tags (trimmed at end to handle leading newline)
     .replace(/(<(p|div|li|h[1-6]|blockquote|tr)\b[^>]*>)/gi, '\n$1');
-  
+
   // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
   const doc = new DOMParser().parseFromString(processed, 'text/html');
   const text = doc.body.textContent || doc.body.innerText || '';
-  
+
   // Clean up excessive whitespace while preserving single newlines
   return text.replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -350,8 +437,10 @@ export function stripHtmlTags(html: string): string {
  * Extract clean body from email (removes quoted content and signatures)
  */
 export function extractCleanBody(emailBody: string, htmlBody?: string): string {
-  if (!emailBody && !htmlBody) return '';
-  
+  if (!emailBody && !htmlBody) {
+    return '';
+  }
+
   // Prefer plain text body, fallback to HTML
   let content = emailBody || '';
 
@@ -369,7 +458,7 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
     const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
     content = doc.body.textContent || doc.body.innerText || '';
   }
-  
+
   // Find the boundary where the quoted/forwarded email starts
   // Use simpler, more reliable patterns - be less aggressive
   const boundaryPatterns = [
@@ -382,9 +471,9 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
     // "-----Original Message-----"
     /-----Original Message-----/i,
   ];
-  
+
   let cutoffIndex = content.length;
-  
+
   for (const pattern of boundaryPatterns) {
     const match = content.search(pattern);
     if (match > 0 && match < cutoffIndex) {
@@ -394,7 +483,7 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
       }
     }
   }
-  
+
   // If we found a boundary, cut the content there
   if (cutoffIndex < content.length && cutoffIndex > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
     const cleaned = content.substring(0, cutoffIndex).trim();
@@ -403,15 +492,12 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
       content = cleaned;
     }
   }
-  
+
   // Remove any remaining quoted lines (lines starting with >)
   content = content.replace(/^>+.*$/gm, '');
-  
+
   // Remove signatures
   content = removeSignature(content, false);
-  
+
   return content.replace(/\n{3,}/g, '\n\n').trim();
 }
-
-
-

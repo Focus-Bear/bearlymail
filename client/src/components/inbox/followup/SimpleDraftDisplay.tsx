@@ -19,26 +19,32 @@ export const SimpleDraftDisplay: React.FC<SimpleDraftDisplayProps> = ({
   onEdit,
 }) => {
   const { t } = useTranslation();
-  const displayText = isExpanded ? draft : `${draft.substring(0, TEXT_TRUNCATE_LENGTH)}${draft.length > TEXT_TRUNCATE_LENGTH ? '...' : ''}`;
+  const displayText = isExpanded
+    ? draft
+    : `${draft.substring(0, TEXT_TRUNCATE_LENGTH)}${draft.length > TEXT_TRUNCATE_LENGTH ? '...' : ''}`;
 
   return (
-    <div style={{
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.sm,
-      marginTop: theme.spacing.sm,
-    }}>
-      <div style={{
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-        whiteSpace: 'pre-wrap',
-        marginBottom: theme.spacing.xs,
-      }}>
+    <div
+      style={{
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.sm,
+        marginTop: theme.spacing.sm,
+      }}
+    >
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          whiteSpace: 'pre-wrap',
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {displayText}
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
             onToggleExpand();
           }}
@@ -55,7 +61,7 @@ export const SimpleDraftDisplay: React.FC<SimpleDraftDisplayProps> = ({
           {isExpanded ? t('common.showLess') : t('common.showMore')}
         </button>
         <button
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
             onEdit();
           }}
@@ -75,6 +81,3 @@ export const SimpleDraftDisplay: React.FC<SimpleDraftDisplayProps> = ({
     </div>
   );
 };
-
-
-

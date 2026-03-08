@@ -22,24 +22,39 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      padding: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.medium}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.subtle,
-      marginBottom: theme.spacing.lg,
-    }}>
-      <h4 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.base }}>
+    <div
+      style={{
+        padding: theme.spacing.lg,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.background.subtle,
+        marginBottom: theme.spacing.lg,
+      }}
+    >
+      <h4
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.base,
+        }}
+      >
         {t('settings.addSummarizationRule')}
       </h4>
       <div style={{ marginBottom: theme.spacing.md }}>
-        <label style={{ color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('settings.whenToUse')}
         </label>
         <input
           type="text"
           value={newSummarizationWhen}
-          onChange={(event) => onNewSummarizationWhenChange(event.target.value)}
+          onChange={event => onNewSummarizationWhenChange(event.target.value)}
           placeholder={t('settings.whenToUsePlaceholder')}
           style={{
             width: '100%',
@@ -51,12 +66,19 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
         />
       </div>
       <div style={{ marginBottom: theme.spacing.md }}>
-        <label style={{ color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('settings.howToSummarize')}
         </label>
         <textarea
           value={newSummarizationHow}
-          onChange={(event) => onNewSummarizationHowChange(event.target.value)}
+          onChange={event => onNewSummarizationHowChange(event.target.value)}
           placeholder={t('settings.howToSummarizePlaceholder')}
           style={{
             width: '100%',
@@ -74,7 +96,10 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
         disabled={!newSummarizationWhen.trim() || !newSummarizationHow.trim()}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: newSummarizationWhen.trim() && newSummarizationHow.trim() ? theme.colors.primary.main : theme.colors.background.subtle,
+          backgroundColor:
+            newSummarizationWhen.trim() && newSummarizationHow.trim()
+              ? theme.colors.primary.main
+              : theme.colors.background.subtle,
           color: newSummarizationWhen.trim() && newSummarizationHow.trim() ? 'white' : theme.colors.text.tertiary,
           border: 'none',
           borderRadius: theme.borderRadius.md,
@@ -87,5 +112,3 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
     </div>
   );
 };
-
-

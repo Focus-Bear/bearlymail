@@ -1,11 +1,11 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
-import { AnalyzeProgress,useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+import { AnalyzeProgress, useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 import { useApiKeys } from 'hooks/settings/useApiKeys';
-import { BatchSchedule,useBatchSchedule } from 'hooks/settings/useBatchSchedule';
+import { BatchSchedule, useBatchSchedule } from 'hooks/settings/useBatchSchedule';
 import { useBlockedKeywords } from 'hooks/settings/useBlockedKeywords';
 import { useBlockedSenders } from 'hooks/settings/useBlockedSenders';
 import { useContextManagement } from 'hooks/settings/useContextManagement';
@@ -45,7 +45,9 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
   const googleAccts = googleRes.data;
   const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
   if (hasTokens && googleAccts.length === 0) {
-    setters.setGoogleAccounts([{ id: 'sso-account', email: user.email, name: user.name || '', isPrimary: true, isSSO: true }]);
+    setters.setGoogleAccounts([
+      { id: 'sso-account', email: user.email, name: user.name || '', isPrimary: true, isSSO: true },
+    ]);
   } else {
     setters.setGoogleAccounts(googleAccts);
   }
@@ -82,16 +84,36 @@ export function useSettingsData() {
   const fetchData = useCallback(async () => {
     try {
       await Promise.all([
-        fetchUserAndAccounts({ setGoogleAccounts, setOffice365Accounts, setZohoAccounts, setDisplayName, setJobTitle, setEmailSignature }),
-        fetchSummarizationRules(), fetchContexts(), fetchBlockedSenders(),
-        fetchBlockedKeywords(), fetchBatchSchedule(), fetchToneRules(), fetchApiKeys(),
+        fetchUserAndAccounts({
+          setGoogleAccounts,
+          setOffice365Accounts,
+          setZohoAccounts,
+          setDisplayName,
+          setJobTitle,
+          setEmailSignature,
+        }),
+        fetchSummarizationRules(),
+        fetchContexts(),
+        fetchBlockedSenders(),
+        fetchBlockedKeywords(),
+        fetchBatchSchedule(),
+        fetchToneRules(),
+        fetchApiKeys(),
       ]);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
     }
-  }, [fetchSummarizationRules, fetchContexts, fetchBlockedSenders, fetchBlockedKeywords, fetchBatchSchedule, fetchToneRules, fetchApiKeys]);
+  }, [
+    fetchSummarizationRules,
+    fetchContexts,
+    fetchBlockedSenders,
+    fetchBlockedKeywords,
+    fetchBatchSchedule,
+    fetchToneRules,
+    fetchApiKeys,
+  ]);
 
   const analysisProgress = useAnalysisProgress(fetchData);
 
@@ -131,11 +153,29 @@ export function useSettingsData() {
   }, [fetchData]);
 
   return {
-    ...summarizationRules, ...blockedSenders, ...blockedKeywords, ...contextManagement,
-    ...batchSchedule, ...toneRules, ...apiKeys, ...analysisProgress,
-    loading, googleAccounts, setGoogleAccounts, office365Accounts, setOffice365Accounts,
-    zohoAccounts, setZohoAccounts, displayName, jobTitle, emailSignature, savingSignature,
-    fetchData, updateProfile, setEmailSignature, handleSaveEmailSignature,
+    ...summarizationRules,
+    ...blockedSenders,
+    ...blockedKeywords,
+    ...contextManagement,
+    ...batchSchedule,
+    ...toneRules,
+    ...apiKeys,
+    ...analysisProgress,
+    loading,
+    googleAccounts,
+    setGoogleAccounts,
+    office365Accounts,
+    setOffice365Accounts,
+    zohoAccounts,
+    setZohoAccounts,
+    displayName,
+    jobTitle,
+    emailSignature,
+    savingSignature,
+    fetchData,
+    updateProfile,
+    setEmailSignature,
+    handleSaveEmailSignature,
     handleAnalyzeContext: analysisProgress.startAnalysis,
     handleAddContext: contextManagement.addContext,
     handleUpdateContext: contextManagement.updateContext,

@@ -6,7 +6,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { ERROR_GMAIL,ERROR_GMAIL_REQUIRED } from 'constants/strings';
+import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
 import emailReducer from 'store/slices/emailSlice';
 
 import { useEmailFetching } from './useEmailFetching';
@@ -15,17 +15,17 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Create a test store
-const createTestStore = () => configureStore({
-  reducer: {
-    email: emailReducer,
-  },
-});
+const createTestStore = () =>
+  configureStore({
+    reducer: {
+      email: emailReducer,
+    },
+  });
 
 // Wrapper component for tests - returns the wrapper function directly
 const createWrapper = () => {
   const store = createTestStore();
-  const Wrapper = ({ children }: { children: React.ReactNode }) => 
-    React.createElement(Provider, { store }, children);
+  const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store }, children);
   return Wrapper;
 };
 
@@ -62,9 +62,7 @@ describe.skip('useEmailFetching', () => {
       await result.current.fetchEmails();
 
       await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-          expect.stringContaining('/emails/inbox?mode=triage')
-        );
+        expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/emails/inbox?mode=triage'));
       });
 
       await waitFor(() => {
@@ -98,9 +96,7 @@ describe.skip('useEmailFetching', () => {
     });
 
     it('should enrich emails with action items and notes', async () => {
-      const mockEmails = [
-        { id: '1', threadId: 'thread-1' },
-      ];
+      const mockEmails = [{ id: '1', threadId: 'thread-1' }];
 
       mockedAxios.get
         .mockResolvedValueOnce({ data: mockEmails })
@@ -161,9 +157,7 @@ describe.skip('useEmailFetching', () => {
       await result.current.fetchEmails();
 
       await waitFor(() => {
-        expect(mockSetFetchError).toHaveBeenCalledWith(
-          'Please log in again to view emails.'
-        );
+        expect(mockSetFetchError).toHaveBeenCalledWith('Please log in again to view emails.');
       });
     });
 
@@ -250,9 +244,7 @@ describe.skip('useEmailFetching', () => {
       await result.current.fetchEmails();
 
       await waitFor(() => {
-        expect(mockSetFetchError).toHaveBeenCalledWith(
-          'Failed to load emails. Please try again.'
-        );
+        expect(mockSetFetchError).toHaveBeenCalledWith('Failed to load emails. Please try again.');
       });
     });
 
@@ -329,17 +321,14 @@ describe.skip('useEmailFetching', () => {
 
       mockedAxios.get.mockResolvedValue({ data: mockEmails });
 
-      const { result } = renderHook(
-        () => useEmailFetching({ ...defaultProps, mode: 'action' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useEmailFetching({ ...defaultProps, mode: 'action' }), {
+        wrapper: createWrapper(),
+      });
 
       await result.current.fetchEmails();
 
       await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-          expect.stringContaining('mode=action')
-        );
+        expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('mode=action'));
       });
     });
 
@@ -363,4 +352,3 @@ describe.skip('useEmailFetching', () => {
     });
   });
 });
-

@@ -11,7 +11,9 @@ export function useContactDetailData(contactId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchContact = useCallback(async () => {
-    if (!contactId) return;
+    if (!contactId) {
+      return;
+    }
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/contacts/${contactId}`);
@@ -39,10 +41,15 @@ export function useContactDetailData(contactId?: string) {
     fetchContactTypes();
   }, [fetchContact, fetchContactTypes]);
 
-  const getTypeConfig = useCallback((typeName?: string | null) => {
-    if (!typeName) return undefined;
-    return contactTypes.find(ct => ct.name === typeName);
-  }, [contactTypes]);
+  const getTypeConfig = useCallback(
+    (typeName?: string | null) => {
+      if (!typeName) {
+        return undefined;
+      }
+      return contactTypes.find(ct => ct.name === typeName);
+    },
+    [contactTypes]
+  );
 
   return { contact, contactTypes, loading, error, fetchContact, fetchContactTypes, getTypeConfig, setContact };
 }

@@ -14,10 +14,7 @@ const HEADING_LEVEL_H1 = 'h1';
 const HEADING_LEVEL_H2 = 'h2';
 const HEADING_LEVEL_H3 = 'h3';
 
-type HeadingLevel =
-  | typeof HEADING_LEVEL_H1
-  | typeof HEADING_LEVEL_H2
-  | typeof HEADING_LEVEL_H3;
+type HeadingLevel = typeof HEADING_LEVEL_H1 | typeof HEADING_LEVEL_H2 | typeof HEADING_LEVEL_H3;
 
 /**
  * Gets responsive font size based on breakpoints
@@ -30,8 +27,12 @@ export const getResponsiveFontSize = (
     desktop: string;
   }
 ): string => {
-  if (breakpoints.isMobile) return sizes.mobile;
-  if (breakpoints.isTablet) return sizes.tablet;
+  if (breakpoints.isMobile) {
+    return sizes.mobile;
+  }
+  if (breakpoints.isTablet) {
+    return sizes.tablet;
+  }
   return sizes.desktop;
 };
 
@@ -46,8 +47,12 @@ export const getResponsiveSpacing = (
     desktop: string;
   }
 ): string => {
-  if (breakpoints.isMobile) return spacing.mobile;
-  if (breakpoints.isTablet) return spacing.tablet;
+  if (breakpoints.isMobile) {
+    return spacing.mobile;
+  }
+  if (breakpoints.isTablet) {
+    return spacing.tablet;
+  }
   return spacing.desktop;
 };
 
@@ -55,8 +60,12 @@ export const getResponsiveSpacing = (
  * Gets responsive margin bottom for sections
  */
 export const getSectionMarginBottom = (breakpoints: ResponsiveBreakpoints): string => {
-  if (breakpoints.isMobile) return theme.spacing.lg;
-  if (breakpoints.isTablet) return theme.spacing.xl;
+  if (breakpoints.isMobile) {
+    return theme.spacing.lg;
+  }
+  if (breakpoints.isTablet) {
+    return theme.spacing.xl;
+  }
   return theme.spacing['3xl'];
 };
 
@@ -64,18 +73,19 @@ export const getSectionMarginBottom = (breakpoints: ResponsiveBreakpoints): stri
  * Gets responsive padding top for hero section
  */
 export const getHeroPaddingTop = (breakpoints: ResponsiveBreakpoints): string => {
-  if (breakpoints.isMobile) return theme.spacing.lg;
-  if (breakpoints.isTablet) return theme.spacing.xl;
+  if (breakpoints.isMobile) {
+    return theme.spacing.lg;
+  }
+  if (breakpoints.isTablet) {
+    return theme.spacing.xl;
+  }
   return theme.spacing['3xl'];
 };
 
 /**
  * Gets responsive heading font sizes
  */
-export const getHeadingFontSize = (
-  breakpoints: ResponsiveBreakpoints,
-  level: HeadingLevel
-): string => {
+export const getHeadingFontSize = (breakpoints: ResponsiveBreakpoints, level: HeadingLevel): string => {
   if (breakpoints.isMobile) {
     switch (level) {
       case HEADING_LEVEL_H1:
@@ -111,13 +121,3 @@ export const getHeadingFontSize = (
       return theme.typography.fontSize['2xl'];
   }
 };
-
-
-
-
-
-
-
-
-
-

@@ -43,7 +43,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
   onLabelsChange,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <>
       <div style={{ marginBottom: theme.spacing.md }}>
@@ -51,7 +51,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
         <input
           type="text"
           value={owner}
-          onChange={(event) => onOwnerChange(event.target.value)}
+          onChange={event => onOwnerChange(event.target.value)}
           placeholder={t('github.repositoryOwnerPlaceholder')}
           required
           style={inputStyle}
@@ -62,7 +62,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
         <input
           type="text"
           value={repo}
-          onChange={(event) => onRepoChange(event.target.value)}
+          onChange={event => onRepoChange(event.target.value)}
           placeholder={t('github.repositoryNamePlaceholder')}
           required
           style={inputStyle}
@@ -73,7 +73,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
         <input
           type="text"
           value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
+          onChange={event => onTitleChange(event.target.value)}
           required
           style={inputStyle}
         />
@@ -82,7 +82,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
         <label style={labelStyle}>{t('github.issueDescription')}</label>
         <textarea
           value={description}
-          onChange={(event) => onDescriptionChange(event.target.value)}
+          onChange={event => onDescriptionChange(event.target.value)}
           rows={8}
           style={{
             ...inputStyle,
@@ -96,7 +96,7 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
         <input
           type="text"
           value={labels}
-          onChange={(event) => onLabelsChange(event.target.value)}
+          onChange={event => onLabelsChange(event.target.value)}
           placeholder={t('github.labelsPlaceholder')}
           style={inputStyle}
         />
@@ -104,5 +104,3 @@ export const GitHubIssueForm: React.FC<GitHubIssueFormProps> = ({
     </>
   );
 };
-
-

@@ -6,7 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { OPACITY_DISABLED_ALT,OPACITY_HALF } from 'constants/numbers';
+import { OPACITY_DISABLED_ALT, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
@@ -177,8 +177,12 @@ export const AccountDeletionSection: React.FC = () => {
         <button
           onClick={handleDeleteClick}
           style={deleteButtonBaseStyle}
-          onMouseOver={(event) => { event.currentTarget.style.backgroundColor = theme.colors.error.dark; }}
-          onMouseOut={(event) => { event.currentTarget.style.backgroundColor = theme.colors.error.main; }}
+          onMouseOver={event => {
+            event.currentTarget.style.backgroundColor = theme.colors.error.dark;
+          }}
+          onMouseOut={event => {
+            event.currentTarget.style.backgroundColor = theme.colors.error.main;
+          }}
         >
           {t('settings.accountDeletion.deleteButton')}
         </button>
@@ -192,18 +196,14 @@ export const AccountDeletionSection: React.FC = () => {
           <input
             type="text"
             value={confirmationInput}
-            onChange={(event) => setConfirmationInput(event.target.value)}
+            onChange={event => setConfirmationInput(event.target.value)}
             placeholder={CONFIRMATION_TEXT}
             style={getInputStyle(Boolean(error))}
             disabled={isDeleting}
           />
           {error && <p style={errorTextStyle}>{error}</p>}
           <div style={actionsRowStyle}>
-            <button
-              onClick={handleCancel}
-              disabled={isDeleting}
-              style={getCancelButtonStyle(isDeleting)}
-            >
+            <button onClick={handleCancel} disabled={isDeleting} style={getCancelButtonStyle(isDeleting)}>
               {t('common.cancel')}
             </button>
             <button
@@ -211,9 +211,7 @@ export const AccountDeletionSection: React.FC = () => {
               disabled={!isConfirmationValid || isDeleting}
               style={getConfirmDeleteButtonStyle(isConfirmationValid, isDeleting)}
             >
-              {isDeleting
-                ? t('settings.accountDeletion.deleting')
-                : t('settings.accountDeletion.confirmDelete')}
+              {isDeleting ? t('settings.accountDeletion.deleting') : t('settings.accountDeletion.confirmDelete')}
             </button>
           </div>
         </div>

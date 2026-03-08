@@ -46,7 +46,9 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
   const [newFieldType, setNewFieldType] = useState(FIELD_TYPE_TEXT);
 
   const fetchContact = useCallback(async () => {
-    if (!contactId) return;
+    if (!contactId) {
+      return;
+    }
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/contacts/${contactId}`);
@@ -101,7 +103,8 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
     setShowAddCustomField,
   });
 
-  return {    contact,
+  return {
+    contact,
     contactTypes,
     loading,
     error,
@@ -145,12 +148,24 @@ interface ContactOperationsParams {
 }
 
 function useContactOperations({
-  contactId, contactTypes, newNote, newFieldName, newFieldType,
-  fetchContact, fetchCustomFieldDefs, setEditingField, setNewNote,
-  setAddingNote, setNewFieldName, setNewFieldType, setShowAddCustomField,
+  contactId,
+  contactTypes,
+  newNote,
+  newFieldName,
+  newFieldType,
+  fetchContact,
+  fetchCustomFieldDefs,
+  setEditingField,
+  setNewNote,
+  setAddingNote,
+  setNewFieldName,
+  setNewFieldType,
+  setShowAddCustomField,
 }: ContactOperationsParams) {
   const handleUpdateField = async (field: string, value: string | null) => {
-    if (!contactId) return;
+    if (!contactId) {
+      return;
+    }
     try {
       await axios.put(`${API_URL}/contacts/${contactId}`, { [field]: value });
       fetchContact();
@@ -161,7 +176,9 @@ function useContactOperations({
   };
 
   const handleAddNote = async () => {
-    if (!contactId || !newNote.trim()) return;
+    if (!contactId || !newNote.trim()) {
+      return;
+    }
     setAddingNote(true);
     try {
       await axios.post(`${API_URL}/contacts/${contactId}/notes`, { content: newNote });
@@ -175,7 +192,9 @@ function useContactOperations({
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!contactId) return;
+    if (!contactId) {
+      return;
+    }
     try {
       await axios.delete(`${API_URL}/contacts/${contactId}/notes/${noteId}`);
       fetchContact();
@@ -185,7 +204,9 @@ function useContactOperations({
   };
 
   const handleSetCustomFieldValue = async (fieldId: string, value: string) => {
-    if (!contactId) return;
+    if (!contactId) {
+      return;
+    }
     try {
       await axios.put(`${API_URL}/contacts/${contactId}/custom-fields/${fieldId}`, { value });
       fetchContact();
@@ -196,10 +217,13 @@ function useContactOperations({
   };
 
   const handleAddCustomField = async () => {
-    if (!newFieldName.trim()) return;
+    if (!newFieldName.trim()) {
+      return;
+    }
     try {
       await axios.post(`${API_URL}/contacts/custom-fields`, {
-        fieldName: newFieldName, fieldType: newFieldType,
+        fieldName: newFieldName,
+        fieldType: newFieldType,
       });
       setNewFieldName('');
       setNewFieldType(FIELD_TYPE_TEXT);
@@ -212,9 +236,18 @@ function useContactOperations({
   };
 
   const getTypeConfig = (typeName: string | null | undefined): ContactTypeConfig | undefined => {
-    if (!typeName) return undefined;
+    if (!typeName) {
+      return undefined;
+    }
     return contactTypes.find(ct => ct.name === typeName);
   };
 
-  return { handleUpdateField, handleAddNote, handleDeleteNote, handleSetCustomFieldValue, handleAddCustomField, getTypeConfig };
+  return {
+    handleUpdateField,
+    handleAddNote,
+    handleDeleteNote,
+    handleSetCustomFieldValue,
+    handleAddCustomField,
+    getTypeConfig,
+  };
 }

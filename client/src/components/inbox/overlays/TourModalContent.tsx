@@ -43,9 +43,7 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
         zIndex: 1002,
       }}
     >
-      <h2 style={{ marginBottom: theme.spacing.md, color: theme.colors.text.primary }}>
-        {tourSteps[tourStep].title}
-      </h2>
+      <h2 style={{ marginBottom: theme.spacing.md, color: theme.colors.text.primary }}>{tourSteps[tourStep].title}</h2>
       <p
         style={{
           marginBottom: theme.spacing.xl,
@@ -97,9 +95,3 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

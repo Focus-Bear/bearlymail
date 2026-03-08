@@ -2,7 +2,12 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 
-import { TOOLTIP_MAX_WIDTH_SMALL, TOOLTIP_MIN_WIDTH_SMALL, VIEWPORT_HEIGHT_75,Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import {
+  TOOLTIP_MAX_WIDTH_SMALL,
+  TOOLTIP_MIN_WIDTH_SMALL,
+  VIEWPORT_HEIGHT_75,
+  Z_INDEX_MODAL_OVERLAY,
+} from 'constants/numbers';
 
 interface PriorityTooltipContainerProps {
   emailId: string;
@@ -39,11 +44,11 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
         color: theme.colors.text.primary,
         textAlign: 'left',
       }}
-      onClick={(event) => {
+      onClick={event => {
         event.stopPropagation();
         event.preventDefault();
       }}
-      onMouseDown={(event) => {
+      onMouseDown={event => {
         event.stopPropagation();
         event.preventDefault();
       }}
@@ -55,6 +60,3 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
   // Use portal to render tooltip at document body level, escaping any overflow:hidden containers
   return createPortal(tooltipContent, document.body);
 };
-
-
-

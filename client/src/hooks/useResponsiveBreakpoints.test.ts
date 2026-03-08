@@ -1,6 +1,6 @@
-import { act,renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
-import { BREAKPOINT_DESKTOP,BREAKPOINT_TABLET } from 'constants/numbers';
+import { BREAKPOINT_DESKTOP, BREAKPOINT_TABLET } from 'constants/numbers';
 
 import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
 
@@ -80,10 +80,7 @@ describe('useResponsiveBreakpoints', () => {
     it('should add resize event listener on mount', () => {
       renderHook(() => useResponsiveBreakpoints());
 
-      expect(window.addEventListener).toHaveBeenCalledWith(
-        'resize',
-        expect.any(Function)
-      );
+      expect(window.addEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
     });
 
     it('should remove resize event listener on unmount', () => {
@@ -92,10 +89,7 @@ describe('useResponsiveBreakpoints', () => {
 
       unmount();
 
-      expect(window.removeEventListener).toHaveBeenCalledWith(
-        'resize',
-        resizeHandler
-      );
+      expect(window.removeEventListener).toHaveBeenCalledWith('resize', resizeHandler);
     });
 
     it('should update breakpoints on window resize', () => {
@@ -167,6 +161,3 @@ describe('useResponsiveBreakpoints', () => {
     });
   });
 });
-
-
-

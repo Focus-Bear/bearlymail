@@ -44,22 +44,22 @@ export function useInboxModeChanges({
     if (!hasInitiallyLoaded || !user || authLoading) {
       return;
     }
-    
+
     // On first run after initial load, just record the initial mode and don't fetch
     if (!hasSetInitialModeRef.current) {
       prevModeForFetchRef.current = mode;
       hasSetInitialModeRef.current = true;
       return;
     }
-    
+
     // Only fetch if mode actually changed
     if (prevModeForFetchRef.current === mode) {
       return;
     }
-    
+
     // Update the previous mode before fetching (so we don't refetch if effect runs again)
     prevModeForFetchRef.current = mode;
-    
+
     setEmails([]);
     setLoadingModeSwitch(true);
     clearSuggestionsCache();
@@ -69,7 +69,7 @@ export function useInboxModeChanges({
     Promise.all([
       fetchEmails().catch(err => console.error('Error fetching emails on mode change:', err)),
       fetchBatchStatus().catch(err => console.error('Error fetching batch status on mode change:', err)),
-      fetchTabCounts(true).catch(err => console.error('Error fetching tab counts on mode change:', err))
+      fetchTabCounts(true).catch(err => console.error('Error fetching tab counts on mode change:', err)),
     ]).finally(() => {
       setLoadingModeSwitch(false);
     });
@@ -82,7 +82,7 @@ export function useInboxModeChanges({
   useEffect(() => {
     const modeChanged = prevModeRef.current !== mode;
     const emailsChanged = prevEmailsLengthRef.current !== emails.length;
-    
+
     if (mode === MODE_TRIAGE && emails.length > 0 && !loadingSuggestions && (modeChanged || emailsChanged)) {
       fetchTriageSuggestions(emails);
       prevModeRef.current = mode;
@@ -94,6 +94,3 @@ export function useInboxModeChanges({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, emails.length, loadingSuggestions]);
 }
-
-
-

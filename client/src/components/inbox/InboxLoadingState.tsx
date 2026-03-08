@@ -6,20 +6,17 @@ export const InboxLoadingState: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-      color: theme.colors.text.secondary,
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        color: theme.colors.text.secondary,
+      }}
+    >
       {t('inbox.loadingInbox')}
     </div>
   );
 };
-
-
-
-
-

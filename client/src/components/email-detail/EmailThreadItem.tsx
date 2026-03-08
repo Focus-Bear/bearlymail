@@ -45,28 +45,22 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
         overflow: 'hidden',
       }}
     >
-            <ThreadItemHeader
-              from={threadEmail.from}
-              fromName={threadEmail.fromName}
-              to={threadEmail.to}
-              cc={threadEmail.cc}
-              receivedAt={threadEmail.receivedAt}
-              isExpanded={isExpanded}
-              isCurrentEmail={isCurrentEmail}
-              onToggle={onToggle}
-            />
+      <ThreadItemHeader
+        from={threadEmail.from}
+        fromName={threadEmail.fromName}
+        to={threadEmail.to}
+        cc={threadEmail.cc}
+        receivedAt={threadEmail.receivedAt}
+        isExpanded={isExpanded}
+        isCurrentEmail={isCurrentEmail}
+        onToggle={onToggle}
+      />
       {isExpanded && (
         <>
-          <ThreadItemBody
-            body={threadEmail.body}
-            htmlBody={threadEmail.htmlBody}
-          />
+          <ThreadItemBody body={threadEmail.body} htmlBody={threadEmail.htmlBody} />
           {threadEmail.attachments && threadEmail.attachments.length > 0 && (
             <div style={{ padding: `0 ${theme.spacing.md} ${theme.spacing.md}` }}>
-              <EmailAttachments
-                emailId={threadEmail.id}
-                attachments={threadEmail.attachments}
-              />
+              <EmailAttachments emailId={threadEmail.id} attachments={threadEmail.attachments} />
             </div>
           )}
         </>
@@ -74,4 +68,3 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
     </div>
   );
 };
-

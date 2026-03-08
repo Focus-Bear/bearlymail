@@ -22,11 +22,3 @@ export const ConfirmModalBody: React.FC<ConfirmModalBodyProps> = ({ message }) =
     </p>
   );
 };
-
-
-
-
-
-
-
-

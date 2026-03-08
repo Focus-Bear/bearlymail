@@ -1,4 +1,4 @@
-import { useCallback, useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface ScanProgress {
@@ -26,11 +26,7 @@ interface UseOnboardingReturn {
   handleStartScan: () => Promise<void>;
 }
 
-export function useOnboarding({
-  user,
-  authLoading,
-  refreshUser,
-}: UseOnboardingProps): UseOnboardingReturn {
+export function useOnboarding({ user, authLoading, refreshUser }: UseOnboardingProps): UseOnboardingReturn {
   const navigate = useNavigate();
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
@@ -39,14 +35,17 @@ export function useOnboarding({
 
   // Check if user needs to see tour
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {
+      return;
+    }
 
     if (user && !user.hasSeenTour) {
       setTourStep(0);
       return;
     }
 
-    const shouldShowScanModal = user &&
+    const shouldShowScanModal =
+      user &&
       user.hasSeenTour &&
       (user.hasScannedHistory === false || user.hasScannedHistory === undefined) &&
       !isScanning &&
@@ -70,14 +69,17 @@ export function useOnboarding({
     }
   }, [refreshUser]);
 
-  const handleNextTourStep = useCallback((totalSteps: number) => {
-    if (tourStep !== null && tourStep < totalSteps - 1) {
-      setTourStep(tourStep + 1);
-    } else {
-      setTourStep(null);
-      markTourComplete();
-    }
-  }, [tourStep, markTourComplete]);
+  const handleNextTourStep = useCallback(
+    (totalSteps: number) => {
+      if (tourStep !== null && tourStep < totalSteps - 1) {
+        setTourStep(tourStep + 1);
+      } else {
+        setTourStep(null);
+        markTourComplete();
+      }
+    },
+    [tourStep, markTourComplete]
+  );
 
   const handleSkipTour = useCallback(async () => {
     setTourStep(null);

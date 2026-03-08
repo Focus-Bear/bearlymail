@@ -1,19 +1,19 @@
-import React, { useCallback,useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
-interface EmailBodyIframeProps { html: string; minHeight?: number; }
+interface EmailBodyIframeProps {
+  html: string;
+  minHeight?: number;
+}
 
 /**
  * Renders email HTML content inside an iframe for complete CSS isolation.
  * This prevents BearlyMail styles from affecting email rendering and vice versa.
  */
-export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
-  html,
-  minHeight = 100
-}) => {
+export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeight = 100 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(minHeight);
   const [contentWidth, setContentWidth] = useState<number | null>(null);
@@ -23,7 +23,9 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
   // Resize iframe to match content dimensions (height and natural width)
   const updateHeight = useCallback(() => {
     const iframe = iframeRef.current;
-    if (!iframe) return;
+    if (!iframe) {
+      return;
+    }
 
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -47,12 +49,14 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
   // Update height when iframe loads and when content changes
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe) return;
+    if (!iframe) {
+      return;
+    }
 
     const handleLoad = () => {
       // Initial height update
       updateHeight();
-      
+
       // Set up ResizeObserver to watch for content changes
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -61,7 +65,7 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
             updateHeight();
           });
           resizeObserver.observe(doc.body);
-          
+
           // Also watch for images loading which can change height
           const images = doc.querySelectorAll('img');
           images.forEach(img => {
@@ -95,14 +99,23 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         srcDoc={fullDocument}
         title="Email content"
         sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        style={{ width: contentWidth ? `${contentWidth}px` : '100%', minWidth: '100%', height: `${height}px`, border: STRING_NONE, display: 'block', backgroundColor: COLOR_TRANSPARENT, }}
+        style={{
+          width: contentWidth ? `${contentWidth}px` : '100%',
+          minWidth: '100%',
+          height: `${height}px`,
+          border: STRING_NONE,
+          display: 'block',
+          backgroundColor: COLOR_TRANSPARENT,
+        }}
       />
     </div>
   );
 };
 
 function buildIframeDocument(html: string): string {
-  const { colors: { text, primary, border, greyscale } } = theme;
+  const {
+    colors: { text, primary, border, greyscale },
+  } = theme;
   const baseStyles = `<style>
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.6; color: ${text.secondary}; background: transparent; word-wrap: break-word; overflow-wrap: break-word; }

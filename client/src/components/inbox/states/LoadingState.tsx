@@ -3,11 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
-import {
-  MODE_ACTION,
-  MODE_AUTORESPONDED,
-  MODE_FOLLOW_UP,
-} from 'constants/strings';
+import { MODE_ACTION, MODE_AUTORESPONDED, MODE_FOLLOW_UP } from 'constants/strings';
 
 interface LoadingStateProps {
   decrypting: boolean;
@@ -19,11 +15,7 @@ interface LoadingStateProps {
  * Loading state component
  * Displays loading indicator for email list
  */
-export const LoadingState: React.FC<LoadingStateProps> = ({
-  decrypting,
-  loadingModeSwitch,
-  mode,
-}) => {
+export const LoadingState: React.FC<LoadingStateProps> = ({ decrypting, loadingModeSwitch, mode }) => {
   const { t } = useTranslation();
 
   const getLoadingTitle = (): string => {
@@ -31,9 +23,15 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       return t('inbox.decryptingEmails');
     }
     if (loadingModeSwitch) {
-      if (mode === MODE_ACTION) return t('inbox.loadingActionEmails');
-      if (mode === MODE_FOLLOW_UP) return t('inbox.loadingFollowUpEmails');
-      if (mode === MODE_AUTORESPONDED) return t('inbox.loadingAutoRespondedEmails');
+      if (mode === MODE_ACTION) {
+        return t('inbox.loadingActionEmails');
+      }
+      if (mode === MODE_FOLLOW_UP) {
+        return t('inbox.loadingFollowUpEmails');
+      }
+      if (mode === MODE_AUTORESPONDED) {
+        return t('inbox.loadingAutoRespondedEmails');
+      }
       return t('inbox.loadingTriageEmails');
     }
     return t('inbox.loadingEmails');
@@ -70,15 +68,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       >
         {getLoadingTitle()}
       </h3>
-      {!loadingModeSwitch && (
-        <p style={{ color: theme.colors.text.secondary }}>{t('inbox.loadingEmailsSub')}</p>
-      )}
+      {!loadingModeSwitch && <p style={{ color: theme.colors.text.secondary }}>{t('inbox.loadingEmailsSub')}</p>}
     </div>
   );
 };
-
-
-
-
-
-

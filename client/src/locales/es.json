@@ -2124,5 +2124,8 @@
   },
   "nav": {
     "scheduled": "Programados"
+  },
+  "legal": {
+    "lastUpdated": "Última actualización: {{date}}"
   }
 }

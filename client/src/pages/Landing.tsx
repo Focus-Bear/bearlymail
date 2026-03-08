@@ -17,14 +17,14 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
  * Landing page component
- * 
+ *
  * This is the main entry point for the landing page. It orchestrates
  * all sub-components following clean code principles:
- * 
+ *
  * - Single Responsibility: Main component only handles state and layout
  * - Composition: Uses smaller, focused components
  * - Separation of Concerns: Business logic in hooks, UI in components
- * 
+ *
  * Component Structure:
  * - LandingHeader: Navigation and branding
  * - HeroSection: Main headline and value proposition
@@ -64,8 +64,12 @@ const Landing: React.FC = () => {
           margin: '0 auto',
           width: '100%',
           padding: (() => {
-            if (isMobile) return theme.spacing.md;
-            if (isTablet) return theme.spacing.lg;
+            if (isMobile) {
+              return theme.spacing.md;
+            }
+            if (isTablet) {
+              return theme.spacing.lg;
+            }
             return theme.spacing.xl;
           })(),
           boxSizing: 'border-box',
@@ -76,12 +80,18 @@ const Landing: React.FC = () => {
           style={{
             display: 'grid',
             gridTemplateColumns: (() => {
-              if (isMobile) return '1fr';
-              if (isTablet) return '1fr minmax(400px, 500px)';
+              if (isMobile) {
+                return '1fr';
+              }
+              if (isTablet) {
+                return '1fr minmax(400px, 500px)';
+              }
               return '1fr minmax(400px, 450px)';
             })(),
             gap: (() => {
-              if (isMobile) return theme.spacing.lg;
+              if (isMobile) {
+                return theme.spacing.lg;
+              }
               return theme.spacing.xl;
             })(),
             alignItems: 'flex-start',

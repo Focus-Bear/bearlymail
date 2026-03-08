@@ -10,15 +10,41 @@ import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
-const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: string) => void }> = ({ timezone, onChange }) => {
+const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: string) => void }> = ({
+  timezone,
+  onChange,
+}) => {
   const { t } = useTranslation();
   return (
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <label style={{ display: 'block', color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs }}>
+      <label
+        style={{
+          display: 'block',
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {t('settings.delivery.timezone')}
       </label>
-      <select value={timezone} onChange={(event) => onChange(event.target.value)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, minWidth: '250px' }}>
-        {TIMEZONE_OPTIONS.map((tz) => (<option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>))}
+      <select
+        value={timezone}
+        onChange={event => onChange(event.target.value)}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          borderRadius: theme.borderRadius.sm,
+          border: `1px solid ${theme.colors.border.medium}`,
+          fontSize: theme.typography.fontSize.sm,
+          backgroundColor: theme.colors.background.paper,
+          color: theme.colors.text.primary,
+          minWidth: '250px',
+        }}
+      >
+        {TIMEZONE_OPTIONS.map(tz => (
+          <option key={tz} value={tz}>
+            {tz.replace(/_/g, ' ')}
+          </option>
+        ))}
       </select>
     </div>
   );
@@ -30,10 +56,19 @@ const TIMEZONE_OPTIONS: string[] = (() => {
   } catch {
     return [
       'UTC',
-      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
-      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'Europe/London',
+      'Europe/Paris',
+      'Europe/Berlin',
+      'Asia/Tokyo',
+      'Asia/Shanghai',
+      'Asia/Kolkata',
+      'Australia/Sydney',
+      'Australia/Melbourne',
+      'Pacific/Auckland',
     ];
   }
 })();
@@ -81,7 +116,9 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
   };
 
   const addDeliveryTime = () => {
-    if (!newDeliveryTime || batchSchedule.deliveryTimes.includes(newDeliveryTime)) return;
+    if (!newDeliveryTime || batchSchedule.deliveryTimes.includes(newDeliveryTime)) {
+      return;
+    }
     onBatchScheduleChange({
       ...batchSchedule,
       deliveryTimes: [...batchSchedule.deliveryTimes, newDeliveryTime].sort(),
@@ -97,33 +134,37 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
   };
 
   return (
-    <div id="email-batching" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
-      marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
-    }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xl,
-        scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-      }}>
+    <div
+      id="email-batching"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
+    >
+      <h3
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.xl,
+          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
+        }}
+      >
         {t('settings.emailBatching.title') || 'Email Delivery Schedule'}
       </h3>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.lg,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.lg,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
         {t('settings.emailBatching.description')}
       </p>
 
-      <DeliveryDaysSelector
-        deliveryDays={batchSchedule.deliveryDays}
-        onToggleDay={toggleDeliveryDay}
-      />
+      <DeliveryDaysSelector deliveryDays={batchSchedule.deliveryDays} onToggleDay={toggleDeliveryDay} />
 
       <DeliveryTimesManager
         deliveryTimes={batchSchedule.deliveryTimes}
@@ -133,7 +174,10 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
         onRemoveTime={removeDeliveryTime}
       />
 
-      <TimezoneSelectorSection timezone={batchSchedule.timezone} onChange={(tz) => onBatchScheduleChange({ ...batchSchedule, timezone: tz })} />
+      <TimezoneSelectorSection
+        timezone={batchSchedule.timezone}
+        onChange={tz => onBatchScheduleChange({ ...batchSchedule, timezone: tz })}
+      />
 
       <button
         onClick={handleUpdateBatchSchedule}
@@ -152,5 +196,3 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
     </div>
   );
 };
-
-

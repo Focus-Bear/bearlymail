@@ -18,34 +18,38 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
   onClearSelection,
 }) => {
   const { t } = useTranslation();
-  if (selectedCount === 0) return null;
+  if (selectedCount === 0) {
+    return null;
+  }
 
   return (
-    <div style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      backgroundColor: theme.colors.secondary.dark,
-      color: COLOR_NAMED_WHITE,
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.md,
-      margin: theme.spacing.md,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      boxShadow: theme.shadows.md,
-    }}>
+    <div
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backgroundColor: theme.colors.secondary.dark,
+        color: COLOR_NAMED_WHITE,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        margin: theme.spacing.md,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: theme.shadows.md,
+      }}
+    >
       <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
         {t('inbox.bulk.selected', { count: selectedCount })}
       </span>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-        <BulkActionButton onClick={onBulkArchive}>
-          {t('inbox.bulk.archive')}
-        </BulkActionButton>
-        <BulkActionButton onClick={() => {
-          captureEvent('bulk_selection_cleared', { selected_count: selectedCount });
-          onClearSelection();
-        }}>
+        <BulkActionButton onClick={onBulkArchive}>{t('inbox.bulk.archive')}</BulkActionButton>
+        <BulkActionButton
+          onClick={() => {
+            captureEvent('bulk_selection_cleared', { selected_count: selectedCount });
+            onClearSelection();
+          }}
+        >
           {t('common.cancel')}
         </BulkActionButton>
       </div>

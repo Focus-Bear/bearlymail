@@ -1,4 +1,4 @@
-import React, { useCallback,useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -218,13 +218,16 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
 
             {analyzeProgress.progress?.insights && analyzeProgress.progress.insights.length > 0 && (
               <div style={insightsPanelStyle}>
-                <div style={insightsPanelHeaderStyle}>
-                  {t('settings.analysis.whatWereLearning')}
-                </div>
+                <div style={insightsPanelHeaderStyle}>{t('settings.analysis.whatWereLearning')}</div>
                 <div style={insightsListStyle}>
-                  {analyzeProgress.progress.insights.slice(-CONTEXT_ANALYSIS_RECENT_COUNT).reverse().map((insight) => (
-                    <div key={insight} style={insightItemStyle}>{insight.message}</div>
-                  ))}
+                  {analyzeProgress.progress.insights
+                    .slice(-CONTEXT_ANALYSIS_RECENT_COUNT)
+                    .reverse()
+                    .map(insight => (
+                      <div key={insight} style={insightItemStyle}>
+                        {insight.message}
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

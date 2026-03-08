@@ -36,7 +36,7 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.sm }} onClick={(event) => event.stopPropagation()}>
+    <div style={{ display: 'flex', gap: theme.spacing.sm }} onClick={event => event.stopPropagation()}>
       <button
         onClick={onToggleStar}
         title={t('emailActions.toggleStar')}
@@ -85,8 +85,8 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
             fontWeight: theme.typography.fontWeight.medium,
             padding: theme.spacing.xs,
           }}
-          onMouseEnter={(event) => (event.currentTarget.style.color = theme.colors.primary.main)}
-          onMouseLeave={(event) => (event.currentTarget.style.color = theme.colors.text.tertiary)}
+          onMouseEnter={event => (event.currentTarget.style.color = theme.colors.primary.main)}
+          onMouseLeave={event => (event.currentTarget.style.color = theme.colors.text.tertiary)}
         >
           {t('emailActions.snooze')}
         </button>
@@ -94,11 +94,3 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
     </div>
   );
 };
-
-
-
-
-
-
-
-

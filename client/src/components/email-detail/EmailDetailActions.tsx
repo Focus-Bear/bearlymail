@@ -68,8 +68,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
   const hasSchedulingRequest = useMemo(
-    () => suggestedActions.some((action) => action.type === ACTION_TYPE_SCHEDULING_REQUEST),
-    [suggestedActions],
+    () => suggestedActions.some(action => action.type === ACTION_TYPE_SCHEDULING_REQUEST),
+    [suggestedActions]
   );
 
   const unsubscribeLink = useMemo(() => {
@@ -86,12 +86,14 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   };
 
   return (
-    <div style={{
-      marginBottom: theme.spacing.xl,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: theme.spacing.md,
-    }}>
+    <div
+      style={{
+        marginBottom: theme.spacing.xl,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing.md,
+      }}
+    >
       {isInvitation && onRespondToInvitation && (
         <CalendarInviteActions
           email={email}
@@ -100,12 +102,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         />
       )}
 
-      {hasSchedulingRequest && !isInvitation && (
-        <SchedulingRequestCard
-          email={email}
-          onDraftReply={onDraftReply}
-        />
-      )}
+      {hasSchedulingRequest && !isInvitation && <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />}
 
       <QuickActionsSection
         suggestedActions={suggestedActions}
@@ -120,22 +117,26 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
       />
 
       {!hideActionButtons && (
-        <div style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.light}`,
-          padding: theme.spacing.md,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: theme.spacing.md,
-        }}>
-          {/* Action buttons row */}
-          <div style={{
+        <div
+          style={{
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.light}`,
+            padding: theme.spacing.md,
             display: 'flex',
-            gap: theme.spacing.sm,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}>
+            flexDirection: 'column',
+            gap: theme.spacing.md,
+          }}
+        >
+          {/* Action buttons row */}
+          <div
+            style={{
+              display: 'flex',
+              gap: theme.spacing.sm,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
             {/* Reply All */}
             <button
               onClick={() => onOpenReplyComposer('replyAll')}
@@ -179,17 +180,22 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             </button>
 
             {/* Separator */}
-            <div style={{
-              width: '1px',
-              height: '28px',
-              backgroundColor: theme.colors.border.light,
-              flexShrink: 0,
-            }} />
+            <div
+              style={{
+                width: '1px',
+                height: '28px',
+                backgroundColor: theme.colors.border.light,
+                flexShrink: 0,
+              }}
+            />
 
             {/* Archive */}
             <button
               onClick={() => {
-                console.log('%c[ARCHIVE DEBUG] EmailDetailActions Archive button clicked!', 'background: purple; color: white; font-size: 20px;');
+                console.log(
+                  '%c[ARCHIVE DEBUG] EmailDetailActions Archive button clicked!',
+                  'background: purple; color: white; font-size: 20px;'
+                );
                 onArchive();
               }}
               style={{
@@ -289,10 +295,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
           {/* Snooze input */}
           {showSnoozeInput && (
-            <div style={{
-              borderTop: `1px solid ${theme.colors.border.light}`,
-              paddingTop: theme.spacing.sm,
-            }}>
+            <div
+              style={{
+                borderTop: `1px solid ${theme.colors.border.light}`,
+                paddingTop: theme.spacing.sm,
+              }}
+            >
               <SnoozeInputForm
                 email={email}
                 snoozeValue={snoozeValue}

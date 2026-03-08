@@ -70,6 +70,3 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({
     </div>
   );
 };
-
-
-

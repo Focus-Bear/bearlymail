@@ -2,12 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import {
-  TokenDateFilter,
-  TokenExamplesSection,
-  TokenSummaryCards,
-  TokenUsageTable,
-} from './TokenUsagePanels';
+import { TokenDateFilter, TokenExamplesSection, TokenSummaryCards, TokenUsageTable } from './TokenUsagePanels';
 import { useTokenUsageData } from './useTokenUsageData';
 
 export const TokenUsageSection: React.FC = () => {
@@ -20,8 +15,22 @@ export const TokenUsageSection: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
-        <h2 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'], fontWeight: theme.typography.fontWeight.bold, color: theme.colors.text.primary }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.lg,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+            color: theme.colors.text.primary,
+          }}
+        >
           {t('admin.tokenUsage.title')}
         </h2>
         {tokenData.lastUpdated && (

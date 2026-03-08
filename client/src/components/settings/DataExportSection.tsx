@@ -1,4 +1,4 @@
-import React, { useRef,useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
@@ -12,8 +12,17 @@ const BUTTON_VARIANT_PRIMARY = 'primary' as const;
 
 interface ImportResult {
   success: boolean;
-  imported: { profile: boolean; batchSchedule: boolean; blockedSenders: number; blockedKeywords: number; contexts: number; toneRules: number; summarizationRules: number; autoResponderSettings: boolean; };
-  skipped: { blockedSenders: number; blockedKeywords: number; contexts: number; };
+  imported: {
+    profile: boolean;
+    batchSchedule: boolean;
+    blockedSenders: number;
+    blockedKeywords: number;
+    contexts: number;
+    toneRules: number;
+    summarizationRules: number;
+    autoResponderSettings: boolean;
+  };
+  skipped: { blockedSenders: number; blockedKeywords: number; contexts: number };
   errors: string[];
 }
 
@@ -55,7 +64,18 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       disabled={disabled}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      style={{ backgroundColor: bgColor, color: textColor, border: borderStyle, borderRadius: theme.borderRadius.md, padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: disabled ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.medium, transition: theme.transitions.default, opacity: disabled ? OPACITY_DISABLED_ALT : 1, }}
+      style={{
+        backgroundColor: bgColor,
+        color: textColor,
+        border: borderStyle,
+        borderRadius: theme.borderRadius.md,
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.medium,
+        transition: theme.transitions.default,
+        opacity: disabled ? OPACITY_DISABLED_ALT : 1,
+      }}
     >
       {label}
     </button>
@@ -63,42 +83,86 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 };
 
 async function performExport(token: string | null): Promise<Blob> {
-  const response = await fetch(`${API_URL}/users/me/export`, { method: 'GET', credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
-  if (!response.ok) throw new Error('Export failed');
+  const response = await fetch(`${API_URL}/users/me/export`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error('Export failed');
+  }
   return response.blob();
 }
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = url; link.download = filename;
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
 
 function parseImportFile(text: string, tFunc: (tKey: string) => string): unknown {
   let importData: unknown;
-  try { importData = JSON.parse(text); } catch { throw new Error(tFunc('settings.dataExport.invalidFile')); }
-  if (!importData || typeof importData !== TYPEOF_OBJECT || !('version' in importData) || !('exportedAt' in importData)) throw new Error(tFunc('settings.dataExport.invalidFile'));
+  try {
+    importData = JSON.parse(text);
+  } catch {
+    throw new Error(tFunc('settings.dataExport.invalidFile'));
+  }
+  if (
+    !importData ||
+    typeof importData !== TYPEOF_OBJECT ||
+    !('version' in importData) ||
+    !('exportedAt' in importData)
+  ) {
+    throw new Error(tFunc('settings.dataExport.invalidFile'));
+  }
   return importData;
 }
 
 function formatImportDetails(result: ImportResult): string {
   const details: string[] = [];
-  if (result.imported.profile) details.push('profile');
-  if (result.imported.batchSchedule) details.push('batch schedule');
-  if (result.imported.blockedSenders > 0) details.push(`${result.imported.blockedSenders} blocked sender(s)`);
-  if (result.imported.blockedKeywords > 0) details.push(`${result.imported.blockedKeywords} blocked keyword(s)`);
-  if (result.imported.contexts > 0) details.push(`${result.imported.contexts} context(s)`);
-  if (result.imported.toneRules > 0) details.push(`${result.imported.toneRules} tone rule(s)`);
-  if (result.imported.summarizationRules > 0) details.push(`${result.imported.summarizationRules} summarization rule(s)`);
-  if (result.imported.autoResponderSettings) details.push('auto-responder settings');
+  if (result.imported.profile) {
+    details.push('profile');
+  }
+  if (result.imported.batchSchedule) {
+    details.push('batch schedule');
+  }
+  if (result.imported.blockedSenders > 0) {
+    details.push(`${result.imported.blockedSenders} blocked sender(s)`);
+  }
+  if (result.imported.blockedKeywords > 0) {
+    details.push(`${result.imported.blockedKeywords} blocked keyword(s)`);
+  }
+  if (result.imported.contexts > 0) {
+    details.push(`${result.imported.contexts} context(s)`);
+  }
+  if (result.imported.toneRules > 0) {
+    details.push(`${result.imported.toneRules} tone rule(s)`);
+  }
+  if (result.imported.summarizationRules > 0) {
+    details.push(`${result.imported.summarizationRules} summarization rule(s)`);
+  }
+  if (result.imported.autoResponderSettings) {
+    details.push('auto-responder settings');
+  }
   return details.length > 0 ? details.join(', ') : 'no new data';
 }
 
 async function submitImport(importData: unknown, token: string | null): Promise<ImportResult> {
-  const response = await fetch(`${API_URL}/users/me/import`, { method: 'POST', credentials: 'include', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ importPayload: importData }) });
-  if (!response.ok) { const errData = await response.json().catch(() => ({})); throw new Error(errData.message || 'Import failed'); }
+  const response = await fetch(`${API_URL}/users/me/import`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ importPayload: importData }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.message || 'Import failed');
+  }
   return response.json();
 }
 
@@ -114,56 +178,93 @@ export const DataExportSection: React.FC = () => {
 
   const handleExport = async () => {
     captureEvent('data_export_initiated');
-    setIsExporting(true); setError(null); setSuccessMessage(null);
+    setIsExporting(true);
+    setError(null);
+    setSuccessMessage(null);
     try {
       const blob = await performExport(localStorage.getItem('token'));
       downloadBlob(blob, `bearlymail-export-${new Date().toISOString().split('T')[0]}.json`);
       captureEvent('data_export_completed');
-    } catch { setError(t('settings.dataExport.exportError')); captureEvent('data_export_failed'); }
-    finally { setIsExporting(false); }
+    } catch {
+      setError(t('settings.dataExport.exportError'));
+      captureEvent('data_export_failed');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleImportClick = () => { fileInputRef.current?.click(); };
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     event.target.value = '';
     captureEvent('data_import_initiated');
-    setIsImporting(true); setError(null); setSuccessMessage(null);
+    setIsImporting(true);
+    setError(null);
+    setSuccessMessage(null);
     try {
       const importData = parseImportFile(await file.text(), t);
       const result = await submitImport(importData, localStorage.getItem('token'));
       if (result.success) {
         const details = formatImportDetails(result);
-        setSuccessMessage(`${t('settings.dataExport.importSuccess')} ${t('settings.dataExport.importSuccessDetails', { details })}`);
+        setSuccessMessage(
+          `${t('settings.dataExport.importSuccess')} ${t('settings.dataExport.importSuccessDetails', { details })}`
+        );
         captureEvent('data_import_completed', { imported: result.imported });
-      } else { throw new Error(result.errors[0] || t('settings.dataExport.importError')); }
+      } else {
+        throw new Error(result.errors[0] || t('settings.dataExport.importError'));
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('settings.dataExport.importError');
-      setError(message); captureEvent('data_import_failed', { error: message });
-    } finally { setIsImporting(false); }
+      setError(message);
+      captureEvent('data_import_failed', { error: message });
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
     <div
       id="data-export"
-      style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, marginBottom: theme.spacing.lg, boxShadow: theme.shadows.md, }}
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
     >
       <h2
-        style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.xl, }}
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.xl,
+        }}
       >
         {t('settings.dataExport.title')}
       </h2>
       <p
-        style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm, }}
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+        }}
       >
         {t('settings.dataExport.description')}
       </p>
 
       {error && (
         <p
-          style={{ color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, }}
+          style={{
+            color: theme.colors.error.main,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+          }}
         >
           {error}
         </p>
@@ -171,7 +272,11 @@ export const DataExportSection: React.FC = () => {
 
       {successMessage && (
         <p
-          style={{ color: theme.colors.success.main, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, }}
+          style={{
+            color: theme.colors.success.main,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+          }}
         >
           {successMessage}
         </p>

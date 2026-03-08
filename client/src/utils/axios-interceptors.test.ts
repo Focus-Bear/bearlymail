@@ -3,7 +3,7 @@ import axios from 'axios';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 
-import { resetInterceptorsForTesting,setupAxiosInterceptors } from './axios-interceptors';
+import { resetInterceptorsForTesting, setupAxiosInterceptors } from './axios-interceptors';
 
 // Helper to create a JWT token with expiration
 const createJWT = (exp: number): string => {
@@ -21,10 +21,10 @@ describe('axios-interceptors', () => {
   beforeEach(() => {
     // Clear localStorage
     localStorage.clear();
-    
+
     // Set up spies on localStorage
     removeItemSpy = jest.spyOn(Storage.prototype, 'removeItem');
-    
+
     mockLogout = jest.fn();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -174,9 +174,7 @@ describe('axios-interceptors', () => {
       const errorHandler = responseInterceptor[1];
 
       await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(console.log).toHaveBeenCalledWith(
-        'Skipping interceptor logout for initial /users/me check'
-      );
+      expect(console.log).toHaveBeenCalledWith('Skipping interceptor logout for initial /users/me check');
       expect(mockLogout).not.toHaveBeenCalled();
     });
 
@@ -250,9 +248,7 @@ describe('axios-interceptors', () => {
       const errorHandler = responseInterceptor[1];
 
       await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(console.warn).toHaveBeenCalledWith(
-        'Got 401 with valid token, clearing and logging out'
-      );
+      expect(console.warn).toHaveBeenCalledWith('Got 401 with valid token, clearing and logging out');
       expect(removeItemSpy).toHaveBeenCalledWith('token');
       expect(mockLogout).toHaveBeenCalled();
     });
@@ -318,4 +314,3 @@ describe('axios-interceptors', () => {
     });
   });
 });
-

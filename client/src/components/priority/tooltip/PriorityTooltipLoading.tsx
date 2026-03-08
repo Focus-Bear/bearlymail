@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 
-import { TOOLTIP_MAX_WIDTH_MEDIUM,TOOLTIP_MIN_WIDTH_MEDIUM, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { TOOLTIP_MAX_WIDTH_MEDIUM, TOOLTIP_MIN_WIDTH_MEDIUM, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 interface PriorityTooltipLoadingProps {
   emailId: string;
@@ -26,24 +26,19 @@ export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ 
         minWidth: `${TOOLTIP_MIN_WIDTH_MEDIUM}px`,
         maxWidth: `${TOOLTIP_MAX_WIDTH_MEDIUM}px`,
       }}
-      onClick={(event) => {
+      onClick={event => {
         event.stopPropagation();
         event.preventDefault();
       }}
-      onMouseDown={(event) => {
+      onMouseDown={event => {
         event.stopPropagation();
         event.preventDefault();
       }}
     >
-      <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
-        Loading priority explanation...
-      </div>
+      <div style={{ textAlign: 'center', padding: theme.spacing.md }}>Loading priority explanation...</div>
     </div>
   );
 
   // Use portal to render at document body level
   return createPortal(loadingContent, document.body);
 };
-
-
-

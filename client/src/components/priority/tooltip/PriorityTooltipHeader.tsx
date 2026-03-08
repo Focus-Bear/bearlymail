@@ -19,28 +19,32 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
   onExpedite,
 }) => {
   const { t } = useTranslation();
-  
+
   // Calculate actual score from breakdown to ensure consistency with total score
   const calculatedScore = breakdown?.reduce((sum, item) => sum + (item.value || 0), 0) ?? score;
-  
+
   // Check if still calculating (has items with "Calculating..." description)
-  const isCalculating = breakdown?.some(
-    item => item.description === PRIORITY_STATUS_CALCULATING || item.description?.includes(PRIORITY_STATUS_CALCULATING)
-  ) && calculatedScore === 0;
-  
+  const isCalculating =
+    breakdown?.some(
+      item =>
+        item.description === PRIORITY_STATUS_CALCULATING || item.description?.includes(PRIORITY_STATUS_CALCULATING)
+    ) && calculatedScore === 0;
+
   // Use calculated score from breakdown if available, otherwise fall back to stored score
   const displayScore = breakdown && breakdown.length > 0 ? calculatedScore : score;
-  
+
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: theme.spacing.md,
-      borderBottom: `1px solid ${theme.colors.border.light}`,
-      paddingBottom: theme.spacing.sm,
-    }}>
-      <h3 
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.md,
+        borderBottom: `1px solid ${theme.colors.border.light}`,
+        paddingBottom: theme.spacing.sm,
+      }}
+    >
+      <h3
         style={{
           margin: 0,
           fontSize: theme.typography.fontSize.lg,
@@ -52,10 +56,7 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
         onClick={isCalculating && onExpedite ? onExpedite : undefined}
         title={isCalculating && onExpedite ? 'Click to expedite calculation' : undefined}
       >
-        {isCalculating 
-          ? t('email.calculating')
-          : t('emailDetail.priorityScore', { score: displayScore.toFixed(0) })
-        }
+        {isCalculating ? t('email.calculating') : t('emailDetail.priorityScore', { score: displayScore.toFixed(0) })}
       </h3>
       <button
         onClick={onClose}
@@ -80,6 +81,3 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
     </div>
   );
 };
-
-
-

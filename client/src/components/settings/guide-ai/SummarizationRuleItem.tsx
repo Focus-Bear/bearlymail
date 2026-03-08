@@ -56,4 +56,3 @@ export const SummarizationRuleItem: React.FC<SummarizationRuleItemProps> = ({
     />
   );
 };
-

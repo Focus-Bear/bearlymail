@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
@@ -20,11 +20,7 @@ interface GitHubUpdateStatusModalProps {
   onSuccess: () => void;
 }
 
-export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = ({
-  issueInfo,
-  onClose,
-  onSuccess,
-}) => {
+export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = ({ issueInfo, onClose, onSuccess }) => {
   const [state, setState] = useState<'open' | 'closed'>('closed');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -81,5 +77,3 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
     </ModalBackdrop>
   );
 };
-
-

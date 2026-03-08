@@ -18,12 +18,9 @@ interface BlockedSenderItemProps {
   onUnblock: (id: string) => Promise<void>;
 }
 
-export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({
-  sender,
-  onUnblock,
-}) => {
+export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({ sender, onUnblock }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       key={sender.id}
@@ -38,34 +35,42 @@ export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({
       }}
     >
       <div>
-        <div style={{
-          color: theme.colors.text.primary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.primary,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
           {sender.senderName || sender.email}
         </div>
         {sender.senderName && (
-          <div style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {sender.email}
           </div>
         )}
         {sender.reason && (
-          <div style={{
-            color: theme.colors.text.tertiary,
-            fontSize: theme.typography.fontSize.xs,
-            marginTop: theme.spacing.xs,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.tertiary,
+              fontSize: theme.typography.fontSize.xs,
+              marginTop: theme.spacing.xs,
+            }}
+          >
             {t('settings.blockedSenders.reason')}: {sender.reason}
           </div>
         )}
-        <div style={{
-          color: theme.colors.text.tertiary,
-          fontSize: theme.typography.fontSize.xs,
-          marginTop: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.tertiary,
+            fontSize: theme.typography.fontSize.xs,
+            marginTop: theme.spacing.xs,
+          }}
+        >
           {t('settings.blockedSenders.blocked')} {new Date(sender.blockedAt).toLocaleDateString()}
         </div>
       </div>
@@ -89,5 +94,3 @@ export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({
     </div>
   );
 };
-
-

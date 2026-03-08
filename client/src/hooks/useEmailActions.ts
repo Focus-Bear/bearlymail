@@ -14,10 +14,13 @@ function navigateSplitViewAfterRemove(
   removedIndex: number,
   visibleEmails: Email[],
   splitView: SplitViewRef,
-  setSelectedEmailIndex?: (i: number) => void,
+  setSelectedEmailIndex?: (i: number) => void
 ): void {
   const remaining = visibleEmails.filter(email => email.id !== removedEmailId);
-  if (remaining.length === 0) { splitView.closeEmail(); return; }
+  if (remaining.length === 0) {
+    splitView.closeEmail();
+    return;
+  }
   const nextIndex = removedIndex < remaining.length ? removedIndex : Math.max(0, remaining.length - 1);
   const nextEmail = remaining[nextIndex];
   if (nextEmail) {
@@ -34,14 +37,23 @@ interface UseEmailActionsProps {
   setEmails: React.Dispatch<SetStateAction<Email[]>>;
   selectedEmailIds: Set<string>;
   setSelectedEmailIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  handleSetStarCountBase: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
+  handleSetStarCountBase: (
+    emailId: string,
+    starCount: number,
+    event?: React.MouseEvent
+  ) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
   handleArchiveBase: (emailId: string, event: React.MouseEvent) => Promise<void>;
   handleSnoozeBase: (emailId: string, duration: string) => Promise<void>;
   handleMarkAsRead: (emailId: string) => Promise<void>;
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread?: (emailIds: string[]) => Promise<void>;
   onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
-  onShowPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
+  onShowPriorityOverride: (
+    emailId: string,
+    originalPriorityScore: number,
+    newPriorityScore: number,
+    context?: 'archive' | 'star' | 'manual'
+  ) => void;
   onShowBlockConfirm: (email: Email) => void;
   onHideBlockConfirm: () => void;
   blockConfirmEmail: Email | null;
@@ -106,24 +118,36 @@ export function useEmailActions({
     onShowPriorityOverride,
   });
 
-  const handleArchive = useCallback(async (emailId: string, event: React.MouseEvent) => {
-    captureEvent('email_archive_clicked', { email_id: emailId });
-    const visibleEmails = emails.filter(email => !email.isArchived);
-    const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
-    setSelectedEmailIds(prev => { const ns = new Set(prev); ns.delete(emailId); return ns; });
-    await handleArchiveBase(emailId, event);
-    if (splitView?.selectedEmailId === emailId) {
-      navigateSplitViewAfterRemove(emailId, archivedIndex, visibleEmails, splitView, setSelectedEmailIndex);
-    }
-  }, [handleArchiveBase, setSelectedEmailIds, emails, splitView, setSelectedEmailIndex]);
+  const handleArchive = useCallback(
+    async (emailId: string, event: React.MouseEvent) => {
+      captureEvent('email_archive_clicked', { email_id: emailId });
+      const visibleEmails = emails.filter(email => !email.isArchived);
+      const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
+      setSelectedEmailIds(prev => {
+        const ns = new Set(prev);
+        ns.delete(emailId);
+        return ns;
+      });
+      await handleArchiveBase(emailId, event);
+      if (splitView?.selectedEmailId === emailId) {
+        navigateSplitViewAfterRemove(emailId, archivedIndex, visibleEmails, splitView, setSelectedEmailIndex);
+      }
+    },
+    [handleArchiveBase, setSelectedEmailIds, emails, splitView, setSelectedEmailIndex]
+  );
 
-  const handleBlockSender = useCallback((emailId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    captureEvent('email_block_sender_clicked', { email_id: emailId });
-    const emailToBlock = emails.find(event => event.id === emailId);
-    if (!emailToBlock) return;
-    onShowBlockConfirm(emailToBlock);
-  }, [emails, onShowBlockConfirm]);
+  const handleBlockSender = useCallback(
+    (emailId: string, event: React.MouseEvent) => {
+      event.stopPropagation();
+      captureEvent('email_block_sender_clicked', { email_id: emailId });
+      const emailToBlock = emails.find(event => event.id === emailId);
+      if (!emailToBlock) {
+        return;
+      }
+      onShowBlockConfirm(emailToBlock);
+    },
+    [emails, onShowBlockConfirm]
+  );
 
   const bulkActions = useBulkEmailActions({
     selectedEmailIds,
@@ -144,25 +168,38 @@ export function useEmailActions({
     fetchEmails,
   });
 
-  const handleSnooze = useCallback(async (emailId: string) => {
-    const duration = snoozeInput.getSnoozeValue(emailId)?.trim();
-    if (!duration) { console.warn('Cannot snooze: duration is empty'); return; }
-    captureEvent('email_snooze_confirmed', { email_id: emailId, snooze_input_length: duration.length });
-    const visibleEmails = emails.filter(email => !email.isArchived);
-    const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
-    snoozeInput.clearSnooze(emailId);
-    setSelectedEmailIds(prev => { const ns = new Set(prev); ns.delete(emailId); return ns; });
-    handleSnoozeBase(emailId, duration);
-    if (splitView?.selectedEmailId === emailId) {
-      navigateSplitViewAfterRemove(emailId, snoozedIndex, visibleEmails, splitView, setSelectedEmailIndex);
-    } else if (emailListRef?.current && snoozedIndex >= 0 && visibleEmails.length > 1) {
-      const nextIndex = snoozedIndex < visibleEmails.length - 1 ? snoozedIndex : Math.max(0, snoozedIndex - 1);
-      setTimeout(() => {
-        const el = emailListRef.current?.querySelector(`[data-email-index="${nextIndex}"]`) as HTMLElement;
-        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); setSelectedEmailIndex?.(nextIndex); }
-      }, 100);
-    }
-  }, [snoozeInput, handleSnoozeBase, emails, splitView, emailListRef, setSelectedEmailIndex, setSelectedEmailIds]);
+  const handleSnooze = useCallback(
+    async (emailId: string) => {
+      const duration = snoozeInput.getSnoozeValue(emailId)?.trim();
+      if (!duration) {
+        console.warn('Cannot snooze: duration is empty');
+        return;
+      }
+      captureEvent('email_snooze_confirmed', { email_id: emailId, snooze_input_length: duration.length });
+      const visibleEmails = emails.filter(email => !email.isArchived);
+      const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
+      snoozeInput.clearSnooze(emailId);
+      setSelectedEmailIds(prev => {
+        const ns = new Set(prev);
+        ns.delete(emailId);
+        return ns;
+      });
+      handleSnoozeBase(emailId, duration);
+      if (splitView?.selectedEmailId === emailId) {
+        navigateSplitViewAfterRemove(emailId, snoozedIndex, visibleEmails, splitView, setSelectedEmailIndex);
+      } else if (emailListRef?.current && snoozedIndex >= 0 && visibleEmails.length > 1) {
+        const nextIndex = snoozedIndex < visibleEmails.length - 1 ? snoozedIndex : Math.max(0, snoozedIndex - 1);
+        setTimeout(() => {
+          const el = emailListRef.current?.querySelector(`[data-email-index="${nextIndex}"]`) as HTMLElement;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setSelectedEmailIndex?.(nextIndex);
+          }
+        }, 100);
+      }
+    },
+    [snoozeInput, handleSnoozeBase, emails, splitView, emailListRef, setSelectedEmailIndex, setSelectedEmailIds]
+  );
 
   return {
     handleSetStarCount,
@@ -173,4 +210,3 @@ export function useEmailActions({
     ...bulkActions,
   };
 }
-

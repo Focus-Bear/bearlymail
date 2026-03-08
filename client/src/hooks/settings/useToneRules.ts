@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
@@ -20,33 +20,44 @@ export const useToneRules = () => {
     }
   }, []);
 
-  const updateToneRules = useCallback(async (newRules: string[]) => {
-    try {
-      await axios.put(`${API_URL}/users/me`, { toneSettings: { rules: newRules } });
-      setToneRules(newRules);
-    } catch (error) {
-      console.error('Error updating tone rules:', error);
-      alert(t('settings.toneRulesError'));
-    }
-  }, [t]);
+  const updateToneRules = useCallback(
+    async (newRules: string[]) => {
+      try {
+        await axios.put(`${API_URL}/users/me`, { toneSettings: { rules: newRules } });
+        setToneRules(newRules);
+      } catch (error) {
+        console.error('Error updating tone rules:', error);
+        alert(t('settings.toneRulesError'));
+      }
+    },
+    [t]
+  );
 
   const addToneRule = useCallback(() => {
-    if (!newToneRule.trim()) return;
+    if (!newToneRule.trim()) {
+      return;
+    }
     updateToneRules([...toneRules, newToneRule.trim()]);
     setNewToneRule('');
   }, [newToneRule, toneRules, updateToneRules]);
 
-  const removeToneRule = useCallback((index: number) => {
-    const newRules = [...toneRules];
-    newRules.splice(index, 1);
-    updateToneRules(newRules);
-  }, [toneRules, updateToneRules]);
+  const removeToneRule = useCallback(
+    (index: number) => {
+      const newRules = [...toneRules];
+      newRules.splice(index, 1);
+      updateToneRules(newRules);
+    },
+    [toneRules, updateToneRules]
+  );
 
-  const editToneRule = useCallback((index: number, newValue: string) => {
-    const newRules = [...toneRules];
-    newRules[index] = newValue;
-    updateToneRules(newRules);
-  }, [toneRules, updateToneRules]);
+  const editToneRule = useCallback(
+    (index: number, newValue: string) => {
+      const newRules = [...toneRules];
+      newRules[index] = newValue;
+      updateToneRules(newRules);
+    },
+    [toneRules, updateToneRules]
+  );
 
   return {
     toneRules,
@@ -60,8 +71,3 @@ export const useToneRules = () => {
     updateToneRules,
   };
 };
-
-
-
-
-

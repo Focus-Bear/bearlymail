@@ -9,20 +9,22 @@ interface CommentTextareaProps {
 
 export const CommentTextarea: React.FC<CommentTextareaProps> = ({ value, onChange }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <label style={{
-        display: 'block',
-        marginBottom: theme.spacing.xs,
-        color: theme.colors.text.primary,
-        fontWeight: theme.typography.fontWeight.medium,
-      }}>
+      <label
+        style={{
+          display: 'block',
+          marginBottom: theme.spacing.xs,
+          color: theme.colors.text.primary,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
         {t('quickActions.github.commentLabel')} *
       </label>
       <textarea
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={event => onChange(event.target.value)}
         rows={8}
         required
         style={{
@@ -38,6 +40,3 @@ export const CommentTextarea: React.FC<CommentTextareaProps> = ({ value, onChang
     </div>
   );
 };
-
-
-

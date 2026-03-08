@@ -48,7 +48,6 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   onProvideFeedback,
   onExpedite,
 }) => {
-
   // Always show the tooltip if it's the hovered email, even if loading or no explanation yet
   // This prevents the blank popup from auto-closing
   if (!priorityExplanation && !loadingPriorityExplanation) {

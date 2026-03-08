@@ -1,4 +1,4 @@
-import React, { useEffect,useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
@@ -13,7 +13,9 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showDebug) return;
+    if (!showDebug) {
+      return;
+    }
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setShowDebug(false);
@@ -25,12 +27,12 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
-    setShowDebug((prev) => !prev);
+    setShowDebug(prev => !prev);
   };
 
   const priorityScore = getEmailPriorityScore(email);
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
-  const yesNo = (value: boolean) => value ? t('inbox.debugYes') : t('inbox.debugNo');
+  const yesNo = (value: boolean) => (value ? t('inbox.debugYes') : t('inbox.debugNo'));
 
   return (
     <span
@@ -68,14 +70,24 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
             color: theme.colors.text.secondary,
             whiteSpace: 'nowrap',
           }}
-          onClick={(event) => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
         >
-          <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, marginBottom: theme.spacing.sm }}>
+          <div
+            style={{
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
             {t('inbox.debugTitle')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-            <div>{t('inbox.debugPriorityScore')}: <strong>{priorityScore.toFixed(0)}</strong></div>
-            <div>{t('inbox.debugReceived')}: <strong>{new Date(email.receivedAt).toLocaleString()}</strong></div>
+            <div>
+              {t('inbox.debugPriorityScore')}: <strong>{priorityScore.toFixed(0)}</strong>
+            </div>
+            <div>
+              {t('inbox.debugReceived')}: <strong>{new Date(email.receivedAt).toLocaleString()}</strong>
+            </div>
             {email.batchReleaseAt && (
               <div>
                 {t('inbox.debugDeliveredInBatch')}: <strong>{new Date(email.batchReleaseAt).toLocaleString()}</strong>
@@ -85,7 +97,8 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
               {t('inbox.debugBatched')}: <strong>{yesNo(!!email.isBatched)}</strong>
             </div>
             <div>
-              {t('inbox.debugEmergencyDelivery')}: <strong style={{ color: wasDeliveredEarly ? theme.colors.warning.main : 'inherit' }}>
+              {t('inbox.debugEmergencyDelivery')}:{' '}
+              <strong style={{ color: wasDeliveredEarly ? theme.colors.warning.main : 'inherit' }}>
                 {yesNo(wasDeliveredEarly)}
               </strong>
             </div>
@@ -100,9 +113,3 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
     </span>
   );
 };
-
-
-
-
-
-

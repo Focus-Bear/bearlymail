@@ -33,10 +33,10 @@ interface CTAButtonProps {
  * Used throughout the landing page to scroll to the waitlist form
  * Implements Focus Bear brand button styles with proper states
  */
-export const CTAButton: React.FC<CTAButtonProps> = ({ 
-  onClick, 
-  children, 
-  style, 
+export const CTAButton: React.FC<CTAButtonProps> = ({
+  onClick,
+  children,
+  style,
   variant = 'primary',
   disabled = false,
 }) => {
@@ -44,35 +44,61 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
   const [isPressed, setIsPressed] = useState(false);
 
   const getPrimaryBackgroundColor = (): string => {
-    if (disabled) return theme.colors.button.primary.disable;
-    if (isPressed) return theme.colors.button.primary.press;
-    if (isHovered) return theme.colors.button.primary.hover;
+    if (disabled) {
+      return theme.colors.button.primary.disable;
+    }
+    if (isPressed) {
+      return theme.colors.button.primary.press;
+    }
+    if (isHovered) {
+      return theme.colors.button.primary.hover;
+    }
     return theme.colors.button.primary.default;
   };
 
   const getSecondaryBorderColor = (): string => {
-    if (disabled) return theme.colors.button.secondary.disableBorder;
-    if (isPressed) return theme.colors.button.secondary.pressBorder;
-    if (isHovered) return theme.colors.button.secondary.hoverBorder;
+    if (disabled) {
+      return theme.colors.button.secondary.disableBorder;
+    }
+    if (isPressed) {
+      return theme.colors.button.secondary.pressBorder;
+    }
+    if (isHovered) {
+      return theme.colors.button.secondary.hoverBorder;
+    }
     return theme.colors.button.secondary.border;
   };
 
   const getSecondaryTextColor = (): string => {
-    if (disabled) return theme.colors.button.secondary.disableText;
-    if (isPressed) return theme.colors.button.secondary.pressText;
-    if (isHovered) return theme.colors.button.secondary.hoverText;
+    if (disabled) {
+      return theme.colors.button.secondary.disableText;
+    }
+    if (isPressed) {
+      return theme.colors.button.secondary.pressText;
+    }
+    if (isHovered) {
+      return theme.colors.button.secondary.hoverText;
+    }
     return theme.colors.button.secondary.text;
   };
 
   const getThirdBackgroundColor = (): string => {
-    if (disabled) return theme.colors.button.third.disable;
-    if (isPressed) return theme.colors.button.third.press;
-    if (isHovered) return theme.colors.button.third.hover;
+    if (disabled) {
+      return theme.colors.button.third.disable;
+    }
+    if (isPressed) {
+      return theme.colors.button.third.press;
+    }
+    if (isHovered) {
+      return theme.colors.button.third.hover;
+    }
     return theme.colors.button.third.default;
   };
 
   const getThirdTextColor = (): string => {
-    if (disabled) return theme.colors.button.third.disableText;
+    if (disabled) {
+      return theme.colors.button.third.disableText;
+    }
     return theme.colors.button.third.text;
   };
 
@@ -102,7 +128,8 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
         border: `2px solid ${getSecondaryBorderColor()}`,
         color: getSecondaryTextColor(),
       };
-    } else { // third
+    } else {
+      // third
       return {
         ...baseStyles,
         backgroundColor: getThirdBackgroundColor(),
@@ -133,4 +160,3 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
     </button>
   );
 };
-

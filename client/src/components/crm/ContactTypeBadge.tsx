@@ -10,17 +10,10 @@ interface ContactTypeBadgeProps {
   size?: 'sm' | 'md';
 }
 
-export const ContactTypeBadge: React.FC<ContactTypeBadgeProps> = ({
-  label,
-  color,
-  icon,
-  size = STRING_SM,
-}) => {
+export const ContactTypeBadge: React.FC<ContactTypeBadgeProps> = ({ label, color, icon, size = STRING_SM }) => {
   const badgeColor = color || '#6B7280';
   const fontSize = size === STRING_SM ? theme.typography.fontSize.xs : theme.typography.fontSize.sm;
-  const padding = size === STRING_SM
-    ? `1px ${theme.spacing.xs}`
-    : `2px ${theme.spacing.sm}`;
+  const padding = size === STRING_SM ? `1px ${theme.spacing.xs}` : `2px ${theme.spacing.sm}`;
 
   return (
     <span
@@ -29,7 +22,8 @@ export const ContactTypeBadge: React.FC<ContactTypeBadgeProps> = ({
         alignItems: 'center',
         gap: '3px',
         padding,
-        backgroundColor: `${badgeColor}18`,        color: badgeColor,
+        backgroundColor: `${badgeColor}18`,
+        color: badgeColor,
         border: `1px solid ${badgeColor}40`,
         borderRadius: theme.borderRadius.sm,
         fontSize,

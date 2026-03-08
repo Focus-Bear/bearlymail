@@ -1,8 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 
-import { ConfirmModalBody, ConfirmModalFooter,ConfirmModalHeader } from 'components/modal';
-import { OPACITY_HALF,Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { ConfirmModalBody, ConfirmModalFooter, ConfirmModalHeader } from 'components/modal';
+import { OPACITY_HALF, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -31,7 +31,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div
@@ -60,7 +62,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           boxShadow: theme.shadows.xl,
           animation: 'fadeInScale 0.2s ease-out',
         }}
-        onClick={(event) => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
         <ConfirmModalHeader icon={icon} title={title} />
         <ConfirmModalBody message={message} />
@@ -88,11 +90,3 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     </div>
   );
 };
-
-
-
-
-
-
-
-

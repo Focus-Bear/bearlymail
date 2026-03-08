@@ -58,7 +58,14 @@ export const HeroSection: React.FC = () => {
           whiteSpace: 'normal',
         }}
       >
-        {t('landing.hero.headline1')}{isMobile ? ' ' : <><br />{' '}</>}
+        {t('landing.hero.headline1')}
+        {isMobile ? (
+          ' '
+        ) : (
+          <>
+            <br />{' '}
+          </>
+        )}
         {t('landing.hero.headline2')}
       </h1>
       <p
@@ -99,4 +106,3 @@ export const HeroSection: React.FC = () => {
     </section>
   );
 };
-

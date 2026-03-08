@@ -8,7 +8,7 @@ import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { IssueResultsList } from 'components/quick-actions/modals/github/IssueResultsList';
 import { SearchIssuesForm } from 'components/quick-actions/modals/github/SearchIssuesForm';
 import { API_URL } from 'config/api';
-import { MODAL_WIDTH_LARGE,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
+import { MODAL_WIDTH_LARGE, VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface GitHubSearchIssuesModalProps {
   email: {
@@ -18,10 +18,7 @@ interface GitHubSearchIssuesModalProps {
   onClose: () => void;
 }
 
-export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = ({
-  email,
-  onClose,
-}) => {
+export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = ({ email, onClose }) => {
   const [query, setQuery] = useState(email.subject || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,22 +51,10 @@ export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = (
     <ModalBackdrop onClose={onClose} zIndex={2001}>
       <ModalContent maxWidth={`${MODAL_WIDTH_LARGE}px`} maxHeight={VIEWPORT_HEIGHT_90}>
         <ModalHeaderWithClose title="🔍 Search Similar Issues" onClose={onClose} />
-        <SearchIssuesForm
-          query={query}
-          loading={loading}
-          onQueryChange={setQuery}
-          onSubmit={handleSearch}
-        />
+        <SearchIssuesForm query={query} loading={loading} onQueryChange={setQuery} onSubmit={handleSearch} />
         <ErrorDisplay error={error} />
-        <IssueResultsList
-          results={results}
-          loading={loading}
-          query={query}
-          error={error}
-        />
+        <IssueResultsList results={results} loading={loading} query={query} error={error} />
       </ModalContent>
     </ModalBackdrop>
   );
 };
-
-

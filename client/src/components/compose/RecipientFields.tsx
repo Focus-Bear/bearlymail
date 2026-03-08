@@ -4,9 +4,8 @@ import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { AVATAR_SIZE_SMALL_PX,DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
+import { AVATAR_SIZE_SMALL_PX, DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
-
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -85,8 +84,10 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
       >
         {label}
       </label>
-      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', position: 'relative' }}>
-        {recipients.map((recipient) => (
+      <div
+        style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', position: 'relative' }}
+      >
+        {recipients.map(recipient => (
           <div
             key={recipient.email}
             style={{
@@ -99,9 +100,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
               fontSize: theme.typography.fontSize.sm,
             }}
           >
-            <span style={{ color: theme.colors.text.primary }}>
-              {recipient.name || recipient.email}
-            </span>
+            <span style={{ color: theme.colors.text.primary }}>{recipient.name || recipient.email}</span>
             <button
               onClick={() => onRemoveRecipient(recipient.email, field)}
               style={{
@@ -122,7 +121,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
         <input
           type="text"
           value={isActive ? searchQuery : ''}
-          onChange={(event) => {
+          onChange={event => {
             onSetActiveField(field);
             onSearchQueryChange(event.target.value);
           }}
@@ -135,7 +134,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             }
             onSetActiveField(null);
           }}
-          onKeyDown={(event) => {
+          onKeyDown={event => {
             if ((event.key === KEY_ENTER || event.key === KEY_COMMA) && searchQuery.trim()) {
               event.preventDefault();
               const value = searchQuery.trim().replace(/,$/, '');
@@ -174,11 +173,11 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
               overflowY: 'auto',
             }}
           >
-            {searchResults.map((contact) => (
+            {searchResults.map(contact => (
               <div
                 key={contact.id || contact.email}
-                onMouseDown={(event) => event.preventDefault()}
-                onTouchStart={(event) => event.preventDefault()}
+                onMouseDown={event => event.preventDefault()}
+                onTouchStart={event => event.preventDefault()}
                 onClick={() => onSelectSearchResult(contact)}
                 style={{
                   padding: `8px ${FONT_SIZE_XS_PX}px`,
@@ -188,10 +187,10 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                   gap: '8px',
                   borderBottom: `1px solid ${theme.colors.border.light}`,
                 }}
-                onMouseEnter={(event) => {
+                onMouseEnter={event => {
                   event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                 }}
-                onMouseLeave={(event) => {
+                onMouseLeave={event => {
                   event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                 }}
               >
@@ -281,4 +280,3 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
     </div>
   );
 };
-

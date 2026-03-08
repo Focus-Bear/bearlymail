@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -56,7 +56,6 @@ const Login: React.FC = () => {
     }
   };
 
-
   const handleGoogleLogin = () => {
     // Check if user has seen the permissions explanation before
     const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
@@ -83,12 +82,18 @@ const Login: React.FC = () => {
   return (
     <>
       {showPermissionsModal && (
-        <PermissionsExplanation
-          onContinue={proceedToGoogleOAuth}
-          onCancel={handlePermissionsCancel}
-        />
+        <PermissionsExplanation onContinue={proceedToGoogleOAuth} onCancel={handlePermissionsCancel} />
       )}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: theme.colors.background.default, padding: theme.spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          backgroundColor: theme.colors.background.default,
+          padding: theme.spacing.md,
+        }}
+      >
         <LoginFormSection
           email={email}
           password={password}
@@ -104,4 +109,3 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-

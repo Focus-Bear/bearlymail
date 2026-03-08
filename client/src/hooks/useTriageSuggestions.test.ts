@@ -41,7 +41,7 @@ describe('useTriageSuggestions', () => {
       const { result } = renderHook(() => useTriageSuggestions());
       const emails: Email[] = [{ id: '1' } as Email];
 
-      const delayedResponse = new Promise((resolve) => {
+      const delayedResponse = new Promise(resolve => {
         setTimeout(() => resolve({ data: [] }), 100);
       });
       mockedAxios.post.mockImplementation(() => delayedResponse);
@@ -59,10 +59,7 @@ describe('useTriageSuggestions', () => {
 
     it('should fetch suggestions for emails', async () => {
       const { result } = renderHook(() => useTriageSuggestions());
-      const emails: Email[] = [
-        { id: '1' } as Email,
-        { id: '2' } as Email,
-      ];
+      const emails: Email[] = [{ id: '1' } as Email, { id: '2' } as Email];
       const mockSuggestions: (TriageSuggestion & { emailId: string })[] = [
         {
           emailId: '1',
@@ -100,17 +97,18 @@ describe('useTriageSuggestions', () => {
         suggestedStarCount: 1,
         suggestedArchive: true,
       });
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/priority/triage-suggestions`,
-        { emailIds: ['1', '2'] }
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/priority/triage-suggestions`, { emailIds: ['1', '2'] });
     });
 
     it('should limit to TRIAGE_SUGGESTIONS_LIMIT_20 emails', async () => {
       const { result } = renderHook(() => useTriageSuggestions());
-      const emails: Email[] = Array.from({ length: 30 }, (_, i) => ({
-        id: String(i + 1),
-      } as Email));
+      const emails: Email[] = Array.from(
+        { length: 30 },
+        (_, i) =>
+          ({
+            id: String(i + 1),
+          }) as Email
+      );
 
       mockedAxios.post.mockResolvedValue({ data: [] });
 
@@ -120,21 +118,13 @@ describe('useTriageSuggestions', () => {
 
       // The implementation sorts emailIds alphabetically (string sort), so the order is:
       // ['1', '10', '11', ..., '19', '2', '20', '3', '4', '5', '6', '7', '8', '9']
-      const emailIds = Array.from({ length: TRIAGE_SUGGESTIONS_LIMIT_20 }, (_, i) =>
-        String(i + 1)
-      ).sort();
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/priority/triage-suggestions`,
-        { emailIds }
-      );
+      const emailIds = Array.from({ length: TRIAGE_SUGGESTIONS_LIMIT_20 }, (_, i) => String(i + 1)).sort();
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/priority/triage-suggestions`, { emailIds });
     });
 
     it('should skip fetch if same emails already fetched', async () => {
       const { result } = renderHook(() => useTriageSuggestions());
-      const emails: Email[] = [
-        { id: '1' } as Email,
-        { id: '2' } as Email,
-      ];
+      const emails: Email[] = [{ id: '1' } as Email, { id: '2' } as Email];
 
       mockedAxios.post.mockResolvedValue({ data: [] });
 
@@ -164,10 +154,7 @@ describe('useTriageSuggestions', () => {
         expect(result.current.loadingSuggestions).toBe(false);
       });
 
-      expect(console.error).toHaveBeenCalledWith(
-        'Error fetching triage suggestions:',
-        error
-      );
+      expect(console.error).toHaveBeenCalledWith('Error fetching triage suggestions:', error);
       expect(result.current.triageSuggestions.size).toBe(0);
     });
   });
@@ -244,14 +231,11 @@ describe('useTriageSuggestions', () => {
         await result.current.trackOverride('1', suggestion, userAction);
       });
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${API_URL}/priority/triage-suggestions/override`,
-        {
-          emailId: '1',
-          suggestion,
-          userAction,
-        }
-      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(`${API_URL}/priority/triage-suggestions/override`, {
+        emailId: '1',
+        suggestion,
+        userAction,
+      });
       expect(result.current.triageSuggestions.has('1')).toBe(false);
     });
 
@@ -281,4 +265,3 @@ describe('useTriageSuggestions', () => {
     });
   });
 });
-

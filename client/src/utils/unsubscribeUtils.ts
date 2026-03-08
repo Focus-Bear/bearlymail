@@ -17,7 +17,7 @@ const UNSUBSCRIBE_PATTERNS = [
 const URL_PATTERN = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
 
 function matchesUnsubscribePattern(text: string): boolean {
-  return UNSUBSCRIBE_PATTERNS.some((pattern) => pattern.test(text));
+  return UNSUBSCRIBE_PATTERNS.some(pattern => pattern.test(text));
 }
 
 function sanitizeHtmlForUnsubscribe(html: string): string {
@@ -30,9 +30,15 @@ function sanitizeHtmlForUnsubscribe(html: string): string {
 
 function resolveHrefAsAbsoluteUrl(href: string): string | null {
   const url = href.trim();
-  if (url.startsWith('mailto:')) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
+  if (url.startsWith('mailto:')) {
+    return null;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) {
+    return url;
+  }
   return null;
 }
 
@@ -44,16 +50,24 @@ function findUnsubscribeLinkInHtml(htmlBody: string): string | null {
   for (const link of Array.from(tempDiv.querySelectorAll('a[href]'))) {
     const href = link.getAttribute('href');
     const text = link.textContent || '';
-    if (!href) continue;
-    if (!matchesUnsubscribePattern(text) && !matchesUnsubscribePattern(href)) continue;
+    if (!href) {
+      continue;
+    }
+    if (!matchesUnsubscribePattern(text) && !matchesUnsubscribePattern(href)) {
+      continue;
+    }
     const resolved = resolveHrefAsAbsoluteUrl(href);
-    if (resolved) return resolved;
+    if (resolved) {
+      return resolved;
+    }
   }
 
   const htmlText = tempDiv.textContent || '';
   const urls = htmlText.match(URL_PATTERN) || [];
   for (const url of urls) {
-    if (matchesUnsubscribePattern(url)) return url;
+    if (matchesUnsubscribePattern(url)) {
+      return url;
+    }
   }
 
   return null;
@@ -62,20 +76,28 @@ function findUnsubscribeLinkInHtml(htmlBody: string): string | null {
 function findUnsubscribeLinkInText(body: string): string | null {
   const urls = body.match(URL_PATTERN) || [];
   for (const url of urls) {
-    if (matchesUnsubscribePattern(url)) return url;
+    if (matchesUnsubscribePattern(url)) {
+      return url;
+    }
   }
 
   const lines = body.split('\n');
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
-    if (!matchesUnsubscribePattern(line)) continue;
+    if (!matchesUnsubscribePattern(line)) {
+      continue;
+    }
 
     const urlMatch = line.match(URL_PATTERN);
-    if (urlMatch?.[0]) return urlMatch[0];
+    if (urlMatch?.[0]) {
+      return urlMatch[0];
+    }
 
     const nextLine = lines[lineIdx + 1] || '';
     const nextUrlMatch = nextLine.match(URL_PATTERN);
-    if (nextUrlMatch?.[0]) return nextUrlMatch[0];
+    if (nextUrlMatch?.[0]) {
+      return nextUrlMatch[0];
+    }
   }
 
   return null;
@@ -89,13 +111,12 @@ function findUnsubscribeLinkInText(body: string): string | null {
  * @param body - Plain text content of the email (optional)
  * @returns The first valid unsubscribe URL found, or null if none found
  */
-export function extractUnsubscribeLink(
-  htmlBody?: string | null,
-  body?: string | null,
-): string | null {
+export function extractUnsubscribeLink(htmlBody?: string | null, body?: string | null): string | null {
   if (htmlBody) {
     const linkFromHtml = findUnsubscribeLinkInHtml(htmlBody);
-    if (linkFromHtml) return linkFromHtml;
+    if (linkFromHtml) {
+      return linkFromHtml;
+    }
   }
 
   if (body) {

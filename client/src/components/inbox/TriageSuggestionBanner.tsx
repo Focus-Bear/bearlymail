@@ -12,13 +12,9 @@ interface TriageSuggestionBannerProps {
   onApply: (emailId: string, starCount: number) => Promise<void>;
 }
 
-export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
-  suggestion,
-  emailId,
-  onApply,
-}) => {
+export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({ suggestion, emailId, onApply }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -38,8 +34,8 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_LIGHTBULB} {t('inbox.suggested')}:
       </span>
-      <div 
-        onClick={async (event) => {
+      <div
+        onClick={async event => {
           event.stopPropagation();
           captureEvent('triage_suggestion_accepted', {
             email_id: emailId,
@@ -54,10 +50,10 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
           cursor: 'pointer',
           transition: 'opacity 0.2s',
         }}
-        onMouseEnter={(event) => {
+        onMouseEnter={event => {
           event.currentTarget.style.opacity = '1';
         }}
-        onMouseLeave={(event) => {
+        onMouseLeave={event => {
           event.currentTarget.style.opacity = '0.5';
         }}
         title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
@@ -65,13 +61,14 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_STAR.repeat(suggestion.suggestedStarCount)}
       </div>
-      <span style={{ 
-        color: theme.colors.text.tertiary, 
-        fontSize: theme.typography.fontSize.xs,
-      }}>
+      <span
+        style={{
+          color: theme.colors.text.tertiary,
+          fontSize: theme.typography.fontSize.xs,
+        }}
+      >
         →
       </span>
     </div>
   );
 };
-

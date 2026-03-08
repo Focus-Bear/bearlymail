@@ -8,8 +8,24 @@ import { TYPEOF_FUNCTION } from 'constants/strings';
 import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
 import { useEmailFetching } from 'hooks/useEmailFetching';
 import { InboxFilter } from 'hooks/useInboxFilters';
-import { selectCategorySummary, selectDecrypting, selectFetchError, selectHasMore, selectLoadedCategoryNames, selectLoading, selectLoadingCategoryNames,selectLoadingModeSwitch, selectRefreshing, selectVisibleEmails } from 'store/selectors/emailSelectors';
-import { setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction,setRefreshing, updateEmail } from 'store/slices/emailSlice';
+import {
+  selectCategorySummary,
+  selectDecrypting,
+  selectFetchError,
+  selectHasMore,
+  selectLoadedCategoryNames,
+  selectLoading,
+  selectLoadingCategoryNames,
+  selectLoadingModeSwitch,
+  selectRefreshing,
+  selectVisibleEmails,
+} from 'store/selectors/emailSelectors';
+import {
+  setEmails as setEmailsAction,
+  setLoadingModeSwitch as setLoadingModeSwitchAction,
+  setRefreshing,
+  updateEmail,
+} from 'store/slices/emailSlice';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
@@ -21,10 +37,22 @@ type BulkReadParams = {
   onSuggestionRemove?: (emailId: string) => void;
 };
 
-async function bulkMarkReadUnread({ emailIds, isRead, dispatch, fetchEmails, onSuggestionRemove }: BulkReadParams): Promise<void> {
-  if (emailIds.length === 0) return;
-  emailIds.forEach(id => { dispatch(updateEmail({ id, updates: { isRead } })); });
-  if (onSuggestionRemove) emailIds.forEach(id => onSuggestionRemove(id));
+async function bulkMarkReadUnread({
+  emailIds,
+  isRead,
+  dispatch,
+  fetchEmails,
+  onSuggestionRemove,
+}: BulkReadParams): Promise<void> {
+  if (emailIds.length === 0) {
+    return;
+  }
+  emailIds.forEach(id => {
+    dispatch(updateEmail({ id, updates: { isRead } }));
+  });
+  if (onSuggestionRemove) {
+    emailIds.forEach(id => onSuggestionRemove(id));
+  }
   const endpoint = isRead ? 'read' : 'unread';
   try {
     await axios.post(`${API_URL}/emails/bulk/${endpoint}`, { emailIds });
@@ -65,7 +93,11 @@ interface UseEmailManagementReturn {
   categorySummary: CategorySummaryItem[] | null;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
-  handleSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
+  handleSetStarCount: (
+    emailId: string,
+    starCount: number,
+    e?: React.MouseEvent
+  ) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
   handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
   handleSnooze: (emailId: string, duration: string) => Promise<void>;
   handleMarkAsRead: (emailId: string) => Promise<void>;
@@ -75,7 +107,12 @@ interface UseEmailManagementReturn {
   handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
 }
 
-export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters }: UseEmailManagementProps): UseEmailManagementReturn {
+export function useEmailManagement({
+  mode,
+  onSuggestionRemove,
+  onTabCountsUpdateOptimistically,
+  filters,
+}: UseEmailManagementProps): UseEmailManagementReturn {
   const dispatch = useDispatch<AppDispatch>();
   // selectVisibleEmails filters out optimistically archived/snoozed emails from Redux state
   const emails = useSelector(selectVisibleEmails);
@@ -92,35 +129,44 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
-    fetchEmails, onSuggestionRemove, onTabCountsUpdateOptimistically, mode,
+    fetchEmails,
+    onSuggestionRemove,
+    onTabCountsUpdateOptimistically,
+    mode,
   });
 
-  const handleMarkAsRead = useCallback(async (emailId: string) => {
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/read`);
-      dispatch(updateEmail({ id: emailId, updates: { isRead: true } }));
-    } catch (error) {
-      console.error('Error marking email as read:', error);
-    }
-  }, [dispatch]);
+  const handleMarkAsRead = useCallback(
+    async (emailId: string) => {
+      try {
+        await axios.put(`${API_URL}/emails/${emailId}/read`);
+        dispatch(updateEmail({ id: emailId, updates: { isRead: true } }));
+      } catch (error) {
+        console.error('Error marking email as read:', error);
+      }
+    },
+    [dispatch]
+  );
 
-  const handleMarkAsUnread = useCallback(async (emailId: string) => {
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/unread`);
-      dispatch(updateEmail({ id: emailId, updates: { isRead: false } }));
-    } catch (error) {
-      console.error('Error marking email as unread:', error);
-    }
-  }, [dispatch]);
+  const handleMarkAsUnread = useCallback(
+    async (emailId: string) => {
+      try {
+        await axios.put(`${API_URL}/emails/${emailId}/unread`);
+        dispatch(updateEmail({ id: emailId, updates: { isRead: false } }));
+      } catch (error) {
+        console.error('Error marking email as unread:', error);
+      }
+    },
+    [dispatch]
+  );
 
   const handleBulkMarkAsRead = useCallback(
     (emailIds: string[]) => bulkMarkReadUnread({ emailIds, isRead: true, dispatch, fetchEmails, onSuggestionRemove }),
-    [fetchEmails, onSuggestionRemove, dispatch],
+    [fetchEmails, onSuggestionRemove, dispatch]
   );
 
   const handleBulkMarkAsUnread = useCallback(
     (emailIds: string[]) => bulkMarkReadUnread({ emailIds, isRead: false, dispatch, fetchEmails, onSuggestionRemove }),
-    [fetchEmails, onSuggestionRemove, dispatch],
+    [fetchEmails, onSuggestionRemove, dispatch]
   );
 
   const handleCheckUrgent = useCallback(async () => {
@@ -141,23 +187,29 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   }, [dispatch]);
 
   // setEmails is kept for backward compatibility but now dispatches to Redux
-  const setEmails = useCallback((action: React.SetStateAction<Email[]>) => {
-    if (typeof action === TYPEOF_FUNCTION) {
-      const newEmails = action(emails);
-      dispatch(setEmailsAction(newEmails));
-    } else {
-      dispatch(setEmailsAction(action));
-    }
-  }, [dispatch, emails]);
+  const setEmails = useCallback(
+    (action: React.SetStateAction<Email[]>) => {
+      if (typeof action === TYPEOF_FUNCTION) {
+        const newEmails = action(emails);
+        dispatch(setEmailsAction(newEmails));
+      } else {
+        dispatch(setEmailsAction(action));
+      }
+    },
+    [dispatch, emails]
+  );
 
   // setLoadingModeSwitch is kept for backward compatibility
-  const setLoadingModeSwitch = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    if (typeof value === TYPEOF_FUNCTION) {
-      dispatch(setLoadingModeSwitchAction(value(loadingModeSwitch)));
-    } else {
-      dispatch(setLoadingModeSwitchAction(value));
-    }
-  }, [dispatch, loadingModeSwitch]);
+  const setLoadingModeSwitch = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      if (typeof value === TYPEOF_FUNCTION) {
+        dispatch(setLoadingModeSwitchAction(value(loadingModeSwitch)));
+      } else {
+        dispatch(setLoadingModeSwitchAction(value));
+      }
+    },
+    [dispatch, loadingModeSwitch]
+  );
 
   return {
     emails,

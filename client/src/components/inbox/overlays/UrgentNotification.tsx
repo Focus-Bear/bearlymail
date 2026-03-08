@@ -24,35 +24,38 @@ interface UrgentNotificationProps {
 /**
  * Urgent emails notification component
  */
-export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
-  count,
-  emails,
-  onDismiss,
-}) => {
+export const UrgentNotification: React.FC<UrgentNotificationProps> = ({ count, emails, onDismiss }) => {
   const { t } = useTranslation();
 
   const hasUrgentEmails = count > 0;
 
   const getTopPosition = (): string | undefined => {
-    if (hasUrgentEmails) return theme.spacing.lg;
+    if (hasUrgentEmails) {
+      return theme.spacing.lg;
+    }
     return undefined;
   };
 
   const getBottomPosition = (): string | undefined => {
-    if (!hasUrgentEmails) return theme.spacing.lg;
+    if (!hasUrgentEmails) {
+      return theme.spacing.lg;
+    }
     return undefined;
   };
 
   const getBackgroundColor = (): string => {
-    if (hasUrgentEmails) return theme.colors.sunray.light4;
+    if (hasUrgentEmails) {
+      return theme.colors.sunray.light4;
+    }
     return theme.colors.background.paper;
   };
 
   const getBorderColor = (): string => {
-    if (hasUrgentEmails) return theme.colors.accent.error;
+    if (hasUrgentEmails) {
+      return theme.colors.accent.error;
+    }
     return theme.colors.border.light;
   };
-
 
   return (
     <div
@@ -120,6 +123,3 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
     </div>
   );
 };
-
-
-

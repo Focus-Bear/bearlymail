@@ -11,19 +11,14 @@ interface SearchIssuesFormProps {
   onSubmit: (event: React.FormEvent) => void;
 }
 
-export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({
-  query,
-  loading,
-  onQueryChange,
-  onSubmit,
-}) => {
+export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({ query, loading, onQueryChange, onSubmit }) => {
   return (
     <form onSubmit={onSubmit} style={{ marginBottom: theme.spacing.lg }}>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <input
           type="text"
           value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
+          onChange={event => onQueryChange(event.target.value)}
           placeholder="Search query (e.g., 'bug login error')"
           style={{
             flex: 1,
@@ -52,9 +47,3 @@ export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({
     </form>
   );
 };
-
-
-
-
-
-

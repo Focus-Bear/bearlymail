@@ -29,7 +29,7 @@ describe('AuthContext', () => {
     jest.clearAllMocks();
     localStorage.clear();
     delete (axios.defaults.headers.common as any)['Authorization'];
-    
+
     // Setup default mock for useAuthInitialization
     mockUseAuthInitialization.mockImplementation((setUser, setLoading) => {
       React.useEffect(() => {
@@ -44,12 +44,8 @@ describe('AuthContext', () => {
       <div>
         <div data-testid="user">{auth.user ? auth.user.email : 'null'}</div>
         <div data-testid="loading">{auth.loading ? 'loading' : 'not-loading'}</div>
-        <button onClick={() => auth.login('test@example.com', 'password')}>
-          Login
-        </button>
-        <button onClick={() => auth.register('test@example.com', 'password', 'Test User')}>
-          Register
-        </button>
+        <button onClick={() => auth.login('test@example.com', 'password')}>Login</button>
+        <button onClick={() => auth.register('test@example.com', 'password', 'Test User')}>Register</button>
         <button onClick={auth.logout}>Logout</button>
         <button onClick={auth.refreshUser}>Refresh</button>
       </div>
@@ -108,10 +104,10 @@ describe('AuthContext', () => {
       await userEvent.click(loginButton);
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/auth/login'),
-          { email: 'test@example.com', password: 'password' }
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/login'), {
+          email: 'test@example.com',
+          password: 'password',
+        });
       });
 
       await waitFor(() => {
@@ -142,7 +138,7 @@ describe('AuthContext', () => {
       const TestComponentWithErrorHandling: React.FC = () => {
         const auth = useAuth();
         const [loginError, setLoginError] = React.useState<string | null>(null);
-        
+
         const handleLogin = async () => {
           try {
             await auth.login('test@example.com', 'password');
@@ -150,7 +146,7 @@ describe('AuthContext', () => {
             setLoginError('error');
           }
         };
-        
+
         return (
           <div>
             <div data-testid="login-error">{loginError || 'no-error'}</div>
@@ -209,10 +205,11 @@ describe('AuthContext', () => {
 
       // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions -- Multiple waitFor calls are needed to test different async operations
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/auth/register'),
-          { email: 'test@example.com', password: 'password', name: 'Test User' }
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/register'), {
+          email: 'test@example.com',
+          password: 'password',
+          name: 'Test User',
+        });
       });
 
       await waitFor(() => {
@@ -255,10 +252,11 @@ describe('AuthContext', () => {
       await userEvent.click(registerButton);
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/auth/register'),
-          { email: 'test@example.com', password: 'password', name: 'Test User' }
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/register'), {
+          email: 'test@example.com',
+          password: 'password',
+          name: 'Test User',
+        });
       });
     });
 
@@ -269,7 +267,7 @@ describe('AuthContext', () => {
       const TestComponentWithErrorHandling: React.FC = () => {
         const auth = useAuth();
         const [registerError, setRegisterError] = React.useState<string | null>(null);
-        
+
         const handleRegister = async () => {
           try {
             await auth.register('test@example.com', 'password', 'Test User');
@@ -277,7 +275,7 @@ describe('AuthContext', () => {
             setRegisterError('error');
           }
         };
-        
+
         return (
           <div>
             <div data-testid="register-error">{registerError || 'no-error'}</div>
@@ -356,9 +354,7 @@ describe('AuthContext', () => {
       await userEvent.click(refreshButton);
 
       await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-          expect.stringContaining('/users/me')
-        );
+        expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/users/me'));
       });
     });
 
@@ -391,4 +387,3 @@ describe('AuthContext', () => {
     });
   });
 });
-

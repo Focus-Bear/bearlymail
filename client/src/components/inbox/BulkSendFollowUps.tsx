@@ -6,7 +6,7 @@ import { captureEvent } from 'utils/posthog';
 import { BulkSendConfirmModal } from 'components/inbox/bulk/BulkSendConfirmModal';
 import { BulkSendResults } from 'components/inbox/bulk/BulkSendResults';
 import { BulkSendSelectionControls } from 'components/inbox/bulk/BulkSendSelectionControls';
-import { MAX_BULK_SEND_COUNT,OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { MAX_BULK_SEND_COUNT, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface BulkSendFollowUpsProps {
@@ -40,11 +40,11 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
   const handleBulkSend = async () => {
     setIsSending(true);
     setSendResults(new Map());
-    
+
     try {
       const followUpIds = selectedFollowUps.map(fu => fu.id);
       await onBulkSend(followUpIds);
-      
+
       // Mark all as sent (success)
       const results = new Map<string, { success: boolean }>();
       followUpIds.forEach(id => {
@@ -69,16 +69,25 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
 
   return (
     <>
-      <div style={{
-        position: 'sticky',
-        bottom: 0,
-        padding: theme.spacing.lg,
-        backgroundColor: theme.colors.background.paper,
-        borderTop: `1px solid ${theme.colors.border.light}`,
-        boxShadow: theme.shadows.md,
-        zIndex: 100,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          padding: theme.spacing.lg,
+          backgroundColor: theme.colors.background.paper,
+          borderTop: `1px solid ${theme.colors.border.light}`,
+          boxShadow: theme.shadows.md,
+          zIndex: 100,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: theme.spacing.md,
+          }}
+        >
           <BulkSendSelectionControls
             selectedCount={selectedCount}
             allThreads={allThreads}
@@ -86,7 +95,7 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
             onSelectAll={onSelectAll}
             maxAllowed={maxAllowed}
           />
-          
+
           <button
             onClick={() => {
               captureEvent('bulk_followups_send_clicked', { followup_count: selectedCount });
@@ -128,4 +137,3 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
     </>
   );
 };
-

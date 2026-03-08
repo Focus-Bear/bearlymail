@@ -46,13 +46,14 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
     return null;
   }
 
-  const preview = loading
-    ? 'Loading...'
-    : `${links.length} link${links.length !== 1 ? 's' : ''}`;
+  const preview = loading ? 'Loading...' : `${links.length} link${links.length !== 1 ? 's' : ''}`;
 
   const controls = (
     <button
-      onClick={(event) => { event.stopPropagation(); onRefresh(); }}
+      onClick={event => {
+        event.stopPropagation();
+        onRefresh();
+      }}
       style={{
         background: 'transparent',
         border: STRING_NONE,
@@ -80,11 +81,7 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
       preview={preview}
       controls={controls}
     >
-      {loading ? (
-        <GitHubStatusLoading />
-      ) : (
-        <GitHubLinksList links={links} />
-      )}
+      {loading ? <GitHubStatusLoading /> : <GitHubLinksList links={links} />}
     </CollapsibleSection>
   );
 };

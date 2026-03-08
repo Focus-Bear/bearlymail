@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode,useCallback, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 import { theme } from 'theme/theme';
 
 import { NotificationToast } from 'components/notifications/NotificationToast';
@@ -29,15 +29,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
   const showNotification = useCallback(
     (message: string, type: NotificationType = 'info', duration: number = DEFAULT_DURATION) => {
       const id = `notification-${Date.now()}-${Math.random()}`;
       const notification: Notification = { id, message, type, duration };
-      
-      setNotifications((prev) => [...prev, notification]);
+
+      setNotifications(prev => [...prev, notification]);
 
       // Auto-remove after duration
       if (duration > 0) {
@@ -46,41 +46,39 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         }, duration);
       }
     },
-    [removeNotification],
+    [removeNotification]
   );
 
   const showSuccess = useCallback(
     (message: string, duration?: number) => {
       showNotification(message, 'success', duration);
     },
-    [showNotification],
+    [showNotification]
   );
 
   const showError = useCallback(
     (message: string, duration?: number) => {
       showNotification(message, 'error', duration || ERROR_NOTIFICATION_DURATION_MS); // Errors stay longer
     },
-    [showNotification],
+    [showNotification]
   );
 
   const showInfo = useCallback(
     (message: string, duration?: number) => {
       showNotification(message, 'info', duration);
     },
-    [showNotification],
+    [showNotification]
   );
 
   const showWarning = useCallback(
     (message: string, duration?: number) => {
       showNotification(message, 'warning', duration);
     },
-    [showNotification],
+    [showNotification]
   );
 
   return (
-    <NotificationContext.Provider
-      value={{ showNotification, showSuccess, showError, showInfo, showWarning }}
-    >
+    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning }}>
       {children}
       <div
         style={{
@@ -94,7 +92,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
           pointerEvents: 'none',
         }}
       >
-        {notifications.map((notification) => (
+        {notifications.map(notification => (
           <NotificationToast
             key={notification.id}
             notification={notification}

@@ -18,7 +18,9 @@ export const ScanNotification: React.FC<ScanNotificationProps> = ({ progress }) 
   const { t } = useTranslation();
 
   const getProgressPercentage = (): number => {
-    if (!progress || progress.total === 0) return 0;
+    if (!progress || progress.total === 0) {
+      return 0;
+    }
     return (progress.current / progress.total) * 100;
   };
 
@@ -59,9 +61,7 @@ export const ScanNotification: React.FC<ScanNotificationProps> = ({ progress }) 
                 animation: 'spin 1s linear infinite',
               }}
             />
-            <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
-              {t('onboarding.scan.analyzing')}
-            </span>
+            <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('onboarding.scan.analyzing')}</span>
           </div>
           <div
             style={{
@@ -100,11 +100,3 @@ export const ScanNotification: React.FC<ScanNotificationProps> = ({ progress }) 
     </div>
   );
 };
-
-
-
-
-
-
-
-

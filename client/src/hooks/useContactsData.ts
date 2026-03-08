@@ -90,16 +90,28 @@ export const useContactsData = (userId: string | undefined): UseContactsDataResu
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     const pusher = getPusherInstance();
-    if (!pusher) return;
+    if (!pusher) {
+      return;
+    }
 
     const channel = pusher.subscribe(`user-${userId}`);
 
-    channel.bind('contacts-sync-started', () => { setSyncing(true); });
-    channel.bind('contacts-sync-complete', () => { setSyncing(false); fetchContacts(); });
-    channel.bind('contacts-sync-failed', (eventData: { error: string }) => { setSyncing(false); setError(eventData.error); });
+    channel.bind('contacts-sync-started', () => {
+      setSyncing(true);
+    });
+    channel.bind('contacts-sync-complete', () => {
+      setSyncing(false);
+      fetchContacts();
+    });
+    channel.bind('contacts-sync-failed', (eventData: { error: string }) => {
+      setSyncing(false);
+      setError(eventData.error);
+    });
 
     return () => {
       channel.unbind_all();
@@ -108,7 +120,9 @@ export const useContactsData = (userId: string | undefined): UseContactsDataResu
   }, [userId, fetchContacts]);
 
   const getContactTypeConfig = (typeName: string | null | undefined): ContactTypeConfig | undefined => {
-    if (!typeName) return undefined;
+    if (!typeName) {
+      return undefined;
+    }
     return contactTypes.find(ct => ct.name === typeName);
   };
 

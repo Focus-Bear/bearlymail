@@ -1,14 +1,16 @@
-import { useCallback, useEffect,useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
-import { HTTP_FORBIDDEN,HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
 
 const deduplicateLinks = (links: any[]): any[] => {
   const seen = new Set<string>();
-  return links.filter((link) => {
+  return links.filter(link => {
     const key = link.url || `${link.owner}-${link.repo}-${link.number}`.toLowerCase();
-    if (seen.has(key)) return false;
+    if (seen.has(key)) {
+      return false;
+    }
     seen.add(key);
     return true;
   });
@@ -36,9 +38,13 @@ export function useEmailDetailGithub(emailId: string) {
   }, [emailId]);
 
   const fetchGithubInfo = useCallback(async () => {
-    if (!emailId) return;
+    if (!emailId) {
+      return;
+    }
 
-    if (fetchedRef.current === emailId) return;
+    if (fetchedRef.current === emailId) {
+      return;
+    }
     fetchedRef.current = emailId;
 
     if (abortControllerRef.current) {
@@ -69,7 +75,9 @@ export function useEmailDetailGithub(emailId: string) {
   }, [emailId]);
 
   const refreshGithubInfo = useCallback(async () => {
-    if (!emailId) return;
+    if (!emailId) {
+      return;
+    }
     fetchedRef.current = null;
 
     if (abortControllerRef.current) {
@@ -80,7 +88,11 @@ export function useEmailDetailGithub(emailId: string) {
 
     setLoadingGithub(true);
     try {
-      const response = await axios.post(`${API_URL}/github/emails/${emailId}/refresh`, {}, { signal: controller.signal });
+      const response = await axios.post(
+        `${API_URL}/github/emails/${emailId}/refresh`,
+        {},
+        { signal: controller.signal }
+      );
       if (!controller.signal.aborted) {
         fetchedRef.current = emailId;
         setGithubLinks(deduplicateLinks(response.data.links || []));
@@ -99,10 +111,13 @@ export function useEmailDetailGithub(emailId: string) {
   }, [emailId]);
 
   // Reset when email changes
-  const setGithubLinksWithDedup = useCallback((links: any[]) => {
-    setGithubLinks(deduplicateLinks(links));
-    fetchedRef.current = emailId; // Mark as having data
-  }, [emailId]);
+  const setGithubLinksWithDedup = useCallback(
+    (links: any[]) => {
+      setGithubLinks(deduplicateLinks(links));
+      fetchedRef.current = emailId; // Mark as having data
+    },
+    [emailId]
+  );
 
   return {
     githubLinks,
@@ -113,5 +128,3 @@ export function useEmailDetailGithub(emailId: string) {
     refreshGithubInfo,
   };
 }
-
-

@@ -108,7 +108,9 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
 
   const handleEmailSystemChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setEmailSystem(event.target.value);
-    if (event.target.value) captureEvent('wait-list-email-platform-selected');
+    if (event.target.value) {
+      captureEvent('wait-list-email-platform-selected');
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -167,16 +169,9 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         />
 
         <div style={emailSystemContainerStyle}>
-          <label style={getLabelStyle(isMobile)}>
-            {t('landing.waitlist.emailSystemLabel')}
-          </label>
-          <select
-            value={emailSystem}
-            onChange={handleEmailSystemChange}
-            required
-            style={getSelectStyle(isMobile)}
-          >
-            {emailSystemOptions.map((option) => (
+          <label style={getLabelStyle(isMobile)}>{t('landing.waitlist.emailSystemLabel')}</label>
+          <select value={emailSystem} onChange={handleEmailSystemChange} required style={getSelectStyle(isMobile)}>
+            {emailSystemOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

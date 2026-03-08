@@ -9,28 +9,29 @@ interface DebugViewProps {
 
 export const DebugView: React.FC<DebugViewProps> = ({ emails }) => {
   const { t } = useTranslation();
-  
+
   return (
-    <div style={{ padding: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, marginTop: theme.spacing.xl }}>
+    <div
+      style={{
+        padding: theme.spacing.md,
+        borderTop: `1px solid ${theme.colors.border.light}`,
+        marginTop: theme.spacing.xl,
+      }}
+    >
       <details>
         <summary style={{ cursor: 'pointer', color: theme.colors.text.secondary }}>{t('debug.view.title')}</summary>
-        <pre style={{ 
-          backgroundColor: theme.colors.background.subtle, 
-          padding: theme.spacing.md, 
-          borderRadius: theme.borderRadius.md,
-          fontSize: '12px',
-          overflow: 'auto'
-        }}>
+        <pre
+          style={{
+            backgroundColor: theme.colors.background.subtle,
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.md,
+            fontSize: '12px',
+            overflow: 'auto',
+          }}
+        >
           {JSON.stringify(emails, null, 2)}
         </pre>
       </details>
     </div>
   );
 };
-
-
-
-
-
-
-

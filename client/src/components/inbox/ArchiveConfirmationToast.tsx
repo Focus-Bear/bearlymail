@@ -11,8 +11,21 @@ interface ArchiveConfirmationToastProps {
   onCancel: () => void;
 }
 
-const kbdStyle = { padding: `0 ${theme.spacing.xs}`, borderRadius: '3px', fontSize: theme.typography.fontSize.xs } as const;
-const btnBaseStyle = { borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.md}`, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: theme.spacing.xs } as const;
+const kbdStyle = {
+  padding: `0 ${theme.spacing.xs}`,
+  borderRadius: '3px',
+  fontSize: theme.typography.fontSize.xs,
+} as const;
+const btnBaseStyle = {
+  borderRadius: theme.borderRadius.sm,
+  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+  fontSize: theme.typography.fontSize.sm,
+  fontWeight: theme.typography.fontWeight.medium,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing.xs,
+} as const;
 
 export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> = ({
   emailCount,
@@ -22,42 +35,63 @@ export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> =
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: theme.spacing['2xl'],
-      left: '50%',
-      transform: 'translateX(-50%)',
-      backgroundColor: theme.colors.background.paper,
-      padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-      borderRadius: theme.borderRadius.lg,
-      boxShadow: theme.shadows.xl,
-      border: `1px solid ${theme.colors.border.medium}`,
-      zIndex: 1100,
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.md,
-      animation: 'slideUp 0.2s ease-out',
-    }}>
-      <div style={{ 
-        color: theme.colors.text.primary, 
-        fontWeight: theme.typography.fontWeight.medium,
-        fontSize: theme.typography.fontSize.base,
-      }}>
-        {emailCount === 1 
-          ? t('keyboard.archiveConfirmSingle')
-          : t('keyboard.archiveConfirmMultiple', { count: emailCount })
-        }
-      </div>
-      <div style={{
+    <div
+      style={{
+        position: 'fixed',
+        bottom: theme.spacing['2xl'],
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: theme.colors.background.paper,
+        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.xl,
+        border: `1px solid ${theme.colors.border.medium}`,
+        zIndex: 1100,
         display: 'flex',
-        gap: theme.spacing.sm,
         alignItems: 'center',
-      }}>
-        <button onClick={onConfirm} style={{ ...btnBaseStyle, backgroundColor: theme.colors.accent.error, color: COLOR_NAMED_WHITE, border: STRING_NONE }}>
+        gap: theme.spacing.md,
+        animation: 'slideUp 0.2s ease-out',
+      }}
+    >
+      <div
+        style={{
+          color: theme.colors.text.primary,
+          fontWeight: theme.typography.fontWeight.medium,
+          fontSize: theme.typography.fontSize.base,
+        }}
+      >
+        {emailCount === 1
+          ? t('keyboard.archiveConfirmSingle')
+          : t('keyboard.archiveConfirmMultiple', { count: emailCount })}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          gap: theme.spacing.sm,
+          alignItems: 'center',
+        }}
+      >
+        <button
+          onClick={onConfirm}
+          style={{
+            ...btnBaseStyle,
+            backgroundColor: theme.colors.accent.error,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+          }}
+        >
           <kbd style={{ ...kbdStyle, backgroundColor: 'rgba(255,255,255,0.2)' }}>{t('keyboard.keyY')}</kbd>
           {t('keyboard.yes')}
         </button>
-        <button onClick={onCancel} style={{ ...btnBaseStyle, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}` }}>
+        <button
+          onClick={onCancel}
+          style={{
+            ...btnBaseStyle,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+          }}
+        >
           <kbd style={{ ...kbdStyle, backgroundColor: theme.colors.background.disabled }}>{t('keyboard.keyEsc')}</kbd>
           {t('keyboard.no')}
         </button>

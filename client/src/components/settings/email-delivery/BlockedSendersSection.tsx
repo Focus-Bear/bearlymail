@@ -18,21 +18,21 @@ interface BlockedSendersSectionProps {
   onUnblockSender: (id: string) => Promise<void>;
 }
 
-export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({
-  blockedSenders,
-  onUnblockSender,
-}) => {
+export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({ blockedSenders, onUnblockSender }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
   const itemCount = blockedSenders.length;
 
   return (
-    <div id="blocked-senders" style={{
-      marginBottom: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.paper,
-    }}>
+    <div
+      id="blocked-senders"
+      style={{
+        marginBottom: theme.spacing.lg,
+        border: `1px solid ${theme.colors.border.light}`,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.background.paper,
+      }}
+    >
       <div
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
@@ -78,30 +78,36 @@ export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({
       </div>
 
       {isExpanded && (
-        <div style={{
-          padding: theme.spacing.md,
-        }}>
-          <p style={{
-            color: theme.colors.text.secondary,
-            marginBottom: theme.spacing.md,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+        <div
+          style={{
+            padding: theme.spacing.md,
+          }}
+        >
+          <p
+            style={{
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.md,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {t('settings.blockedSenders.description')}
           </p>
 
           {blockedSenders.length === 0 ? (
-            <div style={{
-              padding: theme.spacing.xl,
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              border: `2px dashed ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.md,
-            }}>
+            <div
+              style={{
+                padding: theme.spacing.xl,
+                textAlign: 'center',
+                color: theme.colors.text.secondary,
+                border: `2px dashed ${theme.colors.border.light}`,
+                borderRadius: theme.borderRadius.md,
+              }}
+            >
               {t('settings.blockedSenders.emptyState')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              {blockedSenders.map((sender) => (
+              {blockedSenders.map(sender => (
                 <BlockedSenderItem key={sender.id} sender={sender} onUnblock={onUnblockSender} />
               ))}
             </div>
@@ -111,5 +117,3 @@ export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({
     </div>
   );
 };
-
-

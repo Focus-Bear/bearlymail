@@ -170,7 +170,8 @@ const createMockState = () => ({
   setLoading: jest.fn(),
 });
 
-const createWrapper = (store: ReturnType<typeof createTestStore>) =>
+const createWrapper =
+  (store: ReturnType<typeof createTestStore>) =>
   ({ children }: { children: React.ReactNode }) =>
     React.createElement(Provider, { store }, children);
 
@@ -191,10 +192,9 @@ describe('useEmailDetailOperations', () => {
       const testEmail = { id: TEST_EMAIL_ID, threadId: 'thread-1', subject: 'Test', from: 'test@test.com' } as Email;
       const store = createTestStore([testEmail]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -207,10 +207,9 @@ describe('useEmailDetailOperations', () => {
       // Empty store – simulates opening email directly via URL or after mode switch
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -222,10 +221,9 @@ describe('useEmailDetailOperations', () => {
     it('navigates to /inbox after snooze when no onSnoozeComplete callback and no fromMode', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -238,10 +236,9 @@ describe('useEmailDetailOperations', () => {
       mockLocationState.fromMode = 'action';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -254,10 +251,9 @@ describe('useEmailDetailOperations', () => {
       mockLocationState.fromMode = 'follow-up';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -286,15 +282,18 @@ describe('useEmailDetailOperations', () => {
     it('reverts optimistic snooze on API failure', async () => {
       const store = createTestStore([]);
       mockedAxios.post.mockImplementation((url: string) => {
-        if (url.includes('/replies/send/')) return Promise.resolve({ data: {} });
-        if (url.includes('/snooze/')) return Promise.reject(new Error('Snooze failed'));
+        if (url.includes('/replies/send/')) {
+          return Promise.resolve({ data: {} });
+        }
+        if (url.includes('/snooze/')) {
+          return Promise.reject(new Error('Snooze failed'));
+        }
         return Promise.resolve({ data: {} });
       });
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -312,10 +311,9 @@ describe('useEmailDetailOperations', () => {
       const testEmail = { id: TEST_EMAIL_ID, threadId: 'thread-1', subject: 'Test', from: 'test@test.com' } as Email;
       const store = createTestStore([testEmail]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 0, 'Test reply');
@@ -327,10 +325,9 @@ describe('useEmailDetailOperations', () => {
     it('dispatches addOptimisticArchive even when email is NOT in Redux store', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 0, 'Test reply');
@@ -343,10 +340,9 @@ describe('useEmailDetailOperations', () => {
       mockLocationState.fromMode = 'action';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 0, 'Test reply');
@@ -360,10 +356,9 @@ describe('useEmailDetailOperations', () => {
     it('sends expectedReplyHours in JSON request body', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 48, 'Test reply');
@@ -378,10 +373,9 @@ describe('useEmailDetailOperations', () => {
     it('sends expectedReplyHours=0 in JSON request body when None selected', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], 0, 'Test reply');
@@ -396,10 +390,9 @@ describe('useEmailDetailOperations', () => {
     it('sends undefined expectedReplyHours when not provided', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], undefined, 'Test reply');
@@ -416,10 +409,9 @@ describe('useEmailDetailOperations', () => {
     it('navigates to /inbox when no expectedReplyHours and no fromMode', async () => {
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], undefined, 'Test reply');
@@ -432,10 +424,9 @@ describe('useEmailDetailOperations', () => {
       mockLocationState.fromMode = 'action';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], undefined, 'Test reply');
@@ -448,10 +439,9 @@ describe('useEmailDetailOperations', () => {
       mockLocationState.fromMode = 'triage';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSendReply([], undefined, 'Test reply');

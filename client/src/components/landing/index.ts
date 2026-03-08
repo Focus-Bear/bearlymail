@@ -1,6 +1,6 @@
 /**
  * Landing page components
- * 
+ *
  * This module exports all components used in the landing page.
  * Components are organized by responsibility to follow clean code principles:
  * - Single Responsibility: Each component has one clear purpose
@@ -27,4 +27,3 @@ export { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer'
 export { WaitlistFormField } from 'components/landing/WaitlistFormField';
 export { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 export { WaitlistSuccess } from 'components/landing/WaitlistSuccess';
-

@@ -16,9 +16,7 @@ const getThreadKey = (thread: ThreadWithoutEmails, index: number): string => {
   return `thread-${thread.id}-${index}`;
 };
 
-export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> = ({
-  threads,
-}) => {
+export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> = ({ threads }) => {
   if (threads.length === 0) {
     return null;
   }
@@ -47,18 +45,11 @@ export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> =
           }}
         >
           <span>
-            <strong>DB ID:</strong> {thread.id} | <strong>Gmail Thread:</strong>{' '}
-            {thread.threadId} | <strong>Stars:</strong> {thread.starCount} |{' '}
-            <strong>Archived:</strong> {thread.isArchived ? 'YES' : 'NO'}
+            <strong>DB ID:</strong> {thread.id} | <strong>Gmail Thread:</strong> {thread.threadId} |{' '}
+            <strong>Stars:</strong> {thread.starCount} | <strong>Archived:</strong> {thread.isArchived ? 'YES' : 'NO'}
           </span>
         </div>
       ))}
     </details>
   );
 };
-
-
-
-
-
-

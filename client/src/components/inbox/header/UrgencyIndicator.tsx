@@ -10,10 +10,7 @@ interface UrgencyIndicatorProps {
   urgencyExplanation?: string | null;
 }
 
-export const UrgencyIndicator: React.FC<UrgencyIndicatorProps> = ({
-  urgencyScore,
-  urgencyExplanation,
-}) => {
+export const UrgencyIndicator: React.FC<UrgencyIndicatorProps> = ({ urgencyScore, urgencyExplanation }) => {
   const { t } = useTranslation();
   if (urgencyScore === undefined || urgencyScore < URGENCY_THRESHOLD) {
     return null;
@@ -40,6 +37,3 @@ export const UrgencyIndicator: React.FC<UrgencyIndicatorProps> = ({
     </span>
   );
 };
-
-
-

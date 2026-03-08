@@ -22,7 +22,7 @@ export const OpenAIApiKeyInput: React.FC<OpenAIApiKeyInputProps> = ({
       <input
         type={showApiKey ? 'text' : 'password'}
         value={openAiApiKey}
-        onChange={(event) => onOpenAiApiKeyChange(event.target.value)}
+        onChange={event => onOpenAiApiKeyChange(event.target.value)}
         placeholder="sk-..."
         style={{
           flex: 1,
@@ -50,8 +50,3 @@ export const OpenAIApiKeyInput: React.FC<OpenAIApiKeyInputProps> = ({
     </div>
   );
 };
-
-
-
-
-

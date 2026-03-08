@@ -53,11 +53,8 @@ export const ModalFormActions: React.FC<ModalFormActionsProps> = ({
           fontWeight: theme.typography.fontWeight.semibold,
         }}
       >
-        {loading ? (loadingLabel || t('common.loading')) : submitLabel}
+        {loading ? loadingLabel || t('common.loading') : submitLabel}
       </button>
     </div>
   );
 };
-
-
-

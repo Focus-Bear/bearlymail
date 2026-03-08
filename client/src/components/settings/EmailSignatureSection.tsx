@@ -22,20 +22,24 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
 
   return (
     <div id="email-signature" style={{ marginBottom: theme.spacing.xl }}>
-      <h2 style={{
-        fontSize: theme.typography.fontSize.xl,
-        fontWeight: '600',
-        marginBottom: theme.spacing.md,
-        color: theme.colors.text.primary,
-      }}>
+      <h2
+        style={{
+          fontSize: theme.typography.fontSize.xl,
+          fontWeight: '600',
+          marginBottom: theme.spacing.md,
+          color: theme.colors.text.primary,
+        }}
+      >
         {t('settings.emailSignature.title')}
       </h2>
 
-      <p style={{
-        marginBottom: theme.spacing.md,
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.md,
-      }}>
+      <p
+        style={{
+          marginBottom: theme.spacing.md,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.md,
+        }}
+      >
         {t('settings.emailSignature.description')}
       </p>
 
@@ -55,7 +59,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
         <textarea
           id="email-signature-input"
           value={emailSignature || ''}
-          onChange={(event) => onSignatureChange(event.target.value)}
+          onChange={event => onSignatureChange(event.target.value)}
           placeholder={t('settings.emailSignature.placeholder')}
           style={{
             width: '100%',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -81,7 +81,9 @@ export function useTabCounts(): UseTabCountsReturn {
   // would be stale if fetched immediately
   const updateTabCountsOptimistically = useCallback((changes: TabCountChanges) => {
     setTabCounts(prev => {
-      if (!prev) return prev;
+      if (!prev) {
+        return prev;
+      }
       const newCounts = {
         triage: Math.max(0, prev.triage + (changes.triage || 0)),
         action: Math.max(0, prev.action + (changes.action || 0)),
@@ -94,10 +96,13 @@ export function useTabCounts(): UseTabCountsReturn {
         const cached = localStorage.getItem(TAB_COUNTS_CACHE_KEY);
         if (cached) {
           const existingEntry: CacheEntry = JSON.parse(cached);
-          localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
-            counts: newCounts,
-            timestamp: existingEntry.timestamp,
-          }));
+          localStorage.setItem(
+            TAB_COUNTS_CACHE_KEY,
+            JSON.stringify({
+              counts: newCounts,
+              timestamp: existingEntry.timestamp,
+            })
+          );
         }
       } catch (err) {
         // Ignore cache errors

@@ -119,12 +119,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       const { correlationId, isNetworkErr } = this.state;
 
-      return (
-        <ErrorFallback
-          correlationId={correlationId ?? ''}
-          isNetworkErr={isNetworkErr}
-        />
-      );
+      return <ErrorFallback correlationId={correlationId ?? ''} isNetworkErr={isNetworkErr} />;
     }
 
     return this.props.children;

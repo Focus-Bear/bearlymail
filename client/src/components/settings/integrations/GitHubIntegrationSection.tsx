@@ -20,49 +20,59 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
   onDisconnectGitHub,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
-    <div id="github-integration" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
-      marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
-    }}>
-      <h2 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xl,
-        scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-      }}>
+    <div
+      id="github-integration"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
+    >
+      <h2
+        style={{
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.xl,
+          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
+        }}
+      >
         {t('settings.github.title')}
       </h2>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
-        {t('settings.github.description')}{' '}
-        {t('settings.github.oauthDescription')}
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('settings.github.description')} {t('settings.github.oauthDescription')}
       </p>
-      <p style={{
-        color: theme.colors.text.tertiary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xs,
-        fontStyle: 'italic',
-      }}>
+      <p
+        style={{
+          color: theme.colors.text.tertiary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.xs,
+          fontStyle: 'italic',
+        }}
+      >
         {t('settings.github.orgProjectNote')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
         {hasGithubToken && (
-          <div style={{
-            padding: theme.spacing.sm,
-            backgroundColor: `${theme.colors.accent.success}20`,
-            border: `1px solid ${theme.colors.accent.success}`,
-            borderRadius: theme.borderRadius.md,
-            color: theme.colors.accent.success,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <div
+            style={{
+              padding: theme.spacing.sm,
+              backgroundColor: `${theme.colors.accent.success}20`,
+              border: `1px solid ${theme.colors.accent.success}`,
+              borderRadius: theme.borderRadius.md,
+              color: theme.colors.accent.success,
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
             {/* eslint-disable-next-line i18next/no-literal-string */}
             {EMOJI_CHECK} {t('settings.github.connected')}
           </div>
@@ -112,4 +122,3 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
     </div>
   );
 };
-

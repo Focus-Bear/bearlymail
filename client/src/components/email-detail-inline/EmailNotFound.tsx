@@ -10,5 +10,3 @@ export const EmailNotFound: React.FC = () => {
     </div>
   );
 };
-
-

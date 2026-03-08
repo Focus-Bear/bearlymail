@@ -9,29 +9,30 @@ interface FollowUpActionsHeaderProps {
   isGenerating: boolean;
 }
 
-export const FollowUpActionsHeader: React.FC<FollowUpActionsHeaderProps> = ({
-  onGenerateDrafts,
-  isGenerating,
-}) => {
+export const FollowUpActionsHeader: React.FC<FollowUpActionsHeaderProps> = ({ onGenerateDrafts, isGenerating }) => {
   const { t } = useTranslation();
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
-        <h3 style={{
-          margin: 0,
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.primary,
-        }}>
+        <h3
+          style={{
+            margin: 0,
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.lg,
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+          }}
+        >
           {t('inbox.generateFollowUps')}
         </h3>
-        <p style={{
-          margin: 0,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-        }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+          }}
+        >
           {t('inbox.generateFollowUpsDescription')}
         </p>
       </div>
@@ -50,12 +51,12 @@ export const FollowUpActionsHeader: React.FC<FollowUpActionsHeaderProps> = ({
           transition: theme.transitions.default,
           opacity: isGenerating ? OPACITY_DISABLED : OPACITY_FULL,
         }}
-        onMouseEnter={(event) => {
+        onMouseEnter={event => {
           if (!isGenerating) {
             event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
           }
         }}
-        onMouseLeave={(event) => {
+        onMouseLeave={event => {
           if (!isGenerating) {
             event.currentTarget.style.backgroundColor = theme.colors.primary.main;
           }
@@ -66,6 +67,3 @@ export const FollowUpActionsHeader: React.FC<FollowUpActionsHeaderProps> = ({
     </div>
   );
 };
-
-
-

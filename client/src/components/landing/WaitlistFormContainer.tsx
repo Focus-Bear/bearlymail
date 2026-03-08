@@ -14,28 +14,40 @@ export const WaitlistFormContainer: React.FC<WaitlistFormContainerProps> = ({ ch
   const { isMobile, isTablet } = useResponsiveBreakpoints();
 
   const getPosition = (): 'static' | 'sticky' => {
-    if (isMobile || isTablet) return 'static';
+    if (isMobile || isTablet) {
+      return 'static';
+    }
     return 'sticky';
   };
 
   const getTop = (): string => {
-    if (isMobile || isTablet) return 'auto';
+    if (isMobile || isTablet) {
+      return 'auto';
+    }
     return theme.spacing.xl;
   };
 
   const getMaxHeight = (): string => {
-    if (isMobile || isTablet) return 'none';
+    if (isMobile || isTablet) {
+      return 'none';
+    }
     return 'calc(100vh - 2rem)';
   };
 
   const getOverflowY = (): 'visible' | 'auto' => {
-    if (isMobile || isTablet) return 'visible';
+    if (isMobile || isTablet) {
+      return 'visible';
+    }
     return 'auto';
   };
 
   const getPadding = (): string => {
-    if (isMobile) return theme.spacing.lg;
-    if (isTablet) return theme.spacing.lg;
+    if (isMobile) {
+      return theme.spacing.lg;
+    }
+    if (isTablet) {
+      return theme.spacing.lg;
+    }
     return theme.spacing['2xl'];
   };
 
@@ -72,4 +84,3 @@ export const WaitlistFormContainer: React.FC<WaitlistFormContainerProps> = ({ ch
     </div>
   );
 };
-

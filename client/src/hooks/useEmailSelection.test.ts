@@ -1,4 +1,4 @@
-import { act,renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { Email, InboxMode } from 'types/email';
 
 import { useEmailSelection } from './useEmailSelection';
@@ -197,10 +197,9 @@ describe('useEmailSelection', () => {
     });
 
     it('should reset selection when emailsLength changes', () => {
-      const { result, rerender } = renderHook(
-        ({ mode, length }) => useEmailSelection(mode, length),
-        { initialProps: { mode: 'triage' as const, length: 4 } }
-      );
+      const { result, rerender } = renderHook(({ mode, length }) => useEmailSelection(mode, length), {
+        initialProps: { mode: 'triage' as const, length: 4 },
+      });
 
       const mockEvent = { shiftKey: false, ctrlKey: false, metaKey: false } as React.MouseEvent;
 
@@ -241,4 +240,3 @@ describe('useEmailSelection', () => {
     });
   });
 });
-

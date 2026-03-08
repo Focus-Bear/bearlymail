@@ -28,19 +28,21 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
   onRemoveTime,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <label style={{ 
-        color: theme.colors.text.primary, 
-        fontWeight: theme.typography.fontWeight.medium,
-        display: 'block',
-        marginBottom: theme.spacing.sm,
-      }}>
+      <label
+        style={{
+          color: theme.colors.text.primary,
+          fontWeight: theme.typography.fontWeight.medium,
+          display: 'block',
+          marginBottom: theme.spacing.sm,
+        }}
+      >
         {t('settings.delivery.times.label')}
       </label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-        {deliveryTimes.map((time) => (
+        {deliveryTimes.map(time => (
           <div
             key={time}
             style={{
@@ -53,10 +55,12 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
               border: `1px solid ${theme.colors.primary.light}`,
             }}
           >
-            <span style={{ 
-              color: theme.colors.primary.dark,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}>
+            <span
+              style={{
+                color: theme.colors.primary.dark,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
               {formatTime12h(time)}
             </span>
             <button
@@ -82,7 +86,7 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
         <input
           type="time"
           value={newDeliveryTime}
-          onChange={(event) => onNewDeliveryTimeChange(event.target.value)}
+          onChange={event => onNewDeliveryTimeChange(event.target.value)}
           style={{
             padding: theme.spacing.sm,
             border: `1px solid ${theme.colors.border.medium}`,
@@ -109,5 +113,3 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
     </div>
   );
 };
-
-

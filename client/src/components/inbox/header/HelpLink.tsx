@@ -5,30 +5,41 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
-import {
-  MODE_ACTION,
-  MODE_AUTORESPONDED,
-  MODE_BLOCKED,
-  MODE_TRIAGE,
-} from 'constants/strings';
+import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_TRIAGE } from 'constants/strings';
 
 interface HelpLinkProps {
   mode: InboxMode;
 }
 
 const getHelpLink = (mode: InboxMode): string => {
-  if (mode === MODE_TRIAGE) return '/help/triage';
-  if (mode === MODE_ACTION) return '/help/process';
-  if (mode === MODE_AUTORESPONDED) return '/help/autoresponder';
-  if (mode === MODE_BLOCKED) return '/help/triage';
+  if (mode === MODE_TRIAGE) {
+    return '/help/triage';
+  }
+  if (mode === MODE_ACTION) {
+    return '/help/process';
+  }
+  if (mode === MODE_AUTORESPONDED) {
+    return '/help/autoresponder';
+  }
+  if (mode === MODE_BLOCKED) {
+    return '/help/triage';
+  }
   return '/help/follow-up';
 };
 
 const getHelpType = (mode: InboxMode): string => {
-  if (mode === MODE_TRIAGE) return 'triage';
-  if (mode === MODE_ACTION) return 'process';
-  if (mode === MODE_AUTORESPONDED) return 'autoresponder';
-  if (mode === MODE_BLOCKED) return 'triage';
+  if (mode === MODE_TRIAGE) {
+    return 'triage';
+  }
+  if (mode === MODE_ACTION) {
+    return 'process';
+  }
+  if (mode === MODE_AUTORESPONDED) {
+    return 'autoresponder';
+  }
+  if (mode === MODE_BLOCKED) {
+    return 'triage';
+  }
   return 'follow-up';
 };
 
@@ -55,11 +66,11 @@ export const HelpLink: React.FC<HelpLinkProps> = ({ mode }) => {
         fontWeight: theme.typography.fontWeight.bold,
         transition: theme.transitions.default,
       }}
-      onMouseEnter={(event) => {
+      onMouseEnter={event => {
         event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
         event.currentTarget.style.color = theme.colors.primary.main;
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={event => {
         event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
         event.currentTarget.style.color = theme.colors.text.secondary;
       }}
@@ -69,7 +80,3 @@ export const HelpLink: React.FC<HelpLinkProps> = ({ mode }) => {
     </Link>
   );
 };
-
-
-
-

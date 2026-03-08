@@ -4,27 +4,28 @@ import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { EMOJI_INFO } from 'constants/emojis';
-import { MINUTES_PER_HOUR,MS_PER_MINUTE } from 'constants/numbers';
+import { MINUTES_PER_HOUR, MS_PER_MINUTE } from 'constants/numbers';
 
 interface BatchInfoBarProps {
   nextDelivery: Date | null;
   lastUrgentCheck: Date | null;
 }
 
-export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
-  nextDelivery,
-  lastUrgentCheck,
-}) => {
+export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUrgentCheck }) => {
   const { t } = useTranslation();
   const [showDeliveryTooltip, setShowDeliveryTooltip] = useState(false);
   const [showUrgentTooltip, setShowUrgentTooltip] = useState(false);
 
   const getNextDeliveryText = (): string | null => {
-    if (!nextDelivery) return null;
+    if (!nextDelivery) {
+      return null;
+    }
     const now = new Date();
     const diffMs = nextDelivery.getTime() - now.getTime();
     const diffMins = Math.round(diffMs / MS_PER_MINUTE);
-    if (diffMins <= 0) return null;
+    if (diffMins <= 0) {
+      return null;
+    }
 
     const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
     const remainingMins = diffMins % MINUTES_PER_HOUR;
@@ -38,17 +39,27 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
   };
 
   const getLastCheckText = (): string => {
-    if (!lastUrgentCheck) return t('inbox.batchInfo.neverChecked');
+    if (!lastUrgentCheck) {
+      return t('inbox.batchInfo.neverChecked');
+    }
     const now = new Date();
     const diffMs = now.getTime() - lastUrgentCheck.getTime();
     const diffMins = Math.round(diffMs / MS_PER_MINUTE);
-    
-    if (diffMins < 1) return t('inbox.batchInfo.justNow');
-    if (diffMins === 1) return t('inbox.batchInfo.oneMinuteAgo');
-    if (diffMins < MINUTES_PER_HOUR) return t('inbox.batchInfo.minutesAgo', { count: diffMins });
-    
+
+    if (diffMins < 1) {
+      return t('inbox.batchInfo.justNow');
+    }
+    if (diffMins === 1) {
+      return t('inbox.batchInfo.oneMinuteAgo');
+    }
+    if (diffMins < MINUTES_PER_HOUR) {
+      return t('inbox.batchInfo.minutesAgo', { count: diffMins });
+    }
+
     const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
-    if (diffHours === 1) return t('inbox.batchInfo.oneHourAgo');
+    if (diffHours === 1) {
+      return t('inbox.batchInfo.oneHourAgo');
+    }
     return t('inbox.batchInfo.hoursAgo', { count: diffHours });
   };
 
@@ -56,7 +67,17 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing.xs,
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.md,
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+      }}
     >
       {/* Next batch delivery */}
       {nextDeliveryText && (
@@ -72,13 +93,26 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
             {EMOJI_INFO}
             {showDeliveryTooltip && (
               <div
-                style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md, width: '280px', zIndex: 1000, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, lineHeight: theme.typography.lineHeight.relaxed, }}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginTop: theme.spacing.xs,
+                  padding: theme.spacing.sm,
+                  backgroundColor: theme.colors.background.paper,
+                  border: `1px solid ${theme.colors.border.light}`,
+                  borderRadius: theme.borderRadius.md,
+                  boxShadow: theme.shadows.md,
+                  width: '280px',
+                  zIndex: 1000,
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.secondary,
+                  lineHeight: theme.typography.lineHeight.relaxed,
+                }}
               >
                 {t('inbox.batchInfo.deliveryTooltip')}{' '}
-                <Link
-                  to="/settings#email-batching"
-                  style={{ color: theme.colors.primary.main }}
-                >
+                <Link to="/settings#email-batching" style={{ color: theme.colors.primary.main }}>
                   {t('inbox.batchInfo.changeInSettings')}
                 </Link>
               </div>
@@ -100,7 +134,23 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
           {EMOJI_INFO}
           {showUrgentTooltip && (
             <div
-              style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md, width: '300px', zIndex: 1000, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, lineHeight: theme.typography.lineHeight.relaxed, }}
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: theme.spacing.xs,
+                padding: theme.spacing.sm,
+                backgroundColor: theme.colors.background.paper,
+                border: `1px solid ${theme.colors.border.light}`,
+                borderRadius: theme.borderRadius.md,
+                boxShadow: theme.shadows.md,
+                width: '300px',
+                zIndex: 1000,
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                lineHeight: theme.typography.lineHeight.relaxed,
+              }}
             >
               {t('inbox.batchInfo.urgentTooltip')}
             </div>

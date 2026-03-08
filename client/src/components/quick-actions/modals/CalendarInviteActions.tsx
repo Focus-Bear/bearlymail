@@ -54,6 +54,3 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
     </div>
   );
 };
-
-
-

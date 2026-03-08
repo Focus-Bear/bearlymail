@@ -58,20 +58,12 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
           {'ℹ️'}
         </button>
       )}
-      <button
-        onClick={onOpenOverride}
-        style={iconButtonStyle}
-        title={t('priority.categoryOverride.buttonTitle')}
-      >
+      <button onClick={onOpenOverride} style={iconButtonStyle} title={t('priority.categoryOverride.buttonTitle')}>
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {'✏️'}
       </button>
       {isAdmin && (
-        <button
-          onClick={onOpenDebug}
-          style={iconButtonStyle}
-          title={t('priority.categoryDebug.buttonTitle')}
-        >
+        <button onClick={onOpenDebug} style={iconButtonStyle} title={t('priority.categoryDebug.buttonTitle')}>
           {/* eslint-disable-next-line i18next/no-literal-string */}
           {'👎'}
         </button>
@@ -85,32 +77,31 @@ interface ProtoCategorySectionProps {
   protoCategoryDescription?: string | null;
 }
 
-const ProtoCategorySection: React.FC<ProtoCategorySectionProps> = ({
-  protoCategoryName,
-  protoCategoryDescription,
-}) => {
+const ProtoCategorySection: React.FC<ProtoCategorySectionProps> = ({ protoCategoryName, protoCategoryDescription }) => {
   const { t } = useTranslation();
   return (
-    <div style={{
-      marginTop: theme.spacing.xs,
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.sm,
-      fontSize: theme.typography.fontSize.xs,
-      lineHeight: '1.4',
-    }}>
-      <div style={{
-        fontWeight: theme.typography.fontWeight.semibold,
-        color: theme.colors.text.secondary,
-        marginBottom: '2px',
-      }}>
+    <div
+      style={{
+        marginTop: theme.spacing.xs,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.sm,
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: '1.4',
+      }}
+    >
+      <div
+        style={{
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.secondary,
+          marginBottom: '2px',
+        }}
+      >
         {t('priority.tooltip.suggestedCategory')}
       </div>
       <div style={{ color: theme.colors.text.primary }}>{protoCategoryName}</div>
       {protoCategoryDescription && (
-        <div style={{ color: theme.colors.text.secondary, marginTop: '2px' }}>
-          {protoCategoryDescription}
-        </div>
+        <div style={{ color: theme.colors.text.secondary, marginTop: '2px' }}>{protoCategoryDescription}</div>
       )}
     </div>
   );
@@ -134,30 +125,34 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
 
   return (
     <div style={{ marginBottom: theme.spacing.sm }}>
-      <div style={{
-        fontSize: theme.typography.fontSize.xs,
-        fontWeight: theme.typography.fontWeight.semibold,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-      }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {t('priority.tooltip.category').toUpperCase()}
       </div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-        padding: theme.spacing.xs,
-        backgroundColor: theme.colors.background.subtle,
-        borderRadius: theme.borderRadius.sm,
-      }}>
-        <span style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.primary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}>
-          {isOtherCategory && protoCategoryName
-            ? `${category} (${protoCategoryName})`
-            : category}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+          padding: theme.spacing.xs,
+          backgroundColor: theme.colors.background.subtle,
+          borderRadius: theme.borderRadius.sm,
+        }}
+      >
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.primary,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {isOtherCategory && protoCategoryName ? `${category} (${protoCategoryName})` : category}
         </span>
         <CategoryActionButtons
           categoryExplanation={categoryExplanation}
@@ -169,15 +164,17 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
         />
       </div>
       {showExplanation && categoryExplanation && (
-        <div style={{
-          marginTop: theme.spacing.xs,
-          padding: theme.spacing.sm,
-          backgroundColor: theme.colors.background.subtle,
-          borderRadius: theme.borderRadius.sm,
-          fontSize: theme.typography.fontSize.xs,
-          color: theme.colors.text.secondary,
-          lineHeight: '1.4',
-        }}>
+        <div
+          style={{
+            marginTop: theme.spacing.xs,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+            lineHeight: '1.4',
+          }}
+        >
           {categoryExplanation}
         </div>
       )}
@@ -195,12 +192,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
           onSubmitted={onCategoryOverride}
         />
       )}
-      {showDebugModal && (
-        <CategoryDebugModal
-          emailId={emailId}
-          onClose={() => setShowDebugModal(false)}
-        />
-      )}
+      {showDebugModal && <CategoryDebugModal emailId={emailId} onClose={() => setShowDebugModal(false)} />}
     </div>
   );
 };

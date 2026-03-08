@@ -10,7 +10,7 @@ interface UrgentNotificationHeaderProps {
 
 export const UrgentNotificationHeader: React.FC<UrgentNotificationHeaderProps> = ({ count }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -35,6 +35,3 @@ export const UrgentNotificationHeader: React.FC<UrgentNotificationHeaderProps> =
     </div>
   );
 };
-
-
-

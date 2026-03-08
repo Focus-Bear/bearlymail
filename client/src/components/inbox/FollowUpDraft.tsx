@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { theme } from 'theme/theme';
 
 import { DraftDisplay } from 'components/inbox/followup/DraftDisplay';
@@ -18,11 +18,7 @@ interface FollowUpDraftProps {
   onSendFollowUp?: (followUpId: string, draft: string) => Promise<void>;
 }
 
-export const FollowUpDraft: React.FC<FollowUpDraftProps> = ({
-  followUpData,
-  onUpdateDraft,
-  onSendFollowUp,
-}) => {
+export const FollowUpDraft: React.FC<FollowUpDraftProps> = ({ followUpData, onUpdateDraft, onSendFollowUp }) => {
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [editedDraft, setEditedDraft] = useState(followUpData?.draftFollowUp || '');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -34,7 +30,9 @@ export const FollowUpDraft: React.FC<FollowUpDraftProps> = ({
   }, [followUpData?.draftFollowUp]);
 
   const handleSaveDraft = async () => {
-    if (!followUpData?.id || !onUpdateDraft) return;
+    if (!followUpData?.id || !onUpdateDraft) {
+      return;
+    }
     setIsSavingDraft(true);
     try {
       await onUpdateDraft(followUpData.id, editedDraft);
@@ -62,13 +60,15 @@ export const FollowUpDraft: React.FC<FollowUpDraftProps> = ({
   }
 
   return (
-    <div style={{
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      marginBottom: theme.spacing.sm,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
+    <div
+      style={{
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.sm,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
       <DraftGenerationStatus
         generationStatus={followUpData.generationStatus}
         generationError={followUpData.generationError}
@@ -97,4 +97,3 @@ export const FollowUpDraft: React.FC<FollowUpDraftProps> = ({
     </div>
   );
 };
-

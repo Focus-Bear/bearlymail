@@ -29,7 +29,15 @@ const SPINNER_STYLE: React.CSSProperties = {
 
 const SPIN_KEYFRAMES = `@keyframes spin { to { transform: rotate(360deg); } }`;
 
-function SendButtonContent({ sending, sendSuccess, checkingTone }: { sending: boolean; sendSuccess: boolean; checkingTone: boolean }) {
+function SendButtonContent({
+  sending,
+  sendSuccess,
+  checkingTone,
+}: {
+  sending: boolean;
+  sendSuccess: boolean;
+  checkingTone: boolean;
+}) {
   const { t } = useTranslation();
   if (checkingTone) {
     return (
@@ -78,14 +86,31 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
       }}
     >
       {scheduledSendAt && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', color: theme.colors.primary.main, fontSize: theme.typography.fontSize.sm }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '8px',
+            color: theme.colors.primary.main,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           <span>🕐</span>
           <span>{t('compose.scheduledFor', { time: formatScheduledTime(scheduledSendAt) })}</span>
           {onClearSchedule && (
             <button
               onClick={onClearSchedule}
               title={t('compose.clearSchedule')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.tertiary, fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: theme.colors.text.tertiary,
+                fontSize: '14px',
+                padding: '0 2px',
+                lineHeight: 1,
+              }}
             >
               ×
             </button>

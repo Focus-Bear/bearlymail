@@ -1,4 +1,4 @@
-import { useEffect,useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { MODE_FOLLOW_UP } from 'constants/strings';
 import { useFollowUps } from 'hooks/useFollowUps';

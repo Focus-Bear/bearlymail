@@ -27,7 +27,7 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
       <input
         type="number"
         value={extendDays}
-        onChange={(event) => onExtendDaysChange(parseInt(event.target.value) || DEFAULT_EXTEND_DAYS)}
+        onChange={event => onExtendDaysChange(parseInt(event.target.value) || DEFAULT_EXTEND_DAYS)}
         min="1"
         style={{
           width: `${INPUT_WIDTH_PX}px`,
@@ -36,7 +36,9 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
           borderRadius: theme.borderRadius.sm,
         }}
       />
-      <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{t('admin.dashboard.days')}</span>
+      <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+        {t('admin.dashboard.days')}
+      </span>
       <button
         onClick={onExtendTrial}
         style={{
@@ -68,4 +70,3 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
     </div>
   );
 };
-

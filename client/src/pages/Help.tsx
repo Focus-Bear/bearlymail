@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link,useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -18,12 +18,7 @@ const Help: React.FC = () => {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const {
-    isCollapsed,
-    isMobileMenuOpen,
-    toggleCollapse,
-    closeMobileMenu,
-  } = useSidebarState();
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState();
 
   const articles: HelpArticle[] = [
     {
@@ -99,26 +94,30 @@ const Help: React.FC = () => {
               ← {t('settings.backToInbox')}
             </button>
 
-            <h1 style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize['3xl'],
-              marginBottom: theme.spacing.sm,
-              fontWeight: theme.typography.fontWeight.bold,
-            }}>
+            <h1
+              style={{
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize['3xl'],
+                marginBottom: theme.spacing.sm,
+                fontWeight: theme.typography.fontWeight.bold,
+              }}
+            >
               {t('help.title')}
             </h1>
 
-            <p style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.base,
-              marginBottom: theme.spacing.xl,
-              lineHeight: theme.typography.lineHeight.relaxed,
-            }}>
+            <p
+              style={{
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.base,
+                marginBottom: theme.spacing.xl,
+                lineHeight: theme.typography.lineHeight.relaxed,
+              }}
+            >
               {t('help.description')}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-              {articles.map((article) => (
+              {articles.map(article => (
                 <Link
                   key={article.id}
                   to={article.path}
@@ -132,28 +131,32 @@ const Help: React.FC = () => {
                     transition: theme.transitions.default,
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(event) => {
+                  onMouseEnter={event => {
                     event.currentTarget.style.borderColor = theme.colors.primary.main;
                     event.currentTarget.style.boxShadow = theme.shadows.md;
                   }}
-                  onMouseLeave={(event) => {
+                  onMouseLeave={event => {
                     event.currentTarget.style.borderColor = theme.colors.border.light;
                     event.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  <h2 style={{
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.xl,
-                    marginBottom: theme.spacing.xs,
-                    fontWeight: theme.typography.fontWeight.semibold,
-                  }}>
+                  <h2
+                    style={{
+                      color: theme.colors.text.primary,
+                      fontSize: theme.typography.fontSize.xl,
+                      marginBottom: theme.spacing.xs,
+                      fontWeight: theme.typography.fontWeight.semibold,
+                    }}
+                  >
                     {t(article.titleKey)}
                   </h2>
-                  <p style={{
-                    color: theme.colors.text.secondary,
-                    fontSize: theme.typography.fontSize.base,
-                    lineHeight: theme.typography.lineHeight.relaxed,
-                  }}>
+                  <p
+                    style={{
+                      color: theme.colors.text.secondary,
+                      fontSize: theme.typography.fontSize.base,
+                      lineHeight: theme.typography.lineHeight.relaxed,
+                    }}
+                  >
                     {t(article.descriptionKey)}
                   </p>
                 </Link>
@@ -167,12 +170,3 @@ const Help: React.FC = () => {
 };
 
 export default Help;
-
-
-
-
-
-
-
-
-

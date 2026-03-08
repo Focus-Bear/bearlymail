@@ -35,8 +35,8 @@ export const EmailDetailSidebar: React.FC = () => {
           boxShadow: theme.shadows.md,
           zIndex: 100,
         }}
-        onMouseEnter={(event) => event.currentTarget.style.backgroundColor = theme.colors.background.default}
-        onMouseLeave={(event) => event.currentTarget.style.backgroundColor = theme.colors.background.paper}
+        onMouseEnter={event => (event.currentTarget.style.backgroundColor = theme.colors.background.default)}
+        onMouseLeave={event => (event.currentTarget.style.backgroundColor = theme.colors.background.paper)}
         title={t('emailDetail.backToInbox')}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
@@ -47,15 +47,17 @@ export const EmailDetailSidebar: React.FC = () => {
 
   // On desktop, render as fixed sidebar
   return (
-    <div style={{
-      width: '80px',
-      backgroundColor: theme.colors.background.paper,
-      borderRight: `1px solid ${theme.colors.border.light}`,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      paddingTop: theme.spacing.xl,
-    }}>
+    <div
+      style={{
+        width: '80px',
+        backgroundColor: theme.colors.background.paper,
+        borderRight: `1px solid ${theme.colors.border.light}`,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: theme.spacing.xl,
+      }}
+    >
       <button
         onClick={() => navigate('/inbox')}
         style={{
@@ -71,8 +73,8 @@ export const EmailDetailSidebar: React.FC = () => {
           fontSize: '1.2rem',
           transition: theme.transitions.fast,
         }}
-        onMouseEnter={(event) => event.currentTarget.style.backgroundColor = theme.colors.background.default}
-        onMouseLeave={(event) => event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT}
+        onMouseEnter={event => (event.currentTarget.style.backgroundColor = theme.colors.background.default)}
+        onMouseLeave={event => (event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT)}
         title={t('emailDetail.backToInbox')}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
@@ -81,5 +83,3 @@ export const EmailDetailSidebar: React.FC = () => {
     </div>
   );
 };
-
-

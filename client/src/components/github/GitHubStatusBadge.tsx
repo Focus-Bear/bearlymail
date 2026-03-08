@@ -17,7 +17,9 @@ interface GitHubStatusBadgeProps {
 // eslint-disable-next-line max-lines-per-function -- Status badge rendering requires multiple conditional branches for different GitHub status types
 export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) => {
   const status = link.status;
-  if (!status) return null;
+  if (!status) {
+    return null;
+  }
 
   // Determine status color and icon
   let statusColor = theme.colors.text.secondary;
@@ -65,7 +67,7 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(event) => event.stopPropagation()}
+      onClick={event => event.stopPropagation()}
       style={{
         fontSize: theme.typography.fontSize.xs,
         padding: `2px ${theme.spacing.sm}`,
@@ -82,16 +84,10 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
       title={`${link.type === LINK_TYPE_ISSUE ? 'Issue' : 'PR'} #${link.number} - ${status.title || ''}`}
     >
       <span>{statusIcon}</span>
-      <span>{link.owner}/{link.repo}#{link.number}</span>
+      <span>
+        {link.owner}/{link.repo}#{link.number}
+      </span>
       {statusText && <span style={{ opacity: 0.8 }}>{statusText}</span>}
     </a>
   );
 };
-
-
-
-
-
-
-
-

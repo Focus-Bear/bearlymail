@@ -38,29 +38,38 @@ interface SidebarFooterProps {
   onToggleCollapse?: () => void;
 }
 
-export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogout, isCollapsed = false, onToggleCollapse }) => {
+export const SidebarFooter: React.FC<SidebarFooterProps> = ({
+  userEmail,
+  onLogout,
+  isCollapsed = false,
+  onToggleCollapse,
+}) => {
   const { t } = useTranslation();
 
   return (
     <>
-      <div style={{ 
-        borderTop: `1px solid ${theme.colors.border.light}`, 
-        paddingTop: theme.spacing.sm,
-        display: isCollapsed ? 'flex' : 'flex',
-        flexDirection: isCollapsed ? 'column' : 'row',
-        alignItems: 'center',
-        justifyContent: isCollapsed ? 'center' : 'space-between',
-        gap: theme.spacing.sm,
-      }}>
+      <div
+        style={{
+          borderTop: `1px solid ${theme.colors.border.light}`,
+          paddingTop: theme.spacing.sm,
+          display: isCollapsed ? 'flex' : 'flex',
+          flexDirection: isCollapsed ? 'column' : 'row',
+          alignItems: 'center',
+          justifyContent: isCollapsed ? 'center' : 'space-between',
+          gap: theme.spacing.sm,
+        }}
+      >
         {!isCollapsed && (
-          <div style={{
-            fontSize: theme.typography.fontSize.sm,
-            color: theme.colors.text.secondary,
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
+          <div
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.secondary,
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {userEmail}
           </div>
         )}
@@ -78,8 +87,8 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
           >
             ☰
           </button>
-          /* eslint-enable i18next/no-literal-string */
         ) : (
+          /* eslint-enable i18next/no-literal-string */
           <button
             onClick={() => {
               captureEvent('sidebar_logout_clicked');
@@ -96,13 +105,13 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
       </div>
       {!isCollapsed && (
         <footer style={{ marginTop: '2px', textAlign: 'left' }}>
-          <a 
-            href="https://focusbear.io" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            onClick={() => captureEvent('sidebar_focusbear_link_clicked')} 
-            style={{ 
-              color: theme.colors.text.tertiary, 
+          <a
+            href="https://focusbear.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => captureEvent('sidebar_focusbear_link_clicked')}
+            style={{
+              color: theme.colors.text.tertiary,
               textDecoration: 'none',
               fontSize: '9px',
               display: 'inline-flex',
@@ -112,10 +121,10 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
             }}
           >
             {t('footer.madeBy')} {t('footer.focusBear')}
-            <img 
-              src="https://focus-bear.github.io/assets/focus-blocked/images/FocusBearLogo.svg" 
-              alt={t('footer.focusBearLogo')} 
-              style={{ height: '12px', verticalAlign: 'middle' }} 
+            <img
+              src="https://focus-bear.github.io/assets/focus-blocked/images/FocusBearLogo.svg"
+              alt={t('footer.focusBearLogo')}
+              style={{ height: '12px', verticalAlign: 'middle' }}
             />
           </a>
         </footer>
@@ -123,6 +132,3 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
     </>
   );
 };
-
-
-

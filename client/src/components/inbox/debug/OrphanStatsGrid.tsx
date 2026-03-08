@@ -16,7 +16,7 @@ export const OrphanStatsGrid: React.FC<OrphanStatsGridProps> = ({
   threadsInDb,
 }) => {
   const { t } = useTranslation();
-  
+
   const getStatsBackgroundColor = (): string => {
     return orphanEmails > 0 ? '#FFE6E6' : '#E8F4FD';
   };
@@ -53,5 +53,3 @@ export const OrphanStatsGrid: React.FC<OrphanStatsGridProps> = ({
     </div>
   );
 };
-
-

@@ -9,11 +9,13 @@ interface ResponsiveBreakpoints {
 }
 
 export const getFeatureCardStyles = (breakpoints: ResponsiveBreakpoints, marginBottom?: string) => {
-  const cardMarginBottom = marginBottom || getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.md,
-    tablet: theme.spacing.xl,
-    desktop: theme.spacing.xl,
-  });
+  const cardMarginBottom =
+    marginBottom ||
+    getResponsiveSpacing(breakpoints, {
+      mobile: theme.spacing.md,
+      tablet: theme.spacing.xl,
+      desktop: theme.spacing.xl,
+    });
 
   const cardPadding = getResponsiveSpacing(breakpoints, {
     mobile: theme.spacing.sm,
@@ -60,11 +62,12 @@ export const getParagraphMarginBottom = (
   index: number,
   totalDescriptions: number
 ): string => {
-  if (index >= totalDescriptions - 1) return '0';
+  if (index >= totalDescriptions - 1) {
+    return '0';
+  }
   return getResponsiveSpacing(breakpoints, {
     mobile: theme.spacing.xs,
     tablet: theme.spacing.md,
     desktop: theme.spacing.md,
   });
 };
-

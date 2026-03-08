@@ -12,7 +12,14 @@ import { SubscriptionsSection } from 'components/admin/SubscriptionsSection';
 import { TokenUsageSection } from 'components/admin/TokenUsageSection';
 import { WaitlistSection } from 'components/admin/WaitlistSection';
 import { Sidebar } from 'components/inbox/Sidebar';
-import { ADMIN_TAB_CONTEXT_ANALYSIS,ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_JOBS, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_WAITLIST } from 'constants/adminTabs';
+import {
+  ADMIN_TAB_CONTEXT_ANALYSIS,
+  ADMIN_TAB_GITHUB_DEBUG,
+  ADMIN_TAB_JOBS,
+  ADMIN_TAB_QUEUE_DASHBOARD,
+  ADMIN_TAB_TOKEN_USAGE,
+  ADMIN_TAB_WAITLIST,
+} from 'constants/adminTabs';
 import { EMOJI_MENU } from 'constants/emojis';
 import { useAuth } from 'contexts/AuthContext';
 import { useAdminDashboard } from 'hooks/useAdminDashboard';
@@ -26,13 +33,7 @@ const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const {
-    isCollapsed,
-    isMobileMenuOpen,
-    toggleCollapse,
-    openMobileMenu,
-    closeMobileMenu,
-  } = useSidebarState();
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
   const {
     activeTab,
     setActiveTab,
@@ -50,21 +51,19 @@ const AdminDashboard: React.FC = () => {
   } = useAdminDashboard();
 
   const renderContent = () => {
-    if (loading && activeTab !== ADMIN_TAB_JOBS && activeTab !== ADMIN_TAB_TOKEN_USAGE && activeTab !== ADMIN_TAB_QUEUE_DASHBOARD && activeTab !== ADMIN_TAB_GITHUB_DEBUG && activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS) {
-      return (
-        <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>
-          {t('admin.dashboard.loading')}
-        </div>
-      );
+    if (
+      loading &&
+      activeTab !== ADMIN_TAB_JOBS &&
+      activeTab !== ADMIN_TAB_TOKEN_USAGE &&
+      activeTab !== ADMIN_TAB_QUEUE_DASHBOARD &&
+      activeTab !== ADMIN_TAB_GITHUB_DEBUG &&
+      activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS
+    ) {
+      return <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>{t('admin.dashboard.loading')}</div>;
     }
     if (activeTab === ADMIN_TAB_WAITLIST) {
       return (
-        <WaitlistSection
-          pending={pending}
-          approved={approved}
-          onApprove={handleApprove}
-          onDecline={handleDecline}
-        />
+        <WaitlistSection pending={pending} approved={approved} onApprove={handleApprove} onDecline={handleDecline} />
       );
     }
     if (activeTab === ADMIN_TAB_JOBS) {
@@ -99,11 +98,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      overflow: 'hidden',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
+    >
       <Sidebar
         user={user}
         logout={logout}
@@ -113,12 +114,14 @@ const AdminDashboard: React.FC = () => {
         onCloseMobileMenu={closeMobileMenu}
       />
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        backgroundColor: theme.colors.background.default,
-        padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
-      }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          backgroundColor: theme.colors.background.default,
+          padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
+        }}
+      >
         {isNarrow && (
           <button
             onClick={openMobileMenu}
@@ -146,10 +149,12 @@ const AdminDashboard: React.FC = () => {
           </button>
         )}
 
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-        }}>
+        <div
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+          }}
+        >
           <AdminDashboardHeader onLogout={logout} />
           <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} />
           {renderContent()}

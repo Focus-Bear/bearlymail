@@ -33,13 +33,7 @@ const Settings: React.FC = () => {
   const hasTriggeredAutoAnalyze = useRef(false);
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const {
-    isCollapsed,
-    isMobileMenuOpen,
-    toggleCollapse,
-    openMobileMenu,
-    closeMobileMenu,
-  } = useSidebarState();
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
 
   // Handle OAuth callback
   useEffect(() => {
@@ -63,19 +57,22 @@ const Settings: React.FC = () => {
   // Handle autoAnalyze query parameter from onboarding flow
   const { loading: settingsLoading, handleAnalyzeContext } = settingsData;
   useEffect(() => {
-    if (settingsLoading || hasTriggeredAutoAnalyze.current) return;
-    
+    if (settingsLoading || hasTriggeredAutoAnalyze.current) {
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const autoAnalyze = params.get('autoAnalyze');
-    
+
     if (autoAnalyze === AUTO_ANALYZE_QUERY_VALUE) {
       hasTriggeredAutoAnalyze.current = true;
       // Remove query parameter from URL but keep the hash
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Mark user as having scanned history (so modal doesn't show again)
-      axios.put(`${API_URL}/users/me`, { hasScannedHistory: true })
+      axios
+        .put(`${API_URL}/users/me`, { hasScannedHistory: true })
         .then(() => refreshUser())
-        .catch((error) => console.error('Error updating hasScannedHistory:', error));
+        .catch(error => console.error('Error updating hasScannedHistory:', error));
       // Auto-trigger context analysis
       handleAnalyzeContext();
     }
@@ -94,7 +91,7 @@ const Settings: React.FC = () => {
         }, 100);
       }
     };
-    
+
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -114,7 +111,14 @@ const Settings: React.FC = () => {
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={closeMobileMenu}
       />
-      <div style={{ flex: 1, overflowY: 'auto', padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl, position: 'relative' }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
+          position: 'relative',
+        }}
+      >
         {isNarrow && (
           <button
             onClick={openMobileMenu}

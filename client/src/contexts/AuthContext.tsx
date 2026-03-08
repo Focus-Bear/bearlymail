@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
 import { devLog } from 'utils/dev-logger';
-import { captureEvent,identifyUser, resetPostHog } from 'utils/posthog';
+import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
@@ -49,11 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
     const { access_token, user } = response.data;
-    
+
     // Store token in localStorage
     localStorage.setItem('token', access_token);
     devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-    
+
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track login event and identify user (NO PII)
@@ -68,11 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, name?: string) => {
     const response = await axios.post(`${API_URL}/auth/register`, { email, password, name });
     const { access_token, user } = response.data;
-    
+
     // Store token in localStorage
     localStorage.setItem('token', access_token);
     devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-    
+
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track registration event and identify user (NO PII)
@@ -105,4 +105,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

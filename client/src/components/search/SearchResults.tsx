@@ -30,7 +30,7 @@ interface SearchResultsProps {
   getScoreBackgroundColor: (score: number) => string;
   getScoreColor: (score: number) => string;
   getPriorityBadge: (score?: number) => { label: string; color: string; bg: string };
-  queriesTried?: Array<{query: string; resultCount: number; accountType?: string}>;
+  queriesTried?: Array<{ query: string; resultCount: number; accountType?: string }>;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Search results component requires handling multiple result types and UI states
@@ -47,42 +47,49 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const hasNoResults = searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);
-  
+  const hasNoResults =
+    searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);
+
   // Extract debug info from the no-results marker if available
-  const noResultsDebugInfo = hasNoResults && searchResults.length === 1 
-    ? (searchResults[0] as SearchEmail).debugInfo 
-    : null;
+  const noResultsDebugInfo =
+    hasNoResults && searchResults.length === 1 ? (searchResults[0] as SearchEmail).debugInfo : null;
 
   if (hasNoResults) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: theme.spacing['3xl'],
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.lg,
-        border: `1px dashed ${theme.colors.border.medium}`,
-      }}>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: theme.spacing['3xl'],
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          border: `1px dashed ${theme.colors.border.medium}`,
+        }}
+      >
         <div style={{ fontSize: '3rem', marginBottom: theme.spacing.md }}>🔍</div>
-        <h3 style={{
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.sm,
-        }}>
+        <h3
+          style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
           {t('search.noResults')}
         </h3>
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('search.noResultsHint')}
         </p>
         {noResultsDebugInfo?.message && (
-          <p style={{
-            color: theme.colors.accent.warning,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.sunray.light3,
-            borderRadius: theme.borderRadius.sm,
-          }}>
-            {'⚠️ '}{noResultsDebugInfo.message}
+          <p
+            style={{
+              color: theme.colors.accent.warning,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: theme.colors.sunray.light3,
+              borderRadius: theme.borderRadius.sm,
+            }}
+          >
+            {'⚠️ '}
+            {noResultsDebugInfo.message}
           </p>
         )}
         {(() => {
@@ -90,37 +97,47 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           const hasDebugQueries = noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0;
           const fallbackQueries = queriesTried && queriesTried.length > 0 ? queriesTried : null;
           const triedQueries = hasDebugQueries ? noResultsDebugInfo!.queriesTried : fallbackQueries;
-          if (!triedQueries) return null;
+          if (!triedQueries) {
+            return null;
+          }
           return (
-            <div style={{
-              marginTop: theme.spacing.md,
-              padding: theme.spacing.md,
-              backgroundColor: theme.colors.background.subtle,
-              borderRadius: theme.borderRadius.md,
-              textAlign: 'left',
-            }}>
-              <p style={{
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-                marginBottom: theme.spacing.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-              }}>
+            <div
+              style={{
+                marginTop: theme.spacing.md,
+                padding: theme.spacing.md,
+                backgroundColor: theme.colors.background.subtle,
+                borderRadius: theme.borderRadius.md,
+                textAlign: 'left',
+              }}
+            >
+              <p
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.sm,
+                  marginBottom: theme.spacing.sm,
+                  fontWeight: theme.typography.fontWeight.medium,
+                }}
+              >
                 {t('search.queriesUsed')}:
               </p>
-              <ul style={{
-                margin: 0,
-                paddingLeft: theme.spacing.lg,
-                color: theme.colors.text.tertiary,
-                fontSize: theme.typography.fontSize.xs,
-              }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: theme.spacing.lg,
+                  color: theme.colors.text.tertiary,
+                  fontSize: theme.typography.fontSize.xs,
+                }}
+              >
                 {triedQueries.map((queryItem: { query: string; resultCount: number; accountType?: string }) => (
                   <li key={queryItem.query} style={{ marginBottom: theme.spacing.xs }}>
-                    <code style={{
-                      backgroundColor: theme.colors.background.paper,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      borderRadius: theme.borderRadius.sm,
-                      fontFamily: 'monospace',
-                    }}>
+                    <code
+                      style={{
+                        backgroundColor: theme.colors.background.paper,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        borderRadius: theme.borderRadius.sm,
+                        fontFamily: 'monospace',
+                      }}
+                    >
                       {queryItem.query}
                     </code>
                     {queryItem.accountType && (
@@ -142,62 +159,74 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: theme.spacing.md,
-    }}>
-      <div style={{
+    <div
+      style={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         gap: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
-      }}>
-        <div style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-        }}>
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        <div
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('search.found', { count: searchResults.length, plural: searchResults.length !== 1 ? 's' : '' })}
         </div>
         {isRefining && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.primary.main,
-            backgroundColor: theme.colors.primary.subtle,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.primary.main,
+              backgroundColor: theme.colors.primary.subtle,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              borderRadius: theme.borderRadius.full,
+            }}
+          >
             <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>🤖</span>
             <span>{refiningMessage || t('search.aiRefining')}</span>
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
       </div>
-      
+
       {queriesTried && queriesTried.length > 0 && (
-        <details style={{
-          padding: theme.spacing.sm,
-          backgroundColor: theme.colors.background.subtle,
-          borderRadius: theme.borderRadius.md,
-          fontSize: theme.typography.fontSize.xs,
-          color: theme.colors.text.tertiary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <details
+          style={{
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           <summary style={{ cursor: 'pointer', color: theme.colors.text.secondary }}>
             {t('search.queriesUsed')} ({queriesTried.length})
           </summary>
           <ul style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg }}>
-            {queriesTried.map((queryStr) => (
+            {queriesTried.map(queryStr => (
               <li key={queryItem.query} style={{ marginTop: theme.spacing.xs }}>
-                <code style={{
-                  backgroundColor: theme.colors.background.paper,
-                  padding: `1px ${theme.spacing.xs}`,
-                  borderRadius: theme.borderRadius.sm,
-                  fontFamily: 'monospace',
-                }}>
+                <code
+                  style={{
+                    backgroundColor: theme.colors.background.paper,
+                    padding: `1px ${theme.spacing.xs}`,
+                    borderRadius: theme.borderRadius.sm,
+                    fontFamily: 'monospace',
+                  }}
+                >
                   {queryStr}
                 </code>
               </li>
@@ -207,130 +236,151 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       )}
 
       {/* eslint-disable-next-line max-lines-per-function -- Search result rendering requires handling multiple result types and UI states */}
-      {searchResults.filter((email) => email.id !== SEARCH_RESULT_NO_RESULTS).map((email, index) => {
-        const searchEmail = email as SearchEmail;
-        const emailPriorityScore = getEmailPriorityScore(searchEmail);
-        const priority = getPriorityBadge(emailPriorityScore);
-        return (
-          <div
-            key={email.id}
-            onClick={() => {
-              captureEvent('search_result_clicked', {
-                result_index: index,
-                email_id: email.id,
-              });
-              navigate(`/email/${email.id}`);
-            }}
-            style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.lg,
-              padding: theme.spacing.lg,
-              border: `1px solid ${theme.colors.border.light}`,
-              cursor: 'pointer',
-              transition: theme.transitions.default,
-            }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.transform = 'translateY(-2px)';
-              event.currentTarget.style.boxShadow = theme.shadows.md;
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.transform = 'translateY(0)';
-              event.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, flex: 1 }}>
-                <strong style={{
-                  color: theme.colors.text.primary,
-                  fontSize: theme.typography.fontSize.base,
-                }}>
-                  {email.fromName || email.from}
-                </strong>
-                {searchEmail.relevanceScore !== undefined && (
-                  <span
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (searchEmail.scoreBreakdown) {
-                        onSelectScoreBreakdown(searchEmail, searchEmail.scoreBreakdown);
-                      }
-                    }}
+      {searchResults
+        .filter(email => email.id !== SEARCH_RESULT_NO_RESULTS)
+        .map((email, index) => {
+          const searchEmail = email as SearchEmail;
+          const emailPriorityScore = getEmailPriorityScore(searchEmail);
+          const priority = getPriorityBadge(emailPriorityScore);
+          return (
+            <div
+              key={email.id}
+              onClick={() => {
+                captureEvent('search_result_clicked', {
+                  result_index: index,
+                  email_id: email.id,
+                });
+                navigate(`/email/${email.id}`);
+              }}
+              style={{
+                backgroundColor: theme.colors.background.paper,
+                borderRadius: theme.borderRadius.lg,
+                padding: theme.spacing.lg,
+                border: `1px solid ${theme.colors.border.light}`,
+                cursor: 'pointer',
+                transition: theme.transitions.default,
+              }}
+              onMouseEnter={event => {
+                event.currentTarget.style.transform = 'translateY(-2px)';
+                event.currentTarget.style.boxShadow = theme.shadows.md;
+              }}
+              onMouseLeave={event => {
+                event.currentTarget.style.transform = 'translateY(0)';
+                event.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, flex: 1 }}>
+                  <strong
                     style={{
-                      fontSize: theme.typography.fontSize.xs,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: getScoreBackgroundColor(searchEmail.relevanceScore),
-                      color: getScoreColor(searchEmail.relevanceScore),
-                      borderRadius: theme.borderRadius.full,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      cursor: searchEmail.scoreBreakdown ? 'pointer' : 'default',
-                      textDecoration: searchEmail.scoreBreakdown ? 'underline' : 'none',
+                      color: theme.colors.text.primary,
+                      fontSize: theme.typography.fontSize.base,
                     }}
-                    title={searchEmail.scoreBreakdown ? t('search.clickToSeeBreakdown') : ''}
                   >
-                    {t('search.relevance', { score: searchEmail.relevanceScore })}
-                  </span>
-                )}
-                {searchEmail.priorityExplanation && emailPriorityScore !== undefined && !searchEmail.relevanceScore && priority && priority.label !== STRING_NA && (
-                  <span style={{
+                    {email.fromName || email.from}
+                  </strong>
+                  {searchEmail.relevanceScore !== undefined && (
+                    <span
+                      onClick={event => {
+                        event.stopPropagation();
+                        if (searchEmail.scoreBreakdown) {
+                          onSelectScoreBreakdown(searchEmail, searchEmail.scoreBreakdown);
+                        }
+                      }}
+                      style={{
+                        fontSize: theme.typography.fontSize.xs,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        backgroundColor: getScoreBackgroundColor(searchEmail.relevanceScore),
+                        color: getScoreColor(searchEmail.relevanceScore),
+                        borderRadius: theme.borderRadius.full,
+                        fontWeight: theme.typography.fontWeight.medium,
+                        cursor: searchEmail.scoreBreakdown ? 'pointer' : 'default',
+                        textDecoration: searchEmail.scoreBreakdown ? 'underline' : 'none',
+                      }}
+                      title={searchEmail.scoreBreakdown ? t('search.clickToSeeBreakdown') : ''}
+                    >
+                      {t('search.relevance', { score: searchEmail.relevanceScore })}
+                    </span>
+                  )}
+                  {searchEmail.priorityExplanation &&
+                    emailPriorityScore !== undefined &&
+                    !searchEmail.relevanceScore &&
+                    priority &&
+                    priority.label !== STRING_NA && (
+                      <span
+                        style={{
+                          fontSize: theme.typography.fontSize.xs,
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: priority.bg,
+                          color: priority.color,
+                          borderRadius: theme.borderRadius.full,
+                          fontWeight: theme.typography.fontWeight.medium,
+                        }}
+                      >
+                        {priority.label} ({emailPriorityScore.toFixed(0)})
+                      </span>
+                    )}
+                  {email.starCount && email.starCount > 0 && (
+                    <span style={{ color: theme.colors.accent.warning }}>{'⭐'.repeat(email.starCount)}</span>
+                  )}
+                </div>
+                <span
+                  style={{
                     fontSize: theme.typography.fontSize.xs,
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    backgroundColor: priority.bg,
-                    color: priority.color,
-                    borderRadius: theme.borderRadius.full,
-                    fontWeight: theme.typography.fontWeight.medium,
-                  }}>
-                    {priority.label} ({emailPriorityScore.toFixed(0)})
-                  </span>
-                )}
-                {email.starCount && email.starCount > 0 && (
-                  <span style={{ color: theme.colors.accent.warning }}>
-                    {'⭐'.repeat(email.starCount)}
-                  </span>
-                )}
+                    color: theme.colors.text.tertiary,
+                  }}
+                >
+                  {humanizeTimestamp(email.receivedAt)}
+                </span>
               </div>
-              <span style={{
-                fontSize: theme.typography.fontSize.xs,
-                color: theme.colors.text.tertiary,
-              }}>
-                {humanizeTimestamp(email.receivedAt)}
-              </span>
-            </div>
-            <div style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.lg,
-              fontWeight: theme.typography.fontWeight.bold,
-              marginBottom: theme.spacing.sm,
-            }}>
-              {email.subject}
-            </div>
-            <div style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              marginBottom: searchEmail.searchExplanation ? theme.spacing.xs : 0,
-            }}>
-              {(email.body || '').substring(0, MAX_SEARCH_RESULT_LENGTH)}...
-            </div>
-            {searchEmail.searchExplanation && (
-              <div style={{
-                marginTop: theme.spacing.xs,
-                padding: theme.spacing.sm,
-                backgroundColor: theme.colors.primary.subtle,
-                borderRadius: theme.borderRadius.sm,
-                fontSize: theme.typography.fontSize.xs,
-                color: theme.colors.text.secondary,
-                fontStyle: 'italic',
-                borderLeft: `3px solid ${theme.colors.primary.main}`,
-              }}>
-                💡 {searchEmail.searchExplanation}
+              <div
+                style={{
+                  color: theme.colors.text.primary,
+                  fontSize: theme.typography.fontSize.lg,
+                  fontWeight: theme.typography.fontWeight.bold,
+                  marginBottom: theme.spacing.sm,
+                }}
+              >
+                {email.subject}
               </div>
-            )}
-          </div>
-        );
-      })}
+              <div
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.sm,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  marginBottom: searchEmail.searchExplanation ? theme.spacing.xs : 0,
+                }}
+              >
+                {(email.body || '').substring(0, MAX_SEARCH_RESULT_LENGTH)}...
+              </div>
+              {searchEmail.searchExplanation && (
+                <div
+                  style={{
+                    marginTop: theme.spacing.xs,
+                    padding: theme.spacing.sm,
+                    backgroundColor: theme.colors.primary.subtle,
+                    borderRadius: theme.borderRadius.sm,
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                    fontStyle: 'italic',
+                    borderLeft: `3px solid ${theme.colors.primary.main}`,
+                  }}
+                >
+                  💡 {searchEmail.searchExplanation}
+                </div>
+              )}
+            </div>
+          );
+        })}
     </div>
   );
 };
-
-

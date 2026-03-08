@@ -11,4 +11,3 @@ export const TermsOfUseContent: React.FC = () => {
     </>
   );
 };
-

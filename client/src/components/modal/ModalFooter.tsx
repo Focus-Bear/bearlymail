@@ -45,9 +45,7 @@ export const ModalFooter: React.FC<ModalFooterProps> = ({
         disabled={isDisabled}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: isDisabled
-            ? theme.colors.background.subtle
-            : theme.colors.primary.main,
+          backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
           color: isDisabled ? theme.colors.text.tertiary : 'white',
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
@@ -61,9 +59,3 @@ export const ModalFooter: React.FC<ModalFooterProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

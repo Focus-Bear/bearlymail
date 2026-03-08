@@ -10,21 +10,20 @@ interface FollowUpActionsErrorProps {
   onRetry?: () => void;
 }
 
-export const FollowUpActionsError: React.FC<FollowUpActionsErrorProps> = ({
-  error,
-  onRetry,
-}) => {
+export const FollowUpActionsError: React.FC<FollowUpActionsErrorProps> = ({ error, onRetry }) => {
   const { t } = useTranslation();
 
   return (
-    <div style={{
-      marginTop: theme.spacing.md,
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.error.light,
-      borderRadius: theme.borderRadius.md,
-      color: theme.colors.error.main,
-      fontSize: theme.typography.fontSize.sm,
-    }}>
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.error.light,
+        borderRadius: theme.borderRadius.md,
+        color: theme.colors.error.main,
+        fontSize: theme.typography.fontSize.sm,
+      }}
+    >
       {error}
       {onRetry && (
         <button
@@ -49,9 +48,3 @@ export const FollowUpActionsError: React.FC<FollowUpActionsErrorProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

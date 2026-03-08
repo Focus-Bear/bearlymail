@@ -65,11 +65,3 @@ export const ConfirmModalFooter: React.FC<ConfirmModalFooterProps> = ({
     </div>
   );
 };
-
-
-
-
-
-
-
-

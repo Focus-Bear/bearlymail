@@ -129,7 +129,9 @@ const renderFormattedText = (text: string): React.ReactNode => {
 };
 
 const getFirstName = (fullName: string | undefined): string => {
-  if (!fullName) return 'the user';
+  if (!fullName) {
+    return 'the user';
+  }
   const firstName = fullName.split(' ')[0];
   return firstName || fullName;
 };
@@ -250,10 +252,7 @@ interface AutoResponderPreviewProps {
   userName?: string;
 }
 
-export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
-  queueStats,
-  userName,
-}) => {
+export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({ queueStats, userName }) => {
   const { t } = useTranslation();
   const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'highPriority' | 'lowPriority'>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -276,7 +275,7 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
       {isExpanded && (
         <div style={expandedPanelStyle}>
           <div style={templateTabsRowStyle}>
-            {(['standard', 'highPriority', 'lowPriority'] as const).map((template) => (
+            {(['standard', 'highPriority', 'lowPriority'] as const).map(template => (
               <button
                 key={template}
                 onClick={() => setSelectedTemplate(template)}
@@ -289,15 +288,9 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
 
           <div style={emailCardStyle}>
             <div style={emailHeaderStyle}>
-              <div style={emailSubjectLabelStyle}>
-                {t('settings.autoResponder.preview.subject')}
-              </div>
-              <div style={emailSubjectValueStyle}>
-                {t('settings.autoResponder.preview.subjectPlaceholder')}
-              </div>
-              <div style={emailSubjectNoteStyle}>
-                {t('settings.autoResponder.preview.subjectNote')}
-              </div>
+              <div style={emailSubjectLabelStyle}>{t('settings.autoResponder.preview.subject')}</div>
+              <div style={emailSubjectValueStyle}>{t('settings.autoResponder.preview.subjectPlaceholder')}</div>
+              <div style={emailSubjectNoteStyle}>{t('settings.autoResponder.preview.subjectNote')}</div>
             </div>
             <div style={emailBodyStyle}>{renderFormattedText(currentPreview.body)}</div>
           </div>

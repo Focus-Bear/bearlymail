@@ -15,7 +15,7 @@ import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
-import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
+import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxState } from 'hooks/useInboxState';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -118,12 +118,14 @@ const Inbox: React.FC = () => {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-      overflow: 'hidden',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        overflow: 'hidden',
+      }}
+    >
       <Sidebar
         user={user}
         logout={logout}
@@ -135,8 +137,6 @@ const Inbox: React.FC = () => {
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-        
-
         <InboxOverlays
           tourStep={onboarding.tourStep}
           tourSteps={tourSteps}
@@ -178,7 +178,10 @@ const Inbox: React.FC = () => {
           hasActiveFilters={hasActiveFilters}
           activeFilterCount={activeFilterCount}
           onToggleFilterBar={toggleFilterBar}
-          onClearFilters={() => { clearFilters(); fetchEmails(); }}
+          onClearFilters={() => {
+            clearFilters();
+            fetchEmails();
+          }}
           isAdmin={user?.isAdmin}
           debugViewOpen={debugPanel.debugViewOpen}
           onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
@@ -239,9 +242,7 @@ const Inbox: React.FC = () => {
         />
 
         {/* Keyboard Hint Tooltip */}
-        {keyboardHint.showKeyboardHint && (
-          <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />
-        )}
+        {keyboardHint.showKeyboardHint && <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />}
 
         {/* Archive Confirmation Toast */}
         {keyboardShortcuts.pendingArchive && (
@@ -302,22 +303,24 @@ const Inbox: React.FC = () => {
           loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames}
           fetchCategoryEmails={fetchCategoryEmails}
-          onSplitViewArchive={(archivedEmailId) => {
+          onSplitViewArchive={archivedEmailId => {
             // Find the archived email to get its category
             const archivedEmail = emails.find(event => event.id === archivedEmailId);
-            const archivedCategory = archivedEmail?.category || 'Other';
-            
+            const archivedCategory = archivedEmail?.category || CATEGORY_OTHER;
+
             // Filter out archived emails and the just-archived email
             const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
-            
+
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
               return;
             }
-            
+
             // First, try to find the next email in the same category
-            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === archivedCategory);
-            
+            const sameCategoryEmails = visibleEmails.filter(
+              event => (event.category || CATEGORY_OTHER) === archivedCategory
+            );
+
             if (sameCategoryEmails.length > 0) {
               // Open the first email in the same category
               const nextEmail = sameCategoryEmails[0];
@@ -331,10 +334,10 @@ const Inbox: React.FC = () => {
               setSelectedEmailIndex(0);
             }
           }}
-          onSplitViewSnooze={(snoozedEmailId) => {
+          onSplitViewSnooze={snoozedEmailId => {
             // Find the snoozed email to get its category
             const snoozedEmail = emails.find(event => event.id === snoozedEmailId);
-            const snoozedCategory = snoozedEmail?.category || 'Other';
+            const snoozedCategory = snoozedEmail?.category || CATEGORY_OTHER;
 
             // Filter out archived emails and the just-snoozed email
             const visibleEmails = emails.filter(event => !event.isArchived && event.id !== snoozedEmailId);
@@ -345,7 +348,9 @@ const Inbox: React.FC = () => {
             }
 
             // First, try to find the next email in the same category
-            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === snoozedCategory);
+            const sameCategoryEmails = visibleEmails.filter(
+              event => (event.category || CATEGORY_OTHER) === snoozedCategory
+            );
 
             if (sameCategoryEmails.length > 0) {
               // Open the first email in the same category
@@ -367,7 +372,7 @@ const Inbox: React.FC = () => {
 
             // Navigate to next email in same category (same pattern as archive/snooze)
             const prioritizedEmail = emails.find(event => event.id === prioritizedEmailId);
-            const prioritizedCategory = prioritizedEmail?.category || 'Other';
+            const prioritizedCategory = prioritizedEmail?.category || CATEGORY_OTHER;
             const visibleEmails = emails.filter(event => !event.isArchived && event.id !== prioritizedEmailId);
 
             if (visibleEmails.length === 0) {
@@ -375,7 +380,9 @@ const Inbox: React.FC = () => {
               return;
             }
 
-            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === prioritizedCategory);
+            const sameCategoryEmails = visibleEmails.filter(
+              event => (event.category || CATEGORY_OTHER) === prioritizedCategory
+            );
 
             if (sameCategoryEmails.length > 0) {
               const nextEmail = sameCategoryEmails[0];

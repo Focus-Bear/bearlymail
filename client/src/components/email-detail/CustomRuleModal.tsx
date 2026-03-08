@@ -35,44 +35,52 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: Z_INDEX_POPUP,
-    }}>
-      <div style={{
-        backgroundColor: theme.colors.background.paper,
-        padding: theme.spacing['2xl'],
-        borderRadius: theme.borderRadius.lg,
-        boxShadow: theme.shadows.xl,
-        maxWidth: '600px',
-        width: '90%',
-      }}>
-        <h2 style={{
-          marginBottom: theme.spacing.lg,
-          color: theme.colors.text.primary,
-        }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: Z_INDEX_POPUP,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          padding: theme.spacing['2xl'],
+          borderRadius: theme.borderRadius.lg,
+          boxShadow: theme.shadows.xl,
+          maxWidth: '600px',
+          width: '90%',
+        }}
+      >
+        <h2
+          style={{
+            marginBottom: theme.spacing.lg,
+            color: theme.colors.text.primary,
+          }}
+        >
           {t('emailDetail.createCustomRule')}
         </h2>
         <div style={{ marginBottom: theme.spacing.md }}>
-          <label style={{
-            display: 'block',
-            marginBottom: theme.spacing.xs,
-            color: theme.colors.text.primary,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              color: theme.colors.text.primary,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}
+          >
             {t('emailDetail.whenToUseLabel')}
           </label>
           <textarea
             value={customRule.whenToUse}
-            onChange={(event) => onCustomRuleChange({ ...customRule, whenToUse: event.target.value })}
+            onChange={event => onCustomRuleChange({ ...customRule, whenToUse: event.target.value })}
             placeholder={t('emailDetail.whenToUsePlaceholder')}
             style={{
               width: '100%',
@@ -86,17 +94,19 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
           />
         </div>
         <div style={{ marginBottom: theme.spacing.xl }}>
-          <label style={{
-            display: 'block',
-            marginBottom: theme.spacing.xs,
-            color: theme.colors.text.primary,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+              color: theme.colors.text.primary,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}
+          >
             {t('emailDetail.howToSummarizeLabel')}
           </label>
           <textarea
             value={customRule.howToSummarize}
-            onChange={(event) => onCustomRuleChange({ ...customRule, howToSummarize: event.target.value })}
+            onChange={event => onCustomRuleChange({ ...customRule, howToSummarize: event.target.value })}
             placeholder={t('emailDetail.howToSummarizePlaceholder')}
             style={{
               width: '100%',
@@ -128,7 +138,10 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
             disabled={!customRule.whenToUse || !customRule.howToSummarize}
             style={{
               padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              backgroundColor: customRule.whenToUse && customRule.howToSummarize ? theme.colors.primary.main : theme.colors.border.dark,
+              backgroundColor:
+                customRule.whenToUse && customRule.howToSummarize
+                  ? theme.colors.primary.main
+                  : theme.colors.border.dark,
               color: COLOR_NAMED_WHITE,
               border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
@@ -143,6 +156,3 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
     </div>
   );
 };
-
-
-

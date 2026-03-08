@@ -36,17 +36,10 @@ export const AnalyzeEmailsButton: React.FC<AnalyzeEmailsButtonProps> = ({ hasRun
         fontWeight: theme.typography.fontWeight.medium,
         transition: theme.transitions.fast,
       }}
-      onMouseEnter={(event) =>
-        (event.currentTarget.style.backgroundColor = theme.colors.button.primary.hover)
-      }
-      onMouseLeave={(event) =>
-        (event.currentTarget.style.backgroundColor = theme.colors.accent.info)
-      }
+      onMouseEnter={event => (event.currentTarget.style.backgroundColor = theme.colors.button.primary.hover)}
+      onMouseLeave={event => (event.currentTarget.style.backgroundColor = theme.colors.accent.info)}
     >
       {t('settings.analyzeEmails')}
     </button>
   );
 };
-
-
-

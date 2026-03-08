@@ -1,16 +1,10 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
-import {
-  MODE_ACTION,
-  MODE_AUTORESPONDED,
-  MODE_BLOCKED,
-  MODE_FOLLOW_UP,
-  MODE_TRIAGE,
-} from 'constants/strings';
+import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
 import { useEmailActions } from 'hooks/useEmailActions';
@@ -30,13 +24,7 @@ import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { clearCategoryState } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-const VALID_MODES: InboxMode[] = [
-  MODE_TRIAGE,
-  MODE_ACTION,
-  MODE_FOLLOW_UP,
-  MODE_BLOCKED,
-  MODE_AUTORESPONDED,
-];
+const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED, MODE_AUTORESPONDED];
 
 function isValidMode(mode: string | undefined): mode is InboxMode {
   return mode !== undefined && VALID_MODES.includes(mode as InboxMode);
@@ -54,25 +42,19 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { mode: urlMode, threadId: urlThreadId } = useParams<{ mode?: string; threadId?: string }>();
-  
+
   const getInitialMode = (): InboxMode => {
     if (urlMode && isValidMode(urlMode)) {
       return urlMode;
     }
     return MODE_TRIAGE;
   };
-  
+
   const [mode, setModeState] = useState<InboxMode>(getInitialMode);
 
-
   // Triage suggestions hook
-  const {
-    triageSuggestions,
-    loadingSuggestions,
-    fetchTriageSuggestions,
-    removeSuggestion,
-    clearSuggestionsCache,
-  } = useTriageSuggestions();
+  const { triageSuggestions, loadingSuggestions, fetchTriageSuggestions, removeSuggestion, clearSuggestionsCache } =
+    useTriageSuggestions();
 
   // Tab counts hook - must be before useEmailManagement since it's passed to it
   const { tabCounts, fetchTabCounts, updateTabCountsOptimistically } = useTabCounts();
@@ -133,8 +115,17 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   } = useInboxFollowUpData(mode, user?.id, authLoading);
 
   // UI peripheral state sub-hook (replaces 8 hooks + GitHub/polling + tracking effect + tourSteps)
-  const { snoozeInput, onboarding, urgentNotification, debugPanel, modals, priorityTooltip, keyboardHint, splitView, tourSteps } =
-    useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
+  const {
+    snoozeInput,
+    onboarding,
+    urgentNotification,
+    debugPanel,
+    modals,
+    priorityTooltip,
+    keyboardHint,
+    splitView,
+    tourSteps,
+  } = useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
 
   // Initialization hook
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({
@@ -146,7 +137,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   });
 
   // Tour element refs sub-hook (replaces 6 useRef calls)
-  const { triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef } = useInboxTourRefs();
+  const { triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef } =
+    useInboxTourRefs();
 
   // Mode changes hook
   useInboxModeChanges({
@@ -194,40 +186,57 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Email interaction handlers sub-hook (replaces 3 useCallbacks + useInboxKeyboardNavigation)
   const { keyboardShortcuts, handleEmailClick, handleEmailSelect } = useInboxEmailHandlers({
-    emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex,
-    handleEmailClickBase, handleArchiveBase, handleSetStarCountBase, handleMarkAsRead,
-    splitView, emailListRef, emailDetailRef, navigate, mode,
+    emails,
+    selectedEmailIndex,
+    selectedEmailIds,
+    setSelectedEmailIndex,
+    handleEmailClickBase,
+    handleArchiveBase,
+    handleSetStarCountBase,
+    handleMarkAsRead,
+    splitView,
+    emailListRef,
+    emailDetailRef,
+    navigate,
+    mode,
   });
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
-  const {
-    expandedCategories,
-    stableCategoryOrder,
-    toggleCategory,
-    updateStableCategoryOrder,
-    resetForModeChange,
-  } = useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames });
+  const { expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, resetForModeChange } =
+    useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames });
 
-  const setMode = useCallback((newMode: InboxMode) => {
-    setModeState(newMode);
-    dispatch(clearCategoryState());
-    resetForModeChange();
-  }, [dispatch, resetForModeChange]);
+  const setMode = useCallback(
+    (newMode: InboxMode) => {
+      setModeState(newMode);
+      dispatch(clearCategoryState());
+      resetForModeChange();
+    },
+    [dispatch, resetForModeChange]
+  );
 
   // URL-driven mode change (browser back/forward): must also reset accordion state so the
   // new mode auto-expands its own categories. Without this, stale expandedCategories from
   // the previous mode persist, preventing auto-expand of the new mode's categories and
   // causing Effect 1 to attempt fetching categories that don't exist in the new mode.
-  const handleUrlModeChange = useCallback((newMode: InboxMode) => {
-    setModeState(newMode);
-    resetForModeChange();
-  }, [resetForModeChange]);
+  const handleUrlModeChange = useCallback(
+    (newMode: InboxMode) => {
+      setModeState(newMode);
+      resetForModeChange();
+    },
+    [resetForModeChange]
+  );
 
   // URL synchronization sub-hook (replaces isInitialMount/lastUrlRef refs + getBasePath + 3 useEffects)
   useInboxUrlSync({
-    isFocusedMode, mode, splitViewSelectedEmailId: splitView.selectedEmailId,
-    urlMode, urlThreadId, openEmail: splitView.openEmail, closeEmail: splitView.closeEmail,
-    navigate, onUrlModeChange: handleUrlModeChange,
+    isFocusedMode,
+    mode,
+    splitViewSelectedEmailId: splitView.selectedEmailId,
+    urlMode,
+    urlThreadId,
+    openEmail: splitView.openEmail,
+    closeEmail: splitView.closeEmail,
+    navigate,
+    onUrlModeChange: handleUrlModeChange,
   });
 
   return {
@@ -309,4 +318,3 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchCategoryEmails,
   };
 }
-

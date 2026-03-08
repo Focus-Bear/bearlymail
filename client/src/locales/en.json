@@ -2121,5 +2121,8 @@
   },
   "nav": {
     "scheduled": "Scheduled"
+  },
+  "legal": {
+    "lastUpdated": "Last updated: {{date}}"
   }
 }

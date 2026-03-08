@@ -17,7 +17,6 @@ interface CalendarInviteFormProps {
   onDurationChange: (value: number) => void;
 }
 
-export const CalendarInviteForm: React.FC<CalendarInviteFormProps> = (props) => {
+export const CalendarInviteForm: React.FC<CalendarInviteFormProps> = props => {
   return <CalendarInviteFormFields {...props} />;
 };
-

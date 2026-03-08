@@ -14,9 +14,11 @@ export const GitHubStatusBadges: React.FC<GitHubStatusBadgesProps> = ({ links })
   }
 
   const seen = new Set<string>();
-  const uniqueLinks = links.filter((link) => {
+  const uniqueLinks = links.filter(link => {
     const key = link.url || `${link.owner}/${link.repo}#${link.number}`;
-    if (seen.has(key)) return false;
+    if (seen.has(key)) {
+      return false;
+    }
     seen.add(key);
     return true;
   });
@@ -27,14 +29,9 @@ export const GitHubStatusBadges: React.FC<GitHubStatusBadgesProps> = ({ links })
 
   return (
     <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
-      {uniqueLinks.map((link) => (
+      {uniqueLinks.map(link => (
         <GitHubStatusBadge key={link.url || `${link.owner}-${link.repo}-${link.number}`} link={link} />
       ))}
     </div>
   );
 };
-
-
-
-
-

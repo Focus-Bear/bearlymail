@@ -4,10 +4,7 @@ import { theme } from 'theme/theme';
 
 import { FounderHeader } from 'components/landing/founder/FounderHeader';
 import { FounderStoryContent } from 'components/landing/founder/FounderStoryContent';
-import {
-  getHeadingFontSize,
-  getResponsiveSpacing,
-} from 'components/landing/utils';
+import { getHeadingFontSize, getResponsiveSpacing } from 'components/landing/utils';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
@@ -53,7 +50,7 @@ export const FounderStory: React.FC = () => {
       >
         {t('landing.founder.heading')}
       </h2>
-      
+
       <div
         style={{
           backgroundColor: theme.colors.background.paper,
@@ -77,4 +74,3 @@ export const FounderStory: React.FC = () => {
     </section>
   );
 };
-

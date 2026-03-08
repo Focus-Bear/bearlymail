@@ -47,7 +47,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
   onDurationChange,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <>
       <div style={{ marginBottom: theme.spacing.md }}>
@@ -55,7 +55,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <input
           type="email"
           value={guestEmail}
-          onChange={(event) => onGuestEmailChange(event.target.value)}
+          onChange={event => onGuestEmailChange(event.target.value)}
           required
           style={inputStyle}
         />
@@ -65,7 +65,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <input
           type="text"
           value={guestName}
-          onChange={(event) => onGuestNameChange(event.target.value)}
+          onChange={event => onGuestNameChange(event.target.value)}
           style={inputStyle}
         />
       </div>
@@ -74,7 +74,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <input
           type="text"
           value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
+          onChange={event => onTitleChange(event.target.value)}
           required
           style={inputStyle}
         />
@@ -84,7 +84,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <input
           type="datetime-local"
           value={startTime}
-          onChange={(event) => onStartTimeChange(event.target.value)}
+          onChange={event => onStartTimeChange(event.target.value)}
           required
           style={inputStyle}
         />
@@ -93,7 +93,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <label style={labelStyle}>{t('calendar.duration')}</label>
         <select
           value={durationMinutes}
-          onChange={(event) => onDurationChange(parseInt(event.target.value))}
+          onChange={event => onDurationChange(parseInt(event.target.value))}
           style={inputStyle}
         >
           <option value={15}>{t('calendar.duration15')}</option>
@@ -108,7 +108,7 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
         <label style={labelStyle}>{t('calendar.description')}</label>
         <textarea
           value={description}
-          onChange={(event) => onDescriptionChange(event.target.value)}
+          onChange={event => onDescriptionChange(event.target.value)}
           rows={4}
           style={{
             ...inputStyle,
@@ -120,5 +120,3 @@ export const CalendarInviteFormFields: React.FC<CalendarInviteFormFieldsProps> =
     </>
   );
 };
-
-

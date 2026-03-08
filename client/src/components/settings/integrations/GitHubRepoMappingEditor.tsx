@@ -26,27 +26,57 @@ export const GitHubRepoMappingEditor: React.FC<Props> = ({
   return (
     <div style={{ marginTop: theme.spacing.sm }}>
       <div style={{ marginBottom: theme.spacing.sm }}>
-        <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.sm }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            color: theme.colors.text.primary,
+            fontWeight: theme.typography.fontWeight.medium,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('settings.github.repoMappings.emailCategories')}
         </label>
         <input
           type="text"
           value={emailCategories}
-          onChange={(event) => onChangeCategories(event.target.value)}
+          onChange={event => onChangeCategories(event.target.value)}
           placeholder={t('settings.github.repoMappings.categoriesPlaceholder')}
-          style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, boxSizing: 'border-box' }}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+            boxSizing: 'border-box',
+          }}
         />
       </div>
       <div style={{ marginBottom: theme.spacing.sm }}>
-        <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.sm }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            color: theme.colors.text.primary,
+            fontWeight: theme.typography.fontWeight.medium,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {t('settings.github.repoMappings.contextLabel')}
         </label>
         <input
           type="text"
           value={context}
-          onChange={(event) => onChangeContext(event.target.value)}
+          onChange={event => onChangeContext(event.target.value)}
           placeholder={t('settings.github.repoMappings.contextPlaceholder')}
-          style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, boxSizing: 'border-box' }}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+            boxSizing: 'border-box',
+          }}
         />
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>

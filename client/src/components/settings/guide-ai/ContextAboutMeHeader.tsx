@@ -6,17 +6,14 @@ export const ContextAboutMeHeader: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <h3 style={{
-      color: theme.colors.text.primary,
-      fontSize: theme.typography.fontSize.lg,
-      marginBottom: theme.spacing.md,
-    }}>
+    <h3
+      style={{
+        color: theme.colors.text.primary,
+        fontSize: theme.typography.fontSize.lg,
+        marginBottom: theme.spacing.md,
+      }}
+    >
       {t('settings.contextAboutMeTitle')}
     </h3>
   );
 };
-
-
-
-
-

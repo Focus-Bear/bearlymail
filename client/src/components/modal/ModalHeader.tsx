@@ -7,19 +7,15 @@ interface ModalHeaderProps {
 
 export const ModalHeader: React.FC<ModalHeaderProps> = ({ title }) => {
   return (
-    <h3 style={{
-      fontSize: theme.typography.fontSize.lg,
-      fontWeight: theme.typography.fontWeight.bold,
-      color: theme.colors.text.primary,
-      marginBottom: theme.spacing.md,
-    }}>
+    <h3
+      style={{
+        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.bold,
+        color: theme.colors.text.primary,
+        marginBottom: theme.spacing.md,
+      }}
+    >
       {title}
     </h3>
   );
 };
-
-
-
-
-
-

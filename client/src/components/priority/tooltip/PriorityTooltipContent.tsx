@@ -40,27 +40,23 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   onCategoryOverride,
 }) => {
   const { t } = useTranslation();
-  
+
   if (loadingPriorityExplanation) {
-    return (
-      <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
-        {t('common.loading')}
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: theme.spacing.md }}>{t('common.loading')}</div>;
   }
 
   if (priorityExplanation) {
     return (
       <div>
-        <PriorityTooltipHeader 
-          score={priorityExplanation.score} 
+        <PriorityTooltipHeader
+          score={priorityExplanation.score}
           breakdown={priorityExplanation.breakdown}
           onClose={onClose}
           onExpedite={onExpedite}
         />
         {category && (
-          <PriorityTooltipCategory 
-            category={category} 
+          <PriorityTooltipCategory
+            category={category}
             categoryExplanation={categoryExplanation}
             protoCategoryName={protoCategoryName}
             protoCategoryDescription={protoCategoryDescription}
@@ -80,6 +76,3 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
     </div>
   );
 };
-
-
-

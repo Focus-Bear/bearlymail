@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -39,19 +39,22 @@ export const useBlockedKeywords = () => {
     }
   }, []);
 
-  const removeBlockedKeyword = useCallback(async (id: string) => {
-    const deletedKeyword = blockedKeywords.find(kw => kw.id === id);
-    setBlockedKeywords(prev => prev.filter(kw => kw.id !== id));
-    
-    try {
-      await axios.delete(`${API_URL}/blocked-keywords/${id}`);
-    } catch (error) {
-      console.error('Error unblocking keyword:', error);
-      if (deletedKeyword) {
-        setBlockedKeywords(prev => [...prev, deletedKeyword]);
+  const removeBlockedKeyword = useCallback(
+    async (id: string) => {
+      const deletedKeyword = blockedKeywords.find(kw => kw.id === id);
+      setBlockedKeywords(prev => prev.filter(kw => kw.id !== id));
+
+      try {
+        await axios.delete(`${API_URL}/blocked-keywords/${id}`);
+      } catch (error) {
+        console.error('Error unblocking keyword:', error);
+        if (deletedKeyword) {
+          setBlockedKeywords(prev => [...prev, deletedKeyword]);
+        }
       }
-    }
-  }, [blockedKeywords]);
+    },
+    [blockedKeywords]
+  );
 
   return {
     blockedKeywords,

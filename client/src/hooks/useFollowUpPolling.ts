@@ -3,7 +3,12 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { POLLING_INTERVAL_MS, POLLING_TIMEOUT_2_MIN_MS } from 'constants/numbers';
-import { DRAFT_STATUS_COMPLETED, DRAFT_STATUS_ERROR,DRAFT_STATUS_GENERATING, DRAFT_STATUS_PENDING } from 'constants/strings';
+import {
+  DRAFT_STATUS_COMPLETED,
+  DRAFT_STATUS_ERROR,
+  DRAFT_STATUS_GENERATING,
+  DRAFT_STATUS_PENDING,
+} from 'constants/strings';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface UseFollowUpPollingProps {
@@ -24,7 +29,7 @@ export function useFollowUpPolling({
       try {
         const response = await axios.get(`${API_URL}/follow-ups/threads`);
         const updatedThreads = response.data as ThreadWithFollowUp[];
-        
+
         // Update generation progress
         const progressMap = new Map<string, string>();
         updatedThreads.forEach(thread => {
@@ -40,13 +45,15 @@ export function useFollowUpPolling({
           }
         });
         setGenerationProgress(progressMap);
-        
+
         // Check if all are done
         const allDone = updatedThreads.every(
-          thread => !thread.followUp || 
-          (thread.followUp.generationStatus !== DRAFT_STATUS_PENDING && thread.followUp.generationStatus !== DRAFT_STATUS_GENERATING)
+          thread =>
+            !thread.followUp ||
+            (thread.followUp.generationStatus !== DRAFT_STATUS_PENDING &&
+              thread.followUp.generationStatus !== DRAFT_STATUS_GENERATING)
         );
-        
+
         if (allDone) {
           clearInterval(pollInterval);
           setIsGeneratingDrafts(false);
@@ -71,5 +78,3 @@ export function useFollowUpPolling({
 
   return { startGenerationPolling };
 }
-
-

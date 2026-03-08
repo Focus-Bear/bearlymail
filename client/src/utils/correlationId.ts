@@ -38,7 +38,5 @@ export const isNetworkError = (error: Error): boolean => {
   }
   const message = error.message?.toLowerCase() ?? '';
   const name = error.name?.toLowerCase() ?? '';
-  return NETWORK_ERROR_PATTERNS.some(
-    (pattern) => message.includes(pattern) || name.includes(pattern),
-  );
+  return NETWORK_ERROR_PATTERNS.some(pattern => message.includes(pattern) || name.includes(pattern));
 };

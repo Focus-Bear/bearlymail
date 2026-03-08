@@ -15,7 +15,14 @@ import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress'
 
 const CONSOLIDATE_RELOAD_DELAY_MS = 1500;
 
-interface UserContext { contextId: string; contextKey: string; contextValue: string; source: string; priority?: number; explanation?: string; }
+interface UserContext {
+  contextId: string;
+  contextKey: string;
+  contextValue: string;
+  source: string;
+  priority?: number;
+  explanation?: string;
+}
 
 interface ContextSectionsListProps {
   contexts: UserContext[];
@@ -33,9 +40,61 @@ interface ContextSectionsListProps {
   onRefreshContexts?: () => void;
 }
 
-interface ContextSectionConfig { titleKey?: string; title?: string; contextKey: string | string[]; addLabelKey?: string; addLabel?: string; tooltipKey: string; anchorId?: string; }
+interface ContextSectionConfig {
+  titleKey?: string;
+  title?: string;
+  contextKey: string | string[];
+  addLabelKey?: string;
+  addLabel?: string;
+  tooltipKey: string;
+  anchorId?: string;
+}
 
-const CONTEXT_SECTIONS: ContextSectionConfig[] = [ { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' }, { titleKey: 'settings.contextSections.vip', contextKey: 'VIP_CONTACT', addLabelKey: 'settings.addContext.vip', tooltipKey: 'settings.contextTypes.tooltip.vip' }, { titleKey: 'settings.contextSections.userInfo', contextKey: 'USER_INFO', addLabelKey: 'settings.addContext.userInfo', tooltipKey: 'settings.contextTypes.tooltip.userInfo' }, { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' }, { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' }, { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' }, { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' }, ];
+const CONTEXT_SECTIONS: ContextSectionConfig[] = [
+  {
+    titleKey: 'settings.contextSections.emailCategories',
+    contextKey: 'EMAIL_CATEGORY',
+    addLabelKey: 'settings.addContext.emailCategories',
+    tooltipKey: 'settings.contextTypes.tooltip.emailCategories',
+    anchorId: 'email-categories',
+  },
+  {
+    titleKey: 'settings.contextSections.vip',
+    contextKey: 'VIP_CONTACT',
+    addLabelKey: 'settings.addContext.vip',
+    tooltipKey: 'settings.contextTypes.tooltip.vip',
+  },
+  {
+    titleKey: 'settings.contextSections.userInfo',
+    contextKey: 'USER_INFO',
+    addLabelKey: 'settings.addContext.userInfo',
+    tooltipKey: 'settings.contextTypes.tooltip.userInfo',
+  },
+  {
+    titleKey: 'settings.contextSections.projects',
+    contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'],
+    addLabelKey: 'settings.addContext.projects',
+    tooltipKey: 'settings.contextTypes.tooltip.projects',
+  },
+  {
+    titleKey: 'settings.contextSections.urgent',
+    contextKey: 'URGENT',
+    addLabelKey: 'settings.addContext.urgent',
+    tooltipKey: 'settings.contextTypes.tooltip.urgent',
+  },
+  {
+    titleKey: 'settings.contextSections.notImportant',
+    contextKey: 'NOT_IMPORTANT',
+    addLabelKey: 'settings.addContext.notImportant',
+    tooltipKey: 'settings.contextTypes.tooltip.notImportant',
+  },
+  {
+    title: 'Q&A',
+    contextKey: 'Q_AND_A',
+    addLabel: 'Add common Q&A',
+    tooltipKey: 'settings.contextTypes.tooltip.qanda',
+  },
+];
 
 // eslint-disable-next-line max-lines-per-function -- ContextSectionsList manages multiple context sections plus category controls in one place
 export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
@@ -89,7 +148,9 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     try {
       await axios.post(`${API_URL}/context/consolidate-categories`);
       showSuccess(t('settings.emailCategories.consolidateSuccess'));
-      setTimeout(() => { window.location.reload(); }, CONSOLIDATE_RELOAD_DELAY_MS);
+      setTimeout(() => {
+        window.location.reload();
+      }, CONSOLIDATE_RELOAD_DELAY_MS);
     } catch (error) {
       console.error('Failed to consolidate categories:', error);
       showError(t('settings.emailCategories.consolidateError'));
@@ -116,15 +177,82 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     }
   };
 
-  const commonProps = { contexts, addingContextType, editingContextId, editContextValue, newContextValue, onAddContext, onUpdateContext, onDeleteContext, onNewContextValueChange, onAddingContextTypeChange, onEditingContextIdChange, onEditContextValueChange, };
+  const commonProps = {
+    contexts,
+    addingContextType,
+    editingContextId,
+    editContextValue,
+    newContextValue,
+    onAddContext,
+    onUpdateContext,
+    onDeleteContext,
+    onNewContextValueChange,
+    onAddingContextTypeChange,
+    onEditingContextIdChange,
+    onEditContextValueChange,
+  };
 
   const EmailCategoryControls: React.FC = () => (
     <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
       <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button onClick={() => setShowProtoCategoriesModal(true)} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>{t('settings.protoCategories.viewButton')}</button>
-        <button onClick={handleCompressContext} disabled={isCompressing} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: isCompressing ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isCompressing ? OPACITY_DISABLED : 1 }}>{isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}</button>
-        <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: isConsolidating ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isConsolidating ? OPACITY_DISABLED : 1 }}>{isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}</button>
-        <button onClick={handleRecategorize} disabled={isRecategorizing} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.accent.warning, cursor: isRecategorizing ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isRecategorizing ? OPACITY_DISABLED : 1 }}>{isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}</button>
+        <button
+          onClick={() => setShowProtoCategoriesModal(true)}
+          style={{
+            background: 'transparent',
+            border: STRING_NONE,
+            color: theme.colors.primary.main,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {t('settings.protoCategories.viewButton')}
+        </button>
+        <button
+          onClick={handleCompressContext}
+          disabled={isCompressing}
+          style={{
+            background: 'transparent',
+            border: STRING_NONE,
+            color: theme.colors.primary.main,
+            cursor: isCompressing ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isCompressing ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
+        </button>
+        <button
+          onClick={handleConsolidateCategories}
+          disabled={isConsolidating}
+          style={{
+            background: 'transparent',
+            border: STRING_NONE,
+            color: theme.colors.primary.main,
+            cursor: isConsolidating ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isConsolidating ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+        </button>
+        <button
+          onClick={handleRecategorize}
+          disabled={isRecategorizing}
+          style={{
+            background: 'transparent',
+            border: STRING_NONE,
+            color: theme.colors.accent.warning,
+            cursor: isRecategorizing ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isRecategorizing ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+        </button>
       </div>
       {/* Compress progress indicator — shown while the background job runs */}
       {(isCompressing || compressComplete) && (
@@ -143,7 +271,9 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           {isCompressing && (
             <span
               style={{
-                width: '12px', height: '12px', flexShrink: 0,
+                width: '12px',
+                height: '12px',
+                flexShrink: 0,
                 border: `2px solid ${theme.colors.primary.main}`,
                 borderTop: '2px solid transparent',
                 borderRadius: '50%',
@@ -176,10 +306,8 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         onConfirm={handleConsolidateConfirmed}
         onCancel={() => setShowConsolidateConfirm(false)}
       />
-      {CONTEXT_SECTIONS.map((config) => {
-        const contextKeyStr = Array.isArray(config.contextKey) 
-          ? config.contextKey.join('-') 
-          : config.contextKey;
+      {CONTEXT_SECTIONS.map(config => {
+        const contextKeyStr = Array.isArray(config.contextKey) ? config.contextKey.join('-') : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
         const isEmailCategory = contextKeyStr === CONTEXT_KEY_EMAIL_CATEGORY;
         const isAnchoredMatch = Boolean(config.anchorId && window.location.hash === `#${config.anchorId}`);
@@ -207,5 +335,3 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     </>
   );
 };
-
-

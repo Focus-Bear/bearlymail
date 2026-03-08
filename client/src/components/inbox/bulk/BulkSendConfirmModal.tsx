@@ -53,23 +53,25 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
           overflow: 'auto',
           width: '90%',
         }}
-        onClick={(event) => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
-        <h3 style={{
-          margin: 0,
-          marginBottom: theme.spacing.lg,
-          fontSize: theme.typography.fontSize.xl,
-          fontWeight: theme.typography.fontWeight.bold,
-        }}>
+        <h3
+          style={{
+            margin: 0,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize.xl,
+            fontWeight: theme.typography.fontWeight.bold,
+          }}
+        >
           {t('inbox.confirmBulkSend', { count: selectedCount })}
         </h3>
-        
+
         <FollowUpPreviewList
           selectedFollowUps={selectedFollowUps}
           selectedThreads={selectedThreads}
           selectedCount={selectedCount}
         />
-        
+
         <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
           <button
             onClick={() => {
@@ -109,5 +111,3 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
     </div>
   );
 };
-
-

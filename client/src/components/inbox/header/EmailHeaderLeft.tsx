@@ -28,14 +28,16 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
 }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-      <strong style={{
-        color: email.isRead ? theme.colors.text.secondary : theme.colors.text.primary,
-        fontSize: theme.typography.fontSize.base,
-        fontWeight: theme.typography.fontWeight.semibold,
-      }}>
+      <strong
+        style={{
+          color: email.isRead ? theme.colors.text.secondary : theme.colors.text.primary,
+          fontSize: theme.typography.fontSize.base,
+          fontWeight: theme.typography.fontWeight.semibold,
+        }}
+      >
         {email.correspondentName || email.correspondentEmail || email.fromName || email.from}
       </strong>
-      
+
       <InboxContactTypeBadge senderEmail={email.correspondentEmail || email.from} />
 
       <PriorityBadge
@@ -49,9 +51,3 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
     </div>
   );
 };
-
-
-
-
-
-

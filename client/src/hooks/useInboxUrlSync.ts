@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
-import { MODE_ACTION, MODE_BLOCKED,MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { MODE_ACTION, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 
 const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED];
 
@@ -43,24 +43,44 @@ export function useInboxUrlSync({
 
   // Initial mount: restore split view email from URL and set mode if missing from URL.
   useEffect(() => {
-    if (!isInitialMount.current) return;
+    if (!isInitialMount.current) {
+      return;
+    }
     isInitialMount.current = false;
-    if (urlThreadId && splitViewSelectedEmailId !== urlThreadId) { openEmail(urlThreadId); }
-    if (!urlMode) { navigate(`${basePath}/${mode}`, { replace: true }); }
+    if (urlThreadId && splitViewSelectedEmailId !== urlThreadId) {
+      openEmail(urlThreadId);
+    }
+    if (!urlMode) {
+      navigate(`${basePath}/${mode}`, { replace: true });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync URL path when mode or split view email changes.
   useEffect(() => {
-    if (isInitialMount.current) return;
-    const newPath = splitViewSelectedEmailId ? `${basePath}/${mode}/${splitViewSelectedEmailId}` : `${basePath}/${mode}`;
-    if (newPath !== lastUrlRef.current) { lastUrlRef.current = newPath; navigate(newPath, { replace: true }); }
+    if (isInitialMount.current) {
+      return;
+    }
+    const newPath = splitViewSelectedEmailId
+      ? `${basePath}/${mode}/${splitViewSelectedEmailId}`
+      : `${basePath}/${mode}`;
+    if (newPath !== lastUrlRef.current) {
+      lastUrlRef.current = newPath;
+      navigate(newPath, { replace: true });
+    }
   }, [mode, splitViewSelectedEmailId, navigate, basePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync mode/split view from URL params when they change (browser back/forward).
   useEffect(() => {
-    if (isInitialMount.current) return;
-    if (urlMode && isValidMode(urlMode) && urlMode !== mode) { onUrlModeChange(urlMode); }
-    if (urlThreadId && urlThreadId !== splitViewSelectedEmailId) { openEmail(urlThreadId); }
-    else if (!urlThreadId && splitViewSelectedEmailId) { closeEmail(); }
+    if (isInitialMount.current) {
+      return;
+    }
+    if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
+      onUrlModeChange(urlMode);
+    }
+    if (urlThreadId && urlThreadId !== splitViewSelectedEmailId) {
+      openEmail(urlThreadId);
+    } else if (!urlThreadId && splitViewSelectedEmailId) {
+      closeEmail();
+    }
   }, [urlMode, urlThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
 }

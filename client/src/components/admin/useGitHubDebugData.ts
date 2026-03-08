@@ -49,7 +49,9 @@ export const useGitHubDebugData = (): GitHubDebugData => {
   }, [fetchDebugInfo]);
 
   const handleTestToken = useCallback(async () => {
-    if (!testUserId.trim()) return;
+    if (!testUserId.trim()) {
+      return;
+    }
     setTestingToken(true);
     setTokenTestResult(null);
     try {
@@ -71,7 +73,9 @@ export const useGitHubDebugData = (): GitHubDebugData => {
   }, [testUserId, testOwnerRepo]);
 
   const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return t('admin.githubDebug.never');
+    if (!dateStr) {
+      return t('admin.githubDebug.never');
+    }
     return new Date(dateStr).toLocaleString();
   };
 

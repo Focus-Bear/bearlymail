@@ -1,4 +1,4 @@
-import { useCallback,useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface UrgentEmail {
   subject: string;
@@ -37,13 +37,3 @@ export function useUrgentNotification(): UseUrgentNotificationReturn {
     hideUrgentNotification,
   };
 }
-
-
-
-
-
-
-
-
-
-

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act,fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { ThreadItemHeader } from './ThreadItemHeader';
 
@@ -8,7 +8,6 @@ jest.mock('react-i18next', () => ({
     t: (key: string) => key,
   }),
 }));
-
 
 jest.mock('contexts/NotificationContext', () => ({
   useNotifications: () => ({

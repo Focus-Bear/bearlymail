@@ -17,9 +17,9 @@ function isLocalhost(): boolean {
   if (typeof window === TYPEOF_UNDEFINED) {
     return false;
   }
-  
+
   const hostname = window.location.hostname;
-  
+
   return (
     hostname === STRING_LOCALHOST ||
     hostname === '127.0.0.1' ||
@@ -36,7 +36,9 @@ export function devLog(message: string, ...args: any[]): void {
   const isLocal = isLocalhost();
   // Always log the first call to verify logger is working
   if (!devLog._initialized) {
-    console.log(`[DEV LOGGER] Initialized. isLocalhost: ${isLocal}, hostname: ${typeof window !== TYPEOF_UNDEFINED ? window.location.hostname : STRING_NA}`);
+    console.log(
+      `[DEV LOGGER] Initialized. isLocalhost: ${isLocal}, hostname: ${typeof window !== TYPEOF_UNDEFINED ? window.location.hostname : STRING_NA}`
+    );
     devLog._initialized = true;
   }
   if (isLocal) {
@@ -72,4 +74,3 @@ export function devDebug(message: string, ...args: any[]): void {
     console.debug(`[DEV DEBUG] ${message}`, ...args);
   }
 }
-

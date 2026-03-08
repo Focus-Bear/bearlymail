@@ -40,9 +40,7 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
         style={{
           color: isRead ? theme.colors.text.secondary : theme.colors.text.primary,
           fontSize: theme.typography.fontSize.lg,
-          fontWeight: isRead
-            ? theme.typography.fontWeight.normal
-            : theme.typography.fontWeight.bold,
+          fontWeight: isRead ? theme.typography.fontWeight.normal : theme.typography.fontWeight.bold,
           marginBottom: theme.spacing.sm,
         }}
       >
@@ -98,7 +96,3 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
     </>
   );
 };
-
-
-
-

@@ -7,7 +7,7 @@ interface TourHighlightOverlayProps {
 
 export const TourHighlightOverlay: React.FC<TourHighlightOverlayProps> = ({ targetElement }) => {
   const rect = targetElement.getBoundingClientRect();
-  
+
   return (
     <div
       style={{
@@ -25,9 +25,3 @@ export const TourHighlightOverlay: React.FC<TourHighlightOverlayProps> = ({ targ
     />
   );
 };
-
-
-
-
-
-

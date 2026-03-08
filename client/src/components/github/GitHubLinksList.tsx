@@ -36,15 +36,9 @@ export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({ links }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-      {uniqueLinks.map((link) => (
+      {uniqueLinks.map(link => (
         <GitHubLinkCard key={getDedupeKey(link)} link={link} />
       ))}
     </div>
   );
 };
-
-
-
-
-
-

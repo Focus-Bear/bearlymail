@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
-import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
+import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { UrgencyScoreInput } from 'components/priority/override/UrgencyScoreInput';
 import { API_URL } from 'config/api';
-import { MAX_PERCENTAGE,MAX_URGENCY_SCORE } from 'constants/numbers';
+import { MAX_PERCENTAGE, MAX_URGENCY_SCORE } from 'constants/numbers';
 
 interface UrgencyOverrideModalProps {
   threadId: string;
@@ -38,7 +38,7 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
         urgencyScore: Math.max(0, Math.min(MAX_PERCENTAGE, urgencyScore)),
         reason: reason.trim(),
       });
-      
+
       if (onSubmitted) {
         onSubmitted();
       }
@@ -56,36 +56,40 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
       <ModalContent>
         <ModalHeader title={t('priority.override.title')} />
 
-        <p style={{
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.md,
-          lineHeight: theme.typography.lineHeight.relaxed,
-        }}>
+        <p
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            lineHeight: theme.typography.lineHeight.relaxed,
+          }}
+        >
           {t('priority.override.currentScore', { score: currentUrgencyScore.toFixed(0), max: MAX_PERCENTAGE })}
           {currentUrgencyScore >= MAX_URGENCY_SCORE && (
-            <span style={{ color: theme.colors.accent.error, fontWeight: 'bold' }}> {t('priority.override.critical')}</span>
+            <span style={{ color: theme.colors.accent.error, fontWeight: 'bold' }}>
+              {' '}
+              {t('priority.override.critical')}
+            </span>
           )}
         </p>
 
-        <UrgencyScoreInput
-          urgencyScore={urgencyScore}
-          onScoreChange={setUrgencyScore}
-        />
+        <UrgencyScoreInput urgencyScore={urgencyScore} onScoreChange={setUrgencyScore} />
 
         <div style={{ marginBottom: theme.spacing.md }}>
-          <label style={{
-            display: 'block',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.xs,
-          }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.xs,
+            }}
+          >
             {t('priority.override.reasonLabel')}:
           </label>
           <textarea
             value={reason}
-            onChange={(event) => setReason(event.target.value)}
+            onChange={event => setReason(event.target.value)}
             placeholder={t('priority.override.reasonPlaceholder')}
             style={{
               width: '100%',
@@ -100,18 +104,8 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
           />
         </div>
 
-        <ModalFooter
-          onCancel={onClose}
-          onSubmit={handleSubmit}
-          isSubmitting={submitting}
-          canSubmit={!!reason.trim()}
-        />
+        <ModalFooter onCancel={onClose} onSubmit={handleSubmit} isSubmitting={submitting} canSubmit={!!reason.trim()} />
       </ModalContent>
     </ModalBackdrop>
   );
 };
-
-
-
-
-

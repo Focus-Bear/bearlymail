@@ -1,9 +1,6 @@
 import { Email } from 'types/email';
 
-import {
-  selectAnimatingOut,
-  selectVisibleEmails,
-} from 'store/selectors/emailSelectors';
+import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
 
 import emailReducer, {
   addAnimatingOut,
@@ -26,7 +23,7 @@ const makeEmail = (id: string, category?: string | null): Email =>
     starCount: 0,
     receivedAt: new Date().toISOString(),
     category: category !== undefined ? category : null,
-  } as unknown as Email);
+  }) as unknown as Email;
 
 const baseState = {
   emails: [makeEmail('1'), makeEmail('2'), makeEmail('3')],
@@ -149,9 +146,9 @@ describe('updateCategoryEmails', () => {
       makeEmail('1', 'Work'),
       makeEmail('2', 'Personal'),
       makeEmail('3', 'Work'),
-      makeEmail('4', null),       // null category → shown as "Other"
-      makeEmail('5', 'Other'),    // explicitly "Other"
-      makeEmail('6', ''),         // empty string → shown as "Other"
+      makeEmail('4', null), // null category → shown as "Other"
+      makeEmail('5', 'Other'), // explicitly "Other"
+      makeEmail('6', ''), // empty string → shown as "Other"
     ],
   };
 
@@ -208,10 +205,7 @@ describe('updateCategoryEmails', () => {
   });
 
   it('handles an empty replacement (all emails in category removed)', () => {
-    const state = emailReducer(
-      stateWithCategories,
-      updateCategoryEmails({ categoryKey: 'Work', emails: [] })
-    );
+    const state = emailReducer(stateWithCategories, updateCategoryEmails({ categoryKey: 'Work', emails: [] }));
     const ids = state.emails.map(event => event.id);
     expect(ids).not.toContain('1');
     expect(ids).not.toContain('3');

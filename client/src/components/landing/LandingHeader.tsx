@@ -105,4 +105,3 @@ export const LandingHeader: React.FC = () => {
     </header>
   );
 };
-

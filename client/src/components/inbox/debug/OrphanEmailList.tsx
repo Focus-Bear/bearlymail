@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_BG_ERROR_ALT, COLOR_NAMED_RED, COLOR_NAMED_WHITE, COLOR_SUCCESS_WEB } from 'constants/colors';
-import { EMOJI_WARNING,EMOJI_WRENCH } from 'constants/emojis';
+import { EMOJI_WARNING, EMOJI_WRENCH } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
@@ -26,13 +26,9 @@ const getOrphanEmailKey = (email: OrphanEmail, index: number): string => {
   return `orphan-${email.id}-${index}`;
 };
 
-export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({
-  orphanEmails,
-  onFixOrphans,
-  fixingOrphans,
-}) => {
+export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({ orphanEmails, onFixOrphans, fixingOrphans }) => {
   const { t } = useTranslation();
-  
+
   if (orphanEmails.length === 0) {
     return null;
   }
@@ -48,7 +44,9 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({
         }}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
-        <h5 style={{ margin: 0, color: COLOR_NAMED_RED }}>{EMOJI_WARNING} {t('debug.orphan.title')}</h5>
+        <h5 style={{ margin: 0, color: COLOR_NAMED_RED }}>
+          {EMOJI_WARNING} {t('debug.orphan.title')}
+        </h5>
         <button
           onClick={onFixOrphans}
           disabled={fixingOrphans}
@@ -99,5 +97,3 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({
     </div>
   );
 };
-
-

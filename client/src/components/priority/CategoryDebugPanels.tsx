@@ -42,17 +42,28 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ email }) => {
       <div style={sectionHeaderStyle}>{t('priority.categoryDebug.emailData')}</div>
       <div style={sectionBoxStyle}>
         <div>
-          <strong>{t('priority.categoryDebug.from')}:</strong>{' '}
-          {email.fromName || email.from}{' '}
+          <strong>{t('priority.categoryDebug.from')}:</strong> {email.fromName || email.from}{' '}
           {email.fromName ? `<${email.from}>` : ''}
         </div>
         {email.senderJobTitle && (
-          <div><strong>{t('priority.categoryDebug.jobTitle')}:</strong> {email.senderJobTitle}</div>
+          <div>
+            <strong>{t('priority.categoryDebug.jobTitle')}:</strong> {email.senderJobTitle}
+          </div>
         )}
-        <div><strong>{t('priority.categoryDebug.subject')}:</strong> {email.subject}</div>
+        <div>
+          <strong>{t('priority.categoryDebug.subject')}:</strong> {email.subject}
+        </div>
         <div style={{ marginTop: theme.spacing.xs }}>
           <strong>{t('priority.categoryDebug.bodyPreview')}:</strong>
-          <div style={{ marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '120px', overflowY: 'auto' }}>
+          <div
+            style={{
+              marginTop: '4px',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              maxHeight: '120px',
+              overflowY: 'auto',
+            }}
+          >
             {email.bodyPreview || <span style={emptyStyle}>{t('priority.categoryDebug.empty')}</span>}
           </div>
         </div>
@@ -106,12 +117,10 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({ categories, head
         <span style={emptyStyle}>{emptyLabel}</span>
       ) : (
         <ul style={{ margin: 0, paddingLeft: '16px' }}>
-          {categories.map((cat) => (
+          {categories.map(cat => (
             <li key={cat.name}>
               <strong>{cat.name}</strong>
-              {cat.description && (
-                <span style={{ color: theme.colors.text.secondary }}> — {cat.description}</span>
-              )}
+              {cat.description && <span style={{ color: theme.colors.text.secondary }}> — {cat.description}</span>}
             </li>
           ))}
         </ul>
@@ -144,7 +153,7 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
           <div style={{ marginBottom: theme.spacing.xs }}>
             <strong>{t('priority.categoryDebug.urgentItems')}:</strong>
             <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px' }}>
-              {urgentItems.map((item) => (
+              {urgentItems.map(item => (
                 <li key={item.value}>
                   {item.value}
                   {item.explanation && (
@@ -159,7 +168,7 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
           <div style={{ marginBottom: theme.spacing.xs }}>
             <strong>{t('priority.categoryDebug.notUrgentItems')}:</strong>
             <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px' }}>
-              {notUrgentItems.map((item) => (
+              {notUrgentItems.map(item => (
                 <li key={item.value}>
                   {item.value}
                   {item.explanation && (
@@ -174,7 +183,7 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
           <div style={{ marginBottom: theme.spacing.xs }}>
             <strong>{t('priority.categoryDebug.goals')}:</strong>
             <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px' }}>
-              {goals.map((item) => (
+              {goals.map(item => (
                 <li key={item.value}>
                   {item.value}
                   {item.priority !== undefined && (
@@ -191,7 +200,7 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
           <div style={{ marginBottom: theme.spacing.xs }}>
             <strong>{t('priority.categoryDebug.workingOn')}:</strong>
             <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px' }}>
-              {workingOn.map((item) => (
+              {workingOn.map(item => (
                 <li key={item.value}>
                   {item.value}
                   {item.priority !== undefined && (
@@ -208,15 +217,13 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
           <div>
             <strong>{t('priority.categoryDebug.dontCare')}:</strong>
             <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px' }}>
-              {dontCare.map((item) => (
+              {dontCare.map(item => (
                 <li key={item.value}>{item.value}</li>
               ))}
             </ul>
           </div>
         )}
-        {hasNoContext && (
-          <span style={emptyStyle}>{t('priority.categoryDebug.noContext')}</span>
-        )}
+        {hasNoContext && <span style={emptyStyle}>{t('priority.categoryDebug.noContext')}</span>}
       </div>
     </>
   );

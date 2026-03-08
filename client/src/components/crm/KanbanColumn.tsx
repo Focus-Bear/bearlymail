@@ -35,19 +35,58 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      onDragOver={(event) => { event.preventDefault(); setIsOver(true); }}
+      onDragOver={event => {
+        event.preventDefault();
+        setIsOver(true);
+      }}
       onDragLeave={() => setIsOver(false)}
-      onDrop={(event) => { event.preventDefault(); setIsOver(false); onDrop(); }}
-      style={{ minWidth: '280px', maxWidth: '320px', flex: '0 0 280px', backgroundColor: isOver && isDragOver ? `${stageColor}10` : theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm, display: 'flex', flexDirection: 'column', border: isOver && isDragOver ? `2px dashed ${stageColor}` : '2px solid transparent', transition: 'border-color 0.2s, background-color 0.2s', }}
+      onDrop={event => {
+        event.preventDefault();
+        setIsOver(false);
+        onDrop();
+      }}
+      style={{
+        minWidth: '280px',
+        maxWidth: '320px',
+        flex: '0 0 280px',
+        backgroundColor: isOver && isDragOver ? `${stageColor}10` : theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.sm,
+        display: 'flex',
+        flexDirection: 'column',
+        border: isOver && isDragOver ? `2px dashed ${stageColor}` : '2px solid transparent',
+        transition: 'border-color 0.2s, background-color 0.2s',
+      }}
     >
       {/* Column header */}
-      <div style={{ padding: theme.spacing.md, borderBottom: `3px solid ${stageColor}`, borderRadius: `${theme.borderRadius.lg} ${theme.borderRadius.lg} 0 0`, }}>
+      <div
+        style={{
+          padding: theme.spacing.md,
+          borderBottom: `3px solid ${stageColor}`,
+          borderRadius: `${theme.borderRadius.lg} ${theme.borderRadius.lg} 0 0`,
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-            <span style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base }}>
+            <span
+              style={{
+                fontWeight: theme.typography.fontWeight.semibold,
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize.base,
+              }}
+            >
               {stage.name}
             </span>
-            <span style={{ backgroundColor: `${stageColor}20`, color: stageColor, padding: `1px ${theme.spacing.xs}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.xs, fontWeight: theme.typography.fontWeight.semibold, }}>
+            <span
+              style={{
+                backgroundColor: `${stageColor}20`,
+                color: stageColor,
+                padding: `1px ${theme.spacing.xs}`,
+                borderRadius: theme.borderRadius.sm,
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.semibold,
+              }}
+            >
               {deals.length}
             </span>
           </div>
@@ -60,7 +99,16 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
 
       {/* Deal cards */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.sm, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: theme.spacing.sm,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing.sm,
+        }}
+      >
         {deals.map(deal => (
           <div
             key={deal.id}
@@ -68,29 +116,61 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             onDragStart={() => onDragStart(deal)}
             onDragEnd={onDragEnd}
             onClick={() => onEditDeal(deal)}
-            style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: 'grab', transition: theme.transitions.fast, }}
-            onMouseEnter={(event) => {
+            style={{
+              padding: theme.spacing.md,
+              backgroundColor: theme.colors.background.default,
+              borderRadius: theme.borderRadius.md,
+              border: `1px solid ${theme.colors.border.light}`,
+              cursor: 'grab',
+              transition: theme.transitions.fast,
+            }}
+            onMouseEnter={event => {
               event.currentTarget.style.boxShadow = theme.shadows.md;
               event.currentTarget.style.borderColor = theme.colors.border.medium;
             }}
-            onMouseLeave={(event) => {
+            onMouseLeave={event => {
               event.currentTarget.style.boxShadow = 'none';
               event.currentTarget.style.borderColor = theme.colors.border.light;
             }}
           >
-            <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', }}>
+            <div
+              style={{
+                fontWeight: theme.typography.fontWeight.medium,
+                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize.sm,
+                marginBottom: theme.spacing.xs,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {deal.title}
             </div>
 
             {deal.contactName && (
-              <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs, marginBottom: theme.spacing.xs, display: 'flex', alignItems: 'center', gap: '4px', }}>
+              <div
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.xs,
+                  marginBottom: theme.spacing.xs,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
                 <span>👤</span> {deal.contactName}
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {deal.value !== null ? (
-                <span style={{ color: theme.colors.primary.main, fontWeight: theme.typography.fontWeight.semibold, fontSize: theme.typography.fontSize.sm, }}>
+                <span
+                  style={{
+                    color: theme.colors.primary.main,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    fontSize: theme.typography.fontSize.sm,
+                  }}
+                >
                   {formatCurrency(deal.value, deal.currency)}
                 </span>
               ) : (
@@ -98,7 +178,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               )}
 
               {deal.expectedCloseDate && (
-                <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, }}>
+                <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
                   {new Date(deal.expectedCloseDate).toLocaleDateString()}
                 </span>
               )}
@@ -106,10 +186,24 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: theme.spacing.xs }}>
               <button
-                onClick={(event) => { event.stopPropagation(); onDeleteDeal(deal.id); }}
-                style={{ background: STRING_NONE, border: STRING_NONE, color: theme.colors.text.tertiary, cursor: 'pointer', fontSize: theme.typography.fontSize.xs, padding: '2px 4px', }}
-                onMouseEnter={(event) => { event.currentTarget.style.color = theme.colors.accent.error; }}
-                onMouseLeave={(event) => { event.currentTarget.style.color = theme.colors.text.tertiary; }}
+                onClick={event => {
+                  event.stopPropagation();
+                  onDeleteDeal(deal.id);
+                }}
+                style={{
+                  background: STRING_NONE,
+                  border: STRING_NONE,
+                  color: theme.colors.text.tertiary,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.xs,
+                  padding: '2px 4px',
+                }}
+                onMouseEnter={event => {
+                  event.currentTarget.style.color = theme.colors.accent.error;
+                }}
+                onMouseLeave={event => {
+                  event.currentTarget.style.color = theme.colors.text.tertiary;
+                }}
               >
                 {'✕'}
               </button>

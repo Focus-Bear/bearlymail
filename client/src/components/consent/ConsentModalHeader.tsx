@@ -7,7 +7,7 @@ import { theme } from 'theme/theme';
  */
 export const ConsentModalHeader: React.FC = () => {
   const { t } = useTranslation();
-  
+
   return (
     <>
       <h2
@@ -33,8 +33,3 @@ export const ConsentModalHeader: React.FC = () => {
     </>
   );
 };
-
-
-
-
-

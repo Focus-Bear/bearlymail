@@ -4,7 +4,15 @@ import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
 
 import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
-import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
+import {
+  PROVIDER_GMAIL,
+  PROVIDER_OTHER,
+  PROVIDER_OUTLOOK,
+  PROVIDER_ZOHO,
+  STRING_NONE,
+  STRING_TRANSPARENT,
+  STRING_WHITE,
+} from 'constants/strings';
 import { WaitlistEntry } from 'hooks/useAdminDashboard';
 
 interface WaitlistEntryCardProps {
@@ -55,35 +63,42 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
       }}
     >
       <div style={{ flex: 1 }}>
-        <div style={{
-          fontWeight: theme.typography.fontWeight.semibold,
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <div
+          style={{
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {entry.firstName} ({entry.email}) {isApproved ? APPROVED_CHECKMARK : ''}
         </div>
-                <div style={{
-                  color: theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.sm,
-                  marginBottom: theme.spacing.sm,
-                }}>
-                  {entry.reason}
-                </div>
-                {entry.emailSystem && (
-                  <div style={{
-                    color: theme.colors.text.secondary,
-                    fontSize: theme.typography.fontSize.sm,
-                    marginBottom: isApproved ? 0 : theme.spacing.sm,
-                  }}>
-                    <strong>{t('admin.dashboard.emailSystem')}:</strong>{' '}
-                    {getEmailSystemDisplay(entry)}
-                  </div>
-                )}
+        <div
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          {entry.reason}
+        </div>
+        {entry.emailSystem && (
+          <div
+            style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: isApproved ? 0 : theme.spacing.sm,
+            }}
+          >
+            <strong>{t('admin.dashboard.emailSystem')}:</strong> {getEmailSystemDisplay(entry)}
+          </div>
+        )}
         {!isApproved && (
-          <div style={{
-            color: theme.colors.text.tertiary,
-            fontSize: theme.typography.fontSize.xs,
-          }}>
+          <div
+            style={{
+              color: theme.colors.text.tertiary,
+              fontSize: theme.typography.fontSize.xs,
+            }}
+          >
             {humanizeTimestamp(entry.createdAt)}
           </div>
         )}
@@ -127,5 +142,3 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
     </div>
   );
 };
-
-

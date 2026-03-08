@@ -1,6 +1,6 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
 import { useNavigate } from 'react-router-dom';
-import { act,renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 
@@ -105,9 +105,7 @@ describe('useSearch', () => {
         expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
       });
 
-      const mockResults = [
-        { id: '1', subject: 'Test', from: 'test@example.com' },
-      ];
+      const mockResults = [{ id: '1', subject: 'Test', from: 'test@example.com' }];
 
       act(() => {
         result.current.setQuery('test query');
@@ -147,7 +145,7 @@ describe('useSearch', () => {
         result.current.setQuery('test');
       });
 
-      const delayedResponse = new Promise((resolve) => {
+      const delayedResponse = new Promise(resolve => {
         setTimeout(() => resolve({ data: [] }), 4000);
       });
       mockedAxios.get.mockImplementation(() => delayedResponse);
@@ -161,7 +159,6 @@ describe('useSearch', () => {
         jest.advanceTimersByTime(100);
       });
       expect(result.current.progressStep).toBe('Searching for emails...');
-
     });
 
     it('should handle empty results', async () => {

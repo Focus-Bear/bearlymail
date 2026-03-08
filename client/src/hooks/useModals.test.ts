@@ -1,4 +1,4 @@
-import { act,renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { Email } from 'types/email';
 
 import { useModals } from './useModals';
@@ -217,6 +217,3 @@ describe('useModals', () => {
     });
   });
 });
-
-
-

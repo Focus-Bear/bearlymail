@@ -1,4 +1,12 @@
-import { DAYS_IN_MONTH_30, DAYS_PER_YEAR, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS_IN_YEAR, MS_PER_SECOND, SECONDS_PER_MINUTE } from 'constants/numbers';
+import {
+  DAYS_IN_MONTH_30,
+  DAYS_PER_YEAR,
+  HOURS_PER_DAY,
+  MINUTES_PER_HOUR,
+  MONTHS_IN_YEAR,
+  MS_PER_SECOND,
+  SECONDS_PER_MINUTE,
+} from 'constants/numbers';
 
 /**
  * Returns 9:00 AM the next business day in browser-local time.
@@ -7,8 +15,11 @@ import { DAYS_IN_MONTH_30, DAYS_PER_YEAR, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS
 export const getNextMorning = (): Date => {
   const next = new Date();
   next.setDate(next.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  else if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  if (next.getDay() === 6) {
+    next.setDate(next.getDate() + 2);
+  } else if (next.getDay() === 0) {
+    next.setDate(next.getDate() + 1);
+  }
   next.setHours(9, 0, 0, 0);
   return next;
 };
@@ -18,7 +29,13 @@ export const getNextMorning = (): Date => {
  * Example: "Mon, Jan 6, 9:00 AM"
  */
 export const formatScheduledTime = (date: Date): string =>
-  date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
 /**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")
@@ -28,10 +45,10 @@ export function humanizeTimestamp(date: Date | string): string {
   const now = new Date();
   // eslint-disable-next-line no-restricted-syntax -- 'string' is needed for TypeScript type narrowing
   const timestamp = typeof date === 'string' ? new Date(date) : date;
-  
+
   // Get timezone from browser
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  
+
   // Calculate difference in various units
   const diffMs = now.getTime() - timestamp.getTime();
   const diffSeconds = Math.floor(diffMs / MS_PER_SECOND);
@@ -79,10 +96,3 @@ export function humanizeTimestamp(date: Date | string): string {
     timeZone: timezone,
   })}`;
 }
-
-
-
-
-
-
-

@@ -52,10 +52,13 @@ describe('useTabCounts', () => {
 
     it('should use cache when available and within TTL', async () => {
       const cachedCounts = { triage: 64, action: 48, followUp: 2 };
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
-        counts: cachedCounts,
-        timestamp: Date.now(),
-      }));
+      localStorage.setItem(
+        TAB_COUNTS_CACHE_KEY,
+        JSON.stringify({
+          counts: cachedCounts,
+          timestamp: Date.now(),
+        })
+      );
 
       const { result } = renderHook(() => useTabCounts());
 
@@ -69,10 +72,13 @@ describe('useTabCounts', () => {
 
     it('should bypass cache and fetch from API when force=true', async () => {
       const cachedCounts = { triage: 64, action: 48, followUp: 2 };
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
-        counts: cachedCounts,
-        timestamp: Date.now(),
-      }));
+      localStorage.setItem(
+        TAB_COUNTS_CACHE_KEY,
+        JSON.stringify({
+          counts: cachedCounts,
+          timestamp: Date.now(),
+        })
+      );
 
       const freshCounts = { triage: 0, action: 5, followUp: 1 };
       // eslint-disable-next-line id-denylist
@@ -90,10 +96,13 @@ describe('useTabCounts', () => {
 
     it('should fetch from API when cache is expired', async () => {
       const expiredCounts = { triage: 64, action: 48, followUp: 2 };
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
-        counts: expiredCounts,
-        timestamp: Date.now() - 60000, // 60 seconds ago (expired)
-      }));
+      localStorage.setItem(
+        TAB_COUNTS_CACHE_KEY,
+        JSON.stringify({
+          counts: expiredCounts,
+          timestamp: Date.now() - 60000, // 60 seconds ago (expired)
+        })
+      );
 
       const freshCounts = { triage: 0, action: 5, followUp: 1 };
       // eslint-disable-next-line id-denylist
@@ -149,10 +158,13 @@ describe('useTabCounts', () => {
     it('should preserve original cache timestamp when updating optimistically', async () => {
       const initialCounts = { triage: 10, action: 5, followUp: 2 };
       const originalTimestamp = Date.now() - 5000; // 5 seconds ago
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
-        counts: initialCounts,
-        timestamp: originalTimestamp,
-      }));
+      localStorage.setItem(
+        TAB_COUNTS_CACHE_KEY,
+        JSON.stringify({
+          counts: initialCounts,
+          timestamp: originalTimestamp,
+        })
+      );
 
       // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });

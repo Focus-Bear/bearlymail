@@ -26,9 +26,3 @@ export const BulkActionButton: React.FC<BulkActionButtonProps> = ({ onClick, chi
     </button>
   );
 };
-
-
-
-
-
-

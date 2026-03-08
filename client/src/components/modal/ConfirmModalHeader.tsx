@@ -33,11 +33,3 @@ export const ConfirmModalHeader: React.FC<ConfirmModalHeaderProps> = ({ icon, ti
     </div>
   );
 };
-
-
-
-
-
-
-
-

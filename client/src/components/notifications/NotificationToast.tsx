@@ -3,7 +3,12 @@ import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EXIT_ANIMATION_DURATION_MS } from 'constants/numbers';
-import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_SUCCESS, NOTIFICATION_TYPE_WARNING, STRING_NONE } from 'constants/strings';
+import {
+  NOTIFICATION_TYPE_ERROR,
+  NOTIFICATION_TYPE_SUCCESS,
+  NOTIFICATION_TYPE_WARNING,
+  STRING_NONE,
+} from 'constants/strings';
 import { Notification } from 'contexts/NotificationContext';
 
 interface NotificationToastProps {
@@ -13,26 +18,31 @@ interface NotificationToastProps {
 
 function getNotificationColor(type: string): string {
   switch (type) {
-    case NOTIFICATION_TYPE_SUCCESS: return theme.colors.accent.success || '#10b981';
-    case NOTIFICATION_TYPE_ERROR: return theme.colors.accent.error || '#ef4444';
-    case NOTIFICATION_TYPE_WARNING: return theme.colors.accent.warning || '#f59e0b';
-    default: return theme.colors.primary.main || '#3b82f6';
+    case NOTIFICATION_TYPE_SUCCESS:
+      return theme.colors.accent.success || '#10b981';
+    case NOTIFICATION_TYPE_ERROR:
+      return theme.colors.accent.error || '#ef4444';
+    case NOTIFICATION_TYPE_WARNING:
+      return theme.colors.accent.warning || '#f59e0b';
+    default:
+      return theme.colors.primary.main || '#3b82f6';
   }
 }
 
 function getNotificationIcon(type: string): string {
   switch (type) {
-    case NOTIFICATION_TYPE_SUCCESS: return '✓';
-    case NOTIFICATION_TYPE_ERROR: return '✕';
-    case NOTIFICATION_TYPE_WARNING: return '⚠';
-    default: return 'ℹ';
+    case NOTIFICATION_TYPE_SUCCESS:
+      return '✓';
+    case NOTIFICATION_TYPE_ERROR:
+      return '✕';
+    case NOTIFICATION_TYPE_WARNING:
+      return '⚠';
+    default:
+      return 'ℹ';
   }
 }
 
-export const NotificationToast: React.FC<NotificationToastProps> = ({
-  notification,
-  onClose,
-}) => {
+export const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 

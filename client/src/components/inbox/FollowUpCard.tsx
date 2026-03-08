@@ -5,7 +5,7 @@ import { DraftEditor } from 'components/inbox/followup/DraftEditor';
 import { FollowUpCardHeader } from 'components/inbox/followup/FollowUpCardHeader';
 import { RetryButton } from 'components/inbox/followup/RetryButton';
 import { SimpleDraftDisplay } from 'components/inbox/followup/SimpleDraftDisplay';
-import { DRAFT_STATUS_ERROR,DRAFT_STATUS_GENERATING } from 'constants/strings';
+import { DRAFT_STATUS_ERROR, DRAFT_STATUS_GENERATING } from 'constants/strings';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface FollowUpCardProps {
@@ -29,8 +29,10 @@ export const FollowUpCard: React.FC<FollowUpCardProps> = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveDraft = async () => {
-    if (!thread.followUp) return;
-    
+    if (!thread.followUp) {
+      return;
+    }
+
     setIsSaving(true);
     try {
       await onUpdateDraft(thread.followUp.id, editedDraft);
@@ -53,27 +55,29 @@ export const FollowUpCard: React.FC<FollowUpCardProps> = ({
   const hasError = followUp?.generationStatus === DRAFT_STATUS_ERROR;
 
   return (
-    <div style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-      border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.light}`,
-      boxShadow: theme.shadows.sm,
-    }}>
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+        border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.light}`,
+        boxShadow: theme.shadows.sm,
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}>
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={(event) => onSelect(thread.threadId, event.target.checked)}
-          onClick={(event) => event.stopPropagation()}
+          onChange={event => onSelect(thread.threadId, event.target.checked)}
+          onClick={event => event.stopPropagation()}
           disabled={!hasDraft || isGenerating}
           style={{
             marginTop: theme.spacing.xs,
-            cursor: (!hasDraft || isGenerating) ? 'not-allowed' : 'pointer',
+            cursor: !hasDraft || isGenerating ? 'not-allowed' : 'pointer',
           }}
         />
-        
+
         <div style={{ flex: 1 }}>
           <FollowUpCardHeader thread={thread} isGenerating={isGenerating} hasError={hasError} />
 
@@ -98,12 +102,9 @@ export const FollowUpCard: React.FC<FollowUpCardProps> = ({
             </div>
           )}
 
-          {hasError && onRetryGeneration && (
-            <RetryButton onRetry={() => onRetryGeneration(thread.threadId)} />
-          )}
+          {hasError && onRetryGeneration && <RetryButton onRetry={() => onRetryGeneration(thread.threadId)} />}
         </div>
       </div>
     </div>
   );
 };
-

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation,useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { emailMentionsGitHub } from 'utils/githubUtils';
@@ -8,31 +8,42 @@ import { captureEvent } from 'utils/posthog';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
-import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY,HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { TIMEOUT_800_MS } from 'constants/numbers';
-import { ACTION_ITEM_SOURCE_LLM, ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, ANIMATION_TYPE_SEND, GITHUB_ACTION_PREFIX,REPLY_MODE_REPLY_ALL } from 'constants/strings';
+import {
+  ACTION_ITEM_SOURCE_LLM,
+  ANIMATION_TYPE_ARCHIVE,
+  ANIMATION_TYPE_PRIORITY,
+  ANIMATION_TYPE_SEND,
+  GITHUB_ACTION_PREFIX,
+  REPLY_MODE_REPLY_ALL,
+} from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
 
 import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
 import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
-import { EmailDetailOperationsOptions,EmailDetailState } from './useEmailDetailOperations.types';
+import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetailOperations.types';
 
-export type { EmailDetailOperationsOptions,EmailDetailState };
+export type { EmailDetailOperationsOptions, EmailDetailState };
 
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
-export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
+export function useEmailDetailOperations(
+  id: string | undefined,
+  state: EmailDetailState,
+  options: EmailDetailOperationsOptions = {}
+) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
-    const {
-      email,
-      setEmail,
-      threadEmails,
-      setThreadEmails,
-      setExpandedThreadItems,
+  const {
+    email,
+    setEmail,
+    threadEmails,
+    setThreadEmails,
+    setExpandedThreadItems,
     noteContent,
     setNoteContent,
     setNotesCollapsed,
@@ -122,20 +133,23 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, setGithubLinks, setLoadingGithub]);
 
-  const triggerAnimation = useCallback((type: 'send' | 'archive' | 'priority') => {
-    let animClass: string;
-    if (type === ANIMATION_TYPE_SEND) {
-      const animations = ['animate-fly-out-right', 'animate-fly-out-up'];
-      animClass = animations[Math.floor(Math.random() * animations.length)];
-    } else if (type === ANIMATION_TYPE_PRIORITY) {
-      animClass = 'animate-priority-out';
-    } else {
-      const animations = ['animate-poof', 'animate-fly-out-right'];
-      animClass = animations[Math.floor(Math.random() * animations.length)];
-    }
-    setAnimationClass(animClass);
-    return new Promise(resolve => setTimeout(resolve, TIMEOUT_800_MS));
-  }, [setAnimationClass]);
+  const triggerAnimation = useCallback(
+    (type: 'send' | 'archive' | 'priority') => {
+      let animClass: string;
+      if (type === ANIMATION_TYPE_SEND) {
+        const animations = ['animate-fly-out-right', 'animate-fly-out-up'];
+        animClass = animations[Math.floor(Math.random() * animations.length)];
+      } else if (type === ANIMATION_TYPE_PRIORITY) {
+        animClass = 'animate-priority-out';
+      } else {
+        const animations = ['animate-poof', 'animate-fly-out-right'];
+        animClass = animations[Math.floor(Math.random() * animations.length)];
+      }
+      setAnimationClass(animClass);
+      return new Promise(resolve => setTimeout(resolve, TIMEOUT_800_MS));
+    },
+    [setAnimationClass]
+  );
 
   const fetchCustomRules = useCallback(async () => {
     try {
@@ -148,82 +162,98 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [setCustomRules]);
 
-  const handleUseCustomRule = useCallback(async (rule: { whenToUse: string; howToSummarize: string; ruleId?: string }) => {
-    if (!id) {
-      console.error('Cannot use custom rule: email ID is missing');
-      return;
-    }
+  const handleUseCustomRule = useCallback(
+    async (rule: { whenToUse: string; howToSummarize: string; ruleId?: string }) => {
+      if (!id) {
+        console.error('Cannot use custom rule: email ID is missing');
+        return;
+      }
 
-    if (!rule || !rule.howToSummarize || !rule.whenToUse) {
-      console.error('Cannot use custom rule: invalid rule data', rule);
-      return;
-    }
+      if (!rule || !rule.howToSummarize || !rule.whenToUse) {
+        console.error('Cannot use custom rule: invalid rule data', rule);
+        return;
+      }
 
-    if (summaryAbortControllerRef.current) {
-      summaryAbortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    summaryAbortControllerRef.current = controller;
+      if (summaryAbortControllerRef.current) {
+        summaryAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      summaryAbortControllerRef.current = controller;
 
-    setIsGeneratingSummary(true);
-    setSummaryType(rule.ruleId ? `custom-${rule.ruleId}` : 'custom');
-    try {
-      const response = await axios.post(`${API_URL}/summarize/${id}`, {
-        type: 'custom',
-        customPrompt: rule.howToSummarize,
-      }, { signal: controller.signal });
+      setIsGeneratingSummary(true);
+      setSummaryType(rule.ruleId ? `custom-${rule.ruleId}` : 'custom');
+      try {
+        const response = await axios.post(
+          `${API_URL}/summarize/${id}`,
+          {
+            type: 'custom',
+            customPrompt: rule.howToSummarize,
+          },
+          { signal: controller.signal }
+        );
 
-      if (controller.signal.aborted) return;
+        if (controller.signal.aborted) {
+          return;
+        }
 
-      if (response.data && response.data.summary) {
-        setSummary(response.data.summary);
-      } else {
-        console.error('Invalid response from summarization API:', response.data);
+        if (response.data && response.data.summary) {
+          setSummary(response.data.summary);
+        } else {
+          console.error('Invalid response from summarization API:', response.data);
+          setSummary(null);
+        }
+      } catch (error: any) {
+        if (axios.isCancel(error)) {
+          return;
+        }
+        console.error('Error summarizing with custom rule:', error);
+        if (error.response) {
+          console.error('API error response:', error.response.data);
+        }
         setSummary(null);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsGeneratingSummary(false);
+        }
       }
-    } catch (error: any) {
-      if (axios.isCancel(error)) {
+    },
+    [id, setIsGeneratingSummary, setSummaryType, setSummary]
+  );
+
+  const handleSummarize = useCallback(
+    async (type: string) => {
+      if (!id) {
         return;
       }
-      console.error('Error summarizing with custom rule:', error);
-      if (error.response) {
-        console.error('API error response:', error.response.data);
-      }
-      setSummary(null);
-    } finally {
-      if (!controller.signal.aborted) {
-        setIsGeneratingSummary(false);
-      }
-    }
-  }, [id, setIsGeneratingSummary, setSummaryType, setSummary]);
 
-  const handleSummarize = useCallback(async (type: string) => {
-    if (!id) return;
-
-    if (summaryAbortControllerRef.current) {
-      summaryAbortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    summaryAbortControllerRef.current = controller;
-
-    setIsGeneratingSummary(true);
-    setSummaryType(type);
-    try {
-      const response = await axios.post(`${API_URL}/summarize/${id}`, { type }, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setSummary(response.data.summary);
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return;
+      if (summaryAbortControllerRef.current) {
+        summaryAbortControllerRef.current.abort();
       }
-      console.error('Error summarizing:', error);
-      setSummary(null);
-    } finally {
-      if (!controller.signal.aborted) {
-        setIsGeneratingSummary(false);
+      const controller = new AbortController();
+      summaryAbortControllerRef.current = controller;
+
+      setIsGeneratingSummary(true);
+      setSummaryType(type);
+      try {
+        const response = await axios.post(`${API_URL}/summarize/${id}`, { type }, { signal: controller.signal });
+        if (controller.signal.aborted) {
+          return;
+        }
+        setSummary(response.data.summary);
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          return;
+        }
+        console.error('Error summarizing:', error);
+        setSummary(null);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsGeneratingSummary(false);
+        }
       }
-    }
-  }, [id, setIsGeneratingSummary, setSummaryType, setSummary]);
+    },
+    [id, setIsGeneratingSummary, setSummaryType, setSummary]
+  );
 
   // eslint-disable-next-line max-statements -- Email fetching logic requires extensive error handling and state management
   const fetchEmail = useCallback(async () => {
@@ -258,9 +288,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       }
 
       axios.put(`${API_URL}/emails/${id}/read`).catch(err => console.error('Error marking as read:', err));
-      axios.post(`${API_URL}/emails/${id}/accelerate`).catch(err =>
-        console.debug('Job acceleration not available:', err.message)
-      );
+      axios
+        .post(`${API_URL}/emails/${id}/accelerate`)
+        .catch(err => console.debug('Job acceleration not available:', err.message));
 
       return emailData;
     } catch (error) {
@@ -271,7 +301,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, setEmail, setSummary, setGithubLinks, setLoadingGithub, setLoading]);
 
   const fetchThreadEmails = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     try {
       const response = await axios.get(`${API_URL}/emails/${id}/thread`);
       setThreadEmails(response.data || []);
@@ -282,7 +314,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, setThreadEmails]);
 
   const fetchNote = useCallback(async () => {
-    if (!email?.threadId) return;
+    if (!email?.threadId) {
+      return;
+    }
     try {
       const response = await axios.get(`${API_URL}/notes/thread/${email.threadId}`);
       if (response.data) {
@@ -297,7 +331,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [email?.threadId, setNoteContent, setNotesCollapsed]);
 
   const fetchActionItems = useCallback(async () => {
-    if (!email?.id) return;
+    if (!email?.id) {
+      return;
+    }
     try {
       const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
       setActionItems(response.data);
@@ -341,7 +377,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         const seen = new Set<string>();
         const uniqueLinks = links.filter((link: any) => {
           const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
-          if (seen.has(key)) return false;
+          if (seen.has(key)) {
+            return false;
+          }
           seen.add(key);
           return true;
         });
@@ -360,7 +398,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, setLoadingGithub, setGithubLinks, setHasGithubToken]);
 
   const refreshGithubInfo = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     setLoadingGithub(true);
     try {
       const response = await axios.post(`${API_URL}/github/emails/${id}/refresh`);
@@ -385,7 +425,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, setLoadingGithub, setGithubLinks]);
 
   const fetchSuggestedActions = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     setLoadingSuggestedActions(true);
     try {
       const response = await axios.get(`${API_URL}/suggested-actions/email/${id}`);
@@ -398,9 +440,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, setLoadingSuggestedActions, setSuggestedActions]);
 
-  const handleActionSelected = useCallback((action: SuggestedAction) => {
-    setSelectedAction(action);
-  }, [setSelectedAction]);
+  const handleActionSelected = useCallback(
+    (action: SuggestedAction) => {
+      setSelectedAction(action);
+    },
+    [setSelectedAction]
+  );
 
   const handleActionSuccess = useCallback(() => {
     if (selectedAction?.type.startsWith(GITHUB_ACTION_PREFIX)) {
@@ -408,16 +453,25 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [selectedAction, refreshGithubInfo]);
 
-  const toggleThreadItem = useCallback((emailId: string) => {
-    setExpandedThreadItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(emailId)) { newSet.delete(emailId); } else { newSet.add(emailId); }
-      return newSet;
-    });
-  }, [setExpandedThreadItems]);
+  const toggleThreadItem = useCallback(
+    (emailId: string) => {
+      setExpandedThreadItems(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(emailId)) {
+          newSet.delete(emailId);
+        } else {
+          newSet.add(emailId);
+        }
+        return newSet;
+      });
+    },
+    [setExpandedThreadItems]
+  );
 
   const handleFetchPriorityExplanation = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
     if (priorityExplanation) {
       setShowPriorityExplanation(true);
       return;
@@ -432,7 +486,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, priorityExplanation, setPriorityExplanation, setShowPriorityExplanation]);
 
   const handleExtractActions = useCallback(async () => {
-    if (!id || !email?.body) return;
+    if (!id || !email?.body) {
+      return;
+    }
     captureEvent('action_items_extract_clicked', { email_id: id });
     setIsGeneratingSummary(true);
     try {
@@ -448,9 +504,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         isCompleted: false,
         source: ACTION_ITEM_SOURCE_LLM,
       }));
-      await Promise.all(newItems.map((item: any) =>
-        axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-      ));
+      await Promise.all(
+        newItems.map((item: any) =>
+          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+        )
+      );
       fetchActionItems();
     } catch (error) {
       console.error('Error extracting actions:', error);
@@ -460,7 +518,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, email, setIsGeneratingSummary, fetchActionItems]);
 
   const handleAddActionItem = useCallback(async () => {
-    if (!newActionItem.trim() || !email?.id) return;
+    if (!newActionItem.trim() || !email?.id) {
+      return;
+    }
     try {
       await axios.post(`${API_URL}/action-items`, {
         description: newActionItem,
@@ -475,33 +535,41 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [newActionItem, email, setNewActionItem, fetchActionItems]);
 
-  const handleToggleActionItem = useCallback(async (itemId: string, completed: boolean) => {
-    try {
-      setActionItems((prev) => prev.map(item => item.id === itemId ? { ...item, isCompleted: completed } : item));
-      await axios.put(`${API_URL}/action-items/${itemId}`, { isCompleted: completed });
-    } catch (error) {
-      console.error('Error toggling action item:', error);
-      fetchActionItems();
-    }
-  }, [setActionItems, fetchActionItems]);
+  const handleToggleActionItem = useCallback(
+    async (itemId: string, completed: boolean) => {
+      try {
+        setActionItems(prev => prev.map(item => (item.id === itemId ? { ...item, isCompleted: completed } : item)));
+        await axios.put(`${API_URL}/action-items/${itemId}`, { isCompleted: completed });
+      } catch (error) {
+        console.error('Error toggling action item:', error);
+        fetchActionItems();
+      }
+    },
+    [setActionItems, fetchActionItems]
+  );
 
-  const handleDeleteActionItem = useCallback(async (itemId: string) => {
-    try {
-      await axios.delete(`${API_URL}/action-items/${itemId}`);
-      fetchActionItems();
-    } catch (error) {
-      console.error('Error deleting action item:', error);
-    }
-  }, [fetchActionItems]);
+  const handleDeleteActionItem = useCallback(
+    async (itemId: string) => {
+      try {
+        await axios.delete(`${API_URL}/action-items/${itemId}`);
+        fetchActionItems();
+      } catch (error) {
+        console.error('Error deleting action item:', error);
+      }
+    },
+    [fetchActionItems]
+  );
 
   const handleRegenerateActionItems = useCallback(async () => {
-    if (!id || !email?.body) return;
+    if (!id || !email?.body) {
+      return;
+    }
     setIsGeneratingSummary(true);
     try {
       const llmItems = actionItems.filter(item => item.source === ACTION_ITEM_SOURCE_LLM);
-      await Promise.all(llmItems.map(item =>
-        item.id ? axios.delete(`${API_URL}/action-items/${item.id}`) : Promise.resolve()
-      ));
+      await Promise.all(
+        llmItems.map(item => (item.id ? axios.delete(`${API_URL}/action-items/${item.id}`) : Promise.resolve()))
+      );
 
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
@@ -515,9 +583,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         isCompleted: false,
         source: ACTION_ITEM_SOURCE_LLM,
       }));
-      await Promise.all(newItems.map((item: any) =>
-        axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-      ));
+      await Promise.all(
+        newItems.map((item: any) =>
+          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+        )
+      );
       fetchActionItems();
     } catch (error) {
       console.error('Error regenerating action items:', error);
@@ -527,7 +597,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, email, actionItems, setIsGeneratingSummary, fetchActionItems]);
 
   const handleSaveNote = useCallback(async () => {
-    if (!email) return;
+    if (!email) {
+      return;
+    }
     try {
       await axios.post(`${API_URL}/notes/thread/${email.threadId}`, { content: noteContent });
       fetchNote();
@@ -570,7 +642,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       setShowCc,
       setShowBcc,
     },
-    user?.email,
+    user?.email
   );
 
   const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer } = draftOps;
@@ -588,172 +660,234 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
-  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date, keepInAction?: boolean) => {
-    const draftToSend = draftOverride || draft;
-    if (!id || !draftToSend) return;
-
-    // Skip tone check if using revised text from tone check or dispute was already accepted
-    if (!draftOverride && !disputeResult?.accepted) {
-      setCheckingTone(true);
-      try {
-        const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draftToSend });
-        setToneCheckResult(toneResponse.data);
-
-        if (!toneResponse.data.isOk) {
-          setCheckingTone(false);
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking tone:', error);
-      } finally {
-        setCheckingTone(false);
+  const handleSendReply = useCallback(
+    async (
+      files: File[] = [],
+      expectedReplyHours?: number,
+      draftOverride?: string,
+      scheduledSendAt?: Date,
+      keepInAction?: boolean
+    ) => {
+      const draftToSend = draftOverride || draft;
+      if (!id || !draftToSend) {
+        return;
       }
-    }
 
-    captureEvent('reply_sent', {
-      email_id: id,
-      reply_type: replyMode,
-      draft_was_edited: false,
-      expected_reply_hours: expectedReplyHours,
-    });
+      // Skip tone check if using revised text from tone check or dispute was already accepted
+      if (!draftOverride && !disputeResult?.accepted) {
+        setCheckingTone(true);
+        try {
+          const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draftToSend });
+          setToneCheckResult(toneResponse.data);
 
-    const currentReplyRecipients = replyRecipients;
-    const currentReplyCc = replyCc;
-    const currentReplyBcc = replyBcc;
-    const currentReplyMode = replyMode;
-    const currentId = id;
-
-    setShowReplyComposer(false);
-    triggerAnimation(ANIMATION_TYPE_SEND);
-
-    // eslint-disable-next-line max-statements -- sendReplyAsync handles both file-upload and JSON paths plus post-send routing logic
-    const sendReplyAsync = async () => {
-      try {
-        if (files.length > 0) {
-          const formData = new FormData();
-          formData.append('reply', draftToSend);
-          formData.append('recipients', currentReplyRecipients);
-          formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
-          if (currentReplyCc) formData.append('cc', currentReplyCc);
-          if (currentReplyBcc) formData.append('bcc', currentReplyBcc);
-          if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
-          if (scheduledSendAt) formData.append('scheduledSendAt', scheduledSendAt.toISOString());
-          files.forEach((file) => {
-            formData.append('files', file);
-          });
-
-          await axios.post(`${API_URL}/replies/send/${currentId}`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        } else {
-          await axios.post(`${API_URL}/replies/send/${currentId}`, {
-            reply: draftToSend,
-            recipients: currentReplyRecipients,
-            cc: currentReplyCc || undefined,
-            bcc: currentReplyBcc || undefined,
-            replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
-            expectedReplyHours,
-            scheduledSendAt: scheduledSendAt?.toISOString(),
-          });
-        }
-        setDraft(null);
-        deleteDraft();
-
-        const successMessage = scheduledSendAt
-          ? t('emailDetail.replyScheduledSuccess')
-          : t('emailDetail.replySentSuccess');
-        showSuccess(successMessage);
-
-        if (!keepInAction) {
-          if (expectedReplyHours !== undefined) {
-            if (expectedReplyHours === 0) {
-              performArchiveAfterReply();
-            } else {
-              const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
-              performSnoozeAfterReply(duration);
-            }
-          } else {
-            navigate(getInboxPath());
+          if (!toneResponse.data.isOk) {
+            setCheckingTone(false);
+            return;
           }
+        } catch (error) {
+          console.error('Error checking tone:', error);
+        } finally {
+          setCheckingTone(false);
         }
-      } catch (error: any) {
-        console.error('Error sending reply:', error);
-        setDraft(draftToSend);
-        setReplyRecipients(currentReplyRecipients);
-        setReplyCc(currentReplyCc);
-        setReplyBcc(currentReplyBcc);
-        setShowReplyComposer(true);
-        showError(error.response?.data?.message || t('emailDetail.replySentError'));
       }
-    };
 
-    sendReplyAsync();
-  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, getInboxPath, setCheckingTone, setToneCheckResult, setDraft, setShowReplyComposer, setReplyRecipients, setReplyCc, setReplyBcc, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
-
-  const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
-    setDisputing(true);
-    try {
-      const response = await axios.post(`${API_URL}/llm/dispute-tone-check`, {
-        emailText,
-        userArgument,
+      captureEvent('reply_sent', {
+        email_id: id,
+        reply_type: replyMode,
+        draft_was_edited: false,
+        expected_reply_hours: expectedReplyHours,
       });
-      setDisputeResult(response.data);
-    } catch (error) {
-      console.error('Error disputing tone check:', error);
-    } finally {
-      setDisputing(false);
-    }
-  }, [setDisputing, setDisputeResult]);
 
-  const handleSetStarCount = useCallback(async (emailId: string, starCount: number) => {
-    captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
+      const currentReplyRecipients = replyRecipients;
+      const currentReplyCc = replyCc;
+      const currentReplyBcc = replyBcc;
+      const currentReplyMode = replyMode;
+      const currentId = id;
 
-    const currentStarCount = (emailRef.current as any)?.starCount ?? 0;
-    const isTriageToAction = currentStarCount === 0 && starCount > 0;
+      setShowReplyComposer(false);
+      triggerAnimation(ANIMATION_TYPE_SEND);
 
-    await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount }).catch(error => {
-      console.error('Error setting star count:', error);
-    });
+      // eslint-disable-next-line max-statements -- sendReplyAsync handles both file-upload and JSON paths plus post-send routing logic
+      const sendReplyAsync = async () => {
+        try {
+          if (files.length > 0) {
+            const formData = new FormData();
+            formData.append('reply', draftToSend);
+            formData.append('recipients', currentReplyRecipients);
+            formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
+            if (currentReplyCc) {
+              formData.append('cc', currentReplyCc);
+            }
+            if (currentReplyBcc) {
+              formData.append('bcc', currentReplyBcc);
+            }
+            if (expectedReplyHours !== undefined) {
+              formData.append('expectedReplyHours', String(expectedReplyHours));
+            }
+            if (scheduledSendAt) {
+              formData.append('scheduledSendAt', scheduledSendAt.toISOString());
+            }
+            files.forEach(file => {
+              formData.append('files', file);
+            });
 
-    // In standalone full-page view (not split view), moving from triage to action:
-    // show priority animation then navigate back to inbox
-    if (isTriageToAction && !options.onArchiveComplete) {
-      await triggerAnimation(ANIMATION_TYPE_PRIORITY);
-      navigate('/inbox');
-      return;
-    }
+            await axios.post(`${API_URL}/replies/send/${currentId}`, formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+          } else {
+            await axios.post(`${API_URL}/replies/send/${currentId}`, {
+              reply: draftToSend,
+              recipients: currentReplyRecipients,
+              cc: currentReplyCc || undefined,
+              bcc: currentReplyBcc || undefined,
+              replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
+              expectedReplyHours,
+              scheduledSendAt: scheduledSendAt?.toISOString(),
+            });
+          }
+          setDraft(null);
+          deleteDraft();
 
-    // Refresh email to get updated star count
-    if (emailId === id) {
-      fetchEmail();
-    }
-  }, [id, fetchEmail, options, triggerAnimation, navigate]);
+          const successMessage = scheduledSendAt
+            ? t('emailDetail.replyScheduledSuccess')
+            : t('emailDetail.replySentSuccess');
+          showSuccess(successMessage);
 
-  const handleBlockSender = useCallback(async (emailId: string) => {
-    if (!email) return;
-    captureEvent('email_block_sender_clicked', { email_id: emailId });
-    try {
-      await axios.post(`${API_URL}/emails/${emailId}/block-sender`);
-      await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-      navigate('/inbox');
-    } catch (error) {
-      console.error('Error blocking sender:', error);
-    }
-  }, [email, triggerAnimation, navigate]);
+          if (!keepInAction) {
+            if (expectedReplyHours !== undefined) {
+              if (expectedReplyHours === 0) {
+                performArchiveAfterReply();
+              } else {
+                const duration =
+                  expectedReplyHours <= HOURS_IN_TWO_DAYS
+                    ? `${expectedReplyHours}h`
+                    : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
+                performSnoozeAfterReply(duration);
+              }
+            } else {
+              navigate(getInboxPath());
+            }
+          }
+        } catch (error: any) {
+          console.error('Error sending reply:', error);
+          setDraft(draftToSend);
+          setReplyRecipients(currentReplyRecipients);
+          setReplyCc(currentReplyCc);
+          setReplyBcc(currentReplyBcc);
+          setShowReplyComposer(true);
+          showError(error.response?.data?.message || t('emailDetail.replySentError'));
+        }
+      };
 
-  const handleRespondToInvitation = useCallback(async (emailId: string, response: 'accepted' | 'declined' | 'tentative') => {
-    if (!emailId) return;
-    captureEvent('calendar_invitation_responded', { email_id: emailId, response });
-    try {
-      await axios.post(`${API_URL}/calendar/invitation/${emailId}/respond`, { response });
-      return Promise.resolve();
-    } catch (error: any) {
-      console.error('Error responding to calendar invitation:', error);
-      throw new Error(error.response?.data?.message || 'Failed to respond to invitation');
-    }
-  }, []);
+      sendReplyAsync();
+    },
+    [
+      id,
+      draft,
+      replyMode,
+      replyRecipients,
+      replyCc,
+      replyBcc,
+      disputeResult,
+      triggerAnimation,
+      t,
+      navigate,
+      getInboxPath,
+      setCheckingTone,
+      setToneCheckResult,
+      setDraft,
+      setShowReplyComposer,
+      setReplyRecipients,
+      setReplyCc,
+      setReplyBcc,
+      showSuccess,
+      showError,
+      deleteDraft,
+      performArchiveAfterReply,
+      performSnoozeAfterReply,
+    ]
+  );
+
+  const disputeToneCheck = useCallback(
+    async (emailText: string, userArgument: string) => {
+      setDisputing(true);
+      try {
+        const response = await axios.post(`${API_URL}/llm/dispute-tone-check`, {
+          emailText,
+          userArgument,
+        });
+        setDisputeResult(response.data);
+      } catch (error) {
+        console.error('Error disputing tone check:', error);
+      } finally {
+        setDisputing(false);
+      }
+    },
+    [setDisputing, setDisputeResult]
+  );
+
+  const handleSetStarCount = useCallback(
+    async (emailId: string, starCount: number) => {
+      captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
+
+      const currentStarCount = (emailRef.current as any)?.starCount ?? 0;
+      const isTriageToAction = currentStarCount === 0 && starCount > 0;
+
+      await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount }).catch(error => {
+        console.error('Error setting star count:', error);
+      });
+
+      // In standalone full-page view (not split view), moving from triage to action:
+      // show priority animation then navigate back to inbox
+      if (isTriageToAction && !options.onArchiveComplete) {
+        await triggerAnimation(ANIMATION_TYPE_PRIORITY);
+        navigate('/inbox');
+        return;
+      }
+
+      // Refresh email to get updated star count
+      if (emailId === id) {
+        fetchEmail();
+      }
+    },
+    [id, fetchEmail, options, triggerAnimation, navigate]
+  );
+
+  const handleBlockSender = useCallback(
+    async (emailId: string) => {
+      if (!email) {
+        return;
+      }
+      captureEvent('email_block_sender_clicked', { email_id: emailId });
+      try {
+        await axios.post(`${API_URL}/emails/${emailId}/block-sender`);
+        await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
+        navigate('/inbox');
+      } catch (error) {
+        console.error('Error blocking sender:', error);
+      }
+    },
+    [email, triggerAnimation, navigate]
+  );
+
+  const handleRespondToInvitation = useCallback(
+    async (emailId: string, response: 'accepted' | 'declined' | 'tentative') => {
+      if (!emailId) {
+        return;
+      }
+      captureEvent('calendar_invitation_responded', { email_id: emailId, response });
+      try {
+        await axios.post(`${API_URL}/calendar/invitation/${emailId}/respond`, { response });
+        return Promise.resolve();
+      } catch (error: any) {
+        console.error('Error responding to calendar invitation:', error);
+        throw new Error(error.response?.data?.message || 'Failed to respond to invitation');
+      }
+    },
+    []
+  );
 
   // Export helper functions for use in component
   return {

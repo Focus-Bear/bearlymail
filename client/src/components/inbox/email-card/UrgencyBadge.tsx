@@ -9,12 +9,11 @@ interface UrgencyBadgeProps {
   urgencyExplanation?: string | null;
 }
 
-export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({
-  urgencyScore,
-  urgencyExplanation,
-}) => {
+export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({ urgencyScore, urgencyExplanation }) => {
   const { t } = useTranslation();
-  if (urgencyScore < URGENCY_THRESHOLD) return null;
+  if (urgencyScore < URGENCY_THRESHOLD) {
+    return null;
+  }
 
   return (
     <span
@@ -36,4 +35,3 @@ export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({
     </span>
   );
 };
-

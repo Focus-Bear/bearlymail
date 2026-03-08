@@ -1,6 +1,19 @@
-import { act,renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
-import { EVENT_KEYDOWN, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_BACKSPACE, KEY_DELETE, KEY_E, KEY_ESCAPE, KEY_J, KEY_K, KEY_N, KEY_Y, TYPEOF_FUNCTION } from 'constants/strings';
+import {
+  EVENT_KEYDOWN,
+  KEY_ARROW_DOWN,
+  KEY_ARROW_UP,
+  KEY_BACKSPACE,
+  KEY_DELETE,
+  KEY_E,
+  KEY_ESCAPE,
+  KEY_J,
+  KEY_K,
+  KEY_N,
+  KEY_Y,
+  TYPEOF_FUNCTION,
+} from 'constants/strings';
 
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
@@ -80,10 +93,12 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should navigate up with ArrowUp', () => {
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIndex: 1,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIndex: 1,
+        })
+      );
 
       simulateKeydown(KEY_ARROW_UP);
 
@@ -91,10 +106,12 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should navigate up with k key', () => {
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIndex: 1,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIndex: 1,
+        })
+      );
 
       simulateKeydown(KEY_K);
 
@@ -102,10 +119,12 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should not navigate below last email', () => {
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIndex: 2, // Last email
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIndex: 2, // Last email
+        })
+      );
 
       simulateKeydown(KEY_ARROW_DOWN);
 
@@ -113,10 +132,12 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should not navigate above first email', () => {
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIndex: 0,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIndex: 0,
+        })
+      );
 
       simulateKeydown(KEY_ARROW_UP);
 
@@ -127,10 +148,12 @@ describe('useKeyboardShortcuts', () => {
   describe('star shortcuts', () => {
     it('should set star count to 1', () => {
       const selectedIds = new Set(['1', '2']);
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       simulateKeydown('1');
 
@@ -141,10 +164,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should set star count to 2', () => {
       const selectedIds = new Set(['1']);
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       simulateKeydown('2');
 
@@ -153,10 +178,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should set star count to 3', () => {
       const selectedIds = new Set(['1']);
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       simulateKeydown('3');
 
@@ -165,10 +192,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should clear star count with 0', () => {
       const selectedIds = new Set(['1', '2']);
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       simulateKeydown('0');
 
@@ -178,10 +207,12 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should not set star count when no emails selected', () => {
-      renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: new Set(),
-      }));
+      renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: new Set(),
+        })
+      );
 
       simulateKeydown('1');
 
@@ -192,10 +223,12 @@ describe('useKeyboardShortcuts', () => {
   describe('archive shortcuts with confirmation', () => {
     it('should set pending archive with Delete key and archive on y confirmation', () => {
       const selectedIds = new Set(['1', '2']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       // Press Delete - should set pending archive
       act(() => {
@@ -217,10 +250,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should set pending archive with Backspace key', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_BACKSPACE);
@@ -239,10 +274,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should set pending archive with e key', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_E);
@@ -260,10 +297,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should cancel pending archive with Escape key', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_DELETE);
@@ -281,10 +320,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should cancel pending archive with n key', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_DELETE);
@@ -302,10 +343,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should cancel pending archive after timeout', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_DELETE);
@@ -323,11 +366,13 @@ describe('useKeyboardShortcuts', () => {
     });
 
     it('should set pending archive for highlighted email when no emails checked', () => {
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: new Set(),
-        selectedEmailIndex: 0,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: new Set(),
+          selectedEmailIndex: 0,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_DELETE);
@@ -346,10 +391,12 @@ describe('useKeyboardShortcuts', () => {
 
     it('should cancel pending archive with cancelPendingArchive function', () => {
       const selectedIds = new Set(['1']);
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: selectedIds,
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: selectedIds,
+        })
+      );
 
       act(() => {
         simulateKeydown(KEY_DELETE);
@@ -398,10 +445,12 @@ describe('useKeyboardShortcuts', () => {
       div.setAttribute('contenteditable', 'true');
       document.body.appendChild(div);
 
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: new Set(['1']),
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: new Set(['1']),
+        })
+      );
 
       simulateKeydown(KEY_DELETE, div);
 
@@ -419,10 +468,12 @@ describe('useKeyboardShortcuts', () => {
       parent.appendChild(child);
       document.body.appendChild(parent);
 
-      const { result } = renderHook(() => useKeyboardShortcuts({
-        ...defaultProps,
-        selectedEmailIds: new Set(['1']),
-      }));
+      const { result } = renderHook(() =>
+        useKeyboardShortcuts({
+          ...defaultProps,
+          selectedEmailIds: new Set(['1']),
+        })
+      );
 
       simulateKeydown(KEY_BACKSPACE, child);
 

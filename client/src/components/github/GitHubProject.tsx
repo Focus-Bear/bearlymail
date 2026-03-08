@@ -14,15 +14,17 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects }) => {
   if (!projects || projects.length === 0) {
     return null;
   }
-  
+
   return (
-    <div style={{
-      marginTop: theme.spacing.sm,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: theme.spacing.xs,
-    }}>
-      {projects.map((project) => (
+    <div
+      style={{
+        marginTop: theme.spacing.sm,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing.xs,
+      }}
+    >
+      {projects.map(project => (
         <div
           key={`project-${project.name}-${project.status || 'no-status'}`}
           style={{
@@ -32,13 +34,15 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects }) => {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.text.secondary,
-          }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+            }}
+          >
             {/* eslint-disable-next-line i18next/no-literal-string */}
             {EMOJI_CLIPBOARD} {project.name}
           </div>
@@ -62,6 +66,3 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects }) => {
     </div>
   );
 };
-
-
-

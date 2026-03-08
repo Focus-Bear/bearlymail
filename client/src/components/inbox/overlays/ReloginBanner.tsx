@@ -14,7 +14,7 @@ interface ReloginBannerProps {
  */
 export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       style={{
@@ -49,8 +49,3 @@ export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
     </div>
   );
 };
-
-
-
-
-

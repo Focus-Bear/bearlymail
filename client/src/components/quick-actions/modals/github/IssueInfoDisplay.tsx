@@ -10,19 +10,18 @@ interface IssueInfoDisplayProps {
 
 export const IssueInfoDisplay: React.FC<IssueInfoDisplayProps> = ({ owner, repo, number }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      <div style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.sm,
-        marginBottom: theme.spacing.md,
-      }}>
+      <div
+        style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          marginBottom: theme.spacing.md,
+        }}
+      >
         {t('quickActions.github.issue', { owner, repo, number })}
       </div>
     </div>
   );
 };
-
-
-

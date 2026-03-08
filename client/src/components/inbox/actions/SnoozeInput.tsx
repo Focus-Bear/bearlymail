@@ -16,11 +16,7 @@ interface SnoozeInputProps {
   onSnooze: (emailId: string) => Promise<void>;
 }
 
-export const SnoozeInput: React.FC<SnoozeInputProps> = ({
-  email,
-  snoozeInput,
-  onSnooze,
-}) => {
+export const SnoozeInput: React.FC<SnoozeInputProps> = ({ email, snoozeInput, onSnooze }) => {
   if (snoozeInput.showSnoozeInput !== email.id) {
     return <SnoozeButton email={email} onShowSnooze={snoozeInput.showSnooze} />;
   }
@@ -31,10 +27,9 @@ export const SnoozeInput: React.FC<SnoozeInputProps> = ({
     <SnoozeInputForm
       email={email}
       snoozeValue={snoozeValue}
-      onValueChange={(value) => snoozeInput.setSnoozeValue(email.id, value)}
+      onValueChange={value => snoozeInput.setSnoozeValue(email.id, value)}
       onConfirm={() => onSnooze(email.id)}
       onCancel={() => snoozeInput.clearSnooze(email.id)}
     />
   );
 };
-

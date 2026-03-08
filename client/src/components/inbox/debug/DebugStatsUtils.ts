@@ -1,5 +1,5 @@
 import { MILLISECONDS_PER_MINUTE } from 'components/inbox/constants';
-import { HOURS_PER_DAY,MINUTES_PER_HOUR } from 'constants/numbers';
+import { HOURS_PER_DAY, MINUTES_PER_HOUR } from 'constants/numbers';
 
 export interface DeliverySchedule {
   deliveryDays: number[];
@@ -60,10 +60,11 @@ export const calculateNextDelivery = (nextDeliveryTime: string): string => {
 };
 
 export const formatDeliverySchedule = (schedule: DeliverySchedule | null): string => {
-  if (!schedule) return '';
+  if (!schedule) {
+    return '';
+  }
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const days = schedule.deliveryDays.map((dayIndex) => dayNames[dayIndex]).join(', ');
+  const days = schedule.deliveryDays.map(dayIndex => dayNames[dayIndex]).join(', ');
   const times = schedule.deliveryTimes.join(', ');
   return `${times} on ${days} (${schedule.timezone})`;
 };
-

@@ -12,9 +12,15 @@ import {
   ERROR_GMAIL_REQUIRED,
   ERROR_NETWORK,
   MODE_AUTORESPONDED,
+  PARAM_CATEGORIES,
+  PARAM_CATEGORY_IDS,
 } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
-import { selectCurrentOffset, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
+import {
+  selectCurrentOffset,
+  selectLoadedCategoryNames,
+  selectLoadingCategoryNames,
+} from 'store/selectors/emailSelectors';
 import {
   clearCategoryState,
   markCategoryLoaded,
@@ -61,7 +67,7 @@ function isUuidKey(key: string): boolean {
 async function fetchAutoRespondedEmails(
   dispatch: AppDispatch,
   buildAutoRespondedParams: () => URLSearchParams,
-  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>,
+  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>
 ): Promise<void> {
   const params = buildAutoRespondedParams();
   const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
@@ -79,15 +85,12 @@ async function fetchAutoRespondedEmails(
   dispatch(setHasMore(hasMore));
   dispatch(setCurrentOffset(normalizedEmails.length));
   // Auto-responded categories have no UUID — key = name
-  categorySummary.forEach((category) => {
+  categorySummary.forEach(category => {
     dispatch(markCategoryLoaded(getCategoryKey(category.id, category.name)));
   });
 }
 
-async function fetchInboxSummary(
-  dispatch: AppDispatch,
-  buildSummaryParams: () => URLSearchParams,
-): Promise<void> {
+async function fetchInboxSummary(dispatch: AppDispatch, buildSummaryParams: () => URLSearchParams): Promise<void> {
   const params = buildSummaryParams();
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
   const { total, categories } = response.data;
@@ -95,10 +98,7 @@ async function fetchInboxSummary(
   dispatch(setTotalCount(total));
 }
 
-export function useEmailFetching({
-  mode,
-  filters,
-}: UseEmailFetchingProps) {
+export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
   const currentOffset = useSelector(selectCurrentOffset);
   // Subscribe to both loaded and loading state for internal guards in fetchCategoryEmails.
@@ -119,18 +119,13 @@ export function useEmailFetching({
   // fetchEmails() cleared the state, which would block a subsequent re-fetch via the guard.
   const fetchSessionRef = useRef(0);
 
-  const buildSummaryParams = useCallback(
-    () => buildSummaryParamsImpl(mode, filters), [mode, filters],
-  );
+  const buildSummaryParams = useCallback(() => buildSummaryParamsImpl(mode, filters), [mode, filters]);
   const buildCategoryParams = useCallback(
-    (categoryKey: string) => buildCategoryParamsImpl(mode, filters, categoryKey), [mode, filters],
+    (categoryKey: string) => buildCategoryParamsImpl(mode, filters, categoryKey),
+    [mode, filters]
   );
-  const buildAutoRespondedParams = useCallback(
-    () => buildAutoRespondedParamsImpl(filters), [filters],
-  );
-  const buildAutoRespondedSummary = useCallback(
-    (emails: Email[]) => buildAutoRespondedSummaryImpl(emails), [],
-  );
+  const buildAutoRespondedParams = useCallback(() => buildAutoRespondedParamsImpl(filters), [filters]);
+  const buildAutoRespondedSummary = useCallback((emails: Email[]) => buildAutoRespondedSummaryImpl(emails), []);
 
   /**
    * Fetch the inbox summary: category names and counts.
@@ -149,24 +144,44 @@ export function useEmailFetching({
    * @param categoryId   - UUID from the summary API; used as the stable category key
    *                       when available, so name encoding issues don't affect lookups.
    */
-  const fetchCategoryEmails = useCallback(async (categoryName: string, categoryId?: string | null) => {
-    await fetchCategoryEmailsImpl({
-      categoryName, categoryId, mode, dispatch, buildCategoryParams,
-      loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef,
-    });
-  // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
-  }, [mode, dispatch, buildCategoryParams]);
+  const fetchCategoryEmails = useCallback(
+    async (categoryName: string, categoryId?: string | null) => {
+      await fetchCategoryEmailsImpl({
+        categoryName,
+        categoryId,
+        mode,
+        dispatch,
+        buildCategoryParams,
+        loadedCategoryNamesRef,
+        loadingCategoryNamesRef,
+        fetchSessionRef,
+      });
+      // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
+    },
+    [mode, dispatch, buildCategoryParams]
+  );
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMoreRef.current) return;
+    if (isLoadingMoreRef.current) {
+      return;
+    }
     isLoadingMoreRef.current = true;
-    try { void currentOffset; } finally { isLoadingMoreRef.current = false; }
+    try {
+      void currentOffset;
+    } finally {
+      isLoadingMoreRef.current = false;
+    }
   }, [currentOffset]);
 
   const refreshInPlace = useCallback(async () => {
     await refreshInPlaceImpl({
-      mode, dispatch, buildSummaryParams, buildCategoryParams,
-      buildAutoRespondedParams, buildAutoRespondedSummary, loadedCategoryNamesRef,
+      mode,
+      dispatch,
+      buildSummaryParams,
+      buildCategoryParams,
+      buildAutoRespondedParams,
+      buildAutoRespondedSummary,
+      loadedCategoryNamesRef,
     });
   }, [mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
@@ -174,18 +189,37 @@ export function useEmailFetching({
 }
 
 /** Extracted: fetch emails for a single category on expand. */
-async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef }: {
-  categoryName: string; categoryId?: string | null; mode: InboxMode; dispatch: AppDispatch;
+async function fetchCategoryEmailsImpl({
+  categoryName,
+  categoryId,
+  mode,
+  dispatch,
+  buildCategoryParams,
+  loadedCategoryNamesRef,
+  loadingCategoryNamesRef,
+  fetchSessionRef,
+}: {
+  categoryName: string;
+  categoryId?: string | null;
+  mode: InboxMode;
+  dispatch: AppDispatch;
   buildCategoryParams: (categoryKey: string) => URLSearchParams;
-  loadedCategoryNamesRef: React.MutableRefObject<string[]>; loadingCategoryNamesRef: React.MutableRefObject<string[]>;
+  loadedCategoryNamesRef: React.MutableRefObject<string[]>;
+  loadingCategoryNamesRef: React.MutableRefObject<string[]>;
   fetchSessionRef: React.MutableRefObject<number>;
 }) {
   // Compute the stable key: UUID when available, name as fallback
   const categoryKey = getCategoryKey(categoryId, categoryName);
 
-  if (loadedCategoryNamesRef.current.includes(categoryKey)) return;
-  if (loadingCategoryNamesRef.current.includes(categoryKey)) return;
-  if (mode === MODE_AUTORESPONDED) return;
+  if (loadedCategoryNamesRef.current.includes(categoryKey)) {
+    return;
+  }
+  if (loadingCategoryNamesRef.current.includes(categoryKey)) {
+    return;
+  }
+  if (mode === MODE_AUTORESPONDED) {
+    return;
+  }
 
   const sessionId = fetchSessionRef.current;
   dispatch(markCategoryLoading(categoryKey));
@@ -203,7 +237,15 @@ async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatc
     }
     dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
     dispatch(markCategoryLoaded(categoryKey));
-    console.log('[Accordion] Loaded category:', categoryName, '(key:', categoryKey, ')', normalizedEmails.length, 'emails');
+    console.log(
+      '[Accordion] Loaded category:',
+      categoryName,
+      '(key:',
+      categoryKey,
+      ')',
+      normalizedEmails.length,
+      'emails'
+    );
   } catch (error: any) {
     console.error('[Accordion] Failed to load category:', categoryName, '(key:', categoryKey, ')', error);
     // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
@@ -222,14 +264,25 @@ async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatc
  * formats the category name in the returned email records.
  */
 function normalizeCategoryEmails(emails: any[], categoryKey: string) {
-  return emails.map((email: any) => email.category !== categoryKey ? { ...email, category: categoryKey } : email);
+  return emails.map((email: any) => (email.category !== categoryKey ? { ...email, category: categoryKey } : email));
 }
 
 /** Extracted: refresh inbox in-place without clearing state. */
-async function refreshInPlaceImpl({ mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary, loadedCategoryNamesRef }: {
-  mode: InboxMode; dispatch: AppDispatch;
-  buildSummaryParams: () => URLSearchParams; buildCategoryParams: (categoryKey: string) => URLSearchParams;
-  buildAutoRespondedParams: () => URLSearchParams; buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
+async function refreshInPlaceImpl({
+  mode,
+  dispatch,
+  buildSummaryParams,
+  buildCategoryParams,
+  buildAutoRespondedParams,
+  buildAutoRespondedSummary,
+  loadedCategoryNamesRef,
+}: {
+  mode: InboxMode;
+  dispatch: AppDispatch;
+  buildSummaryParams: () => URLSearchParams;
+  buildCategoryParams: (categoryKey: string) => URLSearchParams;
+  buildAutoRespondedParams: () => URLSearchParams;
+  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
 }) {
   if (mode === MODE_AUTORESPONDED) {
@@ -254,23 +307,33 @@ async function refreshInPlaceImpl({ mode, dispatch, buildSummaryParams, buildCat
   // loadedCategoryNamesRef now stores category keys (UUIDs or names).
   // buildCategoryParams handles both: UUID keys → categoryIds=, name keys → categories=
   const loadedCategoryKeys = [...loadedCategoryNamesRef.current];
-  await Promise.all(loadedCategoryKeys.map(async (categoryKey) => {
-    try {
-      const catParams = buildCategoryParams(categoryKey);
-      const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
-      const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryKey);
-      dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
-    } catch (err) {
-      console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
-    }
-  }));
+  await Promise.all(
+    loadedCategoryKeys.map(async categoryKey => {
+      try {
+        const catParams = buildCategoryParams(categoryKey);
+        const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
+        const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryKey);
+        dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
+      } catch (err) {
+        console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
+      }
+    })
+  );
 }
 
 function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {
-  if (!filters) return;
-  if (filters.categories?.length) params.append('categories', filters.categories.join(','));
-  if (filters.minPriority !== null && filters.minPriority !== undefined) params.append('minPriority', filters.minPriority.toString());
-  if (filters.accountIds?.length) params.append('accounts', filters.accountIds.join(','));
+  if (!filters) {
+    return;
+  }
+  if (filters.categories?.length) {
+    params.append(PARAM_CATEGORIES, filters.categories.join(','));
+  }
+  if (filters.minPriority !== null && filters.minPriority !== undefined) {
+    params.append('minPriority', filters.minPriority.toString());
+  }
+  if (filters.accountIds?.length) {
+    params.append('accounts', filters.accountIds.join(','));
+  }
 }
 
 function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSearchParams {
@@ -287,19 +350,27 @@ function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSear
  * canonical name — avoiding all URL-encoding and name-format fragility.
  * When categoryKey is a plain name (no UUID available) we fall back to `categories=`.
  */
-function buildCategoryParamsImpl(mode: InboxMode, filters: InboxFilter | undefined, categoryKey: string): URLSearchParams {
+function buildCategoryParamsImpl(
+  mode: InboxMode,
+  filters: InboxFilter | undefined,
+  categoryKey: string
+): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
   if (isUuidKey(categoryKey)) {
-    params.append('categoryIds', categoryKey);
+    params.append(PARAM_CATEGORY_IDS, categoryKey);
   } else {
-    params.append('categories', categoryKey);
+    params.append(PARAM_CATEGORIES, categoryKey);
   }
   params.append('limit', INBOX_FETCH_LIMIT.toString());
   params.append('offset', '0');
   if (filters) {
-    if (filters.accountIds?.length) params.append('accounts', filters.accountIds.join(','));
-    if (filters.minPriority !== null && filters.minPriority !== undefined) params.append('minPriority', filters.minPriority.toString());
+    if (filters.accountIds?.length) {
+      params.append('accounts', filters.accountIds.join(','));
+    }
+    if (filters.minPriority !== null && filters.minPriority !== undefined) {
+      params.append('minPriority', filters.minPriority.toString());
+    }
   }
   return params;
 }
@@ -314,15 +385,22 @@ function buildAutoRespondedParamsImpl(filters?: InboxFilter): URLSearchParams {
 
 function buildAutoRespondedSummaryImpl(emails: Email[]): Array<{ id: null; name: string; count: number }> {
   const categoryCounts = new Map<string, number>();
-  emails.forEach((email) => {
+  emails.forEach(email => {
     const name = email.category || CATEGORY_OTHER;
     categoryCounts.set(name, (categoryCounts.get(name) || 0) + 1);
   });
   return Array.from(categoryCounts.entries()).map(([name, count]) => ({ id: null, name, count }));
 }
 
-async function fetchEmailsImpl({ mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary }: {
-  mode: InboxMode; dispatch: AppDispatch;
+async function fetchEmailsImpl({
+  mode,
+  dispatch,
+  buildSummaryParams,
+  buildAutoRespondedParams,
+  buildAutoRespondedSummary,
+}: {
+  mode: InboxMode;
+  dispatch: AppDispatch;
   buildSummaryParams: () => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
@@ -358,8 +436,16 @@ function handleFetchError(dispatch: AppDispatch, error: any) {
     dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
   } else if (error.response?.status === HTTP_UNAUTHORIZED) {
     const msg = error.response?.data?.message || '';
-    dispatch(setFetchError(msg.includes(ERROR_GMAIL_REQUIRED) || msg.includes(ERROR_GMAIL) ? 'GMAIL_REQUIRED' : 'Please log in again to view emails.'));
+    dispatch(
+      setFetchError(
+        msg.includes(ERROR_GMAIL_REQUIRED) || msg.includes(ERROR_GMAIL)
+          ? 'GMAIL_REQUIRED'
+          : 'Please log in again to view emails.'
+      )
+    );
   } else {
-    dispatch(setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.'));
+    dispatch(
+      setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.')
+    );
   }
 }

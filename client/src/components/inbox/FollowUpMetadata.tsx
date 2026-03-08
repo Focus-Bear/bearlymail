@@ -15,24 +15,26 @@ interface FollowUpMetadataProps {
 
 export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => {
   const { t } = useTranslation();
-  
+
   if (!email.lastTheirReplyAt && !email.lastMyReplyAt) {
     return null;
   }
 
-  const daysSinceTheirReply = email.lastTheirReplyAt 
+  const daysSinceTheirReply = email.lastTheirReplyAt
     ? Math.floor((new Date().getTime() - new Date(email.lastTheirReplyAt).getTime()) / MS_PER_DAY)
     : null;
 
   return (
-    <div style={{
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      marginBottom: theme.spacing.sm,
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.text.secondary,
-    }}>
+    <div
+      style={{
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+      }}
+    >
       {email.otherPersonName && (
         <div style={{ marginBottom: theme.spacing.xs }}>
           <strong>{t('inbox.followUpDetails.with')}:</strong> {email.otherPersonName}
@@ -40,7 +42,8 @@ export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => 
       )}
       {daysSinceTheirReply !== null ? (
         <div style={{ marginBottom: theme.spacing.xs }}>
-          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceTheirReply} {t('inbox.followUpDetails.day', { count: daysSinceTheirReply })}
+          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceTheirReply}{' '}
+          {t('inbox.followUpDetails.day', { count: daysSinceTheirReply })}
         </div>
       ) : (
         <div style={{ marginBottom: theme.spacing.xs }}>
@@ -49,11 +52,10 @@ export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => 
       )}
       {email.lastMyReplyAt && (
         <div>
-          <strong>{t('inbox.followUpDetails.youSentLast')}:</strong> {new Date(email.lastMyReplyAt).toLocaleDateString()}
+          <strong>{t('inbox.followUpDetails.youSentLast')}:</strong>{' '}
+          {new Date(email.lastMyReplyAt).toLocaleDateString()}
         </div>
       )}
     </div>
   );
 };
-
-

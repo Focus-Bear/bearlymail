@@ -4,7 +4,7 @@ import { theme } from 'theme/theme';
 
 import { ClosingStatementContent } from 'components/landing/ClosingStatementContent';
 import { CTAButton } from 'components/landing/CTAButton';
-import { getHeadingFontSize,getResponsiveSpacing } from 'components/landing/utils';
+import { getHeadingFontSize, getResponsiveSpacing } from 'components/landing/utils';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
@@ -63,7 +63,7 @@ export const ClosingStatement: React.FC = () => {
       <div
         style={{
           marginTop: theme.spacing.xl,
-          textAlign: (breakpoints.isTablet || breakpoints.isDesktop) ? 'left' : 'center',
+          textAlign: breakpoints.isTablet || breakpoints.isDesktop ? 'left' : 'center',
         }}
       >
         <CTAButton onClick={scrollToWaitlist}>{t('landing.closing.cta')}</CTAButton>
@@ -71,4 +71,3 @@ export const ClosingStatement: React.FC = () => {
     </section>
   );
 };
-

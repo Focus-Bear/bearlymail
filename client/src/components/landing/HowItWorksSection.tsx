@@ -3,11 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { FeatureCard } from 'components/landing/FeatureCard';
-import {
-  getHeadingFontSize,
-  getResponsiveSpacing,
-  getSectionMarginBottom,
-} from 'components/landing/utils';
+import { getHeadingFontSize, getResponsiveSpacing, getSectionMarginBottom } from 'components/landing/utils';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
@@ -24,7 +20,7 @@ export const HowItWorksSection: React.FC = () => {
       title: 'Truly urgent emails break through immediately',
       description: [
         "Client emergency at 2pm? You'll see it instantly. Newsletter from that SaaS tool? Batched until your next scheduled delivery.",
-        "Our AI learns what's urgent to you by analyzing your email history—how quickly you reply, which senders you prioritize, what you immediately archive. High barrier for \"urgent\" means only what genuinely matters interrupts your flow.",
+        'Our AI learns what\'s urgent to you by analyzing your email history—how quickly you reply, which senders you prioritize, what you immediately archive. High barrier for "urgent" means only what genuinely matters interrupts your flow.',
       ],
       borderColor: theme.colors.primary.main,
       emoji: '⚡',
@@ -33,7 +29,7 @@ export const HowItWorksSection: React.FC = () => {
       id: 'scheduled-delivery',
       title: 'Everything else arrives on your schedule',
       description: [
-        'Choose when emails get delivered: 2x, 3x, or 4x daily. Set quiet hours—no email before 10am, none after 6pm. Block off entire weekends. You\'re in complete control.',
+        "Choose when emails get delivered: 2x, 3x, or 4x daily. Set quiet hours—no email before 10am, none after 6pm. Block off entire weekends. You're in complete control.",
         'Your inbox becomes a planned task, not a constant distraction.',
       ],
       borderColor: theme.colors.secondary.main,
@@ -87,14 +83,15 @@ export const HowItWorksSection: React.FC = () => {
       >
         {t('landing.howItWorks.heading')}
       </h2>
-      {features.map((feature) => (
+      {features.map(feature => (
         <FeatureCard
           key={feature.id}
           cardKey={feature.id}
           title={t(`landing.howItWorks.features.${feature.id}.title`)}
-          description={Array.isArray(feature.description) 
-            ? feature.description.map((_, idx) => t(`landing.howItWorks.features.${feature.id}.description.${idx}`))
-            : t(`landing.howItWorks.features.${feature.id}.description`)
+          description={
+            Array.isArray(feature.description)
+              ? feature.description.map((_, idx) => t(`landing.howItWorks.features.${feature.id}.description.${idx}`))
+              : t(`landing.howItWorks.features.${feature.id}.description`)
           }
           borderColor={feature.borderColor}
           emoji={feature.emoji}
@@ -103,4 +100,3 @@ export const HowItWorksSection: React.FC = () => {
     </section>
   );
 };
-

@@ -12,8 +12,8 @@ export function isCalendarInvitation(email: Email): boolean {
 
   // Check subject for specific invitation keywords (more strict)
   const invitationKeywords = [
-    'invitation:',  // Most common format
-    'invite:',      // Alternative format
+    'invitation:', // Most common format
+    'invite:', // Alternative format
     'meeting invitation',
     'event invitation',
     'calendar invitation',
@@ -23,9 +23,7 @@ export function isCalendarInvitation(email: Email): boolean {
     'event request',
   ];
 
-  const hasInvitationKeyword = invitationKeywords.some((keyword) =>
-    subject.includes(keyword)
-  );
+  const hasInvitationKeyword = invitationKeywords.some(keyword => subject.includes(keyword));
 
   // Check for iCal content patterns (most reliable indicator)
   const hasICalPattern =
@@ -45,5 +43,5 @@ export function isCalendarInvitation(email: Email): boolean {
 
   // Only return true if we have strong indicators
   // Require either invitation keyword in subject OR iCal patterns
-  return hasInvitationKeyword || (hasICalPattern || hasICalHeaders);
+  return hasInvitationKeyword || hasICalPattern || hasICalHeaders;
 }

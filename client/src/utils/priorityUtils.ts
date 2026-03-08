@@ -7,18 +7,23 @@ export const getPriorityBadge = (score: number, tFunc?: (key: string) => string)
   const mediumLabel = tFunc ? tFunc('priority.medium') : 'Medium';
   const lowLabel = tFunc ? tFunc('priority.low') : 'Low';
   const veryLowLabel = tFunc ? tFunc('priority.veryLow') : 'Very Low';
-  
+
   // New calibration:
   // < 0: very low priority
   // 0-20: low priority
   // 20-40: medium priority
   // > 40: high priority
-  
+
   // Use high contrast colors: dark text on light backgrounds, or white text on dark backgrounds
-  if (score > PRIORITY_HIGH_THRESHOLD) return { color: theme.colors.accent.error, label: highLabel, bg: theme.colors.sunray.light4 };
-  if (score >= PRIORITY_MEDIUM_THRESHOLD) return { color: theme.colors.text.primary, label: mediumLabel, bg: theme.colors.sunray.light3 };// Dark text on light orange background for better contrast
-  if (score >= 0) return { color: theme.colors.primary.main, label: lowLabel, bg: theme.colors.sunray.light4 };
+  if (score > PRIORITY_HIGH_THRESHOLD) {
+    return { color: theme.colors.accent.error, label: highLabel, bg: theme.colors.sunray.light4 };
+  }
+  if (score >= PRIORITY_MEDIUM_THRESHOLD) {
+    return { color: theme.colors.text.primary, label: mediumLabel, bg: theme.colors.sunray.light3 };
+  } // Dark text on light orange background for better contrast
+  if (score >= 0) {
+    return { color: theme.colors.primary.main, label: lowLabel, bg: theme.colors.sunray.light4 };
+  }
   // Negative scores are "very low" priority
   return { color: theme.colors.text.secondary, label: veryLowLabel, bg: theme.colors.background.subtle };
 };
-

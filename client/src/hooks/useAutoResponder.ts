@@ -1,7 +1,12 @@
-import { useCallback,useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
-import { AutoResponderAnalytics, AutoResponderConfig, DEFAULT_AUTO_RESPONDER_CONFIG,QueueStats } from 'components/settings/auto-responder/types';
+import {
+  AutoResponderAnalytics,
+  AutoResponderConfig,
+  DEFAULT_AUTO_RESPONDER_CONFIG,
+  QueueStats,
+} from 'components/settings/auto-responder/types';
 import { API_URL } from 'config/api';
 
 interface UseAutoResponderReturn {
@@ -13,7 +18,9 @@ interface UseAutoResponderReturn {
   updateConfig: (config: Partial<AutoResponderConfig>) => Promise<void>;
   refreshStats: () => Promise<void>;
   refreshAnalytics: (dateRange?: { start: Date; end: Date }) => Promise<void>;
-  previewTemplate: (templateType: 'standard' | 'highPriority' | 'lowPriority' | 'zeroBacklog') => Promise<{ subject: string; body: string } | null>;
+  previewTemplate: (
+    templateType: 'standard' | 'highPriority' | 'lowPriority' | 'zeroBacklog'
+  ) => Promise<{ subject: string; body: string } | null>;
 }
 
 export const useAutoResponder = (): UseAutoResponderReturn => {
@@ -82,21 +89,27 @@ export const useAutoResponder = (): UseAutoResponderReturn => {
     await fetchStats();
   }, [fetchStats]);
 
-  const refreshAnalytics = useCallback(async (dateRange?: { start: Date; end: Date }) => {
-    await fetchAnalytics(dateRange);
-  }, [fetchAnalytics]);
+  const refreshAnalytics = useCallback(
+    async (dateRange?: { start: Date; end: Date }) => {
+      await fetchAnalytics(dateRange);
+    },
+    [fetchAnalytics]
+  );
 
-  const previewTemplate = useCallback(async (
-    templateType: 'standard' | 'highPriority' | 'lowPriority' | 'zeroBacklog'
-  ): Promise<{ subject: string; body: string } | null> => {
-    try {
-      const response = await axios.post(`${API_URL}/auto-responder/preview`, { templateType });
-      return response.data.preview;
-    } catch (err) {
-      console.error('Failed to preview template:', err);
-      return null;
-    }
-  }, []);
+  const previewTemplate = useCallback(
+    async (
+      templateType: 'standard' | 'highPriority' | 'lowPriority' | 'zeroBacklog'
+    ): Promise<{ subject: string; body: string } | null> => {
+      try {
+        const response = await axios.post(`${API_URL}/auto-responder/preview`, { templateType });
+        return response.data.preview;
+      } catch (err) {
+        console.error('Failed to preview template:', err);
+        return null;
+      }
+    },
+    []
+  );
 
   return {
     config,

@@ -49,4 +49,3 @@ export interface DebugStarredData {
     starCount: number;
   }>;
 }
-

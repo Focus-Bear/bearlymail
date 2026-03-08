@@ -114,35 +114,71 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   const { t } = useTranslation();
   const threadCount = (() => {
     const visibleEmails = emails.filter(event => !event.isArchived);
-    const filteredByMode = mode === MODE_ACTION || mode === MODE_FOLLOW_UP
-      ? visibleEmails.filter(event => (event.starCount ?? 0) > 0)
-      : visibleEmails.filter(event => (event.starCount ?? 0) === 0);
+    const filteredByMode =
+      mode === MODE_ACTION || mode === MODE_FOLLOW_UP
+        ? visibleEmails.filter(event => (event.starCount ?? 0) > 0)
+        : visibleEmails.filter(event => (event.starCount ?? 0) === 0);
     const uniqueThreads = new Set(filteredByMode.map(event => event.threadId));
     return uniqueThreads.size;
   })();
 
   return (
-    <div style={{ margin: theme.spacing.md, border: '2px solid #FFC107', borderRadius: theme.borderRadius.md, overflow: 'hidden', }}>
+    <div
+      style={{
+        margin: theme.spacing.md,
+        border: '2px solid #FFC107',
+        borderRadius: theme.borderRadius.md,
+        overflow: 'hidden',
+      }}
+    >
       <button
         onClick={onToggle}
-        style={{ width: '100%', padding: theme.spacing.md, backgroundColor: theme.colors.sunray.light3, border: STRING_NONE, textAlign: 'left', cursor: 'pointer', fontWeight: theme.typography.fontWeight.bold, fontSize: theme.typography.fontSize.sm, display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}
+        style={{
+          width: '100%',
+          padding: theme.spacing.md,
+          backgroundColor: theme.colors.sunray.light3,
+          border: STRING_NONE,
+          textAlign: 'left',
+          cursor: 'pointer',
+          fontWeight: theme.typography.fontWeight.bold,
+          fontSize: theme.typography.fontSize.sm,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
       >
-        <span>{EMOJI_BUG} {t('debug.panel.title', { mode, count: threadCount })}</span>
-        <span style={{ fontSize: theme.typography.fontSize.lg }}>
-          {isOpen ? '▼' : '▶'}
+        <span>
+          {EMOJI_BUG} {t('debug.panel.title', { mode, count: threadCount })}
         </span>
+        <span style={{ fontSize: theme.typography.fontSize.lg }}>{isOpen ? '▼' : '▶'}</span>
       </button>
       {isOpen && (
-        <div style={{ padding: theme.spacing.md, backgroundColor: theme.colors.sunray.light3, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', maxHeight: 'calc(100vh - 300px)', minHeight: '400px', overflowY: 'auto', overflowX: 'auto', }}>
+        <div
+          style={{
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.sunray.light3,
+            fontSize: theme.typography.fontSize.xs,
+            fontFamily: 'monospace',
+            maxHeight: 'calc(100vh - 300px)',
+            minHeight: '400px',
+            overflowY: 'auto',
+            overflowX: 'auto',
+          }}
+        >
           {/* Sync Status Section */}
           <div
-            style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_INFO_BLUE_LIGHT, borderRadius: theme.borderRadius.sm, border: '1px solid #BEE5EB', }}
+            style={{
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: COLOR_INFO_BLUE_LIGHT,
+              borderRadius: theme.borderRadius.sm,
+              border: '1px solid #BEE5EB',
+            }}
           >
-            <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>{EMOJI_SYNC} {t('debug.panel.syncStatus')}</h4>
-            <DebugStatsSection
-              syncStatus={syncStatus}
-              loadingSyncStatus={loadingSyncStatus}
-            />
+            <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
+              {EMOJI_SYNC} {t('debug.panel.syncStatus')}
+            </h4>
+            <DebugStatsSection syncStatus={syncStatus} loadingSyncStatus={loadingSyncStatus} />
           </div>
 
           <DebugSyncHistorySection
@@ -180,16 +216,38 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           />
 
           <div
-            style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_BG_INFO, borderRadius: theme.borderRadius.sm, border: '1px solid #FFE082', }}
+            style={{
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: COLOR_BG_INFO,
+              borderRadius: theme.borderRadius.sm,
+              border: '1px solid #FFE082',
+            }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing.sm }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: theme.spacing.sm,
+              }}
+            >
               <h4 style={{ margin: 0 }}>
                 📧 {t('debug.panel.allEmails')} ({allEmails.length > 0 ? allEmails.length : emails.length})
               </h4>
               <button
                 onClick={onFetchAllEmails}
                 disabled={loadingAllEmails}
-                style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: loadingAllEmails ? 'not-allowed' : 'pointer', opacity: loadingAllEmails ? OPACITY_DISABLED : OPACITY_FULL, fontSize: theme.typography.fontSize.xs, }}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  backgroundColor: theme.colors.primary.main,
+                  color: COLOR_NAMED_WHITE,
+                  border: STRING_NONE,
+                  borderRadius: theme.borderRadius.sm,
+                  cursor: loadingAllEmails ? 'not-allowed' : 'pointer',
+                  opacity: loadingAllEmails ? OPACITY_DISABLED : OPACITY_FULL,
+                  fontSize: theme.typography.fontSize.xs,
+                }}
               >
                 {loadingAllEmails ? t('common.loading') : t('debug.panel.loadAllEmails')}
               </button>
@@ -207,4 +265,3 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     </div>
   );
 };
-

@@ -29,7 +29,7 @@ export const setupAxiosInterceptors = (logout: () => void) => {
 
   // Request interceptor - add token to all requests
   axios.interceptors.request.use(
-    (config) => {
+    config => {
       const token = localStorage.getItem('token');
       if (token && !isTokenExpired(token)) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -40,17 +40,17 @@ export const setupAxiosInterceptors = (logout: () => void) => {
       }
       return config;
     },
-    (error) => {
+    error => {
       return Promise.reject(error);
     }
   );
 
   // Response interceptor - handle 401 errors gracefully
   axios.interceptors.response.use(
-    (response) => {
+    response => {
       return response;
     },
-    async (error) => {
+    async error => {
       const originalRequest = error.config;
 
       // Handle 401 errors
@@ -58,10 +58,11 @@ export const setupAxiosInterceptors = (logout: () => void) => {
         // Skip interceptor handling for the initial auth check (/users/me)
         // Let the AuthContext handle it instead
         const requestUrl = originalRequest?.url || '';
-        const isInitialAuthCheck = (requestUrl.includes(API_ENDPOINT_USERS_ME) || requestUrl.endsWith(API_ENDPOINT_USERS_ME)) && 
-                                  originalRequest?.method?.toLowerCase() === HTTP_METHOD_GET &&
-                                  !originalRequest?._skipInterceptor; // Allow explicit skip flag
-        
+        const isInitialAuthCheck =
+          (requestUrl.includes(API_ENDPOINT_USERS_ME) || requestUrl.endsWith(API_ENDPOINT_USERS_ME)) &&
+          originalRequest?.method?.toLowerCase() === HTTP_METHOD_GET &&
+          !originalRequest?._skipInterceptor; // Allow explicit skip flag
+
         if (isInitialAuthCheck) {
           // Let the AuthContext handle the initial auth check failure
           // Just pass through the error without calling logout()
@@ -102,4 +103,3 @@ export const setupAxiosInterceptors = (logout: () => void) => {
     }
   );
 };
-

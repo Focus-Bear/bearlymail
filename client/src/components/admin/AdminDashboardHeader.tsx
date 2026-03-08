@@ -14,24 +14,26 @@ export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLo
   const { t } = useTranslation();
 
   return (
-    <header style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: theme.spacing['2xl'],
-    }}>
+    <header
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing['2xl'],
+      }}
+    >
       <div>
-        <h1 style={{
-          fontSize: theme.typography.fontSize['3xl'],
-          fontWeight: theme.typography.fontWeight.bold,
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.xs,
-        }}>
+        <h1
+          style={{
+            fontSize: theme.typography.fontSize['3xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {t('admin.dashboard.title')}
         </h1>
-        <p style={{ color: theme.colors.text.secondary }}>
-          {t('admin.dashboard.description')}
-        </p>
+        <p style={{ color: theme.colors.text.secondary }}>{t('admin.dashboard.description')}</p>
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.md }}>
         <button
@@ -64,4 +66,3 @@ export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLo
     </header>
   );
 };
-

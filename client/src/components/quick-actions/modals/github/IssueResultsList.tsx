@@ -20,14 +20,9 @@ interface IssueResultsListProps {
   error: string;
 }
 
-export const IssueResultsList: React.FC<IssueResultsListProps> = ({
-  results,
-  loading,
-  query,
-  error,
-}) => {
+export const IssueResultsList: React.FC<IssueResultsListProps> = ({ results, loading, query, error }) => {
   const { t } = useTranslation();
-  
+
   if (loading) {
     return null;
   }
@@ -35,14 +30,16 @@ export const IssueResultsList: React.FC<IssueResultsListProps> = ({
   if (results.length > 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <div style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          marginBottom: theme.spacing.sm,
-        }}>
+        <div
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
           {t('quickActions.github.foundIssues', { count: results.length })}
         </div>
-        {results.map((issue) => (
+        {results.map(issue => (
           <IssueResultItem key={`${issue.repository}-${issue.number}-${issue.url}`} issue={issue} />
         ))}
       </div>
@@ -51,11 +48,13 @@ export const IssueResultsList: React.FC<IssueResultsListProps> = ({
 
   if (query && !error) {
     return (
-      <div style={{
-        padding: theme.spacing.lg,
-        textAlign: 'center',
-        color: theme.colors.text.secondary,
-      }}>
+      <div
+        style={{
+          padding: theme.spacing.lg,
+          textAlign: 'center',
+          color: theme.colors.text.secondary,
+        }}
+      >
         {t('quickActions.github.noIssuesFound')}
       </div>
     );
@@ -63,6 +62,3 @@ export const IssueResultsList: React.FC<IssueResultsListProps> = ({
 
   return null;
 };
-
-
-

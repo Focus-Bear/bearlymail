@@ -94,9 +94,17 @@ export const ComparisonSection: React.FC = () => {
           whiteSpace: 'normal',
         }}
       >
-        <strong style={{ color: theme.colors.text.primary }}>{t('landing.comparison.superhumanAsks')}</strong> {t('landing.comparison.superhumanQuestion')}
-        {breakpoints.isMobile ? ' ' : <><br />{' '}</>}
-        <strong style={{ color: theme.colors.primary.main }}>{t('landing.comparison.bearlyMailAsks')}</strong> {t('landing.comparison.bearlyMailQuestion')}
+        <strong style={{ color: theme.colors.text.primary }}>{t('landing.comparison.superhumanAsks')}</strong>{' '}
+        {t('landing.comparison.superhumanQuestion')}
+        {breakpoints.isMobile ? (
+          ' '
+        ) : (
+          <>
+            <br />{' '}
+          </>
+        )}
+        <strong style={{ color: theme.colors.primary.main }}>{t('landing.comparison.bearlyMailAsks')}</strong>{' '}
+        {t('landing.comparison.bearlyMailQuestion')}
       </p>
 
       {!breakpoints.isMobile && <ComparisonTable rows={comparisonRows} />}
@@ -105,4 +113,3 @@ export const ComparisonSection: React.FC = () => {
     </section>
   );
 };
-

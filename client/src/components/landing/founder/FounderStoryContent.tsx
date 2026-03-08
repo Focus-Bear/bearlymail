@@ -73,7 +73,13 @@ export const FounderStoryContent: React.FC = () => {
       <p style={{ ...paragraphStyle, marginBottom: paragraphMarginBottom }}>
         {t('landing.founder.story.desktop.paragraph7')}
       </p>
-      <p style={{ ...paragraphStyle, marginBottom: paragraphMarginBottom, fontWeight: theme.typography.fontWeight.medium }}>
+      <p
+        style={{
+          ...paragraphStyle,
+          marginBottom: paragraphMarginBottom,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
         {t('landing.founder.story.desktop.paragraph8')}
       </p>
       <p style={{ ...paragraphStyle, marginBottom: paragraphMarginBottom }}>
@@ -89,6 +95,3 @@ export const FounderStoryContent: React.FC = () => {
     </>
   );
 };
-
-
-

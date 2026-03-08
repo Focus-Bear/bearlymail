@@ -25,18 +25,20 @@ const getThreadKey = (thread: StarredThread, index: number): string => {
 };
 
 const getBackgroundColor = (hasIssues: boolean): string => {
-  if (hasIssues) return '#FFE6E6';
+  if (hasIssues) {
+    return '#FFE6E6';
+  }
   return '#D4EDDA';
 };
 
 const getBorderColor = (hasIssues: boolean): string => {
-  if (hasIssues) return '#F5C6CB';
+  if (hasIssues) {
+    return '#F5C6CB';
+  }
   return '#C3E6CB';
 };
 
-export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({
-  threads,
-}) => {
+export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads }) => {
   return (
     <details>
       <summary
@@ -100,9 +102,3 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({
     </details>
   );
 };
-
-
-
-
-
-

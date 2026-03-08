@@ -131,8 +131,3 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
     </>
   );
 };
-
-
-
-
-

@@ -5,6 +5,7 @@ import { Email, getEmailPriorityScore } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
@@ -30,7 +31,7 @@ export function useBlockSender({
     }
 
     const emailToBlock = blockConfirmEmail;
-    captureEvent('sender_blocked', { email_id: emailToBlock.id });
+    captureEvent(ANALYTICS_EVENTS.SENDER_BLOCKED, { email_id: emailToBlock.id });
     onHideBlockConfirm();
 
     // Optimistic update - remove from UI

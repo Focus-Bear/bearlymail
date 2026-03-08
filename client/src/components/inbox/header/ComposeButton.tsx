@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
@@ -14,7 +15,7 @@ export const ComposeButton: React.FC = () => {
   return (
     <button
       onClick={() => {
-        captureEvent('compose_button_clicked');
+        captureEvent(ANALYTICS_EVENTS.COMPOSE_BUTTON_CLICKED);
         navigate('/compose');
       }}
       style={{

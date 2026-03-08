@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CHECK } from 'constants/emojis';
 import { FONT_WEIGHT_MEDIUM, INPUT_WIDTH_PX } from 'constants/numbers';
@@ -81,7 +82,7 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
           {!hasGithubToken ? (
             <button
               onClick={() => {
-                captureEvent('github_connect_clicked');
+                captureEvent(ANALYTICS_EVENTS.GITHUB_CONNECT_CLICKED);
                 onConnectGitHub();
               }}
               style={{
@@ -100,7 +101,7 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
           ) : (
             <button
               onClick={() => {
-                captureEvent('github_disconnect_clicked');
+                captureEvent(ANALYTICS_EVENTS.GITHUB_DISCONNECT_CLICKED);
                 onDisconnectGitHub();
               }}
               style={{

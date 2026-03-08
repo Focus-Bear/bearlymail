@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_TRIAGE } from 'constants/strings';
 
 interface HelpLinkProps {
@@ -50,7 +51,7 @@ export const HelpLink: React.FC<HelpLinkProps> = ({ mode }) => {
     <Link
       to={getHelpLink(mode)}
       onClick={() => {
-        captureEvent('help_link_clicked', { help_type: getHelpType(mode) });
+        captureEvent(ANALYTICS_EVENTS.HELP_LINK_CLICKED, { help_type: getHelpType(mode) });
       }}
       style={{
         display: 'flex',

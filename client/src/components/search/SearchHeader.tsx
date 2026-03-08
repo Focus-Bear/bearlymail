@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
 export const SearchHeader: React.FC = () => {
@@ -40,7 +41,7 @@ export const SearchHeader: React.FC = () => {
           </h1>
           <Link
             to="/help/search"
-            onClick={() => captureEvent('search_help_clicked')}
+            onClick={() => captureEvent(ANALYTICS_EVENTS.SEARCH_HELP_CLICKED)}
             style={{
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.tertiary,
@@ -60,7 +61,7 @@ export const SearchHeader: React.FC = () => {
         </div>
         <button
           onClick={() => {
-            captureEvent('search_back_to_inbox_clicked');
+            captureEvent(ANALYTICS_EVENTS.SEARCH_BACK_TO_INBOX_CLICKED);
             navigate('/inbox');
           }}
           style={{

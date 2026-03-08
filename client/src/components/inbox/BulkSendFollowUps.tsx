@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 import { BulkSendConfirmModal } from 'components/inbox/bulk/BulkSendConfirmModal';
 import { BulkSendResults } from 'components/inbox/bulk/BulkSendResults';
 import { BulkSendSelectionControls } from 'components/inbox/bulk/BulkSendSelectionControls';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MAX_BULK_SEND_COUNT, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
@@ -145,7 +146,7 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
         onDeselectAll={onDeselectAll}
         onSelectAll={onSelectAll}
         onSendClick={() => {
-          captureEvent('bulk_followups_send_clicked', { followup_count: selectedCount });
+          captureEvent(ANALYTICS_EVENTS.BULK_FOLLOWUPS_SEND_CLICKED, { followup_count: selectedCount });
           setShowConfirmModal(true);
         }}
         t={t}

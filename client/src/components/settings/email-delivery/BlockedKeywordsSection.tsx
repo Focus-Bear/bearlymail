@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_BLOCK } from 'constants/emojis';
 import { INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
@@ -37,7 +38,7 @@ const AddKeywordForm: React.FC<AddKeywordFormProps> = ({ t, onAdd }) => {
     if (!newKeyword.trim()) {
       return;
     }
-    captureEvent('blocked_keyword_added', { exact_match: exactMatch });
+    captureEvent(ANALYTICS_EVENTS.BLOCKED_KEYWORD_ADDED, { exact_match: exactMatch });
     setIsAdding(true);
     try {
       await onAdd(newKeyword.trim(), exactMatch);

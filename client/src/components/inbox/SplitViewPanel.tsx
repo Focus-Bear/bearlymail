@@ -6,6 +6,7 @@ import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
@@ -369,7 +370,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   );
 
   const handleSnoozeClick = () => {
-    captureEvent('email_snooze_clicked', { email_id: selectedEmailId });
+    captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: selectedEmailId });
     setShowSnoozeInput(!showSnoozeInput);
   };
 

@@ -5,6 +5,7 @@ import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
 
@@ -65,7 +66,7 @@ async function runPhase2Ranking(
       if (rankedData?.length > 0) {
         setters.setSearchResults(rankedData);
       }
-      captureEvent('search_performed', {
+      captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
         query_length: query.trim().length,
         has_query: !!query.trim(),
         result_count: rankedData?.length || 0,
@@ -103,7 +104,7 @@ async function runPhase3Expansion(
             ? [createNoResultsMarker(query, 'No emails found even with alternative queries')]
             : merged;
         });
-        captureEvent('search_performed', {
+        captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
           query_length: query.trim().length,
           has_query: !!query.trim(),
           result_count: expandedData.length,
@@ -135,7 +136,7 @@ async function processSearchResults(
   }
   setters.setSearchResults(responseData);
   setters.setLoading(false);
-  captureEvent('search_performed', {
+  captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
     query_length: query.trim().length,
     has_query: !!query.trim(),
     result_count: responseData.length,

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface BlockedKeyword {
@@ -82,7 +83,7 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({ keyword,
       </div>
       <button
         onClick={() => {
-          captureEvent('keyword_unblocked');
+          captureEvent(ANALYTICS_EVENTS.KEYWORD_UNBLOCKED);
           onUnblock(keyword.id);
         }}
         style={{

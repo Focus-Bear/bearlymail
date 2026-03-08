@@ -7,6 +7,7 @@ import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { SnoozeInput } from 'components/inbox/actions/SnoozeInput';
 import { MODE_TRIAGE, OPACITY_DISABLED, TOAST_DURATION_MS } from 'components/inbox/constants';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
 
 interface OtherActionsProps {
@@ -61,7 +62,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
     if (unsubscribeLink) {
       // Open unsubscribe link in a new tab
       window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
-      captureEvent('email_unsubscribe_clicked', { email_id: email.id });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_UNSUBSCRIBE_CLICKED, { email_id: email.id });
     }
   };
 

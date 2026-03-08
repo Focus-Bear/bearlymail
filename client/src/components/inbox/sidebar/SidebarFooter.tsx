@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
 const sidebarBtnStyle: React.CSSProperties = {
@@ -77,7 +78,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
           /* eslint-disable i18next/no-literal-string */
           <button
             onClick={() => {
-              captureEvent('sidebar_expand_clicked');
+              captureEvent(ANALYTICS_EVENTS.SIDEBAR_EXPAND_CLICKED);
               onToggleCollapse();
             }}
             title={t('sidebar.expand')}
@@ -91,7 +92,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
           /* eslint-enable i18next/no-literal-string */
           <button
             onClick={() => {
-              captureEvent('sidebar_logout_clicked');
+              captureEvent(ANALYTICS_EVENTS.SIDEBAR_LOGOUT_CLICKED);
               onLogout();
             }}
             title={isCollapsed ? t('auth.logout') : undefined}
@@ -109,7 +110,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
             href="https://focusbear.io"
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => captureEvent('sidebar_focusbear_link_clicked')}
+            onClick={() => captureEvent(ANALYTICS_EVENTS.SIDEBAR_FOCUSBEAR_LINK_CLICKED)}
             style={{
               color: theme.colors.text.tertiary,
               textDecoration: 'none',

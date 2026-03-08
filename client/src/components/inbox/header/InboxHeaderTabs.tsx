@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -42,7 +43,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
 
   const handleTabClick = (newMode: InboxMode) => {
     if (mode !== newMode) {
-      captureEvent('inbox_mode_changed', {
+      captureEvent(ANALYTICS_EVENTS.INBOX_MODE_CHANGED, {
         from_mode: mode,
         to_mode: newMode,
       });

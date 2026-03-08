@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
@@ -132,14 +133,14 @@ export const AccountDeletionSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleDeleteClick = () => {
-    captureEvent('account_deletion_initiated');
+    captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETION_INITIATED);
     setShowConfirmation(true);
     setConfirmationInput('');
     setError(null);
   };
 
   const handleCancel = () => {
-    captureEvent('account_deletion_cancelled');
+    captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETION_CANCELLED);
     setShowConfirmation(false);
     setConfirmationInput('');
     setError(null);
@@ -151,7 +152,7 @@ export const AccountDeletionSection: React.FC = () => {
       return;
     }
 
-    captureEvent('account_deletion_confirmed');
+    captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETION_CONFIRMED);
     setIsDeleting(true);
     setError(null);
 

@@ -7,6 +7,7 @@ import { captureEvent } from 'utils/posthog';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { ActionItemInput } from 'components/email-detail-inline/ActionItemInput';
 import { ActionItemList } from 'components/email-detail-inline/ActionItemList';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 
 const ACTION_ITEMS_ACCENT = '#16A34A';
@@ -57,7 +58,7 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
       {actionItems.some(item => item.source === ACTION_ITEM_SOURCE_LLM) && onRegenerateActionItems && (
         <button
           onClick={() => {
-            captureEvent('action_items_regenerate_clicked');
+            captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_REGENERATE_CLICKED);
             onRegenerateActionItems();
           }}
           disabled={isGeneratingSummary}
@@ -77,7 +78,7 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
       )}
       <button
         onClick={() => {
-          captureEvent('action_items_suggest_clicked');
+          captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_SUGGEST_CLICKED);
           onExtractActions();
         }}
         disabled={isGeneratingSummary}

@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
@@ -90,7 +91,7 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
       </button>
       <button
         onClick={() => {
-          captureEvent('email_snooze_cancelled', { email_id: email.id });
+          captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CANCELLED, { email_id: email.id });
           onCancel();
         }}
         style={{

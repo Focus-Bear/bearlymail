@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_CLOCK } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 
@@ -18,7 +19,7 @@ export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze 
   return (
     <button
       onClick={() => {
-        captureEvent('email_snooze_clicked', { email_id: email.id });
+        captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: email.id });
         onShowSnooze(email.id);
       }}
       title={t('emailDetail.snooze')}

@@ -12,6 +12,7 @@ import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
@@ -81,7 +82,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     event.stopPropagation();
     if (unsubscribeLink) {
       window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
-      captureEvent('email_unsubscribe_clicked', { email_id: email.id });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_UNSUBSCRIBE_CLICKED, { email_id: email.id });
     }
   };
 
@@ -219,7 +220,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             {/* Snooze */}
             <button
               onClick={() => {
-                captureEvent('email_snooze_clicked', { email_id: email.id });
+                captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: email.id });
                 setShowSnoozeInput(!showSnoozeInput);
               }}
               title={t('emailDetail.snooze')}

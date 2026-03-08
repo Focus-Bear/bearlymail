@@ -188,6 +188,10 @@ module.exports = {
         selector: "AssignmentExpression[left.property.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
         message: 'Avoid inline color magic strings in style assignments. Use a named constant or theme token instead.',
       },
+      {
+        selector: "CallExpression[callee.name='captureEvent'] > Literal",
+        message: "Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.",
+      },
     ],
 
     // ===========================================

@@ -8,6 +8,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { TIMEOUT_800_MS } from 'constants/numbers';
 import {
@@ -580,7 +581,7 @@ export function useEmailDetailOperations(
     if (!id || !email?.body) {
       return;
     }
-    captureEvent('action_items_extract_clicked', { email_id: id });
+    captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_EXTRACT_CLICKED, { email_id: id });
     setIsGeneratingSummary(true);
     try {
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
@@ -782,7 +783,7 @@ export function useEmailDetailOperations(
         }
       }
 
-      captureEvent('reply_sent', {
+      captureEvent(ANALYTICS_EVENTS.REPLY_SENT, {
         email_id: id,
         reply_type: replyMode,
         draft_was_edited: false,
@@ -879,7 +880,7 @@ export function useEmailDetailOperations(
 
   const handleSetStarCount = useCallback(
     async (emailId: string, starCount: number) => {
-      captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_STAR_COUNT_CHANGED, { email_id: emailId, star_count: starCount });
 
       const currentStarCount = (emailRef.current as any)?.starCount ?? 0;
       const isTriageToAction = currentStarCount === 0 && starCount > 0;
@@ -909,7 +910,7 @@ export function useEmailDetailOperations(
       if (!email) {
         return;
       }
-      captureEvent('email_block_sender_clicked', { email_id: emailId });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_BLOCK_SENDER_CLICKED, { email_id: emailId });
       try {
         await axios.post(`${API_URL}/emails/${emailId}/block-sender`);
         await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
@@ -926,7 +927,7 @@ export function useEmailDetailOperations(
       if (!emailId) {
         return;
       }
-      captureEvent('calendar_invitation_responded', { email_id: emailId, response });
+      captureEvent(ANALYTICS_EVENTS.CALENDAR_INVITATION_RESPONDED, { email_id: emailId, response });
       try {
         await axios.post(`${API_URL}/calendar/invitation/${emailId}/respond`, { response });
         return Promise.resolve();

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
@@ -158,7 +159,7 @@ const ToneRuleDisplayView: React.FC<ToneRuleDisplayViewProps> = ({
         )}
         <button
           onClick={() => {
-            captureEvent('tone_rule_removed');
+            captureEvent(ANALYTICS_EVENTS.TONE_RULE_REMOVED);
             onRemove();
           }}
           style={{
@@ -185,7 +186,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
 
   const handleSaveEdit = () => {
     if (editValue.trim() && editValue !== rule && onEdit) {
-      captureEvent('tone_rule_edited');
+      captureEvent(ANALYTICS_EVENTS.TONE_RULE_EDITED);
       onEdit(index, editValue.trim());
     }
     setIsEditing(false);

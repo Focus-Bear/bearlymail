@@ -8,6 +8,7 @@ import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer'
 import { WaitlistFormField } from 'components/landing/WaitlistFormField';
 import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -109,7 +110,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
   const handleEmailSystemChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setEmailSystem(event.target.value);
     if (event.target.value) {
-      captureEvent('wait-list-email-platform-selected');
+      captureEvent(ANALYTICS_EVENTS.WAIT_LIST_EMAIL_PLATFORM_SELECTED);
     }
   };
 
@@ -126,7 +127,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         emailSystem,
         emailSystemOther: emailSystem === PROVIDER_OTHER ? emailSystemOther : undefined,
       });
-      captureEvent('wait-list-submitted');
+      captureEvent(ANALYTICS_EVENTS.WAIT_LIST_SUBMITTED);
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to submit. Please try again.');
@@ -147,7 +148,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           type="text"
           value={firstName}
           onChange={setFirstName}
-          onBlur={() => firstName && captureEvent('wait-list-name-entered')}
+          onBlur={() => firstName && captureEvent(ANALYTICS_EVENTS.WAIT_LIST_NAME_ENTERED)}
           required
         />
         <WaitlistFormField
@@ -155,7 +156,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           type="email"
           value={email}
           onChange={setEmail}
-          onBlur={() => email && captureEvent('wait-list-email-entered')}
+          onBlur={() => email && captureEvent(ANALYTICS_EVENTS.WAIT_LIST_EMAIL_ENTERED)}
           required
         />
         <WaitlistFormField
@@ -163,7 +164,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           type="textarea"
           value={reason}
           onChange={setReason}
-          onBlur={() => reason && captureEvent('wait-list-reason-entered')}
+          onBlur={() => reason && captureEvent(ANALYTICS_EVENTS.WAIT_LIST_REASON_ENTERED)}
           required
           rows={2}
         />

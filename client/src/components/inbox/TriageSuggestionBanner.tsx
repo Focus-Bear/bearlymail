@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { TriageSuggestion } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_LIGHTBULB, EMOJI_STAR } from 'constants/emojis';
 
 interface TriageSuggestionBannerProps {
@@ -37,7 +38,7 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({ 
       <div
         onClick={async event => {
           event.stopPropagation();
-          captureEvent('triage_suggestion_accepted', {
+          captureEvent(ANALYTICS_EVENTS.TRIAGE_SUGGESTION_ACCEPTED, {
             email_id: emailId,
             suggested_star_count: suggestion.suggestedStarCount,
           });

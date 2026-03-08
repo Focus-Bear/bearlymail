@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface BlockedSender {
@@ -76,7 +77,7 @@ export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({ sender, on
       </div>
       <button
         onClick={() => {
-          captureEvent('sender_unblocked');
+          captureEvent(ANALYTICS_EVENTS.SENDER_UNBLOCKED);
           onUnblock(sender.id);
         }}
         style={{

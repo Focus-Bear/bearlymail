@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { FollowUpPreviewList } from 'components/inbox/bulk/FollowUpPreviewList';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
@@ -75,7 +76,7 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
         <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
           <button
             onClick={() => {
-              captureEvent('bulk_followups_send_cancelled');
+              captureEvent(ANALYTICS_EVENTS.BULK_FOLLOWUPS_SEND_CANCELLED);
               onCancel();
             }}
             style={{
@@ -91,7 +92,7 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
           </button>
           <button
             onClick={() => {
-              captureEvent('bulk_followups_send_confirmed', { followup_count: selectedCount });
+              captureEvent(ANALYTICS_EVENTS.BULK_FOLLOWUPS_SEND_CONFIRMED, { followup_count: selectedCount });
               onConfirm();
             }}
             disabled={isSending}

@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
@@ -166,7 +167,7 @@ const SetupPassword: React.FC = () => {
       const { access_token } = response.data;
       localStorage.setItem('token', access_token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      captureEvent('password_setup_completed');
+      captureEvent(ANALYTICS_EVENTS.PASSWORD_SETUP_COMPLETED);
       navigate('/inbox');
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.setupPasswordError'));

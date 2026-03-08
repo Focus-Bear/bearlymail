@@ -23,6 +23,7 @@ import { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
@@ -212,7 +213,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
 
     useEffect(() => {
       if (id && email) {
-        captureEvent('email_detail_viewed', { email_id: id });
+        captureEvent(ANALYTICS_EVENTS.EMAIL_DETAIL_VIEWED, { email_id: id });
       }
     }, [id, email]);
 

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
@@ -183,7 +184,7 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
     if (!disputeArgument.trim()) {
       return;
     }
-    captureEvent('tone_check_dispute_submitted');
+    captureEvent(ANALYTICS_EVENTS.TONE_CHECK_DISPUTE_SUBMITTED);
     await onDispute(emailText, suggestions, disputeArgument);
     setDisputeArgument('');
     setShowDisputeForm(false);
@@ -204,7 +205,7 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
       {!showDisputeForm && !disputeResult?.accepted && (
         <button
           onClick={() => {
-            captureEvent('tone_check_dispute_form_opened');
+            captureEvent(ANALYTICS_EVENTS.TONE_CHECK_DISPUTE_FORM_OPENED);
             setShowDisputeForm(true);
           }}
           style={{
@@ -279,7 +280,7 @@ const ToneIssuesList: React.FC<ToneIssuesListProps> = ({
       {onScheduleForMorning && hasSendTimingSuggestion(suggestions) && (
         <button
           onClick={() => {
-            captureEvent('tone_check_schedule_for_morning_clicked');
+            captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SCHEDULE_FOR_MORNING_CLICKED);
             onScheduleForMorning();
           }}
           style={{
@@ -316,7 +317,7 @@ const ToneIssuesList: React.FC<ToneIssuesListProps> = ({
           </div>
           <button
             onClick={() => {
-              captureEvent('tone_check_revised_text_used');
+              captureEvent(ANALYTICS_EVENTS.TONE_CHECK_REVISED_TEXT_USED);
               onUseRevisedText(revisedText);
             }}
             style={{

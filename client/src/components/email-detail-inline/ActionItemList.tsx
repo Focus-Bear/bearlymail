@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_CLOSE } from 'constants/emojis';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
@@ -39,7 +40,7 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
             checked={item.isCompleted}
             onChange={event => {
               if (item.id) {
-                captureEvent('action_item_toggled', { completed: event.target.checked });
+                captureEvent(ANALYTICS_EVENTS.ACTION_ITEM_TOGGLED, { completed: event.target.checked });
                 onToggleActionItem(item.id, event.target.checked);
               }
             }}
@@ -71,7 +72,7 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
           {item.id && (
             <button
               onClick={() => {
-                captureEvent('action_item_deleted');
+                captureEvent(ANALYTICS_EVENTS.ACTION_ITEM_DELETED);
                 onDeleteActionItem(item.id!);
               }}
               style={{

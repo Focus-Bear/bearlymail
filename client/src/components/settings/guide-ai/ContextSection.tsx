@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { InfoTooltip } from 'components/InfoTooltip';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import {
@@ -384,7 +385,7 @@ const ContextItem: React.FC<ContextItemProps> = ({
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button
           onClick={() => {
-            captureEvent('context_edit_clicked', { context_key: context.contextKey });
+            captureEvent(ANALYTICS_EVENTS.CONTEXT_EDIT_CLICKED, { context_key: context.contextKey });
             onEditingContextIdChange(context.contextId);
             onEditContextValueChange(context.contextValue);
           }}
@@ -400,7 +401,7 @@ const ContextItem: React.FC<ContextItemProps> = ({
         </button>
         <button
           onClick={() => {
-            captureEvent('context_deleted', { context_key: context.contextKey });
+            captureEvent(ANALYTICS_EVENTS.CONTEXT_DELETED, { context_key: context.contextKey });
             onDeleteContext(context.contextId);
           }}
           style={{

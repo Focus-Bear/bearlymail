@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+
 interface AnalyzeContextButtonProps {
   analyzing: boolean;
   onAnalyzeContext: () => Promise<void>;
@@ -15,7 +17,7 @@ export const AnalyzeContextButton: React.FC<AnalyzeContextButtonProps> = ({ anal
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.sm }}>
       <button
         onClick={() => {
-          captureEvent('analyze_context_clicked');
+          captureEvent(ANALYTICS_EVENTS.ANALYZE_CONTEXT_CLICKED);
           onAnalyzeContext();
         }}
         disabled={analyzing}

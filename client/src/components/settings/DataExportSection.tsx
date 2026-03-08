@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { STRING_NONE, TYPEOF_OBJECT } from 'constants/strings';
@@ -177,17 +178,17 @@ export const DataExportSection: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = async () => {
-    captureEvent('data_export_initiated');
+    captureEvent(ANALYTICS_EVENTS.DATA_EXPORT_INITIATED);
     setIsExporting(true);
     setError(null);
     setSuccessMessage(null);
     try {
       const blob = await performExport(localStorage.getItem('token'));
       downloadBlob(blob, `bearlymail-export-${new Date().toISOString().split('T')[0]}.json`);
-      captureEvent('data_export_completed');
+      captureEvent(ANALYTICS_EVENTS.DATA_EXPORT_COMPLETED);
     } catch {
       setError(t('settings.dataExport.exportError'));
-      captureEvent('data_export_failed');
+      captureEvent(ANALYTICS_EVENTS.DATA_EXPORT_FAILED);
     } finally {
       setIsExporting(false);
     }
@@ -203,7 +204,7 @@ export const DataExportSection: React.FC = () => {
       return;
     }
     event.target.value = '';
-    captureEvent('data_import_initiated');
+    captureEvent(ANALYTICS_EVENTS.DATA_IMPORT_INITIATED);
     setIsImporting(true);
     setError(null);
     setSuccessMessage(null);
@@ -215,14 +216,14 @@ export const DataExportSection: React.FC = () => {
         setSuccessMessage(
           `${t('settings.dataExport.importSuccess')} ${t('settings.dataExport.importSuccessDetails', { details })}`
         );
-        captureEvent('data_import_completed', { imported: result.imported });
+        captureEvent(ANALYTICS_EVENTS.DATA_IMPORT_COMPLETED, { imported: result.imported });
       } else {
         throw new Error(result.errors[0] || t('settings.dataExport.importError'));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('settings.dataExport.importError');
       setError(message);
-      captureEvent('data_import_failed', { error: message });
+      captureEvent(ANALYTICS_EVENTS.DATA_IMPORT_FAILED, { error: message });
     } finally {
       setIsImporting(false);
     }

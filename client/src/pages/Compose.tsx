@@ -15,6 +15,7 @@ import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -48,7 +49,7 @@ const Compose: React.FC = () => {
   const [lastSelectedTime, setLastSelectedTime] = useState<Date | undefined>();
 
   useEffect(() => {
-    captureEvent('compose_viewed');
+    captureEvent(ANALYTICS_EVENTS.COMPOSE_VIEWED);
   }, []);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ const Compose: React.FC = () => {
   }, []);
 
   const handleSyncContacts = async () => {
-    captureEvent('compose_contacts_synced');
+    captureEvent(ANALYTICS_EVENTS.COMPOSE_CONTACTS_SYNCED);
     setSyncingContacts(true);
     try {
       await axios.post(`${API_URL}/contacts/sync`);
@@ -81,7 +82,7 @@ const Compose: React.FC = () => {
     (contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
       const isFromSearch = search.searchResults.some(searchContact => searchContact.email === contact.email);
       const contactSource = isFromSearch ? 'search' : 'frequent';
-      captureEvent('compose_contact_selected', { contact_source: contactSource });
+      captureEvent(ANALYTICS_EVENTS.COMPOSE_CONTACT_SELECTED, { contact_source: contactSource });
 
       form.addRecipient(contact, field);
       search.clearSearch();
@@ -129,7 +130,7 @@ const Compose: React.FC = () => {
     }
 
     setSending(true);
-    captureEvent('compose_sent', {
+    captureEvent(ANALYTICS_EVENTS.COMPOSE_SENT, {
       recipient_count: form.to.length,
       has_cc: form.cc.length > 0,
       has_bcc: form.bcc.length > 0,
@@ -344,7 +345,7 @@ const Compose: React.FC = () => {
             disputing={disputing}
             disputeResult={disputeResult}
             onScheduleForMorning={() => {
-              captureEvent('tone_check_schedule_for_morning_compose');
+              captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SCHEDULE_FOR_MORNING_COMPOSE);
               setScheduledSendAt(getNextMorning());
             }}
           />

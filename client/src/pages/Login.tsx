@@ -9,6 +9,7 @@ import { captureEvent } from 'utils/posthog';
 import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
@@ -70,7 +71,7 @@ const Login: React.FC = () => {
   };
 
   const proceedToGoogleOAuth = () => {
-    captureEvent('google_login_initiated');
+    captureEvent(ANALYTICS_EVENTS.GOOGLE_LOGIN_INITIATED);
     localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
     window.location.href = `${API_URL}/auth/google`;
   };

@@ -4,6 +4,7 @@ import { devLog } from 'utils/dev-logger';
 import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 interface User {
@@ -37,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const logout = () => {
-    captureEvent('user_logged_out');
+    captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
@@ -57,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track login event and identify user (NO PII)
-    captureEvent('user_logged_in', {
+    captureEvent(ANALYTICS_EVENTS.USER_LOGGED_IN, {
       method: 'email',
     });
     identifyUser(user.id, {
@@ -76,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track registration event and identify user (NO PII)
-    captureEvent('user_registered');
+    captureEvent(ANALYTICS_EVENTS.USER_REGISTERED);
     identifyUser(user.id, {
       isAdmin: user.isAdmin,
     });

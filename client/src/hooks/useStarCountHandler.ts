@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import {
   DEFAULT_PRIORITY_SCORE,
   PERCENTAGE_12_5,
@@ -39,7 +40,7 @@ export function useStarCountHandler({
       const previousStarCount = email?.starCount || 0;
       const originalPriorityScore = email ? getEmailPriorityScore(email) : DEFAULT_PRIORITY_SCORE;
 
-      captureEvent('email_star_set', {
+      captureEvent(ANALYTICS_EVENTS.EMAIL_STAR_SET, {
         email_id: emailId,
         star_count: starCount,
         previous_star_count: previousStarCount,

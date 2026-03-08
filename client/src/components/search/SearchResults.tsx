@@ -6,6 +6,7 @@ import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
 import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
 
@@ -246,7 +247,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             <div
               key={email.id}
               onClick={() => {
-                captureEvent('search_result_clicked', {
+                captureEvent(ANALYTICS_EVENTS.SEARCH_RESULT_CLICKED, {
                   result_index: index,
                   email_id: email.id,
                 });

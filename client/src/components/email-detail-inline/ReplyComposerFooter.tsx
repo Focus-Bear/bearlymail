@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { formatScheduledTime } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
@@ -64,7 +65,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   };
 
   const handleSend = () => {
-    captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
+    captureEvent(ANALYTICS_EVENTS.REPLY_SENT, { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
     onSend(expectedReplyHours, undefined, scheduledSendAt || undefined, keepInAction);
   };
 

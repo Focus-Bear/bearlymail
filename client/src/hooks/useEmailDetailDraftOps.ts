@@ -3,6 +3,7 @@ import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
 import { EmailDetailState } from './useEmailDetailOperations.types';
@@ -158,7 +159,7 @@ function useDraftGenerationCallback(
       }
 
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        captureEvent('reply_draft_generated', { email_id: id, draft_count: response.data.length });
+        captureEvent(ANALYTICS_EVENTS.REPLY_DRAFT_GENERATED, { email_id: id, draft_count: response.data.length });
         const optionsWithCustom = [{ label: 'Custom', text: '' }, ...response.data];
         setReplyOptions(optionsWithCustom);
         // Do NOT call setDraft here — suggestions arriving asynchronously must never overwrite
@@ -209,7 +210,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   const handleOpenReplyComposer = useCallback(
     (mode: 'reply' | 'replyAll') => {
-      captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
+      captureEvent(ANALYTICS_EVENTS.REPLY_BUTTON_CLICKED, { email_id: id, reply_type: mode });
       setReplyMode(mode);
       setShowReplyComposer(true);
       setToneCheckResult(null);

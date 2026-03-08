@@ -5,6 +5,7 @@ import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { ANIMATION_TYPE_ARCHIVE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
@@ -187,7 +188,7 @@ export function useEmailDetailArchiveOps({
     if (!id) {
       return;
     }
-    captureEvent('email_archive_clicked', { email_id: id });
+    captureEvent(ANALYTICS_EVENTS.EMAIL_ARCHIVE_CLICKED, { email_id: id });
     const emailToArchive = emails.find(event => event.id === id);
     if (options.onArchiveComplete) {
       if (emailToArchive) {
@@ -223,7 +224,7 @@ export function useEmailDetailArchiveOps({
       if (!id || !duration) {
         return;
       }
-      captureEvent('email_snooze_confirmed', { email_id: id, snooze_input_length: duration.length });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CONFIRMED, { email_id: id, snooze_input_length: duration.length });
       const emailToSnooze = emails.find(event => event.id === id);
       await executeSnoozeOp({
         id,
@@ -244,7 +245,7 @@ export function useEmailDetailArchiveOps({
     if (!id) {
       return;
     }
-    captureEvent('email_delete_clicked', { email_id: id });
+    captureEvent(ANALYTICS_EVENTS.EMAIL_DELETE_CLICKED, { email_id: id });
     await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
     navigate('/inbox');
     axios.delete(`${API_URL}/emails/${id}`).catch(error => {

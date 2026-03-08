@@ -3,6 +3,7 @@ import { SetStateAction } from 'react';
 import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useBlockSender } from 'hooks/useBlockSender';
 import { useBulkEmailActions } from 'hooks/useBulkEmailActions';
 import { useStarCountHandler } from 'hooks/useStarCountHandler';
@@ -130,7 +131,7 @@ export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsRet
 
   const handleArchive = useCallback(
     async (emailId: string, event: React.MouseEvent) => {
-      captureEvent('email_archive_clicked', { email_id: emailId });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_ARCHIVE_CLICKED, { email_id: emailId });
       const visibleEmails = emails.filter(email => !email.isArchived);
       const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
       removeFromSelection(emailId, setSelectedEmailIds);
@@ -145,7 +146,7 @@ export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsRet
   const handleBlockSender = useCallback(
     (emailId: string, event: React.MouseEvent) => {
       event.stopPropagation();
-      captureEvent('email_block_sender_clicked', { email_id: emailId });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_BLOCK_SENDER_CLICKED, { email_id: emailId });
       const emailToBlock = emails.find(event => event.id === emailId);
       if (!emailToBlock) {
         return;
@@ -181,7 +182,7 @@ export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsRet
         console.warn('Cannot snooze: duration is empty');
         return;
       }
-      captureEvent('email_snooze_confirmed', { email_id: emailId, snooze_input_length: duration.length });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CONFIRMED, { email_id: emailId, snooze_input_length: duration.length });
       const visibleEmails = emails.filter(email => !email.isArchived);
       const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
       snoozeInput.clearSnooze(emailId);

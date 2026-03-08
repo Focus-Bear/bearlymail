@@ -9,6 +9,7 @@ import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { OPACITY_DISABLED, TOAST_DURATION_MS } from 'components/inbox/constants';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
 import { MODE_TRIAGE } from 'constants/strings';
 
@@ -41,7 +42,7 @@ const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlo
         onClick={event => {
           event.stopPropagation();
           window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
-          captureEvent('email_unsubscribe_clicked', { email_id: email.id });
+          captureEvent(ANALYTICS_EVENTS.EMAIL_UNSUBSCRIBE_CLICKED, { email_id: email.id });
         }}
         title={t('inbox.unsubscribe')}
         style={btnStyle}
@@ -85,7 +86,7 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
         <div
           onClick={async event => {
             event.stopPropagation();
-            captureEvent('triage_suggestion_accepted', {
+            captureEvent(ANALYTICS_EVENTS.TRIAGE_SUGGESTION_ACCEPTED, {
               email_id: email.id,
               suggested_star_count: suggestion.suggestedStarCount,
             });
@@ -114,7 +115,7 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
         <div
           onClick={async event => {
             event.stopPropagation();
-            captureEvent('triage_suggestion_archive_accepted', { email_id: email.id });
+            captureEvent(ANALYTICS_EVENTS.TRIAGE_SUGGESTION_ARCHIVE_ACCEPTED, { email_id: email.id });
             await onArchive(email.id, event);
           }}
           style={{

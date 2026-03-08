@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE_FULL } from 'constants/colors';
 import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY, STRING_NONE } from 'constants/strings';
 
@@ -139,7 +140,7 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
   };
 
   const handleClick = () => {
-    captureEvent('wait-list-button-clicked');
+    captureEvent(ANALYTICS_EVENTS.WAIT_LIST_BUTTON_CLICKED);
     onClick();
   };
 

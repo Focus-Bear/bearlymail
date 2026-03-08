@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MODE_FOLLOW_UP } from 'constants/strings';
 import { useDebugPanel } from 'hooks/useDebugPanel';
 import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
@@ -56,7 +57,7 @@ export function useInboxUIState({
 
   useEffect(() => {
     if (user && !authLoading && mode !== MODE_FOLLOW_UP) {
-      captureEvent('inbox_viewed', { mode });
+      captureEvent(ANALYTICS_EVENTS.INBOX_VIEWED, { mode });
     }
   }, [user, authLoading, mode]);
 

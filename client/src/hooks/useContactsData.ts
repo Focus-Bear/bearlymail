@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { getPusherInstance } from 'config/pusher';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MILLISECONDS_PER_MINUTE, TOAST_DURATION_MS } from 'constants/numbers';
 
 export interface UseContactsDataResult {
@@ -51,13 +52,13 @@ export const useContactsData = (userId: string | undefined): UseContactsDataResu
   }, []);
 
   useEffect(() => {
-    captureEvent('contacts_viewed');
+    captureEvent(ANALYTICS_EVENTS.CONTACTS_VIEWED);
     fetchContacts();
     fetchContactTypes();
   }, [fetchContacts, fetchContactTypes]);
 
   const handleSync = async () => {
-    captureEvent('contacts_sync_clicked');
+    captureEvent(ANALYTICS_EVENTS.CONTACTS_SYNC_CLICKED);
     setSyncing(true);
     try {
       await axios.post(`${API_URL}/contacts/sync`);

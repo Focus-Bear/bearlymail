@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
 
@@ -87,7 +88,7 @@ export function useInboxEmailHandlers({
 
   const handleEmailSelect = useCallback(
     (emailId: string, event: React.MouseEvent) => {
-      captureEvent('email_clicked', { email_id: emailId, mode });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_CLICKED, { email_id: emailId, mode });
       if (splitView.isMobile) {
         handleMarkAsRead(emailId);
         navigate(`/email/${emailId}`, { state: { fromMode: mode } });

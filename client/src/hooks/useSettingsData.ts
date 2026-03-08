@@ -3,6 +3,7 @@ import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { AnalyzeProgress, useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 import { useApiKeys } from 'hooks/settings/useApiKeys';
 import { BatchSchedule, useBatchSchedule } from 'hooks/settings/useBatchSchedule';
@@ -213,7 +214,7 @@ export function useSettingsData() {
   const analysisProgress = useAnalysisProgress(fetchData);
 
   useEffect(() => {
-    captureEvent('settings_viewed', { section: window.location.hash ? window.location.hash.substring(1) : undefined });
+    captureEvent(ANALYTICS_EVENTS.SETTINGS_VIEWED, { section: window.location.hash ? window.location.hash.substring(1) : undefined });
     fetchData();
   }, [fetchData]);
 

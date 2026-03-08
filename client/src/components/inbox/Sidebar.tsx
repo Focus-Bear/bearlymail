@@ -8,6 +8,7 @@ import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
 import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_BADGE_DISPLAY } from 'constants/numbers';
 import {
@@ -34,13 +35,13 @@ interface SidebarItemProps {
 }
 
 const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
-  [ROUTE_INBOX]: 'sidebar_inbox_clicked',
-  [ROUTE_SEARCH]: 'sidebar_search_clicked',
-  [ROUTE_CRM_CONTACTS]: 'sidebar_contacts_clicked',
-  [ROUTE_CRM_DEALS]: 'sidebar_deals_clicked',
-  [ROUTE_STATS]: 'sidebar_stats_clicked',
-  [ROUTE_SETTINGS]: 'sidebar_settings_clicked',
-  [ROUTE_ADMIN]: 'sidebar_admin_clicked',
+  [ROUTE_INBOX]: ANALYTICS_EVENTS.SIDEBAR_INBOX_CLICKED,
+  [ROUTE_SEARCH]: ANALYTICS_EVENTS.SIDEBAR_SEARCH_CLICKED,
+  [ROUTE_CRM_CONTACTS]: ANALYTICS_EVENTS.SIDEBAR_CONTACTS_CLICKED,
+  [ROUTE_CRM_DEALS]: ANALYTICS_EVENTS.SIDEBAR_DEALS_CLICKED,
+  [ROUTE_STATS]: ANALYTICS_EVENTS.SIDEBAR_STATS_CLICKED,
+  [ROUTE_SETTINGS]: ANALYTICS_EVENTS.SIDEBAR_SETTINGS_CLICKED,
+  [ROUTE_ADMIN]: ANALYTICS_EVENTS.SIDEBAR_ADMIN_CLICKED,
 };
 
 interface SidebarBadgeProps {

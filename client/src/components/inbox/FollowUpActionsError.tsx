@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface FollowUpActionsErrorProps {
@@ -28,7 +29,7 @@ export const FollowUpActionsError: React.FC<FollowUpActionsErrorProps> = ({ erro
       {onRetry && (
         <button
           onClick={() => {
-            captureEvent('bulk_followups_generate_retry_clicked');
+            captureEvent(ANALYTICS_EVENTS.BULK_FOLLOWUPS_GENERATE_RETRY_CLICKED);
             onRetry();
           }}
           style={{

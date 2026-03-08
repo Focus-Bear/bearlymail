@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
@@ -25,7 +26,7 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
     <div style={{ display: 'flex', gap: theme.spacing.md }}>
       <button
         onClick={() => {
-          captureEvent('openai_api_key_saved');
+          captureEvent(ANALYTICS_EVENTS.OPENAI_API_KEY_SAVED);
           onSaveApiKey();
         }}
         disabled={!openAiApiKey.trim()}
@@ -42,7 +43,7 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
       </button>
       <button
         onClick={() => {
-          captureEvent('openai_api_key_removed');
+          captureEvent(ANALYTICS_EVENTS.OPENAI_API_KEY_REMOVED);
           onRemoveApiKey();
         }}
         style={{

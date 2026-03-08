@@ -5,6 +5,7 @@ import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { CATEGORY_OTHER, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
@@ -130,7 +131,7 @@ export function useBulkEmailActions({
       if (emailIdsToArchive.length === 0) {
         return;
       }
-      captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
+      captureEvent(ANALYTICS_EVENTS.BULK_ARCHIVE_CLICKED, { selected_count: emailIdsToArchive.length });
 
       const { emailsToArchive, categoryCountChanges } = collectArchiveTargets(emailIdsToArchive, emails);
       applyOptimisticArchiveUpdates(dispatch, emailIdsToArchive, categoryCountChanges, mode, onTabCountsUpdateOptimistically);
@@ -160,7 +161,7 @@ export function useBulkEmailActions({
       if (selectedEmailIds.size === 0) {
         return;
       }
-      captureEvent('bulk_star_set', { star_count: starCount, selected_count: selectedEmailIds.size });
+      captureEvent(ANALYTICS_EVENTS.BULK_STAR_SET, { star_count: starCount, selected_count: selectedEmailIds.size });
       await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
       setSelectedEmailIds(new Set());
     },
@@ -171,7 +172,7 @@ export function useBulkEmailActions({
     if (selectedEmailIds.size === 0 || !handleBulkMarkAsRead) {
       return;
     }
-    captureEvent('bulk_mark_as_read_clicked', { selected_count: selectedEmailIds.size });
+    captureEvent(ANALYTICS_EVENTS.BULK_MARK_AS_READ_CLICKED, { selected_count: selectedEmailIds.size });
     await handleBulkMarkAsRead(Array.from(selectedEmailIds));
     setSelectedEmailIds(new Set());
   }, [selectedEmailIds, handleBulkMarkAsRead, setSelectedEmailIds]);
@@ -180,7 +181,7 @@ export function useBulkEmailActions({
     if (selectedEmailIds.size === 0 || !handleBulkMarkAsUnread) {
       return;
     }
-    captureEvent('bulk_mark_as_unread_clicked', { selected_count: selectedEmailIds.size });
+    captureEvent(ANALYTICS_EVENTS.BULK_MARK_AS_UNREAD_CLICKED, { selected_count: selectedEmailIds.size });
     await handleBulkMarkAsUnread(Array.from(selectedEmailIds));
     setSelectedEmailIds(new Set());
   }, [selectedEmailIds, handleBulkMarkAsUnread, setSelectedEmailIds]);

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
@@ -22,7 +23,7 @@ export const AnalyzeEmailsButton: React.FC<AnalyzeEmailsButtonProps> = ({ hasRun
   return (
     <button
       onClick={() => {
-        captureEvent('analyze_emails_button_clicked');
+        captureEvent(ANALYTICS_EVENTS.ANALYZE_EMAILS_BUTTON_CLICKED);
         navigate('/settings#context');
       }}
       style={{

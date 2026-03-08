@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { KEY_ENTER } from 'constants/strings';
 
 interface ActionItemInputProps {
@@ -36,7 +37,7 @@ export const ActionItemInput: React.FC<ActionItemInputProps> = ({
       />
       <button
         onClick={() => {
-          captureEvent('action_item_added');
+          captureEvent(ANALYTICS_EVENTS.ACTION_ITEM_ADDED);
           onAddActionItem();
         }}
         disabled={!newActionItem.trim()}

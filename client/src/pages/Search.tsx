@@ -8,6 +8,7 @@ import { SearchForm } from 'components/search/SearchForm';
 import { SearchHeader } from 'components/search/SearchHeader';
 import { SearchProgress } from 'components/search/SearchProgress';
 import { SearchResults } from 'components/search/SearchResults';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
@@ -260,7 +261,7 @@ const Search: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    captureEvent('search_viewed');
+    captureEvent(ANALYTICS_EVENTS.SEARCH_VIEWED);
   }, []);
 
   const handleSelectScoreBreakdown = (email: SearchEmail, breakdown: NonNullable<SearchEmail['scoreBreakdown']>) => {

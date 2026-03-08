@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { MINUTES_PER_HOUR, MS_PER_SECOND, NOTES_PREVIEW_MAX_CHARS, SECONDS_PER_MINUTE } from 'constants/numbers';
 
@@ -68,7 +69,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
-      captureEvent('private_note_auto_saved');
+      captureEvent(ANALYTICS_EVENTS.PRIVATE_NOTE_AUTO_SAVED);
       onSaveNote();
       setLastSavedAt(Date.now());
     }, DEBOUNCE_MS);
@@ -100,7 +101,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
       title={t('emailDetail.privateNotes')}
       isCollapsed={notesCollapsed}
       onToggle={() => {
-        captureEvent('private_notes_toggled', { collapsed: !notesCollapsed });
+        captureEvent(ANALYTICS_EVENTS.PRIVATE_NOTES_TOGGLED, { collapsed: !notesCollapsed });
         onToggleCollapsed();
       }}
       accentColor={theme.colors.section.notes.accent}

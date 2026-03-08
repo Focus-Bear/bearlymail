@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { BulkActionButton } from 'components/inbox/bulk/BulkActionButton';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BulkOperationsBarProps {
@@ -46,7 +47,7 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
         <BulkActionButton onClick={onBulkArchive}>{t('inbox.bulk.archive')}</BulkActionButton>
         <BulkActionButton
           onClick={() => {
-            captureEvent('bulk_selection_cleared', { selected_count: selectedCount });
+            captureEvent(ANALYTICS_EVENTS.BULK_SELECTION_CLEARED, { selected_count: selectedCount });
             onClearSelection();
           }}
         >

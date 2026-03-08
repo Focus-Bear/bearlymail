@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { OPACITY_HALF } from 'constants/numbers';
@@ -150,11 +151,11 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
       }
     };
 
-  const handleAccept = makeHandler(onAccept, RESPONSE_STATUS_ACCEPTED, 'calendar_invite_accept_clicked', 'acceptError');
+  const handleAccept = makeHandler(onAccept, RESPONSE_STATUS_ACCEPTED, ANALYTICS_EVENTS.CALENDAR_INVITE_ACCEPT_CLICKED, 'acceptError');
   const handleDecline = makeHandler(
     onDecline,
     RESPONSE_STATUS_DECLINED,
-    'calendar_invite_decline_clicked',
+    ANALYTICS_EVENTS.CALENDAR_INVITE_DECLINE_CLICKED,
     'declineError'
   );
 

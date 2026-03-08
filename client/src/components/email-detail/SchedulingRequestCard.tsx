@@ -6,6 +6,7 @@ import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { SHORT_TIMEOUT_MS } from 'constants/numbers';
@@ -92,7 +93,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
     try {
       await navigator.clipboard.writeText(schedulingUrl);
       setLinkCopied(true);
-      captureEvent('scheduling_link_copied', { email_id: email.id });
+      captureEvent(ANALYTICS_EVENTS.SCHEDULING_LINK_COPIED, { email_id: email.id });
       setTimeout(() => setLinkCopied(false), SHORT_TIMEOUT_MS);
     } catch (err) {
       console.error('Failed to copy link:', err);
@@ -101,7 +102,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
 
   const handleDraftReply = useCallback(async () => {
     setDrafting(true);
-    captureEvent('scheduling_draft_reply_clicked', { email_id: email.id });
+    captureEvent(ANALYTICS_EVENTS.SCHEDULING_DRAFT_REPLY_CLICKED, { email_id: email.id });
     try {
       const response = await axios.post(`${API_URL}/calendar/meeting-reply/${email.id}`);
       if (response.data?.draft && onDraftReply) {

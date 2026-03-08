@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 
@@ -75,7 +76,7 @@ const ToneRulesContent: React.FC<ToneRulesContentProps> = ({
           />
           <button
             onClick={() => {
-              captureEvent('tone_rule_added');
+              captureEvent(ANALYTICS_EVENTS.TONE_RULE_ADDED);
               onAddToneRule();
             }}
             disabled={!newToneRule.trim()}

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
@@ -50,7 +51,7 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
         {actionItems.some(item => item.source === ACTION_ITEM_SOURCE_LLM) && onRegenerateActionItems && (
           <button
             onClick={() => {
-              captureEvent('action_items_regenerate_clicked');
+              captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_REGENERATE_CLICKED);
               onRegenerateActionItems();
             }}
             disabled={isGeneratingSummary}
@@ -70,7 +71,7 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
         )}
         <button
           onClick={() => {
-            captureEvent('action_items_suggest_clicked');
+            captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_SUGGEST_CLICKED);
             onExtractActions();
           }}
           disabled={isGeneratingSummary}

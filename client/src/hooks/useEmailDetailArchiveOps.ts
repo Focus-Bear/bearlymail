@@ -51,29 +51,58 @@ async function executeSnoozeRequest(id: string, duration: string, emailToSnooze:
   }
 }
 
-interface ArchiveOpsParams {
-  id: string | undefined;
-  snoozeInput: EmailDetailState['snoozeInput'];
-  setSnoozeInput: EmailDetailState['setSnoozeInput'];
-  setShowSnoozeInput: EmailDetailState['setShowSnoozeInput'];
+// Pure helper: runs the snooze flow, handling both callback and navigate paths.
+async function executeSnoozeOp(params: {
+  id: string;
+  duration: string;
+  emailToSnooze: any;
+  dispatch: AppDispatch;
   options: EmailDetailOperationsOptions;
-  getInboxPath: () => string;
-  triggerAnimation: (type: 'send' | 'archive' | 'priority') => Promise<void>;
+  navigate: ReturnType<typeof useNavigate>;
+  setSnoozeInput?: (v: string) => void;
+  setShowSnoozeInput?: (v: boolean) => void;
+  clearInputs: boolean;
+}) {
+  const { id, duration, emailToSnooze, dispatch, options, navigate, setSnoozeInput, setShowSnoozeInput, clearInputs } =
+    params;
+  if (emailToSnooze) {
+    dispatch(removeEmail(id));
+    dispatch(addOptimisticSnooze(id));
+  }
+  if (clearInputs && setSnoozeInput && setShowSnoozeInput) {
+    setSnoozeInput('');
+    setShowSnoozeInput(false);
+  }
+  if (options.onSnoozeComplete) {
+    try {
+      await executeSnoozeRequest(id, duration, emailToSnooze, dispatch);
+      options.onSnoozeComplete(id);
+    } catch {
+      options.onSnoozeComplete(id);
+    }
+  } else {
+    navigate('/inbox');
+    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+      console.error('Error snoozing email:', error);
+      if (emailToSnooze) {
+        dispatch(restoreEmail(emailToSnooze));
+        dispatch(removeOptimisticSnooze(id));
+      }
+    });
+  }
 }
 
-export function useEmailDetailArchiveOps({
-  id,
-  snoozeInput,
-  setSnoozeInput,
-  setShowSnoozeInput,
-  options,
-  getInboxPath,
-  triggerAnimation,
-}: ArchiveOpsParams) {
-  const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
-  const emails = useSelector(selectEmails);
+interface PostReplyOpsParams {
+  id: string | undefined;
+  emails: any[];
+  dispatch: AppDispatch;
+  options: EmailDetailOperationsOptions;
+  navigate: ReturnType<typeof useNavigate>;
+  getInboxPath: () => string;
+}
 
+// Sub-hook: post-reply archive and snooze operations (fire-and-forget style, no animation).
+function usePostReplyOps({ id, emails, dispatch, options, navigate, getInboxPath }: PostReplyOpsParams) {
   const performArchiveAfterReply = useCallback(async () => {
     if (!id) {
       return;
@@ -119,6 +148,41 @@ export function useEmailDetailArchiveOps({
     [id, emails, dispatch, options, navigate, getInboxPath]
   );
 
+  return { performArchiveAfterReply, performSnoozeAfterReply };
+}
+
+interface ArchiveOpsParams {
+  id: string | undefined;
+  snoozeInput: EmailDetailState['snoozeInput'];
+  setSnoozeInput: EmailDetailState['setSnoozeInput'];
+  setShowSnoozeInput: EmailDetailState['setShowSnoozeInput'];
+  options: EmailDetailOperationsOptions;
+  getInboxPath: () => string;
+  triggerAnimation: (type: 'send' | 'archive' | 'priority') => Promise<void>;
+}
+
+export function useEmailDetailArchiveOps({
+  id,
+  snoozeInput,
+  setSnoozeInput,
+  setShowSnoozeInput,
+  options,
+  getInboxPath,
+  triggerAnimation,
+}: ArchiveOpsParams) {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const emails = useSelector(selectEmails);
+
+  const { performArchiveAfterReply, performSnoozeAfterReply } = usePostReplyOps({
+    id,
+    emails,
+    dispatch,
+    options,
+    navigate,
+    getInboxPath,
+  });
+
   const handleArchive = useCallback(async () => {
     if (!id) {
       return;
@@ -161,31 +225,17 @@ export function useEmailDetailArchiveOps({
       }
       captureEvent('email_snooze_confirmed', { email_id: id, snooze_input_length: duration.length });
       const emailToSnooze = emails.find(event => event.id === id);
-      if (emailToSnooze) {
-        dispatch(removeEmail(id));
-        dispatch(addOptimisticSnooze(id));
-      }
-      if (!durationOverride) {
-        setSnoozeInput('');
-        setShowSnoozeInput(false);
-      }
-      if (options.onSnoozeComplete) {
-        try {
-          await executeSnoozeRequest(id, duration, emailToSnooze, dispatch);
-          options.onSnoozeComplete(id);
-        } catch {
-          options.onSnoozeComplete(id);
-        }
-      } else {
-        navigate('/inbox');
-        axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
-          console.error('Error snoozing email:', error);
-          if (emailToSnooze) {
-            dispatch(restoreEmail(emailToSnooze));
-            dispatch(removeOptimisticSnooze(id));
-          }
-        });
-      }
+      await executeSnoozeOp({
+        id,
+        duration,
+        emailToSnooze,
+        dispatch,
+        options,
+        navigate,
+        setSnoozeInput,
+        setShowSnoozeInput,
+        clearInputs: !durationOverride,
+      });
     },
     [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]
   );

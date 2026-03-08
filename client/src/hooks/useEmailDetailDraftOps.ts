@@ -117,30 +117,18 @@ type DraftOpsState = Pick<
   | 'setShowBcc'
 >;
 
-export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsState, userEmail: string | undefined) {
-  const {
-    email,
-    threadEmails,
-    replyOptions,
-    setReplyOptions,
-    setDraft,
-    setSelectedReplyOption,
-    setLoadingReplies,
-    setReplyMode,
-    setShowReplyComposer,
-    setToneCheckResult,
-    setReplyRecipients,
-    setReplyCc,
-    setReplyBcc,
-    setShowCc,
-    setShowBcc,
-  } = state;
-
-  const draftCrud = useEmailDraftCrud(email?.threadId);
+// Sub-hook: encapsulates draft generation logic with its own abort-controller refs.
+function useDraftGenerationCallback(
+  id: string | undefined,
+  email: any,
+  setLoadingReplies: (v: boolean) => void,
+  setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
+  setSelectedReplyOption: (i: number) => void
+): () => Promise<void> {
   const draftAbortControllerRef = useRef<AbortController | null>(null);
   const draftGenerationEmailIdRef = useRef<string | null>(null);
 
-  const handleGenerateDraft = useCallback(async () => {
+  return useCallback(async () => {
     if (!id || !email) {
       return;
     }
@@ -194,6 +182,29 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
       }
     }
   }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
+}
+
+export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsState, userEmail: string | undefined) {
+  const {
+    email,
+    threadEmails,
+    replyOptions,
+    setReplyOptions,
+    setDraft,
+    setSelectedReplyOption,
+    setLoadingReplies,
+    setReplyMode,
+    setShowReplyComposer,
+    setToneCheckResult,
+    setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
+  } = state;
+
+  const draftCrud = useEmailDraftCrud(email?.threadId);
+  const handleGenerateDraft = useDraftGenerationCallback(id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption);
 
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   const handleOpenReplyComposer = useCallback(

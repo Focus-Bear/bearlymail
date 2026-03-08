@@ -49,6 +49,59 @@ interface UseEmailDetailInitializationProps {
   actionItems: any[];
 }
 
+// Sub-hook: fetches thread-level data (note, thread emails, action items) when the email's
+// thread changes. Manages its own fetch-guard ref so it only fires once per thread.
+function useEmailThreadFetcher({
+  email,
+  fetchNote,
+  fetchThreadEmails,
+  setActionItems,
+}: {
+  email: any;
+  fetchNote: () => Promise<void>;
+  fetchThreadEmails: () => Promise<void>;
+  setActionItems: (items: any[]) => void;
+}) {
+  const fetchedThreadIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Only fetch if we have a threadId and haven't already fetched for this thread
+    if (!email?.threadId || fetchedThreadIdRef.current === email.threadId) {
+      return;
+    }
+
+    // Mark as fetched immediately to prevent duplicate calls
+    fetchedThreadIdRef.current = email.threadId;
+
+    fetchNote();
+    fetchThreadEmails();
+    const fetchAndAutoExtract = async () => {
+      try {
+        // Fetch action items for the thread (not just this email)
+        const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
+        setActionItems(response.data);
+
+        // Store response for later use in the threadEmails effect
+        if (response.data.length === 0 && email.body) {
+          // Will be handled in the threadEmails effect below
+        }
+      } catch (error) {
+        console.error('Error fetching action items:', error);
+      }
+    };
+    fetchAndAutoExtract();
+  }, [
+    email?.threadId,
+    email?.id,
+    email?.body,
+    email?.from,
+    email?.fromName,
+    fetchNote,
+    fetchThreadEmails,
+    setActionItems,
+  ]);
+}
+
 export const useEmailDetailInitialization = ({
   id,
   email,
@@ -79,11 +132,8 @@ export const useEmailDetailInitialization = ({
   const previousEmailIdRef = useRef<string | undefined>(undefined);
   // Track which email ID we've fetched data for
   const fetchedEmailIdRef = useRef<string | null>(null);
-  // Track which thread we've fetched data for
-  const fetchedThreadIdRef = useRef<string | null>(null);
-  // Track which thread we've set expanded items for
+  // Track which thread items have been expanded and which email auto-extracted actions
   const expandedItemsSetRef = useRef<string | null>(null);
-  // Track which email we've auto-extracted actions for
   const autoExtractedRef = useRef<string | null>(null);
 
   // Clear summary and reset state when email ID changes to prevent showing old data
@@ -100,7 +150,6 @@ export const useEmailDetailInitialization = ({
       // Reset initialization and fetch tracking for the new email
       initializedEmailIdRef.current = null;
       fetchedEmailIdRef.current = null;
-      fetchedThreadIdRef.current = null;
       expandedItemsSetRef.current = null;
       autoExtractedRef.current = null;
       previousEmailIdRef.current = id;
@@ -150,42 +199,7 @@ export const useEmailDetailInitialization = ({
     setSummaryType,
   ]);
 
-  useEffect(() => {
-    // Only fetch if we have a threadId and haven't already fetched for this thread
-    if (!email?.threadId || fetchedThreadIdRef.current === email.threadId) {
-      return;
-    }
-
-    // Mark as fetched immediately to prevent duplicate calls
-    fetchedThreadIdRef.current = email.threadId;
-
-    fetchNote();
-    fetchThreadEmails();
-    const fetchAndAutoExtract = async () => {
-      try {
-        // Fetch action items for the thread (not just this email)
-        const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
-        setActionItems(response.data);
-
-        // Store response for later use in the threadEmails effect
-        if (response.data.length === 0 && email.body) {
-          // Will be handled in the threadEmails effect below
-        }
-      } catch (error) {
-        console.error('Error fetching action items:', error);
-      }
-    };
-    fetchAndAutoExtract();
-  }, [
-    email?.threadId,
-    email?.id,
-    email?.body,
-    email?.from,
-    email?.fromName,
-    fetchNote,
-    fetchThreadEmails,
-    setActionItems,
-  ]);
+  useEmailThreadFetcher({ email, fetchNote, fetchThreadEmails, setActionItems });
 
   useThreadEmailsInit({
     threadEmails,

@@ -243,19 +243,8 @@ interface Email {
   attachments?: EmailAttachment[];
 }
 
-interface UseEmailDetailRepliesOptions {
-  autoGenerateReplies?: boolean;
-}
-
-export function useEmailDetailReplies(
-  emailId: string,
-  email: Email | null,
-  options: UseEmailDetailRepliesOptions = {}
-) {
-  const { autoGenerateReplies = false } = options;
-  const { t } = useTranslation();
-  const { showSuccess, showError } = useNotifications();
-  const { user } = useAuth();
+// Sub-hook: manages all reply composer UI state plus scheduling handlers.
+function useReplyComposerState() {
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll' | 'forward'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
@@ -268,58 +257,64 @@ export function useEmailDetailReplies(
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
 
-  const {
-    checkingTone,
-    toneCheckResult,
-    setToneCheckResult,
-    checkTone,
-    disputing,
-    disputeResult,
-    disputeToneCheck,
-    clearDisputeResult,
-  } = useEmailDetailToneCheck();
-  const {
-    replyOptions,
-    selectedReplyOption,
-    draft,
-    loadingReplies,
-    debugInfo: replyGenerationDebugInfo,
-    setReplyOptions,
-    setDraft,
-    setSelectedReplyOption,
-    handleGenerateDraft,
-  } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
+  const handleOpenTimePicker = useCallback(() => setShowTimePicker(true), []);
+  const handleTimeSelect = useCallback((time: Date) => {
+    setScheduledSendAt(time);
+    setShowTimePicker(false);
+  }, []);
+  const handleCancelTimePicker = useCallback(() => setShowTimePicker(false), []);
 
-  const handleOpenReplyComposer = useCallback(
-    (mode: 'reply' | 'replyAll' | 'forward') => {
-      setReplyMode(mode);
-      setShowReplyComposer(true);
-      setDraft('');
-      setToneCheckResult(null);
-      setReplyCc('');
-      setReplyBcc('');
-      setShowCc(false);
-      setShowBcc(false);
-      if (email) {
-        const { recipients, cc, showCc: shouldShowCc } = buildReplyAddresses(mode, email, user?.email);
-        setReplyRecipients(recipients);
-        if (cc) {
-          setReplyCc(cc);
-          setShowCc(shouldShowCc);
-        }
-        setInitialAttachments(mode === REPLY_MODE_FORWARD ? email.attachments || [] : []);
-      }
-      // Bug 7 fix: AI draft generation is only relevant for replies, not forwards.
-      // Forwards should start with an empty compose area (or pre-filled original content
-      // from the backend), not an LLM-generated reply draft.
-      if (mode !== REPLY_MODE_FORWARD) {
-        handleGenerateDraft();
-      }
-    },
-    [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]
-  );
+  return {
+    showReplyComposer, setShowReplyComposer,
+    replyMode, setReplyMode,
+    replyRecipients, setReplyRecipients,
+    replyCc, setReplyCc,
+    replyBcc, setReplyBcc,
+    showCc, setShowCc,
+    showBcc, setShowBcc,
+    sending,
+    initialAttachments, setInitialAttachments,
+    showTimePicker,
+    scheduledSendAt, setScheduledSendAt,
+    handleOpenTimePicker,
+    handleTimeSelect,
+    handleCancelTimePicker,
+  };
+}
 
-  const handleSendReply = useCallback(
+interface SendReplyHandlerDeps {
+  emailId: string;
+  draft: string | null;
+  replyRecipients: string;
+  replyCc: string;
+  replyBcc: string;
+  replyMode: string;
+  scheduledSendAt: Date | null;
+  checkTone: (draft: string) => Promise<boolean>;
+  setDraft: (d: string | null) => void;
+  setReplyCc: (v: string) => void;
+  setReplyBcc: (v: string) => void;
+  setShowCc: (v: boolean) => void;
+  setShowBcc: (v: boolean) => void;
+  setInitialAttachments: (v: EmailAttachment[]) => void;
+  setScheduledSendAt: (v: Date | null) => void;
+  setReplyRecipients: (v: string) => void;
+  setShowReplyComposer: (v: boolean) => void;
+  showSuccess: (msg: string) => void;
+  showError: (msg: string) => void;
+  t: (key: string) => string;
+}
+
+// Sub-hook: builds and returns the memoized handleSendReply callback.
+function useSendReplyHandler(deps: SendReplyHandlerDeps) {
+  const {
+    emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
+    checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+    setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
+    showSuccess, showError, t,
+  } = deps;
+
+  return useCallback(
     async (
       files: File[] = [],
       expectedReplyHours?: number,
@@ -370,77 +365,83 @@ export function useEmailDetailReplies(
       });
     },
     [
-      emailId,
-      draft,
-      replyRecipients,
-      replyCc,
-      replyBcc,
-      replyMode,
-      scheduledSendAt,
-      checkTone,
-      setDraft,
-      setReplyCc,
-      setReplyBcc,
-      setShowCc,
-      setShowBcc,
-      setInitialAttachments,
-      setScheduledSendAt,
-      setShowReplyComposer,
-      showSuccess,
-      showError,
-      t,
+      emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
+      checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+      setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
+      showSuccess, showError, t,
     ]
   );
+}
 
-  const handleOpenTimePicker = useCallback(() => {
-    setShowTimePicker(true);
-  }, []);
-  const handleTimeSelect = useCallback((time: Date) => {
-    setScheduledSendAt(time);
-    setShowTimePicker(false);
-  }, []);
-  const handleCancelTimePicker = useCallback(() => {
-    setShowTimePicker(false);
-  }, []);
+interface UseEmailDetailRepliesOptions {
+  autoGenerateReplies?: boolean;
+}
+
+export function useEmailDetailReplies(
+  emailId: string,
+  email: Email | null,
+  options: UseEmailDetailRepliesOptions = {}
+) {
+  const { autoGenerateReplies = false } = options;
+  const { t } = useTranslation();
+  const { showSuccess, showError } = useNotifications();
+  const { user } = useAuth();
+
+  const composerState = useReplyComposerState();
+  const { setShowReplyComposer, setReplyMode, setReplyRecipients,
+    setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+    setInitialAttachments, setScheduledSendAt,
+    replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt } = composerState;
+
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone,
+    disputing, disputeResult, disputeToneCheck, clearDisputeResult } = useEmailDetailToneCheck();
+
+  const { replyOptions, selectedReplyOption, draft, loadingReplies,
+    debugInfo: replyGenerationDebugInfo, setReplyOptions, setDraft,
+    setSelectedReplyOption, handleGenerateDraft,
+  } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
+
+  const handleOpenReplyComposer = useCallback(
+    (mode: 'reply' | 'replyAll' | 'forward') => {
+      setReplyMode(mode);
+      setShowReplyComposer(true);
+      setDraft('');
+      setToneCheckResult(null);
+      setReplyCc('');
+      setReplyBcc('');
+      setShowCc(false);
+      setShowBcc(false);
+      if (email) {
+        const { recipients, cc, showCc: shouldShowCc } = buildReplyAddresses(mode, email, user?.email);
+        setReplyRecipients(recipients);
+        if (cc) {
+          setReplyCc(cc);
+          setShowCc(shouldShowCc);
+        }
+        setInitialAttachments(mode === REPLY_MODE_FORWARD ? email.attachments || [] : []);
+      }
+      // Bug 7 fix: AI draft generation is only relevant for replies, not forwards.
+      if (mode !== REPLY_MODE_FORWARD) {
+        handleGenerateDraft();
+      }
+    },
+    [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult,
+     setReplyMode, setShowReplyComposer, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+     setReplyRecipients, setInitialAttachments]
+  );
+
+  const handleSendReply = useSendReplyHandler({
+    emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
+    checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+    setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
+    showSuccess, showError, t,
+  });
 
   return {
-    replyOptions,
-    selectedReplyOption,
-    showReplyComposer,
-    replyMode,
-    replyRecipients,
-    replyCc,
-    replyBcc,
-    showCc,
-    showBcc,
-    draft,
-    loadingReplies,
-    sending,
-    checkingTone,
-    toneCheckResult,
-    disputing,
-    disputeResult,
-    initialAttachments,
-    replyGenerationDebugInfo,
-    showTimePicker,
-    scheduledSendAt,
-    setReplyRecipients,
-    setReplyCc,
-    setReplyBcc,
-    setShowCc,
-    setShowBcc,
-    setDraft,
-    setSelectedReplyOption,
-    setShowReplyComposer,
-    setReplyOptions,
-    setToneCheckResult,
-    setScheduledSendAt,
-    handleOpenReplyComposer,
-    handleSendReply,
-    handleOpenTimePicker,
-    handleTimeSelect,
-    handleCancelTimePicker,
-    disputeToneCheck,
-    clearDisputeResult,
+    ...composerState,
+    replyOptions, selectedReplyOption, draft, loadingReplies,
+    checkingTone, toneCheckResult, disputing, disputeResult, replyGenerationDebugInfo,
+    setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult,
+    handleOpenReplyComposer, handleSendReply, disputeToneCheck, clearDisputeResult,
   };
 }

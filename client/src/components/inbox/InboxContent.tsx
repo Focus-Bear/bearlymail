@@ -223,16 +223,30 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   );
 
   // Build per-category email map from the loaded flat email array.
-  // Emails are keyed by their category key (UUID or name), which matches the key
-  // assigned by normalizeCategoryEmails in useEmailFetching. This eliminates all
-  // name-encoding/whitespace mismatch issues between the summary and the fetch API.
+  // Primary path: emails have already been keyed by normalizeCategoryEmails in
+  // useEmailFetching, so email.category == UUID key → direct map lookup works.
+  // Defensive path: when categorySummary is available we re-key any entries that
+  // still use the human-readable name so lookups by UUID never return undefined.
   const emailCategoryMap = useMemo(() => {
     const map = new Map<string, CategoryGroup>();
     groupEmailsByCategory(filteredEmails, mode).forEach(group => {
       map.set(group.category, group);
     });
+
+    // Re-key by UUID when category summary provides IDs.
+    // Guards against emails that arrived before normalizeCategoryEmails ran (e.g.
+    // initial eager-load or a fetch path that bypasses the normalizer).
+    if (categorySummary) {
+      const nameToKey = new Map(categorySummary.map(cat => [cat.name, getCategoryKey(cat.id, cat.name)]));
+      const rekeyed = new Map<string, CategoryGroup>();
+      map.forEach((value, key) => {
+        const uuidKey = nameToKey.get(key);
+        rekeyed.set(uuidKey ?? key, { ...value, category: uuidKey ?? key });
+      });
+      return rekeyed;
+    }
     return map;
-  }, [filteredEmails, mode]);
+  }, [filteredEmails, mode, categorySummary]);
 
   /**
    * Look up a category group by its category key (UUID or name).

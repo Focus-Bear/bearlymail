@@ -29,6 +29,19 @@ export interface UseContactSearchResult {
   filteredContacts: (baseContacts: Contact[]) => Contact[];
 }
 
+function scheduleDebouncedSearch(
+  query: string,
+  timeoutRef: React.MutableRefObject<NodeJS.Timeout | null>,
+  searchFn: (q: string) => Promise<void>
+): void {
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+  timeoutRef.current = setTimeout(() => {
+    searchFn(query);
+  }, DEBOUNCE_DELAY_200_MS);
+}
+
 export const useContactSearch = (): UseContactSearchResult => {
   const [toSearch, setToSearch] = useState('');
   const [ccSearch, setCcSearch] = useState('');
@@ -67,16 +80,8 @@ export const useContactSearch = (): UseContactSearchResult => {
       } else {
         setBccSearch(value);
       }
-
       setActiveField(field);
-
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
-      searchTimeoutRef.current = setTimeout(() => {
-        searchContacts(value);
-      }, DEBOUNCE_DELAY_200_MS);
+      scheduleDebouncedSearch(value, searchTimeoutRef, searchContacts);
     },
     [searchContacts]
   );
@@ -106,12 +111,7 @@ export const useContactSearch = (): UseContactSearchResult => {
   const setSearchQuery = useCallback(
     (query: string) => {
       setToSearch(query);
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      searchTimeoutRef.current = setTimeout(() => {
-        searchContacts(query);
-      }, DEBOUNCE_DELAY_200_MS);
+      scheduleDebouncedSearch(query, searchTimeoutRef, searchContacts);
     },
     [searchContacts]
   );

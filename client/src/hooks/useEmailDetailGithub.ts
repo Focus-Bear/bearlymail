@@ -16,26 +16,39 @@ const deduplicateLinks = (links: any[]): any[] => {
   });
 };
 
-export function useEmailDetailGithub(emailId: string) {
-  const [githubLinks, setGithubLinks] = useState<any[]>([]);
-  const [loadingGithub, setLoadingGithub] = useState(false);
-  const [hasGithubToken, setHasGithubToken] = useState(false);
-  const fetchedRef = useRef<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+function useEmailChangeReset(
+  emailId: string,
+  abortControllerRef: React.MutableRefObject<AbortController | null>,
+  fetchedRef: React.MutableRefObject<string | null>,
+  resetState: () => void
+) {
   const previousEmailIdRef = useRef<string | null>(null);
-
   useEffect(() => {
     if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== emailId) {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
-      setGithubLinks([]);
-      setLoadingGithub(false);
+      resetState();
       fetchedRef.current = null;
     }
     previousEmailIdRef.current = emailId;
-  }, [emailId]);
+  }, [emailId, abortControllerRef, fetchedRef, resetState]);
+}
+
+export function useEmailDetailGithub(emailId: string) {
+  const [githubLinks, setGithubLinks] = useState<any[]>([]);
+  const [loadingGithub, setLoadingGithub] = useState(false);
+  const [hasGithubToken, setHasGithubToken] = useState(false);
+  const fetchedRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const resetGithubState = useCallback(() => {
+    setGithubLinks([]);
+    setLoadingGithub(false);
+  }, []);
+
+  useEmailChangeReset(emailId, abortControllerRef, fetchedRef, resetGithubState);
 
   const fetchGithubInfo = useCallback(async () => {
     if (!emailId) {
@@ -110,11 +123,10 @@ export function useEmailDetailGithub(emailId: string) {
     }
   }, [emailId]);
 
-  // Reset when email changes
   const setGithubLinksWithDedup = useCallback(
     (links: any[]) => {
       setGithubLinks(deduplicateLinks(links));
-      fetchedRef.current = emailId; // Mark as having data
+      fetchedRef.current = emailId;
     },
     [emailId]
   );

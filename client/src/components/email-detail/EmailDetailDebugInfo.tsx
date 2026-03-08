@@ -6,11 +6,30 @@ interface Props {
   threadEmails: any[];
 }
 
+interface ThreadEmailsListProps {
+  threadEmails: any[];
+}
+
+const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => (
+  <div style={{ marginTop: theme.spacing.md }}>
+    <strong>Thread Emails ({threadEmails.length}):</strong>
+    {threadEmails.map((threadEmail, idx) => {
+      const threadEmailData = threadEmail as any;
+      return (
+        <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+          [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | Labels:{' '}
+          {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received:{' '}
+          {threadEmailData.receivedAt}
+        </div>
+      );
+    })}
+  </div>
+);
+
 /** Admin-only debug information panel shown in email detail view. */
 export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
   const emailData = email as any;
   return (
-    /* eslint-disable i18next/no-literal-string */
     <div
       style={{
         marginTop: theme.spacing.xl,
@@ -92,23 +111,8 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
         <div>
           <strong>Star Count:</strong> {emailData.starCount || 0}
         </div>
-        {threadEmails && threadEmails.length > 0 && (
-          <div style={{ marginTop: theme.spacing.md }}>
-            <strong>Thread Emails ({threadEmails.length}):</strong>
-            {threadEmails.map((threadEmail, idx) => {
-              const threadEmailData = threadEmail as any;
-              return (
-                <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                  [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | Labels:{' '}
-                  {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received:{' '}
-                  {threadEmailData.receivedAt}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
       </div>
     </div>
-    /* eslint-enable i18next/no-literal-string */
   );
 }

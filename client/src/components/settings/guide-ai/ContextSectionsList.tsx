@@ -11,7 +11,7 @@ import { API_URL } from 'config/api';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
-import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
+import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 
 const CONSOLIDATE_RELOAD_DELAY_MS = 1500;
 
@@ -96,31 +96,31 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
   },
 ];
 
-// eslint-disable-next-line max-lines-per-function -- ContextSectionsList manages multiple context sections plus category controls in one place
-export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
-  contexts,
-  addingContextType,
-  editingContextId,
-  editContextValue,
-  newContextValue,
-  onAddContext,
-  onUpdateContext,
-  onDeleteContext,
-  onNewContextValueChange,
-  onAddingContextTypeChange,
-  onEditingContextIdChange,
-  onEditContextValueChange,
-  onRefreshContexts,
-}) => {
+interface CategoryActionsState {
+  isRecategorizing: boolean;
+  isConsolidating: boolean;
+  isCompressing: boolean;
+  compressComplete: boolean;
+  showProtoCategoriesModal: boolean;
+  showConsolidateConfirm: boolean;
+  recategorizeProgress: RecategorizeProgressState;
+  dismissProgress: () => void;
+  setShowProtoCategoriesModal: (show: boolean) => void;
+  setShowConsolidateConfirm: (show: boolean) => void;
+  handleRecategorize: () => Promise<void>;
+  handleConsolidateConfirmed: () => Promise<void>;
+  handleCompressContext: () => Promise<void>;
+}
+
+function useCategoryActions(onRefreshContexts?: () => void): CategoryActionsState {
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
   const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [isConsolidating, setIsConsolidating] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [compressComplete, setCompressComplete] = useState(false);
   const [showProtoCategoriesModal, setShowProtoCategoriesModal] = useState(false);
-
   const [showConsolidateConfirm, setShowConsolidateConfirm] = useState(false);
-
   const { progress: recategorizeProgress, startTracking, dismiss: dismissProgress } = useRecategorizeProgress();
 
   const handleRecategorize = async () => {
@@ -138,19 +138,13 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     }
   };
 
-  const handleConsolidateCategories = () => {
-    setShowConsolidateConfirm(true);
-  };
-
   const handleConsolidateConfirmed = async () => {
     setShowConsolidateConfirm(false);
     setIsConsolidating(true);
     try {
       await axios.post(`${API_URL}/context/consolidate-categories`);
       showSuccess(t('settings.emailCategories.consolidateSuccess'));
-      setTimeout(() => {
-        window.location.reload();
-      }, CONSOLIDATE_RELOAD_DELAY_MS);
+      setTimeout(() => window.location.reload(), CONSOLIDATE_RELOAD_DELAY_MS);
     } catch (error) {
       console.error('Failed to consolidate categories:', error);
       showError(t('settings.emailCategories.consolidateError'));
@@ -158,8 +152,6 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
       setIsConsolidating(false);
     }
   };
-
-  const [compressComplete, setCompressComplete] = useState(false);
 
   const handleCompressContext = async () => {
     setIsCompressing(true);
@@ -177,122 +169,144 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     }
   };
 
-  const commonProps = {
-    contexts,
-    addingContextType,
-    editingContextId,
-    editContextValue,
-    newContextValue,
-    onAddContext,
-    onUpdateContext,
-    onDeleteContext,
-    onNewContextValueChange,
-    onAddingContextTypeChange,
-    onEditingContextIdChange,
-    onEditContextValueChange,
+  return {
+    isRecategorizing,
+    isConsolidating,
+    isCompressing,
+    compressComplete,
+    showProtoCategoriesModal,
+    showConsolidateConfirm,
+    recategorizeProgress,
+    dismissProgress,
+    setShowProtoCategoriesModal,
+    setShowConsolidateConfirm,
+    handleRecategorize,
+    handleConsolidateConfirmed,
+    handleCompressContext,
   };
+}
 
-  const EmailCategoryControls: React.FC = () => (
+const ghostButtonStyle = (disabled: boolean, color: string): React.CSSProperties => ({
+  background: 'transparent',
+  border: STRING_NONE,
+  color,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  fontSize: theme.typography.fontSize.sm,
+  fontWeight: theme.typography.fontWeight.medium,
+  opacity: disabled ? OPACITY_DISABLED : 1,
+});
+
+interface CompressStatusBadgeProps {
+  isCompressing: boolean;
+  compressComplete: boolean;
+}
+
+const CompressStatusBadge: React.FC<CompressStatusBadgeProps> = ({ isCompressing, compressComplete }) => {
+  const { t } = useTranslation();
+  if (!isCompressing && !compressComplete) {
+    return null;
+  }
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.sm,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.light}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+      }}
+    >
+      {isCompressing && (
+        <span
+          style={{
+            width: '12px',
+            height: '12px',
+            flexShrink: 0,
+            border: `2px solid ${theme.colors.primary.main}`,
+            borderTop: '2px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            display: 'inline-block',
+          }}
+        />
+      )}
+      {compressComplete && !isCompressing && <span>✅</span>}
+      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        {isCompressing ? t('settings.context.compressing') : t('settings.context.compressSuccess')}
+      </span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+};
+
+interface EmailCategoryControlsProps {
+  actions: CategoryActionsState;
+}
+
+const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }) => {
+  const { t } = useTranslation();
+  const {
+    isCompressing, compressComplete, isConsolidating, isRecategorizing,
+    recategorizeProgress, dismissProgress, showProtoCategoriesModal,
+    setShowProtoCategoriesModal, handleCompressContext, handleConsolidateCategories,
+    handleRecategorize,
+  } = actions as CategoryActionsState & { handleConsolidateCategories: () => void };
+
+  return (
     <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
       <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setShowProtoCategoriesModal(true)}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
+        <button onClick={() => setShowProtoCategoriesModal(true)} style={ghostButtonStyle(false, theme.colors.primary.main)}>
           {t('settings.protoCategories.viewButton')}
         </button>
-        <button
-          onClick={handleCompressContext}
-          disabled={isCompressing}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: isCompressing ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isCompressing ? OPACITY_DISABLED : 1,
-          }}
-        >
+        <button onClick={handleCompressContext} disabled={isCompressing} style={ghostButtonStyle(isCompressing, theme.colors.primary.main)}>
           {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
         </button>
-        <button
-          onClick={handleConsolidateCategories}
-          disabled={isConsolidating}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: isConsolidating ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isConsolidating ? OPACITY_DISABLED : 1,
-          }}
-        >
+        <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={ghostButtonStyle(isConsolidating, theme.colors.primary.main)}>
           {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
         </button>
-        <button
-          onClick={handleRecategorize}
-          disabled={isRecategorizing}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.accent.warning,
-            cursor: isRecategorizing ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isRecategorizing ? OPACITY_DISABLED : 1,
-          }}
-        >
+        <button onClick={handleRecategorize} disabled={isRecategorizing} style={ghostButtonStyle(isRecategorizing, theme.colors.accent.warning)}>
           {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
         </button>
       </div>
-      {/* Compress progress indicator — shown while the background job runs */}
-      {(isCompressing || compressComplete) && (
-        <div
-          style={{
-            marginTop: theme.spacing.sm,
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.background.subtle,
-            borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.light}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-          }}
-        >
-          {isCompressing && (
-            <span
-              style={{
-                width: '12px',
-                height: '12px',
-                flexShrink: 0,
-                border: `2px solid ${theme.colors.primary.main}`,
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                display: 'inline-block',
-              }}
-            />
-          )}
-          {compressComplete && !isCompressing && <span>✅</span>}
-          <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-            {isCompressing ? t('settings.context.compressing') : t('settings.context.compressSuccess')}
-          </span>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      )}
+      <CompressStatusBadge isCompressing={isCompressing} compressComplete={compressComplete} />
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
       {showProtoCategoriesModal && <ProtoCategoriesModal onClose={() => setShowProtoCategoriesModal(false)} />}
     </div>
   );
+};
+
+export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
+  contexts,
+  addingContextType,
+  editingContextId,
+  editContextValue,
+  newContextValue,
+  onAddContext,
+  onUpdateContext,
+  onDeleteContext,
+  onNewContextValueChange,
+  onAddingContextTypeChange,
+  onEditingContextIdChange,
+  onEditContextValueChange,
+  onRefreshContexts,
+}) => {
+  const { t } = useTranslation();
+  const actions = useCategoryActions(onRefreshContexts);
+  const { showConsolidateConfirm, setShowConsolidateConfirm, handleConsolidateConfirmed } = actions;
+
+  const commonProps = {
+    contexts, addingContextType, editingContextId, editContextValue, newContextValue,
+    onAddContext, onUpdateContext, onDeleteContext, onNewContextValueChange,
+    onAddingContextTypeChange, onEditingContextIdChange, onEditContextValueChange,
+  };
+
+  const actionsWithConsolidate = {
+    ...actions,
+    handleConsolidateCategories: () => setShowConsolidateConfirm(true),
+  };
 
   return (
     <>
@@ -318,17 +332,13 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
-            actionButton={isEmailCategory ? <EmailCategoryControls /> : undefined}
+            actionButton={isEmailCategory ? <EmailCategoryControls actions={actionsWithConsolidate as any} /> : undefined}
             isInitiallyExpanded={isAnchoredMatch}
             {...commonProps}
           />
         );
         if (config.anchorId) {
-          return (
-            <div key={key} id={config.anchorId}>
-              {sectionElement}
-            </div>
-          );
+          return <div key={key} id={config.anchorId}>{sectionElement}</div>;
         }
         return sectionElement;
       })}

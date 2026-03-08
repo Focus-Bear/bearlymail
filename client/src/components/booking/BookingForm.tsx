@@ -7,6 +7,21 @@ import { STRING_NONE } from 'constants/strings';
 
 const BOOKING_STATUS_SUBMITTING = 'submitting';
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: theme.spacing.md,
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  fontSize: theme.typography.fontSize.base,
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: theme.spacing.xs,
+  color: theme.colors.text.primary,
+  fontSize: theme.typography.fontSize.sm,
+};
+
 interface TimeSlot {
   start: string;
   end: string;
@@ -22,6 +37,27 @@ interface BookingFormProps {
   onGuestNameChange: (name: string) => void;
   onSubmit: (event: React.FormEvent) => void;
 }
+
+interface BookingFormFieldProps {
+  label: string;
+  type: string;
+  value: string;
+  onChange: (value: string) => void;
+  containerStyle?: React.CSSProperties;
+}
+
+const BookingFormField: React.FC<BookingFormFieldProps> = ({ label, type, value, onChange, containerStyle }) => (
+  <div style={containerStyle}>
+    <label style={labelStyle}>{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      required
+      style={inputStyle}
+    />
+  </div>
+);
 
 export const BookingForm: React.FC<BookingFormProps> = ({
   selectedSlot,
@@ -47,57 +83,20 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       </h2>
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: theme.spacing.md }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: theme.spacing.xs,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('auth.name')}
-          </label>
-          <input
-            type="text"
-            value={guestName}
-            onChange={event => onGuestNameChange(event.target.value)}
-            required
-            style={{
-              width: '100%',
-              padding: theme.spacing.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: theme.spacing.lg }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: theme.spacing.xs,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('auth.email')}
-          </label>
-          <input
-            type="email"
-            value={guestEmail}
-            onChange={event => onGuestEmailChange(event.target.value)}
-            required
-            style={{
-              width: '100%',
-              padding: theme.spacing.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-            }}
-          />
-        </div>
+        <BookingFormField
+          label={t('auth.name')}
+          type="text"
+          value={guestName}
+          onChange={onGuestNameChange}
+          containerStyle={{ marginBottom: theme.spacing.md }}
+        />
+        <BookingFormField
+          label={t('auth.email')}
+          type="email"
+          value={guestEmail}
+          onChange={onGuestEmailChange}
+          containerStyle={{ marginBottom: theme.spacing.lg }}
+        />
 
         <button
           type="submit"

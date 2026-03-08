@@ -19,6 +19,22 @@ const spinnerStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
+interface ProgressBarFillProps {
+  percentage: number;
+  isComplete: boolean;
+}
+
+const ProgressBarFill: React.FC<ProgressBarFillProps> = ({ percentage, isComplete }) => (
+  <div
+    style={{
+      width: `${percentage}%`,
+      height: '100%',
+      backgroundColor: isComplete ? theme.colors.accent.success : theme.colors.accent.warning,
+      transition: 'width 0.3s ease',
+    }}
+  />
+);
+
 export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = ({ progress, onDismiss }) => {
   const { t } = useTranslation();
 
@@ -89,14 +105,7 @@ export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = (
           marginBottom: theme.spacing.xs,
         }}
       >
-        <div
-          style={{
-            width: `${percentage}%`,
-            height: '100%',
-            backgroundColor: isComplete ? theme.colors.accent.success : theme.colors.accent.warning,
-            transition: 'width 0.3s ease',
-          }}
-        />
+        <ProgressBarFill percentage={percentage} isComplete={isComplete} />
       </div>
 
       <p

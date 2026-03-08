@@ -9,29 +9,22 @@ interface ResizableDividerProps {
   containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const ResizableDivider: React.FC<ResizableDividerProps> = ({
-  onResize,
-  onResizeStart,
-  onResizeEnd,
-  position,
-  containerRef,
-}) => {
-  const dividerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
+interface UseDragListenersParams {
+  isDraggingRef: React.MutableRefObject<boolean>;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  onResize: (newPosition: number) => void;
+  onResizeEnd: () => void;
+}
 
+function useDragListeners({ isDraggingRef, containerRef, onResize, onResizeEnd }: UseDragListenersParams) {
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!isDraggingRef.current || !containerRef?.current) {
         return;
       }
-
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
-      const containerWidth = containerRect.width;
-      const mouseX = event.clientX - containerRect.left;
-
-      // Calculate new position as percentage
-      const newPosition = (mouseX / containerWidth) * 100;
+      const newPosition = ((event.clientX - containerRect.left) / containerRect.width) * 100;
       onResize(newPosition);
     };
 
@@ -49,15 +42,10 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
         return;
       }
       event.preventDefault();
-
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
-      const containerWidth = containerRect.width;
-      const touch = event.touches[0];
-      const touchX = touch.clientX - containerRect.left;
-
-      const newPosition = (touchX / containerWidth) * 100;
-      onResize(newPosition);
+      const touchX = event.touches[0].clientX - containerRect.left;
+      onResize((touchX / containerRect.width) * 100);
     };
 
     const handleTouchEnd = () => {
@@ -80,7 +68,20 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [onResize, onResizeEnd, containerRef]);
+  }, [onResize, onResizeEnd, containerRef, isDraggingRef]);
+}
+
+export const ResizableDivider: React.FC<ResizableDividerProps> = ({
+  onResize,
+  onResizeStart,
+  onResizeEnd,
+  position,
+  containerRef,
+}) => {
+  const dividerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+
+  useDragListeners({ isDraggingRef, containerRef, onResize, onResizeEnd });
 
   const handleMouseDown = (event: React.MouseEvent) => {
     event.preventDefault();

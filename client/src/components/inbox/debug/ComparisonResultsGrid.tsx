@@ -9,8 +9,8 @@ interface ComparisonResultsGridProps {
 }
 
 export const ComparisonResultsGrid: React.FC<ComparisonResultsGridProps> = ({
-  inGmailNotInDb,
-  inDbNotInGmail,
+  inGmailNotInDb = [],
+  inDbNotInGmail = [],
   actionTabResults,
 }) => {
   const { t } = useTranslation();

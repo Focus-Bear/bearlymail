@@ -16,8 +16,8 @@ const getThreadKey = (thread: ThreadWithoutEmails, index: number): string => {
   return `thread-${thread.id}-${index}`;
 };
 
-export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> = ({ threads }) => {
-  if (threads.length === 0) {
+export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> = ({ threads = [] }) => {
+  if (!threads?.length) {
     return null;
   }
 

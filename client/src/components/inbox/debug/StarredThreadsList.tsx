@@ -38,7 +38,7 @@ const getBorderColor = (hasIssues: boolean): string => {
   return '#C3E6CB';
 };
 
-export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads }) => {
+export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads = [] }) => {
   return (
     <details>
       <summary
@@ -48,9 +48,9 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
           marginBottom: theme.spacing.sm,
         }}
       >
-        All Starred Threads in DB ({threads.length})
+        All Starred Threads in DB ({threads?.length ?? 0})
       </summary>
-      {threads.map((thread, index) => (
+      {(threads ?? []).map((thread, index) => (
         <div
           key={getThreadKey(thread, index)}
           style={{

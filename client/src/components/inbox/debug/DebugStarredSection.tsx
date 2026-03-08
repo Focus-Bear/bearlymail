@@ -78,8 +78,8 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
               actionTabResults={debugStarredData.actionTabResults}
             />
           )}
-          <MissingFromProcessTabList missingItems={debugStarredData.missingFromProcessTab} />
-          <StarredThreadsList threads={debugStarredData.starredThreads} />
+          <MissingFromProcessTabList missingItems={debugStarredData.missingFromProcessTab ?? []} />
+          <StarredThreadsList threads={debugStarredData.starredThreads ?? []} />
         </div>
       )}
 

@@ -26,10 +26,10 @@ const getOrphanEmailKey = (email: OrphanEmail, index: number): string => {
   return `orphan-${email.id}-${index}`;
 };
 
-export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({ orphanEmails, onFixOrphans, fixingOrphans }) => {
+export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({ orphanEmails = [], onFixOrphans, fixingOrphans }) => {
   const { t } = useTranslation();
 
-  if (orphanEmails.length === 0) {
+  if (!orphanEmails?.length) {
     return null;
   }
 

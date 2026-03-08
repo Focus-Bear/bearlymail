@@ -22,8 +22,8 @@ const getMissingItemKey = (item: MissingItem, index: number): string => {
   return `missing-${item.threadId}-${index}`;
 };
 
-export const MissingFromProcessTabList: React.FC<MissingFromProcessTabListProps> = ({ missingItems }) => {
-  if (missingItems.length === 0) {
+export const MissingFromProcessTabList: React.FC<MissingFromProcessTabListProps> = ({ missingItems = [] }) => {
+  if (!missingItems?.length) {
     return null;
   }
 

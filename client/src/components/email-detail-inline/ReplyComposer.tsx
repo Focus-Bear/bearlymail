@@ -88,26 +88,9 @@ interface ReplyComposerProps {
   onScheduleForMorning?: () => void;
 }
 
-const useReplyComposerState = (
-  initialAttachments: EmailAttachment[],
-  onClose: () => void,
-  onSend: ReplyComposerProps['onSend'],
-  onDraftChange: (draft: string) => void,
-  onUseRevisedText: (text: string) => void
-) => {
-  const [files, setFiles] = useState<File[]>([]);
-  const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
+const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
   const [isDragging, setIsDragging] = useState(false);
-  const prevAttachmentsRef = useRef<string>('');
   const dragCounterRef = useRef(0);
-
-  useEffect(() => {
-    const attachmentIdsString = initialAttachments.map(attachment => attachment.attachmentId).join(',');
-    if (attachmentIdsString !== prevAttachmentsRef.current) {
-      prevAttachmentsRef.current = attachmentIdsString;
-      setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
-    }
-  }, [initialAttachments]);
 
   const handleDragEnter = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -132,23 +115,50 @@ const useReplyComposerState = (
     event.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragging(false);
-    dragCounterRef.current = 0;
-    const droppedFiles = event.dataTransfer?.files;
-    if (droppedFiles && droppedFiles.length > 0) {
-      setFiles(prev => [...prev, ...Array.from(droppedFiles)]);
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragging(false);
+      dragCounterRef.current = 0;
+      const droppedFiles = event.dataTransfer?.files;
+      if (droppedFiles && droppedFiles.length > 0) {
+        onFilesAdded(Array.from(droppedFiles));
+      }
+    },
+    [onFilesAdded]
+  );
+
+  return { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop };
+};
+
+const useReplyComposerState = (
+  initialAttachments: EmailAttachment[],
+  onClose: () => void,
+  onSend: ReplyComposerProps['onSend'],
+  onDraftChange: (draft: string) => void,
+  onUseRevisedText: (text: string) => void
+) => {
+  const [files, setFiles] = useState<File[]>([]);
+  const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
+  const prevAttachmentsRef = useRef<string>('');
+
+  useEffect(() => {
+    const attachmentIdsString = initialAttachments.map(attachment => attachment.attachmentId).join(',');
+    if (attachmentIdsString !== prevAttachmentsRef.current) {
+      prevAttachmentsRef.current = attachmentIdsString;
+      setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
     }
-  }, []);
+  }, [initialAttachments]);
 
   const handlePasteFiles = useCallback((pastedFiles: File[]) => {
     setFiles(prev => [...prev, ...pastedFiles]);
   }, []);
+
   const handleRemoveForwardAttachment = (attachmentId: string) => {
     setForwardAttachmentIds(prev => prev.filter(id => id !== attachmentId));
   };
+
   const handleDraftChange = (newDraft: string) => {
     onDraftChange(newDraft);
   };
@@ -176,6 +186,7 @@ const useReplyComposerState = (
     setForwardAttachmentIds([]);
     onClose();
   };
+
   const handleUseRevisedText = (text: string) => {
     onUseRevisedText(text);
     handleSend(undefined, text, undefined, false);
@@ -185,11 +196,6 @@ const useReplyComposerState = (
     files,
     setFiles,
     forwardAttachmentIds,
-    isDragging,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
     handlePasteFiles,
     handleRemoveForwardAttachment,
     handleDraftChange,
@@ -199,72 +205,213 @@ const useReplyComposerState = (
   };
 };
 
+interface DragOverlayProps {
+  dropText: string;
+}
+
+const DragOverlay: React.FC<DragOverlayProps> = ({ dropText }) => (
+  <div
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.primary.light,
+      opacity: DRAG_OVERLAY_OPACITY,
+      borderRadius: theme.borderRadius.lg,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10,
+      pointerEvents: 'none',
+    }}
+  >
+    <div
+      style={{
+        padding: theme.spacing.xl,
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.md,
+        border: `2px dashed ${theme.colors.primary.main}`,
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: '2rem', marginBottom: theme.spacing.sm }}>📎</div>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: FONT_WEIGHT_SEMIBOLD,
+          color: theme.colors.primary.main,
+        }}
+      >
+        {dropText}
+      </div>
+    </div>
+  </div>
+);
+
+interface ReplyComposerBodyProps {
+  replyMode: ReplyComposerProps['replyMode'];
+  replyRecipients: string;
+  replyCc: string;
+  replyBcc: string;
+  showCc: boolean;
+  showBcc: boolean;
+  draft: string | null;
+  replyOptions: ReplyOption[] | null;
+  selectedReplyOption: number;
+  loadingReplies: boolean;
+  checkingTone: boolean;
+  toneCheckResult: ToneCheckResultData | null;
+  sending: boolean;
+  scheduledSendAt?: Date | null;
+  files: File[];
+  forwardAttachments: EmailAttachment[];
+  debugInfo?: ReplyGenerationDebugInfo | null;
+  currentEmailId?: string;
+  currentEmailObjectId?: string;
+  currentEmailThreadId?: string;
+  isAdmin: boolean;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  onDispute?: ReplyComposerProps['onDispute'];
+  disputing?: boolean;
+  disputeResult?: DisputeResult | null;
+  onScheduleForMorning?: () => void;
+  onReplyRecipientsChange: (recipients: string) => void;
+  onCcChange: (cc: string) => void;
+  onBccChange: (bcc: string) => void;
+  onShowCc: () => void;
+  onShowBcc: () => void;
+  onReplyOptionSelect: (index: number, text: string) => void;
+  onDraftChange: (draft: string) => void;
+  onPasteFiles: (pastedFiles: File[]) => void;
+  onFilesChange: (files: File[]) => void;
+  onRemoveForwardAttachment: (attachmentId: string) => void;
+  onUseRevisedText: (text: string) => void;
+  onClose: () => void;
+  onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledAt?: Date, keepInAction?: boolean) => void;
+  onSchedule?: () => void;
+  onClearSchedule?: () => void;
+}
+
+const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
+  replyMode, replyRecipients, replyCc, replyBcc, showCc, showBcc,
+  draft, replyOptions, selectedReplyOption, loadingReplies,
+  checkingTone, toneCheckResult, sending, scheduledSendAt,
+  files, forwardAttachments, debugInfo, currentEmailId,
+  currentEmailObjectId, currentEmailThreadId, isAdmin, textareaRef,
+  onDispute, disputing, disputeResult, onScheduleForMorning,
+  onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
+  onReplyOptionSelect, onDraftChange, onPasteFiles, onFilesChange,
+  onRemoveForwardAttachment, onUseRevisedText, onClose, onSend,
+  onSchedule, onClearSchedule,
+}) => (
+  <>
+    <ReplyComposerHeader replyMode={replyMode} onClose={onClose} />
+    <ReplyRecipientsInput
+      replyRecipients={replyRecipients}
+      replyCc={replyCc}
+      replyBcc={replyBcc}
+      showCc={showCc}
+      showBcc={showBcc}
+      onRecipientsChange={onReplyRecipientsChange}
+      onCcChange={onCcChange}
+      onBccChange={onBccChange}
+      onShowCc={onShowCc}
+      onShowBcc={onShowBcc}
+    />
+    <ReplyOptionsSelector
+      loadingReplies={loadingReplies}
+      replyOptions={replyOptions}
+      selectedReplyOption={selectedReplyOption}
+      onSelect={onReplyOptionSelect}
+    />
+    <ReplyDraftTextarea
+      draft={draft}
+      loadingReplies={loadingReplies}
+      hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)}
+      onDraftChange={onDraftChange}
+      textareaRef={textareaRef}
+      onPasteFiles={onPasteFiles}
+    />
+    <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
+    <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
+    <ToneCheckResult
+      toneCheckResult={toneCheckResult}
+      onUseRevisedText={onUseRevisedText}
+      emailText={draft || ''}
+      onDispute={onDispute}
+      disputing={disputing}
+      disputeResult={disputeResult}
+      onScheduleForMorning={onScheduleForMorning}
+    />
+    {isAdmin && (
+      <ReplyComposerDebugPanel
+        debugInfo={debugInfo}
+        currentEmailId={currentEmailId}
+        currentEmailObjectId={currentEmailObjectId}
+        currentEmailThreadId={currentEmailThreadId}
+        replyOptions={replyOptions}
+      />
+    )}
+    <ReplyComposerFooter
+      sending={sending}
+      checkingTone={checkingTone}
+      draft={draft}
+      scheduledSendAt={scheduledSendAt}
+      onClose={onClose}
+      onSend={onSend}
+      onSchedule={onSchedule}
+      onClearSchedule={onClearSchedule}
+    />
+  </>
+);
+
 export const ReplyComposer: React.FC<ReplyComposerProps> = ({
-  showReplyComposer,
-  replyMode,
-  replyRecipients,
-  replyCc,
-  replyBcc,
-  showCc,
-  showBcc,
-  draft,
-  replyOptions,
-  selectedReplyOption,
-  loadingReplies,
-  checkingTone,
-  toneCheckResult,
-  sending,
-  initialAttachments,
-  debugInfo,
-  currentEmailId,
-  currentEmailObjectId,
-  currentEmailThreadId,
-  scheduledSendAt,
-  onReplyRecipientsChange,
-  onCcChange,
-  onBccChange,
-  onShowCc,
-  onShowBcc,
-  onDraftChange,
-  onReplyOptionSelect,
-  onClose,
-  onSend,
-  onUseRevisedText,
-  textareaRef,
-  onDispute,
-  disputing,
-  disputeResult,
-  onSchedule,
-  onClearSchedule,
+  showReplyComposer, replyMode, replyRecipients, replyCc, replyBcc,
+  showCc, showBcc, draft, replyOptions, selectedReplyOption,
+  loadingReplies, checkingTone, toneCheckResult, sending,
+  initialAttachments, debugInfo, currentEmailId, currentEmailObjectId,
+  currentEmailThreadId, scheduledSendAt, onReplyRecipientsChange,
+  onCcChange, onBccChange, onShowCc, onShowBcc, onDraftChange,
+  onReplyOptionSelect, onClose, onSend, onUseRevisedText, textareaRef,
+  onDispute, disputing, disputeResult, onSchedule, onClearSchedule,
   onScheduleForMorning,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
   const attachments = initialAttachments ?? EMPTY_ATTACHMENTS;
   const {
-    files,
-    setFiles,
-    forwardAttachmentIds,
-    isDragging,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
-    handlePasteFiles,
-    handleRemoveForwardAttachment,
-    handleDraftChange,
-    handleSend,
-    handleClose,
-    handleUseRevisedText,
+    files, setFiles, forwardAttachmentIds,
+    handlePasteFiles, handleRemoveForwardAttachment,
+    handleDraftChange, handleSend, handleClose, handleUseRevisedText,
   } = useReplyComposerState(attachments, onClose, onSend, onDraftChange, onUseRevisedText);
+  const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragFiles(
+    newFiles => setFiles(prev => [...prev, ...newFiles])
+  );
 
   if (!showReplyComposer) {
     return null;
   }
 
-  const forwardAttachmentsToShow = attachments.filter(attachment =>
-    forwardAttachmentIds.includes(attachment.attachmentId)
+  const forwardAttachmentsToShow = attachments.filter(
+    attachment => forwardAttachmentIds.includes(attachment.attachmentId)
   );
+  const bodyProps: ReplyComposerBodyProps = {
+    replyMode, replyRecipients, replyCc, replyBcc, showCc, showBcc,
+    draft, replyOptions, selectedReplyOption, loadingReplies,
+    checkingTone, toneCheckResult, sending, scheduledSendAt,
+    files, forwardAttachments: forwardAttachmentsToShow,
+    debugInfo, currentEmailId, currentEmailObjectId, currentEmailThreadId,
+    isAdmin: !!user?.isAdmin, textareaRef,
+    onDispute, disputing, disputeResult, onScheduleForMorning,
+    onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
+    onReplyOptionSelect, onDraftChange: handleDraftChange,
+    onPasteFiles: handlePasteFiles, onFilesChange: setFiles,
+    onRemoveForwardAttachment: handleRemoveForwardAttachment,
+    onUseRevisedText: handleUseRevisedText,
+    onClose: handleClose, onSend: handleSend, onSchedule, onClearSchedule,
+  };
 
   return (
     <div
@@ -283,103 +430,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         position: 'relative',
       }}
     >
-      {isDragging && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: theme.colors.primary.light,
-            opacity: DRAG_OVERLAY_OPACITY,
-            borderRadius: theme.borderRadius.lg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            style={{
-              padding: theme.spacing.xl,
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.md,
-              border: `2px dashed ${theme.colors.primary.main}`,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: '2rem', marginBottom: theme.spacing.sm }}>📎</div>
-            <div
-              style={{
-                fontSize: theme.typography.fontSize.lg,
-                fontWeight: FONT_WEIGHT_SEMIBOLD,
-                color: theme.colors.primary.main,
-              }}
-            >
-              {t('compose.dropFilesToAttach')}
-            </div>
-          </div>
-        </div>
-      )}
-      <ReplyComposerHeader replyMode={replyMode} onClose={handleClose} />
-      <ReplyRecipientsInput
-        replyRecipients={replyRecipients}
-        replyCc={replyCc}
-        replyBcc={replyBcc}
-        showCc={showCc}
-        showBcc={showBcc}
-        onRecipientsChange={onReplyRecipientsChange}
-        onCcChange={onCcChange}
-        onBccChange={onBccChange}
-        onShowCc={onShowCc}
-        onShowBcc={onShowBcc}
-      />
-      <ReplyOptionsSelector
-        loadingReplies={loadingReplies}
-        replyOptions={replyOptions}
-        selectedReplyOption={selectedReplyOption}
-        onSelect={onReplyOptionSelect}
-      />
-      <ReplyDraftTextarea
-        draft={draft}
-        loadingReplies={loadingReplies}
-        hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)}
-        onDraftChange={handleDraftChange}
-        textareaRef={textareaRef}
-        onPasteFiles={handlePasteFiles}
-      />
-      <ReplyComposerAttachments files={files} onFilesChange={setFiles} />
-      <ForwardedAttachmentsList attachments={forwardAttachmentsToShow} onRemove={handleRemoveForwardAttachment} />
-      <ToneCheckResult
-        toneCheckResult={toneCheckResult}
-        onUseRevisedText={handleUseRevisedText}
-        emailText={draft || ''}
-        onDispute={onDispute}
-        disputing={disputing}
-        disputeResult={disputeResult}
-        onScheduleForMorning={onScheduleForMorning}
-      />
-      {user?.isAdmin && (
-        <ReplyComposerDebugPanel
-          debugInfo={debugInfo}
-          currentEmailId={currentEmailId}
-          currentEmailObjectId={currentEmailObjectId}
-          currentEmailThreadId={currentEmailThreadId}
-          replyOptions={replyOptions}
-        />
-      )}
-      <ReplyComposerFooter
-        sending={sending}
-        checkingTone={checkingTone}
-        draft={draft}
-        scheduledSendAt={scheduledSendAt}
-        onClose={handleClose}
-        onSend={handleSend}
-        onSchedule={onSchedule}
-        onClearSchedule={onClearSchedule}
-      />
+      {isDragging && <DragOverlay dropText={t('compose.dropFilesToAttach')} />}
+      <ReplyComposerBody {...bodyProps} />
     </div>
   );
 };

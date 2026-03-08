@@ -17,6 +17,70 @@ interface SchedulingRequestCardProps {
   onDraftReply?: (draft: string) => void;
 }
 
+interface SchedulingActionButtonsProps {
+  linkCopied: boolean;
+  drafting: boolean;
+  onCopyLink: () => void;
+  onDraftReply: () => void;
+}
+
+const SchedulingActionButtons: React.FC<SchedulingActionButtonsProps> = ({
+  linkCopied,
+  drafting,
+  onCopyLink,
+  onDraftReply,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+      <button
+        onClick={onCopyLink}
+        style={{
+          flex: 1,
+          minWidth: '120px',
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.md,
+          fontWeight: theme.typography.fontWeight.semibold,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: theme.spacing.xs,
+        }}
+      >
+        {linkCopied ? t('emailDetail.schedulingRequest.linkCopied') : t('emailDetail.schedulingRequest.copyLink')}
+      </button>
+
+      <button
+        onClick={onDraftReply}
+        disabled={drafting}
+        style={{
+          flex: 1,
+          minWidth: '120px',
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: drafting ? theme.colors.border.medium : 'transparent',
+          color: drafting ? 'white' : theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          fontWeight: theme.typography.fontWeight.semibold,
+          cursor: drafting ? 'not-allowed' : 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: theme.spacing.xs,
+        }}
+      >
+        {drafting ? t('emailDetail.schedulingRequest.drafting') : t('emailDetail.schedulingRequest.draftReply')}
+      </button>
+    </div>
+  );
+};
+
 export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -86,52 +150,12 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
         {t('emailDetail.schedulingRequest.description')}
       </div>
 
-      <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-        <button
-          onClick={handleCopyLink}
-          style={{
-            flex: 1,
-            minWidth: '120px',
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.md,
-            fontWeight: theme.typography.fontWeight.semibold,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.xs,
-          }}
-        >
-          {linkCopied ? t('emailDetail.schedulingRequest.linkCopied') : t('emailDetail.schedulingRequest.copyLink')}
-        </button>
-
-        <button
-          onClick={handleDraftReply}
-          disabled={drafting}
-          style={{
-            flex: 1,
-            minWidth: '120px',
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: drafting ? theme.colors.border.medium : 'transparent',
-            color: drafting ? 'white' : theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            fontWeight: theme.typography.fontWeight.semibold,
-            cursor: drafting ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.xs,
-          }}
-        >
-          {drafting ? t('emailDetail.schedulingRequest.drafting') : t('emailDetail.schedulingRequest.draftReply')}
-        </button>
-      </div>
+      <SchedulingActionButtons
+        linkCopied={linkCopied}
+        drafting={drafting}
+        onCopyLink={handleCopyLink}
+        onDraftReply={handleDraftReply}
+      />
     </div>
   );
 };

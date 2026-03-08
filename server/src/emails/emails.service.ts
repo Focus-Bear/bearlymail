@@ -637,12 +637,48 @@ export class EmailsService {
     );
     const hasMore = queryOffset + finalEmails.length < total;
 
+    // Enrich emails with category_id (UUID from UserContext) so the client
+    // can group by a stable UUID rather than doing fragile name-based re-keying.
+    const categoryNameToId = await this.getCategoryNameToIdMap(userId);
+    for (const email of finalEmails) {
+      const emailWithMeta = email as Email & { category_id?: string | null };
+      const categoryName = (email as Email & { category?: string | null })
+        .category;
+      emailWithMeta.category_id = categoryName
+        ? (categoryNameToId.get(categoryName) ?? null)
+        : null;
+    }
+
     this.logger.log(
       `getInbox(${mode}): Returning ${finalEmails.length}/${total} threads (from ${rawEmails.length} matching threads, ${blockedCount} blocked)`,
     );
 
     perf.finish(mode);
     return { emails: finalEmails, total, hasMore };
+  }
+
+  /**
+   * Build a map from category name → context UUID for the given user.
+   * Categories are stored as UserContext entries with key EMAIL_CATEGORY;
+   * the contextValue format is "Category Name - Description" or "Category Name".
+   * Re-uses the same lookup pattern as getInboxSummary.
+   */
+  private async getCategoryNameToIdMap(
+    userId: string,
+  ): Promise<Map<string, string>> {
+    const categoryContexts = await this.userContextRepository.find({
+      where: {
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+      },
+      select: ["contextId", "contextValue"],
+    });
+    const map = new Map<string, string>();
+    for (const ctx of categoryContexts) {
+      const categoryName = ctx.contextValue.split(" - ")[0].trim();
+      map.set(categoryName, ctx.contextId);
+    }
+    return map;
   }
 
   private async runInboxQuery(

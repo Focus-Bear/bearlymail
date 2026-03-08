@@ -75,6 +75,9 @@ export interface Email {
   phishingReason?: string | null;
   // Email category for grouping (e.g., Newsletters, Sales, Customer Support)
   category?: string | null;
+  // UUID of the UserContext entry for this category — stable identifier returned by the server.
+  // Use this as the primary key for category grouping; falls back to `category` name when absent.
+  category_id?: string | null;
   // Explanation of why this category was chosen (especially useful for "Other")
   categoryExplanation?: string | null;
   // Proto category name for emails in "Other" category

@@ -403,11 +403,16 @@ export const groupEmailsByCategory = (emails: Email[], mode?: InboxMode): Catego
     // their server-assigned category, so they are never buried in a regular inbox group.
     const isPhishing =
       email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
-    const category = isPhishing ? CATEGORY_DANGEROUS_PHISHING : email.category || CATEGORY_OTHER;
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, []);
+    // Use category_id (UUID) as the stable group key when provided by the server.
+    // This avoids encoding/whitespace mismatches with the summary's UUID-based keys.
+    // Falls back to the category name string for auto-responded and legacy emails.
+    const categoryKey = isPhishing
+      ? CATEGORY_DANGEROUS_PHISHING
+      : email.category_id ?? email.category ?? CATEGORY_OTHER;
+    if (!categoryMap.has(categoryKey)) {
+      categoryMap.set(categoryKey, []);
     }
-    categoryMap.get(category)!.push(email);
+    categoryMap.get(categoryKey)!.push(email);
   });
 
   const groups: CategoryGroup[] = [];

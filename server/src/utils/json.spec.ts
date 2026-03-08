@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
-import { safeJsonParse, isLikelyCompleteJson } from "./json";
+
+import { isLikelyCompleteJson, safeJsonParse } from "./json";
 
 describe("safeJsonParse", () => {
   beforeEach(() => {

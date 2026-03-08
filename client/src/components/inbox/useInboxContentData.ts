@@ -90,23 +90,12 @@ export function useInboxContentData({
 
   const emailCategoryMap = useMemo(() => {
     const map = new Map<string, { category: string; emails: Email[] }>();
+    // groupEmailsByCategory now keys by email.category_id (UUID) when the server provides it,
+    // falling back to the category name. This matches getCategoryKey(cat.id, cat.name) used
+    // by stableCategoryOrder, so no re-keying is needed.
     groupEmailsByCategory(filteredEmails, mode).forEach(group => map.set(group.category, group));
-
-    // Re-key by UUID when category summary provides IDs.
-    // groupEmailsByCategory keys by email.category (a name string from the server).
-    // stableCategoryOrder / displayCategories use getCategoryKey(cat.id, cat.name) which
-    // returns the UUID, so without this re-keying every accordion lookup returns undefined.
-    if (categorySummary) {
-      const nameToKey = new Map(categorySummary.map(cat => [cat.name, getCategoryKey(cat.id, cat.name)]));
-      const rekeyed = new Map<string, { category: string; emails: Email[] }>();
-      map.forEach((value, key) => {
-        const uuidKey = nameToKey.get(key);
-        rekeyed.set(uuidKey ?? key, { ...value, category: uuidKey ?? key });
-      });
-      return rekeyed;
-    }
     return map;
-  }, [filteredEmails, mode, categorySummary]);
+  }, [filteredEmails, mode]);
 
   const otherProtoGroups = useMemo(() => {
     const otherEmails = emailCategoryMap.get(CATEGORY_OTHER)?.emails ?? [];

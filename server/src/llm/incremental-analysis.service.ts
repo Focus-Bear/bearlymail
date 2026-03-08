@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { safeJsonParse } from "../utils/json";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -9,7 +10,6 @@ import {
   LLM_OP_INCREMENTAL_SUMMARY,
 } from "./llm-operations";
 import { getPrompt, renderPrompt } from "./prompts";
-import { safeJsonParse } from "../utils/json";
 
 export interface IncrementalPriorityCheckResult {
   needsFullRecalc: boolean;

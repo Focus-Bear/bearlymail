@@ -228,14 +228,14 @@ async function fetchCategoryEmailsImpl({
   try {
     const params = buildCategoryParams(categoryKey);
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-    // Normalize email.category to the UUID key so emailCategoryMap lookups are stable
-    // regardless of how the server formats the name in the email record.
-    const normalizedEmails = normalizeCategoryEmails(response.data.emails, categoryKey);
+    // Emails now include category_id (UUID) from the server, so groupEmailsByCategory
+    // keys by UUID directly. No normalization needed.
+    const emails: Email[] = response.data.emails;
     if (fetchSessionRef.current !== sessionId) {
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
-    dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
+    dispatch(updateCategoryEmails({ categoryKey, emails }));
     dispatch(markCategoryLoaded(categoryKey));
     console.log(
       '[Accordion] Loaded category:',
@@ -256,15 +256,6 @@ async function fetchCategoryEmailsImpl({
       dispatch(markCategoryLoadFailed(categoryKey));
     }
   }
-}
-
-/**
- * Normalize emails so that email.category equals the category key (UUID or name).
- * This ensures emailCategoryMap lookups always work regardless of how the server
- * formats the category name in the returned email records.
- */
-function normalizeCategoryEmails(emails: any[], categoryKey: string) {
-  return emails.map((email: any) => (email.category !== categoryKey ? { ...email, category: categoryKey } : email));
 }
 
 /** Extracted: refresh inbox in-place without clearing state. */
@@ -312,8 +303,9 @@ async function refreshInPlaceImpl({
       try {
         const catParams = buildCategoryParams(categoryKey);
         const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
-        const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryKey);
-        dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
+        // Emails now include category_id (UUID) from the server; no normalization needed.
+        const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
+        dispatch(updateCategoryEmails({ categoryKey, emails }));
       } catch (err) {
         console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
       }

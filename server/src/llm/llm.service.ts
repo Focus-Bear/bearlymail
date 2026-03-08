@@ -7,7 +7,6 @@ import {
   RECENCY_THRESHOLDS,
   TIME_FORMATTING,
 } from "../constants/llm-constants";
-import { safeJsonParse, isLikelyCompleteJson } from "../utils/json";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import {
@@ -17,6 +16,7 @@ import {
 } from "../constants/time-constants";
 import { StructuralError } from "../errors/structural-error";
 import { getErrorMessage } from "../types/common";
+import { isLikelyCompleteJson, safeJsonParse } from "../utils/json";
 import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMRequest } from "./llm.types";
 import { LLMProvider } from "./llm.types";
@@ -195,10 +195,8 @@ export class LLMService {
           ? (() => {
               const ws = parsed.writingStyle as Record<string, unknown>;
               return {
-                tone:
-                  (ws.tone as string | undefined) || "Professional",
-                style:
-                  (ws.style as string | undefined) || "Concise",
+                tone: (ws.tone as string | undefined) || "Professional",
+                style: (ws.style as string | undefined) || "Concise",
                 commonPhrases: Array.isArray(ws.commonPhrases)
                   ? (ws.commonPhrases as string[])
                   : [],
@@ -799,23 +797,27 @@ export class LLMService {
       "parseAndFilterActions",
     );
     if (!parsed) return [];
-    type ParsedAction = { type: string; confidence: number; reason: string; metadata?: Record<string, unknown>; [key: string]: unknown };
-    const actions = (Array.isArray(parsed.actions) ? parsed.actions : []) as ParsedAction[];
+    type ParsedAction = {
+      type: string;
+      confidence: number;
+      reason: string;
+      metadata?: Record<string, unknown>;
+      [key: string]: unknown;
+    };
+    const actions = (
+      Array.isArray(parsed.actions) ? parsed.actions : []
+    ) as ParsedAction[];
     return actions.filter((action) => {
-        if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
-        if (
-          action.type?.startsWith("github_") &&
-          !emailMetadata?.hasGithubToken
-        )
-          return false;
-        if (
-          action.type?.startsWith("calendar_") &&
-          !emailMetadata?.hasCalendarToken
-        )
-          return false;
-        return true;
-      },
-    );
+      if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
+      if (action.type?.startsWith("github_") && !emailMetadata?.hasGithubToken)
+        return false;
+      if (
+        action.type?.startsWith("calendar_") &&
+        !emailMetadata?.hasCalendarToken
+      )
+        return false;
+      return true;
+    });
   }
 
   async detectSuggestedActions(

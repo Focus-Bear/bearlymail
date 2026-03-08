@@ -38,6 +38,28 @@ const PROVIDER_NAMES: Record<string, string> = {
 const getProviderColor = (provider: string): string => PROVIDER_COLORS[provider] || theme.colors.primary.main;
 const getProviderName = (provider: string): string => PROVIDER_NAMES[provider] || provider;
 
+function buildAllAccounts(
+  googleAccounts: EmailAccountsSectionProps['googleAccounts'],
+  office365Accounts: EmailAccountsSectionProps['office365Accounts'],
+  zohoAccounts: EmailAccountsSectionProps['zohoAccounts']
+): EmailAccount[] {
+  return [
+    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL as const })),
+    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
+    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO as const })),
+  ];
+}
+
+function getDisconnectConfirmKey(provider: string): string {
+  if (provider === PROVIDER_GMAIL) {
+    return 'settings.gmail.confirmDisconnect';
+  }
+  if (provider === PROVIDER_OFFICE365) {
+    return 'settings.office365.confirmDisconnect';
+  }
+  return 'settings.zoho.confirmDisconnect';
+}
+
 interface EmailAccountRowProps {
   account: EmailAccount;
   t: (k: string) => string;
@@ -143,22 +165,39 @@ const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrim
   </div>
 );
 
-export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
-  googleAccounts,
-  office365Accounts,
-  zohoAccounts,
-  onFetchData,
-}) => {
-  const { t } = useTranslation();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+interface AccountsEmptyStateProps {
+  t: (k: string) => string;
+  onConnect: () => void;
+}
 
-  // Combine all accounts with provider info
-  const allAccounts: EmailAccount[] = [
-    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL as const })),
-    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
-    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO as const })),
-  ];
+const AccountsEmptyState: React.FC<AccountsEmptyStateProps> = ({ t, onConnect }) => (
+  <div style={{ textAlign: 'center', padding: theme.spacing.xl }}>
+    <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md }}>
+      {t('settings.emailAccounts.noAccounts')}
+    </p>
+    <button
+      onClick={onConnect}
+      style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        backgroundColor: theme.colors.primary.main,
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
+        borderRadius: theme.borderRadius.md,
+        fontSize: theme.typography.fontSize.sm,
+        cursor: 'pointer',
+      }}
+    >
+      {t('settings.emailAccounts.connect')}
+    </button>
+  </div>
+);
 
+interface UseEmailAccountHandlersParams {
+  onFetchData: () => Promise<void>;
+  t: (k: string) => string;
+}
+
+function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersParams) {
   const handleConnectProvider = async (
     provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
   ) => {
@@ -177,17 +216,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     id: string,
     provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
   ) => {
-    const getConfirmKey = () => {
-      if (provider === PROVIDER_GMAIL) {
-        return 'settings.gmail.confirmDisconnect';
-      }
-      if (provider === PROVIDER_OFFICE365) {
-        return 'settings.office365.confirmDisconnect';
-      }
-      return 'settings.zoho.confirmDisconnect';
-    };
-    const confirmKey = getConfirmKey();
-
+    const confirmKey = getDisconnectConfirmKey(provider);
     if (window.confirm(t(confirmKey))) {
       try {
         const endpoint = provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider;
@@ -211,6 +240,20 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
       console.error(`Error setting primary ${provider} account:`, error);
     }
   };
+
+  return { handleConnectProvider, handleDisconnect, handleSetPrimary };
+}
+
+export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
+  googleAccounts,
+  office365Accounts,
+  zohoAccounts,
+  onFetchData,
+}) => {
+  const { t } = useTranslation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { handleConnectProvider, handleDisconnect, handleSetPrimary } = useEmailAccountHandlers({ onFetchData, t });
+  const allAccounts = buildAllAccounts(googleAccounts, office365Accounts, zohoAccounts);
 
   return (
     <>
@@ -236,25 +279,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
         </h3>
 
         {allAccounts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: theme.spacing.xl }}>
-            <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md }}>
-              {t('settings.emailAccounts.noAccounts')}
-            </p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: 'pointer',
-              }}
-            >
-              {t('settings.emailAccounts.connect')}
-            </button>
-          </div>
+          <AccountsEmptyState t={t} onConnect={() => setIsModalOpen(true)} />
         ) : (
           <>
             {allAccounts.map(account => (

@@ -19,12 +19,86 @@ interface Office365AccountsSectionProps {
   onFetchData: () => Promise<void>;
 }
 
-export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> = ({
-  office365Accounts,
-  onFetchData,
-}) => {
-  const { t } = useTranslation();
+interface Office365AccountRowProps {
+  account: Office365Account;
+  t: (k: string) => string;
+  onSetPrimary: (id: string) => void;
+  onDisconnect: (id: string) => void;
+}
 
+const Office365AccountRow: React.FC<Office365AccountRowProps> = ({ account, t, onSetPrimary, onDisconnect }) => (
+  <div
+    style={{
+      padding: theme.spacing.md,
+      border: `1px solid ${theme.colors.border.medium}`,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.sm,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    }}
+  >
+    <div>
+      <div style={{ fontWeight: theme.typography.fontWeight.medium }}>{account.email}</div>
+      {account.name && (
+        <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+          {account.name}
+        </div>
+      )}
+      {account.isPrimary && (
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.primary.main,
+            marginLeft: theme.spacing.sm,
+          }}
+        >
+          {t('settings.gmail.primary')}
+        </span>
+      )}
+    </div>
+    <div>
+      {!account.isPrimary && (
+        <button
+          onClick={() => onSetPrimary(account.id)}
+          style={{
+            marginRight: theme.spacing.sm,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.primary.main,
+            border: `1px solid ${theme.colors.primary.main}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.xs,
+            cursor: 'pointer',
+          }}
+        >
+          {t('settings.gmail.setPrimary')}
+        </button>
+      )}
+      <button
+        onClick={() => onDisconnect(account.id)}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.accent.error,
+          border: `1px solid ${theme.colors.accent.error}`,
+          borderRadius: theme.borderRadius.sm,
+          fontSize: theme.typography.fontSize.xs,
+          cursor: 'pointer',
+        }}
+      >
+        {t('settings.gmail.disconnect')}
+      </button>
+    </div>
+  </div>
+);
+
+interface UseOffice365AccountHandlersParams {
+  onFetchData: () => Promise<void>;
+  t: (k: string) => string;
+}
+
+function useOffice365AccountHandlers({ onFetchData, t }: UseOffice365AccountHandlersParams) {
   const handleDisconnect = async (id: string) => {
     if (window.confirm(t('settings.office365.confirmDisconnect'))) {
       try {
@@ -43,6 +117,20 @@ export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> =
     } catch (error) {
       console.error('Error setting primary account:', error);
     }
+  };
+
+  return { handleDisconnect, handleSetPrimary };
+}
+
+export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> = ({
+  office365Accounts,
+  onFetchData,
+}) => {
+  const { t } = useTranslation();
+  const { handleDisconnect, handleSetPrimary } = useOffice365AccountHandlers({ onFetchData, t });
+  const connectUrl = `${API_URL}/office365-accounts/connect`;
+  const handleConnectClick = () => {
+    window.location.href = connectUrl;
   };
 
   return (
@@ -73,9 +161,7 @@ export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> =
             {t('settings.office365.noAccounts')}
           </p>
           <button
-            onClick={() => {
-              window.location.href = `${API_URL}/office365-accounts/connect`;
-            }}
+            onClick={handleConnectClick}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: theme.colors.primary.main,
@@ -92,76 +178,16 @@ export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> =
       ) : (
         <>
           {office365Accounts.map(account => (
-            <div
+            <Office365AccountRow
               key={account.id}
-              style={{
-                padding: theme.spacing.md,
-                border: `1px solid ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                marginBottom: theme.spacing.sm,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: theme.typography.fontWeight.medium }}>{account.email}</div>
-                {account.name && (
-                  <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-                    {account.name}
-                  </div>
-                )}
-                {account.isPrimary && (
-                  <span
-                    style={{
-                      fontSize: theme.typography.fontSize.xs,
-                      color: theme.colors.primary.main,
-                      marginLeft: theme.spacing.sm,
-                    }}
-                  >
-                    {t('settings.gmail.primary')}
-                  </span>
-                )}
-              </div>
-              <div>
-                {!account.isPrimary && (
-                  <button
-                    onClick={() => handleSetPrimary(account.id)}
-                    style={{
-                      marginRight: theme.spacing.sm,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: COLOR_TRANSPARENT,
-                      color: theme.colors.primary.main,
-                      border: `1px solid ${theme.colors.primary.main}`,
-                      borderRadius: theme.borderRadius.sm,
-                      fontSize: theme.typography.fontSize.xs,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {t('settings.gmail.setPrimary')}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDisconnect(account.id)}
-                  style={{
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    backgroundColor: COLOR_TRANSPARENT,
-                    color: theme.colors.accent.error,
-                    border: `1px solid ${theme.colors.accent.error}`,
-                    borderRadius: theme.borderRadius.sm,
-                    fontSize: theme.typography.fontSize.xs,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('settings.gmail.disconnect')}
-                </button>
-              </div>
-            </div>
+              account={account}
+              t={t}
+              onSetPrimary={handleSetPrimary}
+              onDisconnect={handleDisconnect}
+            />
           ))}
           <button
-            onClick={() => {
-              window.location.href = `${API_URL}/office365-accounts/connect`;
-            }}
+            onClick={handleConnectClick}
             style={{
               marginTop: theme.spacing.md,
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,

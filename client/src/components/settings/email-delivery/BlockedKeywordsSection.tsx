@@ -23,27 +23,24 @@ interface BlockedKeywordsSectionProps {
   onAddKeyword: (keyword: string, exactMatch: boolean, reason?: string) => Promise<void>;
 }
 
-export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
-  blockedKeywords,
-  onUnblockKeyword,
-  onAddKeyword,
-}) => {
-  const { t } = useTranslation();
+interface AddKeywordFormProps {
+  t: (k: string) => string;
+  onAdd: (keyword: string, exactMatch: boolean) => Promise<void>;
+}
+
+const AddKeywordForm: React.FC<AddKeywordFormProps> = ({ t, onAdd }) => {
   const [newKeyword, setNewKeyword] = useState('');
   const [exactMatch, setExactMatch] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const itemCount = blockedKeywords.length;
 
-  const handleAddKeyword = async () => {
+  const handleAdd = async () => {
     if (!newKeyword.trim()) {
       return;
     }
-
     captureEvent('blocked_keyword_added', { exact_match: exactMatch });
     setIsAdding(true);
     try {
-      await onAddKeyword(newKeyword.trim(), exactMatch);
+      await onAdd(newKeyword.trim(), exactMatch);
       setNewKeyword('');
       setExactMatch(false);
     } catch (error) {
@@ -55,9 +52,115 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === KEY_ENTER && !isAdding) {
-      handleAddKeyword();
+      handleAdd();
     }
   };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.lg,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}
+    >
+      <input
+        type="text"
+        value={newKeyword}
+        onChange={event => setNewKeyword(event.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder={t('settings.blockedKeywords.placeholder')}
+        style={{
+          flex: 1,
+          minWidth: '200px',
+          padding: theme.spacing.sm,
+          borderRadius: theme.borderRadius.md,
+          border: `1px solid ${theme.colors.border.light}`,
+          fontSize: theme.typography.fontSize.sm,
+          backgroundColor: theme.colors.background.subtle,
+          color: theme.colors.text.primary,
+        }}
+      />
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          cursor: 'pointer',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={exactMatch}
+          onChange={event => setExactMatch(event.target.checked)}
+          style={{ cursor: 'pointer' }}
+        />
+        {t('settings.blockedKeywords.exactMatchLabel')}
+      </label>
+      <button
+        onClick={handleAdd}
+        disabled={!newKeyword.trim() || isAdding}
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.md,
+          cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
+          fontSize: theme.typography.fontSize.sm,
+          opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
+        }}
+      >
+        {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}
+      </button>
+    </div>
+  );
+};
+
+interface BlockedKeywordsListProps {
+  keywords: BlockedKeyword[];
+  onUnblock: (id: string) => Promise<void>;
+  t: (k: string) => string;
+}
+
+const BlockedKeywordsList: React.FC<BlockedKeywordsListProps> = ({ keywords, onUnblock, t }) => {
+  if (keywords.length === 0) {
+    return (
+      <div
+        style={{
+          padding: theme.spacing.xl,
+          textAlign: 'center',
+          color: theme.colors.text.secondary,
+          border: `2px dashed ${theme.colors.border.light}`,
+          borderRadius: theme.borderRadius.md,
+        }}
+      >
+        {t('settings.blockedKeywords.emptyState')}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+      {keywords.map(keyword => (
+        <BlockedKeywordItem key={keyword.id} keyword={keyword} onUnblock={onUnblock} />
+      ))}
+    </div>
+  );
+};
+
+export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
+  blockedKeywords,
+  onUnblockKeyword,
+  onAddKeyword,
+}) => {
+  const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const itemCount = blockedKeywords.length;
 
   return (
     <div
@@ -124,88 +227,8 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
           >
             {t('settings.blockedKeywords.description')}
           </p>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: theme.spacing.sm,
-              marginBottom: theme.spacing.lg,
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
-          >
-            <input
-              type="text"
-              value={newKeyword}
-              onChange={event => setNewKeyword(event.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={t('settings.blockedKeywords.placeholder')}
-              style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: theme.spacing.sm,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border.light}`,
-                fontSize: theme.typography.fontSize.sm,
-                backgroundColor: theme.colors.background.subtle,
-                color: theme.colors.text.primary,
-              }}
-            />
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: 'pointer',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={exactMatch}
-                onChange={event => setExactMatch(event.target.checked)}
-                style={{ cursor: 'pointer' }}
-              />
-              {t('settings.blockedKeywords.exactMatchLabel')}
-            </label>
-            <button
-              onClick={handleAddKeyword}
-              disabled={!newKeyword.trim() || isAdding}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
-                fontSize: theme.typography.fontSize.sm,
-                opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
-              }}
-            >
-              {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}
-            </button>
-          </div>
-
-          {blockedKeywords.length === 0 ? (
-            <div
-              style={{
-                padding: theme.spacing.xl,
-                textAlign: 'center',
-                color: theme.colors.text.secondary,
-                border: `2px dashed ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.md,
-              }}
-            >
-              {t('settings.blockedKeywords.emptyState')}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              {blockedKeywords.map(keyword => (
-                <BlockedKeywordItem key={keyword.id} keyword={keyword} onUnblock={onUnblockKeyword} />
-              ))}
-            </div>
-          )}
+          <AddKeywordForm t={t} onAdd={onAddKeyword} />
+          <BlockedKeywordsList keywords={blockedKeywords} onUnblock={onUnblockKeyword} t={t} />
         </div>
       )}
     </div>

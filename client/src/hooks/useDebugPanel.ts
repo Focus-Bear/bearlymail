@@ -117,41 +117,15 @@ async function fetchDebugEndpoint<T>(
   }
 }
 
-export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
-  const [debugViewOpen, setDebugViewOpen] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
-  const [loadingSyncStatus, setLoadingSyncStatus] = useState(false);
-  const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[] | null>(null);
-  const [loadingSyncHistory, setLoadingSyncHistory] = useState(false);
-  const [debugStarredData, setDebugStarredData] = useState<DebugStarredData | null>(null);
-  const [loadingDebugData, setLoadingDebugData] = useState(false);
+/**
+ * Manages orphan-email debug data: state, fetcher, and fix action.
+ * Extracted from useDebugPanel to keep that hook under the max-lines-per-function limit.
+ */
+function useDebugOrphanData(onSuccess?: () => void) {
   const [debugOrphanData, setDebugOrphanData] = useState<DebugOrphanData | null>(null);
   const [loadingOrphanData, setLoadingOrphanData] = useState(false);
   const [fixingOrphans, setFixingOrphans] = useState(false);
-  const [threadLookupResult, setThreadLookupResult] = useState<ThreadLookupResult | null>(null);
-  const [loadingThreadLookup, setLoadingThreadLookup] = useState(false);
-  const [allEmails, setAllEmails] = useState<Email[]>([]);
-  const [loadingAllEmails, setLoadingAllEmails] = useState(false);
 
-  const fetchSyncStatus = useCallback(
-    () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-status`, setLoadingSyncStatus, setSyncStatus, 'sync status'),
-    []
-  );
-  const fetchSyncHistory = useCallback(
-    () =>
-      fetchDebugEndpoint(`${API_URL}/emails/debug/sync-history`, setLoadingSyncHistory, setSyncHistory, 'sync history'),
-    []
-  );
-  const fetchDebugStarredThreads = useCallback(
-    () =>
-      fetchDebugEndpoint(
-        `${API_URL}/emails/debug/starred-threads`,
-        setLoadingDebugData,
-        setDebugStarredData,
-        'starred threads'
-      ),
-    []
-  );
   const fetchDebugOrphanEmails = useCallback(
     () =>
       fetchDebugEndpoint(
@@ -162,12 +136,6 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
       ),
     []
   );
-
-  useEffect(() => {
-    if (debugViewOpen && !syncStatus && !loadingSyncStatus) {
-      fetchSyncStatus();
-    }
-  }, [debugViewOpen, syncStatus, loadingSyncStatus, fetchSyncStatus]);
 
   const handleFixOrphanEmails = useCallback(
     async (onSuccessCallback?: () => void) => {
@@ -187,6 +155,17 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     },
     [fetchDebugOrphanEmails, onSuccess]
   );
+
+  return { debugOrphanData, loadingOrphanData, fixingOrphans, fetchDebugOrphanEmails, handleFixOrphanEmails };
+}
+
+/**
+ * Manages thread-lookup debug state and action.
+ * Extracted from useDebugPanel to keep that hook under the max-lines-per-function limit.
+ */
+function useDebugThreadLookup() {
+  const [threadLookupResult, setThreadLookupResult] = useState<ThreadLookupResult | null>(null);
+  const [loadingThreadLookup, setLoadingThreadLookup] = useState(false);
 
   const lookupThread = useCallback(async (threadId: string) => {
     if (!threadId.trim()) {
@@ -212,6 +191,17 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     }
   }, []);
 
+  return { threadLookupResult, loadingThreadLookup, lookupThread };
+}
+
+/**
+ * Manages "fetch all emails" debug state and action.
+ * Extracted from useDebugPanel to keep that hook under the max-lines-per-function limit.
+ */
+function useDebugAllEmails() {
+  const [allEmails, setAllEmails] = useState<Email[]>([]);
+  const [loadingAllEmails, setLoadingAllEmails] = useState(false);
+
   const fetchAllEmails = useCallback(async (mode: InboxMode) => {
     setLoadingAllEmails(true);
     try {
@@ -225,6 +215,48 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     }
   }, []);
 
+  return { allEmails, loadingAllEmails, fetchAllEmails };
+}
+
+export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
+  const [debugViewOpen, setDebugViewOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [loadingSyncStatus, setLoadingSyncStatus] = useState(false);
+  const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[] | null>(null);
+  const [loadingSyncHistory, setLoadingSyncHistory] = useState(false);
+  const [debugStarredData, setDebugStarredData] = useState<DebugStarredData | null>(null);
+  const [loadingDebugData, setLoadingDebugData] = useState(false);
+
+  const fetchSyncStatus = useCallback(
+    () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-status`, setLoadingSyncStatus, setSyncStatus, 'sync status'),
+    []
+  );
+  const fetchSyncHistory = useCallback(
+    () =>
+      fetchDebugEndpoint(`${API_URL}/emails/debug/sync-history`, setLoadingSyncHistory, setSyncHistory, 'sync history'),
+    []
+  );
+  const fetchDebugStarredThreads = useCallback(
+    () =>
+      fetchDebugEndpoint(
+        `${API_URL}/emails/debug/starred-threads`,
+        setLoadingDebugData,
+        setDebugStarredData,
+        'starred threads'
+      ),
+    []
+  );
+
+  useEffect(() => {
+    if (debugViewOpen && !syncStatus && !loadingSyncStatus) {
+      fetchSyncStatus();
+    }
+  }, [debugViewOpen, syncStatus, loadingSyncStatus, fetchSyncStatus]);
+
+  const orphanData = useDebugOrphanData(onSuccess);
+  const threadLookup = useDebugThreadLookup();
+  const allEmailsData = useDebugAllEmails();
+
   return {
     debugViewOpen,
     setDebugViewOpen,
@@ -234,19 +266,11 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     loadingSyncHistory,
     debugStarredData,
     loadingDebugData,
-    debugOrphanData,
-    loadingOrphanData,
-    fixingOrphans,
-    threadLookupResult,
-    loadingThreadLookup,
-    allEmails,
-    loadingAllEmails,
     fetchSyncStatus,
     fetchSyncHistory,
     fetchDebugStarredThreads,
-    fetchDebugOrphanEmails,
-    handleFixOrphanEmails,
-    lookupThread,
-    fetchAllEmails,
+    ...orphanData,
+    ...threadLookup,
+    ...allEmailsData,
   };
 }

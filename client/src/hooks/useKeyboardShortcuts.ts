@@ -142,6 +142,79 @@ function isContentEditableElement(element: EventTarget | null): boolean {
   return element.isContentEditable;
 }
 
+/**
+ * Handle a keydown event when there is a pending archive awaiting confirmation.
+ * Returns true if the event was consumed (caller should stop processing), false otherwise.
+ */
+function handlePendingArchiveKey(
+  event: KeyboardEvent,
+  pendingArchive: PendingArchiveState,
+  executeArchiveParams: Omit<ExecuteArchiveParams, 'archiveState'>,
+  cancelPendingArchive: () => void
+): boolean {
+  if (event.key === KEY_Y) {
+    event.preventDefault();
+    executeArchiveAction({ archiveState: pendingArchive, ...executeArchiveParams });
+    return true;
+  }
+  if (event.key === KEY_ESCAPE || event.key === KEY_N) {
+    event.preventDefault();
+    cancelPendingArchive();
+    return true;
+  }
+  // Any other key cancels the pending archive but lets it be processed normally
+  cancelPendingArchive();
+  return false;
+}
+
+/**
+ * Manages the pending archive confirmation state (two-keystroke archive flow).
+ * Extracted from useKeyboardShortcuts to keep that hook under the
+ * max-lines-per-function limit.
+ */
+function useArchiveConfirmation() {
+  const [pendingArchive, setPendingArchive] = useState<PendingArchiveState | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingArchive = useCallback(() => {
+    setPendingArchive(null);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const requestArchiveConfirmation = useCallback((archiveState: PendingArchiveState) => {
+    scheduleArchiveWithConfirmation(archiveState, setPendingArchive, timeoutRef);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return { pendingArchive, setPendingArchive, cancelPendingArchive, requestArchiveConfirmation };
+}
+
+/**
+ * Registers a keydown event listener on window and cleans it up on unmount or dep change.
+ * Extracted from useKeyboardShortcuts to keep that hook under the
+ * max-lines-per-function limit.
+ */
+function useKeyDownRegistration(handleKeyDown: (event: KeyboardEvent) => void, enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown, enabled]);
+}
+
 export function useKeyboardShortcuts({
   emails,
   selectedEmailIndex,
@@ -151,46 +224,10 @@ export function useKeyboardShortcuts({
   onSetStarCount,
   enabled = true,
   emailListRef,
-  emailDetailRef,
   splitViewSelectedEmailId,
   onSplitViewArchive,
 }: UseKeyboardShortcutsProps): UseKeyboardShortcutsResult {
-  // Track pending archive confirmation state
-  const [pendingArchive, setPendingArchive] = useState<PendingArchiveState | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cancel pending archive
-  const cancelPendingArchive = useCallback(() => {
-    setPendingArchive(null);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, []);
-
-  const executeArchive = useCallback(
-    (archiveState: PendingArchiveState) => {
-      executeArchiveAction({
-        archiveState,
-        emails,
-        selectedEmailIndex,
-        selectedEmailIds,
-        setSelectedEmailIndex,
-        onArchive,
-        onSplitViewArchive,
-        cancelPendingArchive,
-      });
-    },
-    [
-      emails,
-      selectedEmailIndex,
-      selectedEmailIds,
-      setSelectedEmailIndex,
-      onArchive,
-      onSplitViewArchive,
-      cancelPendingArchive,
-    ]
-  );
+  const { pendingArchive, cancelPendingArchive, requestArchiveConfirmation } = useArchiveConfirmation();
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -205,18 +242,17 @@ export function useKeyboardShortcuts({
 
       // Handle pending archive confirmation
       if (pendingArchive) {
-        if (event.key === KEY_Y) {
-          event.preventDefault();
-          executeArchive(pendingArchive);
+        const consumed = handlePendingArchiveKey(event, pendingArchive, {
+          emails,
+          selectedEmailIndex,
+          selectedEmailIds,
+          setSelectedEmailIndex,
+          onArchive,
+          onSplitViewArchive,
+          cancelPendingArchive,
+        }, cancelPendingArchive);
+        if (consumed) {
           return;
-        } else if (event.key === KEY_ESCAPE || event.key === KEY_N) {
-          event.preventDefault();
-          cancelPendingArchive();
-          return;
-        } else {
-          // Any other key cancels the pending archive
-          cancelPendingArchive();
-          // Don't return - let the key be processed normally
         }
       }
 
@@ -245,7 +281,7 @@ export function useKeyboardShortcuts({
         });
       }
 
-      // Archive (Delete, Backspace, or 'e') - now requires confirmation
+      // Archive (Delete, Backspace, or 'e') - requires confirmation via second keypress
       if (event.key === KEY_DELETE || event.key === KEY_BACKSPACE || event.key === KEY_E) {
         const { emailIds: emailIdsToArchive, isSplitView } = buildArchiveTargetIds(
           splitViewSelectedEmailId,
@@ -255,7 +291,7 @@ export function useKeyboardShortcuts({
         );
         if (emailIdsToArchive.length > 0) {
           event.preventDefault();
-          scheduleArchiveWithConfirmation({ emailIds: emailIdsToArchive, isSplitView }, setPendingArchive, timeoutRef);
+          requestArchiveConfirmation({ emailIds: emailIdsToArchive, isSplitView });
         }
       }
     },
@@ -264,35 +300,18 @@ export function useKeyboardShortcuts({
       selectedEmailIndex,
       selectedEmailIds,
       setSelectedEmailIndex,
+      onArchive,
       onSetStarCount,
       emailListRef,
       splitViewSelectedEmailId,
+      onSplitViewArchive,
       pendingArchive,
-      executeArchive,
       cancelPendingArchive,
+      requestArchiveConfirmation,
     ]
   );
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
+  useKeyDownRegistration(handleKeyDown, enabled);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown, enabled]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  return {
-    pendingArchive,
-    cancelPendingArchive,
-  };
+  return { pendingArchive, cancelPendingArchive };
 }

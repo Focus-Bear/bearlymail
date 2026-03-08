@@ -16,6 +16,125 @@ interface UseInboxCategoryAccordionParams {
 
 const INITIAL_PRELOAD_COUNT = 3;
 
+interface UseCategoryFetchEffectsParams {
+  categorySummary: CategorySummaryItem[] | null | undefined;
+  expandedCategories: Set<string>;
+  expandedCategoriesRef: React.MutableRefObject<Set<string>>;
+  loadedCategoryNames: string[];
+  loadingCategoryNames: string[];
+  loadedCategoryNamesRef: React.MutableRefObject<string[]>;
+  loadingCategoryNamesRef: React.MutableRefObject<string[]>;
+  fetchCategoryEmails: (name: string, id?: string) => Promise<void>;
+}
+
+/**
+ * Encapsulates the two category-fetch side effects for the accordion:
+ *   Effect 1 — normal "user expanded" path (reactive to expandedCategories)
+ *   Effect 2 — limbo-state recovery (reactive to loaded/loading lists, not expandedCategories)
+ *
+ * Extracted from useInboxCategoryAccordion to keep that hook under the
+ * max-lines-per-function limit.
+ */
+function useCategoryFetchEffects({
+  categorySummary,
+  expandedCategories,
+  expandedCategoriesRef,
+  loadedCategoryNames,
+  loadingCategoryNames,
+  loadedCategoryNamesRef,
+  loadingCategoryNamesRef,
+  fetchCategoryEmails,
+}: UseCategoryFetchEffectsParams): void {
+  // Effect 1 — Primary fetch: fires when expandedCategories or categorySummary changes.
+  // This handles the normal "user expanded an accordion" path.
+  // Uses refs for loaded/loading checks so fetchCategoryEmails stays stable and this
+  // effect doesn't re-run just because another category finished loading.
+  useEffect(() => {
+    if (!categorySummary) {
+      return;
+    }
+
+    // Build a key→item map for fast lookup
+    const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
+
+    const toFetch = Array.from(expandedCategories).filter(
+      key => !loadedCategoryNamesRef.current.includes(key) && !loadingCategoryNamesRef.current.includes(key)
+    );
+    if (toFetch.length === 0) {
+      return;
+    }
+    console.log(
+      '[Accordion] Effect1 queuing fetch for keys:',
+      toFetch,
+      '| expanded:',
+      Array.from(expandedCategories),
+      '| loaded:',
+      loadedCategoryNamesRef.current,
+      '| loading:',
+      loadingCategoryNamesRef.current
+    );
+    toFetch.forEach(categoryKey => {
+      const item = keyToItem.get(categoryKey);
+      fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined).catch(err =>
+        console.error(`Error fetching category key "${categoryKey}":`, err)
+      );
+    });
+  }, [categorySummary, expandedCategories, fetchCategoryEmails, loadedCategoryNamesRef, loadingCategoryNamesRef]);
+
+  // Effect 2 — Limbo-state recovery: re-triggers a fetch for any expanded category
+  // that ended up neither loaded nor loading (e.g. after markCategoryLoadFailed removes
+  // it from loadingCategoryNames, or after clearCategoryState resets everything).
+  //
+  // IMPORTANT: expandedCategories is intentionally NOT in the dep array — it is read
+  // via expandedCategoriesRef instead. Effect 1 already handles new expansions; if
+  // expandedCategories were also a dep here, both effects would fire simultaneously
+  // on every expand, producing duplicate API calls before the Redux store has had a
+  // chance to re-render and update the loading-state refs.
+  //
+  // limboDispatchedRef is a defence-in-depth guard that prevents this effect from
+  // dispatching a second fetch for a category that is already in flight (e.g. if
+  // React batches cause both effects to evaluate before the first dispatch lands).
+  const limboDispatchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!categorySummary) {
+      return;
+    }
+
+    const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
+
+    const limboCategories = Array.from(expandedCategoriesRef.current).filter(
+      key =>
+        !loadedCategoryNames.includes(key) &&
+        !loadingCategoryNames.includes(key) &&
+        !limboDispatchedRef.current.has(key)
+    );
+    if (limboCategories.length === 0) {
+      return;
+    }
+    console.log(
+      '[Accordion] Effect2 (limbo) re-fetching keys:',
+      limboCategories,
+      '| expanded:',
+      Array.from(expandedCategoriesRef.current),
+      '| loaded:',
+      loadedCategoryNames,
+      '| loading:',
+      loadingCategoryNames
+    );
+    limboCategories.forEach(categoryKey => {
+      limboDispatchedRef.current.add(categoryKey);
+      const item = keyToItem.get(categoryKey);
+      fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined)
+        .catch(err => console.error(`[limbo-recovery] Error re-fetching category key "${categoryKey}":`, err))
+        .finally(() => {
+          limboDispatchedRef.current.delete(categoryKey);
+        });
+    });
+    // expandedCategories intentionally omitted — see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
+}
+
 /**
  * Manages category accordion expand/collapse state and prefetching.
  *
@@ -87,102 +206,20 @@ export function useInboxCategoryAccordion({
   const expandedCategoriesRef = useRef(expandedCategories);
   expandedCategoriesRef.current = expandedCategories;
 
-  // Effect 1 — Primary fetch: fires when expandedCategories or categorySummary changes.
-  // This handles the normal "user expanded an accordion" path.
-  // Uses refs for loaded/loading checks so fetchCategoryEmails stays stable and this
-  // effect doesn't re-run just because another category finished loading.
-  useEffect(() => {
-    if (!categorySummary) {
-      return;
-    }
-
-    // Build a key→item map for fast lookup
-    const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
-
-    const toFetch = Array.from(expandedCategories).filter(
-      key => !loadedCategoryNamesRef.current.includes(key) && !loadingCategoryNamesRef.current.includes(key)
-    );
-    if (toFetch.length === 0) {
-      return;
-    }
-    console.log(
-      '[Accordion] Effect1 queuing fetch for keys:',
-      toFetch,
-      '| expanded:',
-      Array.from(expandedCategories),
-      '| loaded:',
-      loadedCategoryNamesRef.current,
-      '| loading:',
-      loadingCategoryNamesRef.current
-    );
-    toFetch.forEach(categoryKey => {
-      const item = keyToItem.get(categoryKey);
-      // item?.id is the UUID; item?.name is the display name.
-      // fetchCategoryEmails internally derives categoryKey = id ?? name, so passing
-      // both here ensures UUID-based API calls whenever the summary provides one.
-      fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined).catch(err =>
-        console.error(`Error fetching category key "${categoryKey}":`, err)
-      );
-    });
-  }, [categorySummary, expandedCategories, fetchCategoryEmails]);
-
-  // Effect 2 — Limbo-state recovery: re-triggers a fetch for any expanded category
-  // that ended up neither loaded nor loading (e.g. after markCategoryLoadFailed removes
-  // it from loadingCategoryNames, or after clearCategoryState resets everything).
-  //
-  // IMPORTANT: expandedCategories is intentionally NOT in the dep array — it is read
-  // via expandedCategoriesRef instead. Effect 1 already handles new expansions; if
-  // expandedCategories were also a dep here, both effects would fire simultaneously
-  // on every expand, producing duplicate API calls before the Redux store has had a
-  // chance to re-render and update the loading-state refs.
-  //
-  // limboDispatchedRef is a defence-in-depth guard that prevents this effect from
-  // dispatching a second fetch for a category that is already in flight (e.g. if
-  // React batches cause both effects to evaluate before the first dispatch lands).
-  const limboDispatchedRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!categorySummary) {
-      return;
-    }
-
-    const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
-
-    const limboCategories = Array.from(expandedCategoriesRef.current).filter(
-      key =>
-        !loadedCategoryNames.includes(key) &&
-        !loadingCategoryNames.includes(key) &&
-        !limboDispatchedRef.current.has(key)
-    );
-    if (limboCategories.length === 0) {
-      return;
-    }
-    console.log(
-      '[Accordion] Effect2 (limbo) re-fetching keys:',
-      limboCategories,
-      '| expanded:',
-      Array.from(expandedCategoriesRef.current),
-      '| loaded:',
-      loadedCategoryNames,
-      '| loading:',
-      loadingCategoryNames
-    );
-    limboCategories.forEach(categoryKey => {
-      limboDispatchedRef.current.add(categoryKey);
-      const item = keyToItem.get(categoryKey);
-      fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined)
-        .catch(err => console.error(`[limbo-recovery] Error re-fetching category key "${categoryKey}":`, err))
-        .finally(() => {
-          limboDispatchedRef.current.delete(categoryKey);
-        });
-    });
-    // expandedCategories intentionally omitted — see comment above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
-
   // NOTE: Effect 3 (null → populated re-fetch) was removed — it is fully covered by
   // Effect 1. When categorySummary transitions null → non-null, Effect 1 fires because
   // categorySummary is in its dep array; it then re-fetches any expanded categories
   // that are neither loaded nor loading. Having Effect 3 as well caused a double-fetch.
+  useCategoryFetchEffects({
+    categorySummary,
+    expandedCategories,
+    expandedCategoriesRef,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    loadedCategoryNamesRef,
+    loadingCategoryNamesRef,
+    fetchCategoryEmails,
+  });
 
   return {
     expandedCategories,

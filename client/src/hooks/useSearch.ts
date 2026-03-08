@@ -158,20 +158,13 @@ async function processSearchResults(
   }
 }
 
-export const useSearch = () => {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Email[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isRefining, setIsRefining] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [progressStep, setProgressStep] = useState<string>('');
+/**
+ * Manages the list of connected accounts and the per-provider selection filter.
+ * Extracted from useSearch to keep that hook under the max-lines-per-function limit.
+ */
+function useConnectedAccounts() {
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [selectedAccountTypes, setSelectedAccountTypes] = useState<string[]>([]);
-  const [queriesTried, setQueriesTried] = useState<Array<{ query: string; resultCount: number; accountType?: string }>>(
-    []
-  );
-  const searchSessionRef = useRef(0);
 
   useEffect(() => {
     const fetchConnectedAccounts = async () => {
@@ -186,6 +179,37 @@ export const useSearch = () => {
     };
     fetchConnectedAccounts();
   }, []);
+
+  const handleAccountToggle = useCallback((accountType: string) => {
+    setSelectedAccountTypes(prev => {
+      if (prev.includes(accountType)) {
+        if (prev.length === 1) {
+          return prev;
+        }
+        return prev.filter(acType => acType !== accountType);
+      } else {
+        return [...prev, accountType];
+      }
+    });
+  }, []);
+
+  return { connectedAccounts, selectedAccountTypes, handleAccountToggle };
+}
+
+export const useSearch = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Email[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [progressStep, setProgressStep] = useState<string>('');
+  const [queriesTried, setQueriesTried] = useState<Array<{ query: string; resultCount: number; accountType?: string }>>(
+    []
+  );
+  const searchSessionRef = useRef(0);
+
+  const { connectedAccounts, selectedAccountTypes, handleAccountToggle } = useConnectedAccounts();
 
   const handleSearch = useCallback(
     async (event: React.FormEvent) => {
@@ -247,19 +271,6 @@ export const useSearch = () => {
     },
     [query, navigate, selectedAccountTypes, connectedAccounts]
   );
-
-  const handleAccountToggle = useCallback((accountType: string) => {
-    setSelectedAccountTypes(prev => {
-      if (prev.includes(accountType)) {
-        if (prev.length === 1) {
-          return prev;
-        }
-        return prev.filter(acType => acType !== accountType);
-      } else {
-        return [...prev, accountType];
-      }
-    });
-  }, []);
 
   return {
     query,

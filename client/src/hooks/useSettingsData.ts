@@ -55,67 +55,26 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
   setters.setZohoAccounts(zohoRes.data);
 }
 
-export function useSettingsData() {
-  const [loading, setLoading] = useState(true);
+/**
+ * Manages the user's email accounts lists (Google, Office 365, Zoho).
+ * Extracted from useSettingsData to keep that hook under the max-lines-per-function limit.
+ */
+function useAccountsList() {
   const [googleAccounts, setGoogleAccounts] = useState<any[]>([]);
   const [office365Accounts, setOffice365Accounts] = useState<any[]>([]);
   const [zohoAccounts, setZohoAccounts] = useState<any[]>([]);
+  return { googleAccounts, setGoogleAccounts, office365Accounts, setOffice365Accounts, zohoAccounts, setZohoAccounts };
+}
+
+/**
+ * Manages the user's profile fields: display name, job title, email signature.
+ * Extracted from useSettingsData to keep that hook under the max-lines-per-function limit.
+ */
+function useUserProfile() {
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [jobTitle, setJobTitle] = useState<string | undefined>(undefined);
   const [emailSignature, setEmailSignature] = useState<string>('');
   const [savingSignature, setSavingSignature] = useState(false);
-
-  const contextManagement = useContextManagement();
-  const toneRules = useToneRules();
-  const summarizationRules = useSummarizationRules();
-  const apiKeys = useApiKeys();
-  const blockedSenders = useBlockedSenders();
-  const blockedKeywords = useBlockedKeywords();
-  const batchSchedule = useBatchSchedule();
-
-  const { fetchSummarizationRules } = summarizationRules;
-  const { fetchContexts } = contextManagement;
-  const { fetchBlockedSenders } = blockedSenders;
-  const { fetchBlockedKeywords } = blockedKeywords;
-  const { fetchBatchSchedule } = batchSchedule;
-  const { fetchToneRules } = toneRules;
-  const { fetchApiKeys } = apiKeys;
-
-  const fetchData = useCallback(async () => {
-    try {
-      await Promise.all([
-        fetchUserAndAccounts({
-          setGoogleAccounts,
-          setOffice365Accounts,
-          setZohoAccounts,
-          setDisplayName,
-          setJobTitle,
-          setEmailSignature,
-        }),
-        fetchSummarizationRules(),
-        fetchContexts(),
-        fetchBlockedSenders(),
-        fetchBlockedKeywords(),
-        fetchBatchSchedule(),
-        fetchToneRules(),
-        fetchApiKeys(),
-      ]);
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    fetchSummarizationRules,
-    fetchContexts,
-    fetchBlockedSenders,
-    fetchBlockedKeywords,
-    fetchBatchSchedule,
-    fetchToneRules,
-    fetchApiKeys,
-  ]);
-
-  const analysisProgress = useAnalysisProgress(fetchData);
 
   const updateProfile = useCallback(async (updates: { displayName?: string; jobTitle?: string }) => {
     try {
@@ -132,51 +91,58 @@ export function useSettingsData() {
     }
   }, []);
 
-  const handleSaveEmailSignature = useCallback(async () => {
+  const handleSaveEmailSignature = useCallback(async (signature: string) => {
     try {
       setSavingSignature(true);
-      await axios.put(`${API_URL}/users/me`, { emailSignature });
+      await axios.put(`${API_URL}/users/me`, { emailSignature: signature });
     } catch (error) {
       console.error('Error saving email signature:', error);
       alert('Failed to save email signature. Please try again.');
     } finally {
       setSavingSignature(false);
     }
-  }, [emailSignature]);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    captureEvent('settings_viewed', {
-      section: hash ? hash.substring(1) : undefined,
-    });
-    fetchData();
-  }, [fetchData]);
+  }, []);
 
   return {
-    ...summarizationRules,
-    ...blockedSenders,
-    ...blockedKeywords,
-    ...contextManagement,
-    ...batchSchedule,
-    ...toneRules,
-    ...apiKeys,
-    ...analysisProgress,
-    loading,
-    googleAccounts,
-    setGoogleAccounts,
-    office365Accounts,
-    setOffice365Accounts,
-    zohoAccounts,
-    setZohoAccounts,
     displayName,
+    setDisplayName,
     jobTitle,
+    setJobTitle,
     emailSignature,
-    savingSignature,
-    fetchData,
-    updateProfile,
     setEmailSignature,
+    savingSignature,
+    updateProfile,
     handleSaveEmailSignature,
+  };
+}
+
+interface SettingsAliasParams {
+  analysisProgress: ReturnType<typeof useAnalysisProgress>;
+  contextManagement: ReturnType<typeof useContextManagement>;
+  toneRules: ReturnType<typeof useToneRules>;
+  apiKeys: ReturnType<typeof useApiKeys>;
+  summarizationRules: ReturnType<typeof useSummarizationRules>;
+  blockedSenders: ReturnType<typeof useBlockedSenders>;
+  blockedKeywords: ReturnType<typeof useBlockedKeywords>;
+}
+
+/**
+ * Builds the `handle*` alias surface that useSettingsData re-exports for consumer convenience.
+ * Extracted to a module-level function to keep useSettingsData under the
+ * max-lines-per-function limit.
+ */
+function buildSettingsAliases({
+  analysisProgress,
+  contextManagement,
+  toneRules,
+  apiKeys,
+  summarizationRules,
+  blockedSenders,
+  blockedKeywords,
+}: SettingsAliasParams) {
+  return {
     handleAnalyzeContext: analysisProgress.startAnalysis,
+    dismissAnalyzeProgress: analysisProgress.dismissProgress,
     handleAddContext: contextManagement.addContext,
     handleUpdateContext: contextManagement.updateContext,
     handleDeleteContext: contextManagement.deleteContext,
@@ -195,6 +161,78 @@ export function useSettingsData() {
     handleUnblockSender: blockedSenders.removeBlockedSender,
     handleUnblockKeyword: blockedKeywords.removeBlockedKeyword,
     handleAddKeyword: blockedKeywords.addBlockedKeyword,
-    dismissAnalyzeProgress: analysisProgress.dismissProgress,
+  };
+}
+
+export function useSettingsData() {
+  const [loading, setLoading] = useState(true);
+
+  const accounts = useAccountsList();
+  const profile = useUserProfile();
+  const contextManagement = useContextManagement();
+  const toneRules = useToneRules();
+  const summarizationRules = useSummarizationRules();
+  const apiKeys = useApiKeys();
+  const blockedSenders = useBlockedSenders();
+  const blockedKeywords = useBlockedKeywords();
+  const batchSchedule = useBatchSchedule();
+
+  // Destructure stable refs for fetchData deps (avoids referencing the whole sub-hook object)
+  const { fetchSummarizationRules } = summarizationRules;
+  const { fetchContexts } = contextManagement;
+  const { fetchBlockedSenders } = blockedSenders;
+  const { fetchBlockedKeywords } = blockedKeywords;
+  const { fetchBatchSchedule } = batchSchedule;
+  const { fetchToneRules } = toneRules;
+  const { fetchApiKeys } = apiKeys;
+  const { setGoogleAccounts, setOffice365Accounts, setZohoAccounts } = accounts;
+  const { setDisplayName, setJobTitle, setEmailSignature } = profile;
+
+  const fetchData = useCallback(async () => {
+    try {
+      await Promise.all([
+        fetchUserAndAccounts({
+          setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
+          setDisplayName, setJobTitle, setEmailSignature,
+        }),
+        fetchSummarizationRules(), fetchContexts(), fetchBlockedSenders(),
+        fetchBlockedKeywords(), fetchBatchSchedule(), fetchToneRules(), fetchApiKeys(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    fetchSummarizationRules, fetchContexts, fetchBlockedSenders, fetchBlockedKeywords,
+    fetchBatchSchedule, fetchToneRules, fetchApiKeys,
+    setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
+    setDisplayName, setJobTitle, setEmailSignature,
+  ]);
+
+  const analysisProgress = useAnalysisProgress(fetchData);
+
+  useEffect(() => {
+    captureEvent('settings_viewed', { section: window.location.hash ? window.location.hash.substring(1) : undefined });
+    fetchData();
+  }, [fetchData]);
+
+  const aliases = buildSettingsAliases({
+    analysisProgress, contextManagement, toneRules, apiKeys, summarizationRules, blockedSenders, blockedKeywords,
+  });
+
+  return {
+    ...summarizationRules, ...blockedSenders, ...blockedKeywords,
+    ...contextManagement, ...batchSchedule, ...toneRules, ...apiKeys,
+    ...analysisProgress, ...accounts, ...aliases,
+    loading,
+    displayName: profile.displayName,
+    jobTitle: profile.jobTitle,
+    emailSignature: profile.emailSignature,
+    savingSignature: profile.savingSignature,
+    fetchData,
+    updateProfile: profile.updateProfile,
+    setEmailSignature: profile.setEmailSignature,
+    handleSaveEmailSignature: () => profile.handleSaveEmailSignature(profile.emailSignature),
   };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
-import { getEmailPriorityScore } from 'types/email';
+import { Email, getEmailPriorityScore } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
@@ -59,18 +59,28 @@ interface UseEmailActionsBaseProps {
   mode?: string;
 }
 
-export function useEmailActionsBase({
+interface UseStarCountMutationParams {
+  emails: Email[];
+  fetchEmails: () => Promise<void>;
+  onSuggestionRemove?: (emailId: string) => void;
+  onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
+  mode?: string;
+  dispatch: AppDispatch;
+}
+
+/**
+ * Encapsulates the star-count mutation with optimistic updates and error revert.
+ * Extracted from useEmailActionsBase to keep that hook under the
+ * max-lines-per-function limit.
+ */
+function useStarCountMutation({
+  emails,
   fetchEmails,
   onSuggestionRemove,
-  onShowPriorityOverride,
   onTabCountsUpdateOptimistically,
   mode,
-}: UseEmailActionsBaseProps) {
-  const dispatch = useDispatch<AppDispatch>();
-  const emails = useSelector(selectEmails);
-
-  // Track pending animation timeouts so they can be cancelled on API error
-  const archiveAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  dispatch,
+}: UseStarCountMutationParams) {
   const priorityAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const handleSetStarCount = useCallback(
@@ -129,6 +139,31 @@ export function useEmailActionsBase({
     },
     [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically]
   );
+
+  return { handleSetStarCount };
+}
+
+export function useEmailActionsBase({
+  fetchEmails,
+  onSuggestionRemove,
+  onShowPriorityOverride,
+  onTabCountsUpdateOptimistically,
+  mode,
+}: UseEmailActionsBaseProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const emails = useSelector(selectEmails);
+
+  // Track pending animation timeouts so they can be cancelled on API error
+  const archiveAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const { handleSetStarCount } = useStarCountMutation({
+    emails,
+    fetchEmails,
+    onSuggestionRemove,
+    onTabCountsUpdateOptimistically,
+    mode,
+    dispatch,
+  });
 
   const handleArchive = useCallback(
     async (emailId: string, archiveEvent: React.MouseEvent) => {

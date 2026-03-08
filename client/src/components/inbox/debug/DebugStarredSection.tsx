@@ -56,10 +56,12 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
       {debugStarredData && (
         <div>
-          <StarredComparisonGrid
-            gmail={debugStarredData.gmail}
-            database={debugStarredData.database}
-          />
+          {debugStarredData.gmail && debugStarredData.database && (
+            <StarredComparisonGrid
+              gmail={debugStarredData.gmail}
+              database={debugStarredData.database}
+            />
+          )}
           {debugStarredData.comparison && (
             <ComparisonResultsGrid
               inGmailNotInDb={debugStarredData.comparison.inGmailNotInDb}

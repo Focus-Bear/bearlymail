@@ -9,6 +9,7 @@ import {
   LLM_OP_INCREMENTAL_SUMMARY,
 } from "./llm-operations";
 import { getPrompt, renderPrompt } from "./prompts";
+import { safeJsonParse } from "../utils/json";
 
 export interface IncrementalPriorityCheckResult {
   needsFullRecalc: boolean;
@@ -260,21 +261,17 @@ export class IncrementalAnalysisService {
   }
 
   private parseJsonResponse<T>(response: string): T | null {
-    try {
-      let jsonStr = response.trim();
-      const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1].trim();
-      }
-
-      const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
-      if (objectMatch) {
-        jsonStr = objectMatch[0];
-      }
-
-      return JSON.parse(jsonStr) as T;
-    } catch {
-      return null;
+    let jsonStr = response.trim();
+    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
     }
+
+    const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      jsonStr = objectMatch[0];
+    }
+
+    return safeJsonParse<T | null>(jsonStr, null, "parseJsonResponse");
   }
 }

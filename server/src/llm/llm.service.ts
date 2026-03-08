@@ -7,6 +7,7 @@ import {
   RECENCY_THRESHOLDS,
   TIME_FORMATTING,
 } from "../constants/llm-constants";
+import { safeJsonParse, isLikelyCompleteJson } from "../utils/json";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import {
@@ -181,21 +182,31 @@ export class LLMService {
       .trim();
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = safeJsonParse<Record<string, unknown>>(
+      jsonMatch[0],
+      null,
+      "parsePatternResponse",
+    );
+    if (!parsed) return null;
     return {
       context: Array.isArray(parsed.context) ? parsed.context : [],
       writingStyle:
         parsed.writingStyle && typeof parsed.writingStyle === "object"
-          ? {
-              tone: parsed.writingStyle.tone || "Professional",
-              style: parsed.writingStyle.style || "Concise",
-              commonPhrases: Array.isArray(parsed.writingStyle.commonPhrases)
-                ? parsed.writingStyle.commonPhrases
-                : [],
-              emailExamples: Array.isArray(parsed.writingStyle.emailExamples)
-                ? parsed.writingStyle.emailExamples
-                : undefined,
-            }
+          ? (() => {
+              const ws = parsed.writingStyle as Record<string, unknown>;
+              return {
+                tone:
+                  (ws.tone as string | undefined) || "Professional",
+                style:
+                  (ws.style as string | undefined) || "Concise",
+                commonPhrases: Array.isArray(ws.commonPhrases)
+                  ? (ws.commonPhrases as string[])
+                  : [],
+                emailExamples: Array.isArray(ws.emailExamples)
+                  ? (ws.emailExamples as string[])
+                  : undefined,
+              };
+            })()
           : { tone: "Professional", style: "Concise", commonPhrases: [] },
     };
   }
@@ -772,14 +783,21 @@ export class LLMService {
       .trim();
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return [];
-    const parsed = JSON.parse(jsonMatch[0]);
-    const actions = parsed.actions || [];
-    return actions.filter(
-      (action: {
-        confidence: number;
-        type?: string;
-        [key: string]: unknown;
-      }) => {
+    if (!isLikelyCompleteJson(jsonMatch[0])) {
+      this.logger.warn(
+        "[parseAndFilterActions] Incomplete JSON from LLM response — returning empty actions",
+      );
+      return [];
+    }
+    const parsed = safeJsonParse<Record<string, unknown>>(
+      jsonMatch[0],
+      null,
+      "parseAndFilterActions",
+    );
+    if (!parsed) return [];
+    type ParsedAction = { type: string; confidence: number; reason: string; metadata?: Record<string, unknown>; [key: string]: unknown };
+    const actions = (Array.isArray(parsed.actions) ? parsed.actions : []) as ParsedAction[];
+    return actions.filter((action) => {
         if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
         if (
           action.type?.startsWith("github_") &&
@@ -1501,8 +1519,19 @@ export class LLMService {
     query: string,
     emailDetailList: Array<{ index: number; [key: string]: unknown }>,
   ): Map<number, string> {
-    const explanations = JSON.parse(jsonStr);
-    if (typeof explanations !== "object" || Array.isArray(explanations)) {
+    // safeJsonParse returns null on failure; the null check below re-throws so
+    // the call-site try-catch (which logs and falls back to individual calls)
+    // still handles parse failures correctly.
+    const explanations = safeJsonParse<Record<string, unknown> | null>(
+      jsonStr,
+      null,
+      "parseBatchExplanationJson",
+    );
+    if (
+      explanations === null ||
+      typeof explanations !== "object" ||
+      Array.isArray(explanations)
+    ) {
       throw new Error("Response is not a JSON object");
     }
     const result = new Map<number, string>();

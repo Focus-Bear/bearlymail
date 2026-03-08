@@ -46,6 +46,78 @@ interface BookingData {
   status: string;
 }
 
+const BookingCancelSuccess: React.FC<{ t: (key: string) => string }> = ({ t }) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: STRING_CENTER,
+      alignItems: STRING_CENTER,
+      height: '100vh',
+      backgroundColor: theme.colors.background.default,
+      fontFamily: theme.typography.fontFamily,
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        padding: theme.spacing['2xl'],
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.md,
+        textAlign: STRING_CENTER,
+        maxWidth: `${MAX_WIDTH_500_PX}px`,
+      }}
+    >
+      {/* eslint-disable-next-line i18next/no-literal-string */}
+      <div style={{ color: theme.colors.accent.success, fontSize: theme.typography.fontSize['3xl'], marginBottom: theme.spacing.lg }}>
+        {EMOJI_CHECK}
+      </div>
+      <h1 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
+        {t('booking.cancel.success')}
+      </h1>
+      <p style={{ color: theme.colors.text.secondary }}>{t('booking.cancel.successMessage')}</p>
+    </div>
+  </div>
+);
+
+interface BookingCancelDetailsProps {
+  booking: BookingData;
+  t: (key: string) => string;
+}
+
+const BookingCancelDetails: React.FC<BookingCancelDetailsProps> = ({ booking, t }) => (
+  <div
+    style={{
+      backgroundColor: `${theme.colors.accent.error}10`,
+      padding: theme.spacing.lg,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.lg,
+      border: `1px solid ${theme.colors.accent.error}30`,
+    }}
+  >
+    <p style={{ margin: 0, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+      {t('booking.cancel.bookingDetails')}
+    </p>
+    <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.lg }}>
+      {new Date(booking.startTime).toLocaleDateString(undefined, {
+        weekday: STRING_LONG,
+        month: STRING_LONG,
+        day: STRING_NUMERIC,
+        year: STRING_NUMERIC,
+      })}
+    </p>
+    <p style={{ margin: `${theme.spacing.xs} 0 0`, color: theme.colors.text.primary }}>
+      {new Date(booking.startTime).toLocaleTimeString(undefined, { hour: STRING_2_DIGIT, minute: STRING_2_DIGIT })}
+      {' - '}
+      {new Date(booking.endTime).toLocaleTimeString(undefined, { hour: STRING_2_DIGIT, minute: STRING_2_DIGIT })}
+    </p>
+    {booking.title && (
+      <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.text.secondary }}>
+        {booking.title}
+      </p>
+    )}
+  </div>
+);
+
 const BookingCancelPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const { t } = useTranslation();
@@ -77,7 +149,6 @@ const BookingCancelPage: React.FC = () => {
     if (!token) {
       return;
     }
-
     setStatus(BOOKING_SUBMITTING);
     try {
       await axios.post(`${API_URL}/public/calendar/booking/${token}/cancel`);
@@ -93,49 +164,7 @@ const BookingCancelPage: React.FC = () => {
   }
 
   if (status === BOOKING_STATUS_SUCCESS) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: STRING_CENTER,
-          alignItems: STRING_CENTER,
-          height: '100vh',
-          backgroundColor: theme.colors.background.default,
-          fontFamily: theme.typography.fontFamily,
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: theme.colors.background.paper,
-            padding: theme.spacing['2xl'],
-            borderRadius: theme.borderRadius.lg,
-            boxShadow: theme.shadows.md,
-            textAlign: STRING_CENTER,
-            maxWidth: `${MAX_WIDTH_500_PX}px`,
-          }}
-        >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
-          <div
-            style={{
-              color: theme.colors.accent.success,
-              fontSize: theme.typography.fontSize['3xl'],
-              marginBottom: theme.spacing.lg,
-            }}
-          >
-            {EMOJI_CHECK}
-          </div>
-          <h1
-            style={{
-              color: theme.colors.text.primary,
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            {t('booking.cancel.success')}
-          </h1>
-          <p style={{ color: theme.colors.text.secondary }}>{t('booking.cancel.successMessage')}</p>
-        </div>
-      </div>
-    );
+    return <BookingCancelSuccess t={t} />;
   }
 
   return (
@@ -157,13 +186,7 @@ const BookingCancelPage: React.FC = () => {
           overflow: STRING_HIDDEN,
         }}
       >
-        <div
-          style={{
-            padding: theme.spacing.xl,
-            backgroundColor: theme.colors.accent.error,
-            color: STRING_WHITE,
-          }}
-        >
+        <div style={{ padding: theme.spacing.xl, backgroundColor: theme.colors.accent.error, color: STRING_WHITE }}>
           <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>{t('booking.cancel.title')}</h1>
           <p style={{ marginTop: theme.spacing.sm, opacity: OPACITY_90_PERCENT }}>{t('booking.cancel.subtitle')}</p>
         </div>
@@ -184,90 +207,17 @@ const BookingCancelPage: React.FC = () => {
           )}
 
           {booking && booking.status === BOOKING_STATUS_CANCELLED && (
-            <div
-              style={{
-                textAlign: STRING_CENTER,
-                padding: theme.spacing.xl,
-                color: theme.colors.text.secondary,
-              }}
-            >
+            <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
               <p>{t('booking.cancel.alreadyCancelled')}</p>
             </div>
           )}
 
           {booking && booking.status !== BOOKING_STATUS_CANCELLED && (
             <>
-              <div
-                style={{
-                  backgroundColor: `${theme.colors.accent.error}10`,
-                  padding: theme.spacing.lg,
-                  borderRadius: theme.borderRadius.md,
-                  marginBottom: theme.spacing.lg,
-                  border: `1px solid ${theme.colors.accent.error}30`,
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    color: theme.colors.text.secondary,
-                    fontSize: theme.typography.fontSize.sm,
-                  }}
-                >
-                  {t('booking.cancel.bookingDetails')}
-                </p>
-                <p
-                  style={{
-                    margin: `${theme.spacing.sm} 0 0`,
-                    color: theme.colors.text.primary,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    fontSize: theme.typography.fontSize.lg,
-                  }}
-                >
-                  {new Date(booking.startTime).toLocaleDateString(undefined, {
-                    weekday: STRING_LONG,
-                    month: STRING_LONG,
-                    day: STRING_NUMERIC,
-                    year: STRING_NUMERIC,
-                  })}
-                </p>
-                <p
-                  style={{
-                    margin: `${theme.spacing.xs} 0 0`,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {new Date(booking.startTime).toLocaleTimeString(undefined, {
-                    hour: STRING_2_DIGIT,
-                    minute: STRING_2_DIGIT,
-                  })}
-                  {' - '}
-                  {new Date(booking.endTime).toLocaleTimeString(undefined, {
-                    hour: STRING_2_DIGIT,
-                    minute: STRING_2_DIGIT,
-                  })}
-                </p>
-                {booking.title && (
-                  <p
-                    style={{
-                      margin: `${theme.spacing.sm} 0 0`,
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {booking.title}
-                  </p>
-                )}
-              </div>
-
-              <p
-                style={{
-                  color: theme.colors.text.secondary,
-                  marginBottom: theme.spacing.lg,
-                  textAlign: STRING_CENTER,
-                }}
-              >
+              <BookingCancelDetails booking={booking} t={t} />
+              <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg, textAlign: STRING_CENTER }}>
                 {t('booking.cancel.confirmMessage')}
               </p>
-
               <button
                 onClick={handleCancel}
                 disabled={status === BOOKING_SUBMITTING}

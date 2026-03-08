@@ -69,6 +69,33 @@ export interface EmailDetailRef {
   getStarCount: () => number;
 }
 
+const EmailDetailLoadingScreen: React.FC<{ isInline: boolean; loadingText: string }> = ({ isInline, loadingText }) => {
+  if (isInline) {
+    return <LoadingSpinner />;
+  }
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        color: theme.colors.text.secondary,
+      }}
+    >
+      {loadingText}
+    </div>
+  );
+};
+
+const EmailDetailNotFoundScreen: React.FC<{ isInline: boolean; notFoundText: string }> = ({ isInline, notFoundText }) => {
+  if (isInline) {
+    return <EmailNotFound />;
+  }
+  return <div>{notFoundText}</div>;
+};
+
 function getEmailContentCardStyle(compactMode: boolean, isMobile: boolean): React.CSSProperties {
   if (compactMode) {
     return {
@@ -119,6 +146,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
     const {
       showTimePicker,
       scheduledSendAt,
+      setScheduledSendAt,
       timeWarning,
       suggestedTime,
       timeSuggestions,
@@ -217,30 +245,11 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
     });
 
     if (loading) {
-      if (isInline) {
-        return <LoadingSpinner />;
-      }
-      return (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            backgroundColor: theme.colors.background.default,
-            color: theme.colors.text.secondary,
-          }}
-        >
-          {t('emailDetail.loadingEmail')}
-        </div>
-      );
+      return <EmailDetailLoadingScreen isInline={isInline} loadingText={t('emailDetail.loadingEmail')} />;
     }
 
     if (!email) {
-      if (isInline) {
-        return <EmailNotFound />;
-      }
-      return <div>{t('emailDetail.emailNotFound')}</div>;
+      return <EmailDetailNotFoundScreen isInline={isInline} notFoundText={t('emailDetail.emailNotFound')} />;
     }
 
     const handleClearSchedule = () => setScheduledSendAt(null);
@@ -283,55 +292,110 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
     }
 
     return (
-      <>
-        <EmailDetailAnimationOverlay animationClass={animationClass} />
-        <EmailDetailSidebar />
-        <div
-          style={{
-            height: '100vh',
-            backgroundColor: theme.colors.background.default,
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          <div
-            style={{
-              height: '100%',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              padding: isMobile ? `70px ${theme.spacing.xs} ${theme.spacing.md}` : theme.spacing['2xl'],
-            }}
-          >
-            <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>{emailContent}</div>
-          </div>
-        </div>
-        <CustomRuleModal
-          show={showRuleModal}
-          customRule={customRule}
-          onCustomRuleChange={state.setCustomRule}
-          onClose={() => {
-            state.setShowRuleModal(false);
-            state.setCustomRule({ whenToUse: '', howToSummarize: '' });
-          }}
-          onCreate={ops.handleCreateCustomRule}
-        />
-
-        {showTimePicker && (
-          <TimePicker
-            selectedTime={scheduledSendAt}
-            suggestions={timeSuggestions}
-            warning={timeWarning}
-            suggestedTime={suggestedTime}
-            onTimeSelect={handleTimeSelect}
-            onCancel={handleCancelTimePicker}
-          />
-        )}
-      </>
+      <EmailDetailFullLayout
+        animationClass={animationClass}
+        isMobile={isMobile}
+        emailContent={emailContent}
+        showRuleModal={showRuleModal}
+        customRule={customRule}
+        onCustomRuleChange={state.setCustomRule}
+        onCloseRuleModal={() => {
+          state.setShowRuleModal(false);
+          state.setCustomRule({ whenToUse: '', howToSummarize: '' });
+        }}
+        onCreateCustomRule={async () => {
+ await ops.handleCreateCustomRule(); 
+}}
+        showTimePicker={showTimePicker}
+        scheduledSendAt={scheduledSendAt}
+        timeSuggestions={timeSuggestions}
+        timeWarning={timeWarning}
+        suggestedTime={suggestedTime}
+        onTimeSelect={handleTimeSelect}
+        onCancelTimePicker={handleCancelTimePicker}
+      />
     );
   }
 );
 
 export default EmailDetail;
+
+interface EmailDetailFullLayoutProps {
+  animationClass: string | null;
+  isMobile: boolean;
+  emailContent: React.ReactNode;
+  showRuleModal: boolean;
+  customRule: { whenToUse: string; howToSummarize: string };
+  onCustomRuleChange: (rule: { whenToUse: string; howToSummarize: string }) => void;
+  onCloseRuleModal: () => void;
+  onCreateCustomRule: () => Promise<void>;
+  showTimePicker: boolean;
+  scheduledSendAt: Date | null;
+  timeSuggestions: any[];
+  timeWarning: string | undefined;
+  suggestedTime: Date | undefined;
+  onTimeSelect: (time: Date) => void;
+  onCancelTimePicker: () => void;
+}
+
+const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({
+  animationClass,
+  isMobile,
+  emailContent,
+  showRuleModal,
+  customRule,
+  onCustomRuleChange,
+  onCloseRuleModal,
+  onCreateCustomRule,
+  showTimePicker,
+  scheduledSendAt,
+  timeSuggestions,
+  timeWarning,
+  suggestedTime,
+  onTimeSelect,
+  onCancelTimePicker,
+}) => (
+  <>
+    <EmailDetailAnimationOverlay animationClass={animationClass} />
+    <EmailDetailSidebar />
+    <div
+      style={{
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: isMobile ? `70px ${theme.spacing.xs} ${theme.spacing.md}` : theme.spacing['2xl'],
+        }}
+      >
+        <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>{emailContent}</div>
+      </div>
+    </div>
+    <CustomRuleModal
+      show={showRuleModal}
+      customRule={customRule}
+      onCustomRuleChange={onCustomRuleChange}
+      onClose={onCloseRuleModal}
+      onCreate={onCreateCustomRule}
+    />
+    {showTimePicker && (
+      <TimePicker
+        selectedTime={scheduledSendAt}
+        suggestions={timeSuggestions}
+        warning={timeWarning}
+        suggestedTime={suggestedTime}
+        onTimeSelect={onTimeSelect}
+        onCancel={onCancelTimePicker}
+      />
+    )}
+  </>
+);
 
 // Extracted to reduce main component line count
 const EmailDetailContent: React.FC<any> = ({

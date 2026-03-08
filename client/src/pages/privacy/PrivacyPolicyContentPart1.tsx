@@ -4,6 +4,58 @@ import { LegalList } from 'components/legal/LegalList';
 import { LegalParagraph } from 'components/legal/LegalParagraph';
 import { LegalSection } from 'components/legal/LegalSection';
 
+const DataSecuritySection: React.FC = () => (
+  <LegalSection title="4. Data Security">
+    <LegalParagraph>We implement industry-standard security measures to protect your data:</LegalParagraph>
+    <LegalList
+      items={[
+        <>
+          <strong>Encryption:</strong> All sensitive data, including email content, is encrypted at rest using
+          AES-256-GCM encryption
+        </>,
+        <>
+          <strong>Secure Transmission:</strong> All data is transmitted over HTTPS/TLS
+        </>,
+        <>
+          <strong>Access Controls:</strong> Strict access controls limit who can access your data
+        </>,
+        <>
+          <strong>Regular Audits:</strong> We conduct regular security audits and assessments
+        </>,
+      ]}
+    />
+  </LegalSection>
+);
+
+const ThirdPartyServicesSection: React.FC = () => (
+  <LegalSection title="5. Third-Party Services">
+    <LegalParagraph>We integrate with the following third-party services:</LegalParagraph>
+    <LegalList
+      items={[
+        <>
+          <strong>Google Gmail API:</strong> To access and manage your emails
+        </>,
+        <>
+          <strong>Google Calendar API:</strong> For calendar booking functionality
+        </>,
+        <>
+          <strong>OpenAI/Gemini:</strong> For AI-powered email analysis and summaries (you may use your own API
+          keys)
+        </>,
+        <>
+          <strong>PostHog:</strong> For analytics and product insights
+        </>,
+        <>
+          <strong>RevenueCat:</strong> For subscription management
+        </>,
+      ]}
+    />
+    <LegalParagraph>
+      These services have their own privacy policies. We encourage you to review them.
+    </LegalParagraph>
+  </LegalSection>
+);
+
 export const PrivacyPolicyContentPart1: React.FC = () => {
   return (
     <>
@@ -70,53 +122,8 @@ export const PrivacyPolicyContentPart1: React.FC = () => {
         />
       </LegalSection>
 
-      <LegalSection title="4. Data Security">
-        <LegalParagraph>We implement industry-standard security measures to protect your data:</LegalParagraph>
-        <LegalList
-          items={[
-            <>
-              <strong>Encryption:</strong> All sensitive data, including email content, is encrypted at rest using
-              AES-256-GCM encryption
-            </>,
-            <>
-              <strong>Secure Transmission:</strong> All data is transmitted over HTTPS/TLS
-            </>,
-            <>
-              <strong>Access Controls:</strong> Strict access controls limit who can access your data
-            </>,
-            <>
-              <strong>Regular Audits:</strong> We conduct regular security audits and assessments
-            </>,
-          ]}
-        />
-      </LegalSection>
-
-      <LegalSection title="5. Third-Party Services">
-        <LegalParagraph>We integrate with the following third-party services:</LegalParagraph>
-        <LegalList
-          items={[
-            <>
-              <strong>Google Gmail API:</strong> To access and manage your emails
-            </>,
-            <>
-              <strong>Google Calendar API:</strong> For calendar booking functionality
-            </>,
-            <>
-              <strong>OpenAI/Gemini:</strong> For AI-powered email analysis and summaries (you may use your own API
-              keys)
-            </>,
-            <>
-              <strong>PostHog:</strong> For analytics and product insights
-            </>,
-            <>
-              <strong>RevenueCat:</strong> For subscription management
-            </>,
-          ]}
-        />
-        <LegalParagraph>
-          These services have their own privacy policies. We encourage you to review them.
-        </LegalParagraph>
-      </LegalSection>
+      <DataSecuritySection />
+      <ThirdPartyServicesSection />
     </>
   );
 };

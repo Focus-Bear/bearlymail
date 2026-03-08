@@ -241,6 +241,38 @@ const DailyChart: React.FC<{
   );
 };
 
+interface StatsPeriodSelectorProps {
+  days: number;
+  setDays: (days: number) => void;
+}
+
+const StatsPeriodSelector: React.FC<StatsPeriodSelectorProps> = ({ days, setDays }) => {
+  const { t } = useTranslation();
+  return (
+  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+    {PERIOD_OPTIONS.map(option => (
+      <button
+        key={option}
+        onClick={() => setDays(option)}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          borderRadius: theme.borderRadius.sm,
+          border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`,
+          backgroundColor: days === option ? theme.colors.primary.main : 'transparent',
+          color: days === option ? 'white' : theme.colors.text.secondary,
+          cursor: 'pointer',
+          ...theme.typography.body.large,
+          fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
+          transition: theme.transitions.fast,
+        }}
+      >
+        {t('stats.periodDays', { count: option })}
+      </button>
+    ))}
+  </div>
+  );
+};
+
 interface StatsBodyContentProps {
   stats: ProcessedEmailStats | null;
   loading: boolean;
@@ -269,27 +301,7 @@ const StatsBodyContent: React.FC<StatsBodyContentProps> = ({
       <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
         {t('stats.title')}
       </h1>
-      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-        {PERIOD_OPTIONS.map(option => (
-          <button
-            key={option}
-            onClick={() => setDays(option)}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`,
-              backgroundColor: days === option ? theme.colors.primary.main : 'transparent',
-              color: days === option ? 'white' : theme.colors.text.secondary,
-              cursor: 'pointer',
-              ...theme.typography.body.large,
-              fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
-              transition: theme.transitions.fast,
-            }}
-          >
-            {t('stats.periodDays', { count: option })}
-          </button>
-        ))}
-      </div>
+      <StatsPeriodSelector days={days} setDays={setDays} />
     </div>
 
     {loading && (

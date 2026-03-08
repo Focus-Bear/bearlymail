@@ -46,6 +46,68 @@ interface BookingData {
   status: string;
 }
 
+const BookingRescheduleSuccess: React.FC<{ t: (key: string) => string }> = ({ t }) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: STRING_CENTER,
+      alignItems: STRING_CENTER,
+      height: '100vh',
+      backgroundColor: theme.colors.background.default,
+      fontFamily: theme.typography.fontFamily,
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        padding: theme.spacing['2xl'],
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.md,
+        textAlign: STRING_CENTER,
+        maxWidth: `${MAX_WIDTH_500_PX}px`,
+      }}
+    >
+      {/* eslint-disable-next-line i18next/no-literal-string */}
+      <div style={{ color: theme.colors.accent.success, fontSize: theme.typography.fontSize['3xl'], marginBottom: theme.spacing.lg }}>
+        {EMOJI_CHECK}
+      </div>
+      <h1 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
+        {t('booking.reschedule.success')}
+      </h1>
+      <p style={{ color: theme.colors.text.secondary }}>{t('booking.reschedule.successMessage')}</p>
+    </div>
+  </div>
+);
+
+interface CurrentBookingInfoProps {
+  booking: BookingData;
+  t: (key: string) => string;
+}
+
+const CurrentBookingInfo: React.FC<CurrentBookingInfoProps> = ({ booking, t }) => (
+  <div
+    style={{
+      backgroundColor: `${theme.colors.primary.main}10`,
+      padding: theme.spacing.md,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.lg,
+      border: `1px solid ${theme.colors.border.light}`,
+    }}
+  >
+    <p style={{ margin: 0, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+      {t('booking.reschedule.currentTime')}
+    </p>
+    <p style={{ margin: `${theme.spacing.xs} 0 0`, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
+      {new Date(booking.startTime).toLocaleDateString(undefined, {
+        weekday: STRING_LONG,
+        month: 'short',
+        day: STRING_NUMERIC,
+      })}{' '}
+      {new Date(booking.startTime).toLocaleTimeString(undefined, { hour: STRING_2_DIGIT, minute: STRING_2_DIGIT })}
+    </p>
+  </div>
+);
+
 const BookingReschedulePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const { t } = useTranslation();
@@ -91,7 +153,6 @@ const BookingReschedulePage: React.FC = () => {
     if (!selectedSlot || !token) {
       return;
     }
-
     setStatus(BOOKING_SUBMITTING);
     try {
       await axios.post(`${API_URL}/public/calendar/booking/${token}/reschedule`, {
@@ -109,49 +170,7 @@ const BookingReschedulePage: React.FC = () => {
   }
 
   if (status === BOOKING_STATUS_SUCCESS) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: STRING_CENTER,
-          alignItems: STRING_CENTER,
-          height: '100vh',
-          backgroundColor: theme.colors.background.default,
-          fontFamily: theme.typography.fontFamily,
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: theme.colors.background.paper,
-            padding: theme.spacing['2xl'],
-            borderRadius: theme.borderRadius.lg,
-            boxShadow: theme.shadows.md,
-            textAlign: STRING_CENTER,
-            maxWidth: `${MAX_WIDTH_500_PX}px`,
-          }}
-        >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
-          <div
-            style={{
-              color: theme.colors.accent.success,
-              fontSize: theme.typography.fontSize['3xl'],
-              marginBottom: theme.spacing.lg,
-            }}
-          >
-            {EMOJI_CHECK}
-          </div>
-          <h1
-            style={{
-              color: theme.colors.text.primary,
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            {t('booking.reschedule.success')}
-          </h1>
-          <p style={{ color: theme.colors.text.secondary }}>{t('booking.reschedule.successMessage')}</p>
-        </div>
-      </div>
-    );
+    return <BookingRescheduleSuccess t={t} />;
   }
 
   return (
@@ -165,7 +184,7 @@ const BookingReschedulePage: React.FC = () => {
     >
       <div
         style={{
-          maxWidth: `${MAX_WIDTH_600_PX}px`, // Using same constant as BookingCancelPage for consistency
+          maxWidth: `${MAX_WIDTH_600_PX}px`,
           margin: STRING_AUTO,
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
@@ -173,13 +192,7 @@ const BookingReschedulePage: React.FC = () => {
           overflow: STRING_HIDDEN,
         }}
       >
-        <div
-          style={{
-            padding: theme.spacing.xl,
-            backgroundColor: theme.colors.primary.main,
-            color: STRING_WHITE,
-          }}
-        >
+        <div style={{ padding: theme.spacing.xl, backgroundColor: theme.colors.primary.main, color: STRING_WHITE }}>
           <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>{t('booking.reschedule.title')}</h1>
           <p style={{ marginTop: theme.spacing.sm, opacity: OPACITY_90_PERCENT }}>{t('booking.reschedule.subtitle')}</p>
         </div>
@@ -201,50 +214,13 @@ const BookingReschedulePage: React.FC = () => {
 
           {booking && booking.status !== BOOKING_STATUS_CANCELLED && (
             <>
-              <div
-                style={{
-                  backgroundColor: `${theme.colors.primary.main}10`,
-                  padding: theme.spacing.md,
-                  borderRadius: theme.borderRadius.md,
-                  marginBottom: theme.spacing.lg,
-                  border: `1px solid ${theme.colors.border.light}`,
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    color: theme.colors.text.secondary,
-                    fontSize: theme.typography.fontSize.sm,
-                  }}
-                >
-                  {t('booking.reschedule.currentTime')}
-                </p>
-                <p
-                  style={{
-                    margin: `${theme.spacing.xs} 0 0`,
-                    color: theme.colors.text.primary,
-                    fontWeight: theme.typography.fontWeight.medium,
-                  }}
-                >
-                  {new Date(booking.startTime).toLocaleDateString(undefined, {
-                    weekday: STRING_LONG,
-                    month: 'short',
-                    day: STRING_NUMERIC,
-                  })}{' '}
-                  {new Date(booking.startTime).toLocaleTimeString(undefined, {
-                    hour: STRING_2_DIGIT,
-                    minute: STRING_2_DIGIT,
-                  })}
-                </p>
-              </div>
-
+              <CurrentBookingInfo booking={booking} t={t} />
               <SlotSelection
                 slots={slots}
                 selectedSlot={selectedSlot}
                 onSelectSlot={setSelectedSlot}
                 timezone={timezone}
               />
-
               <button
                 onClick={handleReschedule}
                 disabled={!selectedSlot || status === BOOKING_SUBMITTING}

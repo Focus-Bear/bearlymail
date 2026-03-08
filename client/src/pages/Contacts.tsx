@@ -30,6 +30,189 @@ import { useContactSearch } from 'hooks/useContactSearch';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
 
+interface ContactsEmptyStateProps {
+  searchQuery: string;
+  syncing: boolean;
+  onSync: () => void;
+}
+
+const ContactsEmptyState: React.FC<ContactsEmptyStateProps> = ({ searchQuery, syncing, onSync }) => {
+  const { t } = useTranslation();
+  return (
+  <div
+    style={{
+      textAlign: STRING_CENTER,
+      padding: theme.spacing.xl,
+      backgroundColor: theme.colors.background.paper,
+      borderRadius: theme.borderRadius.lg,
+      boxShadow: theme.shadows.sm,
+    }}
+  >
+    <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>👤</div>
+    <h3
+      style={{
+        color: theme.colors.text.primary,
+        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.semibold,
+        marginBottom: theme.spacing.sm,
+      }}
+    >
+      {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
+    </h3>
+    <p
+      style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.base,
+        marginBottom: theme.spacing.lg,
+      }}
+    >
+      {searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}
+    </p>
+    {!searchQuery && (
+      <button
+        onClick={onSync}
+        disabled={syncing}
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+          backgroundColor: theme.colors.primary.main,
+          color: STRING_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.md,
+          cursor: syncing ? 'not-allowed' : STRING_POINTER,
+          fontSize: theme.typography.fontSize.base,
+          fontWeight: theme.typography.fontWeight.medium,
+          opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
+        }}
+      >
+        {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
+      </button>
+    )}
+  </div>
+  );
+};
+
+interface ContactsListProps {
+  contacts: Contact[];
+  getContactTypeConfig: (typeName: string | null | undefined) => ContactTypeConfig | undefined;
+}
+
+const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeConfig }) => {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.sm,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: theme.spacing.md,
+          borderBottom: `1px solid ${theme.colors.border.light}`,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('contacts.totalContacts', { count: contacts.length })}
+      </div>
+      <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+        {contacts.map((contact, index) => {
+          const typeConfig = getContactTypeConfig(contact.contactType);
+          return (
+            <div
+              key={contact.id || contact.email}
+              onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
+              style={{
+                display: STRING_FLEX,
+                alignItems: STRING_CENTER,
+                padding: theme.spacing.md,
+                borderBottom: index < contacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE,
+                gap: theme.spacing.md,
+                cursor: contact.id ? STRING_POINTER : STRING_DEFAULT,
+                transition: theme.transitions.fast,
+              }}
+              onMouseEnter={event => {
+                if (contact.id) {
+                  event.currentTarget.style.backgroundColor = theme.colors.background.default;
+                }
+              }}
+              onMouseLeave={event => {
+                event.currentTarget.style.backgroundColor = STRING_TRANSPARENT;
+              }}
+            >
+              {contact.photoUrl ? (
+                <img
+                  src={contact.photoUrl}
+                  alt=""
+                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: STRING_COVER }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: theme.colors.primary.subtle,
+                    display: STRING_FLEX,
+                    alignItems: STRING_CENTER,
+                    justifyContent: STRING_CENTER,
+                    color: theme.colors.primary.main,
+                    fontSize: theme.typography.fontSize.lg,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    flexShrink: 0,
+                  }}
+                >
+                  {(contact.name || contact.email)[0].toUpperCase()}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: STRING_FLEX, alignItems: STRING_CENTER, gap: theme.spacing.sm }}>
+                  <span
+                    style={{
+                      color: theme.colors.text.primary,
+                      fontSize: theme.typography.fontSize.base,
+                      fontWeight: theme.typography.fontWeight.medium,
+                      overflow: STRING_HIDDEN,
+                      textOverflow: STRING_ELLIPSIS,
+                      whiteSpace: STRING_NOWRAP,
+                    }}
+                  >
+                    {contact.name || contact.email}
+                  </span>
+                  {typeConfig && (
+                    <ContactTypeBadge label={typeConfig.label} color={typeConfig.color} icon={typeConfig.icon} />
+                  )}
+                </div>
+                {contact.name && (
+                  <div
+                    style={{
+                      color: theme.colors.text.secondary,
+                      fontSize: theme.typography.fontSize.sm,
+                      overflow: STRING_HIDDEN,
+                      textOverflow: STRING_ELLIPSIS,
+                      whiteSpace: STRING_NOWRAP,
+                    }}
+                  >
+                    {contact.email}
+                  </div>
+                )}
+              </div>
+              {contact.company && (
+                <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, whiteSpace: STRING_NOWRAP }}>
+                  {contact.company}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 interface ContactsMainContentProps {
   contacts: Contact[];
   contactTypes: ContactTypeConfig[];
@@ -49,7 +232,6 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
   handleSync,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { searchQuery, setSearchQuery, searching, filteredContacts } = useContactSearch();
   const displayedContacts = filteredContacts(contacts);
 
@@ -118,187 +300,19 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
         </div>
       )}
 
-      {(() => {
-        if (loading || searching) {
-          return (
-            <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
-              {t('contacts.loading')}
-            </div>
-          );
-        }
-        if (displayedContacts.length === 0) {
-          return (
-            <div
-              style={{
-                textAlign: STRING_CENTER,
-                padding: theme.spacing.xl,
-                backgroundColor: theme.colors.background.paper,
-                borderRadius: theme.borderRadius.lg,
-                boxShadow: theme.shadows.sm,
-              }}
-            >
-              <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>👤</div>
-              <h3
-                style={{
-                  color: theme.colors.text.primary,
-                  fontSize: theme.typography.fontSize.lg,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  marginBottom: theme.spacing.sm,
-                }}
-              >
-                {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
-              </h3>
-              <p
-                style={{
-                  color: theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.base,
-                  marginBottom: theme.spacing.lg,
-                }}
-              >
-                {searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}
-              </p>
-              {!searchQuery && (
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  style={{
-                    padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                    backgroundColor: theme.colors.primary.main,
-                    color: STRING_WHITE,
-                    border: STRING_NONE,
-                    borderRadius: theme.borderRadius.md,
-                    cursor: syncing ? 'not-allowed' : STRING_POINTER,
-                    fontSize: theme.typography.fontSize.base,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
-                  }}
-                >
-                  {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
-                </button>
-              )}
-            </div>
-          );
-        }
-        return (
-          <div
-            style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.lg,
-              boxShadow: theme.shadows.sm,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding: theme.spacing.md,
-                borderBottom: `1px solid ${theme.colors.border.light}`,
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-              }}
-            >
-              {t('contacts.totalContacts', { count: displayedContacts.length })}
-            </div>
-            <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-              {displayedContacts.map((contact, index) => {
-                const typeConfig = getContactTypeConfig(contact.contactType);
-                return (
-                  <div
-                    key={contact.id || contact.email}
-                    onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
-                    style={{
-                      display: STRING_FLEX,
-                      alignItems: STRING_CENTER,
-                      padding: theme.spacing.md,
-                      borderBottom:
-                        index < displayedContacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE,
-                      gap: theme.spacing.md,
-                      cursor: contact.id ? STRING_POINTER : STRING_DEFAULT,
-                      transition: theme.transitions.fast,
-                    }}
-                    onMouseEnter={event => {
-                      if (contact.id) {
-                        event.currentTarget.style.backgroundColor = theme.colors.background.default;
-                      }
-                    }}
-                    onMouseLeave={event => {
-                      event.currentTarget.style.backgroundColor = STRING_TRANSPARENT;
-                    }}
-                  >
-                    {contact.photoUrl ? (
-                      <img
-                        src={contact.photoUrl}
-                        alt=""
-                        style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: STRING_COVER }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          backgroundColor: theme.colors.primary.subtle,
-                          display: STRING_FLEX,
-                          alignItems: STRING_CENTER,
-                          justifyContent: STRING_CENTER,
-                          color: theme.colors.primary.main,
-                          fontSize: theme.typography.fontSize.lg,
-                          fontWeight: theme.typography.fontWeight.semibold,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {(contact.name || contact.email)[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: STRING_FLEX, alignItems: STRING_CENTER, gap: theme.spacing.sm }}>
-                        <span
-                          style={{
-                            color: theme.colors.text.primary,
-                            fontSize: theme.typography.fontSize.base,
-                            fontWeight: theme.typography.fontWeight.medium,
-                            overflow: STRING_HIDDEN,
-                            textOverflow: STRING_ELLIPSIS,
-                            whiteSpace: STRING_NOWRAP,
-                          }}
-                        >
-                          {contact.name || contact.email}
-                        </span>
-                        {typeConfig && (
-                          <ContactTypeBadge label={typeConfig.label} color={typeConfig.color} icon={typeConfig.icon} />
-                        )}
-                      </div>
-                      {contact.name && (
-                        <div
-                          style={{
-                            color: theme.colors.text.secondary,
-                            fontSize: theme.typography.fontSize.sm,
-                            overflow: STRING_HIDDEN,
-                            textOverflow: STRING_ELLIPSIS,
-                            whiteSpace: STRING_NOWRAP,
-                          }}
-                        >
-                          {contact.email}
-                        </div>
-                      )}
-                    </div>
-                    {contact.company && (
-                      <div
-                        style={{
-                          color: theme.colors.text.tertiary,
-                          fontSize: theme.typography.fontSize.sm,
-                          whiteSpace: STRING_NOWRAP,
-                        }}
-                      >
-                        {contact.company}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+      {(loading || searching) && (
+        <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
+          {t('contacts.loading')}
+        </div>
+      )}
+
+      {!loading && !searching && displayedContacts.length === 0 && (
+        <ContactsEmptyState searchQuery={searchQuery} syncing={syncing} onSync={handleSync} />
+      )}
+
+      {!loading && !searching && displayedContacts.length > 0 && (
+        <ContactsList contacts={displayedContacts} getContactTypeConfig={getContactTypeConfig} />
+      )}
     </div>
   );
 };

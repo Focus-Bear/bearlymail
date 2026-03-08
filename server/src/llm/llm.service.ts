@@ -311,6 +311,7 @@ export class LLMService {
         systemPrompt: "",
         temperature: RATIOS.FORTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -596,6 +597,7 @@ export class LLMService {
             threads.length * QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL +
               QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
           ),
+          jsonMode: true,
           userId,
           metadata: emailIds?.length ? { emailIds } : undefined,
         },
@@ -644,6 +646,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -712,6 +715,7 @@ export class LLMService {
         systemPrompt,
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -875,6 +879,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -959,6 +964,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.SEVENTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -1201,7 +1207,7 @@ export class LLMService {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.SEVENTY_PERCENT,
-        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
         userId,
       },
       provider,
@@ -1270,6 +1276,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -1378,6 +1385,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -1572,7 +1580,107 @@ export class LLMService {
   }
 
   /**
-   * Generate explanations for multiple emails in a single batch call (faster than individual calls)
+   * Generate explanations for a single chunk of emails in one LLM call.
+   */
+  private async generateExplanationChunk(
+    query: string,
+    emailChunk: Array<{
+      index: number;
+      from: string;
+      subject: string;
+      bodyPreview: string;
+      receivedAt: string;
+      isRecent: string;
+    }>,
+    promptConfig: { prompt?: string; systemPrompt?: string },
+    userId: string | undefined,
+    provider: LLMProvider | undefined,
+  ): Promise<Map<number, string>> {
+    const fullPrompt = renderPrompt(promptConfig.prompt || "", {
+      query,
+      emails: emailChunk,
+    });
+
+    this.logger.debug(
+      `Explanation chunk: ${emailChunk.length} emails, prompt length: ${fullPrompt.length}`,
+    );
+
+    if (!fullPrompt.includes("Email") || !fullPrompt.includes("index:")) {
+      this.logger.error(
+        "Rendered prompt does not contain email details! Prompt may not have rendered correctly.",
+      );
+    }
+
+    const response = await this.generateText(
+      {
+        prompt: fullPrompt,
+        systemPrompt:
+          "You are a helpful email search assistant. Return only valid JSON objects.",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: Math.min(
+          QUERY_LIMITS.LLM_BATCH_EXPLANATION_BASE,
+          emailChunk.length * QUERY_LIMITS.LLM_BATCH_EXPLANATION_PER_EMAIL,
+        ),
+        jsonMode: true,
+        userId,
+      },
+      provider,
+      userId,
+      LLM_OP_SEARCH_RELEVANCE_BATCH,
+    );
+
+    this.logger.debug(
+      `Chunk response received. Length: ${response.length}, First ${QUERY_LIMITS.LLM_REASONING_MAX_LENGTH} chars: ${response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH)}`,
+    );
+
+    // Parse JSON response - try multiple patterns
+    let jsonStr: string | null = null;
+
+    // Try 1: Direct JSON object
+    const directMatch = response.match(/\{[\s\S]*\}/);
+    if (directMatch) jsonStr = directMatch[0];
+
+    // Try 2: JSON in markdown code block
+    if (!jsonStr) {
+      const codeBlockMatch = response.match(
+        /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
+      );
+      if (codeBlockMatch?.[1]) jsonStr = codeBlockMatch[1];
+    }
+
+    // Try 3: JSON after "Return" or similar text
+    if (!jsonStr) {
+      const afterTextMatch = response.match(
+        /(?:return|json|result)[\s:]*(\{[\s\S]*\})/i,
+      );
+      if (afterTextMatch?.[1]) jsonStr = afterTextMatch[1];
+    }
+
+    if (jsonStr) {
+      try {
+        return this.parseBatchExplanationJson(jsonStr, query, emailChunk);
+      } catch (parseError) {
+        this.logger.error(
+          `Failed to parse JSON from chunk explanation response:`,
+          parseError,
+        );
+        this.logger.error(
+          `JSON string that failed to parse: ${jsonStr.substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}`,
+        );
+      }
+    } else {
+      this.logger.error(
+        `Failed to find JSON in chunk explanation response. Full response (first ${BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW} chars):\n${response.substring(0, BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW)}`,
+      );
+    }
+
+    return new Map();
+  }
+
+  /**
+   * Generate explanations for multiple emails in chunked batch calls.
+   * Large email sets are split into smaller chunks (LLM_BATCH_EXPLANATION_CHUNK_SIZE)
+   * to avoid token-limit truncation on individual responses.
    */
   async generateSearchRelevanceExplanationsBatch(
     query: string,
@@ -1606,106 +1714,42 @@ export class LLMService {
       return new Map();
     }
 
-    const fullPrompt = renderPrompt(promptConfig.prompt || "", {
-      query,
-      emails: emailDetails,
-      // This should trigger {{#if emails}} to be true
-    });
-
-    // Log the rendered prompt to debug
-    this.logger.debug(
-      `Batch explanation: ${emails.length} emails, prompt length: ${fullPrompt.length}`,
-    );
-    this.logger.debug(
-      `Rendered prompt preview (first ${BODY_PREVIEW_LENGTHS.DEBUG_LOG_PREVIEW} chars):\n${fullPrompt.substring(0, BODY_PREVIEW_LENGTHS.DEBUG_LOG_PREVIEW)}`,
-    );
-
-    // Verify the prompt contains the emails section
-    if (!fullPrompt.includes("Email") || !fullPrompt.includes("index:")) {
-      this.logger.error(
-        "Rendered prompt does not contain email details! Prompt may not have rendered correctly.",
-      );
-      this.logger.error(`Full prompt:\n${fullPrompt}`);
+    // Split into chunks to avoid per-response token-limit truncation
+    const chunkSize = QUERY_LIMITS.LLM_BATCH_EXPLANATION_CHUNK_SIZE;
+    const chunks: (typeof emailDetails)[] = [];
+    for (let i = 0; i < emailDetails.length; i += chunkSize) {
+      chunks.push(emailDetails.slice(i, i + chunkSize));
     }
 
-    try {
-      const response = await this.generateText(
-        {
-          prompt: fullPrompt,
-          systemPrompt:
-            "You are a helpful email search assistant. Return only valid JSON objects.",
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: Math.min(
-            QUERY_LIMITS.LLM_BATCH_EXPLANATION_BASE,
-            emails.length * QUERY_LIMITS.LLM_BATCH_EXPLANATION_PER_EMAIL,
-          ),
-          // Increased tokens for better responses
+    this.logger.debug(
+      `Batch explanation: ${emails.length} emails split into ${chunks.length} chunk(s) of ≤${chunkSize}`,
+    );
+
+    const result = new Map<number, string>();
+
+    for (const chunk of chunks) {
+      try {
+        const chunkResult = await this.generateExplanationChunk(
+          query,
+          chunk,
+          promptConfig,
           userId,
-        },
-        provider,
-        userId,
-        LLM_OP_SEARCH_RELEVANCE_BATCH,
-      );
-
-      this.logger.debug(
-        `Batch explanation response received. Length: ${response.length}, First ${QUERY_LIMITS.LLM_REASONING_MAX_LENGTH} chars: ${response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH)}`,
-      );
-
-      // Parse JSON response - try multiple patterns
-      let jsonStr: string | null = null;
-
-      // Try 1: Direct JSON object
-      const directMatch = response.match(/\{[\s\S]*\}/);
-      if (directMatch) {
-        jsonStr = directMatch[0];
-      }
-
-      // Try 2: JSON in markdown code block
-      if (!jsonStr) {
-        const codeBlockMatch = response.match(
-          /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
+          provider,
         );
-        if (codeBlockMatch && codeBlockMatch[1]) {
-          jsonStr = codeBlockMatch[1];
-        }
-      }
-
-      // Try 3: JSON after "Return" or similar text
-      if (!jsonStr) {
-        const afterTextMatch = response.match(
-          /(?:return|json|result)[\s:]*(\{[\s\S]*\})/i,
-        );
-        if (afterTextMatch && afterTextMatch[1]) {
-          jsonStr = afterTextMatch[1];
-        }
-      }
-
-      if (jsonStr) {
-        try {
-          return this.parseBatchExplanationJson(jsonStr, query, emailDetails);
-        } catch (parseError) {
-          this.logger.error(
-            `Failed to parse JSON from batch explanation response:`,
-            parseError,
-          );
-          this.logger.error(
-            `JSON string that failed to parse: ${jsonStr.substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}`,
-          );
-        }
-      } else {
+        chunkResult.forEach((value, key) => result.set(key, value));
+      } catch (error) {
         this.logger.error(
-          `Failed to find JSON in batch explanation response. Full response (first ${BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW} chars):\n${response.substring(0, BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW)}`,
+          `Explanation chunk failed (indices ${chunk.map((email) => email.index).join(",")})`,
+          error,
+        );
+        this.logger.error(
+          `Error details: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
-    } catch (error) {
-      this.logger.error("Batch explanation generation failed", error);
-      this.logger.error(
-        `Error details: ${error instanceof Error ? error.message : String(error)}`,
-      );
     }
 
-    // Fallback: return empty map (will trigger individual calls)
-    return new Map();
+    // Fallback: return whatever we got (may be partial)
+    return result;
   }
 
   /**
@@ -1781,6 +1825,7 @@ export class LLMService {
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: 0.1,
           maxTokens: text.length + QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+          jsonMode: true,
         },
         undefined,
         undefined,
@@ -1862,6 +1907,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -2159,6 +2205,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -2287,6 +2334,7 @@ export class LLMService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -2403,6 +2451,7 @@ export class LLMService {
         systemPrompt: "",
         temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        jsonMode: true,
         userId,
       },
       provider,
@@ -2481,6 +2530,7 @@ export class LLMService {
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.THIRTY_PERCENT,
           maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
+          jsonMode: true,
           userId,
         },
         provider,

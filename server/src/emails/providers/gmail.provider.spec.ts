@@ -1,11 +1,12 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { Logger } from "@nestjs/common";
-import { GmailProvider } from "./gmail.provider";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { UsersService } from "../../users/users.service";
+import { InvalidTokenError } from "../../utils/errors";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
-import { InvalidTokenError } from "../../utils/errors";
+import { GmailProvider } from "./gmail.provider";
 
 // Capture a mutable reference to getAccessToken so individual tests can
 // configure the mock return value.

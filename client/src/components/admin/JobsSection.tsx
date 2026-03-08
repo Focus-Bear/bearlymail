@@ -6,196 +6,17 @@ import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 import { SORT_ASC, SORT_DESC, TYPEOF_STRING } from 'constants/strings';
 
-interface JobStat {
-  jobType: string;
-  queued: number;
-  active: number;
-  retry: number;
-  failed: number;
-  completed: number;
-  avgCompletionTimeMs: number | null;
-}
-interface JobStatsResponse {
-  stats: JobStat[];
-  timestamp: string;
-}
-type DateRange = '24h' | '7d' | '30d' | 'all';
-type SortColumn = 'jobType' | 'queued' | 'active' | 'retry' | 'failed' | 'completed' | 'avgCompletionTimeMs';
-type SortDirection = 'asc' | 'desc';
+import { DateRange, JobStat, JobStatsResponse, SortColumn, SortDirection } from './JobsSection.types';
+import { JobsSectionHeader } from './JobsSectionHeader';
+import { formatDuration, JobsTableBody } from './JobsTableBody';
+import { JobsTableHeader } from './JobsTableHeader';
 
-const headerStyle = (isFirst: boolean, isLast: boolean): React.CSSProperties => ({
-  padding: theme.spacing.md,
-  textAlign: isFirst ? 'left' : 'center',
-  fontWeight: theme.typography.fontWeight.semibold,
-  color: theme.colors.text.primary,
-  borderRight: isLast ? 'none' : `1px solid ${theme.colors.border.light}`,
-  cursor: 'pointer',
-  userSelect: 'none',
-});
+const REFRESH_INTERVAL_MS = 10000;
 
-const getSortIndicator = (column: SortColumn, sortColumn: SortColumn, sortDirection: SortDirection): string => {
-  if (sortColumn !== column) {
-    return '';
-  }
-  return sortDirection === SORT_ASC ? ' ▲' : ' ▼';
-};
-
-const formatDuration = (ms: number | null, tFunc: (key: string) => string): string => {
-  if (ms === null || ms === undefined) {
-    return tFunc('admin.jobs.noData');
-  }
-  const MS_PER_SECOND = 1000;
-  const MS_PER_MINUTE = 60000;
-  if (ms < MS_PER_SECOND) {
-    return `${Math.round(ms)}ms`;
-  }
-  if (ms < MS_PER_MINUTE) {
-    return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
-  }
-  const minutes = Math.floor(ms / MS_PER_MINUTE);
-  const seconds = Math.floor((ms % MS_PER_MINUTE) / MS_PER_SECOND);
-  return `${minutes}m ${seconds}s`;
-};
-
-interface JobsTableHeaderProps {
-  sortColumn: SortColumn;
-  sortDirection: SortDirection;
-  onSort: (col: SortColumn) => void;
-  t: (key: string) => string;
-}
-
-const JOB_COLUMNS: SortColumn[] = [
-  'jobType',
-  'queued',
-  'active',
-  'retry',
-  'failed',
-  'completed',
-  'avgCompletionTimeMs',
-];
-const COLUMN_LAST_IDX = JOB_COLUMNS.length - 1;
-const SORT_COLUMN_AVG = 'avgCompletionTimeMs';
-const SORT_COLUMN_AVG_LABEL = 'avgCompletionTime';
-const getColumnLabel = (col: SortColumn) => (col === SORT_COLUMN_AVG ? SORT_COLUMN_AVG_LABEL : col);
-
-const JobsTableHeader: React.FC<JobsTableHeaderProps> = ({ sortColumn, sortDirection, onSort, t }) => (
-  <thead>
-    <tr
-      style={{
-        backgroundColor: theme.colors.background.default,
-        borderBottom: `2px solid ${theme.colors.border.medium}`,
-      }}
-    >
-      {JOB_COLUMNS.map((col, idx) => (
-        <th key={col} style={headerStyle(idx === 0, idx === COLUMN_LAST_IDX)} onClick={() => onSort(col)}>
-          {t(`admin.jobs.${getColumnLabel(col)}`)}
-          {getSortIndicator(col, sortColumn, sortDirection)}
-        </th>
-      ))}
-    </tr>
-  </thead>
-);
-
-interface JobsTableBodyProps {
-  sortedStats: JobStat[];
-  t: (key: string) => string;
-  formatDur: (ms: number | null) => string;
-}
-
-const JobsTableBody: React.FC<JobsTableBodyProps> = ({ sortedStats, t, formatDur }) => {
-  if (sortedStats.length === 0) {
-    return (
-      <tbody>
-        <tr>
-          <td
-            colSpan={7}
-            style={{ padding: theme.spacing.xl, textAlign: 'center', color: theme.colors.text.secondary }}
-          >
-            {t('admin.jobs.noJobs')}
-          </td>
-        </tr>
-      </tbody>
-    );
-  }
-  return (
-    <tbody>
-      {sortedStats.map((stat, index) => (
-        <tr
-          key={stat.jobType}
-          style={{
-            backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
-            borderBottom: `1px solid ${theme.colors.border.light}`,
-          }}
-        >
-          <td
-            style={{
-              padding: theme.spacing.md,
-              fontWeight: theme.typography.fontWeight.medium,
-              color: theme.colors.text.primary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.jobType}
-          </td>
-          <td
-            style={{
-              padding: theme.spacing.md,
-              textAlign: 'center',
-              color: stat.queued > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.queued}
-          </td>
-          <td
-            style={{
-              padding: theme.spacing.md,
-              textAlign: 'center',
-              color: stat.active > 0 ? theme.colors.accent.info : theme.colors.text.secondary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.active}
-          </td>
-          <td
-            style={{
-              padding: theme.spacing.md,
-              textAlign: 'center',
-              color: stat.retry > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.retry}
-          </td>
-          <td
-            style={{
-              padding: theme.spacing.md,
-              textAlign: 'center',
-              color: stat.failed > 0 ? theme.colors.accent.error : theme.colors.text.secondary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.failed}
-          </td>
-          <td
-            style={{
-              padding: theme.spacing.md,
-              textAlign: 'center',
-              color: stat.completed > 0 ? theme.colors.accent.success : theme.colors.text.secondary,
-              borderRight: `1px solid ${theme.colors.border.light}`,
-            }}
-          >
-            {stat.completed.toLocaleString()}
-          </td>
-          <td style={{ padding: theme.spacing.md, textAlign: 'center', color: theme.colors.text.primary }}>
-            {formatDur(stat.avgCompletionTimeMs)}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  );
-};
-
+/**
+ * Admin section that polls job queue stats and renders them in a sortable table.
+ * Supports date-range filtering and auto-refreshes every 10 seconds.
+ */
 export const JobsSection: React.FC = () => {
   const { t } = useTranslation();
   const [jobStats, setJobStats] = useState<JobStat[]>([]);
@@ -221,7 +42,6 @@ export const JobsSection: React.FC = () => {
 
   useEffect(() => {
     fetchJobStats();
-    const REFRESH_INTERVAL_MS = 10000;
     const interval = setInterval(() => {
       fetchJobStats();
     }, REFRESH_INTERVAL_MS);
@@ -258,60 +78,9 @@ export const JobsSection: React.FC = () => {
     return <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>{t('admin.dashboard.loading')}</div>;
   }
 
-  const dateRangeOptions: { value: DateRange; label: string }[] = [
-    { value: '24h', label: t('admin.jobs.range.24h') },
-    { value: '7d', label: t('admin.jobs.range.7d') },
-    { value: '30d', label: t('admin.jobs.range.30d') },
-    { value: 'all', label: t('admin.jobs.range.all') },
-  ];
-
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: theme.spacing.lg,
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: theme.typography.fontSize['2xl'],
-            fontWeight: theme.typography.fontWeight.bold,
-            color: theme.colors.text.primary,
-          }}
-        >
-          {t('admin.jobs.title')}
-        </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-          <select
-            value={dateRange}
-            onChange={event => setDateRange(event.target.value as DateRange)}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              backgroundColor: theme.colors.background.paper,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-              cursor: 'pointer',
-            }}
-          >
-            {dateRangeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {lastUpdated && (
-            <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-              {t('admin.jobs.lastUpdated')}: {lastUpdated.toLocaleTimeString()}
-            </div>
-          )}
-        </div>
-      </div>
+      <JobsSectionHeader dateRange={dateRange} onDateRangeChange={setDateRange} lastUpdated={lastUpdated} />
       <div
         style={{
           backgroundColor: theme.colors.background.paper,

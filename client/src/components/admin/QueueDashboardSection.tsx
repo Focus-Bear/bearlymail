@@ -4,55 +4,8 @@ import { theme } from 'theme/theme';
 
 const QUEUE_DASHBOARD_URL = import.meta.env.VITE_QUEUE_DASHBOARD_URL || '';
 
-export const QueueDashboardSection: React.FC = () => {
+const QueueDashboardNotConfigured: React.FC = () => {
   const { t } = useTranslation();
-
-  if (QUEUE_DASHBOARD_URL) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              fontSize: theme.typography.fontSize.xl,
-              fontWeight: theme.typography.fontWeight.semibold,
-            }}
-          >
-            {t('admin.queueDashboard.title')}
-          </h2>
-          <a
-            href={QUEUE_DASHBOARD_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: theme.colors.primary.main,
-              textDecoration: 'none',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('admin.queueDashboard.openInNewTab')}
-          </a>
-        </div>
-        <iframe
-          src={QUEUE_DASHBOARD_URL}
-          title={t('admin.queueDashboard.title')}
-          style={{
-            width: '100%',
-            height: '80vh',
-            border: `1px solid ${theme.colors.border.light}`,
-            borderRadius: theme.borderRadius.md,
-          }}
-        />
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
       <h2
@@ -113,6 +66,58 @@ export const QueueDashboardSection: React.FC = () => {
           {t('admin.queueDashboard.envVarExample')}
         </div>
       </div>
+    </div>
+  );
+};
+
+export const QueueDashboardSection: React.FC = () => {
+  const { t } = useTranslation();
+
+  if (!QUEUE_DASHBOARD_URL) {
+    return <QueueDashboardNotConfigured />;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.xl,
+            fontWeight: theme.typography.fontWeight.semibold,
+          }}
+        >
+          {t('admin.queueDashboard.title')}
+        </h2>
+        <a
+          href={QUEUE_DASHBOARD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: theme.colors.primary.main,
+            textDecoration: 'none',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('admin.queueDashboard.openInNewTab')}
+        </a>
+      </div>
+      <iframe
+        src={QUEUE_DASHBOARD_URL}
+        title={t('admin.queueDashboard.title')}
+        style={{
+          width: '100%',
+          height: '80vh',
+          border: `1px solid ${theme.colors.border.light}`,
+          borderRadius: theme.borderRadius.md,
+        }}
+      />
     </div>
   );
 };

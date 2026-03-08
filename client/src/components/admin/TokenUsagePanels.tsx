@@ -8,8 +8,6 @@ import { STRING_NONE } from 'constants/strings';
 import { DateRange, PromptExample, UsageByOperation, UsageSummary } from './TokenUsageSection.types';
 import { formatDuration, formatNumber, getOperationLabel } from './tokenUsageUtils';
 
-// --- TokenSummaryCards ---
-
 interface SummaryCardsProps {
   summary: UsageSummary;
 }
@@ -58,8 +56,6 @@ export const TokenSummaryCards: React.FC<SummaryCardsProps> = ({ summary }) => {
   );
 };
 
-// --- TokenDateFilter ---
-
 interface DateFilterProps {
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
@@ -90,12 +86,102 @@ export const TokenDateFilter: React.FC<DateFilterProps> = ({ dateRange, onDateRa
   );
 };
 
-// --- TokenUsageTable ---
-
 interface UsageTableProps {
   usage: UsageByOperation[];
   noDataLabel: string;
 }
+
+interface UsageTableRowProps {
+  item: UsageByOperation;
+  index: number;
+  noDataLabel: string;
+}
+
+const TD_BORDER_RIGHT = `1px solid ${theme.colors.border.light}`;
+
+const TokenUsageTableRow: React.FC<UsageTableRowProps> = ({ item, index, noDataLabel }) => (
+  <tr
+    style={{
+      backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
+      borderBottom: `1px solid ${theme.colors.border.light}`,
+    }}
+  >
+    <td
+      style={{
+        padding: theme.spacing.md,
+        fontWeight: theme.typography.fontWeight.medium,
+        color: theme.colors.text.primary,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {getOperationLabel(item.operation)}
+    </td>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        color: theme.colors.text.primary,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {formatNumber(item.callCount)}
+    </td>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        color: theme.colors.text.secondary,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {formatNumber(item.totalPromptTokens)}
+    </td>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        color: theme.colors.text.secondary,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {formatNumber(item.totalCompletionTokens)}
+    </td>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        fontWeight: theme.typography.fontWeight.semibold,
+        color: theme.colors.text.primary,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {formatNumber(item.totalTokens)}
+    </td>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        color: item.htmlCallCount > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
+        fontWeight:
+          item.htmlCallCount > 0
+            ? theme.typography.fontWeight.semibold
+            : theme.typography.fontWeight.normal,
+        borderRight: TD_BORDER_RIGHT,
+      }}
+    >
+      {item.htmlCallCount > 0 ? (
+        <span title={`${((item.htmlCallCount / item.callCount) * 100).toFixed(1)}% of calls contain HTML`}>
+          {formatNumber(item.htmlCallCount)} ({((item.htmlCallCount / item.callCount) * 100).toFixed(0)}%)
+        </span>
+      ) : (
+        '0'
+      )}
+    </td>
+    <td style={{ padding: theme.spacing.md, textAlign: 'center', color: theme.colors.text.primary }}>
+      {formatDuration(item.avgDurationMs, noDataLabel)}
+    </td>
+  </tr>
+);
 
 export const TokenUsageTable: React.FC<UsageTableProps> = ({ usage, noDataLabel }) => {
   const { t } = useTranslation();
@@ -152,88 +238,7 @@ export const TokenUsageTable: React.FC<UsageTableProps> = ({ usage, noDataLabel 
             </tr>
           ) : (
             usage.map((item, index) => (
-              <tr
-                key={item.operation}
-                style={{
-                  backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
-                  borderBottom: `1px solid ${theme.colors.border.light}`,
-                }}
-              >
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    color: theme.colors.text.primary,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {getOperationLabel(item.operation)}
-                </td>
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    color: theme.colors.text.primary,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {formatNumber(item.callCount)}
-                </td>
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    color: theme.colors.text.secondary,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {formatNumber(item.totalPromptTokens)}
-                </td>
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    color: theme.colors.text.secondary,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {formatNumber(item.totalCompletionTokens)}
-                </td>
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {formatNumber(item.totalTokens)}
-                </td>
-                <td
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    color: item.htmlCallCount > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
-                    fontWeight:
-                      item.htmlCallCount > 0
-                        ? theme.typography.fontWeight.semibold
-                        : theme.typography.fontWeight.normal,
-                    borderRight: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  {item.htmlCallCount > 0 ? (
-                    <span title={`${((item.htmlCallCount / item.callCount) * 100).toFixed(1)}% of calls contain HTML`}>
-                      {formatNumber(item.htmlCallCount)} ({((item.htmlCallCount / item.callCount) * 100).toFixed(0)}%)
-                    </span>
-                  ) : (
-                    '0'
-                  )}
-                </td>
-                <td style={{ padding: theme.spacing.md, textAlign: 'center', color: theme.colors.text.primary }}>
-                  {formatDuration(item.avgDurationMs, noDataLabel)}
-                </td>
-              </tr>
+              <TokenUsageTableRow key={item.operation} item={item} index={index} noDataLabel={noDataLabel} />
             ))
           )}
         </tbody>
@@ -241,8 +246,6 @@ export const TokenUsageTable: React.FC<UsageTableProps> = ({ usage, noDataLabel 
     </div>
   );
 };
-
-// --- TokenExampleItem ---
 
 interface ExampleItemProps {
   example: PromptExample;
@@ -343,8 +346,6 @@ const TokenExampleItem: React.FC<ExampleItemProps> = ({ example, isExpanded, onT
     </div>
   );
 };
-
-// --- TokenExamplesSection ---
 
 interface ExamplesSectionProps {
   examples: PromptExample[];

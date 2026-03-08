@@ -6,9 +6,6 @@ import {
   FailedJobsPanel,
   GitHubDebugHeader,
   SilentFailuresPanel,
-  STAT_CARD_STYLE,
-  STAT_LABEL_STYLE,
-  STAT_VALUE_STYLE,
   StatsGrid,
   TokenTesterPanel,
 } from './GitHubDebugPanels';
@@ -40,12 +37,7 @@ export const GitHubDebugSection: React.FC = () => {
         {t('admin.githubDebug.description')}
       </p>
 
-      <StatsGrid
-        debugInfo={debugState.debugInfo}
-        statCardStyle={STAT_CARD_STYLE}
-        statLabelStyle={STAT_LABEL_STYLE}
-        statValueStyle={STAT_VALUE_STYLE}
-      />
+      <StatsGrid debugInfo={debugState.debugInfo} />
       <SilentFailuresPanel debugInfo={debugState.debugInfo} formatDate={debugState.formatDate} />
       <TokenTesterPanel
         testUserId={debugState.testUserId}

@@ -467,6 +467,47 @@ Need to modify something? Here's where to find it:
 
 ---
 
+## Coding Standards
+
+### Comments (Clean Code Rules)
+
+We follow Clean Code principles for comments:
+
+**Write comments only when they add value beyond the code itself.**
+
+✅ **Good comments** — JSDoc on non-obvious functions/components explaining *what* and *why*:
+```typescript
+/**
+ * Returns the theme colour associated with a given LLM batch error type.
+ * Rate-limit and network errors are red; timeouts and token-limit errors are orange.
+ */
+export function getErrorTypeColor(errorType: string | null): string { ... }
+
+/**
+ * Renders the expanded section of an analysis card, showing the top-level error
+ * message (if any), a list of per-batch failures, and IDs for debugging.
+ */
+export const AnalysisCardExpandedContent: React.FC<...> = ...
+```
+
+❌ **Useless comments** — anything that just restates the name:
+```typescript
+// --- useContextAnalysisData ---       ← separator comment, adds nothing
+// formatDate                           ← the function name already says this
+// TODO: fix later                      ← vague, belongs in an issue tracker
+```
+
+**If a sub-component is large enough to need a `// --- separator ---`, it belongs in its own file instead.**
+
+### Component Organisation
+
+- Keep components focused. If a file exceeds ~200 lines, consider whether sub-components can be split into their own files.
+- Sub-components shared by multiple files → extract to their own `.tsx` file immediately.
+- Sub-components used only by one parent → can co-locate inside the parent file IF the total file length stays manageable.
+- Prefer a thin orchestrator (data + layout) with sub-components imported from sibling files.
+
+---
+
 ## Key Design Patterns
 
 ### 1. Encryption at Rest

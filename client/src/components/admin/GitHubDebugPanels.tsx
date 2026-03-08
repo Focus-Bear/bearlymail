@@ -5,11 +5,9 @@ import { theme } from 'theme/theme';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
-import { GitHubDebugInfo, TokenTestResult } from './GitHubDebugSection.types';
+import { FailedJob, GitHubDebugInfo, SilentFailure, TokenTestResult } from './GitHubDebugSection.types';
 
 const BUTTON_DISABLED_OPACITY = 0.6;
-
-// --- Shared styles ---
 
 export const STAT_CARD_STYLE: React.CSSProperties = {
   backgroundColor: theme.colors.background.paper,
@@ -32,18 +30,32 @@ export const STAT_VALUE_STYLE: React.CSSProperties = {
   color: theme.colors.text.primary,
 };
 
-// --- StatsGrid ---
+interface StatCardProps {
+  label: string;
+  value: number | string;
+  borderColor?: string;
+  valueColor?: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ label, value, borderColor, valueColor }) => (
+  <div style={{ ...STAT_CARD_STYLE, ...(borderColor ? { borderColor } : {}) }}>
+    <span style={STAT_LABEL_STYLE}>{label}</span>
+    <span style={{ ...STAT_VALUE_STYLE, ...(valueColor ? { color: valueColor } : {}) }}>{value}</span>
+  </div>
+);
 
 interface StatsGridProps {
   debugInfo: GitHubDebugInfo;
-  statCardStyle: React.CSSProperties;
-  statLabelStyle: React.CSSProperties;
-  statValueStyle: React.CSSProperties;
 }
 
-export const StatsGrid: React.FC<StatsGridProps> = ({ debugInfo, statCardStyle, statLabelStyle, statValueStyle }) => {
+export const StatsGrid: React.FC<StatsGridProps> = ({ debugInfo }) => {
   const { t } = useTranslation();
   const noStatusCount = debugInfo.threadsWithLinksNoStatus;
+  const failedJobs = debugInfo.jobStats.failed ?? 0;
+  const completedJobs = debugInfo.jobStats.completed ?? 0;
+  const createdJobs = debugInfo.jobStats.created ?? 0;
+  const retryJobs = debugInfo.jobStats.retry ?? 0;
+
   return (
     <div
       style={{
@@ -53,79 +65,107 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ debugInfo, statCardStyle, 
         marginBottom: theme.spacing.xl,
       }}
     >
-      <div style={statCardStyle}>
-        <span style={statLabelStyle}>{t('admin.githubDebug.usersWithToken')}</span>
-        <span style={statValueStyle}>{debugInfo.usersWithToken}</span>
-      </div>
-      <div style={statCardStyle}>
-        <span style={statLabelStyle}>{t('admin.githubDebug.threadsWithMetadata')}</span>
-        <span style={statValueStyle}>{debugInfo.threadsWithMetadata}</span>
-      </div>
-      <div
-        style={{
-          ...statCardStyle,
-          borderColor: noStatusCount > 0 ? theme.colors.accent.warning : theme.colors.border.light,
-        }}
-      >
-        <span style={statLabelStyle}>{t('admin.githubDebug.threadsWithLinksNoStatus')}</span>
-        <span
-          style={{
-            ...statValueStyle,
-            color: noStatusCount > 0 ? theme.colors.accent.warning : theme.colors.text.primary,
-          }}
-        >
-          {noStatusCount}
-        </span>
-      </div>
-      <div
-        style={{
-          ...statCardStyle,
-          borderColor: debugInfo.jobStats.failed ? theme.colors.accent.error : theme.colors.border.light,
-        }}
-      >
-        <span style={statLabelStyle}>{t('admin.githubDebug.jobsFailed7d')}</span>
-        <span
-          style={{
-            ...statValueStyle,
-            color: debugInfo.jobStats.failed ? theme.colors.accent.error : theme.colors.text.primary,
-          }}
-        >
-          {debugInfo.jobStats.failed ?? 0}
-        </span>
-      </div>
-      <div style={statCardStyle}>
-        <span style={statLabelStyle}>{t('admin.githubDebug.jobsCompleted7d')}</span>
-        <span style={{ ...statValueStyle, color: theme.colors.accent.success }}>
-          {debugInfo.jobStats.completed ?? 0}
-        </span>
-      </div>
-      <div style={statCardStyle}>
-        <span style={statLabelStyle}>{t('admin.githubDebug.jobsQueued')}</span>
-        <span
-          style={{
-            ...statValueStyle,
-            color: (debugInfo.jobStats.created ?? 0) > 0 ? theme.colors.accent.warning : theme.colors.text.primary,
-          }}
-        >
-          {debugInfo.jobStats.created ?? 0}
-        </span>
-      </div>
-      <div style={statCardStyle}>
-        <span style={statLabelStyle}>{t('admin.githubDebug.jobsRetry')}</span>
-        <span
-          style={{
-            ...statValueStyle,
-            color: (debugInfo.jobStats.retry ?? 0) > 0 ? theme.colors.accent.warning : theme.colors.text.primary,
-          }}
-        >
-          {debugInfo.jobStats.retry ?? 0}
-        </span>
-      </div>
+      <StatCard label={t('admin.githubDebug.usersWithToken')} value={debugInfo.usersWithToken} />
+      <StatCard label={t('admin.githubDebug.threadsWithMetadata')} value={debugInfo.threadsWithMetadata} />
+      <StatCard
+        label={t('admin.githubDebug.threadsWithLinksNoStatus')}
+        value={noStatusCount}
+        borderColor={noStatusCount > 0 ? theme.colors.accent.warning : undefined}
+        valueColor={noStatusCount > 0 ? theme.colors.accent.warning : undefined}
+      />
+      <StatCard
+        label={t('admin.githubDebug.jobsFailed7d')}
+        value={failedJobs}
+        borderColor={failedJobs ? theme.colors.accent.error : undefined}
+        valueColor={failedJobs ? theme.colors.accent.error : undefined}
+      />
+      <StatCard
+        label={t('admin.githubDebug.jobsCompleted7d')}
+        value={completedJobs}
+        valueColor={theme.colors.accent.success}
+      />
+      <StatCard
+        label={t('admin.githubDebug.jobsQueued')}
+        value={createdJobs}
+        valueColor={createdJobs > 0 ? theme.colors.accent.warning : undefined}
+      />
+      <StatCard
+        label={t('admin.githubDebug.jobsRetry')}
+        value={retryJobs}
+        valueColor={retryJobs > 0 ? theme.colors.accent.warning : undefined}
+      />
     </div>
   );
 };
 
-// --- SilentFailuresPanel ---
+interface SilentFailuresTableProps {
+  failures: SilentFailure[];
+  formatDate: (d: string | null) => string;
+}
+
+const SilentFailuresTable: React.FC<SilentFailuresTableProps> = ({ failures, formatDate }) => {
+  const { t } = useTranslation();
+  const thStyle: React.CSSProperties = {
+    padding: theme.spacing.md,
+    textAlign: 'left',
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+  };
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.accent.warning}40`,
+        borderRadius: theme.borderRadius.md,
+        overflow: 'hidden',
+        marginBottom: theme.spacing.xl,
+      }}
+    >
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr
+            style={{
+              backgroundColor: theme.colors.background.default,
+              borderBottom: `2px solid ${theme.colors.border.medium}`,
+            }}
+          >
+            <th style={thStyle}>{t('admin.githubDebug.threadId')}</th>
+            <th style={thStyle}>{t('admin.githubDebug.links')}</th>
+            <th style={thStyle}>{t('admin.githubDebug.lastAttempted')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {failures.map((failure, index) => (
+            <tr
+              key={failure.threadId}
+              style={{
+                backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
+                borderBottom: `1px solid ${theme.colors.border.light}`,
+              }}
+            >
+              <td
+                style={{
+                  padding: theme.spacing.md,
+                  fontSize: theme.typography.fontSize.xs,
+                  fontFamily: 'monospace',
+                  color: theme.colors.text.secondary,
+                }}
+              >
+                {failure.threadId.slice(0, 8)}...
+              </td>
+              <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+                {failure.links}
+              </td>
+              <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                {formatDate(failure.lastAttempted)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 interface SilentFailuresProps {
   debugInfo: GitHubDebugInfo;
@@ -155,7 +195,6 @@ export const SilentFailuresPanel: React.FC<SilentFailuresProps> = ({ debugInfo, 
       >
         {t('admin.githubDebug.silentFailuresDescription')}
       </p>
-
       {debugInfo.recentSilentFailures.length === 0 ? (
         <div
           style={{
@@ -171,103 +210,11 @@ export const SilentFailuresPanel: React.FC<SilentFailuresProps> = ({ debugInfo, 
           {t('admin.githubDebug.noSilentFailures')}
         </div>
       ) : (
-        <div
-          style={{
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.accent.warning}40`,
-            borderRadius: theme.borderRadius.md,
-            overflow: 'hidden',
-            marginBottom: theme.spacing.xl,
-          }}
-        >
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: theme.colors.background.default,
-                  borderBottom: `2px solid ${theme.colors.border.medium}`,
-                }}
-              >
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.threadId')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.links')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.lastAttempted')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {debugInfo.recentSilentFailures.map((failure, index) => (
-                <tr
-                  key={failure.threadId}
-                  style={{
-                    backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
-                    borderBottom: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.xs,
-                      fontFamily: 'monospace',
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {failure.threadId.slice(0, 8)}...
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.primary,
-                    }}
-                  >
-                    {failure.links}
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {formatDate(failure.lastAttempted)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SilentFailuresTable failures={debugInfo.recentSilentFailures} formatDate={formatDate} />
       )}
     </>
   );
 };
-
-// --- TokenTestResultDisplay ---
 
 interface TokenTestResultDisplayProps {
   result: TokenTestResult;
@@ -301,7 +248,6 @@ export const TokenTestResultDisplay: React.FC<TokenTestResultDisplayProps> = ({ 
             {t('admin.githubDebug.tokenValid')} — @{result.login}
             {result.name ? ` (${result.name})` : ''}
           </p>
-          {/* eslint-enable i18next/no-literal-string */}
           {result.scopes && result.scopes.length > 0 && (
             <p style={{ margin: 0, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
               {t('admin.githubDebug.scopes')}: {result.scopes.join(', ')}
@@ -328,7 +274,99 @@ export const TokenTestResultDisplay: React.FC<TokenTestResultDisplayProps> = ({ 
   );
 };
 
-// --- TokenTesterPanel ---
+interface TokenTesterFormProps {
+  testUserId: string;
+  setTestUserId: (v: string) => void;
+  testOwnerRepo: string;
+  setTestOwnerRepo: (v: string) => void;
+  testingToken: boolean;
+  handleTestToken: () => void;
+  tokenTestResult: TokenTestResult | null;
+}
+
+const TokenTesterForm: React.FC<TokenTesterFormProps> = ({
+  testUserId,
+  setTestUserId,
+  testOwnerRepo,
+  setTestOwnerRepo,
+  testingToken,
+  handleTestToken,
+  tokenTestResult,
+}) => {
+  const { t } = useTranslation();
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    borderRadius: theme.borderRadius.md,
+    border: `1px solid ${theme.colors.border.medium}`,
+    fontSize: theme.typography.fontSize.sm,
+    backgroundColor: theme.colors.background.default,
+    color: theme.colors.text.primary,
+    boxSizing: 'border-box',
+  };
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  };
+
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.light}`,
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.xl,
+      }}
+    >
+      <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', marginBottom: theme.spacing.md }}>
+        <div style={{ flex: '1 1 200px' }}>
+          <label style={labelStyle}>{t('admin.githubDebug.userId')}</label>
+          <input
+            type="text"
+            value={testUserId}
+            onChange={event => setTestUserId(event.target.value)}
+            placeholder={t('admin.githubDebug.userIdPlaceholder')}
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ flex: '1 1 200px' }}>
+          <label style={labelStyle}>
+            {t('admin.githubDebug.testRepo')} ({t('admin.githubDebug.optional')})
+          </label>
+          <input
+            type="text"
+            value={testOwnerRepo}
+            onChange={event => setTestOwnerRepo(event.target.value)}
+            placeholder="owner/repo"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          <button
+            onClick={handleTestToken}
+            disabled={testingToken || !testUserId.trim()}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+              borderRadius: theme.borderRadius.md,
+              border: STRING_NONE,
+              backgroundColor: theme.colors.primary.main,
+              color: COLOR_NAMED_WHITE,
+              fontSize: theme.typography.fontSize.sm,
+              cursor: testingToken || !testUserId.trim() ? 'not-allowed' : 'pointer',
+              opacity: testingToken || !testUserId.trim() ? BUTTON_DISABLED_OPACITY : 1,
+            }}
+          >
+            {testingToken ? t('admin.githubDebug.testing') : t('admin.githubDebug.testTokenButton')}
+          </button>
+        </div>
+      </div>
+      {tokenTestResult && <TokenTestResultDisplay result={tokenTestResult} testOwnerRepo={testOwnerRepo} />}
+    </div>
+  );
+};
 
 interface TokenTesterProps {
   testUserId: string;
@@ -371,99 +409,104 @@ export const TokenTesterPanel: React.FC<TokenTesterProps> = ({
       >
         {t('admin.githubDebug.tokenTestDescription')}
       </p>
-      <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          border: `1px solid ${theme.colors.border.light}`,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.lg,
-          marginBottom: theme.spacing.xl,
-        }}
-      >
-        <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', marginBottom: theme.spacing.md }}>
-          <div style={{ flex: '1 1 200px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.secondary,
-                marginBottom: theme.spacing.xs,
-              }}
-            >
-              {t('admin.githubDebug.userId')}
-            </label>
-            <input
-              type="text"
-              value={testUserId}
-              onChange={event => setTestUserId(event.target.value)}
-              placeholder={t('admin.githubDebug.userIdPlaceholder')}
-              style={{
-                width: '100%',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border.medium}`,
-                fontSize: theme.typography.fontSize.sm,
-                backgroundColor: theme.colors.background.default,
-                color: theme.colors.text.primary,
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-          <div style={{ flex: '1 1 200px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.secondary,
-                marginBottom: theme.spacing.xs,
-              }}
-            >
-              {t('admin.githubDebug.testRepo')} ({t('admin.githubDebug.optional')})
-            </label>
-            <input
-              type="text"
-              value={testOwnerRepo}
-              onChange={event => setTestOwnerRepo(event.target.value)}
-              placeholder="owner/repo"
-              style={{
-                width: '100%',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border.medium}`,
-                fontSize: theme.typography.fontSize.sm,
-                backgroundColor: theme.colors.background.default,
-                color: theme.colors.text.primary,
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button
-              onClick={handleTestToken}
-              disabled={testingToken || !testUserId.trim()}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                borderRadius: theme.borderRadius.md,
-                border: STRING_NONE,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: testingToken || !testUserId.trim() ? 'not-allowed' : 'pointer',
-                opacity: testingToken || !testUserId.trim() ? BUTTON_DISABLED_OPACITY : 1,
-              }}
-            >
-              {testingToken ? t('admin.githubDebug.testing') : t('admin.githubDebug.testTokenButton')}
-            </button>
-          </div>
-        </div>
-
-        {tokenTestResult && <TokenTestResultDisplay result={tokenTestResult} testOwnerRepo={testOwnerRepo} />}
-      </div>
+      <TokenTesterForm
+        testUserId={testUserId}
+        setTestUserId={setTestUserId}
+        testOwnerRepo={testOwnerRepo}
+        setTestOwnerRepo={setTestOwnerRepo}
+        testingToken={testingToken}
+        handleTestToken={handleTestToken}
+        tokenTestResult={tokenTestResult}
+      />
     </>
   );
 };
 
-// --- FailedJobsPanel ---
+interface FailedJobRowProps {
+  job: FailedJob;
+  index: number;
+  formatDate: (d: string | null) => string;
+}
+
+const FailedJobRow: React.FC<FailedJobRowProps> = ({ job, index, formatDate }) => (
+  <tr
+    style={{
+      backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
+      borderBottom: `1px solid ${theme.colors.border.light}`,
+    }}
+  >
+    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', color: theme.colors.text.secondary }}>
+      {job.id.slice(0, 8)}...
+    </td>
+    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', color: theme.colors.text.secondary }}>
+      {job.emailId?.slice(0, 8)}...
+    </td>
+    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.accent.error }}>
+      {job.error}
+    </td>
+    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+      {formatDate(job.createdAt)}
+    </td>
+    <td style={{ padding: theme.spacing.md, textAlign: 'center', fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+      {job.retryCount}/{job.retryLimit}
+    </td>
+  </tr>
+);
+
+const FAILED_JOBS_LEFT_TH_KEYS = [
+  'admin.githubDebug.jobId',
+  'admin.githubDebug.emailId',
+  'admin.githubDebug.error',
+  'admin.githubDebug.createdAt',
+];
+
+interface FailedJobsTableProps {
+  jobs: FailedJob[];
+  formatDate: (d: string | null) => string;
+}
+
+const FailedJobsTable: React.FC<FailedJobsTableProps> = ({ jobs, formatDate }) => {
+  const { t } = useTranslation();
+  const thStyle: React.CSSProperties = {
+    padding: theme.spacing.md,
+    textAlign: 'left',
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+  };
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.light}`,
+        borderRadius: theme.borderRadius.md,
+        overflow: 'hidden',
+      }}
+    >
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr
+            style={{
+              backgroundColor: theme.colors.background.default,
+              borderBottom: `2px solid ${theme.colors.border.medium}`,
+            }}
+          >
+            {FAILED_JOBS_LEFT_TH_KEYS.map(key => (
+              <th key={key} style={thStyle}>{t(key)}</th>
+            ))}
+            <th style={{ padding: theme.spacing.md, textAlign: 'center', fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+              {t('admin.githubDebug.retries')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {jobs.map((job, index) => (
+            <FailedJobRow key={job.id} job={job} index={index} formatDate={formatDate} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 interface FailedJobsProps {
   debugInfo: GitHubDebugInfo;
@@ -499,142 +542,11 @@ export const FailedJobsPanel: React.FC<FailedJobsProps> = ({ debugInfo, formatDa
           {t('admin.githubDebug.noRecentFailures')}
         </div>
       ) : (
-        <div
-          style={{
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.light}`,
-            borderRadius: theme.borderRadius.md,
-            overflow: 'hidden',
-          }}
-        >
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: theme.colors.background.default,
-                  borderBottom: `2px solid ${theme.colors.border.medium}`,
-                }}
-              >
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.jobId')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.emailId')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.error')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'left',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.createdAt')}
-                </th>
-                <th
-                  style={{
-                    padding: theme.spacing.md,
-                    textAlign: 'center',
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {t('admin.githubDebug.retries')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {debugInfo.recentFailedJobs.map((job, index) => (
-                <tr
-                  key={job.id}
-                  style={{
-                    backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
-                    borderBottom: `1px solid ${theme.colors.border.light}`,
-                  }}
-                >
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.xs,
-                      fontFamily: 'monospace',
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {job.id.slice(0, 8)}...
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.xs,
-                      fontFamily: 'monospace',
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {job.emailId?.slice(0, 8)}...
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.accent.error,
-                    }}
-                  >
-                    {job.error}
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.secondary,
-                    }}
-                  >
-                    {formatDate(job.createdAt)}
-                  </td>
-                  <td
-                    style={{
-                      padding: theme.spacing.md,
-                      textAlign: 'center',
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.primary,
-                    }}
-                  >
-                    {job.retryCount}/{job.retryLimit}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <FailedJobsTable jobs={debugInfo.recentFailedJobs} formatDate={formatDate} />
       )}
     </>
   );
 };
-
-// --- GitHubDebugHeader ---
 
 interface GitHubDebugHeaderProps {
   lastUpdated: Date | null;

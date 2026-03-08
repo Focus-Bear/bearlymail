@@ -1,4 +1,4 @@
-import React, { RefObject } from 'react';
+import React, { RefObject, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiFilter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
@@ -10,6 +10,95 @@ import { STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
+
+interface FilterToggleButtonProps {
+  isFilterBarVisible: boolean;
+  hasActiveFilters: boolean;
+  activeFilterCount: number;
+  onToggle: () => void;
+}
+
+const FilterToggleButton: React.FC<FilterToggleButtonProps> = ({
+  isFilterBarVisible,
+  hasActiveFilters,
+  activeFilterCount,
+  onToggle,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const getBackgroundColor = () => {
+    if (hasActiveFilters) {
+      return theme.colors.primary.main;
+    }
+    if (isFilterBarVisible || isHovered) {
+      return theme.colors.background.subtle;
+    }
+    return theme.colors.background.paper;
+  };
+  return (
+    <button
+      onClick={onToggle}
+      data-testid="filter-toggle-button"
+      title="Toggle filters"
+      style={{
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        fontSize: theme.typography.fontSize.base,
+        borderRadius: theme.borderRadius.md,
+        border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
+        backgroundColor: getBackgroundColor(),
+        color: hasActiveFilters ? 'white' : theme.colors.text.primary,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        transition: theme.transitions.fast,
+        flexShrink: 0,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <FiFilter size={14} />
+      {hasActiveFilters && (
+        <span
+          style={{
+            backgroundColor: COLOR_NAMED_WHITE,
+            color: theme.colors.primary.main,
+            borderRadius: theme.borderRadius.full,
+            padding: `0 ${theme.spacing.xs}`,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.bold,
+            minWidth: '16px',
+            textAlign: 'center',
+          }}
+        >
+          {activeFilterCount}
+        </span>
+      )}
+    </button>
+  );
+};
+
+interface ClearFiltersButtonProps {
+  onClear: () => void;
+  label: string;
+}
+
+const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label }) => (
+  <button
+    onClick={onClear}
+    style={{
+      padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
+      fontSize: theme.typography.fontSize.sm,
+      border: STRING_NONE,
+      backgroundColor: COLOR_TRANSPARENT,
+      color: theme.colors.primary.main,
+      cursor: 'pointer',
+      textDecoration: 'underline',
+      flexShrink: 0,
+    }}
+  >
+    {label}
+  </button>
+);
 
 interface TabCounts {
   triage: number;
@@ -108,82 +197,15 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           tabCounts={tabCounts}
         />
 
-        {/* Filter toggle button - inline with tabs */}
-        <button
-          onClick={onToggleFilterBar}
-          data-testid="filter-toggle-button"
-          title={t('inbox.filters.toggle')}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            fontSize: theme.typography.fontSize.base,
-            borderRadius: theme.borderRadius.md,
-            border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: (() => {
-              if (hasActiveFilters) {
-                return theme.colors.primary.main;
-              }
-              if (isFilterBarVisible) {
-                return theme.colors.background.subtle;
-              }
-              return theme.colors.background.paper;
-            })(),
-            color: hasActiveFilters ? 'white' : theme.colors.text.primary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            transition: theme.transitions.fast,
-            flexShrink: 0,
-          }}
-          onMouseEnter={event => {
-            if (!hasActiveFilters) {
-              event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-            }
-          }}
-          onMouseLeave={event => {
-            if (!hasActiveFilters) {
-              event.currentTarget.style.backgroundColor = isFilterBarVisible
-                ? theme.colors.background.subtle
-                : theme.colors.background.paper;
-            }
-          }}
-        >
-          <FiFilter size={14} />
-          {hasActiveFilters && (
-            <span
-              style={{
-                backgroundColor: COLOR_NAMED_WHITE,
-                color: theme.colors.primary.main,
-                borderRadius: theme.borderRadius.full,
-                padding: `0 ${theme.spacing.xs}`,
-                fontSize: theme.typography.fontSize.xs,
-                fontWeight: theme.typography.fontWeight.bold,
-                minWidth: '16px',
-                textAlign: 'center',
-              }}
-            >
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
+        <FilterToggleButton
+          isFilterBarVisible={isFilterBarVisible}
+          hasActiveFilters={hasActiveFilters}
+          activeFilterCount={activeFilterCount}
+          onToggle={onToggleFilterBar}
+        />
 
-        {/* Clear filters link - shown when active */}
         {hasActiveFilters && (
-          <button
-            onClick={onClearFilters}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-              fontSize: theme.typography.fontSize.sm,
-              border: STRING_NONE,
-              backgroundColor: COLOR_TRANSPARENT,
-              color: theme.colors.primary.main,
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              flexShrink: 0,
-            }}
-          >
-            {t('inbox.filters.clear')}
-          </button>
+          <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} />
         )}
       </div>
 

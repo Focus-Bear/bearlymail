@@ -11,59 +11,102 @@ interface BatchInfoBarProps {
   lastUrgentCheck: Date | null;
 }
 
+function getNextDeliveryText(nextDelivery: Date | null): string | null {
+  if (!nextDelivery) {
+    return null;
+  }
+  const now = new Date();
+  const diffMs = nextDelivery.getTime() - now.getTime();
+  const diffMins = Math.round(diffMs / MS_PER_MINUTE);
+  if (diffMins <= 0) {
+    return null;
+  }
+  const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
+  const remainingMins = diffMins % MINUTES_PER_HOUR;
+  if (diffMins < MINUTES_PER_HOUR) {
+    return `${diffMins}m`;
+  }
+  if (remainingMins === 0) {
+    return `${diffHours}h`;
+  }
+  return `${diffHours}h ${remainingMins}m`;
+}
+
+type TranslateFn = (key: string, opts?: Record<string, unknown>) => string;
+
+function getLastCheckText(lastUrgentCheck: Date | null, translate: TranslateFn): string {
+  if (!lastUrgentCheck) {
+    return translate('inbox.batchInfo.neverChecked');
+  }
+  const now = new Date();
+  const diffMs = now.getTime() - lastUrgentCheck.getTime();
+  const diffMins = Math.round(diffMs / MS_PER_MINUTE);
+
+  if (diffMins < 1) {
+    return translate('inbox.batchInfo.justNow');
+  }
+  if (diffMins === 1) {
+    return translate('inbox.batchInfo.oneMinuteAgo');
+  }
+  if (diffMins < MINUTES_PER_HOUR) {
+    return translate('inbox.batchInfo.minutesAgo', { count: diffMins });
+  }
+  const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
+  if (diffHours === 1) {
+    return translate('inbox.batchInfo.oneHourAgo');
+  }
+  return translate('inbox.batchInfo.hoursAgo', { count: diffHours });
+}
+
+interface BatchInfoTooltipProps {
+  children: React.ReactNode;
+}
+
+const TOOLTIP_WIDTH_NARROW = '280px';
+const TOOLTIP_WIDTH_WIDE = '300px';
+
+const BatchInfoTooltip: React.FC<BatchInfoTooltipProps & { width?: string }> = ({
+  children,
+  width = TOOLTIP_WIDTH_NARROW,
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  return (
+    <span
+      style={{ cursor: 'pointer', position: 'relative' }}
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {EMOJI_INFO}
+      {isVisible && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginTop: theme.spacing.xs,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.paper,
+            border: `1px solid ${theme.colors.border.light}`,
+            borderRadius: theme.borderRadius.md,
+            boxShadow: theme.shadows.md,
+            width,
+            zIndex: 1000,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+            lineHeight: theme.typography.lineHeight.relaxed,
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </span>
+  );
+};
+
 export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUrgentCheck }) => {
   const { t } = useTranslation();
-  const [showDeliveryTooltip, setShowDeliveryTooltip] = useState(false);
-  const [showUrgentTooltip, setShowUrgentTooltip] = useState(false);
-
-  const getNextDeliveryText = (): string | null => {
-    if (!nextDelivery) {
-      return null;
-    }
-    const now = new Date();
-    const diffMs = nextDelivery.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / MS_PER_MINUTE);
-    if (diffMins <= 0) {
-      return null;
-    }
-
-    const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
-    const remainingMins = diffMins % MINUTES_PER_HOUR;
-    if (diffMins < MINUTES_PER_HOUR) {
-      return `${diffMins}m`;
-    }
-    if (remainingMins === 0) {
-      return `${diffHours}h`;
-    }
-    return `${diffHours}h ${remainingMins}m`;
-  };
-
-  const getLastCheckText = (): string => {
-    if (!lastUrgentCheck) {
-      return t('inbox.batchInfo.neverChecked');
-    }
-    const now = new Date();
-    const diffMs = now.getTime() - lastUrgentCheck.getTime();
-    const diffMins = Math.round(diffMs / MS_PER_MINUTE);
-
-    if (diffMins < 1) {
-      return t('inbox.batchInfo.justNow');
-    }
-    if (diffMins === 1) {
-      return t('inbox.batchInfo.oneMinuteAgo');
-    }
-    if (diffMins < MINUTES_PER_HOUR) {
-      return t('inbox.batchInfo.minutesAgo', { count: diffMins });
-    }
-
-    const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
-    if (diffHours === 1) {
-      return t('inbox.batchInfo.oneHourAgo');
-    }
-    return t('inbox.batchInfo.hoursAgo', { count: diffHours });
-  };
-
-  const nextDeliveryText = getNextDeliveryText();
+  const nextDeliveryText = getNextDeliveryText(nextDelivery);
 
   return (
     <div
@@ -85,77 +128,21 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUr
           <span>
             {t('inbox.nextBatch')}: <strong style={{ color: theme.colors.text.primary }}>{nextDeliveryText}</strong>
           </span>
-          <span
-            style={{ cursor: 'pointer', position: 'relative' }}
-            onMouseEnter={() => setShowDeliveryTooltip(true)}
-            onMouseLeave={() => setShowDeliveryTooltip(false)}
-          >
-            {EMOJI_INFO}
-            {showDeliveryTooltip && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginTop: theme.spacing.xs,
-                  padding: theme.spacing.sm,
-                  backgroundColor: theme.colors.background.paper,
-                  border: `1px solid ${theme.colors.border.light}`,
-                  borderRadius: theme.borderRadius.md,
-                  boxShadow: theme.shadows.md,
-                  width: '280px',
-                  zIndex: 1000,
-                  fontSize: theme.typography.fontSize.xs,
-                  color: theme.colors.text.secondary,
-                  lineHeight: theme.typography.lineHeight.relaxed,
-                }}
-              >
-                {t('inbox.batchInfo.deliveryTooltip')}{' '}
-                <Link to="/settings#email-batching" style={{ color: theme.colors.primary.main }}>
-                  {t('inbox.batchInfo.changeInSettings')}
-                </Link>
-              </div>
-            )}
-          </span>
+          <BatchInfoTooltip width={TOOLTIP_WIDTH_NARROW}>
+            {t('inbox.batchInfo.deliveryTooltip')}{' '}
+            <Link to="/settings#email-batching" style={{ color: theme.colors.primary.main }}>
+              {t('inbox.batchInfo.changeInSettings')}
+            </Link>
+          </BatchInfoTooltip>
         </div>
       )}
 
       {/* Last urgent check */}
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
         <span>
-          {t('inbox.batchInfo.lastUrgentCheck')}: {getLastCheckText()}
+          {t('inbox.batchInfo.lastUrgentCheck')}: {getLastCheckText(lastUrgentCheck, t)}
         </span>
-        <span
-          style={{ cursor: 'pointer', position: 'relative' }}
-          onMouseEnter={() => setShowUrgentTooltip(true)}
-          onMouseLeave={() => setShowUrgentTooltip(false)}
-        >
-          {EMOJI_INFO}
-          {showUrgentTooltip && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                marginTop: theme.spacing.xs,
-                padding: theme.spacing.sm,
-                backgroundColor: theme.colors.background.paper,
-                border: `1px solid ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.md,
-                boxShadow: theme.shadows.md,
-                width: '300px',
-                zIndex: 1000,
-                fontSize: theme.typography.fontSize.xs,
-                color: theme.colors.text.secondary,
-                lineHeight: theme.typography.lineHeight.relaxed,
-              }}
-            >
-              {t('inbox.batchInfo.urgentTooltip')}
-            </div>
-          )}
-        </span>
+        <BatchInfoTooltip width={TOOLTIP_WIDTH_WIDE}>{t('inbox.batchInfo.urgentTooltip')}</BatchInfoTooltip>
       </div>
     </div>
   );

@@ -141,6 +141,96 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
   );
 };
 
+interface EmailOtherActionsGroupProps {
+  email: Email;
+  mode: InboxMode;
+  isSnoozeInputVisible: boolean;
+  snoozeValue: string;
+  keyboardHint: {
+    showHint: (emailId: string, action: string) => void;
+    hideHint: () => void;
+  };
+  onShowSnooze: (emailId: string) => void;
+  onSetSnoozeValue: (emailId: string, value: string) => void;
+  onClearSnooze: (emailId: string) => void;
+  onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
+  onBlockSender: (emailId: string, event: React.MouseEvent) => void;
+  onSnooze: (emailId: string) => Promise<void>;
+  t: (tKey: string, opts?: Record<string, unknown>) => string;
+}
+
+const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
+  email,
+  mode,
+  isSnoozeInputVisible,
+  snoozeValue,
+  keyboardHint,
+  onShowSnooze,
+  onSetSnoozeValue,
+  onClearSnooze,
+  onArchive,
+  onBlockSender,
+  onSnooze,
+  t,
+}) => (
+  <>
+    <div
+      style={{
+        display: 'flex',
+        gap: theme.spacing.sm,
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        marginLeft: 'auto',
+      }}
+    >
+      <button
+        onClick={event => {
+          event.stopPropagation();
+          onArchive(email.id, event);
+          if (event.type === EVENT_TYPE_CLICK && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+            keyboardHint.showHint(email.id, t('inbox.pressDeleteToArchive'));
+            setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
+          }
+        }}
+        title={t('inbox.archiveOrPressDelete')}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '1.2rem',
+          padding: '0 4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+        }}
+      >
+        <span>{EMOJI_INBOX}</span>
+        <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+          {t('inbox.archive')}
+        </span>
+      </button>
+
+      {mode !== MODE_TRIAGE && !isSnoozeInputVisible && (
+        <SnoozeButton email={email} onShowSnooze={onShowSnooze} />
+      )}
+
+      <UnsubscribeOrBlock email={email} t={t} onBlockSender={onBlockSender} />
+    </div>
+
+    {mode !== MODE_TRIAGE && isSnoozeInputVisible && (
+      <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.sm }}>
+        <SnoozeInputForm
+          email={email}
+          snoozeValue={snoozeValue}
+          onValueChange={value => onSetSnoozeValue(email.id, value)}
+          onConfirm={() => onSnooze(email.id)}
+          onCancel={() => onClearSnooze(email.id)}
+        />
+      </div>
+    )}
+  </>
+);
+
 interface EmailActionsRowProps {
   email: Email;
   mode: InboxMode;
@@ -179,7 +269,6 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
 
   return (
     <div onClick={event => event.stopPropagation()}>
-      {/* Actions Card */}
       <div
         style={{
           backgroundColor: theme.colors.background.paper,
@@ -192,7 +281,6 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           marginBottom: theme.spacing.xs,
         }}
       >
-        {/* Main actions row */}
         <div
           style={{
             display: 'flex',
@@ -228,63 +316,21 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
             />
           )}
 
-          {/* Other actions section */}
-          <div
-            style={{
-              display: 'flex',
-              gap: theme.spacing.sm,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginLeft: 'auto',
-            }}
-          >
-            <button
-              onClick={event => {
-                event.stopPropagation();
-                onArchive(email.id, event);
-                if (event.type === EVENT_TYPE_CLICK && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
-                  keyboardHint.showHint(email.id, t('inbox.pressDeleteToArchive'));
-                  setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
-                }
-              }}
-              title={t('inbox.archiveOrPressDelete')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: '0 4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <span>{EMOJI_INBOX}</span>
-              <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-                {t('inbox.archive')}
-              </span>
-            </button>
-
-            {mode !== MODE_TRIAGE && !isSnoozeInputVisible && (
-              <SnoozeButton email={email} onShowSnooze={snoozeInput.showSnooze} />
-            )}
-
-            <UnsubscribeOrBlock email={email} t={t} onBlockSender={onBlockSender} />
-          </div>
+          <EmailOtherActionsGroup
+            email={email}
+            mode={mode}
+            isSnoozeInputVisible={isSnoozeInputVisible}
+            snoozeValue={snoozeValue}
+            keyboardHint={keyboardHint}
+            onShowSnooze={snoozeInput.showSnooze}
+            onSetSnoozeValue={snoozeInput.setSnoozeValue}
+            onClearSnooze={snoozeInput.clearSnooze}
+            onArchive={onArchive}
+            onBlockSender={onBlockSender}
+            onSnooze={onSnooze}
+            t={t}
+          />
         </div>
-
-        {/* Snooze input row - shown below main actions when snooze is active */}
-        {mode !== MODE_TRIAGE && isSnoozeInputVisible && (
-          <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.sm }}>
-            <SnoozeInputForm
-              email={email}
-              snoozeValue={snoozeValue}
-              onValueChange={value => snoozeInput.setSnoozeValue(email.id, value)}
-              onConfirm={() => onSnooze(email.id)}
-              onCancel={() => snoozeInput.clearSnooze(email.id)}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

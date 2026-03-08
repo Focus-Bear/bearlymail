@@ -17,6 +17,77 @@ interface BulkSendFollowUpsProps {
   allThreads: ThreadWithFollowUp[];
 }
 
+interface BulkSendBarProps {
+  selectedCount: number;
+  canSend: boolean;
+  allThreads: ThreadWithFollowUp[];
+  sendResults: Map<string, { success: boolean; error?: string }>;
+  maxAllowed: number;
+  onDeselectAll: () => void;
+  onSelectAll: () => void;
+  onSendClick: () => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+const BulkSendBar: React.FC<BulkSendBarProps> = ({
+  selectedCount,
+  canSend,
+  allThreads,
+  sendResults,
+  maxAllowed,
+  onDeselectAll,
+  onSelectAll,
+  onSendClick,
+  t,
+}) => (
+  <div
+    style={{
+      position: 'sticky',
+      bottom: 0,
+      padding: theme.spacing.lg,
+      backgroundColor: theme.colors.background.paper,
+      borderTop: `1px solid ${theme.colors.border.light}`,
+      boxShadow: theme.shadows.md,
+      zIndex: 100,
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      <BulkSendSelectionControls
+        selectedCount={selectedCount}
+        allThreads={allThreads}
+        onDeselectAll={onDeselectAll}
+        onSelectAll={onSelectAll}
+        maxAllowed={maxAllowed}
+      />
+      <button
+        onClick={onSendClick}
+        disabled={!canSend}
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+          backgroundColor: canSend ? theme.colors.primary.main : theme.colors.background.disabled,
+          color: theme.colors.background.paper,
+          border: 'none',
+          borderRadius: theme.borderRadius.md,
+          cursor: canSend ? 'pointer' : 'not-allowed',
+          fontSize: theme.typography.fontSize.base,
+          fontWeight: theme.typography.fontWeight.medium,
+          opacity: canSend ? OPACITY_FULL : OPACITY_DISABLED,
+        }}
+      >
+        {t('inbox.sendFollowUps', { count: selectedCount })}
+      </button>
+    </div>
+    <BulkSendResults sendResults={sendResults} />
+  </div>
+);
+
 export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
   selectedThreads,
   onDeselectAll,
@@ -40,22 +111,18 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
   const handleBulkSend = async () => {
     setIsSending(true);
     setSendResults(new Map());
-
     try {
-      const followUpIds = selectedFollowUps.map(fu => fu.id);
+      const followUpIds = selectedFollowUps.map(followUp => followUp.id);
       await onBulkSend(followUpIds);
-
-      // Mark all as sent (success)
       const results = new Map<string, { success: boolean }>();
       followUpIds.forEach(id => {
         results.set(id, { success: true });
       });
       setSendResults(results);
     } catch (error: any) {
-      // Mark all as failed
       const results = new Map<string, { success: boolean; error: string }>();
-      selectedFollowUps.forEach(fu => {
-        results.set(fu.id, { success: false, error: error.message || 'Failed to send' });
+      selectedFollowUps.forEach(followUp => {
+        results.set(followUp.id, { success: false, error: error.message || 'Failed to send' });
       });
       setSendResults(results);
     } finally {
@@ -69,58 +136,20 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
 
   return (
     <>
-      <div
-        style={{
-          position: 'sticky',
-          bottom: 0,
-          padding: theme.spacing.lg,
-          backgroundColor: theme.colors.background.paper,
-          borderTop: `1px solid ${theme.colors.border.light}`,
-          boxShadow: theme.shadows.md,
-          zIndex: 100,
+      <BulkSendBar
+        selectedCount={selectedCount}
+        canSend={canSend}
+        allThreads={allThreads}
+        sendResults={sendResults}
+        maxAllowed={maxAllowed}
+        onDeselectAll={onDeselectAll}
+        onSelectAll={onSelectAll}
+        onSendClick={() => {
+          captureEvent('bulk_followups_send_clicked', { followup_count: selectedCount });
+          setShowConfirmModal(true);
         }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: theme.spacing.md,
-          }}
-        >
-          <BulkSendSelectionControls
-            selectedCount={selectedCount}
-            allThreads={allThreads}
-            onDeselectAll={onDeselectAll}
-            onSelectAll={onSelectAll}
-            maxAllowed={maxAllowed}
-          />
-
-          <button
-            onClick={() => {
-              captureEvent('bulk_followups_send_clicked', { followup_count: selectedCount });
-              setShowConfirmModal(true);
-            }}
-            disabled={!canSend}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: canSend ? theme.colors.primary.main : theme.colors.background.disabled,
-              color: theme.colors.background.paper,
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: canSend ? 'pointer' : 'not-allowed',
-              fontSize: theme.typography.fontSize.base,
-              fontWeight: theme.typography.fontWeight.medium,
-              opacity: canSend ? OPACITY_FULL : OPACITY_DISABLED,
-            }}
-          >
-            {t('inbox.sendFollowUps', { count: selectedCount })}
-          </button>
-        </div>
-
-        <BulkSendResults sendResults={sendResults} />
-      </div>
-
+        t={t}
+      />
       {showConfirmModal && (
         <BulkSendConfirmModal
           selectedCount={selectedCount}

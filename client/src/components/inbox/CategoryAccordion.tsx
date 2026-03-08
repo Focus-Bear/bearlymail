@@ -137,6 +137,96 @@ interface CategoryAccordionHeaderProps {
   t: (tKey: string) => string;
 }
 
+interface CategoryHeaderLeftProps {
+  category: string;
+  emailCount: number;
+  isExpanded: boolean;
+  isOtherCategory: boolean;
+  isReanalysingOther?: boolean;
+  onEditCategoryClick: (event: React.MouseEvent) => void;
+  onReanalyseClick: (event: React.MouseEvent) => void;
+  onReanalyseOther?: () => void;
+  t: (tKey: string) => string;
+}
+
+const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
+  category,
+  emailCount,
+  isExpanded,
+  isOtherCategory,
+  isReanalysingOther,
+  onEditCategoryClick,
+  onReanalyseClick,
+  onReanalyseOther,
+  t,
+}) => {
+  const [isPencilHovered, setIsPencilHovered] = useState(false);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+      <span
+        style={{
+          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+          transition: theme.transitions.fast,
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        ▶
+      </span>
+      <span style={{ fontSize: '1.25rem' }}>{getCategoryIcon(category)}</span>
+      <span
+        style={{
+          fontWeight: theme.typography.fontWeight.semibold,
+          fontSize: theme.typography.fontSize.base,
+          color: theme.colors.text.primary,
+        }}
+      >
+        {isDefaultCategory(category) ? t(getCategoryTranslationKey(category) as string) : category}
+      </span>
+      <span
+        style={{
+          backgroundColor: theme.colors.greyscale[300],
+          color: theme.colors.text.secondary,
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          borderRadius: theme.borderRadius.full,
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
+        {emailCount}
+      </span>
+      <button
+        onClick={onEditCategoryClick}
+        onMouseEnter={() => setIsPencilHovered(true)}
+        onMouseLeave={() => setIsPencilHovered(false)}
+        style={{
+          padding: theme.spacing.xs,
+          borderRadius: theme.borderRadius.sm,
+          border: STRING_NONE,
+          backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          cursor: 'pointer',
+          transition: theme.transitions.fast,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title={t('inbox.category.editCategories')}
+      >
+        {EDIT_ICON}
+      </button>
+      {isOtherCategory && onReanalyseOther && (
+        <ReanalyseButton
+          onClick={onReanalyseClick}
+          isReanalysing={Boolean(isReanalysingOther)}
+          label={t('inbox.category.reanalyseCategories')}
+        />
+      )}
+    </div>
+  );
+};
+
 const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
   category,
   emailCount,
@@ -152,7 +242,6 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
   t,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [isPencilHovered, setIsPencilHovered] = useState(false);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   return (
     <div
@@ -174,68 +263,17 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
         borderRadius: isExpanded ? `${theme.borderRadius.lg} ${theme.borderRadius.lg} 0 0` : theme.borderRadius.lg,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.lg,
-            color: theme.colors.text.secondary,
-          }}
-        >
-          ▶
-        </span>
-        <span style={{ fontSize: '1.25rem' }}>{getCategoryIcon(category)}</span>
-        <span
-          style={{
-            fontWeight: theme.typography.fontWeight.semibold,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.primary,
-          }}
-        >
-          {isDefaultCategory(category) ? t(getCategoryTranslationKey(category) as string) : category}
-        </span>
-        <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {emailCount}
-        </span>
-        <button
-          onClick={onEditCategoryClick}
-          onMouseEnter={() => setIsPencilHovered(true)}
-          onMouseLeave={() => setIsPencilHovered(false)}
-          style={{
-            padding: theme.spacing.xs,
-            borderRadius: theme.borderRadius.sm,
-            border: STRING_NONE,
-            backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-            cursor: 'pointer',
-            transition: theme.transitions.fast,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          title={t('inbox.category.editCategories')}
-        >
-          {EDIT_ICON}
-        </button>
-        {isOtherCategory && onReanalyseOther && (
-          <ReanalyseButton
-            onClick={onReanalyseClick}
-            isReanalysing={Boolean(isReanalysingOther)}
-            label={t('inbox.category.reanalyseCategories')}
-          />
-        )}
-      </div>
+      <CategoryHeaderLeft
+        category={category}
+        emailCount={emailCount}
+        isExpanded={isExpanded}
+        isOtherCategory={isOtherCategory}
+        isReanalysingOther={isReanalysingOther}
+        onEditCategoryClick={onEditCategoryClick}
+        onReanalyseClick={onReanalyseClick}
+        onReanalyseOther={onReanalyseOther}
+        t={t}
+      />
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
         {hasArchiveAll && emailCount > 0 && (
           <button
@@ -265,6 +303,48 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
     </div>
   );
 };
+
+interface CategoryAccordionContentProps {
+  isLoadingContent?: boolean;
+  loadingLabel: string;
+  children: React.ReactNode;
+}
+
+const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
+  isLoadingContent,
+  loadingLabel,
+  children,
+}) => (
+  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+    {isLoadingContent ? (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.lg,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          gap: theme.spacing.sm,
+        }}
+      >
+        <div
+          style={{
+            width: '14px',
+            height: '14px',
+            border: '2px solid rgba(128,128,128,0.3)',
+            borderTopColor: 'currentColor',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+          }}
+        />
+        {loadingLabel}
+      </div>
+    ) : (
+      children
+    )}
+  </div>
+);
 
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
@@ -355,35 +435,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         />
       )}
       {isExpanded && (
-        <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-          {isLoadingContent ? (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: theme.spacing.lg,
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-                gap: theme.spacing.sm,
-              }}
-            >
-              <div
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(128,128,128,0.3)',
-                  borderTopColor: 'currentColor',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }}
-              />
-              {t('inbox.category.loadingContent')}
-            </div>
-          ) : (
-            children
-          )}
-        </div>
+        <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')}>
+          {children}
+        </CategoryAccordionContent>
       )}
     </div>
   );

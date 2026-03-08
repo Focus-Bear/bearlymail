@@ -33,6 +33,42 @@ interface SidebarItemProps {
   badge?: number;
 }
 
+const SIDEBAR_ROUTE_EVENTS: Record<string, string> = {
+  [ROUTE_INBOX]: 'sidebar_inbox_clicked',
+  [ROUTE_SEARCH]: 'sidebar_search_clicked',
+  [ROUTE_CRM_CONTACTS]: 'sidebar_contacts_clicked',
+  [ROUTE_CRM_DEALS]: 'sidebar_deals_clicked',
+  [ROUTE_STATS]: 'sidebar_stats_clicked',
+  [ROUTE_SETTINGS]: 'sidebar_settings_clicked',
+  [ROUTE_ADMIN]: 'sidebar_admin_clicked',
+};
+
+interface SidebarBadgeProps {
+  count: number;
+  isCollapsed?: boolean;
+}
+
+const SidebarBadge: React.FC<SidebarBadgeProps> = ({ count, isCollapsed }) => (
+  <span
+    style={{
+      backgroundColor: theme.colors.primary.main,
+      color: COLOR_NAMED_WHITE,
+      borderRadius: '10px',
+      fontSize: '11px',
+      fontWeight: theme.typography.fontWeight.semibold,
+      minWidth: '18px',
+      height: '18px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0 4px',
+      marginLeft: isCollapsed ? 0 : 'auto',
+    }}
+  >
+    {count > MAX_BADGE_DISPLAY ? `${MAX_BADGE_DISPLAY}+` : count}
+  </span>
+);
+
 const SidebarItem: React.FC<SidebarItemProps> = ({
   label,
   path,
@@ -46,27 +82,15 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (path === ROUTE_INBOX) {
-      captureEvent('sidebar_inbox_clicked');
-    } else if (path === ROUTE_SEARCH) {
-      captureEvent('sidebar_search_clicked');
-    } else if (path === ROUTE_CRM_CONTACTS) {
-      captureEvent('sidebar_contacts_clicked');
-    } else if (path === ROUTE_CRM_DEALS) {
-      captureEvent('sidebar_deals_clicked');
-    } else if (path === ROUTE_STATS) {
-      captureEvent('sidebar_stats_clicked');
-    } else if (path === ROUTE_SETTINGS) {
-      captureEvent('sidebar_settings_clicked');
-    } else if (path === ROUTE_ADMIN) {
-      captureEvent('sidebar_admin_clicked');
+    const eventName = SIDEBAR_ROUTE_EVENTS[path];
+    if (eventName) {
+      captureEvent(eventName);
     }
     if (onClick) {
       onClick();
     } else {
       navigate(path);
     }
-    // Call navigation click handler (for closing mobile menu)
     if (onNavigationClick) {
       onNavigationClick(path);
     }
@@ -122,26 +146,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
         </span>
       )}
       {!isCollapsed && <span style={{ flex: 1 }}>{label}</span>}
-      {badge !== undefined && badge > 0 && (
-        <span
-          style={{
-            backgroundColor: theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            borderRadius: '10px',
-            fontSize: '11px',
-            fontWeight: theme.typography.fontWeight.semibold,
-            minWidth: '18px',
-            height: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 4px',
-            marginLeft: isCollapsed ? 0 : 'auto',
-          }}
-        >
-          {badge > MAX_BADGE_DISPLAY ? `${MAX_BADGE_DISPLAY}+` : badge}
-        </span>
-      )}
+      {badge !== undefined && badge > 0 && <SidebarBadge count={badge} isCollapsed={isCollapsed} />}
     </button>
   );
 };
@@ -161,19 +166,68 @@ const getGroupKey = (label: string): string => {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 };
 
-const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'email-delivery': true,
-    'guide-our-ai': true,
-    scheduling: true,
-    integrations: true,
-  });
+type TFunction = (key: string) => string;
 
-  const scrollToSection = (anchor: string) => {
+function getSettingsNavItems(translate: TFunction): (SettingsSubNavItemType | SettingsSubNavGroupType)[] {
+  return [
+    {
+      label: translate('settings.nav.emailDelivery'),
+      items: [
+        { id: 'google-accounts', label: translate('settings.nav.googleAccounts'), anchor: 'google-accounts' },
+        { id: 'email-batching', label: translate('settings.nav.emailBatching'), anchor: 'email-batching' },
+        { id: 'blocked-senders', label: translate('settings.nav.blockedSenders'), anchor: 'blocked-senders' },
+      ],
+    },
+    {
+      label: translate('settings.nav.guideOurAI'),
+      items: [
+        { id: 'context', label: translate('settings.contextAboutMeTitle'), anchor: 'context' },
+        { id: 'email-categories', label: translate('settings.nav.emailCategories'), anchor: 'email-categories' },
+        { id: 'tone-settings', label: translate('settings.nav.toneSettings'), anchor: 'tone-settings' },
+        { id: 'summarization', label: translate('settings.nav.summarization'), anchor: 'summarization' },
+        { id: 'auto-responder', label: translate('settings.nav.autoResponder'), anchor: 'auto-responder' },
+      ],
+    },
+    {
+      label: translate('settings.nav.schedulingPreferences'),
+      items: [
+        {
+          id: 'scheduling-availability',
+          label: translate('settings.nav.schedulingAvailability'),
+          anchor: 'scheduling-availability',
+        },
+        {
+          id: 'scheduling-meeting-gap',
+          label: translate('settings.nav.schedulingMeetingGap'),
+          anchor: 'scheduling-meeting-gap',
+        },
+        {
+          id: 'scheduling-deep-work',
+          label: translate('settings.nav.schedulingDeepWork'),
+          anchor: 'scheduling-deep-work',
+        },
+        {
+          id: 'scheduling-slot-duration',
+          label: translate('settings.nav.schedulingSlotDuration'),
+          anchor: 'scheduling-slot-duration',
+        },
+      ],
+    },
+    {
+      label: translate('settings.nav.integrations'),
+      items: [
+        { id: 'api-key', label: translate('settings.nav.openAiApiKey'), anchor: 'api-key' },
+        { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
+      ],
+    },
+  ];
+}
+
+const SCROLL_DELAY_MS = 50;
+
+function makeScrollToSection(navigate: ReturnType<typeof useNavigate>): (anchor: string) => void {
+  return (anchor: string) => {
     navigate(`/settings#${anchor}`, { replace: true });
-    const SCROLL_DELAY_MS = 50;
     setTimeout(() => {
       const element = document.getElementById(anchor);
       if (element) {
@@ -181,87 +235,64 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
       }
     }, SCROLL_DELAY_MS);
   };
+}
 
-  const navItems: (SettingsSubNavItemType | SettingsSubNavGroupType)[] = [
-    {
-      label: t('settings.nav.emailDelivery'),
-      items: [
-        { id: 'google-accounts', label: t('settings.nav.googleAccounts'), anchor: 'google-accounts' },
-        { id: 'email-batching', label: t('settings.nav.emailBatching'), anchor: 'email-batching' },
-        { id: 'blocked-senders', label: t('settings.nav.blockedSenders'), anchor: 'blocked-senders' },
-      ],
-    },
-    {
-      label: t('settings.nav.guideOurAI'),
-      items: [
-        { id: 'context', label: t('settings.contextAboutMeTitle'), anchor: 'context' },
-        { id: 'email-categories', label: t('settings.nav.emailCategories'), anchor: 'email-categories' },
-        { id: 'tone-settings', label: t('settings.nav.toneSettings'), anchor: 'tone-settings' },
-        { id: 'summarization', label: t('settings.nav.summarization'), anchor: 'summarization' },
-        { id: 'auto-responder', label: t('settings.nav.autoResponder'), anchor: 'auto-responder' },
-      ],
-    },
-    {
-      label: t('settings.nav.schedulingPreferences'),
-      items: [
-        {
-          id: 'scheduling-availability',
-          label: t('settings.nav.schedulingAvailability'),
-          anchor: 'scheduling-availability',
-        },
-        {
-          id: 'scheduling-meeting-gap',
-          label: t('settings.nav.schedulingMeetingGap'),
-          anchor: 'scheduling-meeting-gap',
-        },
-        { id: 'scheduling-deep-work', label: t('settings.nav.schedulingDeepWork'), anchor: 'scheduling-deep-work' },
-        {
-          id: 'scheduling-slot-duration',
-          label: t('settings.nav.schedulingSlotDuration'),
-          anchor: 'scheduling-slot-duration',
-        },
-      ],
-    },
-    {
-      label: t('settings.nav.integrations'),
-      items: [
-        { id: 'api-key', label: t('settings.nav.openAiApiKey'), anchor: 'api-key' },
-        { id: 'github-integration', label: t('settings.nav.githubIntegration'), anchor: 'github-integration' },
-      ],
-    },
-  ];
+const SETTINGS_EXPANDED_DEFAULTS: Record<string, boolean> = {
+  'email-delivery': true,
+  'guide-our-ai': true,
+  scheduling: true,
+  integrations: true,
+};
+
+interface RenderNavItemProps {
+  item: SettingsSubNavItemType | SettingsSubNavGroupType;
+  hash?: string;
+  expandedGroups: Record<string, boolean>;
+  scrollToSection: (anchor: string) => void;
+  onToggleGroup: (groupKey: string, isExpanded: boolean) => void;
+}
+
+function renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup }: RenderNavItemProps) {
+  if ('items' in item) {
+    const groupKey = getGroupKey(item.label);
+    const isExpanded = expandedGroups[groupKey] ?? true;
+    return (
+      <SettingsSubNavGroupComponent
+        key={item.label}
+        label={item.label}
+        items={item.items}
+        isExpanded={isExpanded}
+        hash={hash}
+        onToggle={() => onToggleGroup(groupKey, isExpanded)}
+        onScrollToSection={scrollToSection}
+      />
+    );
+  }
+  return (
+    <SettingsSubNavItemComponent
+      key={item.id}
+      id={item.id}
+      label={item.label}
+      anchor={item.anchor}
+      hash={hash}
+      onScrollToSection={scrollToSection}
+    />
+  );
+}
+
+const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(SETTINGS_EXPANDED_DEFAULTS);
+  const scrollToSection = makeScrollToSection(navigate);
+  const navItems = getSettingsNavItems(t);
+  const handleToggleGroup = (groupKey: string, isExpanded: boolean) => {
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: !isExpanded }));
+  };
 
   return (
     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-      {navItems.map(item => {
-        if ('items' in item) {
-          const groupKey = getGroupKey(item.label);
-          const isExpanded = expandedGroups[groupKey] ?? true;
-
-          return (
-            <SettingsSubNavGroupComponent
-              key={item.label}
-              label={item.label}
-              items={item.items}
-              isExpanded={isExpanded}
-              hash={hash}
-              onToggle={() => setExpandedGroups(prev => ({ ...prev, [groupKey]: !isExpanded }))}
-              onScrollToSection={scrollToSection}
-            />
-          );
-        } else {
-          return (
-            <SettingsSubNavItemComponent
-              key={item.id}
-              id={item.id}
-              label={item.label}
-              anchor={item.anchor}
-              hash={hash}
-              onScrollToSection={scrollToSection}
-            />
-          );
-        }
-      })}
+      {navItems.map(item => renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup: handleToggleGroup }))}
     </div>
   );
 };
@@ -275,8 +306,41 @@ interface SidebarProps {
   onCloseMobileMenu?: () => void;
 }
 
+interface CrmSubNavProps {
+  pathname: string;
+  isCollapsed: boolean;
+  translate: (tKey: string) => string;
+  onNavigationClick: (path: string) => void;
+}
+
+const CrmSubNav: React.FC<CrmSubNavProps> = ({ pathname, isCollapsed, translate, onNavigationClick }) => {
+  if (isCollapsed || !pathname.startsWith('/crm')) {
+    return null;
+  }
+  return (
+    <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
+      <SidebarItem
+        label={translate('crm.contacts')}
+        path={ROUTE_CRM_CONTACTS}
+        icon="👤"
+        active={pathname === ROUTE_CRM_CONTACTS || pathname.startsWith(`${ROUTE_CRM_CONTACTS}/`)}
+        isCollapsed={false}
+        onNavigationClick={onNavigationClick}
+      />
+      <SidebarItem
+        label={translate('crm.deals')}
+        path={ROUTE_CRM_DEALS}
+        icon="🤝"
+        active={pathname === ROUTE_CRM_DEALS}
+        isCollapsed={false}
+        onNavigationClick={onNavigationClick}
+      />
+    </div>
+  );
+};
+
 interface SidebarNavProps {
-  t: (tKey: string) => string;
+  translate: (tKey: string) => string;
   location: { pathname: string; search: string; hash: string };
   isCollapsed: boolean;
   effectiveIsCollapsed: boolean;
@@ -286,7 +350,7 @@ interface SidebarNavProps {
 }
 
 const SidebarNav: React.FC<SidebarNavProps> = ({
-  t,
+  translate,
   location,
   isCollapsed,
   effectiveIsCollapsed,
@@ -296,7 +360,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
 }) => (
   <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: theme.spacing.xs }}>
     <SidebarItem
-      label={t('inbox.title')}
+      label={translate('inbox.title')}
       path={ROUTE_INBOX}
       icon="📥"
       active={location.pathname === ROUTE_INBOX}
@@ -312,35 +376,21 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       onNavigationClick={handleNavigationClick}
     />
     <SidebarItem
-      label={t('crm.title')}
+      label={translate('crm.title')}
       path={ROUTE_CRM_CONTACTS}
       icon="💼"
       active={location.pathname.startsWith('/crm')}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={isCollapsed ? handleNavigationClick : undefined}
     />
-    {!isCollapsed && location.pathname.startsWith('/crm') && (
-      <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
-        <SidebarItem
-          label={t('crm.contacts')}
-          path={ROUTE_CRM_CONTACTS}
-          icon="👤"
-          active={location.pathname === ROUTE_CRM_CONTACTS || location.pathname.startsWith(`${ROUTE_CRM_CONTACTS}/`)}
-          isCollapsed={false}
-          onNavigationClick={handleNavigationClick}
-        />
-        <SidebarItem
-          label={t('crm.deals')}
-          path={ROUTE_CRM_DEALS}
-          icon="🤝"
-          active={location.pathname === ROUTE_CRM_DEALS}
-          isCollapsed={false}
-          onNavigationClick={handleNavigationClick}
-        />
-      </div>
-    )}
+    <CrmSubNav
+      pathname={location.pathname}
+      isCollapsed={isCollapsed}
+      translate={translate}
+      onNavigationClick={handleNavigationClick}
+    />
     <SidebarItem
-      label={t('stats.title')}
+      label={translate('stats.title')}
       path={ROUTE_STATS}
       icon="📊"
       active={location.pathname === ROUTE_STATS}
@@ -350,7 +400,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     {!effectiveIsCollapsed && (
       <div style={{ marginTop: theme.spacing.xs }}>
         <SidebarItem
-          label={t('settings.title')}
+          label={translate('settings.title')}
           path={ROUTE_SETTINGS}
           icon="⚙️"
           active={isSettingsPage}
@@ -363,7 +413,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     {effectiveIsCollapsed && (
       <div style={{ marginTop: theme.spacing.xs }}>
         <SidebarItem
-          label={t('settings.title')}
+          label={translate('settings.title')}
           path={ROUTE_SETTINGS}
           icon="⚙️"
           active={isSettingsPage}
@@ -375,7 +425,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     {isAdmin && (
       <div style={{ marginTop: theme.spacing.sm }}>
         <SidebarItem
-          label={t('admin.title')}
+          label={translate('admin.title')}
           path={ROUTE_ADMIN}
           icon="🛠️"
           active={location.pathname === ROUTE_ADMIN}
@@ -449,7 +499,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <SidebarHeader isCollapsed={effectiveIsCollapsed} />
         <SidebarNav
-          t={t}
+          translate={t}
           location={location}
           isCollapsed={isCollapsed}
           effectiveIsCollapsed={effectiveIsCollapsed}

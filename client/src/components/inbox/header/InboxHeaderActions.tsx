@@ -21,6 +21,106 @@ interface InboxHeaderActionsProps {
   onViewAutoRespondedEmails?: () => void;
 }
 
+interface InboxOverflowMenuProps {
+  onViewBlockedEmails?: () => void;
+  onViewAutoRespondedEmails?: () => void;
+  t: (key: string) => string;
+}
+
+const MENU_ITEM_STYLE = {
+  width: '100%',
+  textAlign: 'left' as const,
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const InboxOverflowMenu: React.FC<InboxOverflowMenuProps> = ({ onViewBlockedEmails, onViewAutoRespondedEmails, t }) => {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
+
+  return (
+    <div style={{ position: 'relative' }} ref={menuRef}>
+      <button
+        onClick={() => setMenuOpen(prev => !prev)}
+        title={t('inbox.moreInboxActions')}
+        aria-label={t('inbox.moreInboxActions')}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          fontSize: theme.typography.fontSize.base,
+          borderRadius: theme.borderRadius.md,
+          border: `1px solid ${theme.colors.border.medium}`,
+          backgroundColor: theme.colors.background.paper,
+          color: theme.colors.text.primary,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <FiMoreVertical size={14} />
+      </button>
+      {menuOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 4px)',
+            zIndex: 20,
+            backgroundColor: theme.colors.background.paper,
+            border: `1px solid ${theme.colors.border.light}`,
+            borderRadius: theme.borderRadius.md,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            minWidth: '190px',
+          }}
+        >
+          <button
+            onClick={() => {
+              onViewBlockedEmails?.();
+              setMenuOpen(false);
+            }}
+            style={{ ...MENU_ITEM_STYLE, padding: `${theme.spacing.sm} ${theme.spacing.md}`, color: theme.colors.text.primary }}
+          >
+            {t('inbox.viewBlockedEmails')}
+          </button>
+          <button
+            onClick={() => {
+              onViewAutoRespondedEmails?.();
+              setMenuOpen(false);
+            }}
+            style={{ ...MENU_ITEM_STYLE, padding: `${theme.spacing.sm} ${theme.spacing.md}`, color: theme.colors.text.primary }}
+          >
+            {t('inbox.viewAutoRespondedEmails')}
+          </button>
+          <button
+            onClick={() => {
+              navigate(ROUTE_SCHEDULED);
+              setMenuOpen(false);
+            }}
+            style={{ ...MENU_ITEM_STYLE, padding: `${theme.spacing.sm} ${theme.spacing.md}`, color: theme.colors.text.primary }}
+          >
+            🕐 {t('nav.scheduled')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /**
  * Inbox header actions component
  * Displays action buttons
@@ -35,25 +135,6 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
   onViewAutoRespondedEmails,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuOpen]);
 
   return (
     <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
@@ -80,93 +161,11 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
           <span>{EMOJI_BUG}</span>
         </button>
       )}
-      <div style={{ position: 'relative' }} ref={menuRef}>
-        <button
-          onClick={() => setMenuOpen(prev => !prev)}
-          title={t('inbox.moreInboxActions')}
-          aria-label={t('inbox.moreInboxActions')}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            fontSize: theme.typography.fontSize.base,
-            borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: theme.colors.background.paper,
-            color: theme.colors.text.primary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <FiMoreVertical size={14} />
-        </button>
-        {menuOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 'calc(100% + 4px)',
-              zIndex: 20,
-              backgroundColor: theme.colors.background.paper,
-              border: `1px solid ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.md,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              minWidth: '190px',
-            }}
-          >
-            <button
-              onClick={() => {
-                onViewBlockedEmails?.();
-                setMenuOpen(false);
-              }}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                cursor: 'pointer',
-                color: theme.colors.text.primary,
-              }}
-            >
-              {t('inbox.viewBlockedEmails')}
-            </button>
-            <button
-              onClick={() => {
-                onViewAutoRespondedEmails?.();
-                setMenuOpen(false);
-              }}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                cursor: 'pointer',
-                color: theme.colors.text.primary,
-              }}
-            >
-              {t('inbox.viewAutoRespondedEmails')}
-            </button>
-            <button
-              onClick={() => {
-                navigate(ROUTE_SCHEDULED);
-                setMenuOpen(false);
-              }}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                cursor: 'pointer',
-                color: theme.colors.text.primary,
-              }}
-            >
-              🕐 {t('nav.scheduled')}
-            </button>
-          </div>
-        )}
-      </div>
+      <InboxOverflowMenu
+        onViewBlockedEmails={onViewBlockedEmails}
+        onViewAutoRespondedEmails={onViewAutoRespondedEmails}
+        t={t}
+      />
       <HelpLink mode={mode} />
       <ComposeButton />
       <AnalyzeEmailsButton hasRunAnalysis={hasRunAnalysis} />

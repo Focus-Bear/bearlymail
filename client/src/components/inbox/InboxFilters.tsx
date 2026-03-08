@@ -43,6 +43,51 @@ interface MultiSelectDropdownPanelProps {
   emptyMessage: string;
 }
 
+interface MultiSelectOptionItemProps {
+  option: { id: string; label: string };
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+}
+
+const MultiSelectOptionItem: React.FC<MultiSelectOptionItemProps> = ({ option, isSelected, onToggle }) => (
+  <label
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+      cursor: 'pointer',
+      backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
+      transition: theme.transitions.fast,
+    }}
+    onMouseEnter={event => {
+      if (!isSelected) {
+        event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+      }
+    }}
+    onMouseLeave={event => {
+      if (!isSelected) {
+        event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+      }
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={isSelected}
+      onChange={() => onToggle(option.id)}
+      style={{
+        marginRight: theme.spacing.sm,
+        cursor: 'pointer',
+        width: '16px',
+        height: '16px',
+        accentColor: theme.colors.primary.main,
+      }}
+    />
+    <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>
+      {option.label}
+    </span>
+  </label>
+);
+
 const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
   searchable,
   searchTerm,
@@ -104,52 +149,84 @@ const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
           {emptyMessage}
         </div>
       ) : (
-        filteredOptions.map(option => {
-          const isSelected = selectedIds.includes(option.id);
-          return (
-            <label
-              key={option.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                cursor: 'pointer',
-                backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-                transition: theme.transitions.fast,
-              }}
-              onMouseEnter={event => {
-                if (!isSelected) {
-                  event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                }
-              }}
-              onMouseLeave={event => {
-                if (!isSelected) {
-                  event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-                }
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => handleToggle(option.id)}
-                style={{
-                  marginRight: theme.spacing.sm,
-                  cursor: 'pointer',
-                  width: '16px',
-                  height: '16px',
-                  accentColor: theme.colors.primary.main,
-                }}
-              />
-              <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>
-                {option.label}
-              </span>
-            </label>
-          );
-        })
+        filteredOptions.map(option => (
+          <MultiSelectOptionItem
+            key={option.id}
+            option={option}
+            isSelected={selectedIds.includes(option.id)}
+            onToggle={handleToggle}
+          />
+        ))
       )}
     </div>
   </div>
 );
+
+interface MultiSelectTriggerButtonProps {
+  label: string;
+  displayText: string;
+  selectedCount: number;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const MultiSelectTriggerButton: React.FC<MultiSelectTriggerButtonProps> = ({
+  label,
+  displayText,
+  selectedCount,
+  isOpen,
+  onToggle,
+}) => (
+  <>
+    <label
+      style={{
+        display: 'block',
+        marginBottom: theme.spacing.xs,
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+        fontWeight: theme.typography.fontWeight.medium,
+      }}
+    >
+      {label}
+    </label>
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{
+        width: '100%',
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        fontSize: theme.typography.fontSize.lg,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.medium}`,
+        backgroundColor: theme.colors.background.paper,
+        color: selectedCount > 0 ? theme.colors.text.primary : theme.colors.text.tertiary,
+        cursor: 'pointer',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        transition: theme.transitions.fast,
+        textAlign: 'left',
+      }}
+    >
+      <span>{displayText}</span>
+      <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
+    </button>
+  </>
+);
+
+function getMultiSelectDisplayText(
+  selectedIds: string[],
+  options: Array<{ id: string; label: string }>,
+  placeholder: string,
+): string {
+  if (selectedIds.length === 0) {
+    return placeholder;
+  }
+  if (selectedIds.length === 1) {
+    return options.find(opt => opt.id === selectedIds[0])?.label || placeholder;
+  }
+  return `${selectedIds.length} selected`;
+}
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   label,
@@ -176,7 +253,6 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         setSearchTerm('');
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -195,53 +271,17 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     }
   };
 
-  const selectedCount = selectedIds.length;
-  const displayText = (() => {
-    if (selectedCount === 0) {
-      return placeholder;
-    }
-    if (selectedCount === 1) {
-      return options.find(opt => opt.id === selectedIds[0])?.label || placeholder;
-    }
-    return `${selectedCount} selected`;
-  })();
+  const displayText = getMultiSelectDisplayText(selectedIds, options, placeholder);
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative', minWidth: '200px', flex: '1' }}>
-      <label
-        style={{
-          display: 'block',
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}
-      >
-        {label}
-      </label>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          fontSize: theme.typography.fontSize.lg,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.medium}`,
-          backgroundColor: theme.colors.background.paper,
-          color: selectedCount > 0 ? theme.colors.text.primary : theme.colors.text.tertiary,
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: theme.transitions.fast,
-          textAlign: 'left',
-        }}
-      >
-        <span>{displayText}</span>
-        <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
-      </button>
-
+      <MultiSelectTriggerButton
+        label={label}
+        displayText={displayText}
+        selectedCount={selectedIds.length}
+        isOpen={isOpen}
+        onToggle={() => setIsOpen(!isOpen)}
+      />
       {isOpen && (
         <MultiSelectDropdownPanel
           searchable={searchable}
@@ -266,6 +306,66 @@ interface SingleSelectDropdownProps {
   onChange: (value: number | null) => void;
 }
 
+interface SingleSelectOptionsListProps {
+  options: Array<{ value: string | number | null; label: string; displayValue?: string }>;
+  selectedValue: string | number | null;
+  onSelect: (value: number | null) => void;
+}
+
+const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ options, selectedValue, onSelect }) => (
+  <div
+    style={{
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      marginTop: theme.spacing.xs,
+      maxHeight: '280px',
+      overflowY: 'auto',
+      backgroundColor: theme.colors.background.paper,
+      border: `1px solid ${theme.colors.border.medium}`,
+      borderRadius: theme.borderRadius.md,
+      boxShadow: theme.shadows.lg,
+      zIndex: 1000,
+    }}
+  >
+    {options.map(option => {
+      const isSelected = option.value === selectedValue;
+      return (
+        <div
+          key={String(option.value)}
+          onClick={() => onSelect(option.value === FILTER_ALL ? null : Number(option.value))}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            cursor: 'pointer',
+            backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
+            fontSize: theme.typography.fontSize.lg,
+            color: theme.colors.text.primary,
+            transition: theme.transitions.fast,
+          }}
+          onMouseEnter={event => {
+            if (!isSelected) {
+              event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+            }
+          }}
+          onMouseLeave={event => {
+            if (!isSelected) {
+              event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+            }
+          }}
+        >
+          {option.label}
+          {option.displayValue && (
+            <span style={{ color: theme.colors.text.tertiary, marginLeft: theme.spacing.xs }}>
+              {option.displayValue}
+            </span>
+          )}
+        </div>
+      );
+    })}
+  </div>
+);
+
 const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, options, selectedValue, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -276,7 +376,6 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, opti
         setIsOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -321,62 +420,15 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, opti
         <span>{displayText}</span>
         <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
       </button>
-
       {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            marginTop: theme.spacing.xs,
-            maxHeight: '280px',
-            overflowY: 'auto',
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
+        <SingleSelectOptionsList
+          options={options}
+          selectedValue={selectedValue}
+          onSelect={value => {
+            onChange(value);
+            setIsOpen(false);
           }}
-        >
-          {options.map(option => {
-            const isSelected = option.value === selectedValue;
-            return (
-              <div
-                key={String(option.value)}
-                onClick={() => {
-                  onChange(option.value === FILTER_ALL ? null : Number(option.value));
-                  setIsOpen(false);
-                }}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-                  fontSize: theme.typography.fontSize.lg,
-                  color: theme.colors.text.primary,
-                  transition: theme.transitions.fast,
-                }}
-                onMouseEnter={event => {
-                  if (!isSelected) {
-                    event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                  }
-                }}
-                onMouseLeave={event => {
-                  if (!isSelected) {
-                    event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-                  }
-                }}
-              >
-                {option.label}
-                {option.displayValue && (
-                  <span style={{ color: theme.colors.text.tertiary, marginLeft: theme.spacing.xs }}>
-                    {option.displayValue}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        />
       )}
     </div>
   );

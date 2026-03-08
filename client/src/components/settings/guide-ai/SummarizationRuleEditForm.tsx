@@ -15,6 +15,75 @@ interface SummarizationRuleEditFormProps {
   onCancel: () => void;
 }
 
+interface RuleFormFieldsProps {
+  editSummarizationWhen: string;
+  editSummarizationHow: string;
+  onEditSummarizationWhenChange: (value: string) => void;
+  onEditSummarizationHowChange: (value: string) => void;
+}
+
+const RuleFormFields: React.FC<RuleFormFieldsProps> = ({
+  editSummarizationWhen,
+  editSummarizationHow,
+  onEditSummarizationWhenChange,
+  onEditSummarizationHowChange,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('settings.whenToUse')}
+        </label>
+        <input
+          type="text"
+          value={editSummarizationWhen}
+          onChange={event => onEditSummarizationWhenChange(event.target.value)}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        />
+      </div>
+      <div>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('settings.howToSummarize')}
+        </label>
+        <textarea
+          value={editSummarizationHow}
+          onChange={event => onEditSummarizationHowChange(event.target.value)}
+          style={{
+            width: '100%',
+            minHeight: `${INPUT_WIDTH_PX}px`,
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+            resize: 'vertical',
+          }}
+        />
+      </div>
+    </>
+  );
+};
+
 export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps> = ({
   editSummarizationWhen,
   editSummarizationHow,
@@ -35,55 +104,12 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-        <div>
-          <label
-            style={{
-              color: theme.colors.text.secondary,
-              display: 'block',
-              marginBottom: theme.spacing.xs,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('settings.whenToUse')}
-          </label>
-          <input
-            type="text"
-            value={editSummarizationWhen}
-            onChange={event => onEditSummarizationWhenChange(event.target.value)}
-            style={{
-              width: '100%',
-              padding: theme.spacing.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          />
-        </div>
-        <div>
-          <label
-            style={{
-              color: theme.colors.text.secondary,
-              display: 'block',
-              marginBottom: theme.spacing.xs,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('settings.howToSummarize')}
-          </label>
-          <textarea
-            value={editSummarizationHow}
-            onChange={event => onEditSummarizationHowChange(event.target.value)}
-            style={{
-              width: '100%',
-              minHeight: `${INPUT_WIDTH_PX}px`,
-              padding: theme.spacing.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.sm,
-              resize: 'vertical',
-            }}
-          />
-        </div>
+        <RuleFormFields
+          editSummarizationWhen={editSummarizationWhen}
+          editSummarizationHow={editSummarizationHow}
+          onEditSummarizationWhenChange={onEditSummarizationWhenChange}
+          onEditSummarizationHowChange={onEditSummarizationHowChange}
+        />
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <button
             onClick={onSave}

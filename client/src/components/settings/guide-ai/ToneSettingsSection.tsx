@@ -16,6 +16,86 @@ interface ToneSettingsSectionProps {
   onNewToneRuleChange: (rule: string) => void;
 }
 
+interface ToneRulesContentProps {
+  toneRules: string[];
+  newToneRule: string;
+  onAddToneRule: () => void;
+  onRemoveToneRule: (index: number) => void;
+  onEditToneRule?: (index: number, newValue: string) => void;
+  onNewToneRuleChange: (rule: string) => void;
+}
+
+const ToneRulesContent: React.FC<ToneRulesContentProps> = ({
+  toneRules,
+  newToneRule,
+  onAddToneRule,
+  onRemoveToneRule,
+  onEditToneRule,
+  onNewToneRuleChange,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ padding: theme.spacing.md }}>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('settings.toneConfig')}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+        {toneRules.map((rule, position) => {
+          const ruleHash = rule.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const key = `tone-rule-${ruleHash}-pos${position}`;
+          return (
+            <ToneRuleItem
+              key={key}
+              rule={rule}
+              index={position}
+              onRemove={() => onRemoveToneRule(position)}
+              onEdit={onEditToneRule}
+            />
+          );
+        })}
+        <div style={{ display: 'flex', gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
+          <input
+            type="text"
+            value={newToneRule}
+            onChange={event => onNewToneRuleChange(event.target.value)}
+            onKeyDown={event => event.key === KEY_ENTER && onAddToneRule()}
+            placeholder={t('settings.addRulePlaceholder')}
+            style={{
+              flex: 1,
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+            }}
+          />
+          <button
+            onClick={() => {
+              captureEvent('tone_rule_added');
+              onAddToneRule();
+            }}
+            disabled={!newToneRule.trim()}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+              backgroundColor: theme.colors.secondary.main,
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
+              borderRadius: theme.borderRadius.md,
+              cursor: newToneRule.trim() ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {t('settings.addRule')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
   toneRules,
   newToneRule,
@@ -80,66 +160,14 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
       </div>
 
       {isExpanded && (
-        <div style={{ padding: theme.spacing.md }}>
-          <p
-            style={{
-              color: theme.colors.text.secondary,
-              marginBottom: theme.spacing.md,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('settings.toneConfig')}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-            {toneRules.map((rule, position) => {
-              // Create a stable key using rule content and position
-              // Use position (from map) rather than index to avoid ESLint warning
-              const ruleHash = rule.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-              const key = `tone-rule-${ruleHash}-pos${position}`;
-              return (
-                <ToneRuleItem
-                  key={key}
-                  rule={rule}
-                  index={position}
-                  onRemove={() => onRemoveToneRule(position)}
-                  onEdit={onEditToneRule}
-                />
-              );
-            })}
-            <div style={{ display: 'flex', gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
-              <input
-                type="text"
-                value={newToneRule}
-                onChange={event => onNewToneRuleChange(event.target.value)}
-                onKeyDown={event => event.key === KEY_ENTER && onAddToneRule()}
-                placeholder={t('settings.addRulePlaceholder')}
-                style={{
-                  flex: 1,
-                  padding: theme.spacing.sm,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.md,
-                }}
-              />
-              <button
-                onClick={() => {
-                  captureEvent('tone_rule_added');
-                  onAddToneRule();
-                }}
-                disabled={!newToneRule.trim()}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: theme.colors.secondary.main,
-                  color: COLOR_NAMED_WHITE,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.md,
-                  cursor: newToneRule.trim() ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {t('settings.addRule')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ToneRulesContent
+          toneRules={toneRules}
+          newToneRule={newToneRule}
+          onAddToneRule={onAddToneRule}
+          onRemoveToneRule={onRemoveToneRule}
+          onEditToneRule={onEditToneRule}
+          onNewToneRuleChange={onNewToneRuleChange}
+        />
       )}
     </div>
   );

@@ -33,6 +33,128 @@ interface SummarizationRulesSectionProps {
   onEditingSummarizationRuleChange: (ruleId: string | null) => void;
 }
 
+interface SummarizationRulesContentProps {
+  summarizationRules: SummarizationRule[];
+  newSummarizationWhen: string;
+  newSummarizationHow: string;
+  editingSummarizationRule: string | null;
+  editSummarizationWhen: string;
+  editSummarizationHow: string;
+  showAddForm: boolean;
+  onShowAddForm: (show: boolean) => void;
+  onAddSummarizationRule: () => Promise<void>;
+  onEditSummarizationRule: (rule: SummarizationRule) => void;
+  onSaveSummarizationRule: (ruleId: string) => Promise<void>;
+  onDeleteSummarizationRule: (ruleId: string) => Promise<void>;
+  onNewSummarizationWhenChange: (value: string) => void;
+  onNewSummarizationHowChange: (value: string) => void;
+  onEditSummarizationWhenChange: (value: string) => void;
+  onEditSummarizationHowChange: (value: string) => void;
+  onEditingSummarizationRuleChange: (ruleId: string | null) => void;
+}
+
+const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
+  summarizationRules,
+  newSummarizationWhen,
+  newSummarizationHow,
+  editingSummarizationRule,
+  editSummarizationWhen,
+  editSummarizationHow,
+  showAddForm,
+  onShowAddForm,
+  onAddSummarizationRule,
+  onEditSummarizationRule,
+  onSaveSummarizationRule,
+  onDeleteSummarizationRule,
+  onNewSummarizationWhenChange,
+  onNewSummarizationHowChange,
+  onEditSummarizationWhenChange,
+  onEditSummarizationHowChange,
+  onEditingSummarizationRuleChange,
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div style={{ padding: theme.spacing.md }}>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.lg,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('settings.summarizationRulesDesc')}
+      </p>
+
+      {!showAddForm && (
+        <button
+          onClick={event => {
+            event.stopPropagation();
+            onShowAddForm(true);
+          }}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            backgroundColor: theme.colors.primary.main,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.md,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.lg,
+          }}
+        >
+          {t('settings.addRule')}
+        </button>
+      )}
+
+      {showAddForm && (
+        <SummarizationRuleAddForm
+          newSummarizationWhen={newSummarizationWhen}
+          newSummarizationHow={newSummarizationHow}
+          onNewSummarizationWhenChange={onNewSummarizationWhenChange}
+          onNewSummarizationHowChange={onNewSummarizationHowChange}
+          onAddSummarizationRule={async () => {
+            await onAddSummarizationRule();
+            onShowAddForm(false);
+          }}
+        />
+      )}
+
+      {summarizationRules.length === 0 ? (
+        <div
+          style={{
+            padding: theme.spacing.xl,
+            textAlign: 'center',
+            color: theme.colors.text.secondary,
+            border: `2px dashed ${theme.colors.border.light}`,
+            borderRadius: theme.borderRadius.md,
+          }}
+        >
+          {t('settings.noSummarizationRules')}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+          {summarizationRules.map(rule => (
+            <SummarizationRuleItem
+              key={rule.ruleId}
+              rule={rule}
+              editingSummarizationRule={editingSummarizationRule}
+              editSummarizationWhen={editSummarizationWhen}
+              editSummarizationHow={editSummarizationHow}
+              onEditSummarizationWhenChange={onEditSummarizationWhenChange}
+              onEditSummarizationHowChange={onEditSummarizationHowChange}
+              onSaveSummarizationRule={onSaveSummarizationRule}
+              onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
+              onEditSummarizationRule={onEditSummarizationRule}
+              onDeleteSummarizationRule={onDeleteSummarizationRule}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps> = ({
   summarizationRules,
   newSummarizationWhen,
@@ -108,84 +230,25 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
       </div>
 
       {isExpanded && (
-        <div style={{ padding: theme.spacing.md }}>
-          <p
-            style={{
-              color: theme.colors.text.secondary,
-              marginBottom: theme.spacing.lg,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('settings.summarizationRulesDesc')}
-          </p>
-
-          {!showAddForm && (
-            <button
-              onClick={event => {
-                event.stopPropagation();
-                setShowAddForm(true);
-              }}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                marginBottom: theme.spacing.lg,
-              }}
-            >
-              {t('settings.addRule')}
-            </button>
-          )}
-
-          {showAddForm && (
-            <SummarizationRuleAddForm
-              newSummarizationWhen={newSummarizationWhen}
-              newSummarizationHow={newSummarizationHow}
-              onNewSummarizationWhenChange={onNewSummarizationWhenChange}
-              onNewSummarizationHowChange={onNewSummarizationHowChange}
-              onAddSummarizationRule={async () => {
-                await onAddSummarizationRule();
-                setShowAddForm(false);
-              }}
-            />
-          )}
-
-          {/* Existing Rules */}
-          {summarizationRules.length === 0 ? (
-            <div
-              style={{
-                padding: theme.spacing.xl,
-                textAlign: 'center',
-                color: theme.colors.text.secondary,
-                border: `2px dashed ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.md,
-              }}
-            >
-              {t('settings.noSummarizationRules')}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-              {summarizationRules.map(rule => (
-                <SummarizationRuleItem
-                  key={rule.ruleId}
-                  rule={rule}
-                  editingSummarizationRule={editingSummarizationRule}
-                  editSummarizationWhen={editSummarizationWhen}
-                  editSummarizationHow={editSummarizationHow}
-                  onEditSummarizationWhenChange={onEditSummarizationWhenChange}
-                  onEditSummarizationHowChange={onEditSummarizationHowChange}
-                  onSaveSummarizationRule={onSaveSummarizationRule}
-                  onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
-                  onEditSummarizationRule={onEditSummarizationRule}
-                  onDeleteSummarizationRule={onDeleteSummarizationRule}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <SummarizationRulesContent
+          summarizationRules={summarizationRules}
+          newSummarizationWhen={newSummarizationWhen}
+          newSummarizationHow={newSummarizationHow}
+          editingSummarizationRule={editingSummarizationRule}
+          editSummarizationWhen={editSummarizationWhen}
+          editSummarizationHow={editSummarizationHow}
+          showAddForm={showAddForm}
+          onShowAddForm={setShowAddForm}
+          onAddSummarizationRule={onAddSummarizationRule}
+          onEditSummarizationRule={onEditSummarizationRule}
+          onSaveSummarizationRule={onSaveSummarizationRule}
+          onDeleteSummarizationRule={onDeleteSummarizationRule}
+          onNewSummarizationWhenChange={onNewSummarizationWhenChange}
+          onNewSummarizationHowChange={onNewSummarizationHowChange}
+          onEditSummarizationWhenChange={onEditSummarizationWhenChange}
+          onEditSummarizationHowChange={onEditSummarizationHowChange}
+          onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
+        />
       )}
     </div>
   );

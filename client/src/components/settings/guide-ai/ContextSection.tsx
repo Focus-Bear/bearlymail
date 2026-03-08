@@ -50,6 +50,156 @@ interface ContextSectionProps {
   isInitiallyExpanded?: boolean;
 }
 
+interface ContextSectionBodyProps {
+  filteredContexts: UserContext[];
+  addType: string;
+  addLabel: string;
+  addingContextType: string | null;
+  editingContextId: string | null;
+  editContextValue: string;
+  newContextValue: string;
+  onAddContext: () => Promise<void>;
+  onUpdateContext: () => Promise<void>;
+  onDeleteContext: (contextId: string) => void;
+  onNewContextValueChange: (value: string) => void;
+  onAddingContextTypeChange: (type: string | null) => void;
+  onEditingContextIdChange: (id: string | null) => void;
+  onEditContextValueChange: (value: string) => void;
+}
+
+const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
+  filteredContexts,
+  addType,
+  addLabel,
+  addingContextType,
+  editingContextId,
+  editContextValue,
+  newContextValue,
+  onAddContext,
+  onUpdateContext,
+  onDeleteContext,
+  onNewContextValueChange,
+  onAddingContextTypeChange,
+  onEditingContextIdChange,
+  onEditContextValueChange,
+}) => (
+  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+    {filteredContexts.length > 0 ? (
+      filteredContexts.map(context => (
+        <ContextItem
+          key={context.contextId}
+          context={context}
+          editingContextId={editingContextId}
+          editContextValue={editContextValue}
+          onUpdateContext={onUpdateContext}
+          onEditingContextIdChange={onEditingContextIdChange}
+          onEditContextValueChange={onEditContextValueChange}
+          onDeleteContext={onDeleteContext}
+        />
+      ))
+    ) : (
+      <div
+        style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}
+      />
+    )}
+    {addingContextType === addType ? (
+      <ContextAddInput
+        newContextValue={newContextValue}
+        onNewContextValueChange={onNewContextValueChange}
+        onAddContext={onAddContext}
+        onCancel={() => {
+          onAddingContextTypeChange(null);
+          onNewContextValueChange('');
+        }}
+      />
+    ) : (
+      <button
+        onClick={() => {
+          onAddingContextTypeChange(addType);
+          onNewContextValueChange('');
+        }}
+        style={{
+          alignSelf: 'flex-start',
+          marginTop: theme.spacing.xs,
+          background: COLOR_TRANSPARENT,
+          border: `1px dashed ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+          color: theme.colors.text.secondary,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+        }}
+      >
+        <span>+</span> {addLabel}
+      </button>
+    )}
+  </div>
+);
+
+interface ContextSectionHeaderProps {
+  title: string;
+  itemCount: number;
+  isExpanded: boolean;
+  tooltipContent?: string;
+  actionButton?: React.ReactNode;
+  onToggle: () => void;
+}
+
+const ContextSectionHeader: React.FC<ContextSectionHeaderProps> = ({
+  title,
+  itemCount,
+  isExpanded,
+  tooltipContent,
+  actionButton,
+  onToggle,
+}) => (
+  <div
+    onClick={onToggle}
+    style={{
+      fontSize: theme.typography.fontSize.lg,
+      color: theme.colors.text.primary,
+      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      cursor: 'pointer',
+      backgroundColor: theme.colors.background.paper,
+      borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+      borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+      transition: theme.transitions.fast,
+    }}
+  >
+    <span
+      style={{
+        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+        transition: theme.transitions.fast,
+        fontSize: theme.typography.fontSize.base,
+        color: theme.colors.text.secondary,
+      }}
+    >
+      ▶
+    </span>
+    <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{title}</span>
+    <span
+      style={{
+        backgroundColor: theme.colors.greyscale[300],
+        color: theme.colors.text.secondary,
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        borderRadius: theme.borderRadius.full,
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.medium,
+      }}
+    >
+      {itemCount}
+    </span>
+    {tooltipContent && <InfoTooltip content={tooltipContent} />}
+    {actionButton && <div onClick={event => event.stopPropagation()}>{actionButton}</div>}
+  </div>
+);
+
 export const ContextSection: React.FC<ContextSectionProps> = ({
   title,
   contextKey,
@@ -70,14 +220,12 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditContextValueChange,
   isInitiallyExpanded = false,
 }) => {
-  const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded)); // Default to collapsed unless requested
+  const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(ctx => keys.includes(ctx.contextKey));
   const addType = keys[0];
   const itemCount = filteredContexts.length;
 
-  // If the initial expansion prop changes (e.g., via navigation), ensure the section expands
   React.useEffect(() => {
     if (isInitiallyExpanded) {
       setIsExpanded(true);
@@ -93,108 +241,97 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
         backgroundColor: theme.colors.background.paper,
       }}
     >
-      <div
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-        }}
-      >
-        <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
-        >
-          ▶
-        </span>
-        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{title}</span>
-        <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {itemCount}
-        </span>
-        {tooltipContent && <InfoTooltip content={tooltipContent} />}
-        {actionButton && <div onClick={event => event.stopPropagation()}>{actionButton}</div>}
-      </div>
-
+      <ContextSectionHeader
+        title={title}
+        itemCount={itemCount}
+        isExpanded={isExpanded}
+        tooltipContent={tooltipContent}
+        actionButton={actionButton}
+        onToggle={() => setIsExpanded(!isExpanded)}
+      />
       {isExpanded && (
-        <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-          {filteredContexts.length > 0 ? (
-            filteredContexts.map(context => (
-              <ContextItem
-                key={context.contextId}
-                context={context}
-                editingContextId={editingContextId}
-                editContextValue={editContextValue}
-                onUpdateContext={onUpdateContext}
-                onEditingContextIdChange={onEditingContextIdChange}
-                onEditContextValueChange={onEditContextValueChange}
-                onDeleteContext={onDeleteContext}
-              />
-            ))
-          ) : (
-            <div
-              style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}
-            >
-              {t('settings.context.noItems')}
-            </div>
-          )}
-
-          {addingContextType === addType ? (
-            <ContextAddInput
-              newContextValue={newContextValue}
-              onNewContextValueChange={onNewContextValueChange}
-              onAddContext={onAddContext}
-              onCancel={() => {
-                onAddingContextTypeChange(null);
-                onNewContextValueChange('');
-              }}
-            />
-          ) : (
-            <button
-              onClick={() => {
-                onAddingContextTypeChange(addType);
-                onNewContextValueChange('');
-              }}
-              style={{
-                alignSelf: 'flex-start',
-                marginTop: theme.spacing.xs,
-                background: COLOR_TRANSPARENT,
-                border: `1px dashed ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                color: theme.colors.text.secondary,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <span>+</span> {addLabel}
-            </button>
-          )}
-        </div>
+        <ContextSectionBody
+          filteredContexts={filteredContexts}
+          addType={addType}
+          addLabel={addLabel}
+          addingContextType={addingContextType}
+          editingContextId={editingContextId}
+          editContextValue={editContextValue}
+          newContextValue={newContextValue}
+          onAddContext={onAddContext}
+          onUpdateContext={onUpdateContext}
+          onDeleteContext={onDeleteContext}
+          onNewContextValueChange={onNewContextValueChange}
+          onAddingContextTypeChange={onAddingContextTypeChange}
+          onEditingContextIdChange={onEditingContextIdChange}
+          onEditContextValueChange={onEditContextValueChange}
+        />
       )}
+    </div>
+  );
+};
+
+interface ContextItemEditFormProps {
+  editContextValue: string;
+  onUpdateContext: () => Promise<void>;
+  onEditContextValueChange: (value: string) => void;
+  onCancelEdit: () => void;
+}
+
+const ContextItemEditForm: React.FC<ContextItemEditFormProps> = ({
+  editContextValue,
+  onUpdateContext,
+  onEditContextValueChange,
+  onCancelEdit,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      <div style={{ display: 'flex', flex: 1, gap: theme.spacing.sm }}>
+        <input
+          type="text"
+          value={editContextValue}
+          onChange={event => onEditContextValueChange(event.target.value)}
+          style={{
+            flex: 1,
+            padding: theme.spacing.xs,
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+          }}
+        />
+        <button
+          onClick={onUpdateContext}
+          style={{
+            cursor: 'pointer',
+            color: theme.colors.primary.main,
+            border: STRING_NONE,
+            background: STRING_NONE,
+          }}
+        >
+          {t('common.save')}
+        </button>
+        <button
+          onClick={onCancelEdit}
+          style={{
+            cursor: 'pointer',
+            color: theme.colors.text.secondary,
+            border: STRING_NONE,
+            background: STRING_NONE,
+          }}
+        >
+          {t('common.cancel')}
+        </button>
+      </div>
     </div>
   );
 };
@@ -222,53 +359,12 @@ const ContextItem: React.FC<ContextItemProps> = ({
 
   if (editingContextId === context.contextId) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: theme.spacing.sm,
-          backgroundColor: theme.colors.background.subtle,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.light}`,
-        }}
-      >
-        <div style={{ display: 'flex', flex: 1, gap: theme.spacing.sm }}>
-          <input
-            type="text"
-            value={editContextValue}
-            onChange={event => onEditContextValueChange(event.target.value)}
-            style={{
-              flex: 1,
-              padding: theme.spacing.xs,
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-            }}
-          />
-          <button
-            onClick={onUpdateContext}
-            style={{
-              cursor: 'pointer',
-              color: theme.colors.primary.main,
-              border: STRING_NONE,
-              background: STRING_NONE,
-            }}
-          >
-            {t('common.save')}
-          </button>
-          <button
-            onClick={() => onEditingContextIdChange(null)}
-            style={{
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-              border: STRING_NONE,
-              background: STRING_NONE,
-            }}
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
-      </div>
+      <ContextItemEditForm
+        editContextValue={editContextValue}
+        onUpdateContext={onUpdateContext}
+        onEditContextValueChange={onEditContextValueChange}
+        onCancelEdit={() => onEditingContextIdChange(null)}
+      />
     );
   }
 

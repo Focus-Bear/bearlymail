@@ -13,6 +13,88 @@ interface ProfileSettingsSectionProps {
   onUpdate: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
 }
 
+interface ProfileSectionHeaderProps {
+  isEditing: boolean;
+  onEditClick: () => void;
+}
+
+const ProfileSectionHeader: React.FC<ProfileSectionHeaderProps> = ({ isEditing, onEditClick }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
+        {t('settings.profile.title')}
+      </h4>
+      {!isEditing && (
+        <button
+          onClick={onEditClick}
+          style={{
+            background: STRING_NONE,
+            border: STRING_NONE,
+            color: theme.colors.primary.main,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('common.edit')}
+        </button>
+      )}
+    </div>
+  );
+};
+
+interface ProfileFormActionsProps {
+  isSaving: boolean;
+  onSave: () => Promise<void>;
+  onCancel: () => void;
+}
+
+const ProfileFormActions: React.FC<ProfileFormActionsProps> = ({ isSaving, onSave, onCancel }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
+      <button
+        onClick={onSave}
+        disabled={isSaving}
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.md,
+          cursor: isSaving ? 'not-allowed' : 'pointer',
+          opacity: isSaving ? SAVING_OPACITY : 1,
+          ...theme.typography.body.medium,
+        }}
+      >
+        {isSaving ? t('common.saving') : t('common.save')}
+      </button>
+      <button
+        onClick={onCancel}
+        disabled={isSaving}
+        style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          cursor: 'pointer',
+          ...theme.typography.body.medium,
+        }}
+      >
+        {t('common.cancel')}
+      </button>
+    </div>
+  );
+};
+
 export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
   displayName: initialDisplayName,
   jobTitle: initialJobTitle,
@@ -56,32 +138,7 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
         borderRadius: theme.borderRadius.md,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: theme.spacing.md,
-        }}
-      >
-        <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
-          {t('settings.profile.title')}
-        </h4>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            style={{
-              background: STRING_NONE,
-              border: STRING_NONE,
-              color: theme.colors.primary.main,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {t('common.edit')}
-          </button>
-        )}
-      </div>
+      <ProfileSectionHeader isEditing={isEditing} onEditClick={() => setIsEditing(true)} />
 
       <p
         style={{
@@ -110,41 +167,7 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
           onChange={setJobTitle}
         />
 
-        {isEditing && (
-          <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? SAVING_OPACITY : 1,
-                ...theme.typography.body.medium,
-              }}
-            >
-              {isSaving ? t('common.saving') : t('common.save')}
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={isSaving}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.text.secondary,
-                border: `1px solid ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-                ...theme.typography.body.medium,
-              }}
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        )}
+        {isEditing && <ProfileFormActions isSaving={isSaving} onSave={handleSave} onCancel={handleCancel} />}
       </div>
     </div>
   );

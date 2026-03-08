@@ -252,8 +252,7 @@ const EmailSelectorField: React.FC<EmailSelectorFieldProps> = ({
   );
 };
 
-export const AutoResponderEmailPreview: React.FC = () => {
-  const { t } = useTranslation();
+function useEmailPreviewState() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [recentEmails, setRecentEmails] = useState<RecentEmail[]>([]);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
@@ -308,6 +307,21 @@ export const AutoResponderEmailPreview: React.FC = () => {
       setPreview(null);
     }
   }, [selectedEmailId, fetchPreviewForEmail]);
+
+  return {
+    isExpanded, setIsExpanded,
+    recentEmails, selectedEmailId, setSelectedEmailId,
+    preview, isLoadingEmails, isLoadingPreview, error,
+  };
+}
+
+export const AutoResponderEmailPreview: React.FC = () => {
+  const { t } = useTranslation();
+  const {
+    isExpanded, setIsExpanded,
+    recentEmails, selectedEmailId, setSelectedEmailId,
+    preview, isLoadingEmails, isLoadingPreview, error,
+  } = useEmailPreviewState();
 
   return (
     <div

@@ -12,41 +12,156 @@ interface AutoResponderAnalyticsProps {
   onRefresh: () => void;
 }
 
+interface AnalyticsEmptyStateProps {
+  onRefresh: () => void;
+  t: (key: string) => string;
+}
+
+const AnalyticsEmptyState: React.FC<AnalyticsEmptyStateProps> = ({ onRefresh, t }) => (
+  <div
+    style={{
+      marginTop: theme.spacing.lg,
+      backgroundColor: theme.colors.background.subtle,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.xl,
+      textAlign: 'center',
+    }}
+  >
+    <p style={{ ...theme.typography.body.large, color: theme.colors.text.secondary, marginBottom: theme.spacing.md }}>
+      {t('settings.autoResponder.analytics.noData')}
+    </p>
+    <button
+      onClick={onRefresh}
+      style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        backgroundColor: theme.colors.primary.main,
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
+        borderRadius: theme.borderRadius.md,
+        cursor: 'pointer',
+        ...theme.typography.body.large,
+      }}
+    >
+      {t('settings.autoResponder.analytics.loadAnalytics')}
+    </button>
+  </div>
+);
+
+interface AnalyticsSummarySectionProps {
+  totalSent: number;
+  qaAnswerRate: number;
+  escalationRate: number;
+}
+
+const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ totalSent, qaAnswerRate, escalationRate }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+      gap: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
+    }}
+  >
+    <StatCard label="Total Sent" value={totalSent.toString()} emoji="📤" />
+    <StatCard
+      label="Q&A Answer Rate"
+      value={`${Math.round(qaAnswerRate * 100)}%`}
+      emoji="🧠"
+      subtext="of responses included AI answers"
+    />
+    <StatCard
+      label="Escalation Rate"
+      value={`${Math.round(escalationRate * 100)}%`}
+      emoji="⚡"
+      subtext="of senders requested priority bump"
+    />
+  </div>
+);
+
+interface AnalyticsPrioritySectionProps {
+  byPriority: { high: number; medium: number; low: number };
+  totalSent: number;
+  t: (key: string) => string;
+}
+
+const AnalyticsPrioritySection: React.FC<AnalyticsPrioritySectionProps> = ({ byPriority, totalSent, t }) => (
+  <div
+    style={{
+      backgroundColor: theme.colors.background.paper,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.md,
+      border: `1px solid ${theme.colors.border.light}`,
+      marginBottom: theme.spacing.md,
+    }}
+  >
+    <h4
+      style={{
+        ...theme.typography.body.xLarge,
+        fontWeight: theme.typography.fontWeight.semibold,
+        color: theme.colors.text.primary,
+        marginTop: 0,
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      {t('settings.autoResponder.analytics.responsesByPriority')}
+    </h4>
+    <div style={{ display: 'flex', gap: theme.spacing.lg }}>
+      <PriorityBar label="High" count={byPriority.high} total={totalSent} color="#EF4444" />
+      <PriorityBar label="Medium" count={byPriority.medium} total={totalSent} color={theme.colors.primary.main} />
+      <PriorityBar label="Low" count={byPriority.low} total={totalSent} color={theme.colors.greyscale[400]} />
+    </div>
+  </div>
+);
+
+interface AnalyticsTemplateSectionProps {
+  templateBreakdown: Record<string, number>;
+  t: (key: string) => string;
+}
+
+const AnalyticsTemplateSection: React.FC<AnalyticsTemplateSectionProps> = ({ templateBreakdown, t }) => (
+  <div
+    style={{
+      backgroundColor: theme.colors.background.paper,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.md,
+      border: `1px solid ${theme.colors.border.light}`,
+    }}
+  >
+    <h4
+      style={{
+        ...theme.typography.body.xLarge,
+        fontWeight: theme.typography.fontWeight.semibold,
+        color: theme.colors.text.primary,
+        marginTop: 0,
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      {t('settings.autoResponder.analytics.templateUsage')}
+    </h4>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+      {Object.entries(templateBreakdown).map(([template, count]) => (
+        <div
+          key={template}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.sm,
+            ...theme.typography.body.large,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          {template}: <strong>{count}</strong>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({ analytics, onRefresh }) => {
   const { t } = useTranslation();
 
   if (!analytics) {
-    return (
-      <div
-        style={{
-          marginTop: theme.spacing.lg,
-          backgroundColor: theme.colors.background.subtle,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.xl,
-          textAlign: 'center',
-        }}
-      >
-        <p
-          style={{ ...theme.typography.body.large, color: theme.colors.text.secondary, marginBottom: theme.spacing.md }}
-        >
-          {t('settings.autoResponder.analytics.noData')}
-        </p>
-        <button
-          onClick={onRefresh}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            ...theme.typography.body.large,
-          }}
-        >
-          {t('settings.autoResponder.analytics.loadAnalytics')}
-        </button>
-      </div>
-    );
+    return <AnalyticsEmptyState onRefresh={onRefresh} t={t} />;
   }
 
   const { totalSent, byPriority, qaAnswerRate, escalationRate, templateBreakdown } = analytics;
@@ -61,12 +176,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({ 
       }}
     >
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: theme.spacing.md,
-        }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
       >
         <h3 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
           📊 {t('settings.autoResponder.analytics.title')}
@@ -87,96 +197,10 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({ 
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-        }}
-      >
-        <StatCard label="Total Sent" value={totalSent.toString()} emoji="📤" />
-        <StatCard
-          label="Q&A Answer Rate"
-          value={`${Math.round(qaAnswerRate * 100)}%`}
-          emoji="🧠"
-          subtext="of responses included AI answers"
-        />
-        <StatCard
-          label="Escalation Rate"
-          value={`${Math.round(escalationRate * 100)}%`}
-          emoji="⚡"
-          subtext="of senders requested priority bump"
-        />
-      </div>
-
-      {/* Priority Breakdown */}
-      <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.md,
-          border: `1px solid ${theme.colors.border.light}`,
-          marginBottom: theme.spacing.md,
-        }}
-      >
-        <h4
-          style={{
-            ...theme.typography.body.xLarge,
-            fontWeight: theme.typography.fontWeight.semibold,
-            color: theme.colors.text.primary,
-            marginTop: 0,
-            marginBottom: theme.spacing.md,
-          }}
-        >
-          {t('settings.autoResponder.analytics.responsesByPriority')}
-        </h4>
-        <div style={{ display: 'flex', gap: theme.spacing.lg }}>
-          <PriorityBar label="High" count={byPriority.high} total={totalSent} color="#EF4444" />
-          <PriorityBar label="Medium" count={byPriority.medium} total={totalSent} color={theme.colors.primary.main} />
-          <PriorityBar label="Low" count={byPriority.low} total={totalSent} color={theme.colors.greyscale[400]} />
-        </div>
-      </div>
-
-      {/* Template Usage */}
+      <AnalyticsSummarySection totalSent={totalSent} qaAnswerRate={qaAnswerRate} escalationRate={escalationRate} />
+      <AnalyticsPrioritySection byPriority={byPriority} totalSent={totalSent} t={t} />
       {Object.keys(templateBreakdown).length > 0 && (
-        <div
-          style={{
-            backgroundColor: theme.colors.background.paper,
-            borderRadius: theme.borderRadius.md,
-            padding: theme.spacing.md,
-            border: `1px solid ${theme.colors.border.light}`,
-          }}
-        >
-          <h4
-            style={{
-              ...theme.typography.body.xLarge,
-              fontWeight: theme.typography.fontWeight.semibold,
-              color: theme.colors.text.primary,
-              marginTop: 0,
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            {t('settings.autoResponder.analytics.templateUsage')}
-          </h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {Object.entries(templateBreakdown).map(([template, count]) => (
-              <div
-                key={template}
-                style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  backgroundColor: theme.colors.background.subtle,
-                  borderRadius: theme.borderRadius.sm,
-                  ...theme.typography.body.large,
-                  color: theme.colors.text.secondary,
-                }}
-              >
-                {template}: <strong>{count}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
+        <AnalyticsTemplateSection templateBreakdown={templateBreakdown} t={t} />
       )}
     </div>
   );

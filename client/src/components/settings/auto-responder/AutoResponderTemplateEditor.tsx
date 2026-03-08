@@ -144,13 +144,14 @@ const TemplateEditorExpanded: React.FC<TemplateEditorExpandedProps> = ({
   </div>
 );
 
-export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorProps> = ({
-  config,
-  queueStats,
-  userName,
-  onTemplateChange,
-}) => {
-  const { t } = useTranslation();
+interface UseTemplateEditorStateProps {
+  config: AutoResponderConfig;
+  queueStats: QueueStats | null;
+  userName?: string;
+  onTemplateChange: (templates: Partial<AutoResponderConfig['templates']>) => Promise<void>;
+}
+
+function useTemplateEditorState({ config, queueStats, userName, onTemplateChange }: UseTemplateEditorStateProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -158,13 +159,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
   const [isSaving, setIsSaving] = useState(false);
   const [showMergeTags, setShowMergeTags] = useState(false);
 
-  const stats = queueStats || {
-    actionCount: 37,
-    triageCount: 21,
-    avgResponseTime: '~4 days',
-    urgentResponseTime: '12-24 hours',
-  };
-
+  const stats = queueStats || { actionCount: 37, triageCount: 21, avgResponseTime: '~4 days', urgentResponseTime: '12-24 hours' };
   const displayName = userName || 'Your Name';
 
   const getCurrentTemplate = useCallback(() => {
@@ -192,7 +187,6 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
     }
   };
 
-  // Listen for merge-tag insert events dispatched by the toolbar
   useEffect(() => {
     const handler = (event: any) => {
       const tag = event.detail as string;
@@ -218,6 +212,32 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
   const previewText = isEditing
     ? renderPreviewWithMergeTags(editedTemplate, displayName, stats)
     : renderPreviewWithMergeTags(currentTemplate, displayName, stats);
+
+  return {
+    isExpanded, setIsExpanded,
+    selectedTemplate, setSelectedTemplate,
+    isEditing, isSaving, showMergeTags,
+    editedTemplate, setEditedTemplate, setShowMergeTags,
+    currentTemplate, previewText,
+    handleEditClick, handleSaveTemplate, handleCancelEdit,
+  };
+}
+
+export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorProps> = ({
+  config,
+  queueStats,
+  userName,
+  onTemplateChange,
+}) => {
+  const { t } = useTranslation();
+  const {
+    isExpanded, setIsExpanded,
+    selectedTemplate, setSelectedTemplate,
+    isEditing, isSaving, showMergeTags,
+    editedTemplate, setEditedTemplate, setShowMergeTags,
+    currentTemplate, previewText,
+    handleEditClick, handleSaveTemplate, handleCancelEdit,
+  } = useTemplateEditorState({ config, queueStats, userName, onTemplateChange });
 
   return (
     <div

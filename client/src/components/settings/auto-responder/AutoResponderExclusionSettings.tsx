@@ -218,11 +218,7 @@ const AddExclusionForm: React.FC<AddExclusionFormProps> = ({
   );
 };
 
-export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSettingsProps> = ({
-  customExclusionRules,
-  onChange,
-}) => {
-  const { t } = useTranslation();
+function useExclusionRulesState(customExclusionRules: string[], onChange: (rules: string[]) => void) {
   const [isAdding, setIsAdding] = useState(false);
   const [newRule, setNewRule] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -237,8 +233,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
   };
 
   const handleDeleteRule = (index: number) => {
-    const updatedRules = customExclusionRules.filter((_, i) => i !== index);
-    onChange(updatedRules);
+    onChange(customExclusionRules.filter((_, i) => i !== index));
   };
 
   const handleEditRule = (index: number) => {
@@ -260,6 +255,24 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
     setEditingIndex(null);
     setEditValue('');
   };
+
+  return {
+    isAdding, setIsAdding, newRule, setNewRule,
+    editingIndex, editValue, setEditValue,
+    handleAddRule, handleDeleteRule, handleEditRule, handleSaveEdit, handleCancelEdit,
+  };
+}
+
+export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSettingsProps> = ({
+  customExclusionRules,
+  onChange,
+}) => {
+  const { t } = useTranslation();
+  const {
+    isAdding, setIsAdding, newRule, setNewRule,
+    editingIndex, editValue, setEditValue,
+    handleAddRule, handleDeleteRule, handleEditRule, handleSaveEdit, handleCancelEdit,
+  } = useExclusionRulesState(customExclusionRules, onChange);
 
   return (
     <div

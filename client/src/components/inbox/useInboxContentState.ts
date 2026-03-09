@@ -63,7 +63,18 @@ export function useInboxContentState({
     updateDraft, bulkSend, fetchThreadsWithDrafts,
   });
 
-  const filteredEmails = useMemo(() => emails.filter(email => !email.isArchived), [emails]);
+  const filteredEmails = useMemo(() => {
+    const result = emails.filter(email => !email.isArchived);
+    // [DIAGNOSTIC #784] Log filteredEmails recompute — check timing relative to updateCategoryEmails
+    console.log('[DEBUG #784] useInboxContentState filteredEmails recomputed:', {
+      totalEmailsInStore: emails.length,
+      filteredCount: result.length,
+      archivedCount: emails.length - result.length,
+      // Show which categories/ids are present after filter
+      filteredCategorySnapshot: result.map(email => ({ id: email.id, category: email.category, category_id: email.category_id })),
+    });
+    return result;
+  }, [emails]);
   const emailCategoryMap = useMemo(
     () => buildEmailCategoryMap(filteredEmails, mode, categorySummary),
     [filteredEmails, mode, categorySummary]

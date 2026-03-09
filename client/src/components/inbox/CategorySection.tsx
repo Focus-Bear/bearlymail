@@ -82,6 +82,21 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   const group = emailCategoryMap.get(categoryKey);
   const categoryEmails = group?.emails ?? [];
 
+  // [DIAGNOSTIC #784] Log CategorySection lookup
+  console.log('[DEBUG #784] CategorySection render:', {
+    categoryName,
+    categoryItemId: categoryItem.id,
+    categoryKey,
+    isExpanded,
+    isLoaded,
+    emailCategoryMapSize: emailCategoryMap.size,
+    emailCategoryMapKeys: Array.from(emailCategoryMap.keys()),
+    mapHasCategoryKey: emailCategoryMap.has(categoryKey),
+    categoryEmailsLength: categoryEmails.length,
+    categoryItemCount: categoryItem.count,
+    willReturnNull: isLoaded && categoryEmails.length === 0 && categoryItem.count === 0,
+  });
+
   // Only hide if we've successfully loaded AND both local emails and server count are zero.
   // Without the count check, a fetch error (isLoaded=true, emails=[]) would silently hide
   // a category that actually has emails according to the summary.

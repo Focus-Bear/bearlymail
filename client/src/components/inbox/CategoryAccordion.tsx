@@ -453,16 +453,21 @@ export const groupEmailsByCategory = (emails: Email[], mode?: InboxMode): Catego
   const categoryMap = new Map<string, Email[]>();
 
   emails.forEach(email => {
-    // Phishing emails are always bucketed into the dangerous category regardless of
-    // their server-assigned category, so they are never buried in a regular inbox group.
     const isPhishing =
       email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
+    // If the server has assigned a specific category (not "Other"), respect it even when
+    // the phishing classifier fires. Fundraising or investor emails can trigger medium/high
+    // phishing confidence while still having a valid server-assigned category — in those
+    // cases we should NOT override the category. Only route to the phishing bucket when
+    // the email has no server-assigned category (or is already in "Other").
+    const hasServerCategory = Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER;
     // Use category_id (UUID) as the stable group key when provided by the server.
     // This avoids encoding/whitespace mismatches with the summary's UUID-based keys.
     // Falls back to the category name string for auto-responded and legacy emails.
-    const categoryKey = isPhishing
-      ? CATEGORY_DANGEROUS_PHISHING
-      : email.category_id ?? email.category ?? CATEGORY_OTHER;
+    const categoryKey =
+      isPhishing && !hasServerCategory
+        ? CATEGORY_DANGEROUS_PHISHING
+        : email.category_id ?? email.category ?? CATEGORY_OTHER;
     if (!categoryMap.has(categoryKey)) {
       categoryMap.set(categoryKey, []);
     }

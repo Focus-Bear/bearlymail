@@ -232,21 +232,6 @@ async function fetchCategoryEmailsImpl({
     // keys by UUID directly. No normalization needed.
     const emails: Email[] = response.data.emails;
 
-    // [DIAGNOSTIC #784] Log raw API response to verify category_id is populated
-    console.log('[DEBUG #784] fetchCategoryEmails raw API response:', {
-      categoryName,
-      categoryKey,
-      emailCount: emails.length,
-      // Show all category-related fields on each email to check snake_case vs camelCase
-      emailCategoryFields: emails.map(email => ({
-        id: email.id,
-        category: email.category,
-        category_id: email.category_id,
-        // Check if camelCase version accidentally got set instead
-        categoryId: (email as any).categoryId,
-      })),
-    });
-
     if (fetchSessionRef.current !== sessionId) {
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;

@@ -15,6 +15,10 @@ import { ErrorBoundary } from 'components/ErrorBoundary';
 // format required by PostHog's Error Tracking dashboard.
 initPostHog();
 
+// Log build version on startup so support/devs can identify exact deploys from the console.
+// __COMMIT_HASH__ and __BUILD_TIME__ are injected by vite.config.ts at build time.
+console.log(`[BearlyMail] version: ${__COMMIT_HASH__} built: ${__BUILD_TIME__}`);
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>

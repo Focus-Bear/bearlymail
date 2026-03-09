@@ -16,4 +16,10 @@ export default defineConfig({
     sourcemap: true,
   },
   envPrefix: 'VITE_',
+  define: {
+    // Injected at build time. Pass COMMIT_HASH=$(git rev-parse --short HEAD) as an env var.
+    // Falls back to 'dev' when building locally without the env var set.
+    __COMMIT_HASH__: JSON.stringify(process.env.COMMIT_HASH ?? 'dev'),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
 });

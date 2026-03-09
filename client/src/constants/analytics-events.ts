@@ -62,6 +62,7 @@ export const ANALYTICS_EVENTS = {
   PRIVATE_NOTES_TOGGLED: 'private_notes_toggled',
   REPLY_BUTTON_CLICKED: 'reply_button_clicked',
   REPLY_DRAFT_GENERATED: 'reply_draft_generated',
+  REPLY_SCHEDULED: 'reply_scheduled',
   REPLY_SENT: 'reply_sent',
   SCHEDULING_DRAFT_REPLY_CLICKED: 'scheduling_draft_reply_clicked',
   SCHEDULING_LINK_COPIED: 'scheduling_link_copied',

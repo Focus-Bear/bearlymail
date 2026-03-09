@@ -374,11 +374,13 @@
     "rulesRemoved": "The following {{count}} rule(s) were removed from your preferences:",
     "delete": "Delete",
     "expectedReply": {
-      "label": "Expect reply in",
+      "label": "Expect a reply within",
       "none": "No follow-up",
       "hours": "{{count}}h",
       "days": "{{count}}d",
-      "custom": "Custom"
+      "custom": "Custom",
+      "tooltip": "If the other person doesn't reply within {{time}}, I'll pop the email up in the follow up inbox",
+      "tooltipNoFollowUp": "No follow-up reminder will be set for this email."
     },
     "sentiment": {
       "negative": "Negative",
@@ -423,7 +425,15 @@
       "noSlots": "No available slots found in the next 7 days."
     },
     "scheduleForMorning": "Schedule for tomorrow morning",
-    "keepInAction": "Still need to action"
+    "keepInAction": "I still need to take action",
+    "keepInActionTooltip": "Helpful if you are just letting the other person know you got their message and still need to take action yourself.",
+    "schedulePopup": {
+      "title": "Schedule send",
+      "tomorrowMorning": "Tomorrow morning",
+      "mondayMorning": "Monday morning",
+      "thisAfternoon": "This afternoon",
+      "pickDateTime": "Pick date & time..."
+    }
   },
   "settings": {
     "title": "Settings",

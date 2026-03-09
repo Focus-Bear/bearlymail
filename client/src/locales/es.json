@@ -608,12 +608,22 @@
       "none": "Sin seguimiento",
       "hours": "{{count}}h",
       "days": "{{count}}d",
-      "custom": "Personalizado"
+      "custom": "Personalizado",
+      "tooltip": "Si la otra persona no responde en {{time}}, apareceré el correo en tu bandeja de seguimiento",
+      "tooltipNoFollowUp": "No se establecerá ningún recordatorio de seguimiento para este correo."
     },
     "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
     "whenToUsePlaceholder": "Describe cuándo usar esta regla...",
     "scheduleForMorning": "Programar para mañana por la mañana",
-    "keepInAction": "Aún necesito actuar"
+    "keepInAction": "Aún necesito tomar acción",
+    "keepInActionTooltip": "Útil si solo estás informando a la otra persona que recibiste su mensaje y aún necesitas tomar acción tú mismo.",
+    "schedulePopup": {
+      "title": "Programar envío",
+      "tomorrowMorning": "Mañana por la mañana",
+      "mondayMorning": "El lunes por la mañana",
+      "thisAfternoon": "Esta tarde",
+      "pickDateTime": "Elegir fecha y hora..."
+    }
   },
   "contacts": {
     "title": "Contactos",

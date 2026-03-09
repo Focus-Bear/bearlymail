@@ -6,6 +6,7 @@ import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
+import { SUMMARY_PROMPT_IDS } from "./prompts";
 
 const SYSTEM_PROMPT_PREVIEW_LENGTH = 5000;
 
@@ -443,7 +444,7 @@ export class TokenUsageService implements OnModuleInit {
       .addSelect("MAX(tu.createdAt)", "lastProcessed")
       .innerJoin("jsonb_array_elements_text(tu.emailIds)", "email_id", "true")
       .where("tu.operation = :operation", {
-        operation: "summarize_email_batch",
+        operation: SUMMARY_PROMPT_IDS.BATCH,
       })
       .orWhere("tu.operation = :singleOp", { singleOp: "summarize_email" })
       .groupBy("email_id.value")

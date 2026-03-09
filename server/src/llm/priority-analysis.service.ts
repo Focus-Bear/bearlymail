@@ -16,7 +16,7 @@ import {
   LLM_OP_ANALYZE_PRIORITY,
   LLM_OP_ANALYZE_PRIORITY_BATCH,
 } from "./llm-operations";
-import { getPrompt, renderPrompt } from "./prompts";
+import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
 
 @Injectable()
 export class PriorityAnalysisService {
@@ -193,15 +193,15 @@ export class PriorityAnalysisService {
     );
 
     // Load prompt from markdown file
-    const promptConfig = getPrompt("analyze_priority");
+    const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
       const error = new StructuralError(
         "Prompt template not found: analyze_priority. Expected file: prioritise-email.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
       );
       this.logger.error("analyze_priority prompt not found", error);
       this.errorTrackingService.captureException(error, userId, {
-        operation: "analyze_priority",
-        promptId: "analyze_priority",
+        operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+        promptId: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
       });
       throw error;
     }
@@ -319,7 +319,7 @@ export class PriorityAnalysisService {
             `LLM priority response contained no JSON object. Response preview: ${responsePreview}`,
           ),
           userId,
-          { operation: "analyze_priority", responsePreview },
+          { operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY, responsePreview },
         );
       }
     } catch (error) {
@@ -328,7 +328,7 @@ export class PriorityAnalysisService {
         error,
       );
       this.errorTrackingService.captureException(error as Error, userId, {
-        operation: "analyze_priority",
+        operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
         responsePreview,
       });
     }
@@ -682,7 +682,7 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
           ),
           userId,
           {
-            operation: "analyze_priority_batch",
+            operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
             emailCount: emails.length,
             emailKeys,
             responsePreview: batchResponsePreview,

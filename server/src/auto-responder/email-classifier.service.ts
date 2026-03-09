@@ -13,7 +13,11 @@ import {
   LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
   LLM_OP_CLASSIFY_EMAIL,
 } from "../llm/llm-operations";
-import { getPrompt, renderPrompt } from "../llm/prompts";
+import {
+  CLASSIFICATION_PROMPT_IDS,
+  getPrompt,
+  renderPrompt,
+} from "../llm/prompts";
 import { LLM_CONFIG } from "./auto-responder-constants";
 import { EmailClassification } from "./types/auto-responder.types";
 
@@ -413,15 +417,17 @@ export class EmailClassifierService {
     subject: string;
     body: string;
   }): Promise<EmailClassification> {
-    const promptConfig = getPrompt("classify_email_type");
+    const promptConfig = getPrompt(
+      CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
+    );
     if (!promptConfig) {
       const error = new StructuralError(
         "Prompt template not found: classify_email_type. Expected file: classify-email-type.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
       );
       this.logger.error("classify_email_type prompt not found", error);
       this.errorTrackingService.captureException(error, undefined, {
-        operation: "classify_email_type",
-        promptId: "classify_email_type",
+        operation: CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
+        promptId: CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
       });
       throw error;
     }

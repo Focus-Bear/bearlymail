@@ -15,7 +15,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*'],
+  ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*', 'src/llm/llm-operations.ts', 'src/llm/prompts.ts'],
   rules: {
     // ===========================================
     // IMPORT ORDERING
@@ -166,6 +166,23 @@ module.exports = {
       },
     ],
 
+    // Disallow magic strings for domain-specific identifiers.
+    // Catches prompt ID literals, comparison magic strings, and switch-case magic strings.
+    // Use named constants from prompts.ts (SUMMARY_PROMPT_IDS, PRIORITY_PROMPT_IDS, etc.)
+    // and other constant modules instead of inline string literals.
+    'no-restricted-syntax': [
+      'error',
+      {
+        // Only flag string literals that are direct arguments to getPrompt().
+        // This catches getPrompt("magic_string_here") without firing on log messages
+        // or named constant definitions (which live in the excluded prompts.ts / llm-operations.ts).
+        selector:
+          "CallExpression[callee.name='getPrompt'] > Literal",
+        message:
+          "Pass a named constant (from SUMMARY_PROMPT_IDS, PRIORITY_PROMPT_IDS, REPLY_PROMPT_IDS, CLASSIFICATION_PROMPT_IDS, CONTEXT_PROMPT_IDS, or UTILITY_PROMPT_IDS) to getPrompt() instead of a magic string prompt ID.",
+      },
+    ],
+
     // Require const for variables that are never reassigned
     'prefer-const': 'error',
 
@@ -251,6 +268,8 @@ module.exports = {
         '@typescript-eslint/no-magic-numbers': 'off',
         // Test data variables often use generic names like 'data', which is acceptable in tests
         'id-denylist': 'off',
+        // Allow magic strings in test fixtures
+        'no-restricted-syntax': 'off',
         '@typescript-eslint/no-unused-vars': [
           'error',
           {
@@ -287,6 +306,8 @@ module.exports = {
         'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
         'max-statements': ['error', 100, { ignoreTopLevelFunctions: true }],
         'no-console': 'off',
+        // Scripts use prompt IDs for CLI display
+        'no-restricted-syntax': 'off',
       },
     },
     {

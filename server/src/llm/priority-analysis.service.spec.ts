@@ -11,6 +11,11 @@ jest.mock("./prompts", () => ({
   getPrompt: jest.fn(),
   renderPrompt: jest.fn(),
   loadPrompts: jest.fn(),
+  PRIORITY_PROMPT_IDS: {
+    ANALYZE_PRIORITY: "analyze_priority",
+    ANALYZE_PRIORITY_FEEDBACK: "analyze_priority_feedback",
+    INCREMENTAL_PRIORITY_CHECK: "incremental_priority_check",
+  },
 }));
 
 const mockEmail = {

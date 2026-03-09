@@ -9,7 +9,12 @@ import {
   LLM_OP_INCREMENTAL_PRIORITY_CHECK,
   LLM_OP_INCREMENTAL_SUMMARY,
 } from "./llm-operations";
-import { getPrompt, renderPrompt } from "./prompts";
+import {
+  CONTEXT_PROMPT_IDS,
+  getPrompt,
+  PRIORITY_PROMPT_IDS,
+  renderPrompt,
+} from "./prompts";
 
 export interface IncrementalPriorityCheckResult {
   needsFullRecalc: boolean;
@@ -63,10 +68,12 @@ export class IncrementalAnalysisService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<IncrementalPriorityCheckResult> {
-    const promptConfig = getPrompt("incremental_priority_check");
+    const promptConfig = getPrompt(
+      PRIORITY_PROMPT_IDS.INCREMENTAL_PRIORITY_CHECK,
+    );
     if (!promptConfig) {
       this.logger.warn(
-        "incremental_priority_check prompt not found, defaulting to full recalc",
+        "incremental priority check prompt not found, defaulting to full recalc",
       );
       return {
         needsFullRecalc: true,
@@ -149,9 +156,9 @@ export class IncrementalAnalysisService {
     userId?: string,
     needsContactTypeGuess?: boolean,
   ): Promise<IncrementalSummaryResult> {
-    const promptConfig = getPrompt("incremental_summary");
+    const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.INCREMENTAL_SUMMARY);
     if (!promptConfig) {
-      this.logger.warn("incremental_summary prompt not found");
+      this.logger.warn("incremental summary prompt not found");
       return {
         updatedSummary: existingSummary,
         significantChange: false,

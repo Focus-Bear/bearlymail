@@ -14,16 +14,68 @@ let promptsCache: Map<string, PromptConfig> | null = null;
 /**
  * Named constants for summarisation prompt IDs.
  *
- * Use these instead of inline string literals — the ESLint
- * `no-magic-numbers` rule covers *numeric* literals only; string-literal
- * "magic strings" require a separate rule (e.g. `no-restricted-syntax` with a
- * regex selector) that is not yet configured.  Adding named constants here is
- * the defensive fix until a lint rule is wired up.
+ * Use these instead of inline string literals when calling `getPrompt()`.
  */
 export const SUMMARY_PROMPT_IDS = {
   TLDR: "summarize_email_tldr",
   BULLETS: "summarize_email_bullets",
   ACTIONS: "summarize_email_actions",
+  CHECK_PHISHING_ONLY: "check_phishing_only",
+  BATCH: "summarize_email_batch",
+} as const;
+
+/**
+ * Named constants for priority-analysis prompt IDs.
+ */
+export const PRIORITY_PROMPT_IDS = {
+  ANALYZE_PRIORITY: "analyze_priority",
+  ANALYZE_PRIORITY_FEEDBACK: "analyze_priority_feedback",
+  INCREMENTAL_PRIORITY_CHECK: "incremental_priority_check",
+} as const;
+
+/**
+ * Named constants for reply-generation prompt IDs.
+ */
+export const REPLY_PROMPT_IDS = {
+  GENERATE_REPLY: "generate_reply",
+  GENERATE_MULTIPLE_REPLIES: "generate_multiple_replies",
+  GENERATE_MEETING_REPLY: "generate_meeting_reply",
+  GENERATE_FOLLOW_UP: "generate_follow_up",
+  GENERATE_QA_ANSWER: "generate_qa_answer",
+} as const;
+
+/**
+ * Named constants for classification prompt IDs.
+ */
+export const CLASSIFICATION_PROMPT_IDS = {
+  CLASSIFY_EMAIL_TYPE: "classify_email_type",
+  CLASSIFY_CONTACT_TYPE: "classify_contact_type",
+} as const;
+
+/**
+ * Named constants for context-analysis and extraction prompt IDs.
+ */
+export const CONTEXT_PROMPT_IDS = {
+  ANALYZE_EMAIL_PATTERNS: "analyze_email_patterns",
+  EXTRACT_ACTION_ITEMS: "extract_action_items",
+  EXTRACT_COMMON_QUESTIONS: "extract_common_questions",
+  INCREMENTAL_SUMMARY: "incremental_summary",
+  COMPRESS_USER_CONTEXT: "compress_user_context",
+} as const;
+
+/**
+ * Named constants for miscellaneous utility prompt IDs.
+ */
+export const UTILITY_PROMPT_IDS = {
+  SUGGEST_ACTIONS: "suggest_actions",
+  CHECK_TONE_STYLE: "check_tone_style",
+  SEARCH_RELEVANCE_EXPLANATION: "search_relevance_explanation",
+  REDACT_NAMES: "redact_names",
+  VALIDATE_WRITING_EXAMPLE: "validate_writing_example",
+  DISPUTE_TONE_CHECK: "dispute_tone_check",
+  CONSOLIDATE_CATEGORIES: "consolidate_categories",
+  GENERATE_CATEGORIES_FROM_OTHER: "generate_categories_from_other",
+  DETECT_OPT_OUT: "detect_opt_out",
 } as const;
 
 /**
@@ -50,38 +102,79 @@ const PROMPT_FILE_MAP: Array<{
   key: string;
   critical?: boolean;
 }> = [
-  { file: "extract-action-items.md", key: "extract_action_items" },
-  { file: "prioritise-email.md", key: "analyze_priority", critical: true },
-  { file: "generate-reply.md", key: "generate_reply" },
-  { file: "analyze-email-patterns.md", key: "analyze_email_patterns" },
+  {
+    file: "extract-action-items.md",
+    key: CONTEXT_PROMPT_IDS.EXTRACT_ACTION_ITEMS,
+  },
+  {
+    file: "prioritise-email.md",
+    key: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+    critical: true,
+  },
+  { file: "generate-reply.md", key: REPLY_PROMPT_IDS.GENERATE_REPLY },
+  {
+    file: "analyze-email-patterns.md",
+    key: CONTEXT_PROMPT_IDS.ANALYZE_EMAIL_PATTERNS,
+  },
   {
     file: "search-relevance-explanation.md",
-    key: "search_relevance_explanation",
+    key: UTILITY_PROMPT_IDS.SEARCH_RELEVANCE_EXPLANATION,
   },
-  { file: "generate-multiple-replies.md", key: "generate_multiple_replies" },
-  { file: "generate-meeting-reply.md", key: "generate_meeting_reply" },
-  { file: "generate-follow-up.md", key: "generate_follow_up" },
-  { file: "analyze-priority-feedback.md", key: "analyze_priority_feedback" },
-  { file: "extract-common-questions.md", key: "extract_common_questions" },
-  { file: "summarize-email-tldr.md", key: "summarize_email_tldr" },
-  { file: "summarize-email-bullets.md", key: "summarize_email_bullets" },
-  { file: "summarize-email-actions.md", key: "summarize_email_actions" },
-  { file: "check-tone-style.md", key: "check_tone_style" },
-  { file: "suggest-actions.md", key: "suggest_actions" },
-  { file: "classify-email-type.md", key: "classify_email_type" },
-  { file: "generate-qa-answer.md", key: "generate_qa_answer" },
-  { file: "detect-opt-out.md", key: "detect_opt_out" },
-  { file: "redact-names.md", key: "redact_names" },
-  { file: "validate-writing-example.md", key: "validate_writing_example" },
-  { file: "dispute-tone-check.md", key: "dispute_tone_check" },
-  { file: "consolidate-email-categories.md", key: "consolidate_categories" },
+  {
+    file: "generate-multiple-replies.md",
+    key: REPLY_PROMPT_IDS.GENERATE_MULTIPLE_REPLIES,
+  },
+  {
+    file: "generate-meeting-reply.md",
+    key: REPLY_PROMPT_IDS.GENERATE_MEETING_REPLY,
+  },
+  { file: "generate-follow-up.md", key: REPLY_PROMPT_IDS.GENERATE_FOLLOW_UP },
+  {
+    file: "analyze-priority-feedback.md",
+    key: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY_FEEDBACK,
+  },
+  {
+    file: "extract-common-questions.md",
+    key: CONTEXT_PROMPT_IDS.EXTRACT_COMMON_QUESTIONS,
+  },
+  { file: "summarize-email-tldr.md", key: SUMMARY_PROMPT_IDS.TLDR },
+  { file: "summarize-email-bullets.md", key: SUMMARY_PROMPT_IDS.BULLETS },
+  { file: "summarize-email-actions.md", key: SUMMARY_PROMPT_IDS.ACTIONS },
+  { file: "check-tone-style.md", key: UTILITY_PROMPT_IDS.CHECK_TONE_STYLE },
+  { file: "suggest-actions.md", key: UTILITY_PROMPT_IDS.SUGGEST_ACTIONS },
+  {
+    file: "classify-email-type.md",
+    key: CLASSIFICATION_PROMPT_IDS.CLASSIFY_EMAIL_TYPE,
+  },
+  { file: "generate-qa-answer.md", key: REPLY_PROMPT_IDS.GENERATE_QA_ANSWER },
+  { file: "detect-opt-out.md", key: UTILITY_PROMPT_IDS.DETECT_OPT_OUT },
+  { file: "redact-names.md", key: UTILITY_PROMPT_IDS.REDACT_NAMES },
+  {
+    file: "validate-writing-example.md",
+    key: UTILITY_PROMPT_IDS.VALIDATE_WRITING_EXAMPLE,
+  },
+  { file: "dispute-tone-check.md", key: UTILITY_PROMPT_IDS.DISPUTE_TONE_CHECK },
+  {
+    file: "consolidate-email-categories.md",
+    key: UTILITY_PROMPT_IDS.CONSOLIDATE_CATEGORIES,
+  },
   {
     file: "generate-categories-from-other.md",
-    key: "generate_categories_from_other",
+    key: UTILITY_PROMPT_IDS.GENERATE_CATEGORIES_FROM_OTHER,
   },
-  { file: "summarize-email-batch.md", key: "summarize_email_batch" },
-  { file: "classify-contact-type.md", key: "classify_contact_type" },
-  { file: "compress-user-context.md", key: "compress_user_context" },
+  { file: "summarize-email-batch.md", key: SUMMARY_PROMPT_IDS.BATCH },
+  {
+    file: "classify-contact-type.md",
+    key: CLASSIFICATION_PROMPT_IDS.CLASSIFY_CONTACT_TYPE,
+  },
+  {
+    file: "compress-user-context.md",
+    key: CONTEXT_PROMPT_IDS.COMPRESS_USER_CONTEXT,
+  },
+  {
+    file: "check-phishing-only.md",
+    key: SUMMARY_PROMPT_IDS.CHECK_PHISHING_ONLY,
+  },
 ];
 
 function loadPromptFile(
@@ -184,10 +277,13 @@ export function loadPrompts(): Map<string, PromptConfig> {
       "incremental-priority-check.md",
     );
     if (fs.existsSync(incrementalPriorityCheckPath)) {
-      const content = fs.readFileSync(incrementalPriorityCheckPath, "utf-8");
-      promptsCache.set("incremental_priority_check", {
-        id: "incremental_priority_check",
-        prompt: content,
+      const incrementalPriorityCheckContent = fs.readFileSync(
+        incrementalPriorityCheckPath,
+        "utf-8",
+      );
+      promptsCache.set(PRIORITY_PROMPT_IDS.INCREMENTAL_PRIORITY_CHECK, {
+        id: PRIORITY_PROMPT_IDS.INCREMENTAL_PRIORITY_CHECK,
+        prompt: incrementalPriorityCheckContent,
         systemPrompt: "",
       });
     }
@@ -198,10 +294,13 @@ export function loadPrompts(): Map<string, PromptConfig> {
       "incremental-summary.md",
     );
     if (fs.existsSync(incrementalSummaryPath)) {
-      const content = fs.readFileSync(incrementalSummaryPath, "utf-8");
-      promptsCache.set("incremental_summary", {
-        id: "incremental_summary",
-        prompt: content,
+      const incrementalSummaryContent = fs.readFileSync(
+        incrementalSummaryPath,
+        "utf-8",
+      );
+      promptsCache.set(CONTEXT_PROMPT_IDS.INCREMENTAL_SUMMARY, {
+        id: CONTEXT_PROMPT_IDS.INCREMENTAL_SUMMARY,
+        prompt: incrementalSummaryContent,
         systemPrompt: "",
       });
     }

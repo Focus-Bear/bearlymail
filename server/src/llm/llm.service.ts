@@ -52,11 +52,15 @@ import {
   LLMOperation,
 } from "./llm-operations";
 import {
+  CONTEXT_PROMPT_IDS,
   getPrompt,
+  PRIORITY_PROMPT_IDS,
   renderPrompt,
+  REPLY_PROMPT_IDS,
   SUMMARY_PROMPT_IDS,
   SUMMARY_TYPES,
   SummaryType,
+  UTILITY_PROMPT_IDS,
 } from "./prompts";
 // Re-export LLMProvider for backward compatibility with existing callers
 export { LLMProvider };
@@ -258,7 +262,7 @@ export class LLMService {
     };
   }> {
     // Load prompt from markdown file - NO hardcoded prompts!
-    const promptConfig = getPrompt("analyze_email_patterns");
+    const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.ANALYZE_EMAIL_PATTERNS);
     if (!promptConfig) {
       this.logger.error(
         "analyze_email_patterns prompt not found in markdown files - cannot analyze patterns",
@@ -817,7 +821,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       );
     }
 
-    const promptConfig = getPrompt("summarize_email_batch");
+    const promptConfig = getPrompt(SUMMARY_PROMPT_IDS.BATCH);
     if (!promptConfig) {
       this.logger.error(
         "summarize_email_batch prompt not found - falling back to individual calls",
@@ -882,7 +886,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     userId?: string,
     currentTime?: string,
   ): Promise<{ isOk: boolean; suggestions: string[]; revisedText?: string }> {
-    const promptConfig = getPrompt("check_tone_style");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {
       this.logger.error(
         "check_tone_style prompt not found in markdown files - cannot check tone",
@@ -941,7 +945,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     );
 
     // Load prompt from markdown file - NO hardcoded prompts!
-    const promptConfig = getPrompt("extract_action_items");
+    const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.EXTRACT_ACTION_ITEMS);
     if (!promptConfig) {
       this.logger.error(
         "extract_action_items prompt not found in markdown files - cannot extract action items",
@@ -1114,7 +1118,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
-    const promptConfig = getPrompt("suggest_actions");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.SUGGEST_ACTIONS);
     if (!promptConfig) {
       this.logger.error(
         "suggest_actions prompt not found in markdown files - cannot suggest actions",
@@ -1182,7 +1186,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
-    const promptConfig = getPrompt("generate_multiple_replies");
+    const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_MULTIPLE_REPLIES);
     if (!promptConfig) {
       this.logger.error(
         "generate_multiple_replies prompt not found in markdown files - cannot generate multiple replies",
@@ -1277,7 +1281,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
-    const promptConfig = getPrompt("generate_reply");
+    const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_REPLY);
     if (!promptConfig) {
       this.logger.error(
         "generate_reply prompt not found in markdown files - cannot generate reply",
@@ -1345,7 +1349,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
-    const promptConfig = getPrompt("generate_meeting_reply");
+    const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_MEETING_REPLY);
     if (!promptConfig) {
       this.logger.error(
         "generate_meeting_reply prompt not found in markdown files - cannot generate meeting reply",
@@ -1418,7 +1422,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       greetingStyle?: string | null;
     },
   ): Promise<string> {
-    const promptConfig = getPrompt("generate_follow_up");
+    const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_FOLLOW_UP);
     if (!promptConfig) {
       this.logger.error(
         "generate_follow_up prompt not found in markdown files - cannot generate follow-up",
@@ -1514,7 +1518,9 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       .map((item) => `${item.contextKey}: ${item.contextValue}`)
       .join("\n");
 
-    const promptConfig = getPrompt("analyze_priority_feedback");
+    const promptConfig = getPrompt(
+      PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY_FEEDBACK,
+    );
     if (!promptConfig) {
       this.logger.error(
         "analyze_priority_feedback prompt not found in markdown files - cannot analyze feedback",
@@ -1615,7 +1621,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     userId?: string,
     provider?: LLMProvider,
   ): Promise<Array<{ question: string; answer: string; frequency: number }>> {
-    const promptConfig = getPrompt("extract_common_questions");
+    const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.EXTRACT_COMMON_QUESTIONS);
     if (!promptConfig) {
       this.logger.error(
         "extract_common_questions prompt not found in markdown files - cannot extract questions",
@@ -1684,7 +1690,9 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     provider?: LLMProvider,
   ): Promise<string> {
     // Load prompt from markdown file
-    const promptConfig = getPrompt("search_relevance_explanation");
+    const promptConfig = getPrompt(
+      UTILITY_PROMPT_IDS.SEARCH_RELEVANCE_EXPLANATION,
+    );
     if (!promptConfig) {
       this.logger.error("search_relevance_explanation prompt not found");
       return "";
@@ -1959,7 +1967,9 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     }
 
     // Load prompt from markdown file
-    const promptConfig = getPrompt("search_relevance_explanation");
+    const promptConfig = getPrompt(
+      UTILITY_PROMPT_IDS.SEARCH_RELEVANCE_EXPLANATION,
+    );
     if (!promptConfig) {
       this.logger.error("search_relevance_explanation prompt not found");
       return new Map();
@@ -2022,7 +2032,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       return text;
     }
 
-    const promptConfig = getPrompt("redact_names");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.REDACT_NAMES);
     if (!promptConfig) {
       this.logger.warn(
         "redact_names prompt not found - falling back to original text",
@@ -2066,7 +2076,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       return null;
     }
 
-    const promptConfig = getPrompt("validate_writing_example");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.VALIDATE_WRITING_EXAMPLE);
     if (!promptConfig) {
       this.logger.warn(
         "validate_writing_example prompt not found - falling back to redactNamesWithLLM",
@@ -2142,7 +2152,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     rulesToRemove: string[];
     explanation: string;
   }> {
-    const promptConfig = getPrompt("dispute_tone_check");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.DISPUTE_TONE_CHECK);
     if (!promptConfig) {
       this.logger.error(
         "dispute_tone_check prompt not found in markdown files",
@@ -2427,7 +2437,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       }));
     }
 
-    const promptConfig = getPrompt("consolidate_categories");
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CONSOLIDATE_CATEGORIES);
     if (!promptConfig) {
       this.logger.error(
         "[CATEGORY-CONSOLIDATION] ERROR: consolidate_categories prompt not found in markdown files",
@@ -2554,7 +2564,9 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       return [];
     }
 
-    const promptConfig = getPrompt("generate_categories_from_other");
+    const promptConfig = getPrompt(
+      UTILITY_PROMPT_IDS.GENERATE_CATEGORIES_FROM_OTHER,
+    );
     if (!promptConfig) {
       this.logger.error(
         "[GENERATE-CATEGORIES] ERROR: generate_categories_from_other prompt not found in markdown files",
@@ -2763,7 +2775,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
 
     const fallback = { items, notes: "Compression skipped - using originals" };
 
-    const promptConfig = getPrompt("compress_user_context");
+    const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.COMPRESS_USER_CONTEXT);
     if (!promptConfig) {
       this.logger.warn(
         "compress_user_context prompt not found - returning original items",

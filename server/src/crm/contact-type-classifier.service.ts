@@ -6,7 +6,11 @@ import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
 import { LLM_OP_CLASSIFY_CONTACT_TYPE } from "../llm/llm-operations";
-import { getPrompt, renderPrompt } from "../llm/prompts";
+import {
+  CLASSIFICATION_PROMPT_IDS,
+  getPrompt,
+  renderPrompt,
+} from "../llm/prompts";
 import { logError } from "../utils/logger";
 
 const BODY_PREVIEW_LENGTH = 500;
@@ -39,7 +43,9 @@ export class ContactTypeClassifierService {
       body?: string;
     },
   ): Promise<ClassificationResult | null> {
-    const promptConfig = getPrompt("classify_contact_type");
+    const promptConfig = getPrompt(
+      CLASSIFICATION_PROMPT_IDS.CLASSIFY_CONTACT_TYPE,
+    );
     if (!promptConfig) {
       this.logger.warn("classify_contact_type prompt not found");
       return null;

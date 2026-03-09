@@ -10,7 +10,7 @@ import {
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
 import { LLM_OP_GENERATE_QA_ANSWER } from "../llm/llm-operations";
-import { getPrompt, renderPrompt } from "../llm/prompts";
+import { getPrompt, renderPrompt, REPLY_PROMPT_IDS } from "../llm/prompts";
 import { LLM_CONFIG } from "./auto-responder-constants";
 import { QASearchResult } from "./types/auto-responder.types";
 
@@ -46,7 +46,7 @@ export class AutoResponderQaService {
       const qaPairs = this.parseQAPairs(qaContexts);
       if (qaPairs.length === 0) return null;
 
-      const promptConfig = getPrompt("generate_qa_answer");
+      const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_QA_ANSWER);
       if (!promptConfig) {
         this.logger.warn("generate_qa_answer prompt not found");
         return null;

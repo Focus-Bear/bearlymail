@@ -218,8 +218,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {t('search.queriesUsed')} ({queriesTried.length})
           </summary>
           <ul style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg }}>
-            {queriesTried.map(queryStr => (
-              <li key={queryItem.query} style={{ marginTop: theme.spacing.xs }}>
+            {queriesTried.map(queriedItem => (
+              <li key={queriedItem.query} style={{ marginTop: theme.spacing.xs }}>
                 <code
                   style={{
                     backgroundColor: theme.colors.background.paper,
@@ -228,7 +228,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     fontFamily: 'monospace',
                   }}
                 >
-                  {queryStr}
+                  {queriedItem.query}
                 </code>
               </li>
             ))}

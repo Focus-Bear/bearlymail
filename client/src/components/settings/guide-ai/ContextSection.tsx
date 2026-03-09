@@ -165,6 +165,7 @@ const ContextSectionHeader: React.FC<ContextSectionHeaderProps> = ({
       padding: `${theme.spacing.sm} ${theme.spacing.md}`,
       display: 'flex',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: theme.spacing.sm,
       cursor: 'pointer',
       backgroundColor: theme.colors.background.paper,

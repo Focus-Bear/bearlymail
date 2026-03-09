@@ -186,6 +186,9 @@ function useCategoryActions(onRefreshContexts?: () => void): CategoryActionsStat
   };
 }
 
+/** Minimum number of context items before the compress banner is shown. */
+const COMPRESS_CONTEXT_THRESHOLD = 30;
+
 const ghostButtonStyle = (disabled: boolean, color: string): React.CSSProperties => ({
   background: 'transparent',
   border: STRING_NONE,
@@ -249,31 +252,66 @@ interface EmailCategoryControlsProps {
 const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }) => {
   const { t } = useTranslation();
   const {
-    isCompressing, compressComplete, isConsolidating, isRecategorizing,
+    isConsolidating, isRecategorizing,
     recategorizeProgress, dismissProgress, showProtoCategoriesModal,
-    setShowProtoCategoriesModal, handleCompressContext, handleConsolidateCategories,
+    setShowProtoCategoriesModal, handleConsolidateCategories,
     handleRecategorize,
   } = actions as CategoryActionsState & { handleConsolidateCategories: () => void };
 
   return (
-    <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button onClick={() => setShowProtoCategoriesModal(true)} style={ghostButtonStyle(false, theme.colors.primary.main)}>
-          {t('settings.protoCategories.viewButton')}
-        </button>
-        <button onClick={handleCompressContext} disabled={isCompressing} style={ghostButtonStyle(isCompressing, theme.colors.primary.main)}>
-          {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
-        </button>
-        <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={ghostButtonStyle(isConsolidating, theme.colors.primary.main)}>
-          {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
-        </button>
-        <button onClick={handleRecategorize} disabled={isRecategorizing} style={ghostButtonStyle(isRecategorizing, theme.colors.accent.warning)}>
-          {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
-        </button>
-      </div>
-      <CompressStatusBadge isCompressing={isCompressing} compressComplete={compressComplete} />
+    <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <button onClick={() => setShowProtoCategoriesModal(true)} style={ghostButtonStyle(false, theme.colors.primary.main)}>
+        {t('settings.protoCategories.viewButton')}
+      </button>
+      <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={ghostButtonStyle(isConsolidating, theme.colors.primary.main)}>
+        {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+      </button>
+      <button onClick={handleRecategorize} disabled={isRecategorizing} style={ghostButtonStyle(isRecategorizing, theme.colors.accent.warning)}>
+        {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+      </button>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
       {showProtoCategoriesModal && <ProtoCategoriesModal onClose={() => setShowProtoCategoriesModal(false)} />}
+    </div>
+  );
+};
+
+interface CompressContextBannerProps {
+  actions: CategoryActionsState;
+}
+
+/**
+ * Shown at the top of the context list when the context item count exceeds COMPRESS_CONTEXT_THRESHOLD.
+ * Lets the user compress context without navigating to the email categories section.
+ */
+const CompressContextBanner: React.FC<CompressContextBannerProps> = ({ actions }) => {
+  const { t } = useTranslation();
+  const { isCompressing, compressComplete, handleCompressContext } = actions;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
+        padding: theme.spacing.sm,
+        marginBottom: theme.spacing.sm,
+        backgroundColor: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, flex: 1 }}>
+        {t('settings.context.compressBannerMessage')}
+      </span>
+      <button
+        onClick={handleCompressContext}
+        disabled={isCompressing}
+        style={ghostButtonStyle(isCompressing, theme.colors.primary.main)}
+      >
+        {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
+      </button>
+      <CompressStatusBadge isCompressing={isCompressing} compressComplete={compressComplete} />
     </div>
   );
 };
@@ -308,6 +346,8 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     handleConsolidateCategories: () => setShowConsolidateConfirm(true),
   };
 
+  const shouldShowCompressBanner = contexts.length > COMPRESS_CONTEXT_THRESHOLD;
+
   return (
     <>
       <ConfirmModal
@@ -320,6 +360,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         onConfirm={handleConsolidateConfirmed}
         onCancel={() => setShowConsolidateConfirm(false)}
       />
+      {shouldShowCompressBanner && <CompressContextBanner actions={actions} />}
       {CONTEXT_SECTIONS.map(config => {
         const contextKeyStr = Array.isArray(config.contextKey) ? config.contextKey.join('-') : config.contextKey;
         const key = `context-section-${contextKeyStr}`;

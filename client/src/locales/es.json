@@ -1694,7 +1694,8 @@
       "compress": "Comprimir contexto",
       "compressing": "Comprimiendo…",
       "compressSuccess": "Contexto comprimido exitosamente",
-      "compressError": "Error al comprimir el contexto"
+      "compressError": "Error al comprimir el contexto",
+      "compressBannerMessage": "Tu contexto ha crecido mucho y puede afectar la calidad de la IA."
     },
     "contextAboutMe": {
       "description1": "Ayude a BearlyMail a comprender sus prioridades brindándole información sobre usted y su trabajo.",

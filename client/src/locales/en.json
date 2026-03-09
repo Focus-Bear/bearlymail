@@ -863,7 +863,8 @@
       "compress": "Compress context",
       "compressing": "Compressing…",
       "compressSuccess": "Context compressed successfully",
-      "compressError": "Failed to compress context"
+      "compressError": "Failed to compress context",
+      "compressBannerMessage": "Your context has grown large and may affect AI quality."
     },
     "guideAI": {
       "title": "Guide Our AI",

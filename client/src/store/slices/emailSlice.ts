@@ -35,6 +35,8 @@ interface EmailState {
   summaryLoading: boolean;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  /** Unix timestamp (ms) of the last successful inbox fetch. Used for stale-while-revalidate caching. */
+  lastFetchedAt: number | null;
 }
 
 const initialState: EmailState = {
@@ -54,6 +56,7 @@ const initialState: EmailState = {
   summaryLoading: false,
   loadedCategoryNames: [],
   loadingCategoryNames: [],
+  lastFetchedAt: null,
 };
 
 const emailSlice = createSlice({
@@ -234,6 +237,17 @@ const emailSlice = createSlice({
         }
       }
     },
+    /**
+     * Record the timestamp of the last successful inbox fetch.
+     * Used by stale-while-revalidate logic to skip full re-fetches on navigation.
+     */
+    setLastFetchedAt: (state, action: PayloadAction<number>) => {
+      state.lastFetchedAt = action.payload;
+    },
+    /** Invalidate the inbox cache, forcing the next navigation to trigger a full fetch. */
+    invalidateInboxCache: state => {
+      state.lastFetchedAt = null;
+    },
   },
 });
 
@@ -266,6 +280,8 @@ export const {
   clearCategoryState,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
+  setLastFetchedAt,
+  invalidateInboxCache,
 } = emailSlice.actions;
 
 export default emailSlice.reducer;

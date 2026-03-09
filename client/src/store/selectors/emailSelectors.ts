@@ -52,3 +52,6 @@ export const selectCategorySummary = (state: RootState): CategorySummaryItem[] |
 export const selectSummaryLoading = (state: RootState): boolean => state.email.summaryLoading;
 export const selectLoadedCategoryNames = (state: RootState): string[] => state.email.loadedCategoryNames;
 export const selectLoadingCategoryNames = (state: RootState): string[] => state.email.loadingCategoryNames;
+
+// Cache selectors
+export const selectLastFetchedAt = (state: RootState): number | null => state.email.lastFetchedAt;

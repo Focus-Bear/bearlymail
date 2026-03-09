@@ -134,6 +134,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,
+    refreshInPlace,
   });
 
   // Tour element refs sub-hook (replaces 6 useRef calls)

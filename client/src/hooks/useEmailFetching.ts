@@ -32,6 +32,7 @@ import {
   setEmails,
   setFetchError,
   setHasMore,
+  setLastFetchedAt,
   setLoading,
   setLoadingModeSwitch,
   setRefreshing,
@@ -40,6 +41,9 @@ import {
   updateCategoryEmails,
 } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
+
+/** How long (ms) the inbox cache is considered fresh before a full re-fetch is needed. */
+export const INBOX_CACHE_TTL_MS = 60_000;
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
@@ -413,6 +417,7 @@ async function fetchEmailsImpl({
     }
     dispatch(setDecrypting(false));
     dispatch(setFetchError(null));
+    dispatch(setLastFetchedAt(Date.now()));
   } catch (error: any) {
     dispatch(setDecrypting(false));
     dispatch(setSummaryLoading(false));

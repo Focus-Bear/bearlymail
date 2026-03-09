@@ -243,7 +243,7 @@ async function fetchCategoryEmailsImpl({
       '(key:',
       categoryKey,
       ')',
-      normalizedEmails.length,
+      emails.length,
       'emails'
     );
   } catch (error: any) {

@@ -1,0 +1,145 @@
+description: "Phishing-only check used when a custom summarisation prompt is active"
+
+providers:
+  - id: openai:gpt-4o-mini
+    config:
+      temperature: 0
+
+prompts:
+  - file://prompts/check-phishing-only.md
+
+tests:
+  # ─── Custom prompt + phishing email — MUST detect ──────────────────────────
+
+  - description: "Custom prompt path: credential phishing must still be detected"
+    vars:
+      subject: "URGENT: Your account has been suspended"
+      contextNote: ""
+      body: |
+        Dear Customer,
+
+        We have detected suspicious activity on your Commonwealth Bank account.
+        Your account has been temporarily suspended.
+
+        To restore access, you must verify your identity immediately:
+        https://commbank-secure-verify.xyz/login
+
+        Failure to verify within 24 hours will result in permanent account closure.
+
+        Commonwealth Bank Security Team
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "commbank-secure-verify.xyz"
+        linkedDomains:
+          - "commbank-secure-verify.xyz"
+        suspiciousKeywords:
+          - "account suspended/locked"
+          - "verify account/identity"
+          - "urgency language"
+        rawScore: 8
+    assert:
+      - type: javascript
+        value: |
+          const output = typeof output === 'string' ? JSON.parse(output) : output;
+          if (!output.phishing) throw new Error('Expected phishing field in response');
+          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true for credential phishing email. Got: ${JSON.stringify(output.phishing)}`);
+          if (!['medium', 'high'].includes(output.phishing.confidence)) throw new Error(`Expected medium/high confidence, got: ${output.phishing.confidence}`);
+          return true;
+
+  - description: "Custom prompt path: PayPal phishing must still be detected"
+    vars:
+      subject: "Your PayPal transaction #8847291 requires confirmation"
+      contextNote: ""
+      body: |
+        Hi there,
+
+        A payment of $847.00 was initiated from your PayPal account.
+
+        If you did not authorise this transaction, click here immediately to cancel:
+        https://paypal-support-center.ru/cancel?token=abc123
+
+        Your account will be locked if you don't respond within 2 hours.
+
+        PayPal Fraud Prevention
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "paypal-support-center.ru"
+        linkedDomains:
+          - "paypal-support-center.ru"
+        suspiciousKeywords:
+          - "urgency language"
+          - "account suspended/locked"
+          - "click to verify/update"
+        rawScore: 9
+    assert:
+      - type: javascript
+        value: |
+          const output = typeof output === 'string' ? JSON.parse(output) : output;
+          if (!output.phishing) throw new Error('Expected phishing field');
+          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(output.phishing)}`);
+          return true;
+
+  # ─── Custom prompt + legitimate email — must NOT flag ──────────────────────
+
+  - description: "Custom prompt path: legitimate internal email must not be flagged"
+    vars:
+      subject: "Q4 report due tomorrow"
+      contextNote: ""
+      body: |
+        Hi Sarah,
+
+        Just a reminder that the Q4 financial report is due tomorrow at 5pm.
+        Please make sure to submit your section by end of day.
+
+        Thanks,
+        Michael
+      phishingSignals:
+        hasDomainMismatch: false
+        senderDomain: "company.com"
+        linkedDomains: []
+        suspiciousKeywords: []
+        rawScore: 0
+    assert:
+      - type: javascript
+        value: |
+          const output = typeof output === 'string' ? JSON.parse(output) : output;
+          if (output.phishing && output.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate deadline email flagged as phishing. Reason: ${output.phishing?.reason}`);
+          }
+          return true;
+
+  - description: "Custom prompt path: Mailchimp newsletter (ESP domain mismatch) must not be flagged"
+    vars:
+      subject: "Focus Bear monthly product update — March 2024"
+      contextNote: ""
+      body: |
+        Focus Bear Product Update
+
+        Hi Jeremy,
+
+        Here's what's new in Focus Bear this month:
+        • Improved habit streak tracking
+        • New daily review templates
+        • Bug fixes for calendar sync
+
+        Read the full update: https://focusbear.io/blog/march-2024
+
+        Unsubscribe: https://focusbear.us1.list-manage.com/unsubscribe?u=abc&id=xyz
+
+        Focus Bear | hello@focusbear.io
+      phishingSignals:
+        hasDomainMismatch: true
+        senderDomain: "mcsv.net"
+        linkedDomains:
+          - "focusbear.io"
+          - "focusbear.us1.list-manage.com"
+        suspiciousKeywords: []
+        rawScore: 3
+    assert:
+      - type: javascript
+        value: |
+          const output = typeof output === 'string' ? JSON.parse(output) : output;
+          if (output.phishing && output.phishing.is_phishing) {
+            throw new Error(`False positive: Mailchimp newsletter flagged. Domain mismatch expected for ESP-sent emails. Reason: ${output.phishing?.reason}`);
+          }
+          return true;

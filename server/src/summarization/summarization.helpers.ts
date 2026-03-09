@@ -1,0 +1,145 @@
+/**
+ * Pure helper functions extracted from SummarizationService to stay within
+ * per-file line limits. These functions have no class dependencies — all
+ * inputs are passed explicitly.
+ */
+
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { LLMService } from "../llm/llm.service";
+import { logWarn } from "../utils/logger";
+import {
+  detectPhishingSignal,
+  extractPhishingSignals,
+  mergePhishingSignals,
+  mergePhishingSignalSets,
+  PhishingSignal,
+  PhishingSignals,
+} from "./phishing-detection.service";
+
+/**
+ * Build a cache key for phishing results based on sender + subject.
+ */
+export function buildPhishingCacheKey(
+  from: string | undefined,
+  subject: string | undefined,
+): string {
+  const partLen = QUERY_LIMITS.PHISHING_CACHE_KEY_PART_LENGTH;
+  return `${(from ?? "").slice(0, partLen)}::${(subject ?? "").slice(0, partLen)}`;
+}
+
+/**
+ * Derive combined phishing signals from all emails in a thread.
+ */
+export function buildPhishingContext(
+  allThreadEmails: Array<{ from?: string; body?: string | null }>,
+): {
+  phishingSignals: PhishingSignals;
+  keywordFallbackSignal: PhishingSignal | null;
+} {
+  const emptySignals: PhishingSignals = {
+    hasDomainMismatch: false,
+    senderDomain: null,
+    linkedDomains: [],
+    suspiciousKeywords: [],
+    rawScore: 0,
+  };
+  const phishingSignals = allThreadEmails.reduce(
+    (merged, threadEmail) =>
+      mergePhishingSignalSets(
+        merged,
+        extractPhishingSignals(threadEmail.from, threadEmail.body ?? ""),
+      ),
+    emptySignals,
+  );
+  const keywordFallbackSignal = allThreadEmails.reduce(
+    (merged, threadEmail) =>
+      mergePhishingSignals(
+        merged,
+        detectPhishingSignal(threadEmail.from, threadEmail.body ?? ""),
+      ),
+    null as PhishingSignal | null,
+  );
+  return { phishingSignals, keywordFallbackSignal };
+}
+
+/**
+ * Use the LLM to pick which summarisation rule best matches an email.
+ * Returns the matching rule, null (no match), or undefined (LLM returned
+ * an unrecognised value — caller should fall back).
+ */
+export async function matchRuleWithLLM(
+  email: { subject?: string; from?: string; fromName?: string },
+  cleanedBody: string,
+  rules: SummarizationRuleEntity[],
+  userId: string,
+  llmService: Pick<LLMService, "generateText">,
+): Promise<SummarizationRuleEntity | null | undefined> {
+  const previewLen = QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH;
+  const emailPreview = cleanedBody.substring(0, previewLen);
+  const ellipsis =
+    cleanedBody.length > previewLen ? "\n\n[... email continues ...]" : "";
+  const emailText = [
+    `Subject: ${email.subject || "(no subject)"}`,
+    `From: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>`,
+    ``,
+    `Email Body:`,
+    `"""`,
+    `${emailPreview}${ellipsis}`,
+    `"""`,
+  ].join("\n");
+
+  const ruleDescriptions = rules
+    .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
+    .join("\n");
+
+  const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
+
+Email to evaluate:
+${emailText}
+
+Available summarization rules (each has a "whenToUse" description that explains when it should be applied):
+${ruleDescriptions}
+
+Your task:
+1. Carefully read the "whenToUse" criteria for each rule
+2. Determine if the email matches any of the rules based on their "whenToUse" descriptions
+3. Consider the email's subject, sender, and content when evaluating matches
+4. If the email clearly matches a rule's "whenToUse" criteria, return that rule's number (1-${rules.length})
+5. If no rule clearly matches, return "0"
+
+Examples:
+- If a rule says "Github emails" and the email is from GitHub (e.g., notifications@github.com, noreply@github.com) or contains GitHub-related content, it matches
+- If a rule says "emails from @company.com" and the sender's domain is company.com, it matches
+- If a rule says "newsletter emails" and the email is clearly a newsletter, it matches
+
+Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not include any explanation or other text.`;
+
+  const response = await llmService.generateText(
+    {
+      prompt,
+      systemPrompt:
+        "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
+      temperature: 0.1,
+      maxTokens: 5,
+      userId,
+    },
+    undefined,
+    userId,
+  );
+
+  const cleanedResponse = response.trim().replace(/[^0-9]/g, "");
+  const ruleIndex = parseInt(cleanedResponse, 10) - 1;
+
+  if (ruleIndex >= 0 && ruleIndex < rules.length) {
+    return rules[ruleIndex];
+  }
+  if (cleanedResponse === "0") {
+    return null;
+  }
+
+  logWarn(
+    `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
+  );
+  return undefined;
+}

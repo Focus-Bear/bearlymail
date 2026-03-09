@@ -144,6 +144,14 @@ module.exports = {
     // Disallow magic numbers (use named constants instead)
     // Note: This rule can be noisy, so we configure it carefully
     // Using TypeScript-specific version from @typescript-eslint
+    //
+    // ⚠️  NOTE ON MAGIC STRINGS: `no-magic-numbers` covers numeric literals
+    // only — it does NOT flag inline string literals such as "summarize_email_tldr".
+    // ESLint has no built-in "no-magic-strings" rule.  To enforce named constants
+    // for domain strings (prompt IDs, event names, etc.), a custom
+    // `no-restricted-syntax` rule with an AST selector can be added; that is
+    // tracked as a future improvement.  Until then, use `as const` objects
+    // (e.g. SUMMARY_PROMPT_IDS in prompts.ts) and code-review to enforce it.
     '@typescript-eslint/no-magic-numbers': [
       'error',
       {

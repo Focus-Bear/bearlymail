@@ -9,6 +9,10 @@ export const LLM_OP_ANALYZE_EMAIL_PATTERNS = "analyze_email_patterns";
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
 
+// Email summarization with LLM phishing check piggybacked (single email)
+export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING =
+  "summarize_email_with_phishing_check";
+
 // Email summarization (batch)
 export const LLM_OP_SUMMARIZE_EMAIL_BATCH = "summarize_email_batch";
 
@@ -95,6 +99,9 @@ export const LLM_OP_CLASSIFY_CONTACT_TYPE = "classify_contact_type";
 // Context compression
 export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 
+// Phishing-only check (used when summarisation uses a custom prompt)
+export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -104,6 +111,7 @@ export const LLM_OP_UNKNOWN = "unknown";
 export type LLMOperation =
   | typeof LLM_OP_ANALYZE_EMAIL_PATTERNS
   | typeof LLM_OP_SUMMARIZE_EMAIL
+  | typeof LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING
   | typeof LLM_OP_SUMMARIZE_EMAIL_BATCH
   | typeof LLM_OP_CHECK_TONE
   | typeof LLM_OP_EXTRACT_ACTION_ITEMS
@@ -132,6 +140,7 @@ export type LLMOperation =
   | typeof LLM_OP_INCREMENTAL_SUMMARY
   | typeof LLM_OP_CLASSIFY_CONTACT_TYPE
   | typeof LLM_OP_COMPRESS_CONTEXT
+  | typeof LLM_OP_CHECK_PHISHING_ONLY
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -140,6 +149,7 @@ export type LLMOperation =
 export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
+  [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
   [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
   [LLM_OP_EXTRACT_ACTION_ITEMS]: "Extract Action Items",
@@ -168,5 +178,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_INCREMENTAL_SUMMARY]: "Incremental Summary Update",
   [LLM_OP_CLASSIFY_CONTACT_TYPE]: "Classify Contact Type",
   [LLM_OP_COMPRESS_CONTEXT]: "Compress Context",
+  [LLM_OP_CHECK_PHISHING_ONLY]: "Check Phishing Only",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

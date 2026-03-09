@@ -15,6 +15,11 @@ import {
   MS_PER_SECOND,
 } from "../constants/time-constants";
 import { StructuralError } from "../errors/structural-error";
+import {
+  PhishingLLMResult,
+  PhishingSignals,
+  validatePhishingConfidence,
+} from "../summarization/phishing-detection.service";
 import { getErrorMessage } from "../types/common";
 import { isLikelyCompleteJson, safeJsonParse } from "../utils/json";
 import { cleanEmailContent } from "./email-content-cleaner";
@@ -24,6 +29,7 @@ import { LLMCoreService } from "./llm-core.service";
 import {
   LLM_OP_ANALYZE_EMAIL_PATTERNS,
   LLM_OP_ANALYZE_OVERRIDE_REASON,
+  LLM_OP_CHECK_PHISHING_ONLY,
   LLM_OP_CHECK_TONE,
   LLM_OP_COMPRESS_CONTEXT,
   LLM_OP_CONSOLIDATE_CATEGORIES,
@@ -42,10 +48,18 @@ import {
   LLM_OP_SUGGEST_ACTIONS,
   LLM_OP_SUMMARIZE_EMAIL,
   LLM_OP_SUMMARIZE_EMAIL_BATCH,
+  LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING,
   LLM_OP_VALIDATE_WRITING_EXAMPLE,
   LLMOperation,
 } from "./llm-operations";
-import { getPrompt, renderPrompt } from "./prompts";
+import {
+  getPrompt,
+  PROMPT_FILE_NAMES,
+  renderPrompt,
+  SUMMARY_PROMPT_IDS,
+  SUMMARY_TYPES,
+  SummaryType,
+} from "./prompts";
 // Re-export LLMProvider for backward compatibility with existing callers
 export { LLMProvider };
 
@@ -345,12 +359,7 @@ export class LLMService {
   async summarizeEmail(
     emailBody: string,
     emailSubject: string,
-    summaryType:
-      | "tldr"
-      | "bullet-points"
-      | "action-items"
-      | "sender-request"
-      | "custom",
+    summaryType: SummaryType,
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
@@ -362,15 +371,22 @@ export class LLMService {
       : "";
 
     let promptId: string;
-    if (summaryType === "tldr") {
-      promptId = "summarize_email_tldr";
-    } else if (summaryType === "bullet-points") {
-      promptId = "summarize_email_bullets";
-    } else if (summaryType === "action-items") {
-      promptId = "summarize_email_actions";
+    if (
+      summaryType === SUMMARY_TYPES.TLDR ||
+      summaryType === SUMMARY_TYPES.SENDER_REQUEST
+    ) {
+      promptId = SUMMARY_PROMPT_IDS.TLDR;
+    } else if (summaryType === SUMMARY_TYPES.BULLET_POINTS) {
+      promptId = SUMMARY_PROMPT_IDS.BULLETS;
+    } else if (summaryType === SUMMARY_TYPES.ACTION_ITEMS) {
+      promptId = SUMMARY_PROMPT_IDS.ACTIONS;
     } else {
-      // For "sender-request" and "custom", fall back to tldr format
-      promptId = "summarize_email_tldr";
+      // summaryType === SUMMARY_TYPES.CUSTOM must never reach here.
+      // Custom emails are handled upstream via the generateLLMSummary /
+      // customPrompt path in summarization.service.ts.
+      throw new StructuralError(
+        `summarizeEmail called with summaryType="custom" — custom emails must use the customPrompt path, not a prompt ID`,
+      );
     }
 
     const promptConfig = getPrompt(promptId);
@@ -406,6 +422,199 @@ export class LLMService {
       userId,
       LLM_OP_SUMMARIZE_EMAIL,
     );
+  }
+
+  /**
+   * Summarize an email AND check for phishing in a single LLM call.
+   *
+   * Phishing analysis always runs — keyword signals are passed as context to
+   * help the LLM reason, but they do not gate the analysis. The LLM always
+   * makes the final phishing determination.
+   *
+   * Returns `{ summary, phishing }` where phishing is the LLM's verdict or
+   * null if the LLM considers the email clearly legitimate.
+   */
+  async summarizeEmailWithPhishingCheck(
+    emailBody: string,
+    emailSubject: string,
+    summaryType: SummaryType,
+    phishingSignals: PhishingSignals,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{ summary: string; phishing: PhishingLLMResult | null }> {
+    const isThread =
+      emailBody.includes("[Message") && emailBody.includes("---");
+    const contextNote = isThread
+      ? "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
+      : "";
+
+    let promptId: string;
+    if (summaryType === SUMMARY_TYPES.BULLET_POINTS) {
+      promptId = SUMMARY_PROMPT_IDS.BULLETS;
+    } else if (summaryType === SUMMARY_TYPES.ACTION_ITEMS) {
+      promptId = SUMMARY_PROMPT_IDS.ACTIONS;
+    } else if (summaryType === SUMMARY_TYPES.CUSTOM) {
+      // Custom emails must never reach this function — they go via
+      // summarizeEmailWithCustomPromptAndPhishing in summarization.service.ts,
+      // which builds the prompt directly from rule.customPrompt.
+      // Reaching here means the caller skipped the custom-prompt guard.
+      throw new StructuralError(
+        `summarizeEmailWithPhishingCheck called with summaryType="${SUMMARY_TYPES.CUSTOM}" — custom emails must use the customPrompt path`,
+      );
+    } else {
+      // TLDR and SENDER_REQUEST both use the standard tldr prompt.
+      promptId = SUMMARY_PROMPT_IDS.TLDR;
+    }
+
+    const promptConfig = getPrompt(promptId);
+    if (!promptConfig) {
+      const expectedFileName = `${promptId.replace(/_/g, "-")}.md`;
+      throw new StructuralError(
+        `Prompt template not found: ${promptId}. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory.`,
+      );
+    }
+
+    const cleanedBody = cleanEmailContent(
+      emailBody,
+      null,
+      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+    );
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      isThread,
+      subject: emailSubject,
+      contextNote: contextNote || "",
+      body: cleanedBody,
+      phishingSignals,
+    });
+
+    const PHISHING_JSON_TOKEN_OVERHEAD = 150;
+    const response = await this.generateText(
+      {
+        prompt,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.HALF,
+        maxTokens:
+          QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + PHISHING_JSON_TOKEN_OVERHEAD,
+        jsonMode: true,
+        userId,
+      },
+      provider,
+      userId,
+      LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING,
+    );
+
+    return this.parseSummaryWithPhishing(response);
+  }
+
+  /**
+   * Parse a `{ summary, phishing }` JSON response from the LLM.
+   * Falls back gracefully: if JSON parse fails, treats the whole response as the summary.
+   */
+  private parseSummaryWithPhishing(response: string): {
+    summary: string;
+    phishing: PhishingLLMResult | null;
+  } {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (typeof parsed.summary === "string") {
+          return {
+            summary: parsed.summary.trim(),
+            phishing: this.validatePhishingLLMResult(parsed.phishing),
+          };
+        }
+      }
+    } catch {
+      // fall through to plain-text fallback
+    }
+    return { summary: response.trim(), phishing: null };
+  }
+
+  /**
+   * Run a phishing-only LLM check without any summarisation.
+   *
+   * Used when the summary is produced by a custom user prompt (which has no
+   * built-in phishing instructions). The phishing verdict is produced in a
+   * separate, lightweight call so that custom prompts still get full phishing
+   * protection.
+   */
+  async checkPhishingOnly(
+    emailBody: string,
+    emailSubject: string,
+    phishingSignals: PhishingSignals,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<PhishingLLMResult | null> {
+    const promptConfig = getPrompt(SUMMARY_PROMPT_IDS.CHECK_PHISHING_ONLY);
+    if (!promptConfig) {
+      const expectedFileName = PROMPT_FILE_NAMES.CHECK_PHISHING_ONLY;
+      throw new StructuralError(
+        `Prompt template not found: check_phishing_only. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory.`,
+      );
+    }
+
+    const isThread =
+      emailBody.includes("[Message") && emailBody.includes("---");
+    const contextNote = isThread
+      ? "This is an email thread with multiple messages."
+      : "";
+
+    const cleanedBody = cleanEmailContent(
+      emailBody,
+      null,
+      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+    );
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      subject: emailSubject,
+      body: cleanedBody,
+      contextNote: contextNote || "",
+      phishingSignals,
+    });
+
+    const response = await this.generateText(
+      {
+        prompt,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: 150,
+        jsonMode: true,
+        userId,
+      },
+      provider,
+      userId,
+      LLM_OP_CHECK_PHISHING_ONLY,
+    );
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return this.validatePhishingLLMResult(parsed.phishing);
+      }
+    } catch {
+      // fall through — return null (no phishing verdict)
+    }
+    return null;
+  }
+
+  /**
+   * Validate and narrow the raw phishing value from LLM JSON into a typed result.
+   */
+  private validatePhishingLLMResult(value: unknown): PhishingLLMResult | null {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Record<string, unknown>;
+    const confidence = validatePhishingConfidence(raw.confidence);
+    if (
+      typeof raw.is_phishing !== "boolean" ||
+      !confidence ||
+      typeof raw.reason !== "string"
+    ) {
+      return null;
+    }
+    return { is_phishing: raw.is_phishing, confidence, reason: raw.reason };
   }
 
   /**
@@ -450,7 +659,7 @@ export class LLMService {
         summary = await this.summarizeEmail(
           thread.body,
           thread.subject,
-          "tldr",
+          SUMMARY_TYPES.TLDR,
           provider,
           userId,
         );
@@ -475,7 +684,7 @@ export class LLMService {
         const summary = await this.summarizeEmail(
           thread.body,
           thread.subject,
-          "tldr",
+          SUMMARY_TYPES.TLDR,
           provider,
           userId,
         );

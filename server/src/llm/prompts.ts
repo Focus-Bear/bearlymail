@@ -12,6 +12,45 @@ interface PromptConfig {
 let promptsCache: Map<string, PromptConfig> | null = null;
 
 /**
+ * Named constants for summarisation prompt IDs.
+ *
+ * Use these instead of inline string literals — the ESLint
+ * `no-magic-numbers` rule covers *numeric* literals only; string-literal
+ * "magic strings" require a separate rule (e.g. `no-restricted-syntax` with a
+ * regex selector) that is not yet configured.  Adding named constants here is
+ * the defensive fix until a lint rule is wired up.
+ */
+export const SUMMARY_PROMPT_IDS = {
+  TLDR: "summarize_email_tldr",
+  BULLETS: "summarize_email_bullets",
+  ACTIONS: "summarize_email_actions",
+  CHECK_PHISHING_ONLY: "check_phishing_only",
+} as const;
+
+/**
+ * Named constants for prompt-related file names.
+ */
+export const PROMPT_FILE_NAMES = {
+  CHECK_PHISHING_ONLY: "check-phishing-only.md",
+} as const;
+
+/**
+ * Named constants for summary type strings.
+ *
+ * Use these in comparisons and assignments instead of inline string literals.
+ */
+export const SUMMARY_TYPES = {
+  TLDR: "tldr",
+  BULLET_POINTS: "bullet-points",
+  ACTION_ITEMS: "action-items",
+  SENDER_REQUEST: "sender-request",
+  CUSTOM: "custom",
+} as const;
+
+/** Union type of all valid summary type strings, derived from `SUMMARY_TYPES`. */
+export type SummaryType = (typeof SUMMARY_TYPES)[keyof typeof SUMMARY_TYPES];
+
+/**
  * Load prompts from markdown files in promptfoo/prompts/ directory
  */
 const PROMPT_FILE_MAP: Array<{
@@ -51,6 +90,7 @@ const PROMPT_FILE_MAP: Array<{
   { file: "summarize-email-batch.md", key: "summarize_email_batch" },
   { file: "classify-contact-type.md", key: "classify_contact_type" },
   { file: "compress-user-context.md", key: "compress_user_context" },
+  { file: "check-phishing-only.md", key: "check_phishing_only" },
 ];
 
 function loadPromptFile(

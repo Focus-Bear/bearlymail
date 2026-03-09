@@ -19,6 +19,8 @@ describe("SummarizationService", () => {
   const mockLLMService = {
     summarizeEmail: jest.fn(),
     generateText: jest.fn(),
+    summarizeEmailWithPhishingCheck: jest.fn(),
+    checkPhishingOnly: jest.fn(),
   };
 
   const mockSummarizationRuleRepository = {
@@ -250,6 +252,104 @@ describe("SummarizationService", () => {
           emailId,
         }),
       );
+    });
+  });
+
+  describe("summarizeEmailWithPhishing (custom prompt)", () => {
+    it("should run custom prompt for summary AND separate phishing check when rule.type is custom", async () => {
+      const userId = "user-123";
+      const emailId = "email-456";
+      const rule = {
+        type: "custom" as const,
+        customPrompt: "List all action items from this email.",
+      };
+      const mockEmail = {
+        id: emailId,
+        subject: "Phishing Test",
+        body: "Click here to verify your account: https://evil.xyz/login",
+        threadId: "thread-456",
+        from: "noreply@evil.xyz",
+      };
+      const mockSummary = "Action items: 1. Verify account (suspicious)";
+      const mockPhishingResult = {
+        is_phishing: true,
+        confidence: "high" as const,
+        reason: "Domain evil.xyz does not match any legitimate service.",
+      };
+
+      mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
+      mockEmailsService.getThreadEmails.mockResolvedValue([mockEmail]);
+      mockUsersService.findOneForAuth.mockResolvedValue({
+        email: "user@example.com",
+      });
+      mockLLMService.generateText.mockResolvedValue(mockSummary);
+      mockLLMService.checkPhishingOnly.mockResolvedValue(mockPhishingResult);
+
+      const result = await service.summarizeEmailWithPhishing(
+        userId,
+        emailId,
+        rule,
+      );
+
+      expect(result.summary).toBe(mockSummary);
+      expect(result.phishingSignal).toMatchObject({
+        confidence: "high",
+        reason: expect.stringContaining("evil.xyz"),
+      });
+
+      // Custom prompt must be used for the summary
+      expect(mockLLMService.generateText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining("List all action items"),
+        }),
+        undefined,
+        userId,
+      );
+
+      // Phishing check must run separately (not via the combined call)
+      expect(mockLLMService.checkPhishingOnly).toHaveBeenCalled();
+      expect(
+        mockLLMService.summarizeEmailWithPhishingCheck,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should still detect phishing for custom prompt even when summarisation succeeds", async () => {
+      const userId = "user-123";
+      const emailId = "email-789";
+      const rule = {
+        type: "custom" as const,
+        customPrompt: "Summarise in one sentence.",
+      };
+      const mockEmail = {
+        id: emailId,
+        subject: "Your account requires action",
+        body: "Verify now: https://bank-secure.ru/verify",
+        threadId: "thread-789",
+        from: "security@bank-secure.ru",
+      };
+
+      mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
+      mockEmailsService.getThreadEmails.mockResolvedValue([mockEmail]);
+      mockUsersService.findOneForAuth.mockResolvedValue({
+        email: "user@example.com",
+      });
+      mockLLMService.generateText.mockResolvedValue(
+        "Email asks you to verify account.",
+      );
+      mockLLMService.checkPhishingOnly.mockResolvedValue({
+        is_phishing: true,
+        confidence: "high" as const,
+        reason: "Domain bank-secure.ru is a suspicious credential harvester.",
+      });
+
+      const result = await service.summarizeEmailWithPhishing(
+        userId,
+        emailId,
+        rule,
+      );
+
+      expect(result.phishingSignal).not.toBeNull();
+      expect(result.phishingSignal?.confidence).toBe("high");
     });
   });
 

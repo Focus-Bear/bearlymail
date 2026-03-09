@@ -4,6 +4,10 @@
  * Analyses an email for common phishing indicators:
  *  1. Domain mismatch – the sender's domain does not match domains linked in the body
  *  2. Suspicious body content – urgent language, credential harvesting phrases, etc.
+ *
+ * Two modes:
+ *  - extractPhishingSignals(): structured signal extraction for LLM context injection
+ *  - detectPhishingSignal(): legacy keyword-only verdict (used as graceful-degradation fallback)
  */
 
 export type PhishingConfidence = "low" | "medium" | "high";
@@ -12,6 +16,34 @@ export interface PhishingSignal {
   /** How confident we are that this is a phishing attempt */
   confidence: PhishingConfidence;
   /** Human-readable reason shown in the UI */
+  reason: string;
+}
+
+/**
+ * Structured keyword/domain signals extracted from an email.
+ * These are passed as context to the LLM summarisation prompt so the LLM
+ * can make a more informed phishing verdict. The LLM always decides — these
+ * signals do NOT gate whether LLM analysis runs.
+ */
+export interface PhishingSignals {
+  /** True when the sender domain doesn't match any linked domain in the body */
+  hasDomainMismatch: boolean;
+  /** The domain extracted from the sender's "from" address, or null if unparseable */
+  senderDomain: string | null;
+  /** All unique hostnames found in body URLs */
+  linkedDomains: string[];
+  /** Which suspicious keyword patterns were matched (human-readable labels) */
+  suspiciousKeywords: string[];
+  /** Raw numeric score (for logging/debugging only — NOT used as a gate) */
+  rawScore: number;
+}
+
+/**
+ * The phishing verdict returned by the LLM as part of the summarisation response.
+ */
+export interface PhishingLLMResult {
+  is_phishing: boolean;
+  confidence: PhishingConfidence;
   reason: string;
 }
 
@@ -123,6 +155,109 @@ function computeSuspicionScore(body: string): number {
       pattern.test(body) ? score + weight : score,
     0,
   );
+}
+
+/**
+ * Extract which suspicious keyword labels were matched in the body.
+ * Returns human-readable labels rather than raw regex patterns.
+ */
+function extractSuspiciousKeywordLabels(body: string): string[] {
+  const PATTERN_LABELS: Array<{ pattern: RegExp; label: string }> = [
+    {
+      pattern: /verify\s+your\s+(account|identity|email|password)/i,
+      label: "verify account/identity",
+    },
+    {
+      pattern: /confirm\s+your\s+(account|identity|email|password)/i,
+      label: "confirm account/identity",
+    },
+    {
+      pattern: /update\s+your\s+(payment|billing|credit\s+card|bank)/i,
+      label: "update payment/billing",
+    },
+    {
+      pattern:
+        /your\s+account\s+(has\s+been|will\s+be)\s+(suspended|locked|disabled|closed)/i,
+      label: "account suspended/locked",
+    },
+    {
+      pattern:
+        /click\s+(here|below)\s+(to\s+)?(verify|confirm|update|restore)/i,
+      label: "click to verify/update",
+    },
+    {
+      pattern: /unusual\s+(activity|sign-?in|access)/i,
+      label: "unusual activity",
+    },
+    {
+      pattern: /immediately|urgent(ly)?|act\s+now/i,
+      label: "urgency language",
+    },
+    {
+      pattern: /prize|you\s+(have\s+)?won|lottery|winner/i,
+      label: "prize/lottery",
+    },
+    {
+      pattern: /enter\s+your\s+(password|pin|ssn|social\s+security)/i,
+      label: "credential request",
+    },
+    { pattern: /limited\s+time\s+offer/i, label: "limited time offer" },
+  ];
+  return PATTERN_LABELS.filter(({ pattern }) => pattern.test(body)).map(
+    ({ label }) => label,
+  );
+}
+
+/**
+ * Extract structured phishing signals from an email for use as LLM context.
+ * These signals help the LLM reason about whether the email is phishing,
+ * but the LLM always makes the final determination — this function does NOT
+ * return a verdict.
+ */
+export function extractPhishingSignals(
+  from: string | undefined,
+  body: string,
+): PhishingSignals {
+  const senderDomain = extractSenderDomain(from);
+  const bodyDomainsSet = extractBodyDomains(body);
+  const linkedDomains = [...bodyDomainsSet];
+  const suspiciousKeywords = extractSuspiciousKeywordLabels(body);
+  const mismatch = senderDomain
+    ? hasDomainMismatch(senderDomain, bodyDomainsSet)
+    : false;
+  const domainWeight = mismatch ? 3 : 0;
+  const keywordWeight = computeSuspicionScore(body);
+
+  return {
+    hasDomainMismatch: mismatch,
+    senderDomain,
+    linkedDomains,
+    suspiciousKeywords,
+    rawScore: domainWeight + keywordWeight,
+  };
+}
+
+/**
+ * Merge two PhishingSignals objects from different emails in a thread.
+ * Takes the union of keywords/domains and flags mismatch if either email has one.
+ */
+export function mergePhishingSignalSets(
+  signalA: PhishingSignals,
+  signalB: PhishingSignals,
+): PhishingSignals {
+  const mergedDomains = [
+    ...new Set([...signalA.linkedDomains, ...signalB.linkedDomains]),
+  ];
+  const mergedKeywords = [
+    ...new Set([...signalA.suspiciousKeywords, ...signalB.suspiciousKeywords]),
+  ];
+  return {
+    hasDomainMismatch: signalA.hasDomainMismatch || signalB.hasDomainMismatch,
+    senderDomain: signalA.senderDomain ?? signalB.senderDomain,
+    linkedDomains: mergedDomains,
+    suspiciousKeywords: mergedKeywords,
+    rawScore: Math.max(signalA.rawScore, signalB.rawScore),
+  };
 }
 
 /**

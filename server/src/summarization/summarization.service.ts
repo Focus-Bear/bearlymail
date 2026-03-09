@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
+import { MILLISECONDS } from "../constants/time-constants";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import { EmailsService } from "../emails/emails.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
@@ -12,13 +12,15 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { LLMProvider, LLMService } from "../llm/llm.service";
+import { SUMMARY_TYPES, SummaryType } from "../llm/prompts";
 import { UsersService } from "../users/users.service";
-import { logError, logWarn } from "../utils/logger";
+import { logError } from "../utils/logger";
+import { PhishingSignal, PhishingSignals } from "./phishing-detection.service";
 import {
-  detectPhishingSignal,
-  mergePhishingSignals,
-  PhishingSignal,
-} from "./phishing-detection.service";
+  buildPhishingCacheKey,
+  buildPhishingContext,
+  matchRuleWithLLM,
+} from "./summarization.helpers";
 
 interface ThreadData {
   emailId: string;
@@ -37,9 +39,9 @@ interface ThreadData {
 }
 
 export interface SummarizationRule {
-  type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
+  type: SummaryType;
   customPrompt?: string;
-  provider?: "gemini" | "openai";
+  provider?: LLMProvider;
 }
 
 /**
@@ -58,6 +60,11 @@ interface EmailWithHtmlBody {
 
 @Injectable()
 export class SummarizationService {
+  private readonly phishingCache = new Map<
+    string,
+    { signal: PhishingSignal | null; expiresAt: number }
+  >();
+
   constructor(
     private emailsService: EmailsService,
     private llmService: LLMService,
@@ -144,13 +151,17 @@ export class SummarizationService {
   ): Promise<string> {
     let llmProvider: LLMProvider | undefined;
     if (rule.provider) {
-      llmProvider =
-        rule.provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+      llmProvider = rule.provider;
     }
 
     const cleanedBody = cleanEmailContent(email.body, email.htmlBody);
 
-    if (rule.type === "custom" && rule.customPrompt) {
+    if (rule.type === SUMMARY_TYPES.CUSTOM) {
+      if (!rule.customPrompt) {
+        throw new Error(
+          `Summarization rule is type "custom" but has no customPrompt — cannot summarize`,
+        );
+      }
       const prompt =
         messagesToSummarize.length > 1
           ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last few):\n\n${threadText}\n\n${rule.customPrompt}`
@@ -273,7 +284,7 @@ export class SummarizationService {
       for (const item of threads) {
         try {
           const summary = await this.summarizeEmail(userId, item.emailId, {
-            type: rule ? "custom" : "tldr",
+            type: rule ? SUMMARY_TYPES.CUSTOM : SUMMARY_TYPES.TLDR,
             customPrompt: rule?.howToSummarize,
           });
           result.set(item.emailId, summary);
@@ -355,9 +366,38 @@ export class SummarizationService {
   }
 
   /**
-   * Summarize an email AND detect phishing signals in one call.
-   * Returns both the summary string and an optional PhishingSignal.
-   * This is the preferred method for callers that need phishing detection.
+   * Convert a PhishingLLMResult (or null) to a PhishingSignal for the caller.
+   * If LLM verdict is null (no JSON / no phishing field), returns keyword fallback.
+   * If LLM says safe (is_phishing: false), returns null, clearing keyword false-positives.
+   */
+  private resolvePhishingSignalFromLLM(
+    llmPhishing:
+      | import("./phishing-detection.service").PhishingLLMResult
+      | null,
+    keywordFallback: PhishingSignal | null,
+  ): PhishingSignal | null {
+    if (llmPhishing === null) {
+      return keywordFallback;
+    }
+    if (!llmPhishing.is_phishing) {
+      return null;
+    }
+    return { confidence: llmPhishing.confidence, reason: llmPhishing.reason };
+  }
+
+  /**
+   * Summarize an email AND check for phishing using a single LLM call.
+   *
+   * LLM phishing analysis always runs. Keyword signals from
+   * extractPhishingSignals() are passed as context to help the LLM reason,
+   * but they do NOT gate whether LLM analysis runs — the LLM always decides.
+   *
+   * Graceful degradation:
+   * - LLM call throws → falls back to generateLLMSummary + keyword signal
+   * - LLM returns invalid JSON → null phishing field → keyword fallback
+   * - LLM returns phishing: null → keyword signal used as fallback
+   * - LLM returns is_phishing: false → keyword signal suppressed (fixes false positives)
+   * - LLM returns is_phishing: true → LLM signal returned with LLM's confidence + reason
    */
   async summarizeEmailWithPhishing(
     userId: string,
@@ -373,7 +413,6 @@ export class SummarizationService {
     }
 
     const userEmail = await this.getUserEmail(userId);
-
     const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
       email.threadId,
@@ -381,16 +420,13 @@ export class SummarizationService {
     );
 
     const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
-    let messagesToSummarize: typeof allThreadEmails;
-    if (allThreadEmails.length <= sliceCount + 1) {
-      messagesToSummarize = allThreadEmails;
-    } else {
-      const firstEmail = allThreadEmails[0];
-      const lastNEmails = allThreadEmails.slice(
-        CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
-      );
-      messagesToSummarize = [firstEmail, ...lastNEmails];
-    }
+    const messagesToSummarize =
+      allThreadEmails.length <= sliceCount + 1
+        ? allThreadEmails
+        : [
+            allThreadEmails[0],
+            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
+          ];
 
     const threadText = this.buildThreadText(
       messagesToSummarize,
@@ -400,16 +436,231 @@ export class SummarizationService {
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
 
-    // Compute phishing signal across all thread messages
-    const phishingSignal = allThreadEmails.reduce(
-      (merged, threadEmail) =>
-        mergePhishingSignals(
-          merged,
-          detectPhishingSignal(threadEmail.from, threadEmail.body ?? ""),
-        ),
-      null as PhishingSignal | null,
-    );
+    const { phishingSignals, keywordFallbackSignal } =
+      buildPhishingContext(allThreadEmails);
 
+    const cacheKey = buildPhishingCacheKey(email.from, email.subject);
+    const cached = this.phishingCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      const summary = await this.generateLLMSummary(
+        { ...emailWithHtml, subject },
+        subject,
+        threadText,
+        messagesToSummarize,
+        allThreadEmails,
+        rule,
+        userId,
+        emailId,
+      );
+      return { summary, phishingSignal: cached.signal };
+    }
+
+    let llmProvider: LLMProvider | undefined;
+    if (rule.provider) {
+      llmProvider = rule.provider;
+    }
+
+    const bodyForLLM =
+      messagesToSummarize.length > 1
+        ? threadText
+        : cleanEmailContent(emailWithHtml.body, emailWithHtml.htmlBody);
+
+    // Custom prompts do not include phishing analysis instructions — delegate
+    // to the dedicated helper that runs summary + phishing as separate calls.
+    // Guard on rule.type alone (not rule.customPrompt) so that a custom rule
+    // without a prompt is never silently downgraded to tldr — it errors loudly.
+    if (rule.type === SUMMARY_TYPES.CUSTOM) {
+      if (!rule.customPrompt) {
+        throw new Error(
+          `Summarization rule is type "custom" but has no customPrompt — cannot summarize`,
+        );
+      }
+      return this.summarizeEmailWithCustomPromptAndPhishing(
+        emailWithHtml,
+        subject,
+        threadText,
+        bodyForLLM,
+        messagesToSummarize,
+        allThreadEmails,
+        phishingSignals,
+        keywordFallbackSignal,
+        cacheKey,
+        rule,
+        llmProvider,
+        userId,
+        emailId,
+      );
+    }
+
+    return this.summarizeEmailWithCombinedPhishing(
+      emailWithHtml,
+      subject,
+      threadText,
+      bodyForLLM,
+      messagesToSummarize,
+      allThreadEmails,
+      phishingSignals,
+      keywordFallbackSignal,
+      cacheKey,
+      rule,
+      llmProvider,
+      userId,
+      emailId,
+    );
+  }
+
+  /**
+   * Run the user's custom prompt for summarisation, then run a SEPARATE
+   * lightweight phishing-only LLM call. Custom prompts do not embed phishing
+   * instructions, so the two concerns are kept independent.
+   */
+  private async summarizeEmailWithCustomPromptAndPhishing(
+    emailWithHtml: EmailWithHtmlBody,
+    subject: string,
+    threadText: string,
+    bodyForLLM: string,
+    messagesToSummarize: Array<unknown>,
+    allThreadEmails: Array<unknown>,
+    phishingSignals: PhishingSignals,
+    keywordFallbackSignal: PhishingSignal | null,
+    cacheKey: string,
+    rule: SummarizationRule,
+    llmProvider: LLMProvider | undefined,
+    userId: string,
+    emailId: string,
+  ): Promise<{ summary: string; phishingSignal: PhishingSignal | null }> {
+    try {
+      const [summary, llmPhishing] = await Promise.all([
+        this.generateLLMSummary(
+          { ...emailWithHtml, subject },
+          subject,
+          threadText,
+          messagesToSummarize,
+          allThreadEmails,
+          rule,
+          userId,
+          emailId,
+        ),
+        this.llmService.checkPhishingOnly(
+          bodyForLLM,
+          subject,
+          phishingSignals,
+          llmProvider,
+          userId,
+        ),
+      ]);
+
+      const phishingSignal = this.resolvePhishingSignalFromLLM(
+        llmPhishing,
+        keywordFallbackSignal,
+      );
+
+      this.phishingCache.set(cacheKey, {
+        signal: phishingSignal,
+        expiresAt: Date.now() + MILLISECONDS.HOUR,
+      });
+
+      return { summary, phishingSignal };
+    } catch (error) {
+      logError(
+        "Custom prompt summarization with phishing check failed, falling back",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      return this.summarizeEmailFallback(
+        emailWithHtml,
+        subject,
+        threadText,
+        messagesToSummarize,
+        allThreadEmails,
+        rule,
+        userId,
+        emailId,
+        keywordFallbackSignal,
+      );
+    }
+  }
+
+  /**
+   * Run summary + phishing analysis in a single combined LLM call.
+   * Used for all non-custom prompt types (tldr, bullet-points, action-items,
+   * sender-request). The prompt templates for these types embed phishing
+   * analysis instructions so a single call covers both concerns.
+   */
+  private async summarizeEmailWithCombinedPhishing(
+    emailWithHtml: EmailWithHtmlBody,
+    subject: string,
+    threadText: string,
+    bodyForLLM: string,
+    messagesToSummarize: Array<unknown>,
+    allThreadEmails: Array<unknown>,
+    phishingSignals: PhishingSignals,
+    keywordFallbackSignal: PhishingSignal | null,
+    cacheKey: string,
+    rule: SummarizationRule,
+    llmProvider: LLMProvider | undefined,
+    userId: string,
+    emailId: string,
+  ): Promise<{ summary: string; phishingSignal: PhishingSignal | null }> {
+    const summaryType =
+      rule.type === SUMMARY_TYPES.SENDER_REQUEST
+        ? SUMMARY_TYPES.TLDR
+        : rule.type;
+
+    try {
+      const result = await this.llmService.summarizeEmailWithPhishingCheck(
+        bodyForLLM,
+        subject,
+        summaryType,
+        phishingSignals,
+        llmProvider,
+        userId,
+      );
+
+      const phishingSignal = this.resolvePhishingSignalFromLLM(
+        result.phishing,
+        keywordFallbackSignal,
+      );
+
+      this.phishingCache.set(cacheKey, {
+        signal: phishingSignal,
+        expiresAt: Date.now() + MILLISECONDS.HOUR,
+      });
+
+      return { summary: result.summary, phishingSignal };
+    } catch (error) {
+      logError(
+        "LLM summarization with phishing check failed, falling back",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      return this.summarizeEmailFallback(
+        emailWithHtml,
+        subject,
+        threadText,
+        messagesToSummarize,
+        allThreadEmails,
+        rule,
+        userId,
+        emailId,
+        keywordFallbackSignal,
+      );
+    }
+  }
+
+  /**
+   * Fallback path when the combined LLM summarize+phishing call fails.
+   * Uses separate summary generation and returns the keyword-only phishing signal.
+   */
+  private async summarizeEmailFallback(
+    emailWithHtml: EmailWithHtmlBody,
+    subject: string,
+    threadText: string,
+    messagesToSummarize: Array<unknown>,
+    allThreadEmails: Array<unknown>,
+    rule: SummarizationRule,
+    userId: string,
+    emailId: string,
+    keywordFallbackSignal: PhishingSignal | null,
+  ): Promise<{ summary: string; phishingSignal: PhishingSignal | null }> {
     try {
       const summary = await this.generateLLMSummary(
         { ...emailWithHtml, subject },
@@ -421,9 +672,12 @@ export class SummarizationService {
         userId,
         emailId,
       );
-      return { summary, phishingSignal };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      return { summary, phishingSignal: keywordFallbackSignal };
+    } catch (fallbackError) {
+      const err =
+        fallbackError instanceof Error
+          ? fallbackError
+          : new Error(String(fallbackError));
       this.errorTrackingService.captureException(err, userId, {
         operation: "summarize_email_with_phishing",
         ruleType: rule.type,
@@ -607,11 +861,11 @@ export class SummarizationService {
     let rule: SummarizationRule;
     if (matchedRule) {
       rule = {
-        type: "custom",
+        type: SUMMARY_TYPES.CUSTOM,
         customPrompt: matchedRule.howToSummarize,
       };
     } else {
-      rule = { type: "tldr" };
+      rule = { type: SUMMARY_TYPES.TLDR };
     }
 
     // Pass prefetched email to avoid re-fetching; return both summary and phishing signal
@@ -642,73 +896,6 @@ export class SummarizationService {
 
   async deleteSummarizationRule(userId: string, ruleId: string): Promise<void> {
     await this.summarizationRuleRepository.delete({ ruleId, userId });
-  }
-
-  private async matchRuleWithLLM(
-    email: { subject?: string; from?: string; fromName?: string },
-    cleanedBody: string,
-    rules: SummarizationRuleEntity[],
-    userId: string,
-  ): Promise<SummarizationRuleEntity | null | undefined> {
-    const emailPreview = cleanedBody.substring(
-      0,
-      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
-    );
-    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n"""\n${emailPreview}${cleanedBody.length > QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH ? "\n\n[... email continues ...]" : ""}\n"""`;
-    const ruleDescriptions = rules
-      .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
-      .join("\n");
-
-    const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
-
-Email to evaluate:
-${emailText}
-
-Available summarization rules (each has a "whenToUse" description that explains when it should be applied):
-${ruleDescriptions}
-
-Your task:
-1. Carefully read the "whenToUse" criteria for each rule
-2. Determine if the email matches any of the rules based on their "whenToUse" descriptions
-3. Consider the email's subject, sender, and content when evaluating matches
-4. If the email clearly matches a rule's "whenToUse" criteria, return that rule's number (1-${rules.length})
-5. If no rule clearly matches, return "0"
-
-Examples:
-- If a rule says "Github emails" and the email is from GitHub (e.g., notifications@github.com, noreply@github.com) or contains GitHub-related content, it matches
-- If a rule says "emails from @company.com" and the sender's domain is company.com, it matches
-- If a rule says "newsletter emails" and the email is clearly a newsletter, it matches
-
-Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not include any explanation or other text.`;
-
-    const response = await this.llmService.generateText(
-      {
-        prompt,
-        systemPrompt:
-          "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
-        temperature: 0.1,
-        maxTokens: 5,
-        userId,
-      },
-      undefined,
-      userId,
-    );
-
-    const cleanedResponse = response.trim().replace(/[^0-9]/g, "");
-    const ruleIndex = parseInt(cleanedResponse, 10) - 1;
-
-    if (ruleIndex >= 0 && ruleIndex < rules.length) {
-      return rules[ruleIndex];
-    }
-    if (cleanedResponse === "0") {
-      return null;
-    }
-
-    logWarn(
-      `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
-    );
-    // signals fallback needed
-    return undefined;
   }
 
   async matchRuleForEmail(
@@ -744,11 +931,12 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
 
     // LLM-based matching
     try {
-      const llmResult = await this.matchRuleWithLLM(
+      const llmResult = await matchRuleWithLLM(
         email,
         cleanedBody,
         rules,
         userId,
+        this.llmService,
       );
       if (llmResult !== undefined) {
         return llmResult;
@@ -762,54 +950,5 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
 
     // Fallback: return first rule
     return rules[0];
-  }
-
-  private fallbackSummary(
-    text: string,
-    subject: string,
-    type: string,
-    sender: string,
-  ): string {
-    const sentences = text
-      .split(/[.!?]+/)
-      .filter((sentence) => sentence.trim().length > 0);
-
-    switch (type) {
-      case "bullet-points":
-        return (
-          sentences
-            .slice(0, 5)
-            .map((sentence) => `• ${sentence.trim()}`)
-            .join("\n") || "• No key points found"
-        );
-      case "action-items":
-        const actionKeywords = [
-          "please",
-          "need",
-          "should",
-          "must",
-          "action",
-          "do",
-          "complete",
-        ];
-        const actionSentences = sentences
-          .filter((sentence) =>
-            actionKeywords.some((keyword) =>
-              sentence.toLowerCase().includes(keyword),
-            ),
-          )
-          .slice(0, 5)
-          .map((sentence) => `• ${sentence.trim()}`)
-          .join("\n");
-        return actionSentences || "• No action items found";
-      case "sender-request":
-        return `From ${sender}: ${sentences[0]?.trim() || "No specific request found."}`;
-      case "tldr":
-      default:
-        const summary =
-          sentences[0]?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
-          text.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH);
-        return `TL;DR: ${summary}${summary.length >= QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH ? "..." : ""}`;
-    }
   }
 }

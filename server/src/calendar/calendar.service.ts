@@ -26,6 +26,7 @@ import {
 } from "./calendar-invitation-response.service";
 
 const BOOKING_TOKEN_BYTES = 32;
+const MEET_REQUEST_ID_BYTES = 8;
 
 export interface TimeSlot {
   start: string;
@@ -345,7 +346,7 @@ export class CalendarService {
     guestName?: string,
     title?: string,
     description?: string,
-  ): Promise<calendar_v3.Schema$Event> {
+  ): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Google Calendar not connected");
@@ -380,14 +381,26 @@ Manage this booking:
 • Cancel: ${cancelUrl}`;
 
     try {
+      // Generate a unique requestId for the Meet link creation.
+      // Google requires this to be idempotent (same requestId = same Meet link).
+      const meetRequestId = randomBytes(MEET_REQUEST_ID_BYTES).toString("hex");
+
       const event = await calendar.events.insert({
         calendarId: "primary",
+        // conferenceDataVersion: 1 is required for Google Meet to be auto-created
+        conferenceDataVersion: 1,
         requestBody: {
           summary: title || `Meeting with ${guestName || guestEmail}`,
           description: enhancedDescription,
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() },
           attendees: [{ email: guestEmail }],
+          conferenceData: {
+            createRequest: {
+              requestId: meetRequestId,
+              conferenceSolutionKey: { type: "hangoutsMeet" },
+            },
+          },
         },
       });
 
@@ -408,7 +421,13 @@ Manage this booking:
         });
       }
 
-      return event.data;
+      // Extract the Google Meet link from conferenceData entryPoints if present
+      const meetEntryPoint = event.data.conferenceData?.entryPoints?.find(
+        (ep) => ep.entryPointType === "video",
+      );
+      const meetLink = meetEntryPoint?.uri ?? null;
+
+      return { ...event.data, meetLink };
     } catch (error) {
       logError(
         "Error creating calendar event",

@@ -251,15 +251,23 @@ describe("CalendarService", () => {
         "Meeting description",
       );
 
-      expect(mockCalendar.events.insert).toHaveBeenCalledWith({
-        calendarId: "primary",
-        requestBody: expect.objectContaining({
-          summary: "Meeting Title",
-          start: { dateTime: "2024-01-15T10:00:00.000Z" },
-          end: { dateTime: "2024-01-15T11:00:00.000Z" },
-          attendees: [{ email: "guest@example.com" }],
+      expect(mockCalendar.events.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          calendarId: "primary",
+          conferenceDataVersion: 1,
+          requestBody: expect.objectContaining({
+            summary: "Meeting Title",
+            start: { dateTime: "2024-01-15T10:00:00.000Z" },
+            end: { dateTime: "2024-01-15T11:00:00.000Z" },
+            attendees: [{ email: "guest@example.com" }],
+            conferenceData: expect.objectContaining({
+              createRequest: expect.objectContaining({
+                conferenceSolutionKey: { type: "hangoutsMeet" },
+              }),
+            }),
+          }),
         }),
-      });
+      );
       expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: "user-1",
@@ -270,7 +278,7 @@ describe("CalendarService", () => {
           status: "active",
         }),
       );
-      expect(result).toEqual(mockEvent);
+      expect(result).toEqual({ ...mockEvent, meetLink: null });
     });
 
     it("should include reschedule and cancel links in description", async () => {
@@ -311,6 +319,8 @@ describe("CalendarService", () => {
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith(
         expect.objectContaining({
+          calendarId: "primary",
+          conferenceDataVersion: 1,
           requestBody: expect.objectContaining({
             summary: "Meeting with Guest",
           }),
@@ -350,6 +360,141 @@ describe("CalendarService", () => {
       ).rejects.toThrow("Failed to create calendar event");
 
       consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe("createEvent — Meet link extraction", () => {
+    it("should return meetLink when Google response includes a video entry point", async () => {
+      const mockMeetUri = "https://meet.google.com/abc-defg-hij";
+      const mockEventWithConference = {
+        id: "event-meet-1",
+        summary: "Meeting with conferenceData",
+        conferenceData: {
+          entryPoints: [
+            { entryPointType: "video", uri: mockMeetUri },
+            { entryPointType: "phone", uri: "tel:+1-555-0100" },
+          ],
+        },
+      };
+
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: mockEventWithConference,
+      });
+
+      const result = await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        30,
+        "guest@example.com",
+      );
+
+      expect(result.meetLink).toBe(mockMeetUri);
+    });
+
+    it("should return meetLink as null when conferenceData is absent from response", async () => {
+      const mockEventWithoutConference = {
+        id: "event-no-meet-1",
+        summary: "Meeting without conferenceData",
+      };
+
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: mockEventWithoutConference,
+      });
+
+      const result = await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        30,
+        "guest@example.com",
+      );
+
+      expect(result.meetLink).toBeNull();
+    });
+
+    it("should return meetLink as null when entryPoints has no video entry", async () => {
+      const mockEventPhoneOnly = {
+        id: "event-phone-only-1",
+        summary: "Phone-only conference",
+        conferenceData: {
+          entryPoints: [
+            { entryPointType: "phone", uri: "tel:+1-555-0100" },
+            { entryPointType: "sip", uri: "sip:abc@meet.google.com" },
+          ],
+        },
+      };
+
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: mockEventPhoneOnly,
+      });
+
+      const result = await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        30,
+        "guest@example.com",
+      );
+
+      expect(result.meetLink).toBeNull();
+    });
+
+    it("should include conferenceDataVersion: 1 in the insert call to trigger Meet creation", async () => {
+      const mockEvent = { id: "event-conf-version-1" };
+
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
+
+      await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        30,
+        "guest@example.com",
+      );
+
+      expect(mockCalendar.events.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conferenceDataVersion: 1,
+          requestBody: expect.objectContaining({
+            conferenceData: expect.objectContaining({
+              createRequest: expect.objectContaining({
+                conferenceSolutionKey: { type: "hangoutsMeet" },
+                requestId: expect.any(String),
+              }),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should generate a unique requestId for each createEvent call", async () => {
+      const mockEvent = { id: "event-req-id-1" };
+
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
+
+      await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        30,
+        "guest@example.com",
+      );
+      await service.createEvent(
+        "user-1",
+        "2024-01-15T11:00:00Z",
+        30,
+        "guest@example.com",
+      );
+
+      const firstCallRequestId =
+        mockCalendar.events.insert.mock.calls[0][0].requestBody.conferenceData
+          .createRequest.requestId;
+      const secondCallRequestId =
+        mockCalendar.events.insert.mock.calls[1][0].requestBody.conferenceData
+          .createRequest.requestId;
+
+      expect(firstCallRequestId).not.toBe(secondCallRequestId);
     });
   });
 

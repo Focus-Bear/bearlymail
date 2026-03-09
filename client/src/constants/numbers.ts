@@ -157,6 +157,7 @@ export const TEXT_OFFSET_50_PX = 50;
 export const ICON_SIZE_16_PX = 16;
 export const MONTHS_IN_YEAR = 12;
 export const DAYS_IN_MONTH_30 = 30;
+export const CALENDAR_BOOKING_MAX_DAYS_AHEAD = 180;
 export const PERCENTAGE_60 = 60;
 export const PERCENTAGE_80 = 80;
 export const PERCENTAGE_12_5 = 12.5;

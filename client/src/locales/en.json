@@ -1605,7 +1605,9 @@
       "failedToLoad": "Failed to load booking details. The link may be invalid or expired.",
       "failedToCancel": "Failed to cancel the booking. Please try again.",
       "alreadyCancelled": "This booking has already been cancelled."
-    }
+    },
+    "meetLink": "Video call link:",
+    "joinMeetingAriaLabel": "Join video call via Google Meet"
   },
   "consent": {
     "welcome": "Welcome to BearlyMail",

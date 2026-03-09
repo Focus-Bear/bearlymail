@@ -275,7 +275,9 @@
       "failedToLoad": "No se pudieron cargar los detalles de la reserva. El enlace puede ser inválido o estar expirado.",
       "failedToCancel": "No se pudo cancelar la reserva. Por favor inténtelo de nuevo.",
       "alreadyCancelled": "Esta reserva ya ha sido cancelada."
-    }
+    },
+    "meetLink": "Enlace de videollamada:",
+    "joinMeetingAriaLabel": "Unirse a la videollamada a través de Google Meet"
   },
   "calendar": {
     "attendeeEmail": "Correo electrónico del asistente",

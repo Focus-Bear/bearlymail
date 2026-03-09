@@ -6,9 +6,10 @@ import { EMOJI_CHECK } from 'constants/emojis';
 
 interface BookingSuccessStateProps {
   guestEmail: string;
+  meetLink?: string;
 }
 
-export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestEmail }) => {
+export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestEmail, meetLink }) => {
   const { t } = useTranslation();
 
   return (
@@ -51,6 +52,33 @@ export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestE
           {t('booking.confirmed')}
         </h1>
         <p style={{ color: theme.colors.text.secondary }}>{t('booking.invitationSent', { email: guestEmail })}</p>
+        {meetLink && (
+          <div
+            style={{
+              marginTop: theme.spacing.lg,
+              padding: theme.spacing.md,
+              backgroundColor: theme.colors.primary.light,
+              borderRadius: theme.borderRadius.md,
+            }}
+          >
+            <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.sm, fontSize: theme.typography.fontSize.sm }}>
+              {t('booking.meetLink', 'Video call link:')}
+            </p>
+            <a
+              href={meetLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('booking.joinMeetingAriaLabel', 'Join video call via Google Meet')}
+              style={{
+                color: theme.colors.primary.main,
+                fontWeight: theme.typography.fontWeight.semibold,
+                wordBreak: 'break-all',
+              }}
+            >
+              {meetLink}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

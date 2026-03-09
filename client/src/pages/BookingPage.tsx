@@ -9,7 +9,7 @@ import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { BookingSuccessState } from 'components/booking/BookingSuccessState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
-import { DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
+import { CALENDAR_BOOKING_MAX_DAYS_AHEAD, DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import {
   BOOKING_ERROR,
   BOOKING_IDLE,
@@ -42,6 +42,7 @@ const BookingPage: React.FC = () => {
     typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR
   >(BOOKING_IDLE);
   const [error, setError] = useState('');
+  const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
   const fetchSlots = async (days: number, append = false) => {
     try {
@@ -54,7 +55,12 @@ const BookingPage: React.FC = () => {
       const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots?daysAhead=${days}`);
 
       if (append) {
-        setSlots(response.data.slots);
+        setSlots(prev => {
+          const existingKeys = new Set(prev.map((slot: TimeSlot) => slot.start));
+          const newSlots = (response.data.slots as TimeSlot[]).filter(slot => !existingKeys.has(slot.start));
+          const merged = [...prev, ...newSlots];
+          return merged.sort((slotA, slotB) => new Date(slotA.start).getTime() - new Date(slotB.start).getTime());
+        });
       } else {
         setSlots(response.data.slots);
       }
@@ -89,12 +95,15 @@ const BookingPage: React.FC = () => {
 
     setBookingStatus(BOOKING_SUBMITTING);
     try {
-      await axios.post(`${API_URL}/public/calendar/${userId}/book`, {
+      const bookingResponse = await axios.post(`${API_URL}/public/calendar/${userId}/book`, {
         startTime: selectedSlot.start,
         guestEmail,
         guestName,
         duration: selectedSlot.duration,
       });
+      if (bookingResponse.data?.meetLink) {
+        setMeetLink(bookingResponse.data.meetLink);
+      }
       setBookingStatus(BOOKING_SUCCESS);
     } catch (error) {
       console.error('Error booking slot:', error);
@@ -108,7 +117,7 @@ const BookingPage: React.FC = () => {
   }
 
   if (bookingStatus === BOOKING_STATUS_SUCCESS) {
-    return <BookingSuccessState guestEmail={guestEmail} />;
+    return <BookingSuccessState guestEmail={guestEmail} meetLink={meetLink} />;
   }
 
   return (
@@ -164,7 +173,7 @@ const BookingPage: React.FC = () => {
               timezone={timezone}
               onLoadMore={handleLoadMore}
               loadingMore={loadingMore}
-              hasMore
+              hasMore={daysAhead < CALENDAR_BOOKING_MAX_DAYS_AHEAD}
             />
             <BookingForm
               selectedSlot={selectedSlot}

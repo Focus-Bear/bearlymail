@@ -23,6 +23,7 @@ const makeEmail = (id: string, category?: string | null): Email =>
     starCount: 0,
     receivedAt: new Date().toISOString(),
     category: category !== undefined ? category : null,
+    category_id: category !== undefined ? category : null,
   }) as unknown as Email;
 
 const baseState = {

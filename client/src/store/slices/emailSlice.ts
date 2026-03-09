@@ -82,17 +82,9 @@ const emailSlice = createSlice({
       const isOther = categoryKey === CATEGORY_OTHER;
       const incomingIds = new Set(emails.map(event => event.id));
 
-      // [DIAGNOSTIC #784] Log state before update
-      console.log('[DEBUG #784] updateCategoryEmails BEFORE:', {
-        categoryKey,
-        incomingEmailCount: emails.length,
-        storeEmailCountBefore: state.emails.length,
-        // Check if category_id is populated on incoming emails
-        incomingEmailCategoryIds: emails.map(email => ({ id: email.id, category: email.category, category_id: email.category_id })),
-        // Check how many existing emails match this categoryKey (by category name vs UUID)
-        existingMatchByCategory: state.emails.filter(email => email.category === categoryKey).length,
-        existingMatchByCategoryId: state.emails.filter(email => email.category_id === categoryKey).length,
-      });
+      // Stamp category_id on every incoming email so downstream selectors can
+      // filter by UUID instead of relying on the category name string.
+      const stampedEmails = emails.map(email => ({ ...email, category_id: categoryKey }));
 
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a
@@ -109,17 +101,9 @@ const emailSlice = createSlice({
             event.category !== CATEGORY_OTHER
           );
         }
-        return event.category !== categoryKey;
+        return event.category_id !== categoryKey;
       });
-      state.emails = [...state.emails, ...emails];
-
-      // [DIAGNOSTIC #784] Log state after update
-      console.log('[DEBUG #784] updateCategoryEmails AFTER:', {
-        categoryKey,
-        storeEmailCountAfter: state.emails.length,
-        emailsForThisCategoryByName: state.emails.filter(email => email.category === categoryKey).length,
-        emailsForThisCategoryById: state.emails.filter(email => email.category_id === categoryKey).length,
-      });
+      state.emails = [...state.emails, ...stampedEmails];
     },
     setHasMore: (state, action: PayloadAction<boolean>) => {
       state.hasMore = action.payload;

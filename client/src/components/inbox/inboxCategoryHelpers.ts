@@ -10,65 +10,21 @@ import { CATEGORY_OTHER } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
+/**
+ * Groups filtered emails by category and returns them as a keyed map.
+ * Emails are stamped with `category_id` by the reducer before reaching here,
+ * so no name→UUID rekeying is needed — the category field is already a UUID.
+ */
 export function buildEmailCategoryMap(
   filteredEmails: Email[],
   mode: InboxMode,
-  categorySummary: CategorySummaryItem[] | null | undefined
+  _categorySummary: CategorySummaryItem[] | null | undefined
 ): Map<string, CategoryGroup> {
-  // [DIAGNOSTIC #784] Log inputs
-  console.log('[DEBUG #784] buildEmailCategoryMap INPUT:', {
-    filteredEmailCount: filteredEmails.length,
-    categorySummaryCount: categorySummary?.length ?? 'null/undefined',
-    // Show category_id presence on filtered emails
-    filteredEmailCategoryFields: filteredEmails.map(email => ({
-      id: email.id,
-      category: email.category,
-      category_id: email.category_id,
-    })),
-    summaryCategoryKeys: categorySummary?.map(cat => ({ name: cat.name, id: cat.id, key: getCategoryKey(cat.id, cat.name) })),
-  });
-
-  const map = new Map<string, CategoryGroup>();
+  const emailCategoryMap = new Map<string, CategoryGroup>();
   groupEmailsByCategory(filteredEmails, mode).forEach(group => {
-    map.set(group.category, group);
+    emailCategoryMap.set(group.category, group);
   });
-
-  // [DIAGNOSTIC #784] Log intermediate map after groupEmailsByCategory
-  console.log('[DEBUG #784] buildEmailCategoryMap AFTER groupEmailsByCategory:', {
-    mapKeys: Array.from(map.keys()),
-    mapSizes: Array.from(map.entries()).map(([key, val]) => ({ key, emailCount: val.emails.length })),
-  });
-
-  if (!categorySummary) {
-    console.log('[DEBUG #784] buildEmailCategoryMap: no categorySummary, returning raw map');
-    return map;
-  }
-  const nameToKey = new Map(categorySummary.map(cat => [cat.name, getCategoryKey(cat.id, cat.name)]));
-
-  // [DIAGNOSTIC #784] Log nameToKey mapping
-  console.log('[DEBUG #784] buildEmailCategoryMap nameToKey:', Array.from(nameToKey.entries()));
-
-  const rekeyed = new Map<string, CategoryGroup>();
-  map.forEach((value, key) => {
-    const uuidKey = nameToKey.get(key);
-    // [DIAGNOSTIC #784] Log each rekeying decision
-    console.log('[DEBUG #784] buildEmailCategoryMap rekeying:', {
-      originalKey: key,
-      resolvedUuidKey: uuidKey,
-      finalKey: uuidKey ?? key,
-      emailCount: value.emails.length,
-      nameToKeyHit: uuidKey !== undefined,
-    });
-    rekeyed.set(uuidKey ?? key, { ...value, category: uuidKey ?? key });
-  });
-
-  // [DIAGNOSTIC #784] Log final rekeyed map
-  console.log('[DEBUG #784] buildEmailCategoryMap FINAL rekeyed map:', {
-    rekeyedKeys: Array.from(rekeyed.keys()),
-    rekeyedSizes: Array.from(rekeyed.entries()).map(([key, val]) => ({ key, emailCount: val.emails.length })),
-  });
-
-  return rekeyed;
+  return emailCategoryMap;
 }
 
 export function buildOtherProtoGroups(

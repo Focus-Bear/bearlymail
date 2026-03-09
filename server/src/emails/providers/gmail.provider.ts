@@ -1089,20 +1089,14 @@ export class GmailProvider implements EmailProvider {
    */
   async getStarredInboxThreadIds(userId: string): Promise<string[]> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) return [];
-    try {
-      return await this.fetchAllThreadsWithPagination(
-        gmail,
-        "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
-        QUERY_LIMITS.INBOX_TOTAL,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch starred inbox thread IDs for user ${userId}:`,
-        error,
-      );
-      return [];
+    if (!gmail) {
+      throw new Error("Gmail auth expired or not connected");
     }
+    return this.fetchAllThreadsWithPagination(
+      gmail,
+      "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+      QUERY_LIMITS.INBOX_TOTAL,
+    );
   }
 
   async addLabelToThread(

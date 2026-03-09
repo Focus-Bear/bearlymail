@@ -24,6 +24,11 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
       if (!editor) {
         return;
       }
+      // Guard against destroyed editor (e.g. component unmounted mid-click)
+      if (editor.isDestroyed) {
+        onLinkDialogChangeRef.current?.(false);
+        return;
+      }
       if (editor.isActive('link')) {
         editor.chain().focus().unsetLink().run();
       } else {
@@ -45,6 +50,12 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
     if (!editor || !linkUrl) {
       return;
     }
+    // Guard against destroyed editor in case component unmounts during async flow
+    if (editor.isDestroyed) {
+      setLinkUrl('');
+      setShowLinkInput(false);
+      return;
+    }
     let url = linkUrl.trim();
     if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
@@ -56,6 +67,12 @@ export function useLinkInputState({ editor, linkDialogOpen, onLinkDialogChange }
 
   const handleToggleLink = useCallback(() => {
     if (!editor) {
+      return;
+    }
+    // Guard: do not call Tiptap methods on a destroyed editor — this was the
+    // root cause of the crash when clicking the link icon after the editor
+    // component was torn down (e.g. navigating away or switching email).
+    if (editor.isDestroyed) {
       return;
     }
     if (editor.isActive('link')) {

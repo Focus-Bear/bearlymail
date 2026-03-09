@@ -7,6 +7,9 @@ export interface SummarizationRule {
   ruleId: string;
   whenToUse: string;
   howToSummarize: string;
+  fromPatterns: string[];
+  subjectPatterns: string[];
+  priority: number;
   createdAt?: string;
 }
 
@@ -14,9 +17,15 @@ export const useSummarizationRules = () => {
   const [summarizationRules, setSummarizationRules] = useState<SummarizationRule[]>([]);
   const [newSummarizationWhen, setNewSummarizationWhen] = useState('');
   const [newSummarizationHow, setNewSummarizationHow] = useState('');
+  const [newFromPatterns, setNewFromPatterns] = useState('');
+  const [newSubjectPatterns, setNewSubjectPatterns] = useState('');
+  const [newPriority, setNewPriority] = useState(0);
   const [editingSummarizationRule, setEditingSummarizationRule] = useState<string | null>(null);
   const [editSummarizationWhen, setEditSummarizationWhen] = useState('');
   const [editSummarizationHow, setEditSummarizationHow] = useState('');
+  const [editFromPatterns, setEditFromPatterns] = useState('');
+  const [editSubjectPatterns, setEditSubjectPatterns] = useState('');
+  const [editPriority, setEditPriority] = useState(0);
 
   const fetchSummarizationRules = useCallback(async () => {
     try {
@@ -37,14 +46,26 @@ export const useSummarizationRules = () => {
       await axios.post(`${API_URL}/summarize/rules`, {
         whenToUse: newSummarizationWhen.trim(),
         howToSummarize: newSummarizationHow.trim(),
+        fromPatterns: newFromPatterns
+          .split(',')
+          .map(pattern => pattern.trim())
+          .filter(Boolean),
+        subjectPatterns: newSubjectPatterns
+          .split(',')
+          .map(pattern => pattern.trim())
+          .filter(Boolean),
+        priority: newPriority,
       });
       setNewSummarizationWhen('');
       setNewSummarizationHow('');
+      setNewFromPatterns('');
+      setNewSubjectPatterns('');
+      setNewPriority(0);
       await fetchSummarizationRules();
     } catch (error) {
       console.error('Error adding summarization rule:', error);
     }
-  }, [newSummarizationWhen, newSummarizationHow, fetchSummarizationRules]);
+  }, [newSummarizationWhen, newSummarizationHow, newFromPatterns, newSubjectPatterns, newPriority, fetchSummarizationRules]);
 
   const updateSummarizationRule = useCallback(
     async (ruleId: string) => {
@@ -52,6 +73,15 @@ export const useSummarizationRules = () => {
         await axios.put(`${API_URL}/summarize/rules/${ruleId}`, {
           whenToUse: editSummarizationWhen,
           howToSummarize: editSummarizationHow,
+          fromPatterns: editFromPatterns
+            .split(',')
+            .map(pattern => pattern.trim())
+            .filter(Boolean),
+          subjectPatterns: editSubjectPatterns
+            .split(',')
+            .map(pattern => pattern.trim())
+            .filter(Boolean),
+          priority: editPriority,
         });
         setEditingSummarizationRule(null);
         await fetchSummarizationRules();
@@ -59,7 +89,7 @@ export const useSummarizationRules = () => {
         console.error('Error updating summarization rule:', error);
       }
     },
-    [editSummarizationWhen, editSummarizationHow, fetchSummarizationRules]
+    [editSummarizationWhen, editSummarizationHow, editFromPatterns, editSubjectPatterns, editPriority, fetchSummarizationRules]
   );
 
   const deleteSummarizationRule = useCallback(
@@ -83,21 +113,36 @@ export const useSummarizationRules = () => {
     setEditingSummarizationRule(rule.ruleId);
     setEditSummarizationWhen(rule.whenToUse);
     setEditSummarizationHow(rule.howToSummarize);
+    setEditFromPatterns(rule.fromPatterns.join(', '));
+    setEditSubjectPatterns(rule.subjectPatterns.join(', '));
+    setEditPriority(rule.priority);
   }, []);
 
   return {
     summarizationRules,
     newSummarizationWhen,
     newSummarizationHow,
+    newFromPatterns,
+    newSubjectPatterns,
+    newPriority,
     editingSummarizationRule,
     editSummarizationWhen,
     editSummarizationHow,
+    editFromPatterns,
+    editSubjectPatterns,
+    editPriority,
     setSummarizationRules,
     setNewSummarizationWhen,
     setNewSummarizationHow,
+    setNewFromPatterns,
+    setNewSubjectPatterns,
+    setNewPriority,
     setEditingSummarizationRule,
     setEditSummarizationWhen,
     setEditSummarizationHow,
+    setEditFromPatterns,
+    setEditSubjectPatterns,
+    setEditPriority,
     fetchSummarizationRules,
     createSummarizationRule,
     updateSummarizationRule,

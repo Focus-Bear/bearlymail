@@ -12,6 +12,9 @@ interface SummarizationRule {
   ruleId: string;
   whenToUse: string;
   howToSummarize: string;
+  fromPatterns: string[];
+  subjectPatterns: string[];
+  priority: number;
   createdAt?: string;
 }
 
@@ -19,47 +22,50 @@ interface SummarizationRulesSectionProps {
   summarizationRules: SummarizationRule[];
   newSummarizationWhen: string;
   newSummarizationHow: string;
+  newFromPatterns: string;
+  newSubjectPatterns: string;
+  newPriority: number;
   editingSummarizationRule: string | null;
   editSummarizationWhen: string;
   editSummarizationHow: string;
+  editFromPatterns: string;
+  editSubjectPatterns: string;
+  editPriority: number;
   onAddSummarizationRule: () => Promise<void>;
   onEditSummarizationRule: (rule: SummarizationRule) => void;
   onSaveSummarizationRule: (ruleId: string) => Promise<void>;
   onDeleteSummarizationRule: (ruleId: string) => Promise<void>;
   onNewSummarizationWhenChange: (value: string) => void;
   onNewSummarizationHowChange: (value: string) => void;
+  onNewFromPatternsChange: (value: string) => void;
+  onNewSubjectPatternsChange: (value: string) => void;
+  onNewPriorityChange: (value: number) => void;
   onEditSummarizationWhenChange: (value: string) => void;
   onEditSummarizationHowChange: (value: string) => void;
+  onEditFromPatternsChange: (value: string) => void;
+  onEditSubjectPatternsChange: (value: string) => void;
+  onEditPriorityChange: (value: number) => void;
   onEditingSummarizationRuleChange: (ruleId: string | null) => void;
 }
 
-interface SummarizationRulesContentProps {
-  summarizationRules: SummarizationRule[];
-  newSummarizationWhen: string;
-  newSummarizationHow: string;
-  editingSummarizationRule: string | null;
-  editSummarizationWhen: string;
-  editSummarizationHow: string;
+interface SummarizationRulesContentProps extends SummarizationRulesSectionProps {
   showAddForm: boolean;
   onShowAddForm: (show: boolean) => void;
-  onAddSummarizationRule: () => Promise<void>;
-  onEditSummarizationRule: (rule: SummarizationRule) => void;
-  onSaveSummarizationRule: (ruleId: string) => Promise<void>;
-  onDeleteSummarizationRule: (ruleId: string) => Promise<void>;
-  onNewSummarizationWhenChange: (value: string) => void;
-  onNewSummarizationHowChange: (value: string) => void;
-  onEditSummarizationWhenChange: (value: string) => void;
-  onEditSummarizationHowChange: (value: string) => void;
-  onEditingSummarizationRuleChange: (ruleId: string | null) => void;
 }
 
 const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
   summarizationRules,
   newSummarizationWhen,
   newSummarizationHow,
+  newFromPatterns,
+  newSubjectPatterns,
+  newPriority,
   editingSummarizationRule,
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   showAddForm,
   onShowAddForm,
   onAddSummarizationRule,
@@ -68,8 +74,14 @@ const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
   onDeleteSummarizationRule,
   onNewSummarizationWhenChange,
   onNewSummarizationHowChange,
+  onNewFromPatternsChange,
+  onNewSubjectPatternsChange,
+  onNewPriorityChange,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
   onEditingSummarizationRuleChange,
 }) => {
   const { t } = useTranslation();
@@ -111,8 +123,14 @@ const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
         <SummarizationRuleAddForm
           newSummarizationWhen={newSummarizationWhen}
           newSummarizationHow={newSummarizationHow}
+          newFromPatterns={newFromPatterns}
+          newSubjectPatterns={newSubjectPatterns}
+          newPriority={newPriority}
           onNewSummarizationWhenChange={onNewSummarizationWhenChange}
           onNewSummarizationHowChange={onNewSummarizationHowChange}
+          onNewFromPatternsChange={onNewFromPatternsChange}
+          onNewSubjectPatternsChange={onNewSubjectPatternsChange}
+          onNewPriorityChange={onNewPriorityChange}
           onAddSummarizationRule={async () => {
             await onAddSummarizationRule();
             onShowAddForm(false);
@@ -141,8 +159,14 @@ const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
               editingSummarizationRule={editingSummarizationRule}
               editSummarizationWhen={editSummarizationWhen}
               editSummarizationHow={editSummarizationHow}
+              editFromPatterns={editFromPatterns}
+              editSubjectPatterns={editSubjectPatterns}
+              editPriority={editPriority}
               onEditSummarizationWhenChange={onEditSummarizationWhenChange}
               onEditSummarizationHowChange={onEditSummarizationHowChange}
+              onEditFromPatternsChange={onEditFromPatternsChange}
+              onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+              onEditPriorityChange={onEditPriorityChange}
               onSaveSummarizationRule={onSaveSummarizationRule}
               onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
               onEditSummarizationRule={onEditSummarizationRule}
@@ -159,17 +183,29 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
   summarizationRules,
   newSummarizationWhen,
   newSummarizationHow,
+  newFromPatterns,
+  newSubjectPatterns,
+  newPriority,
   editingSummarizationRule,
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   onAddSummarizationRule,
   onEditSummarizationRule,
   onSaveSummarizationRule,
   onDeleteSummarizationRule,
   onNewSummarizationWhenChange,
   onNewSummarizationHowChange,
+  onNewFromPatternsChange,
+  onNewSubjectPatternsChange,
+  onNewPriorityChange,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
   onEditingSummarizationRuleChange,
 }) => {
   const { t } = useTranslation();
@@ -234,9 +270,15 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
           summarizationRules={summarizationRules}
           newSummarizationWhen={newSummarizationWhen}
           newSummarizationHow={newSummarizationHow}
+          newFromPatterns={newFromPatterns}
+          newSubjectPatterns={newSubjectPatterns}
+          newPriority={newPriority}
           editingSummarizationRule={editingSummarizationRule}
           editSummarizationWhen={editSummarizationWhen}
           editSummarizationHow={editSummarizationHow}
+          editFromPatterns={editFromPatterns}
+          editSubjectPatterns={editSubjectPatterns}
+          editPriority={editPriority}
           showAddForm={showAddForm}
           onShowAddForm={setShowAddForm}
           onAddSummarizationRule={onAddSummarizationRule}
@@ -245,8 +287,14 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
           onDeleteSummarizationRule={onDeleteSummarizationRule}
           onNewSummarizationWhenChange={onNewSummarizationWhenChange}
           onNewSummarizationHowChange={onNewSummarizationHowChange}
+          onNewFromPatternsChange={onNewFromPatternsChange}
+          onNewSubjectPatternsChange={onNewSubjectPatternsChange}
+          onNewPriorityChange={onNewPriorityChange}
           onEditSummarizationWhenChange={onEditSummarizationWhenChange}
           onEditSummarizationHowChange={onEditSummarizationHowChange}
+          onEditFromPatternsChange={onEditFromPatternsChange}
+          onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+          onEditPriorityChange={onEditPriorityChange}
           onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
         />
       )}

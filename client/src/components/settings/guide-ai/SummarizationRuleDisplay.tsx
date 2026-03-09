@@ -8,6 +8,9 @@ interface SummarizationRule {
   ruleId: string;
   whenToUse: string;
   howToSummarize: string;
+  fromPatterns: string[];
+  subjectPatterns: string[];
+  priority: number;
   createdAt?: string;
 }
 
@@ -41,6 +44,66 @@ export const SummarizationRuleDisplay: React.FC<SummarizationRuleDisplayProps> =
           >
             📋 {rule.whenToUse}
           </div>
+          {rule.fromPatterns.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: theme.spacing.xs,
+                marginBottom: theme.spacing.xs,
+              }}
+            >
+              <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
+                {t('settings.fromPatterns')}:
+              </span>
+              {rule.fromPatterns.map(pattern => (
+                <span
+                  key={pattern}
+                  style={{
+                    backgroundColor: theme.colors.background.subtle,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.sm,
+                    padding: `0 ${theme.spacing.xs}`,
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {pattern}
+                </span>
+              ))}
+            </div>
+          )}
+          {rule.subjectPatterns.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: theme.spacing.xs,
+                marginBottom: theme.spacing.xs,
+              }}
+            >
+              <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
+                {t('settings.subjectPatterns')}:
+              </span>
+              {rule.subjectPatterns.map(pattern => (
+                <span
+                  key={pattern}
+                  style={{
+                    backgroundColor: theme.colors.background.subtle,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.sm,
+                    padding: `0 ${theme.spacing.xs}`,
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {pattern}
+                </span>
+              ))}
+            </div>
+          )}
           <div
             style={{
               color: theme.colors.text.secondary,

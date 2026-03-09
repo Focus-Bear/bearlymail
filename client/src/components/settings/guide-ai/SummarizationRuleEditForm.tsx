@@ -9,8 +9,14 @@ import { STRING_NONE } from 'constants/strings';
 interface SummarizationRuleEditFormProps {
   editSummarizationWhen: string;
   editSummarizationHow: string;
+  editFromPatterns: string;
+  editSubjectPatterns: string;
+  editPriority: number;
   onEditSummarizationWhenChange: (value: string) => void;
   onEditSummarizationHowChange: (value: string) => void;
+  onEditFromPatternsChange: (value: string) => void;
+  onEditSubjectPatternsChange: (value: string) => void;
+  onEditPriorityChange: (value: number) => void;
   onSave: () => Promise<void>;
   onCancel: () => void;
 }
@@ -18,15 +24,27 @@ interface SummarizationRuleEditFormProps {
 interface RuleFormFieldsProps {
   editSummarizationWhen: string;
   editSummarizationHow: string;
+  editFromPatterns: string;
+  editSubjectPatterns: string;
+  editPriority: number;
   onEditSummarizationWhenChange: (value: string) => void;
   onEditSummarizationHowChange: (value: string) => void;
+  onEditFromPatternsChange: (value: string) => void;
+  onEditSubjectPatternsChange: (value: string) => void;
+  onEditPriorityChange: (value: number) => void;
 }
 
 const RuleFormFields: React.FC<RuleFormFieldsProps> = ({
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
 }) => {
   const { t } = useTranslation();
   return (
@@ -80,6 +98,90 @@ const RuleFormFields: React.FC<RuleFormFieldsProps> = ({
           }}
         />
       </div>
+      <div>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('settings.fromPatterns')}
+        </label>
+        <input
+          type="text"
+          value={editFromPatterns}
+          onChange={event => onEditFromPatternsChange(event.target.value)}
+          placeholder={t('settings.fromPatternsPlaceholder')}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        />
+        <small style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
+          {t('settings.fromPatternsHelp')}
+        </small>
+      </div>
+      <div>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('settings.subjectPatterns')}
+        </label>
+        <input
+          type="text"
+          value={editSubjectPatterns}
+          onChange={event => onEditSubjectPatternsChange(event.target.value)}
+          placeholder={t('settings.subjectPatternsPlaceholder')}
+          style={{
+            width: '100%',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        />
+        <small style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
+          {t('settings.subjectPatternsHelp')}
+        </small>
+      </div>
+      <div>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            display: 'block',
+            marginBottom: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('settings.priority')}
+        </label>
+        <input
+          type="number"
+          min={0}
+          value={editPriority}
+          onChange={event => onEditPriorityChange(Number(event.target.value))}
+          style={{
+            width: '80px',
+            padding: theme.spacing.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        />
+        <small style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, display: 'block' }}>
+          {t('settings.priorityHelp')}
+        </small>
+      </div>
     </>
   );
 };
@@ -87,8 +189,14 @@ const RuleFormFields: React.FC<RuleFormFieldsProps> = ({
 export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps> = ({
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
   onSave,
   onCancel,
 }) => {
@@ -107,8 +215,14 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
         <RuleFormFields
           editSummarizationWhen={editSummarizationWhen}
           editSummarizationHow={editSummarizationHow}
+          editFromPatterns={editFromPatterns}
+          editSubjectPatterns={editSubjectPatterns}
+          editPriority={editPriority}
           onEditSummarizationWhenChange={onEditSummarizationWhenChange}
           onEditSummarizationHowChange={onEditSummarizationHowChange}
+          onEditFromPatternsChange={onEditFromPatternsChange}
+          onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+          onEditPriorityChange={onEditPriorityChange}
         />
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <button

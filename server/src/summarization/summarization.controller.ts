@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,6 +12,7 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { validatePatterns } from "./pattern-matcher";
 import {
   SummarizationRule,
   SummarizationService,
@@ -30,8 +32,22 @@ export class SummarizationController {
   @Post("rules")
   async createRule(
     @Request() req,
-    @Body() rule: { whenToUse: string; howToSummarize: string },
+    @Body()
+    rule: {
+      whenToUse: string;
+      howToSummarize: string;
+      fromPatterns?: string[];
+      subjectPatterns?: string[];
+      priority?: number;
+    },
   ) {
+    const patternErrors = [
+      ...validatePatterns(rule.fromPatterns ?? []),
+      ...validatePatterns(rule.subjectPatterns ?? []),
+    ];
+    if (patternErrors.length > 0) {
+      throw new BadRequestException(patternErrors.join("; "));
+    }
     return this.summarizationService.createSummarizationRule(
       req.user.userId,
       rule,
@@ -42,8 +58,22 @@ export class SummarizationController {
   async updateRule(
     @Request() req,
     @Param("id") id: string,
-    @Body() updates: { whenToUse?: string; howToSummarize?: string },
+    @Body()
+    updates: {
+      whenToUse?: string;
+      howToSummarize?: string;
+      fromPatterns?: string[];
+      subjectPatterns?: string[];
+      priority?: number;
+    },
   ) {
+    const patternErrors = [
+      ...validatePatterns(updates.fromPatterns ?? []),
+      ...validatePatterns(updates.subjectPatterns ?? []),
+    ];
+    if (patternErrors.length > 0) {
+      throw new BadRequestException(patternErrors.join("; "));
+    }
     return this.summarizationService.updateSummarizationRule(
       req.user.userId,
       id,

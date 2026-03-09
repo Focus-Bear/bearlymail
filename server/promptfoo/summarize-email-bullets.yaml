@@ -20,17 +20,38 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          // Should be in bullet format
-          const hasBullets = text.includes('-') || text.includes('•') || text.includes('*') || /^\d+\./m.test(text);
-          // Should contain key points
-          const lower = text.toLowerCase();
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 20) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          // Should be bullet format
+          const hasBullets = parsed.summary.includes('-') || parsed.summary.includes('•') || parsed.summary.includes('*') || /^\d+\./m.test(parsed.summary);
+          const lower = parsed.summary.toLowerCase();
           const hasKeyPoints = lower.includes('api') || lower.includes('ui') || lower.includes('testing') || lower.includes('deadline');
-          if (!hasBullets || !hasKeyPoints || text.length < 30) {
-            throw new Error(`Expected bullet points with key information. Got: ${text.substring(0, 200)}`);
+          if (!hasBullets || !hasKeyPoints) {
+            throw new Error(`Expected bullet points with key information. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          // sentiment
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score number`);
+          }
+          // category
+          const validCategories = ['Newsletters', 'Sales & Marketing', 'Customer Support', 'HR & Admin', 'Finance', 'Partnerships', 'GitHub & Code', 'Personal', 'Other'];
+          if (!validCategories.includes(parsed.category)) {
+            throw new Error(`category "${parsed.category}" not in valid list`);
+          }
+          if (typeof parsed.categoryExplanation !== 'string') {
+            throw new Error(`Expected categoryExplanation string`);
           }
           return true;
-    description: "Should generate bullet-point summary"
+    description: "Should generate JSON with bullet-point summary, sentiment, category"
 
   - vars:
       isThread: false
@@ -40,13 +61,23 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          const hasBullets = text.includes('-') || text.includes('•') || text.includes('*') || /^\d+\./m.test(text);
-          if (!hasBullets || text.length < 20) {
-            throw new Error(`Expected bullet format. Got: ${text.substring(0, 200)}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const hasBullets = parsed.summary.includes('-') || parsed.summary.includes('•') || parsed.summary.includes('*') || /^\d+\./m.test(parsed.summary);
+          if (!hasBullets) {
+            throw new Error(`Expected bullet format. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
           }
           return true;
-    description: "Should format summary as bullets"
-
-
-
+    description: "Should format summary as bullets with sentiment and category"

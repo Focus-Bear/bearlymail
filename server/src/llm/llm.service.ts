@@ -29,7 +29,6 @@ import { LLMCoreService } from "./llm-core.service";
 import {
   LLM_OP_ANALYZE_EMAIL_PATTERNS,
   LLM_OP_ANALYZE_OVERRIDE_REASON,
-  LLM_OP_CHECK_PHISHING_ONLY,
   LLM_OP_CHECK_TONE,
   LLM_OP_COMPRESS_CONTEXT,
   LLM_OP_CONSOLIDATE_CATEGORIES,
@@ -54,7 +53,6 @@ import {
 } from "./llm-operations";
 import {
   getPrompt,
-  PROMPT_FILE_NAMES,
   renderPrompt,
   SUMMARY_PROMPT_IDS,
   SUMMARY_TYPES,
@@ -441,7 +439,13 @@ export class LLMService {
     phishingSignals: PhishingSignals,
     provider?: LLMProvider,
     userId?: string,
-  ): Promise<{ summary: string; phishing: PhishingLLMResult | null }> {
+  ): Promise<{
+    summary: string;
+    phishing: PhishingLLMResult | null;
+    sentiment: { score: number; explanation: string } | null;
+    category: string | null;
+    categoryExplanation: string | null;
+  }> {
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
     const contextNote = isThread
@@ -454,12 +458,11 @@ export class LLMService {
     } else if (summaryType === SUMMARY_TYPES.ACTION_ITEMS) {
       promptId = SUMMARY_PROMPT_IDS.ACTIONS;
     } else if (summaryType === SUMMARY_TYPES.CUSTOM) {
-      // Custom emails must never reach this function — they go via
-      // summarizeEmailWithCustomPromptAndPhishing in summarization.service.ts,
-      // which builds the prompt directly from rule.customPrompt.
+      // Custom prompts must use summarizeCustomPromptWithPhishing() — the
+      // phishing footer is injected at build time into the custom prompt text.
       // Reaching here means the caller skipped the custom-prompt guard.
       throw new StructuralError(
-        `summarizeEmailWithPhishingCheck called with summaryType="${SUMMARY_TYPES.CUSTOM}" — custom emails must use the customPrompt path`,
+        `summarizeEmailWithPhishingCheck called with summaryType="${SUMMARY_TYPES.CUSTOM}" — custom prompts must use summarizeCustomPromptWithPhishing()`,
       );
     } else {
       // TLDR and SENDER_REQUEST both use the standard tldr prompt.
@@ -508,96 +511,142 @@ export class LLMService {
   }
 
   /**
-   * Parse a `{ summary, phishing }` JSON response from the LLM.
+   * Parse a `{ summary, phishing, sentiment, category, categoryExplanation }` JSON response from the LLM.
    * Falls back gracefully: if JSON parse fails, treats the whole response as the summary.
    */
   private parseSummaryWithPhishing(response: string): {
     summary: string;
     phishing: PhishingLLMResult | null;
+    sentiment: { score: number; explanation: string } | null;
+    category: string | null;
+    categoryExplanation: string | null;
   } {
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         if (typeof parsed.summary === "string") {
+          const sentiment = this.validateSentimentResult(parsed.sentiment);
+          const category =
+            typeof parsed.category === "string" ? parsed.category : null;
+          const categoryExplanation =
+            typeof parsed.categoryExplanation === "string"
+              ? parsed.categoryExplanation
+              : null;
           return {
             summary: parsed.summary.trim(),
             phishing: this.validatePhishingLLMResult(parsed.phishing),
+            sentiment,
+            category,
+            categoryExplanation,
           };
         }
       }
     } catch {
       // fall through to plain-text fallback
     }
-    return { summary: response.trim(), phishing: null };
+    return {
+      summary: response.trim(),
+      phishing: null,
+      sentiment: null,
+      category: null,
+      categoryExplanation: null,
+    };
   }
 
   /**
-   * Run a phishing-only LLM check without any summarisation.
-   *
-   * Used when the summary is produced by a custom user prompt (which has no
-   * built-in phishing instructions). The phishing verdict is produced in a
-   * separate, lightweight call so that custom prompts still get full phishing
-   * protection.
+   * Validate and narrow the raw sentiment value from LLM JSON.
    */
-  async checkPhishingOnly(
+  private validateSentimentResult(
+    value: unknown,
+  ): { score: number; explanation: string } | null {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Record<string, unknown>;
+    if (typeof raw.score !== "number" || typeof raw.explanation !== "string")
+      return null;
+    // Clamp score to [-1, 1]
+    const score = Math.max(-1, Math.min(1, raw.score));
+    return { score, explanation: raw.explanation };
+  }
+
+  /**
+   * Summarize an email using a custom user prompt and append a phishing
+   * detection footer — all in a single LLM call. No separate phishing call.
+   *
+   * The phishing footer instructs the model to return:
+   *   { "summary": "...", "phishing": null | { is_phishing, confidence, reason } }
+   *
+   * @param emailBody  Pre-cleaned body text (or thread text) — pass bodyForLLM, not raw
+   * @param emailSubject Email subject line
+   * @param customPrompt User-defined summarisation instructions
+   * @param phishingSignals Pre-extracted keyword/domain signals used as LLM context
+   * @param isThread True when bodyForLLM contains a multi-message thread
+   * @param totalMessageCount Total number of messages in the thread (for preamble)
+   * @param provider Optional LLM provider override
+   * @param userId Optional user ID for tracking / API key selection
+   */
+  async summarizeCustomPromptWithPhishing(
     emailBody: string,
     emailSubject: string,
+    customPrompt: string,
     phishingSignals: PhishingSignals,
+    isThread: boolean,
+    totalMessageCount: number,
     provider?: LLMProvider,
     userId?: string,
-  ): Promise<PhishingLLMResult | null> {
-    const promptConfig = getPrompt(SUMMARY_PROMPT_IDS.CHECK_PHISHING_ONLY);
-    if (!promptConfig) {
-      const expectedFileName = PROMPT_FILE_NAMES.CHECK_PHISHING_ONLY;
-      throw new StructuralError(
-        `Prompt template not found: check_phishing_only. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory.`,
-      );
-    }
+  ): Promise<{
+    summary: string;
+    phishing: PhishingLLMResult | null;
+    sentiment: { score: number; explanation: string } | null;
+    category: string | null;
+    categoryExplanation: string | null;
+  }> {
+    const PHISHING_JSON_TOKEN_OVERHEAD = 300;
 
-    const isThread =
-      emailBody.includes("[Message") && emailBody.includes("---");
-    const contextNote = isThread
-      ? "This is an email thread with multiple messages."
-      : "";
+    const bodyPreamble = isThread
+      ? `Email Thread Subject: ${emailSubject}\n\nThis thread contains ${totalMessageCount} messages. Here are the key messages (first + last few):\n\n${emailBody}\n\n`
+      : `Email Subject: ${emailSubject}\n\nEmail Body:\n"""\n${emailBody}\n"""\n\n`;
 
-    const cleanedBody = cleanEmailContent(
-      emailBody,
-      null,
-      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
-    );
+    const phishingFooter = `---
 
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      subject: emailSubject,
-      body: cleanedBody,
-      contextNote: contextNote || "",
-      phishingSignals,
-    });
+Return a JSON object (no markdown fences) with exactly these fields:
+{
+  "summary": "<your answer here>",
+  "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
+  "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
+  "category": "<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>",
+  "categoryExplanation": "<one sentence explaining why this category was chosen>"
+}
+
+PHISHING: Is the email pressuring urgent account action, harvesting credentials, or using a mismatched sender domain to deceive? If uncertain, set is_phishing to false.
+SENTIMENT: Score from -1.0 (very negative/threatening) to 0 (neutral) to 1.0 (very positive/excited).
+CATEGORY: Choose the best fit from the listed options; use Other only if nothing else applies.`;
+
+    const phishingSignalsText =
+      phishingSignals.suspiciousKeywords.length > 0 ||
+      phishingSignals.linkedDomains.length > 0
+        ? `\n\nKeyword analysis context (use as signals to inform your judgement, not as a verdict):\n- Sender domain: ${phishingSignals.senderDomain ?? "unknown"}\n- Domains linked in body: ${phishingSignals.linkedDomains.join(", ") || "none"}\n- Domain mismatch detected: ${phishingSignals.hasDomainMismatch}\n- Suspicious keywords found: ${phishingSignals.suspiciousKeywords.join(", ") || "none"}`
+        : "";
+
+    const fullPrompt = `${bodyPreamble}${customPrompt}\n\n${phishingFooter}${phishingSignalsText}`;
 
     const response = await this.generateText(
       {
-        prompt,
-        systemPrompt: promptConfig.systemPrompt || "",
-        temperature: RATIOS.THIRTY_PERCENT,
-        maxTokens: 150,
+        prompt: fullPrompt,
+        systemPrompt:
+          "You are a helpful assistant that summarizes email threads according to user instructions.",
+        temperature: RATIOS.HALF,
+        maxTokens:
+          QUERY_LIMITS.LLM_MAX_TOKENS_SMALL + PHISHING_JSON_TOKEN_OVERHEAD,
         jsonMode: true,
         userId,
       },
       provider,
       userId,
-      LLM_OP_CHECK_PHISHING_ONLY,
+      LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING,
     );
 
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return this.validatePhishingLLMResult(parsed.phishing);
-      }
-    } catch {
-      // fall through — return null (no phishing verdict)
-    }
-    return null;
+    return this.parseSummaryWithPhishing(response);
   }
 
   /**

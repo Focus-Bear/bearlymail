@@ -49,17 +49,24 @@ type SummaryLlmCallResult = {
   summary: string | null;
   phishingConfidence: "low" | "medium" | "high" | null;
   phishingReason: string | null;
+  sentimentScore: number | null;
+  sentimentExplanation: string | null;
+  category: string | null;
+  categoryExplanation: string | null;
   error: unknown;
 };
 
 type PriorityLlmResult = {
   urgencyScore: number;
   urgencyExplanation: string;
-  sentimentScore: number;
+  /** @deprecated Sentiment now comes from the summary LLM call. May be absent. */
+  sentimentScore?: number;
   goalAlignmentScore: number;
   goalAlignmentExplanation: string;
-  category: string;
-  categoryExplanation: string;
+  /** @deprecated Category now comes from the summary LLM call. May be absent. */
+  category?: string;
+  /** @deprecated Category explanation now comes from the summary LLM call. May be absent. */
+  categoryExplanation?: string;
   protoCategorySuggestion?: { name: string; description: string };
 };
 
@@ -287,21 +294,26 @@ export class LLMProcessor implements OnModuleInit {
         `[Worker ${workerId}] Analyzing priority for email ${emailId} (thread: ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}..., subject: ${email.subject?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBJECT_PREVIEW_LENGTH)}...)`,
       );
 
-      // Clean email body: strip HTML, remove signatures, limit to 1000 chars
-      const cleanedBody = cleanEmailContent(
-        email.body,
-        email.htmlBody,
-        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-      );
+      // Use the compact summary for priority analysis (token reduction: summaries are ~200 tokens vs 10K+)
+      // Fall back to cleaned body only if no summary has been generated yet.
+      const bodyForPriority =
+        email.summary && email.summary.trim()
+          ? email.summary
+          : cleanEmailContent(
+              email.body,
+              email.htmlBody,
+              BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+            );
 
       // Format thread emails for LLM (exclude current email, already in chronological order)
+      // Pass summaries instead of full bodies when available.
       const threadEmailsForLLM = threadEmails
         .filter((emailEntry) => emailEntry.id !== email.id)
         .map((emailEntry) => ({
           from: emailEntry.from || "",
           fromName: emailEntry.fromName,
           subject: emailEntry.subject || "",
-          body: emailEntry.body || "",
+          body: emailEntry.summary || emailEntry.body || "",
           receivedAt: emailEntry.receivedAt || new Date(),
         }));
 
@@ -314,7 +326,7 @@ export class LLMProcessor implements OnModuleInit {
           fromName: email.fromName,
           senderJobTitle: email.senderJobTitle,
           subject: email.subject || "",
-          body: cleanedBody,
+          body: bodyForPriority,
         },
         {
           averageTimeToReply: avgTimeToReply,
@@ -517,17 +529,23 @@ export class LLMProcessor implements OnModuleInit {
           siblings && siblings.length > 0
             ? this.buildBatchThreadContext(siblings)
             : undefined;
+        // Use the compact summary for token reduction.
+        // Fall back to cleaned body only if no summary is available yet.
+        const bodyForBatch =
+          email.summary && email.summary.trim()
+            ? email.summary
+            : cleanEmailContent(
+                email.body,
+                email.htmlBody,
+                BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+              );
         return {
           emailKey: email.id,
           from: email.from || "",
           fromName: email.fromName,
           senderJobTitle: email.senderJobTitle,
           subject: email.subject || "",
-          body: cleanEmailContent(
-            email.body,
-            email.htmlBody,
-            BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-          ),
+          body: bodyForBatch,
           threadContext,
         };
       });
@@ -1045,6 +1063,10 @@ export class LLMProcessor implements OnModuleInit {
             summary: result.summary,
             phishingConfidence: result.phishingSignal?.confidence ?? null,
             phishingReason: result.phishingSignal?.reason ?? null,
+            sentimentScore: result.sentimentScore,
+            sentimentExplanation: result.sentimentExplanation,
+            category: result.category,
+            categoryExplanation: result.categoryExplanation,
             error: null,
           };
         } catch (error) {
@@ -1058,6 +1080,10 @@ export class LLMProcessor implements OnModuleInit {
             summary: null,
             phishingConfidence: null,
             phishingReason: null,
+            sentimentScore: null,
+            sentimentExplanation: null,
+            category: null,
+            categoryExplanation: null,
             error,
           };
         }
@@ -1085,6 +1111,9 @@ export class LLMProcessor implements OnModuleInit {
       summary,
       phishingConfidence,
       phishingReason,
+      sentimentScore,
+      category,
+      categoryExplanation,
       error,
     } of results) {
       if (summary && !error) {
@@ -1106,11 +1135,24 @@ export class LLMProcessor implements OnModuleInit {
             {
               summary,
               isProcessingSummary: false,
+              // Store sentiment score from summary (token-efficient: only summary sees full thread)
+              ...(sentimentScore !== null ? { sentimentScore } : {}),
               ...(phishingConfidence !== null
                 ? { phishingConfidence, phishingReason }
                 : {}),
             },
           );
+
+          // Store category on the thread (if the summary produced one)
+          if (category && email.emailThreadId) {
+            await this.emailThreadRepository.update(
+              { id: email.emailThreadId },
+              {
+                category,
+                categoryExplanation: categoryExplanation ?? undefined,
+              },
+            );
+          }
 
           // Auto-classify contact type during initial summary generation
           const senderEmail = this.extractEmailAddress(email.from || "");
@@ -1189,15 +1231,14 @@ export class LLMProcessor implements OnModuleInit {
       calculatedAt: new Date().toISOString(),
     };
 
-    await this.emailRepository.update(
-      { id: email.id },
-      {
-        sentimentScore:
-          llmResult.sentimentScore !== undefined
-            ? llmResult.sentimentScore
-            : null,
-      },
-    );
+    // Sentiment is now computed during summarization (summary sees the full thread).
+    // Only overwrite with the priority LLM's value if it explicitly provided one.
+    if (llmResult.sentimentScore !== undefined) {
+      await this.emailRepository.update(
+        { id: email.id },
+        { sentimentScore: llmResult.sentimentScore },
+      );
+    }
 
     if (email.emailThreadId && thread) {
       const newUrgencyScore = Math.max(
@@ -1218,6 +1259,12 @@ export class LLMProcessor implements OnModuleInit {
           workerId,
         );
 
+      // Category is now set during summarization when possible.
+      // Prioritisation LLM may still return a category (backward compat / refinement).
+      // Use priority LLM category if provided, otherwise keep whatever was set during summary.
+      const resolvedCategoryExplanation =
+        llmResult.categoryExplanation || thread.categoryExplanation || null;
+
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
         {
@@ -1227,8 +1274,7 @@ export class LLMProcessor implements OnModuleInit {
           priorityExplanation,
           priorityScore: finalScore,
           category: finalCategory,
-          categoryExplanation:
-            llmResult.categoryExplanation || thread.categoryExplanation || null,
+          categoryExplanation: resolvedCategoryExplanation,
           protoCategoryId,
           isProcessingPriority: false,
         },

@@ -7,6 +7,9 @@ interface SummarizationRule {
   ruleId: string;
   whenToUse: string;
   howToSummarize: string;
+  fromPatterns: string[];
+  subjectPatterns: string[];
+  priority: number;
   createdAt?: string;
 }
 
@@ -15,8 +18,14 @@ interface SummarizationRuleItemProps {
   editingSummarizationRule: string | null;
   editSummarizationWhen: string;
   editSummarizationHow: string;
+  editFromPatterns: string;
+  editSubjectPatterns: string;
+  editPriority: number;
   onEditSummarizationWhenChange: (value: string) => void;
   onEditSummarizationHowChange: (value: string) => void;
+  onEditFromPatternsChange: (value: string) => void;
+  onEditSubjectPatternsChange: (value: string) => void;
+  onEditPriorityChange: (value: number) => void;
   onSaveSummarizationRule: (ruleId: string) => Promise<void>;
   onEditingSummarizationRuleChange: (ruleId: string | null) => void;
   onEditSummarizationRule: (rule: SummarizationRule) => void;
@@ -28,8 +37,14 @@ export const SummarizationRuleItem: React.FC<SummarizationRuleItemProps> = ({
   editingSummarizationRule,
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
   onSaveSummarizationRule,
   onEditingSummarizationRuleChange,
   onEditSummarizationRule,
@@ -40,8 +55,14 @@ export const SummarizationRuleItem: React.FC<SummarizationRuleItemProps> = ({
       <SummarizationRuleEditForm
         editSummarizationWhen={editSummarizationWhen}
         editSummarizationHow={editSummarizationHow}
+        editFromPatterns={editFromPatterns}
+        editSubjectPatterns={editSubjectPatterns}
+        editPriority={editPriority}
         onEditSummarizationWhenChange={onEditSummarizationWhenChange}
         onEditSummarizationHowChange={onEditSummarizationHowChange}
+        onEditFromPatternsChange={onEditFromPatternsChange}
+        onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+        onEditPriorityChange={onEditPriorityChange}
         onSave={() => onSaveSummarizationRule(rule.ruleId)}
         onCancel={() => onEditingSummarizationRuleChange(null)}
       />

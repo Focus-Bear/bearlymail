@@ -20,7 +20,7 @@ describe("SummarizationService", () => {
     summarizeEmail: jest.fn(),
     generateText: jest.fn(),
     summarizeEmailWithPhishingCheck: jest.fn(),
-    checkPhishingOnly: jest.fn(),
+    summarizeCustomPromptWithPhishing: jest.fn(),
   };
 
   const mockSummarizationRuleRepository = {
@@ -256,7 +256,7 @@ describe("SummarizationService", () => {
   });
 
   describe("summarizeEmailWithPhishing (custom prompt)", () => {
-    it("should run custom prompt for summary AND separate phishing check when rule.type is custom", async () => {
+    it("should use summarizeCustomPromptWithPhishing for custom rules (single LLM call)", async () => {
       const userId = "user-123";
       const emailId = "email-456";
       const rule = {
@@ -270,11 +270,21 @@ describe("SummarizationService", () => {
         threadId: "thread-456",
         from: "noreply@evil.xyz",
       };
-      const mockSummary = "Action items: 1. Verify account (suspicious)";
       const mockPhishingResult = {
         is_phishing: true,
         confidence: "high" as const,
         reason: "Domain evil.xyz does not match any legitimate service.",
+      };
+      const mockCombinedResult = {
+        summary: "Action items: 1. Verify account (suspicious)",
+        phishing: mockPhishingResult,
+        sentiment: {
+          score: -0.8,
+          explanation: "Threatening and suspicious tone",
+        },
+        category: "Other" as const,
+        categoryExplanation:
+          "Suspicious phishing attempt does not fit standard categories",
       };
 
       mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
@@ -282,8 +292,9 @@ describe("SummarizationService", () => {
       mockUsersService.findOneForAuth.mockResolvedValue({
         email: "user@example.com",
       });
-      mockLLMService.generateText.mockResolvedValue(mockSummary);
-      mockLLMService.checkPhishingOnly.mockResolvedValue(mockPhishingResult);
+      mockLLMService.summarizeCustomPromptWithPhishing.mockResolvedValue(
+        mockCombinedResult,
+      );
 
       const result = await service.summarizeEmailWithPhishing(
         userId,
@@ -291,29 +302,22 @@ describe("SummarizationService", () => {
         rule,
       );
 
-      expect(result.summary).toBe(mockSummary);
+      expect(result.summary).toBe(mockCombinedResult.summary);
       expect(result.phishingSignal).toMatchObject({
         confidence: "high",
         reason: expect.stringContaining("evil.xyz"),
       });
 
-      // Custom prompt must be used for the summary
-      expect(mockLLMService.generateText).toHaveBeenCalledWith(
-        expect.objectContaining({
-          prompt: expect.stringContaining("List all action items"),
-        }),
-        undefined,
-        userId,
-      );
-
-      // Phishing check must run separately (not via the combined call)
-      expect(mockLLMService.checkPhishingOnly).toHaveBeenCalled();
+      // Must use the combined single-call method (no separate phishing call)
+      expect(
+        mockLLMService.summarizeCustomPromptWithPhishing,
+      ).toHaveBeenCalled();
       expect(
         mockLLMService.summarizeEmailWithPhishingCheck,
       ).not.toHaveBeenCalled();
     });
 
-    it("should still detect phishing for custom prompt even when summarisation succeeds", async () => {
+    it("should still detect phishing for custom prompt via single combined call", async () => {
       const userId = "user-123";
       const emailId = "email-789";
       const rule = {
@@ -333,13 +337,16 @@ describe("SummarizationService", () => {
       mockUsersService.findOneForAuth.mockResolvedValue({
         email: "user@example.com",
       });
-      mockLLMService.generateText.mockResolvedValue(
-        "Email asks you to verify account.",
-      );
-      mockLLMService.checkPhishingOnly.mockResolvedValue({
-        is_phishing: true,
-        confidence: "high" as const,
-        reason: "Domain bank-secure.ru is a suspicious credential harvester.",
+      mockLLMService.summarizeCustomPromptWithPhishing.mockResolvedValue({
+        summary: "Email asks you to verify account.",
+        phishing: {
+          is_phishing: true,
+          confidence: "high" as const,
+          reason: "Domain bank-secure.ru is a suspicious credential harvester.",
+        },
+        sentiment: { score: -0.9, explanation: "Threatening urgency" },
+        category: "Other",
+        categoryExplanation: "Phishing attempt",
       });
 
       const result = await service.summarizeEmailWithPhishing(
@@ -414,5 +421,176 @@ describe("SummarizationService", () => {
         mockRule,
       );
     });
+  });
+});
+
+describe("matchRuleDeterministic", () => {
+  let service: SummarizationService;
+
+  const mockEmailsServiceLocal = {
+    getEmailById: jest.fn(),
+    getThreadEmails: jest.fn(),
+  };
+
+  const mockLLMServiceLocal = {
+    summarizeEmail: jest.fn(),
+    generateText: jest.fn(),
+    summarizeEmailWithPhishingCheck: jest.fn(),
+    summarizeCustomPromptWithPhishing: jest.fn(),
+  };
+
+  const mockRepoLocal = {
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    findOne: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SummarizationService,
+        { provide: EmailsService, useValue: mockEmailsServiceLocal },
+        { provide: LLMService, useValue: mockLLMServiceLocal },
+        { provide: UsersService, useValue: {} },
+        {
+          provide: ErrorTrackingService,
+          useValue: { captureException: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(SummarizationRuleEntity),
+          useValue: mockRepoLocal,
+        },
+      ],
+    }).compile();
+
+    service = module.get<SummarizationService>(SummarizationService);
+  });
+
+  const makeRule = (
+    overrides: Partial<SummarizationRuleEntity>,
+  ): SummarizationRuleEntity =>
+    ({
+      ruleId: "rule-1",
+      userId: "u1",
+      whenToUse: "description",
+      howToSummarize: "summarize",
+      fromPatterns: [],
+      subjectPatterns: [],
+      priority: 0,
+      createdAt: new Date("2024-01-01"),
+      user: null,
+      ...overrides,
+    }) as SummarizationRuleEntity;
+
+  it("returns null when rules array is empty", () => {
+    expect(service.matchRuleDeterministic({ from: "a@b.com" }, [])).toBeNull();
+  });
+
+  it("returns null when no rule matches", () => {
+    const rule = makeRule({
+      fromPatterns: ["*@github.com"],
+    });
+    expect(
+      service.matchRuleDeterministic({ from: "user@gitlab.com" }, [rule]),
+    ).toBeNull();
+  });
+
+  it("matches by fromPatterns glob", () => {
+    const rule = makeRule({ fromPatterns: ["*@github.com"] });
+    expect(
+      service.matchRuleDeterministic({ from: "user@github.com" }, [rule]),
+    ).toBe(rule);
+  });
+
+  it("matches by subjectPatterns substring", () => {
+    const rule = makeRule({ subjectPatterns: ["invoice"] });
+    expect(
+      service.matchRuleDeterministic(
+        { from: "any@example.com", subject: "Your invoice is ready" },
+        [rule],
+      ),
+    ).toBe(rule);
+  });
+
+  it("matches when both fromPatterns and subjectPatterns are empty (catch-all)", () => {
+    const rule = makeRule({ fromPatterns: [], subjectPatterns: [] });
+    expect(
+      service.matchRuleDeterministic({ from: "x@y.com", subject: "hello" }, [
+        rule,
+      ]),
+    ).toBe(rule);
+  });
+
+  it("picks lower-priority rule first", () => {
+    const lowPriority = makeRule({
+      ruleId: "low",
+      priority: 10,
+      subjectPatterns: ["invoice"],
+    });
+    const highPriority = makeRule({
+      ruleId: "high",
+      priority: 1,
+      subjectPatterns: ["invoice"],
+    });
+    const result = service.matchRuleDeterministic(
+      { from: "x@y.com", subject: "Your invoice" },
+      [lowPriority, highPriority],
+    );
+    expect(result?.ruleId).toBe("high");
+  });
+
+  it("breaks priority ties using createdAt (older rule wins)", () => {
+    const older = makeRule({
+      ruleId: "older",
+      priority: 0,
+      createdAt: new Date("2024-01-01"),
+      fromPatterns: ["*@github.com"],
+    });
+    const newer = makeRule({
+      ruleId: "newer",
+      priority: 0,
+      createdAt: new Date("2024-06-01"),
+      fromPatterns: ["*@github.com"],
+    });
+    const result = service.matchRuleDeterministic({ from: "user@github.com" }, [
+      newer,
+      older,
+    ]);
+    expect(result?.ruleId).toBe("older");
+  });
+
+  it("requires BOTH fromPatterns AND subjectPatterns to match", () => {
+    const rule = makeRule({
+      fromPatterns: ["*@github.com"],
+      subjectPatterns: ["invoice"],
+    });
+    // from matches but subject does not
+    expect(
+      service.matchRuleDeterministic(
+        { from: "user@github.com", subject: "Pull request merged" },
+        [rule],
+      ),
+    ).toBeNull();
+  });
+
+  it("skips non-matching rules and returns the first matching one", () => {
+    const noMatch = makeRule({
+      ruleId: "no-match",
+      priority: 0,
+      fromPatterns: ["*@linear.app"],
+    });
+    const match = makeRule({
+      ruleId: "match",
+      priority: 1,
+      fromPatterns: ["*@github.com"],
+    });
+    const result = service.matchRuleDeterministic({ from: "user@github.com" }, [
+      noMatch,
+      match,
+    ]);
+    expect(result?.ruleId).toBe("match");
   });
 });

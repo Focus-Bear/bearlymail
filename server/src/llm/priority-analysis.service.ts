@@ -483,7 +483,7 @@ export class PriorityAnalysisService {
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
 From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
 Subject: ${email.subject}${threadContextSection}
-Body: ${cleanedBody}`;
+Summary: ${cleanedBody}`;
     });
 
     const { contextParts, emailCategoriesText } =
@@ -498,10 +498,11 @@ Body: ${cleanedBody}`;
 
     const batchPrompt = `You are an email prioritization assistant. Analyze each email below and return a JSON object wrapping an array of results.
 
+Note: Each email is provided as a compact summary (not the full thread). Sentiment has already been computed from the full thread — do NOT include sentimentScore in your output.
+
 For EACH email, provide:
 - urgencyScore (0-100): How urgently it requires attention
 - urgencyExplanation: Brief explanation
-- sentimentScore (-1 to 1): Email sentiment
 - goalAlignmentScore (0-100): Alignment with user's goals
 - goalAlignmentExplanation: Brief explanation
 - category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY as a last resort after exhausting all provided categories.
@@ -526,7 +527,6 @@ Example (2-item):
       "key": "email-1",
       "urgencyScore": 30,
       "urgencyExplanation": "Low urgency, informational content",
-      "sentimentScore": 0,
       "goalAlignmentScore": 10,
       "goalAlignmentExplanation": "Newsletter unrelated to active goals",
       "category": "Newsletters",
@@ -537,7 +537,6 @@ Example (2-item):
       "key": "email-2",
       "urgencyScore": 75,
       "urgencyExplanation": "Customer blocked, needs immediate response",
-      "sentimentScore": -0.6,
       "goalAlignmentScore": 85,
       "goalAlignmentExplanation": "Directly related to active support goal",
       "category": "Customer Support",

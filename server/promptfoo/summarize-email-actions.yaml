@@ -20,15 +20,34 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          // Should extract actionable items
-          const lower = text.toLowerCase();
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
           const hasActions = lower.includes('review') || lower.includes('schedule') || lower.includes('prepare') || lower.includes('update') || lower.includes('action');
-          if (!hasActions || text.length < 30) {
-            throw new Error(`Expected action items. Got: ${text.substring(0, 200)}`);
+          if (!hasActions) {
+            throw new Error(`Expected action items in summary. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score number`);
+          }
+          const validCategories = ['Newsletters', 'Sales & Marketing', 'Customer Support', 'HR & Admin', 'Finance', 'Partnerships', 'GitHub & Code', 'Personal', 'Other'];
+          if (!validCategories.includes(parsed.category)) {
+            throw new Error(`category "${parsed.category}" not in valid list`);
+          }
+          if (typeof parsed.categoryExplanation !== 'string') {
+            throw new Error(`Expected categoryExplanation string`);
           }
           return true;
-    description: "Should extract action items from email"
+    description: "Should extract action items JSON with sentiment and category"
 
   - vars:
       isThread: false
@@ -38,14 +57,28 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          const lower = text.toLowerCase();
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
           const hasActions = lower.includes('send') || lower.includes('update') || lower.includes('confirm') || lower.includes('report');
-          if (!hasActions || text.length < 20) {
-            throw new Error(`Expected action items. Got: ${text.substring(0, 200)}`);
+          if (!hasActions) {
+            throw new Error(`Expected action items. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          const validCategories = ['Newsletters', 'Sales & Marketing', 'Customer Support', 'HR & Admin', 'Finance', 'Partnerships', 'GitHub & Code', 'Personal', 'Other'];
+          if (!validCategories.includes(parsed.category)) {
+            throw new Error(`category "${parsed.category}" not in valid list`);
           }
           return true;
-    description: "Should identify actionable tasks"
-
-
-
+    description: "Should identify actionable tasks with sentiment and category"

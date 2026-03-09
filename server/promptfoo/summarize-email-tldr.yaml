@@ -20,19 +20,44 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          // Should be concise (TL;DR format)
-          if (text.length > 500) {
-            throw new Error(`Expected concise TL;DR (max 500 chars), got ${text.length} chars`);
+          // Response should be valid JSON with the expanded shape
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
           }
-          // Should mention key points
-          const lower = text.toLowerCase();
-          const hasKeyInfo = lower.includes('q4') || lower.includes('project') || lower.includes('80%') || lower.includes('progress');
-          if (!hasKeyInfo || text.length < 20) {
-            throw new Error(`Expected key information in summary. Got: ${text.substring(0, 200)}`);
+          // summary field
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary string, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
+          const hasKeyInfo = lower.includes('q4') || lower.includes('project') || lower.includes('80') || lower.includes('progress');
+          if (!hasKeyInfo) {
+            throw new Error(`Summary missing key info. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          // sentiment field
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score number, got: ${JSON.stringify(parsed.sentiment)}`);
+          }
+          if (parsed.sentiment.score < -1 || parsed.sentiment.score > 1) {
+            throw new Error(`sentiment.score out of range [-1,1]: ${parsed.sentiment.score}`);
+          }
+          if (typeof parsed.sentiment.explanation !== 'string') {
+            throw new Error(`Expected sentiment.explanation string`);
+          }
+          // category field
+          const validCategories = ['Newsletters', 'Sales & Marketing', 'Customer Support', 'HR & Admin', 'Finance', 'Partnerships', 'GitHub & Code', 'Personal', 'Other'];
+          if (!validCategories.includes(parsed.category)) {
+            throw new Error(`category "${parsed.category}" not in valid list`);
+          }
+          if (typeof parsed.categoryExplanation !== 'string') {
+            throw new Error(`Expected categoryExplanation string`);
           }
           return true;
-    description: "Should generate concise TL;DR summary"
+    description: "Should generate JSON with summary, sentiment, category for project update email"
 
   - vars:
       isThread: true
@@ -42,15 +67,65 @@ tests:
     assert:
       - type: javascript
         value: |
-          const text = typeof output === 'string' ? output : JSON.stringify(output);
-          // Should summarize the thread
-          const lower = text.toLowerCase();
-          const mentionsMeeting = lower.includes('meeting') || lower.includes('friday') || lower.includes('schedule');
-          if (!mentionsMeeting || text.length < 15) {
-            throw new Error(`Expected thread summary. Got: ${text.substring(0, 200)}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+            throw new Error(`Expected non-empty summary, got: ${JSON.stringify(parsed.summary)}`);
+          }
+          const lower = parsed.summary.toLowerCase();
+          if (!lower.includes('meeting') && !lower.includes('friday') && !lower.includes('schedule')) {
+            throw new Error(`Summary missing meeting context. Got: ${parsed.summary.substring(0, 200)}`);
+          }
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          const validCategories = ['Newsletters', 'Sales & Marketing', 'Customer Support', 'HR & Admin', 'Finance', 'Partnerships', 'GitHub & Code', 'Personal', 'Other'];
+          if (!validCategories.includes(parsed.category)) {
+            throw new Error(`category "${parsed.category}" not in valid list`);
           }
           return true;
-    description: "Should summarize email threads"
+    description: "Should summarize email threads with sentiment and category"
 
-
-
+  - vars:
+      isThread: false
+      subject: "URGENT: Your account has been suspended!"
+      contextNote: ""
+      body: "Dear customer, your account has been suspended due to suspicious activity. Click here immediately to verify your account: http://not-real-bank.com/verify?user=12345. Failure to act within 24 hours will result in permanent suspension."
+      phishingSignals:
+        senderDomain: "suspicious-domain.net"
+        linkedDomains: ["not-real-bank.com"]
+        hasDomainMismatch: true
+        suspiciousKeywords: ["suspended", "verify", "immediately"]
+    assert:
+      - type: javascript
+        value: |
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch (e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          // phishing field should flag this
+          if (!parsed.phishing || parsed.phishing.is_phishing !== true) {
+            throw new Error(`Expected phishing.is_phishing=true for obvious phishing email, got: ${JSON.stringify(parsed.phishing)}`);
+          }
+          if (!['low', 'medium', 'high'].includes(parsed.phishing.confidence)) {
+            throw new Error(`Expected phishing confidence level, got: ${parsed.phishing.confidence}`);
+          }
+          // sentiment should be negative
+          if (!parsed.sentiment || typeof parsed.sentiment.score !== 'number') {
+            throw new Error(`Expected sentiment.score`);
+          }
+          if (parsed.sentiment.score > 0) {
+            throw new Error(`Expected negative sentiment for threatening email, got: ${parsed.sentiment.score}`);
+          }
+          return true;
+    description: "Should detect phishing and return negative sentiment for suspicious email"

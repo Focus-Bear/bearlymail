@@ -19,6 +19,9 @@ interface SummarizationRule {
   ruleId: string;
   whenToUse: string;
   howToSummarize: string;
+  fromPatterns: string[];
+  subjectPatterns: string[];
+  priority: number;
   createdAt?: string;
 }
 
@@ -30,9 +33,15 @@ interface GuideOurAISectionProps {
   newToneRule: string;
   newSummarizationWhen: string;
   newSummarizationHow: string;
+  newFromPatterns: string;
+  newSubjectPatterns: string;
+  newPriority: number;
   editingSummarizationRule: string | null;
   editSummarizationWhen: string;
   editSummarizationHow: string;
+  editFromPatterns: string;
+  editSubjectPatterns: string;
+  editPriority: number;
   newContextValue: string;
   newContextPriority: number;
   addingContextType: string | null;
@@ -52,8 +61,14 @@ interface GuideOurAISectionProps {
   onDeleteSummarizationRule: (ruleId: string) => Promise<void>;
   onNewSummarizationWhenChange: (value: string) => void;
   onNewSummarizationHowChange: (value: string) => void;
+  onNewFromPatternsChange: (value: string) => void;
+  onNewSubjectPatternsChange: (value: string) => void;
+  onNewPriorityChange: (value: number) => void;
   onEditSummarizationWhenChange: (value: string) => void;
   onEditSummarizationHowChange: (value: string) => void;
+  onEditFromPatternsChange: (value: string) => void;
+  onEditSubjectPatternsChange: (value: string) => void;
+  onEditPriorityChange: (value: number) => void;
   onEditingSummarizationRuleChange: (ruleId: string | null) => void;
   onAddContext: () => Promise<void>;
   onUpdateContext: () => Promise<void>;
@@ -77,9 +92,15 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   newToneRule,
   newSummarizationWhen,
   newSummarizationHow,
+  newFromPatterns,
+  newSubjectPatterns,
+  newPriority,
   editingSummarizationRule,
   editSummarizationWhen,
   editSummarizationHow,
+  editFromPatterns,
+  editSubjectPatterns,
+  editPriority,
   newContextValue,
   newContextPriority,
   addingContextType,
@@ -99,8 +120,14 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onDeleteSummarizationRule,
   onNewSummarizationWhenChange,
   onNewSummarizationHowChange,
+  onNewFromPatternsChange,
+  onNewSubjectPatternsChange,
+  onNewPriorityChange,
   onEditSummarizationWhenChange,
   onEditSummarizationHowChange,
+  onEditFromPatternsChange,
+  onEditSubjectPatternsChange,
+  onEditPriorityChange,
   onEditingSummarizationRuleChange,
   onAddContext,
   onUpdateContext,
@@ -161,17 +188,29 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         summarizationRules={summarizationRules}
         newSummarizationWhen={newSummarizationWhen}
         newSummarizationHow={newSummarizationHow}
+        newFromPatterns={newFromPatterns}
+        newSubjectPatterns={newSubjectPatterns}
+        newPriority={newPriority}
         editingSummarizationRule={editingSummarizationRule}
         editSummarizationWhen={editSummarizationWhen}
         editSummarizationHow={editSummarizationHow}
+        editFromPatterns={editFromPatterns}
+        editSubjectPatterns={editSubjectPatterns}
+        editPriority={editPriority}
         onAddSummarizationRule={onAddSummarizationRule}
         onEditSummarizationRule={onEditSummarizationRule}
         onSaveSummarizationRule={onSaveSummarizationRule}
         onDeleteSummarizationRule={onDeleteSummarizationRule}
         onNewSummarizationWhenChange={onNewSummarizationWhenChange}
         onNewSummarizationHowChange={onNewSummarizationHowChange}
+        onNewFromPatternsChange={onNewFromPatternsChange}
+        onNewSubjectPatternsChange={onNewSubjectPatternsChange}
+        onNewPriorityChange={onNewPriorityChange}
         onEditSummarizationWhenChange={onEditSummarizationWhenChange}
         onEditSummarizationHowChange={onEditSummarizationHowChange}
+        onEditFromPatternsChange={onEditFromPatternsChange}
+        onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+        onEditPriorityChange={onEditPriorityChange}
         onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
       />
     </div>

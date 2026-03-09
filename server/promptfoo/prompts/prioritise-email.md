@@ -9,7 +9,7 @@ Provide:
    - 61-89: High urgency, requires prompt attention
    - 90-100: Critical urgency, requires immediate attention (emergencies, critical deadlines, time-sensitive requests)
 2. urgencyExplanation: Brief explanation of the urgency score
-3. sentimentScore (-1 to 1): Email sentiment where -1 is very negative/urgent, 0 is neutral, 1 is very positive
+3. sentimentScore: Pre-computed from the summary step — DO NOT recompute. Omit this field from your output.
 4. goalAlignmentScore (0-100): How well the email aligns with the user's goals and current work
    - 0-30: Low alignment, not related to user's goals
    - 31-60: Moderate alignment, somewhat related
@@ -79,7 +79,7 @@ IMPORTANT RULES:
 7. **Subject line urgency signals are critical**: When the subject line contains words like "Urgent", "ASAP", "Emergency", "Critical", "Immediate", or "Time-sensitive", this is a deliberate signal from the sender that the email requires prompt attention. These subject line signals should result in a MINIMUM urgencyScore of 70, regardless of how mundane the email body may seem. The sender explicitly chose to mark it as urgent — respect that intent.
 8. **Newsletters and mass-sent emails deserve LOW scores**: Newsletters, digests, mailing list emails, and promotional content should ALWAYS receive an urgency score of 0 and LOW goal alignment scores (0-20). Even if a newsletter's topic overlaps with the user's goals or interests, it is NOT the same as a personal email that requires action. Newsletters are informational background reading — they do not require the user to DO anything, they have no deadlines directed at the user, and no one is waiting for a reply. The only exception is if a newsletter contains a specific, time-bound call to action directly relevant to the user (e.g., "register by Friday for this conference"). Simply discussing topics the user cares about is NOT sufficient for a high goal alignment score — the email must require the user's direct engagement or action to score above 20 for goal alignment. NOTE: This rule does NOT apply to calendar invitations, meeting requests, account alerts, or transactional emails — those are automated but actionable and should be scored normally based on their content.
 
-Return a JSON object with a top-level "result" key: { "result": { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string, "categoryExplanation": string, "protoCategorySuggestion": { "name": string, "description": string } (ONLY include if category is "Other"), "reasoning": string } }
+Return a JSON object with a top-level "result" key: { "result": { "urgencyScore": number (0-100), "urgencyExplanation": string, "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string, "categoryExplanation": string, "protoCategorySuggestion": { "name": string, "description": string } (ONLY include if category is "Other"), "reasoning": string } }
 
 ---
 DYNAMIC CONTEXT (varies per request):
@@ -128,11 +128,11 @@ EMAIL TO ANALYZE:
 
 From: {{fromName}}{% if senderJobTitle %} ({{senderJobTitle}}){% endif %}
 Subject: {{subject}}
-Body: {{body}}
+Summary: {{body}}
 {% if averageTimeToReply %}
 User's average time to reply: {{averageTimeToReply}} hours
 {% endif %}
 
 CRITICAL: The email content is provided above in the "From:", "Subject:", and "Body:" fields. Use the actual values shown above, not placeholder text. Analyze the email using the provided content.
 
-Now analyze this email and return the JSON object with a top-level "result" key containing urgencyScore, urgencyExplanation, sentimentScore, goalAlignmentScore, goalAlignmentExplanation, category, categoryExplanation, and reasoning.
+Now analyze this email and return the JSON object with a top-level "result" key containing urgencyScore, urgencyExplanation, goalAlignmentScore, goalAlignmentExplanation, category, categoryExplanation, and reasoning. Do NOT include sentimentScore — it is pre-computed from the summary step.

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsGrid';
-import { MissingFromProcessTabList } from 'components/inbox/debug/MissingFromProcessTabList';
 import { StarredComparisonGrid } from 'components/inbox/debug/StarredComparisonGrid';
 import { StarredThreadsList } from 'components/inbox/debug/StarredThreadsList';
 import { DebugStarredData } from 'components/inbox/debug/types';
@@ -35,6 +34,14 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
     await onFetchDebugStarred();
     setShowSyncPopup(true);
   };
+
+  // Derive comparison data from threads[] (new API shape — no separate comparison object)
+  const inGmailNotInDb = (debugStarredData?.threads ?? [])
+    .filter(thread => !thread.inDb)
+    .map(thread => thread.threadId);
+  // inDbNotInGmail is no longer available in the new API response shape
+  const inDbNotInGmail: string[] = [];
+  const actionTabResults = debugStarredData?.summary?.inActionOrFollowUp ?? 0;
 
   return (
     <div
@@ -68,18 +75,17 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
       {debugStarredData && (
         <div>
-          {debugStarredData.gmail && debugStarredData.database && (
-            <StarredComparisonGrid gmail={debugStarredData.gmail} database={debugStarredData.database} />
+          {debugStarredData.summary && (
+            <StarredComparisonGrid summary={debugStarredData.summary} gmailError={debugStarredData.gmailError} />
           )}
-          {debugStarredData.comparison && (
+          {inGmailNotInDb.length > 0 && (
             <ComparisonResultsGrid
-              inGmailNotInDb={debugStarredData.comparison.inGmailNotInDb}
-              inDbNotInGmail={debugStarredData.comparison.inDbNotInGmail}
-              actionTabResults={debugStarredData.actionTabResults}
+              inGmailNotInDb={inGmailNotInDb}
+              inDbNotInGmail={inDbNotInGmail}
+              actionTabResults={actionTabResults}
             />
           )}
-          <MissingFromProcessTabList missingItems={debugStarredData.missingFromProcessTab ?? []} />
-          <StarredThreadsList threads={debugStarredData.starredThreads ?? []} />
+          <StarredThreadsList threads={debugStarredData.threads ?? []} />
         </div>
       )}
 
@@ -108,21 +114,28 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
             }}
             onClick={event => event.stopPropagation()}
           >
-            <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
-            {debugStarredData.gmail && (
-              <p style={{ marginTop: 0 }}>
-                Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across{' '}
-                {debugStarredData.gmail.starredThreadCount} threads.
+            <h4 style={{ marginTop: 0 }}>
+              Starred Sync Check Results — {debugStarredData.summary?.gmailStarredCount ?? 0} Gmail starred threads
+            </h4>
+            {debugStarredData.gmailError && (
+              <p style={{ color: 'red', marginTop: 0 }}>
+                Gmail error: {debugStarredData.gmailError}
               </p>
             )}
-            {debugStarredData.gmailVisibilityChecks?.map(item => (
-              <div key={item.threadId} style={{ marginBottom: theme.spacing.sm }}>
-                <strong>{item.threadId}</strong> — {item.visibleInAction ? 'Visible' : 'Hidden'} ({item.syncStatus})
-                <ul style={{ margin: `${theme.spacing.xs} 0` }}>
-                  {item.reasons.map(reason => (
-                    <li key={`${item.threadId}-${reason}`}>{reason}</li>
-                  ))}
-                </ul>
+            {debugStarredData.summary && (
+              <p style={{ marginTop: 0 }}>
+                {debugStarredData.summary.foundInDb} of {debugStarredData.summary.gmailStarredCount} starred Gmail
+                threads are in the DB. {debugStarredData.summary.notInDb} are missing. {' '}
+                {debugStarredData.summary.inActionOrFollowUp} appear in Action/Follow-up.
+              </p>
+            )}
+
+            {/* Per-thread reason codes (replaces old gmailVisibilityChecks) */}
+            {debugStarredData.threads?.map(thread => (
+              <div key={thread.threadId} style={{ marginBottom: theme.spacing.sm }}>
+                <strong>{thread.threadId}</strong>
+                {thread.subject && <span style={{ color: theme.colors.text.secondary }}> — {thread.subject}</span>}
+                <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>{thread.reason}</div>
               </div>
             ))}
 

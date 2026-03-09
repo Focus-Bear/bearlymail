@@ -1666,7 +1666,12 @@
       "gmailTitle": "Gmail",
       "starredThreads": "starred threads",
       "database": "Database",
-      "starredEmails": "starred emails"
+      "starredEmails": "starred emails",
+      "foundInDb": "found in DB",
+      "notInDb": "not in DB (not synced)",
+      "inActionOrFollowUp": "in Action/Follow-up",
+      "starredInDbButHidden": "starred in DB but hidden",
+      "notStarredInDb": "in DB but not starred"
     },
     "view": {
       "title": "Debug View"

@@ -404,7 +404,12 @@
       "gmailTitle": "Gmail",
       "starredEmails": "correos electrónicos destacados",
       "starredThreads": "hilos destacados",
-      "title": "Comparación destacada"
+      "title": "Comparación destacada",
+      "foundInDb": "found in DB",
+      "notInDb": "not in DB (not synced)",
+      "inActionOrFollowUp": "in Action/Follow-up",
+      "starredInDbButHidden": "starred in DB but hidden",
+      "notStarredInDb": "in DB but not starred"
     },
     "stats": {
       "deliverySchedule": "Calendario de entrega",

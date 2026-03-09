@@ -264,6 +264,13 @@ export class EmailDebugService {
       appearsInActionOrFollowUp: boolean;
       reason: string;
     }>;
+    staleUnsyncedThreads: Array<{
+      threadId: string;
+      syncStatusUpdatedAt: string | null;
+      minutesUnsynced: number;
+      isArchived: boolean;
+      starCount: number;
+    }>;
   }> {
     // ── Step 1: Fetch starred inbox thread IDs from Gmail (lightweight threads.list) ──
     let gmailStarredThreadIds: string[] = [];
@@ -425,6 +432,33 @@ export class EmailDebugService {
         !thread.appearsInActionOrFollowUp,
     ).length;
 
+    // ── Step 6: stale unsynced threads (syncStatus='unsynced' for >5 min) ──
+    // Re-added to support the "Fix Stale Unsynced Threads" button in the debug popup.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
+    const staleUnsyncedEntities = await this.emailThreadRepository.find({
+      where: { userId, syncStatus: "unsynced" },
+      select: ["threadId", "syncStatusUpdatedAt", "isArchived", "starCount"],
+    });
+    const staleUnsyncedThreads = staleUnsyncedEntities
+      .filter(
+        (thread) =>
+          thread.syncStatusUpdatedAt &&
+          thread.syncStatusUpdatedAt < fiveMinutesAgo,
+      )
+      .map((thread) => ({
+        threadId:
+          thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW) + "...",
+        syncStatusUpdatedAt:
+          thread.syncStatusUpdatedAt?.toISOString() ?? null,
+        minutesUnsynced: Math.floor(
+          (Date.now() -
+            new Date(thread.syncStatusUpdatedAt ?? 0).getTime()) /
+            MILLISECONDS.MINUTE,
+        ),
+        isArchived: thread.isArchived,
+        starCount: thread.starCount,
+      }));
+
     return {
       ...(gmailError ? { gmailError } : {}),
       summary: {
@@ -436,6 +470,7 @@ export class EmailDebugService {
         notStarredInDb,
       },
       threads,
+      staleUnsyncedThreads,
     };
   }
 

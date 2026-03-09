@@ -5,15 +5,12 @@ import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface StarredThread {
   threadId: string;
-  starCount: number;
-  isArchived: boolean;
-  isSnoozed: boolean;
-  emailCount: number;
-  latestSubject: string;
-  latestFrom: string;
-  issues: string[];
-  inGmail: boolean;
-  lastCheckedAt?: string | null;
+  subject: string | null;
+  inDb: boolean;
+  isStarredInDb: boolean;
+  category: string | null;
+  appearsInActionOrFollowUp: boolean;
+  reason: string;
 }
 
 interface StarredThreadsListProps {
@@ -24,18 +21,30 @@ const getThreadKey = (thread: StarredThread, index: number): string => {
   return `thread-${thread.threadId}-${index}`;
 };
 
-const getBackgroundColor = (hasIssues: boolean): string => {
-  if (hasIssues) {
+const getBackgroundColor = (thread: StarredThread): string => {
+  if (!thread.inDb) {
     return '#FFE6E6';
   }
-  return '#D4EDDA';
+  if (!thread.isStarredInDb) {
+    return '#FFF3CD';
+  }
+  if (thread.appearsInActionOrFollowUp) {
+    return '#D4EDDA';
+  }
+  return '#E6F0FF';
 };
 
-const getBorderColor = (hasIssues: boolean): string => {
-  if (hasIssues) {
+const getBorderColor = (thread: StarredThread): string => {
+  if (!thread.inDb) {
     return '#F5C6CB';
   }
-  return '#C3E6CB';
+  if (!thread.isStarredInDb) {
+    return '#FFEEBA';
+  }
+  if (thread.appearsInActionOrFollowUp) {
+    return '#C3E6CB';
+  }
+  return '#B8D4FF';
 };
 
 export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads = [] }) => {
@@ -48,15 +57,15 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
           marginBottom: theme.spacing.sm,
         }}
       >
-        All Starred Threads in DB ({threads?.length ?? 0})
+        All Gmail Starred Threads ({threads?.length ?? 0})
       </summary>
       {(threads ?? []).map((thread, index) => (
         <div
           key={getThreadKey(thread, index)}
           style={{
             padding: theme.spacing.sm,
-            backgroundColor: getBackgroundColor(thread.issues.length > 0),
-            border: `1px solid ${getBorderColor(thread.issues.length > 0)}`,
+            backgroundColor: getBackgroundColor(thread),
+            border: `1px solid ${getBorderColor(thread)}`,
             borderRadius: theme.borderRadius.sm,
             marginBottom: theme.spacing.xs,
           }}
@@ -66,37 +75,34 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
               <strong>Thread:</strong> {thread.threadId}
             </span>
             <span>
-              <strong>Stars:</strong> {'⭐'.repeat(thread.starCount)}
+              <strong>In DB:</strong> {thread.inDb ? '✅' : '❌ NOT SYNCED'}
             </span>
             <span>
-              <strong>Emails:</strong> {thread.emailCount}
+              <strong>Starred in DB:</strong> {thread.isStarredInDb ? '⭐' : '—'}
             </span>
             <span>
-              <strong>Archived:</strong> {thread.isArchived ? '❌ YES' : '✅ NO'}
+              <strong>Action/FollowUp:</strong> {thread.appearsInActionOrFollowUp ? '✅' : '—'}
             </span>
-            <span>
-              <strong>In Gmail:</strong> {thread.inGmail ? '✅' : '❌'}
-            </span>
-            {thread.lastCheckedAt && (
+            {thread.category && (
               <span>
-                <strong>Last checked:</strong> {new Date(thread.lastCheckedAt).toLocaleString()}
+                <strong>Category:</strong> {thread.category}
               </span>
             )}
           </div>
-          <div
-            style={{
-              fontSize: '0.65rem',
-              color: theme.colors.text.secondary,
-              marginTop: '2px',
-            }}
-          >
-            {thread.latestFrom}: {thread.latestSubject}
-          </div>
-          {thread.issues.length > 0 && (
-            <div style={{ color: COLOR_NAMED_RED, marginTop: '4px' }}>
-              <strong>Issues:</strong> {thread.issues.join(', ')}
+          {thread.subject && (
+            <div
+              style={{
+                fontSize: '0.65rem',
+                color: theme.colors.text.secondary,
+                marginTop: '2px',
+              }}
+            >
+              {thread.subject}
             </div>
           )}
+          <div style={{ color: COLOR_NAMED_RED, marginTop: '4px', fontSize: '0.75rem' }}>
+            {thread.reason}
+          </div>
         </div>
       ))}
     </details>

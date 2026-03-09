@@ -6,18 +6,18 @@ import { COLOR_INFO_BLUE_LIGHT, COLOR_NAMED_RED } from 'constants/colors';
 import { EMOJI_DATABASE, EMOJI_EMAIL } from 'constants/emojis';
 
 interface StarredComparisonGridProps {
-  gmail: {
-    starredThreadCount: number;
-    starredEmailCount: number;
-    error?: string;
+  summary: {
+    gmailStarredCount: number;
+    foundInDb: number;
+    notInDb: number;
+    inActionOrFollowUp: number;
+    starredInDbButHidden: number;
+    notStarredInDb: number;
   };
-  database: {
-    starredThreadCount: number;
-    starredEmailCount: number;
-  };
+  gmailError?: string;
 }
 
-export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ gmail, database }) => {
+export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ summary, gmailError }) => {
   const { t } = useTranslation();
 
   return (
@@ -40,19 +40,14 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ gm
         <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
           {EMOJI_EMAIL} {t('debug.starred.gmailTitle')}
         </h5>
-        {gmail.error ? (
+        {gmailError ? (
           <div style={{ color: COLOR_NAMED_RED }}>
-            {t('common.error')}: {gmail.error}
+            {t('common.error')}: {gmailError}
           </div>
         ) : (
-          <>
-            <div>
-              <strong>{gmail.starredThreadCount}</strong> {t('debug.starred.starredThreads')}
-            </div>
-            <div>
-              <strong>{gmail.starredEmailCount}</strong> {t('debug.starred.starredEmails')}
-            </div>
-          </>
+          <div>
+            <strong>{summary.gmailStarredCount}</strong> {t('debug.starred.starredThreads')}
+          </div>
         )}
       </div>
       <div
@@ -67,10 +62,26 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ gm
           {EMOJI_DATABASE} {t('debug.starred.database')}
         </h5>
         <div>
-          <strong>{database.starredThreadCount}</strong> {t('debug.starred.starredThreads')}
+          <strong>{summary.foundInDb}</strong> {t('debug.starred.foundInDb')}
         </div>
         <div>
-          <strong>{database.starredEmailCount}</strong> {t('debug.starred.starredEmails')}
+          <strong style={{ color: summary.notInDb > 0 ? 'red' : 'green' }}>{summary.notInDb}</strong>{' '}
+          {t('debug.starred.notInDb')}
+        </div>
+        <div>
+          <strong>{summary.inActionOrFollowUp}</strong> {t('debug.starred.inActionOrFollowUp')}
+        </div>
+        <div>
+          <strong style={{ color: summary.starredInDbButHidden > 0 ? 'orange' : 'green' }}>
+            {summary.starredInDbButHidden}
+          </strong>{' '}
+          {t('debug.starred.starredInDbButHidden')}
+        </div>
+        <div>
+          <strong style={{ color: summary.notStarredInDb > 0 ? 'orange' : 'green' }}>
+            {summary.notStarredInDb}
+          </strong>{' '}
+          {t('debug.starred.notStarredInDb')}
         </div>
       </div>
     </div>

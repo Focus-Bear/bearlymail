@@ -3142,6 +3142,13 @@ export class EmailsService {
       appearsInActionOrFollowUp: boolean;
       reason: string;
     }>;
+    staleUnsyncedThreads: Array<{
+      threadId: string;
+      syncStatusUpdatedAt: string | null;
+      minutesUnsynced: number;
+      isArchived: boolean;
+      starCount: number;
+    }>;
   }> {
     return this.emailDebugService.debugStarredThreads(userId);
   }

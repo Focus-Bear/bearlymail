@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 
 interface ComparisonResultsGridProps {
   inGmailNotInDb: string[];
+  // Note: inDbNotInGmail is no longer available in the new API response shape.
+  // The column is kept for UI consistency but will always be empty.
   inDbNotInGmail: string[];
   actionTabResults: number;
 }

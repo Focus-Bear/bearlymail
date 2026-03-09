@@ -1,47 +1,27 @@
 export interface DebugStarredData {
-  lastSyncTime: string | null;
-  gmail: {
-    starredThreadCount: number;
-    starredEmailCount: number;
-    starredThreadIds: string[];
-    error?: string;
+  // Optional Gmail error (e.g. auth expired)
+  gmailError?: string;
+  // Aggregate counts
+  summary: {
+    gmailStarredCount: number; // threads matching "is:starred in:inbox" in Gmail
+    foundInDb: number; // how many of those are in our DB
+    notInDb: number; // how many are missing from DB
+    inActionOrFollowUp: number; // how many appear in Action/Follow-up tab
+    starredInDbButHidden: number; // in DB with starCount>0 but blocked/snoozed/batched
+    notStarredInDb: number; // in DB but starCount=0
   };
-  database: {
-    starredThreadCount: number;
-    starredEmailCount: number;
-  };
-  actionTabResults: number;
-  comparison?: {
-    inGmailNotInDb: string[];
-    inDbNotInGmail: string[];
-    inDbButArchived: string[];
-  };
-  starredThreads: Array<{
+  // Per-thread breakdown (Gmail's perspective — not just DB-starred ones)
+  threads: Array<{
     threadId: string;
-    starCount: number;
-    isArchived: boolean;
-    isSnoozed: boolean;
-    emailCount: number;
-    latestSubject: string;
-    latestFrom: string;
-    issues: string[];
-    inGmail: boolean;
-    syncStatus: 'synced' | 'unsynced';
-    lastCheckedAt?: string | null;
+    subject: string | null;
+    inDb: boolean;
+    isStarredInDb: boolean;
+    category: string | null;
+    appearsInActionOrFollowUp: boolean;
+    reason: string; // human-readable reason code from EmailDebugService
   }>;
-  missingFromProcessTab: Array<{
-    threadId: string;
-    reason: string;
-    details: any;
-  }>;
-  gmailVisibilityChecks: Array<{
-    threadId: string;
-    inDatabase: boolean;
-    visibleInAction: boolean;
-    syncStatus: 'synced' | 'unsynced' | 'missing';
-    reasons: string[];
-  }>;
-  staleUnsyncedThreads: Array<{
+  // Re-added by server: syncStatus='unsynced' for >5 min (needed by Fix Stale button)
+  staleUnsyncedThreads?: Array<{
     threadId: string;
     syncStatusUpdatedAt: string | null;
     minutesUnsynced: number;

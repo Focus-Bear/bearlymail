@@ -738,7 +738,7 @@ export class EmailsService {
         e."from", e."fromName", e."senderJobTitle", e.subject,
         e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
         e."phishingConfidence", e."phishingReason",
-        e."receivedAt", e.labels,
+        e."receivedAt", e.labels, e."cc",
         correspondent."from" as "correspondentEmail",
         correspondent."fromName" as "correspondentName"
       FROM email_threads thread
@@ -748,7 +748,7 @@ export class EmailsService {
           em."googleAccountId", em."office365AccountId", em."zohoAccountId",
           em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
           em."phishingConfidence", em."phishingReason",
-          em."receivedAt", em.labels
+          em."receivedAt", em.labels, em."cc"
         FROM emails em
         WHERE em."emailThreadId" = thread.id AND em."userId" = $1
         ORDER BY em."receivedAt" DESC, em.id DESC

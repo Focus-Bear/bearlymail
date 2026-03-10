@@ -101,7 +101,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false, orderedList: false, listItem: false }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false, orderedList: false, listItem: false, link: false, underline: false }),
       BulletList.extend({
         addInputRules() {
           return [];

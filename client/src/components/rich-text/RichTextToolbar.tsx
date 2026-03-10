@@ -6,7 +6,7 @@ import { theme } from 'theme/theme';
 import { EmojiPickerPortal } from 'components/rich-text/EmojiPickerPortal';
 import { useLinkInputState } from 'components/rich-text/useLinkInputState';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
-import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { ToolbarButton, ToolbarDivider } from './ToolbarButtonGroup';
 import { useToolbarHandlers } from './useToolbarHandlers';

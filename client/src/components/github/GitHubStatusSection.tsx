@@ -8,6 +8,7 @@ import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { GitHubConnectionPrompt } from 'components/github/GitHubConnectionPrompt';
 import { GitHubLinksList } from 'components/github/GitHubLinksList';
 import { GitHubStatusLoading } from 'components/github/GitHubStatusLoading';
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { STRING_NONE } from 'constants/strings';
 
 const GITHUB_ACCENT = '#1F2937';
@@ -21,6 +22,10 @@ interface GitHubStatusSectionProps {
   emailSubject?: string;
   emailBody?: string;
   emailHtmlBody?: string;
+  /** Full email context forwarded to action modals inside link cards. */
+  email?: { subject?: string; body?: string; from?: string; fromName?: string } | null;
+  /** GitHub-related suggested actions to route into the matching link cards. */
+  suggestedGitHubActions?: SuggestedAction[];
 }
 
 export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
@@ -31,6 +36,8 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
   emailSubject,
   emailBody,
   emailHtmlBody,
+  email,
+  suggestedGitHubActions = [],
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -81,7 +88,16 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
       preview={preview}
       controls={controls}
     >
-      {loading ? <GitHubStatusLoading /> : <GitHubLinksList links={links} />}
+      {loading ? (
+        <GitHubStatusLoading />
+      ) : (
+        <GitHubLinksList
+          links={links}
+          suggestedActions={suggestedGitHubActions}
+          onRefresh={onRefresh}
+          email={email}
+        />
+      )}
     </CollapsibleSection>
   );
 };

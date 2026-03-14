@@ -3,9 +3,16 @@ import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
 
 import { GitHubLinkCard } from 'components/github/GitHubLinkCard';
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
 interface GitHubLinksListProps {
   links: GitHubLink[];
+  /** GitHub-related suggested actions to distribute to matching link cards. */
+  suggestedActions?: SuggestedAction[];
+  /** Called after a suggested action succeeds so the parent can refresh GitHub data. */
+  onRefresh?: () => void;
+  /** Email context forwarded to modals inside each card. */
+  email?: { subject?: string; body?: string; from?: string; fromName?: string } | null;
 }
 
 // Primary key is owner/repo/number - this is the most reliable way to identify a GitHub issue/PR
@@ -13,7 +20,33 @@ const getDedupeKey = (link: GitHubLink): string => {
   return `${link.owner}/${link.repo}#${link.number}`.toLowerCase();
 };
 
-export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({ links }) => {
+/** Build a dedupeKey from suggested-action metadata (issueInfo or defaultRepo). */
+const getActionKey = (action: SuggestedAction): string | null => {
+  const info = action.metadata?.issueInfo as
+    | { owner: string; repo: string; number?: number }
+    | undefined;
+  if (info?.owner && info?.repo && info?.number != null) {
+    return `${info.owner}/${info.repo}#${info.number}`.toLowerCase();
+  }
+  if (info?.owner && info?.repo) {
+    // Create-issue action targets a repo, not a specific issue
+    return `${info.owner}/${info.repo}`.toLowerCase();
+  }
+  const defaultRepo = action.metadata?.defaultRepo as
+    | { owner: string; repo: string }
+    | undefined;
+  if (defaultRepo?.owner && defaultRepo?.repo) {
+    return `${defaultRepo.owner}/${defaultRepo.repo}`.toLowerCase();
+  }
+  return null;
+};
+
+export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({
+  links,
+  suggestedActions = [],
+  onRefresh,
+  email,
+}) => {
   // Deduplicate links by owner/repo/number - keep the one with more data
   const uniqueLinks = React.useMemo(() => {
     const linkMap = new Map<string, GitHubLink>();
@@ -34,11 +67,40 @@ export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({ links }) => {
     return Array.from(linkMap.values());
   }, [links]);
 
+  // Build a map from link dedupeKey (or repo key) → actions
+  const actionsPerLink = React.useMemo(() => {
+    const map = new Map<string, SuggestedAction[]>();
+    for (const action of suggestedActions) {
+      const key = getActionKey(action);
+      if (!key) {
+continue;
+}
+      // Try exact issue match first, then repo-level fallback
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(action);
+    }
+    return map;
+  }, [suggestedActions]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-      {uniqueLinks.map(link => (
-        <GitHubLinkCard key={getDedupeKey(link)} link={link} />
-      ))}
+      {uniqueLinks.map(link => {
+        const key = getDedupeKey(link);
+        const repoKey = `${link.owner}/${link.repo}`.toLowerCase();
+        // Actions matching this exact issue take priority; fall back to repo-level actions
+        const cardActions = actionsPerLink.get(key) ?? actionsPerLink.get(repoKey) ?? [];
+        return (
+          <GitHubLinkCard
+            key={key}
+            link={link}
+            suggestedActions={cardActions}
+            onRefresh={onRefresh}
+            email={email}
+          />
+        );
+      })}
     </div>
   );
 };

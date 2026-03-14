@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
@@ -24,7 +24,14 @@ import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotes
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
+import {
+  ACTION_TYPE_GITHUB_ADD_COMMENT,
+  ACTION_TYPE_GITHUB_CREATE_ISSUE,
+  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
+  ACTION_TYPE_GITHUB_UPDATE_STATUS,
+  SUMMARY_TYPE_CUSTOM,
+  SUMMARY_TYPE_CUSTOM_PREFIX,
+} from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
@@ -46,6 +53,14 @@ export type EmailDetailVariant = 'full' | 'compact' | 'inline';
 export const EMAIL_DETAIL_VARIANT_FULL: EmailDetailVariant = 'full';
 export const EMAIL_DETAIL_VARIANT_COMPACT: EmailDetailVariant = 'compact';
 export const EMAIL_DETAIL_VARIANT_INLINE: EmailDetailVariant = 'inline';
+
+// Module-level constant: stable across renders, no need to include in useMemo deps.
+const GITHUB_ACTION_TYPES = new Set([
+  ACTION_TYPE_GITHUB_ADD_COMMENT,
+  ACTION_TYPE_GITHUB_CREATE_ISSUE,
+  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
+  ACTION_TYPE_GITHUB_UPDATE_STATUS,
+]);
 
 interface EmailDetailProps {
   emailId?: string;
@@ -424,6 +439,27 @@ const EmailDetailContent: React.FC<any> = ({
     st.setToneCheckResult,
     st.setShowReplyComposer
   );
+
+  // Partition suggested actions: GitHub-specific ones go into the GitHub card;
+  // everything else stays in the QuickActionsSection menu.
+  // GITHUB_ACTION_TYPES is defined at module level — stable reference, no deps needed.
+  const { githubActions, otherActions } = useMemo(() => {
+    const all: any[] = st.suggestedActions ?? [];
+    return {
+      githubActions: all.filter((action: any) => GITHUB_ACTION_TYPES.has(action.type)),
+      otherActions: all.filter((action: any) => !GITHUB_ACTION_TYPES.has(action.type)),
+    };
+  }, [st.suggestedActions]);
+
+  const emailContext = st.email
+    ? {
+        subject: st.email.subject,
+        body: st.email.body,
+        from: st.email.from,
+        fromName: st.email.fromName,
+      }
+    : null;
+
   const handleSummaryTypeChange = (type: string) => {
     if (type === SUMMARY_TYPE_CUSTOM) {
       st.setShowRuleModal(true);
@@ -441,7 +477,14 @@ const EmailDetailContent: React.FC<any> = ({
   };
   return (
     <>
-      <EmailDetailNotesAndActions state={st} ops={ops} effectiveVariant={effectiveVariant} isMobile={isMobile} />
+      <EmailDetailNotesAndActions
+        state={st}
+        ops={ops}
+        effectiveVariant={effectiveVariant}
+        isMobile={isMobile}
+        githubActions={githubActions}
+        emailContext={emailContext}
+      />
       <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
         {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
         {!isInline && (
@@ -458,7 +501,7 @@ const EmailDetailContent: React.FC<any> = ({
         )}
         <EmailDetailActions
           email={st.email as any}
-          suggestedActions={st.suggestedActions}
+          suggestedActions={otherActions}
           showQuickActionsMenu={st.showQuickActionsMenu}
           selectedAction={st.selectedAction}
           onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)}
@@ -540,6 +583,8 @@ const EmailDetailContent: React.FC<any> = ({
                 emailSubject={st.email?.subject}
                 emailBody={st.email?.body}
                 emailHtmlBody={st.email?.htmlBody}
+                email={emailContext}
+                suggestedGitHubActions={githubActions}
               />
             </div>
             <div style={{ marginBottom: theme.spacing.xl }}>
@@ -581,7 +626,7 @@ const EmailDetailContent: React.FC<any> = ({
   );
 };
 
-const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, effectiveVariant, isMobile }) => (
+const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, effectiveVariant, isMobile, githubActions = [], emailContext = null }) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
     <PrivateNotesSection
       noteContent={st.noteContent}
@@ -612,6 +657,8 @@ const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, effectiveVa
           emailSubject={st.email?.subject}
           emailBody={st.email?.body}
           emailHtmlBody={st.email?.htmlBody}
+          email={emailContext}
+          suggestedGitHubActions={githubActions}
         />
         <CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} />
       </>

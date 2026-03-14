@@ -3,19 +3,11 @@ import { theme } from 'theme/theme';
 
 import { CalendarCreateInviteModal } from 'components/quick-actions/modals/CalendarCreateInviteModal';
 import { CalendarFindEventsModal } from 'components/quick-actions/modals/CalendarFindEventsModal';
-import { GitHubAddCommentModal } from 'components/quick-actions/modals/GitHubAddCommentModal';
-import { GitHubCreateIssueModal } from 'components/quick-actions/modals/GitHubCreateIssueModal';
-import { GitHubSearchIssuesModal } from 'components/quick-actions/modals/GitHubSearchIssuesModal';
-import { GitHubUpdateStatusModal } from 'components/quick-actions/modals/GitHubUpdateStatusModal';
 import { QuickActionsButton } from 'components/quick-actions/QuickActionsButton';
 import { QuickActionsMenu, SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import {
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
   ACTION_TYPE_CALENDAR_FIND_EVENTS,
-  ACTION_TYPE_GITHUB_ADD_COMMENT,
-  ACTION_TYPE_GITHUB_CREATE_ISSUE,
-  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
-  ACTION_TYPE_GITHUB_UPDATE_STATUS,
 } from 'constants/strings';
 
 interface Email {
@@ -27,6 +19,7 @@ interface Email {
 }
 
 interface QuickActionsSectionProps {
+  /** Non-GitHub suggested actions to show in the quick actions menu. */
   suggestedActions: SuggestedAction[];
   showQuickActionsMenu: boolean;
   selectedAction: SuggestedAction | null;
@@ -38,6 +31,14 @@ interface QuickActionsSectionProps {
   onActionSuccess: () => void;
 }
 
+/**
+ * Renders the Quick Actions button + menu for non-GitHub suggested actions.
+ *
+ * GitHub-related actions (github_add_comment, github_create_issue,
+ * github_search_issues, github_update_status) are intentionally excluded
+ * here — they are routed into the GitHub card (GitHubStatusSection →
+ * GitHubLinkCard) where they appear in context alongside the linked issue/PR.
+ */
 export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   suggestedActions,
   showQuickActionsMenu,
@@ -51,17 +52,11 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 }) => {
   return (
     <>
-      {/* Sticky container for quick actions button */}
+      {/* Quick actions button — flows in normal document position */}
       <div
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          backgroundColor: theme.colors.background.default,
-          paddingTop: theme.spacing.md,
+          paddingTop: theme.spacing.sm,
           paddingBottom: theme.spacing.sm,
-          marginTop: -theme.spacing.md,
-          marginBottom: theme.spacing.sm,
         }}
       >
         <QuickActionsButton actionCount={suggestedActions.length} onClick={onShowMenu} />
@@ -73,46 +68,6 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 
       {selectedAction && (
         <>
-          {selectedAction.type === ACTION_TYPE_GITHUB_CREATE_ISSUE && email && email.body && (
-            <GitHubCreateIssueModal
-              email={{
-                subject: email.subject,
-                body: email.body,
-                from: email.from,
-                fromName: email.fromName,
-              }}
-              defaultRepo={selectedAction.metadata?.defaultRepo as { owner: string; repo: string } | undefined}
-              onClose={onCloseAction}
-              onSuccess={onActionSuccess}
-            />
-          )}
-          {selectedAction.type === ACTION_TYPE_GITHUB_UPDATE_STATUS && selectedAction.metadata?.issueInfo && (
-            <GitHubUpdateStatusModal
-              issueInfo={selectedAction.metadata.issueInfo}
-              onClose={onCloseAction}
-              onSuccess={onActionSuccess}
-            />
-          )}
-          {selectedAction.type === ACTION_TYPE_GITHUB_ADD_COMMENT &&
-            selectedAction.metadata?.issueInfo &&
-            email &&
-            email.body && (
-              <GitHubAddCommentModal
-                issueInfo={selectedAction.metadata.issueInfo}
-                email={{ body: email.body }}
-                onClose={onCloseAction}
-                onSuccess={onActionSuccess}
-              />
-            )}
-          {selectedAction.type === ACTION_TYPE_GITHUB_SEARCH_ISSUES && email && email.body && (
-            <GitHubSearchIssuesModal
-              email={{
-                subject: email.subject,
-                body: email.body,
-              }}
-              onClose={onCloseAction}
-            />
-          )}
           {selectedAction.type === ACTION_TYPE_CALENDAR_CREATE_INVITE && email && email.body && (
             <CalendarCreateInviteModal
               email={{

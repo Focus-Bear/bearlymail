@@ -1394,25 +1394,16 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       throw new Error("Meeting reply generation prompt not available");
     }
 
-    const hasAvailableSlots = availableSlots.length > 0;
-    let slotsText = "";
-    if (hasAvailableSlots) {
-      slotsText = availableSlots
-        .slice(0, 5)
-        .map((slot, i) => {
-          const start = new Date(slot.start);
-          return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-        })
-        .join("\n");
-    }
+    // Always direct the LLM to use the scheduling link rather than enumerating
+    // calendar slots. The LLM has no access to live calendar data and will
+    // hallucinate "no available slots" if asked to reason about availability.
+    const schedulingLinkUrl = calendarBookingUrl || "";
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
-      hasAvailableSlots,
+      schedulingLinkUrl,
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
       body: cleanedBody,
-      slotsText,
-      calendarLink: calendarBookingUrl || "",
     });
 
     return await this.generateText(

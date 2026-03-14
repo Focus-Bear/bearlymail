@@ -297,60 +297,47 @@ export async function respondToInvitation(
   }
 }
 
+/**
+ * Resolves the scheduling link URL for the given user.
+ * Prefers the user profile's calendarBookingUrl, falls back to the
+ * CALENDAR_BOOKING_URL environment variable.
+ */
+async function resolveSchedulingLinkUrl(
+  service: CalendarService,
+  userId: string,
+): Promise<string | null> {
+  const user = await service.usersService.findOne(userId);
+  const profileUrl = user?.calendarBookingUrl?.trim() || null;
+  return profileUrl || process.env.CALENDAR_BOOKING_URL || null;
+}
+
 export async function generateMeetingReply(
   service: CalendarService,
   userId: string,
   emailId: string,
   provider?: "gemini" | "openai",
 ): Promise<string> {
-  const slots = await service.getAvailableTimeSlots(userId);
   const email = await service.emailsService.getEmailById(userId, emailId);
 
   if (!email) {
     throw new Error("Email not found");
   }
 
-  if (slots.length === 0) {
-    try {
-      let llmProvider: LLMProvider | undefined;
-      if (provider) {
-        llmProvider =
-          provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
-      }
-      return await service.llmService.generateMeetingReply(
-        {
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          body: email.body,
-        },
-        [],
-        process.env.CALENDAR_BOOKING_URL,
-        llmProvider,
-        userId,
-      );
-    } catch (error) {
-      return `Hi there,
+  const schedulingLinkUrl = await resolveSchedulingLinkUrl(service, userId);
 
-Thank you for reaching out about scheduling a meeting. Unfortunately, I don't have any available slots in the next week.
-
-Please let me know your availability and I'll do my best to accommodate.
-
-Best regards`;
-    }
+  if (!schedulingLinkUrl) {
+    // No scheduling link configured — return an actionable message instead of
+    // hallucinating "no available slots".
+    return `To draft a meeting reply, please set up your scheduling link in BearlyMail settings first.`;
   }
 
-  const formattedSlots = slots.slice(0, 5).map((slot) => ({
-    start: slot.start,
-    end: slot.end,
-  }));
+  let llmProvider: LLMProvider | undefined;
+  if (provider) {
+    llmProvider =
+      provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+  }
 
   try {
-    let llmProvider: LLMProvider | undefined;
-    if (provider) {
-      llmProvider =
-        provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
-    }
     return await service.llmService.generateMeetingReply(
       {
         from: email.from,
@@ -358,8 +345,8 @@ Best regards`;
         subject: email.subject,
         body: email.body,
       },
-      formattedSlots,
-      process.env.CALENDAR_BOOKING_URL,
+      [],
+      schedulingLinkUrl,
       llmProvider,
       userId,
     );
@@ -368,23 +355,12 @@ Best regards`;
       "LLM meeting reply generation failed, using fallback",
       error instanceof Error ? error : new Error(String(error)),
     );
-    const slotsText = slots
-      .slice(0, 5)
-      .map((slot, i) => {
-        const start = new Date(slot.start);
-        return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-      })
-      .join("\n");
-
     return `Hi there,
 
-Thank you for reaching out about scheduling a meeting. Here are some times that work for me:
+Happy to find a time! You can book a slot that works for you here:
+${schedulingLinkUrl}
 
-${slotsText}
-
-You can also book directly on my calendar: ${process.env.CALENDAR_BOOKING_URL || "https://calendly.com/your-link"}
-
-Let me know what works best for you!
+Looking forward to it!
 
 Best regards`;
   }

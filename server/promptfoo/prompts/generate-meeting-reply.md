@@ -8,26 +8,25 @@ CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE EXACTLY:
 - Do NOT run sentences together on the same line without line breaks
 - Do NOT output everything as a single paragraph
 
-{% if hasAvailableSlots %}
-Be friendly, professional, and helpful when suggesting meeting times.
+{% if schedulingLinkUrl %}
+You are drafting a reply to a meeting request email. The user has a scheduling link where the
+recipient can choose a time that works for them.
 
 Original email from {{fromName}}:
 Subject: {{subject}}
 
 {{body}}
 
-Available time slots:
-{{slotsText}}
-{% if calendarLink %}
+The user's scheduling link: {{schedulingLinkUrl}}
 
-You can also book directly on my calendar: {{calendarLink}}
-{% endif %}
+Draft a brief, friendly reply that:
+1. Acknowledges the meeting request warmly
+2. Provides the scheduling link so the recipient can choose a time
+3. Does NOT attempt to enumerate specific time slots — you do not know the user's live availability
+4. Does NOT say "no available slots" or claim there is no availability
+5. Is warm and professional
 
-Generate a professional reply that:
-1. Thanks them for reaching out
-2. Offers the available time slots
-3. Asks what works best for them
-4. Is friendly and professional
+Output only the email body text — no subject line.
 {% else %}
 Be polite and ask for their availability.
 
@@ -36,6 +35,6 @@ Subject: {{subject}}
 
 {{body}}
 
-I don't have any available slots in the next week. Generate a professional, polite reply asking for their availability.
+No scheduling link is configured. Draft a brief, polite reply asking the recipient to share
+their availability so a time can be arranged. Do NOT claim there are no available slots.
 {% endif %}
-

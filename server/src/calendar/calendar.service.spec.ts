@@ -597,20 +597,29 @@ describe("CalendarService", () => {
   });
 
   describe("generateMeetingReply", () => {
-    it("should generate meeting reply with available slots", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+    const BOOKING_URL = "https://cal.example.com/booking";
+
+    it("returns config prompt when schedulingLinkUrl is null (no profile URL, no env var)", async () => {
+      const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: null };
+      usersService.findOne.mockResolvedValue(userWithoutBookingUrl as any);
       emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      delete process.env.CALENDAR_BOOKING_URL;
 
-      const mockSlots = [
-        { start: "2024-01-15T10:00:00Z", end: "2024-01-15T10:30:00Z" },
-        { start: "2024-01-15T14:00:00Z", end: "2024-01-15T14:30:00Z" },
-      ];
+      const result = await service.generateMeetingReply("user-1", "email-1");
 
-      jest
-        .spyOn(service, "getAvailableTimeSlots")
-        .mockResolvedValue(mockSlots as any);
+      expect(result).toContain("set up your scheduling link");
+      expect(llmService.generateMeetingReply).not.toHaveBeenCalled();
+    });
+
+    it("calls llmService.generateMeetingReply with calendarBookingUrl from user profile when set", async () => {
+      const userWithBookingUrl = {
+        ...mockUser,
+        calendarBookingUrl: BOOKING_URL,
+      };
+      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
+      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
       llmService.generateMeetingReply.mockResolvedValue(
-        "Here are available times...",
+        "Here is my booking link...",
       );
 
       const result = await service.generateMeetingReply("user-1", "email-1");
@@ -619,61 +628,81 @@ describe("CalendarService", () => {
         "user-1",
         "email-1",
       );
-      expect(llmService.generateMeetingReply).toHaveBeenCalled();
-      expect(result).toBe("Here are available times...");
+      expect(llmService.generateMeetingReply).toHaveBeenCalledWith(
+        expect.objectContaining({ from: mockEmail.from }),
+        [],
+        BOOKING_URL,
+        undefined,
+        "user-1",
+      );
+      expect(result).toBe("Here is my booking link...");
     });
 
-    it("should handle no available slots", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+    it("falls back to CALENDAR_BOOKING_URL env var when profile URL is empty", async () => {
+      const userWithEmptyBookingUrl = {
+        ...mockUser,
+        calendarBookingUrl: "",
+      };
+      usersService.findOne.mockResolvedValue(userWithEmptyBookingUrl as any);
       emailsService.getEmailById.mockResolvedValue(mockEmail as any);
-
-      jest.spyOn(service, "getAvailableTimeSlots").mockResolvedValue([]);
+      process.env.CALENDAR_BOOKING_URL = BOOKING_URL;
       llmService.generateMeetingReply.mockResolvedValue(
-        "No available slots...",
+        "Booking via env var link...",
       );
 
       const result = await service.generateMeetingReply("user-1", "email-1");
 
-      expect(llmService.generateMeetingReply).toHaveBeenCalled();
-      expect(result).toBe("No available slots...");
+      expect(llmService.generateMeetingReply).toHaveBeenCalledWith(
+        expect.anything(),
+        [],
+        BOOKING_URL,
+        undefined,
+        "user-1",
+      );
+      expect(result).toBe("Booking via env var link...");
+
+      delete process.env.CALENDAR_BOOKING_URL;
+    });
+
+    it("returns null when neither profile URL nor env var is set", async () => {
+      const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: "" };
+      usersService.findOne.mockResolvedValue(userWithoutBookingUrl as any);
+      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      delete process.env.CALENDAR_BOOKING_URL;
+
+      const result = await service.generateMeetingReply("user-1", "email-1");
+
+      expect(result).toContain("set up your scheduling link");
     });
 
     it("should throw error when email not found", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      const userWithBookingUrl = {
+        ...mockUser,
+        calendarBookingUrl: BOOKING_URL,
+      };
+      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
       emailsService.getEmailById.mockResolvedValue(null);
-      mockCalendar.freebusy.query.mockResolvedValue({
-        data: {
-          calendars: {
-            primary: {
-              busy: [],
-            },
-          },
-        },
-      });
 
       await expect(
         service.generateMeetingReply("user-1", "nonexistent-email"),
       ).rejects.toThrow("Email not found");
     });
 
-    it("should use fallback when LLM fails", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+    it("returns fallback string when LLM throws and schedulingLinkUrl is set", async () => {
+      const userWithBookingUrl = {
+        ...mockUser,
+        calendarBookingUrl: BOOKING_URL,
+      };
+      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
       emailsService.getEmailById.mockResolvedValue(mockEmail as any);
-
-      const mockSlots = [
-        { start: "2024-01-15T10:00:00Z", end: "2024-01-15T10:30:00Z" },
-      ];
-
-      jest
-        .spyOn(service, "getAvailableTimeSlots")
-        .mockResolvedValue(mockSlots as any);
       llmService.generateMeetingReply.mockRejectedValue(new Error("LLM error"));
 
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
 
       const result = await service.generateMeetingReply("user-1", "email-1");
 
-      expect(result).toContain("Here are some times that work for me");
+      expect(result).toContain("Happy to find a time");
+      expect(result).toContain(BOOKING_URL);
       consoleErrorSpy.mockRestore();
     });
   });

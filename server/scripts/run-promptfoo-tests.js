@@ -382,6 +382,15 @@ async function main() {
 
   if (changedPromptsOnly) {
     log('Running tests only for changed prompt files', colors.cyan);
+    // GITHUB_BASE_SHA must be set in CI for reliable diff detection.
+    // In GitHub Actions, ensure the promptfoo-tests job sets:
+    //   GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    // Without this, the fallback to origin/<base-ref>...HEAD may miss changes
+    // in merge-commit checkout environments. (#845)
+    if (process.env.CI && !process.env.GITHUB_BASE_SHA) {
+      log('Warning: GITHUB_BASE_SHA not set. Diff detection may miss changes in CI.', colors.yellow);
+      log('Add GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }} to the CI job env.', colors.yellow);
+    }
   } else {
     log('Running all promptfoo tests', colors.cyan);
   }

@@ -119,6 +119,7 @@ export class LLMController {
       emailBody: string;
       senderInfo?: { from: string; fromName?: string };
       recipientInfo?: { name?: string; email?: string };
+      existingActions?: string[];
     },
   ) {
     // Get user info for recipient if not provided
@@ -149,6 +150,7 @@ export class LLMController {
       body.senderInfo,
       recipientInfo,
       isUserSender,
+      body.existingActions ?? [],
     );
   }
 

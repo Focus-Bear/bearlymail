@@ -943,6 +943,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     senderInfo?: { from: string; fromName?: string },
     recipientInfo?: { name?: string; email?: string },
     isUserSender: boolean = false,
+    existingActions: string[] = [],
   ): Promise<Array<{ description: string; confidence: number }>> {
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(
@@ -960,6 +961,13 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       return [];
     }
 
+    // Cap existing actions at 20 items to avoid excessive prompt length.
+    const MAX_EXISTING_ACTIONS = 20;
+    const cappedExistingActions = existingActions.slice(
+      0,
+      MAX_EXISTING_ACTIONS,
+    );
+
     // The markdown file contains the full prompt template with {{variables}}
     const fullPrompt = renderPrompt(promptConfig.prompt || "", {
       body: cleanedBody,
@@ -970,6 +978,14 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       isUserSender,
       // Pass boolean directly for {{#if}} condition
       perspective: isUserSender ? "SENDER" : "RECIPIENT",
+      // Existing actions context for LLM-level deduplication
+      existingActions:
+        cappedExistingActions.length > 0
+          ? cappedExistingActions
+              .map((action, i) => `${i + 1}. ${action}`)
+              .join("\n")
+          : "None",
+      hasExistingActions: cappedExistingActions.length > 0,
     });
 
     // Use the full prompt as the user message (markdown contains all instructions)

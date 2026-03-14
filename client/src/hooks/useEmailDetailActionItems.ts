@@ -107,16 +107,26 @@ export function useEmailDetailActionItems(email: EmailArg) {
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
         senderInfo: { from: email.from, fromName: email.fromName },
+        // Pass existing action descriptions so the LLM can avoid re-generating them.
+        existingActions: actionItems.map(action => action.description),
       });
       const newItems = buildActionItemsFromLLMResponse(response.data);
-      await saveExtractedActionItems(newItems, email.id, email.threadId);
+
+      // Client-side guard: filter out any items that are exact (normalised) matches
+      // of already-saved actions, as a safety net on top of the LLM-level dedup.
+      const existingNormalized = new Set(actionItems.map(action => action.description.toLowerCase().trim()));
+      const deduped = newItems.filter(
+        item => !existingNormalized.has(item.description.toLowerCase().trim())
+      );
+
+      await saveExtractedActionItems(deduped, email.id, email.threadId);
       fetchActionItems();
     } catch (error) {
       console.error('Error extracting actions:', error);
     } finally {
       setIsGeneratingSummary(false);
     }
-  }, [email, fetchActionItems]);
+  }, [email, actionItems, fetchActionItems]);
 
   return {
     actionItems,

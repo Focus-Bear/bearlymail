@@ -393,6 +393,7 @@ describe("LLMController (Integration)", () => {
           email: "test@example.com",
         },
         false,
+        [],
       );
     });
 
@@ -422,6 +423,31 @@ describe("LLMController (Integration)", () => {
         },
         // isUserSender should be true
         true,
+        [],
+      );
+    });
+
+    it("should forward existingActions to service for deduplication", async () => {
+      const existingActions = ["Follow up with John", "Send report by Friday"];
+      await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "Please schedule a call.",
+          existingActions,
+        })
+        .expect(201);
+
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
+        "Please schedule a call.",
+        undefined,
+        "test-user-id",
+        undefined,
+        {
+          name: "Test User",
+          email: "test@example.com",
+        },
+        false,
+        existingActions,
       );
     });
   });

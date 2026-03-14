@@ -191,6 +191,9 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
     setShowArchiveConfirmation(false);
     if (onArchiveAll && emailIds.length > 0) {
       await onArchiveAll(emailIds);
+      // Collapse this proto-category group after archiving all emails so the UI doesn't leave
+      // an empty expanded group visible.
+      setIsExpanded(false);
     }
   }, [onArchiveAll, emailIds]);
 

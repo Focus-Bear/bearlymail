@@ -93,7 +93,29 @@ describe("PriorityAnalysisService", () => {
       expect(result.category).toBe("Customer Support");
       expect(result.categoryExplanation).toBe("Support request");
       expect(result.urgencyScore).toBe(50);
-      expect(result.sentimentScore).toBe(0);
+      // sentimentScore is not derived from LLM output — it comes from preComputedSentimentScore.
+      // When no pre-computed value is passed, the result is undefined so the caller
+      // does not clobber the DB value that was set during the summary step.
+      expect(result.sentimentScore).toBeUndefined();
+    });
+
+    it("should use preComputedSentimentScore when provided, ignoring LLM sentiment", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+
+      const result = await service.analyzePriority(
+        mockEmail,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        0.8,
+      );
+
+      expect(result.sentimentScore).toBe(0.8);
     });
 
     it("should parse legacy flat JSON response for backward compatibility", async () => {

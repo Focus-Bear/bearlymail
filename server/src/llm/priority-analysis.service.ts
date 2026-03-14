@@ -171,10 +171,11 @@ export class PriorityAnalysisService {
       body: string;
       receivedAt: Date;
     }>,
+    preComputedSentimentScore?: number,
   ): Promise<{
     urgencyScore: number;
     urgencyExplanation: string;
-    sentimentScore: number;
+    sentimentScore: number | undefined;
     goalAlignmentScore: number;
     goalAlignmentExplanation: string;
     category: string;
@@ -284,10 +285,14 @@ export class PriorityAnalysisService {
           urgencyExplanation:
             analysisResult.urgencyExplanation ||
             "No urgency explanation provided",
+          // Use pre-computed sentiment from summary step if provided (token-efficient).
+          // The priority prompt instructs the LLM not to compute sentiment, so the
+          // LLM-returned value is unreliable. Fall back to undefined so applyPriorityResult
+          // skips the DB write and preserves the summary-step value.
           sentimentScore:
-            analysisResult.sentimentScore !== undefined
-              ? Math.max(-1, Math.min(1, analysisResult.sentimentScore))
-              : 0,
+            preComputedSentimentScore !== undefined
+              ? preComputedSentimentScore
+              : undefined,
           goalAlignmentScore: Math.max(
             0,
             Math.min(100, analysisResult.goalAlignmentScore || 0),
@@ -345,7 +350,8 @@ export class PriorityAnalysisService {
     return {
       urgencyScore,
       urgencyExplanation,
-      sentimentScore: 0,
+      // Use pre-computed sentiment if available; undefined signals applyPriorityResult to skip DB write.
+      sentimentScore: preComputedSentimentScore,
       goalAlignmentScore: 0,
       goalAlignmentExplanation: "No goal alignment detected",
       category: "Other",
@@ -413,6 +419,11 @@ export class PriorityAnalysisService {
       body: string;
       /** Optional thread context (previous messages) to improve LLM accuracy for replies */
       threadContext?: string;
+      /**
+       * Pre-computed sentiment score from the summarisation step.
+       * If provided, it is used directly and the priority LLM is not asked to compute sentiment.
+       */
+      preComputedSentimentScore?: number;
     }>,
     userContext?: {
       urgentItems?: Array<{ value: string; explanation?: string }>;
@@ -431,7 +442,7 @@ export class PriorityAnalysisService {
       {
         urgencyScore: number;
         urgencyExplanation: string;
-        sentimentScore: number;
+        sentimentScore: number | undefined;
         goalAlignmentScore: number;
         goalAlignmentExplanation: string;
         category: string;
@@ -455,7 +466,7 @@ export class PriorityAnalysisService {
       {
         urgencyScore: number;
         urgencyExplanation: string;
-        sentimentScore: number;
+        sentimentScore: number | undefined;
         goalAlignmentScore: number;
         goalAlignmentExplanation: string;
         category: string;
@@ -623,6 +634,14 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
       }
 
       if (parsedArray !== null) {
+        // Build a lookup map of emailKey → preComputedSentimentScore for O(1) access
+        const sentimentByKey = new Map<string, number | undefined>(
+          emails.map((email) => [
+            email.emailKey,
+            email.preComputedSentimentScore,
+          ]),
+        );
+
         for (const item of parsedArray) {
           const typedItem = item as Record<string, unknown>;
           const key =
@@ -632,6 +651,11 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
             const protoSuggestion = typedItem.protoCategorySuggestion as
               | Record<string, string>
               | undefined;
+            // Use pre-computed sentiment from summarisation step if available.
+            // The batch prompt instructs the LLM not to compute sentiment, so the LLM-returned
+            // value is unreliable. Returning undefined signals applyPriorityResult to skip the
+            // DB write and preserve the existing sentiment from the summary step.
+            const preComputedSentimentScore = sentimentByKey.get(key);
             results.set(key, {
               urgencyScore: Math.max(
                 0,
@@ -639,13 +663,7 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
               ),
               urgencyExplanation:
                 (typedItem.urgencyExplanation as string) || "No explanation",
-              sentimentScore:
-                typedItem.sentimentScore !== undefined
-                  ? Math.max(
-                      -1,
-                      Math.min(1, typedItem.sentimentScore as number),
-                    )
-                  : 0,
+              sentimentScore: preComputedSentimentScore,
               goalAlignmentScore: Math.max(
                 0,
                 Math.min(100, (typedItem.goalAlignmentScore as number) || 0),
@@ -706,7 +724,8 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
         results.set(email.emailKey, {
           urgencyScore: 0,
           urgencyExplanation: "Batch analysis failed for this email",
-          sentimentScore: 0,
+          // undefined signals applyPriorityResult to skip the DB write
+          sentimentScore: undefined,
           goalAlignmentScore: 0,
           goalAlignmentExplanation: "Batch analysis failed for this email",
           category: "Other",

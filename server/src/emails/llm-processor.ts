@@ -335,6 +335,8 @@ export class LLMProcessor implements OnModuleInit {
         userContext,
         replyStatus,
         threadEmailsForLLM.length > 0 ? threadEmailsForLLM : undefined,
+        // Pass pre-computed sentiment from summary step to avoid re-computing or losing it.
+        email.sentimentScore ?? undefined,
       );
 
       tracker.endPhase("llmCall");
@@ -546,6 +548,8 @@ export class LLMProcessor implements OnModuleInit {
           subject: email.subject || "",
           body: bodyForBatch,
           threadContext,
+          // Pass pre-computed sentiment from summary step to avoid re-computing or losing it.
+          preComputedSentimentScore: email.sentimentScore ?? undefined,
         };
       });
 

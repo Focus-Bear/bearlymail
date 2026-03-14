@@ -24,7 +24,8 @@ export const useEmailDetailTimePicker = (): UseEmailDetailTimePickerResult => {
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
 
   const handleOpenTimePicker = useCallback(() => {
-    fetchTimeSuggestions();
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    fetchTimeSuggestions(userTimezone);
     setTimeWarning(undefined);
     setSuggestedTime(undefined);
     setShowTimePicker(true);
@@ -32,7 +33,8 @@ export const useEmailDetailTimePicker = (): UseEmailDetailTimePickerResult => {
 
   const handleTimeSelect = useCallback(
     async (time: Date) => {
-      const checkResult = await checkSendTime(time);
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const checkResult = await checkSendTime(time, userTimezone);
       if (!checkResult.isAppropriate) {
         setTimeWarning(checkResult.warning);
         setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);

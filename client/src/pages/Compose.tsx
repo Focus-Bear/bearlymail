@@ -168,14 +168,16 @@ const Compose: React.FC = () => {
   };
 
   const handleOpenTimePicker = useCallback(() => {
-    fetchTimeSuggestions();
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    fetchTimeSuggestions(userTimezone);
     setShowTimePicker(true);
   }, [fetchTimeSuggestions]);
 
   const handleTimeSelect = useCallback(
     async (time: Date) => {
       setLastSelectedTime(time);
-      const checkResult = await checkSendTime(time);
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const checkResult = await checkSendTime(time, userTimezone);
       if (!checkResult.isAppropriate) {
         setTimeWarning(checkResult.warning);
         setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);

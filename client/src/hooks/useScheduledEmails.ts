@@ -58,17 +58,30 @@ export function useScheduledEmails() {
     }
   }, []);
 
-  const checkSendTime = useCallback(async (scheduledSendAt: Date): Promise<TimeCheckResult> => {
-    try {
-      const response = await axios.post<TimeCheckResult>(`${API_URL}/scheduled-emails/check-time`, {
-        scheduledSendAt: scheduledSendAt.toISOString(),
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to check send time:', error);
-      return { isAppropriate: true };
-    }
-  }, []);
+  /**
+   * Checks whether a scheduled send time is appropriate for the user.
+   * Passes the user's local timezone so the server can evaluate business-hours
+   * rules in the correct timezone instead of defaulting to UTC.
+   */
+  const checkSendTime = useCallback(
+    async (scheduledSendAt: Date, userTimezone?: string): Promise<TimeCheckResult> => {
+      try {
+        const timezone = userTimezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const response = await axios.post<TimeCheckResult>(
+          `${API_URL}/scheduled-emails/check-time`,
+          {
+            scheduledSendAt: scheduledSendAt.toISOString(),
+            userTimezone: timezone,
+          },
+        );
+        return response.data;
+      } catch (error) {
+        console.error('Failed to check send time:', error);
+        return { isAppropriate: true };
+      }
+    },
+    [],
+  );
 
   const cancelScheduledEmail = useCallback(async (scheduledEmailId: string) => {
     try {
@@ -83,7 +96,7 @@ export function useScheduledEmails() {
 
   useEffect(() => {
     fetchScheduledEmails();
-    fetchTimeSuggestions();
+    fetchTimeSuggestions(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, [fetchScheduledEmails, fetchTimeSuggestions]);
 
   return {

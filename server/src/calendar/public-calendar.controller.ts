@@ -13,6 +13,9 @@ import {
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
 
+const DEFAULT_SLOTS_LIMIT = 50;
+const MAX_SLOTS_LIMIT = 100;
+
 @Controller("public/calendar")
 export class PublicCalendarController {
   private readonly logger = new Logger(PublicCalendarController.name);
@@ -23,12 +26,20 @@ export class PublicCalendarController {
   async getPublicSlots(
     @Param("userId") userId: string,
     @Query("daysAhead") daysAhead?: string,
+    @Query("offset") offset?: string,
+    @Query("limit") limit?: string,
   ) {
     const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.MONTH;
+    const slotOffset = offset ? parseInt(offset, 10) : 0;
+    const slotLimit = limit
+      ? Math.min(parseInt(limit, 10), MAX_SLOTS_LIMIT)
+      : DEFAULT_SLOTS_LIMIT;
     try {
       return await this.calendarService.getAvailableSlotsWithTimezone(
         userId,
         days,
+        slotOffset,
+        slotLimit,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

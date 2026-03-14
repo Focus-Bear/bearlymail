@@ -9,7 +9,7 @@ import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { BookingSuccessState } from 'components/booking/BookingSuccessState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
-import { CALENDAR_BOOKING_MAX_DAYS_AHEAD, DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
+import { MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import {
   BOOKING_ERROR,
   BOOKING_IDLE,
@@ -27,6 +27,9 @@ interface TimeSlot {
   duration: number;
 }
 
+const SLOTS_PER_PAGE = 50;
+const DAYS_AHEAD_FIXED = 90;
+
 const BookingPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const { t } = useTranslation();
@@ -37,14 +40,15 @@ const BookingPage: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [daysAhead, setDaysAhead] = useState(DAYS_IN_MONTH_30);
+  const [slotOffset, setSlotOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [bookingStatus, setBookingStatus] = useState<
     typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR
   >(BOOKING_IDLE);
   const [error, setError] = useState('');
   const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
-  const fetchSlots = useCallback(async (days: number, append = false) => {
+  const fetchSlots = useCallback(async (currentOffset: number, append = false) => {
     try {
       if (append) {
         setLoadingMore(true);
@@ -52,7 +56,9 @@ const BookingPage: React.FC = () => {
         setLoading(true);
       }
 
-      const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots?daysAhead=${days}`);
+      const response = await axios.get(
+        `${API_URL}/public/calendar/${userId}/slots?daysAhead=${DAYS_AHEAD_FIXED}&offset=${currentOffset}&limit=${SLOTS_PER_PAGE}`,
+      );
 
       if (append) {
         setSlots(prev => {
@@ -65,6 +71,7 @@ const BookingPage: React.FC = () => {
         setSlots(response.data.slots);
       }
       setTimezone(response.data.timezone);
+      setHasMore(response.data.hasMore);
     } catch (error) {
       console.error('Error fetching slots:', error);
       setError(t('booking.failedToLoad'));
@@ -76,14 +83,14 @@ const BookingPage: React.FC = () => {
 
   useEffect(() => {
     if (userId) {
-      fetchSlots(DAYS_IN_MONTH_30);
+      fetchSlots(0);
     }
   }, [userId, fetchSlots]);
 
   const handleLoadMore = () => {
-    const newDaysAhead = daysAhead + DAYS_IN_MONTH_30;
-    setDaysAhead(newDaysAhead);
-    fetchSlots(newDaysAhead, true);
+    const newOffset = slotOffset + SLOTS_PER_PAGE;
+    setSlotOffset(newOffset);
+    fetchSlots(newOffset, true);
   };
 
   const handleBook = async (event: React.FormEvent) => {
@@ -172,7 +179,7 @@ const BookingPage: React.FC = () => {
               timezone={timezone}
               onLoadMore={handleLoadMore}
               loadingMore={loadingMore}
-              hasMore={daysAhead < CALENDAR_BOOKING_MAX_DAYS_AHEAD}
+              hasMore={hasMore}
             />
             <BookingForm
               selectedSlot={selectedSlot}

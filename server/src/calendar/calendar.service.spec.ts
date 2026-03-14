@@ -689,7 +689,19 @@ describe("CalendarService", () => {
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeGreaterThan(0);
-      expect(result.length).toBeLessThanOrEqual(10);
+    });
+
+    it("should return more than 10 slots when availability allows across multiple days", () => {
+      // Multiple days with no busy periods should yield well more than 10 slots
+      const start = new Date("2024-01-15T09:00:00Z");
+      // 5 business days
+      const end = new Date("2024-01-22T17:00:00Z");
+      const busy: Array<{ start: string; end: string }> = [];
+
+      const result = (service as any).calculateFreeSlots(start, end, busy);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(10);
     });
 
     it("should filter out busy periods", () => {
@@ -725,15 +737,16 @@ describe("CalendarService", () => {
       });
     });
 
-    it("should limit results to 10 slots", () => {
+    it("should return all available slots without a hard cap", () => {
       const start = new Date("2024-01-15T09:00:00Z");
-      // Multiple days
+      // Multiple days — previously would have been capped at 10
       const end = new Date("2024-01-20T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
       const result = (service as any).calculateFreeSlots(start, end, busy);
 
-      expect(result.length).toBeLessThanOrEqual(10);
+      // Without the hard cap, multiple business days should yield many more slots
+      expect(result.length).toBeGreaterThan(10);
     });
 
     it("should align start time to clean slot boundaries", () => {
@@ -800,7 +813,7 @@ describe("CalendarService", () => {
   });
 
   describe("getAvailableSlotsWithTimezone", () => {
-    it("should return slots and timezone", async () => {
+    it("should return slots, timezone, and hasMore", async () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
@@ -816,8 +829,10 @@ describe("CalendarService", () => {
 
       expect(result).toHaveProperty("slots");
       expect(result).toHaveProperty("timezone");
+      expect(result).toHaveProperty("hasMore");
       expect(Array.isArray(result.slots)).toBe(true);
       expect(typeof result.timezone).toBe("string");
+      expect(typeof result.hasMore).toBe("boolean");
     });
 
     it("should use UTC as default timezone", async () => {
@@ -835,6 +850,92 @@ describe("CalendarService", () => {
       const result = await service.getAvailableSlotsWithTimezone("user-1");
 
       expect(result.timezone).toBe("UTC");
+    });
+
+    it("should paginate slots using offset and limit", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      // Use a wide range so many slots are generated
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      // Fetch first page (offset=0, limit=5)
+      const page1 = await service.getAvailableSlotsWithTimezone(
+        "user-1",
+        90,
+        0,
+        5,
+      );
+      // Fetch second page (offset=5, limit=5)
+      const page2 = await service.getAvailableSlotsWithTimezone(
+        "user-1",
+        90,
+        5,
+        5,
+      );
+
+      expect(page1.slots.length).toBeLessThanOrEqual(5);
+      expect(page2.slots.length).toBeLessThanOrEqual(5);
+      // Pages should not overlap
+      const page1Keys = new Set(page1.slots.map((slot) => slot.start));
+      page2.slots.forEach((slot) => {
+        expect(page1Keys.has(slot.start)).toBe(false);
+      });
+    });
+
+    it("should set hasMore=true when more slots exist beyond current page", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      // Request only 1 slot from a 90-day range — there should be many more
+      const result = await service.getAvailableSlotsWithTimezone(
+        "user-1",
+        90,
+        0,
+        1,
+      );
+
+      expect(result.slots.length).toBe(1);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("should set hasMore=false when all slots have been returned", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      // Only one hour of availability → very few slots
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      // Request with a huge offset beyond any possible slots
+      const result = await service.getAvailableSlotsWithTimezone(
+        "user-1",
+        1,
+        10000,
+        50,
+      );
+
+      expect(result.slots.length).toBe(0);
+      expect(result.hasMore).toBe(false);
     });
   });
 

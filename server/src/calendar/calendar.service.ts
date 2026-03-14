@@ -37,6 +37,7 @@ export interface TimeSlot {
 export interface TimeSlotsWithTimezone {
   slots: TimeSlot[];
   timezone: string;
+  hasMore: boolean;
 }
 
 interface BusyPeriod {
@@ -129,13 +130,17 @@ export class CalendarService {
   async getAvailableSlotsWithTimezone(
     userId: string,
     daysAhead: number = 7,
+    offset: number = 0,
+    limit: number = 50,
   ): Promise<TimeSlotsWithTimezone> {
     const prefs =
       await this.schedulingPreferencesService.getPreferences(userId);
-    const slots = await this.getAvailableTimeSlots(userId, daysAhead, prefs);
+    const allSlots = await this.getAvailableTimeSlots(userId, daysAhead, prefs);
+    const paginatedSlots = allSlots.slice(offset, offset + limit);
     return {
-      slots,
+      slots: paginatedSlots,
       timezone: prefs.timezone || "UTC",
+      hasMore: offset + limit < allSlots.length,
     };
   }
 
@@ -304,7 +309,7 @@ export class CalendarService {
       );
     }
 
-    return slots.slice(0, 10);
+    return slots;
   }
 
   private getMeetingMinutesForDay(

@@ -19,6 +19,18 @@ export interface MicrosoftGraphMessage {
       name?: string;
     };
   }>;
+  toRecipients?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
+  ccRecipients?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
   receivedDateTime?: string;
   isRead?: boolean;
   body?: {
@@ -30,6 +42,26 @@ export interface MicrosoftGraphMessage {
   parentFolderId?: string;
   webLink?: string;
   categories?: string[];
+}
+
+/**
+ * Format an array of Microsoft Graph recipients into a comma-separated
+ * RFC-style string: "Name <address>" or just "address".
+ */
+function formatRecipients(
+  recipients?: Array<{ emailAddress?: { address?: string; name?: string } }>,
+): string | undefined {
+  if (!recipients || recipients.length === 0) return undefined;
+  const formatted = recipients
+    .map((recipient) => {
+      const addr = recipient.emailAddress?.address;
+      const name = recipient.emailAddress?.name;
+      if (!addr) return null;
+      return name ? `${name} <${addr}>` : addr;
+    })
+    .filter(Boolean)
+    .join(", ");
+  return formatted || undefined;
 }
 
 /**
@@ -75,6 +107,8 @@ export function parseOffice365Message(
     from,
     fromName,
     replyTo,
+    to: formatRecipients(messageData.toRecipients),
+    cc: formatRecipients(messageData.ccRecipients),
     body,
     htmlBody,
     starCount,

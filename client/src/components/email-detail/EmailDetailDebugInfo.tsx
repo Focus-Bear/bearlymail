@@ -17,7 +17,8 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
       const threadEmailData = threadEmail as any;
       return (
         <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-          [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | Labels:{' '}
+          [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | From: {threadEmailData.from || 'N/A'} | To:{' '}
+          {threadEmailData.to || 'N/A'} | CC: {threadEmailData.cc || 'N/A'} | Labels:{' '}
           {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received:{' '}
           {threadEmailData.receivedAt}
         </div>
@@ -58,6 +59,19 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
           lineHeight: 1.6,
         }}
       >
+        <div>
+          <strong>From:</strong> {emailData.from || 'N/A'}
+          {emailData.fromName ? ` (${emailData.fromName})` : ''}
+        </div>
+        <div>
+          <strong>To:</strong> {emailData.to || 'N/A'}
+        </div>
+        <div>
+          <strong>CC:</strong> {emailData.cc || 'N/A'}
+        </div>
+        <div>
+          <strong>Reply-To:</strong> {emailData.replyTo || 'N/A'}
+        </div>
         <div>
           <strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}
         </div>

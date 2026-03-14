@@ -16,6 +16,10 @@ export interface ZohoMailMessage {
     address?: string;
     personal?: string;
   };
+  /** Comma-separated "Name <email>" or "email" format */
+  toAddress?: string;
+  /** Comma-separated "Name <email>" or "email" format */
+  ccAddress?: string;
   receivedTime?: number;
   isRead?: boolean;
   content?: {
@@ -27,6 +31,14 @@ export interface ZohoMailMessage {
   folderId?: string;
   folderName?: string;
   tags?: string[];
+}
+
+function importanceToStarCount(
+  importance: ZohoMailMessage["importance"],
+): number {
+  if (importance === "high") return 3;
+  if (importance === "low") return 1;
+  return 0;
 }
 
 /**
@@ -44,15 +56,7 @@ export function parseZohoMessage(
   const replyTo = messageData.replyTo?.address || undefined;
   const subject = messageData.subject || "(No Subject)";
   const { threadId } = messageData;
-  const importance = messageData.importance || "normal";
-  let starCount: number;
-  if (importance === "high") {
-    starCount = 3;
-  } else if (importance === "low") {
-    starCount = 1;
-  } else {
-    starCount = 0;
-  }
+  const starCount = importanceToStarCount(messageData.importance || "normal");
 
   // Extract body content
   const htmlBody = messageData.content?.html || messageData.body || "";
@@ -69,6 +73,8 @@ export function parseZohoMessage(
     from,
     fromName,
     replyTo,
+    to: messageData.toAddress || undefined,
+    cc: messageData.ccAddress || undefined,
     body,
     htmlBody: htmlBody || undefined,
     starCount,

@@ -349,7 +349,7 @@ export class Office365Provider implements EmailProvider {
     const fullMsg = await graphClient.get(`/me/messages/${message.id}`, {
       params: {
         $select:
-          "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
+          "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
       },
     });
 
@@ -560,7 +560,7 @@ export class Office365Provider implements EmailProvider {
       const fullMsg = await graphClient.get(`/me/messages/${messageId}`, {
         params: {
           $select:
-            "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories",
+            "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories",
         },
       });
 

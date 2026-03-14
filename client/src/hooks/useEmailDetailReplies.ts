@@ -237,6 +237,8 @@ interface Email {
   id: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   replyTo?: string;
   subject: string;
   body: string;

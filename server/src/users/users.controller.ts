@@ -117,7 +117,10 @@ export class UsersController {
       string,
       unknown
     > & { anthropicApiKey?: unknown };
-    return this.usersService.update(req.user.userId, safeUpdates as Partial<User>);
+    return this.usersService.update(
+      req.user.userId,
+      safeUpdates as Partial<User>,
+    );
   }
 
   @Post("accept-consent")

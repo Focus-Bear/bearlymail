@@ -137,6 +137,11 @@ export class EmailsController {
     return this.emailsService.getCategories(req.user.userId);
   }
 
+  @Get("priority-counts")
+  async getPriorityCounts(@Request() req) {
+    return this.emailsService.getPriorityCounts(req.user.userId);
+  }
+
   @Get("inbox-summary")
   async getInboxSummary(
     @Request() req,

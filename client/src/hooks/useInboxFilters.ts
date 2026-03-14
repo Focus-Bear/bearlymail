@@ -18,6 +18,7 @@ export interface ConnectedAccount {
 }
 
 const STORAGE_KEY = 'inbox_filters';
+const DEFAULT_MIN_PRIORITY = 50;
 
 // Priority ranges as specified in the issue
 export const PRIORITY_RANGES = [
@@ -41,11 +42,11 @@ export function useInboxFilters() {
     } catch (error) {
       console.error('Failed to load filters from localStorage:', error);
     }
-    // Default: all accounts, all categories, all priorities
+    // Default: high priority for new users — progressive unlock from there
     return {
       accountIds: [],
       categories: [],
-      minPriority: null,
+      minPriority: DEFAULT_MIN_PRIORITY,
     };
   });
 

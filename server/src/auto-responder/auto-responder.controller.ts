@@ -11,8 +11,8 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { AutoResponderService } from "./auto-responder.service";
+import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { QueueStatsService } from "./queue-stats.service";
 import { AutoResponderConfig } from "./types/auto-responder.types";
 
@@ -252,10 +252,11 @@ export class AutoResponderController {
     this.logger.log(
       `Archive audit requested by user ${req.user.userId} (dryRun=${isDryRun})`,
     );
-    const result = await this.archiveAuditService.auditArchivedAutoRespondedThreads(
-      req.user.userId,
-      isDryRun,
-    );
+    const result =
+      await this.archiveAuditService.auditArchivedAutoRespondedThreads(
+        req.user.userId,
+        isDryRun,
+      );
     return result;
   }
 }

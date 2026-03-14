@@ -53,6 +53,14 @@ export interface InboxContentProps {
   categorySummary?: CategorySummaryItem[] | null;
   loadedCategoryNames?: string[];
   loadingCategoryNames?: string[];
+  /** Current active priority filter for progressive unlock */
+  minPriority?: number | null;
+  /** Counts of threads per priority tier for progressive unlock prompt */
+  priorityCounts?: { high: number; medium: number; low: number } | null;
+  /** Called when user accepts progressive unlock to a lower priority tier */
+  onUnlockPriorityTier?: (newMinPriority: number) => void;
+  /** Called when user dismisses the progressive unlock prompt */
+  onDismissUnlockPrompt?: () => void;
 }
 
 export const InboxContent: React.FC<InboxContentProps> = (props) => {
@@ -66,6 +74,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet, onBulkArchive,
     expandedCategories, stableCategoryOrder, onToggleCategory, onUpdateStableCategoryOrder,
     onLoadMore, hasMore, categorySummary, loadedCategoryNames,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
   } = props;
 
   const {
@@ -97,6 +106,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onToggleCategory, onBulkArchive, onConvertProtoCategory: handleConvertProtoCategory,
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
     onReanalyseOther: handleReanalyseOther,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
   };
 
   return (

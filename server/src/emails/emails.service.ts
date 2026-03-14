@@ -264,6 +264,36 @@ export class EmailsService {
   }
 
   /**
+   * Returns counts of active (non-archived) triage email threads grouped by priority tier.
+   * - high: priorityScore >= 50
+   * - medium: priorityScore >= 20 and < 50
+   * - low: priorityScore < 20
+   */
+  async getPriorityCounts(
+    userId: string,
+  ): Promise<{ high: number; medium: number; low: number }> {
+    const rows = await this.emailThreadRepository.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 50) AS high,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 20 AND COALESCE("priorityScore", 0) < 50) AS medium,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 20) AS low
+       FROM email_threads
+       WHERE "userId" = $1
+         AND "isArchived" = false
+         AND "isBatched" = false
+         AND "isSnoozed" = false`,
+      [userId],
+    );
+
+    const row = rows[0] ?? { high: 0, medium: 0, low: 0 };
+    return {
+      high: parseInt(row.high, 10) || 0,
+      medium: parseInt(row.medium, 10) || 0,
+      low: parseInt(row.low, 10) || 0,
+    };
+  }
+
+  /**
    * Get a lightweight summary of inbox categories with counts.
    * Returns all categories visible to the user without fetching full email data.
    * Counts are approximate — blocked sender and account filtering are skipped for performance.
@@ -700,7 +730,7 @@ export class EmailsService {
       threadFilter = BLOCKED_MODE_THREAD_FILTER;
     }
 
-    const queryParams: string[] = [userId];
+    const queryParams: (string | number)[] = [userId];
     let additionalFilters = "";
     let paramIndex = 2;
 
@@ -721,7 +751,7 @@ export class EmailsService {
 
     if (filters?.minPriority !== undefined) {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
-      queryParams.push(filters.minPriority.toString());
+      queryParams.push(filters.minPriority);
     }
 
     return this.emailRepository.query(

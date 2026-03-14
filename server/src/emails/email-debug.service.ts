@@ -957,7 +957,8 @@ export class EmailDebugService {
         subject: null,
         from: null,
         receivedAt: null,
-        error: `Could not resolve legacy message ID "${urlId}" via Gmail API — ${errorMessage}. ` +
+        error:
+          `Could not resolve legacy message ID "${urlId}" via Gmail API — ${errorMessage}. ` +
           `Check Gmail auth scope for admin debug.`,
       };
     }
@@ -1085,8 +1086,11 @@ export class EmailDebugService {
       },
       reasons: [
         `URL ID "${urlId}" (Gmail URL format: ${detectedFormat}) not found in BearlyMail database or Gmail API. ` +
-          `The Gmail URL may be invalid, the email may have been deleted, or Gmail API auth may be unavailable for this user. ` +
-          (gmailApiResult?.error ? `Gmail API error: ${gmailApiResult.error}` : ""),
+          `The Gmail URL may be invalid, the email may have been deleted, or Gmail API auth may be unavailable for this user. ${
+            gmailApiResult?.error
+              ? `Gmail API error: ${gmailApiResult.error}`
+              : ""
+          }`,
       ],
       gmailApiResult,
     };

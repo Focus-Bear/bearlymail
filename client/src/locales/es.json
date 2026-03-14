@@ -791,7 +791,9 @@
     "ccLabel": "CC:",
     "to": "Para",
     "cc": "CC",
-    "keepOriginal": "Mantener original"
+    "keepOriginal": "Mantener original",
+    "saveAsPdf": "Guardar como PDF",
+    "moreOptions": "Más opciones"
   },
   "contacts": {
     "title": "Contactos",
@@ -1402,7 +1404,16 @@
       "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
       "confirm": "Block Sender"
     },
-    "scheduled": "Programados"
+    "scheduled": "Programados",
+    "progressiveUnlock": {
+      "highDone": "¡Buen trabajo — has limpiado todos los correos de alta prioridad!",
+      "mediumDone": "⭐ ¡Increíble — también terminaste la prioridad media!",
+      "mediumLabel": "prioridad media",
+      "lowLabel": "prioridad baja",
+      "nextTierQuestion": "Hay {{count}} correos de {{tier}} esperando. ¿Quieres abordarlos ahora?",
+      "showTier": "Mostrar correos de {{tier}}",
+      "later": "Quizás más tarde"
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -2369,5 +2380,10 @@
   },
   "legal": {
     "lastUpdated": "Última actualización: {{date}}"
+  },
+  "printableThread": {
+    "from": "De:",
+    "to": "Para:",
+    "date": "Fecha:"
   }
 }

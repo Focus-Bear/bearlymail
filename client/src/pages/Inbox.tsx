@@ -19,6 +19,7 @@ import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxState } from 'hooks/useInboxState';
+import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 
 interface SplitViewNavContext {
@@ -86,6 +87,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
   } = filterState;
   const { isSidebarCollapsed, isMobileMenuOpen, handleToggleSidebarCollapse, openMobileMenu, handleCloseMobileMenu } = sidebarState;
   const { isDebugModeEnabled } = useDebugMode();
+  const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts();
   const activeFilterCount =
     (filters.accountIds.length > 0 ? 1 : 0) +
     (filters.categories.length > 0 ? 1 : 0) +
@@ -187,6 +189,16 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           onUpdateStableCategoryOrder={updateStableCategoryOrder} onLoadMore={loadMore} hasMore={hasMore}
           categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
+          minPriority={filters.minPriority}
+          priorityCounts={priorityCounts}
+          onUnlockPriorityTier={(newMinPriority: number) => {
+            setPriorityFilter(newMinPriority);
+            fetchEmails();
+            fetchPriorityCounts();
+          }}
+          onDismissUnlockPrompt={() => {
+            // Keep current priority tier — do not change minPriority
+          }}
           onSplitViewArchive={id => navigateToNextEmailAfterAction(id, splitViewNavCtx)}
           onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, splitViewNavCtx)}
           onSplitViewPrioritySet={(id, count) => {

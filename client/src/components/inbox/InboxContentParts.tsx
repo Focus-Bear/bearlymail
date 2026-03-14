@@ -492,6 +492,14 @@ export interface InboxEmailListPanelProps {
   onConvertProtoCategory: (protoCategoryId: string, name: string) => Promise<void>;
   onDeleteProtoCategoryFromInbox: (protoCategoryId: string) => Promise<void>;
   onReanalyseOther: () => void;
+  /** Current active priority filter for progressive unlock */
+  minPriority?: number | null;
+  /** Counts of threads per priority tier for progressive unlock prompt */
+  priorityCounts?: { high: number; medium: number; low: number } | null;
+  /** Called when user accepts progressive unlock to a lower priority tier */
+  onUnlockPriorityTier?: (newMinPriority: number) => void;
+  /** Called when user dismisses the progressive unlock prompt */
+  onDismissUnlockPrompt?: () => void;
 }
 
 export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) => {
@@ -505,6 +513,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
     priorityTooltip, keyboardHint, snoozeInput, emailActions, modals, updateDraft,
     onEmailClick, onEmailSelect, onSendFollowUp, onGenerateDrafts, onRetry,
     onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox, onReanalyseOther,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
   } = props;
 
   const { isDebugModeEnabled } = useDebugMode();
@@ -601,6 +610,10 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           emailsEmpty={emailsEmpty}
           mode={mode}
           onRetry={onRetry}
+          minPriority={minPriority}
+          priorityCounts={priorityCounts}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+          onDismissUnlockPrompt={onDismissUnlockPrompt}
         />
         {canRenderCategories && <InboxCategoryList {...categoryListProps} />}
         {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (

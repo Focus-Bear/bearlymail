@@ -310,7 +310,16 @@
       "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
       "confirm": "Block Sender"
     },
-    "scheduled": "Scheduled"
+    "scheduled": "Scheduled",
+    "progressiveUnlock": {
+      "highDone": "Nice work — you've cleared all the high priority emails!",
+      "mediumDone": "⭐ Amazing — medium priority done too!",
+      "mediumLabel": "medium priority",
+      "lowLabel": "low priority",
+      "nextTierQuestion": "There are {{count}} {{tier}} emails waiting. Want to tackle them next?",
+      "showTier": "Show {{tier}} emails",
+      "later": "Maybe later"
+    }
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",
@@ -448,7 +457,9 @@
     "toLabel": "To:",
     "ccLabel": "CC:",
     "to": "To",
-    "cc": "CC"
+    "cc": "CC",
+    "saveAsPdf": "Save as PDF",
+    "moreOptions": "More options"
   },
   "settings": {
     "title": "Settings",
@@ -2366,5 +2377,10 @@
   },
   "legal": {
     "lastUpdated": "Last updated: {{date}}"
+  },
+  "printableThread": {
+    "from": "From:",
+    "to": "To:",
+    "date": "Date:"
   }
 }

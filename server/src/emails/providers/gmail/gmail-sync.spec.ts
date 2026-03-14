@@ -79,11 +79,9 @@ describe("gmail-sync helpers", () => {
       return {
         users: {
           threads: {
-            get: jest.fn(
-              async ({ id }: { userId: string; id: string }) => ({
-                data: threads[id] ?? { messages: [] },
-              }),
-            ),
+            get: jest.fn(async ({ id }: { userId: string; id: string }) => ({
+              data: threads[id] ?? { messages: [] },
+            })),
           },
         },
       } as unknown as gmail_v1.Gmail;
@@ -150,7 +148,10 @@ describe("gmail-sync helpers", () => {
       const gmail = makeGmailMock({
         "thread-autoresponder": {
           messages: [
-            { id: "incoming", labelIds: ["INBOX", "UNREAD", "CATEGORY_PERSONAL"] },
+            {
+              id: "incoming",
+              labelIds: ["INBOX", "UNREAD", "CATEGORY_PERSONAL"],
+            },
             { id: "autoresponse", labelIds: ["SENT"] },
           ],
         },

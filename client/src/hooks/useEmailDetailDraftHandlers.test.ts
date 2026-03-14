@@ -110,6 +110,89 @@ describe('useEmailDetailDraftHandlers', () => {
     expect(setters.setDraft).toHaveBeenCalledWith('Hello from B');
   });
 
+  // Tests for #886: active-state mismatch when selecting a suggested reply option
+  it('handleReplyOptionSelect preserves selected option index even when handleDraftChange fires immediately after (simulating Tiptap cascade)', () => {
+    const setters = makeSetters();
+    const { result } = renderHook(() =>
+      useEmailDetailDraftHandlers(
+        replyOptions,
+        setters.setDraft,
+        setters.setSelectedReplyOption,
+        setters.setReplyOptions,
+        setters.setToneCheckResult,
+        setters.setShowReplyComposer
+      )
+    );
+
+    act(() => {
+      // Simulate: user clicks "Suggestion A" (idx 0, not Custom)
+      result.current.handleReplyOptionSelect(0, 'Hello from A');
+      // Simulate: Tiptap fires handleDraftChange synchronously in the same tick
+      result.current.handleDraftChange('Hello from A');
+    });
+
+    // setSelectedReplyOption should have been called with 0 (Suggestion A) and
+    // the subsequent handleDraftChange must NOT override it back to Custom (idx 2).
+    const calls = setters.setSelectedReplyOption.mock.calls.map(call => call[0]);
+    // The last call must be idx 0, not the Custom idx (2)
+    expect(calls[calls.length - 1]).toBe(0);
+  });
+
+  it('handleDraftChange without prior handleReplyOptionSelect still switches to Custom', async () => {
+    const setters = makeSetters();
+    const { result } = renderHook(() =>
+      useEmailDetailDraftHandlers(
+        replyOptions,
+        setters.setDraft,
+        setters.setSelectedReplyOption,
+        setters.setReplyOptions,
+        setters.setToneCheckResult,
+        setters.setShowReplyComposer
+      )
+    );
+
+    // No option selection — user is typing directly
+    act(() => {
+      result.current.handleDraftChange('user typed something');
+    });
+
+    // Should switch to Custom tab (idx 2)
+    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(2);
+  });
+
+  it('handleDraftChange after microtask clears flag — subsequent typing resets to Custom', async () => {
+    const setters = makeSetters();
+    const { result } = renderHook(() =>
+      useEmailDetailDraftHandlers(
+        replyOptions,
+        setters.setDraft,
+        setters.setSelectedReplyOption,
+        setters.setReplyOptions,
+        setters.setToneCheckResult,
+        setters.setShowReplyComposer
+      )
+    );
+
+    // Select option A
+    act(() => {
+      result.current.handleReplyOptionSelect(0, 'Hello from A');
+    });
+
+    // Wait for the microtask (Promise.resolve) to clear the flag
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Now user types — should reset to Custom
+    act(() => {
+      result.current.handleDraftChange('user typing after selection');
+    });
+
+    const calls = setters.setSelectedReplyOption.mock.calls.map(call => call[0]);
+    // Last call should be Custom idx (2)
+    expect(calls[calls.length - 1]).toBe(2);
+  });
+
   it('handleReplyClose clears all reply state', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>

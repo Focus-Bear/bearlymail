@@ -81,7 +81,6 @@ const resolveEffectiveMessageKey = ({
   return messageKey;
 };
 
-// eslint-disable-next-line max-lines-per-function -- Analysis progress hook requires handling multiple states and logic
 export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -154,7 +153,6 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     }
   }, []);
 
-  // eslint-disable-next-line max-lines-per-function -- Analysis polling requires tracking multiple states, retries, and error conditions
   useEffect(() => {
     // Don't start polling until BOTH analyzing is true AND analysisId is set
     // This prevents the first poll from using an old/null analysisId
@@ -168,7 +166,6 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
 
     let retryCount = 0;
     let errorCount = 0;
-    // eslint-disable-next-line max-lines-per-function -- Progress polling logic requires handling multiple states and error conditions
 
     const handleErrorResponse = (errorMessage: string, timeoutId: NodeJS.Timeout | null) => {
       devError('Handling error response:', errorMessage);

@@ -99,7 +99,6 @@ describe('emailUtils', () => {
   describe('sanitizeAndProcessHtml', () => {
     beforeEach(() => {
       // Ensure we're in a browser-like environment
-      // eslint-disable-next-line no-restricted-syntax -- 'undefined' is needed for TypeScript type narrowing in test environment
       if (typeof document === TYPEOF_UNDEFINED) {
         const mockElement = {
           innerHTML: '',
@@ -214,11 +213,9 @@ describe('emailUtils', () => {
     });
 
     it('should sanitize malicious JavaScript in href', () => {
-      // eslint-disable-next-line no-script-url -- Test requires checking that javascript: URLs are sanitized
       const html = '<a href="javascript:alert(\'xss\')">Click</a>';
       const result = sanitizeAndProcessHtml(html);
       // DOMPurify should sanitize javascript: URLs
-      // eslint-disable-next-line no-script-url -- Test assertion checking that javascript: URLs are sanitized
       expect(result).not.toContain('javascript:');
     });
 

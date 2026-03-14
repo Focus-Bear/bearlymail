@@ -33,7 +33,6 @@ export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestE
           maxWidth: '500px',
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <div
           style={{
             color: theme.colors.accent.success,

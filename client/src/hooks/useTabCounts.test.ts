@@ -35,7 +35,6 @@ describe('useTabCounts', () => {
   describe('fetchTabCounts', () => {
     it('should fetch tab counts from API and cache them', async () => {
       const mockCounts = { triage: 10, action: 5, followUp: 2 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: mockCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -81,7 +80,6 @@ describe('useTabCounts', () => {
       );
 
       const freshCounts = { triage: 0, action: 5, followUp: 1 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: freshCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -105,7 +103,6 @@ describe('useTabCounts', () => {
       );
 
       const freshCounts = { triage: 0, action: 5, followUp: 1 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: freshCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -121,7 +118,6 @@ describe('useTabCounts', () => {
   describe('updateTabCountsOptimistically', () => {
     it('should update counts optimistically', async () => {
       const initialCounts = { triage: 10, action: 5, followUp: 2 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -139,7 +135,6 @@ describe('useTabCounts', () => {
 
     it('should not allow counts to go below zero', async () => {
       const initialCounts = { triage: 0, action: 2, followUp: 1 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -166,7 +161,6 @@ describe('useTabCounts', () => {
         })
       );
 
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -189,7 +183,6 @@ describe('useTabCounts', () => {
 
     it('should handle missing cache gracefully when updating optimistically', async () => {
       const initialCounts = { triage: 10, action: 5, followUp: 2 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });
 
       const { result } = renderHook(() => useTabCounts());
@@ -211,7 +204,6 @@ describe('useTabCounts', () => {
 
     it('should update multiple mode counts in one call', async () => {
       const initialCounts = { triage: 10, action: 5, followUp: 2 };
-      // eslint-disable-next-line id-denylist
       mockedAxios.get.mockResolvedValue({ data: initialCounts });
 
       const { result } = renderHook(() => useTabCounts());

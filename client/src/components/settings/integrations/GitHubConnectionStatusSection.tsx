@@ -44,7 +44,6 @@ interface GitHubStatusDetailsProps {
   onConnectGitHubWithRepoAccess: () => void;
 }
 
-// eslint-disable-next-line max-lines-per-function
 const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
   status,
   inaccessibleRepos,
@@ -75,9 +74,7 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
                 fontSize: theme.typography.fontSize.sm,
               }}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              {t('settings.github.connectionStatus.tokenValid')} — @{status.login}
-              {status.name ? ` (${status.name})` : ''}
+              {t('settings.github.connectionStatus.tokenValidUser', { login: status.login, name: status.name ? ` (${status.name})` : '' })}
             </p>
             {status.scopes && status.scopes.length > 0 && (
               <p
@@ -87,14 +84,15 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
                   color: theme.colors.text.secondary,
                 }}
               >
-                {t('settings.github.connectionStatus.scopes')}: {status.scopes.join(', ')}
+                {t('settings.github.connectionStatus.scopesList', { scopes: status.scopes.join(', ') })}
               </p>
             )}
           </div>
         ) : (
           <p style={{ margin: 0, color: theme.colors.accent.error, fontSize: theme.typography.fontSize.sm }}>
-            {t('settings.github.connectionStatus.tokenInvalid')}
-            {status.error ? `: ${status.error}` : ''}
+            {status.error
+              ? t('settings.github.connectionStatus.tokenInvalidWithError', { error: status.error })
+              : t('settings.github.connectionStatus.tokenInvalid')}
           </p>
         )}
       </div>
@@ -134,7 +132,6 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
                       fontWeight: theme.typography.fontWeight.bold,
                     }}
                   >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
                     {repo.accessible ? '✓' : '✗'}
                   </span>
                   <span
@@ -144,7 +141,6 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
                       fontSize: theme.typography.fontSize.sm,
                     }}
                   >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
                     {repo.owner}/{repo.repo}
                   </span>
                   <div style={{ display: 'flex', gap: theme.spacing.xs }}>

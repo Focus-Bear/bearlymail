@@ -3,6 +3,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
 import { OPACITY_HALF, TOAST_DURATION_MS } from 'components/inbox/constants';
+import { EVENT_CLICK } from 'constants/strings';
 
 interface StarButtonsProps {
   email: Email;
@@ -34,8 +35,7 @@ export const StarButtons: React.FC<StarButtonsProps> = ({ email, keyboardHint, o
             const currentCount = email.starCount || 0;
             const newCount = currentCount === count ? 0 : count;
             onSetStarCount(email.id, newCount, event);
-            // eslint-disable-next-line no-restricted-syntax -- 'click' is a standard DOM event type
-            if (event.type === 'click' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+            if (event.type === EVENT_CLICK && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
               keyboardHint.showHint(email.id, `Press ${count} to set ${count} star${count > 1 ? 's' : ''}`);
               setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
             }

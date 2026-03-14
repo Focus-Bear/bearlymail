@@ -20,7 +20,6 @@ interface CustomRuleModalProps {
   onCreate: () => Promise<void>;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Custom rule modal requires extensive form handling and validation logic
 export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
   show,
   customRule,

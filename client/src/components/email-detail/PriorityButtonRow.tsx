@@ -75,7 +75,6 @@ export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({ emailId, s
               }}
             >
               <span>{emoji}</span>
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               <span>{label}</span>
             </button>
           );

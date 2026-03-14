@@ -75,7 +75,6 @@ export function useInboxModeChanges({
     });
     // Note: fetchEmails is intentionally not in dependencies - we track mode changes directly
     // fetchEmails uses mode from its closure, so it will use the current mode when called
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, hasInitiallyLoaded, user, authLoading]);
 
   // Fetch triage suggestions when in triage mode with emails
@@ -91,6 +90,5 @@ export function useInboxModeChanges({
       prevModeRef.current = mode;
       clearSuggestionsCache();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, emails.length, loadingSuggestions]);
 }

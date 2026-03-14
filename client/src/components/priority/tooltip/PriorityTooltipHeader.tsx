@@ -75,7 +75,6 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
         }}
         title={t('common.close')}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_CLOSE}
       </button>
     </div>

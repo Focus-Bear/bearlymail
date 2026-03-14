@@ -15,18 +15,14 @@ export const UrgencyScoreInput: React.FC<UrgencyScoreInputProps> = ({ urgencySco
 
   const getUrgencyLabel = (score: number): string => {
     if (score >= URGENCY_THRESHOLD) {
-      /* eslint-disable-next-line i18next/no-literal-string */
       return `${EMOJI_SIREN} ${t('priority.override.urgency.critical')}`;
     }
     if (score >= URGENCY_HIGH_THRESHOLD) {
-      /* eslint-disable-next-line i18next/no-literal-string */
       return `${EMOJI_WARNING} ${t('priority.override.urgency.high')}`;
     }
     if (score >= URGENCY_LOW) {
-      /* eslint-disable-next-line i18next/no-literal-string */
       return `${EMOJI_CLIPBOARD} ${t('priority.override.urgency.moderate')}`;
     }
-    /* eslint-disable-next-line i18next/no-literal-string */
     return `${EMOJI_CHECK} ${t('priority.override.urgency.low')}`;
   };
 

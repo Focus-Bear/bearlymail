@@ -43,7 +43,6 @@ export const FounderStoryContent: React.FC = () => {
           {t('landing.founder.story.mobile.paragraph3')}
         </p>
         <p style={{ ...paragraphStyle, marginBottom: 0, fontWeight: theme.typography.fontWeight.medium }}>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {t('landing.founder.story.mobile.paragraph4')} 🐻
         </p>
       </>
@@ -89,7 +88,6 @@ export const FounderStoryContent: React.FC = () => {
         {t('landing.founder.story.desktop.paragraph10')}
       </p>
       <p style={{ ...paragraphStyle, marginBottom: 0, fontWeight: theme.typography.fontWeight.medium }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {t('landing.founder.story.desktop.paragraph11')} 🐻
       </p>
     </>

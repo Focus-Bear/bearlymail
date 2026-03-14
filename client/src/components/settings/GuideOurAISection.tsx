@@ -83,7 +83,6 @@ interface GuideOurAISectionProps {
   onRefreshContexts?: () => void;
 }
 
-// eslint-disable-next-line max-lines-per-function -- GuideOurAISection composes context, tone, and summarization sections requiring many props
 export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   contexts,
   toneRules,

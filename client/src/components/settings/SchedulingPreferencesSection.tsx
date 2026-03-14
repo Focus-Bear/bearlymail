@@ -337,7 +337,6 @@ export const SchedulingPreferencesSection: React.FC = () => {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span style={{ fontSize: theme.typography.fontSize.xl }}>{EMOJI_CALENDAR}</span>
         <h2
           style={{

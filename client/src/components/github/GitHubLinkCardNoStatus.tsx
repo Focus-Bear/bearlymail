@@ -35,7 +35,6 @@ export const GitHubLinkCardNoStatus: React.FC<GitHubLinkCardNoStatusProps> = ({ 
           display: 'block',
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {link.type === LINK_TYPE_ISSUE ? EMOJI_ISSUE : EMOJI_PR} {link.owner}/{link.repo}#{link.number}
       </a>
       <p

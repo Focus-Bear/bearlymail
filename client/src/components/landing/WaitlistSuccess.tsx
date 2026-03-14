@@ -36,7 +36,6 @@ export const WaitlistSuccess: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <div style={{ fontSize: '4rem', marginBottom: theme.spacing.md }}>{EMOJI_CHECK}</div>
         <h1
           style={{

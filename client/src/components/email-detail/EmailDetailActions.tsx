@@ -39,7 +39,6 @@ interface EmailDetailActionsProps {
   hideActionButtons?: boolean;
 }
 
-// eslint-disable-next-line max-lines-per-function
 export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   email,
   suggestedActions,
@@ -263,7 +262,6 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
                   marginLeft: 'auto',
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <span>{EMOJI_LINK}</span>
                 <span>{t('inbox.unsubscribe')}</span>
               </button>
@@ -287,7 +285,6 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
                   marginLeft: 'auto',
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <span>{EMOJI_BLOCK}</span>
                 <span>{t('inbox.blockSender')}</span>
               </button>

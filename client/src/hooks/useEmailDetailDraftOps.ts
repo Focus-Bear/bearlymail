@@ -207,7 +207,6 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
   const draftCrud = useEmailDraftCrud(email?.threadId);
   const handleGenerateDraft = useDraftGenerationCallback(id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption);
 
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   const handleOpenReplyComposer = useCallback(
     (mode: 'reply' | 'replyAll') => {
       captureEvent(ANALYTICS_EVENTS.REPLY_BUTTON_CLICKED, { email_id: id, reply_type: mode });

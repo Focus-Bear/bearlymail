@@ -48,7 +48,6 @@ const RepoHeader: React.FC<{
           fontSize: theme.typography.fontSize.base,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {mapping.owner}/{mapping.repo}
       </span>
       {mapping.isDefault && (
@@ -138,7 +137,6 @@ const RepoDetails: React.FC<{ mapping: RepoMapping; t: (k: string) => string }> 
           margin: `${theme.spacing.xs} 0 0 0`,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {t('settings.github.repoMappings.emailCategories')}: {mapping.emailCategories}
       </p>
     )}

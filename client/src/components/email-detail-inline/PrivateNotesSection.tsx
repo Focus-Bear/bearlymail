@@ -125,7 +125,6 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
           backgroundColor: COLOR_NAMED_WHITE,
         }}
       />
-      {/* eslint-disable i18next/no-literal-string */}
       <div
         style={{
           fontSize: theme.typography.fontSize.xs,
@@ -137,7 +136,6 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
           ? `Only visible to you · Saved ${humanizeDuration(Date.now() - lastSavedAt)}`
           : 'Only visible to you'}
       </div>
-      {/* eslint-enable i18next/no-literal-string */}
     </CollapsibleSection>
   );
 };

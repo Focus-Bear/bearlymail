@@ -15,13 +15,11 @@ interface AddressFieldProps {
   value: string;
 }
 const AddressField: React.FC<AddressFieldProps> = ({ label, value }) => (
-  /* eslint-disable i18next/no-literal-string */
   <div
     style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}
   >
     <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{label}:</span> {value}
   </div>
-  /* eslint-enable i18next/no-literal-string */
 );
 
 interface ThreadItemHeaderProps {
@@ -55,7 +53,6 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
       showSuccess(t('emailDetail.emailCopied'));
       setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);
     }
   }, [from, showSuccess, t]);
@@ -95,7 +92,6 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 &lt;{from}&gt;
               </span>
               <button

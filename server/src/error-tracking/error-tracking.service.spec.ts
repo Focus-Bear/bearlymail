@@ -13,7 +13,6 @@ describe("ErrorTrackingService", () => {
     // Spy on the internal PostHog client's captureException method
     // (not .capture — we must use the SDK's native captureException for $exception events)
     mockCaptureException = jest.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (service as any).posthog = { captureException: mockCaptureException };
   });
 
@@ -77,9 +76,7 @@ describe("ErrorTrackingService", () => {
     });
 
     it("does nothing when PostHog is disabled", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (service as any).isEnabled = false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (service as any).posthog = null;
 
       service.captureException(new Error("silent"));

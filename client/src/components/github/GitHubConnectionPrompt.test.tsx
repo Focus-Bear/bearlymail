@@ -58,7 +58,6 @@ describe('GitHubConnectionPrompt', () => {
   });
 
   it('initiates GitHub OAuth flow when connect button is clicked', async () => {
-    // eslint-disable-next-line id-denylist
     mockedAxios.post.mockResolvedValueOnce({ data: { token: 'test-token-123' } });
 
     render(<GitHubConnectionPrompt />);
@@ -92,7 +91,6 @@ describe('GitHubConnectionPrompt', () => {
     });
 
     // Clean up
-    // eslint-disable-next-line id-denylist
     resolvePromise!({ data: { token: 'token' } });
   });
 
@@ -113,7 +111,6 @@ describe('GitHubConnectionPrompt', () => {
 
   it('encodes the token in the redirect URL', async () => {
     const tokenWithSpecialChars = 'token+with/special=chars';
-    // eslint-disable-next-line id-denylist
     mockedAxios.post.mockResolvedValueOnce({ data: { token: tokenWithSpecialChars } });
 
     render(<GitHubConnectionPrompt />);

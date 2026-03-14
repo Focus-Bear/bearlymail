@@ -108,7 +108,6 @@ export const captureException = (error: Error, additionalContext?: Record<string
 // Helper function to check if PostHog is loaded
 export const isPostHogLoaded = (): boolean => {
   try {
-    // eslint-disable-next-line no-restricted-syntax -- 'has_opted_out_capturing' is a PostHog API property name
     return typeof posthog !== TYPEOF_UNDEFINED && posthog.has_opted_out_capturing !== undefined;
   } catch {
     return false;

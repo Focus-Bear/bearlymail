@@ -21,9 +21,8 @@ export const LegalSection: React.FC<LegalSectionProps> = ({ title, children, sub
         {title}
       </h2>
       {children}
-      {subsections?.map((subsection, index) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <div key={index}>
+      {subsections?.map(subsection => (
+        <div key={subsection.title}>
           <h3
             style={{
               fontSize: theme.typography.fontSize.lg,

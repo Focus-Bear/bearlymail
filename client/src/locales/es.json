@@ -630,7 +630,9 @@
       "mondayMorning": "El lunes por la mañana",
       "thisAfternoon": "Esta tarde",
       "pickDateTime": "Elegir fecha y hora..."
-    }
+    },
+    "toLabel": "Para:",
+    "ccLabel": "CC:"
   },
   "contacts": {
     "title": "Contactos",
@@ -1867,7 +1869,10 @@
         "privateRepoHint": "No se puede acceder a uno o más repositorios. Los repositorios privados requieren el permiso 'repo'. Haga clic abajo para reconectar y otorgar acceso a sus repositorios privados.",
         "tokenExpiredHint": "Su token de GitHub parece ser inválido o expirado. Vuelva a conectar GitHub para solucionarlo.",
         "reconnect": "Reconectar GitHub",
-        "reconnectWithRepoAccess": "Otorgar acceso a repositorios privados"
+        "reconnectWithRepoAccess": "Otorgar acceso a repositorios privados",
+        "tokenValidUser": "Token válido — @{{login}}{{name}}",
+        "scopesList": "Permisos: {{scopes}}",
+        "tokenInvalidWithError": "Token inválido o expirado: {{error}}"
       }
     },
     "gmail": {

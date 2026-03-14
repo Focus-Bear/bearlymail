@@ -35,17 +35,13 @@ export interface EmailDetailState {
   setNewActionItem: (item: string) => void;
   draft: string | null;
   setDraft: (draft: string | null) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type annotations must use string literal types for TypeScript
   replyOptions: Array<{ label: string; text: string }> | null;
-  // eslint-disable-next-line no-restricted-syntax -- Type annotations must use string literal types for TypeScript
   setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
   selectedReplyOption: number;
   setSelectedReplyOption: (index: number) => void;
   showReplyComposer: boolean;
   setShowReplyComposer: (show: boolean) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   replyMode: 'reply' | 'replyAll';
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   setReplyMode: (mode: 'reply' | 'replyAll') => void;
   replyRecipients: string;
   setReplyRecipients: (recipients: string) => void;
@@ -84,11 +80,9 @@ export interface EmailDetailState {
     } | null
   ) => void;
   snoozeInput: string;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   setSnoozeInput: (input: string) => void;
   showSnoozeInput: boolean;
   setShowSnoozeInput: (show: boolean) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   priorityExplanation: any;
   setPriorityExplanation: (explanation: any) => void;
   showPriorityExplanation: boolean;

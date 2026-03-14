@@ -76,7 +76,6 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
               }}
               title={t('settings.delivery.times.removeTime')}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               {EMOJI_CLOSE}
             </button>
           </div>

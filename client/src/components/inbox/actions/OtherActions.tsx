@@ -9,6 +9,7 @@ import { SnoozeInput } from 'components/inbox/actions/SnoozeInput';
 import { MODE_TRIAGE, OPACITY_DISABLED, TOAST_DURATION_MS } from 'components/inbox/constants';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
+import { EVENT_CLICK } from 'constants/strings';
 
 interface OtherActionsProps {
   email: Email;
@@ -96,8 +97,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
           onClick={event => {
             event.stopPropagation();
             onArchive(email.id, event);
-            // eslint-disable-next-line no-restricted-syntax -- 'click' is a standard DOM event type
-            if (event.type === 'click' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+            if (event.type === EVENT_CLICK && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
               keyboardHint.showHint(email.id, t('inbox.pressDeleteToArchive'));
               setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
             }
@@ -105,7 +105,6 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
           title={t('inbox.archiveOrPressDelete')}
           style={actionBtnStyle}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           <span>{EMOJI_INBOX}</span>
           <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
             {t('inbox.archive')}
@@ -120,7 +119,6 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
             title={t('inbox.unsubscribe')}
             style={{ ...actionBtnStyle, fontSize: '1.1rem', opacity: OPACITY_DISABLED }}
           >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_LINK}</span>
             <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
               {t('inbox.unsubscribe')}
@@ -132,7 +130,6 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
             title={t('inbox.blockSender')}
             style={{ ...actionBtnStyle, fontSize: '1.1rem', opacity: OPACITY_DISABLED }}
           >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_BLOCK}</span>
             <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
               {t('inbox.blockSender')}

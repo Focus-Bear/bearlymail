@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -44,7 +44,7 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState('');
   const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
-  const fetchSlots = async (days: number, append = false) => {
+  const fetchSlots = useCallback(async (days: number, append = false) => {
     try {
       if (append) {
         setLoadingMore(true);
@@ -72,14 +72,13 @@ const BookingPage: React.FC = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [userId, t]);
 
   useEffect(() => {
     if (userId) {
-      fetchSlots(daysAhead);
+      fetchSlots(DAYS_IN_MONTH_30);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, fetchSlots]);
 
   const handleLoadMore = () => {
     const newDaysAhead = daysAhead + DAYS_IN_MONTH_30;

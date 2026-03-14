@@ -34,7 +34,6 @@ interface SearchResultsProps {
   queriesTried?: Array<{ query: string; resultCount: number; accountType?: string }>;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Search results component requires handling multiple result types and UI states
 export const SearchResults: React.FC<SearchResultsProps> = ({
   searchResults,
   isRefining,
@@ -236,7 +235,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         </details>
       )}
 
-      {/* eslint-disable-next-line max-lines-per-function -- Search result rendering requires handling multiple result types and UI states */}
       {searchResults
         .filter(email => email.id !== SEARCH_RESULT_NO_RESULTS)
         .map((email, index) => {

@@ -96,7 +96,7 @@ function applyEmailStateUpdate(
   currentEmails: Email[],
   dispatch: AppDispatch
 ): void {
-  if (typeof action === 'function') {
+  if (typeof action === TYPEOF_FUNCTION) {
     dispatch(setEmailsAction(action(currentEmails)));
   } else {
     dispatch(setEmailsAction(action));
@@ -108,7 +108,7 @@ function applyLoadingModeSwitchUpdate(
   currentValue: boolean,
   dispatch: AppDispatch
 ): void {
-  if (typeof value === 'function') {
+  if (typeof value === TYPEOF_FUNCTION) {
     dispatch(setLoadingModeSwitchAction(value(currentValue)));
   } else {
     dispatch(setLoadingModeSwitchAction(value));

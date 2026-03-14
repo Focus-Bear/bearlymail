@@ -446,13 +446,10 @@ export class EmailDebugService {
           thread.syncStatusUpdatedAt < fiveMinutesAgo,
       )
       .map((thread) => ({
-        threadId:
-          thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW) + "...",
-        syncStatusUpdatedAt:
-          thread.syncStatusUpdatedAt?.toISOString() ?? null,
+        threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+        syncStatusUpdatedAt: thread.syncStatusUpdatedAt?.toISOString() ?? null,
         minutesUnsynced: Math.floor(
-          (Date.now() -
-            new Date(thread.syncStatusUpdatedAt ?? 0).getTime()) /
+          (Date.now() - new Date(thread.syncStatusUpdatedAt ?? 0).getTime()) /
             MILLISECONDS.MINUTE,
         ),
         isArchived: thread.isArchived,

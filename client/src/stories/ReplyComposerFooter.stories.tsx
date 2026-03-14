@@ -267,7 +267,6 @@ interface FooterDemoProps {
   schedulePopupOpen?: boolean;
 }
 
-// eslint-disable-next-line max-lines-per-function -- standalone story component mirrors ReplyComposerFooter; complexity is inherent
 const FooterDemo: React.FC<FooterDemoProps> = ({
   sending = false,
   checkingTone = false,

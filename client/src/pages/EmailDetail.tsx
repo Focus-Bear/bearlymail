@@ -204,9 +204,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
           }
         },
         getStarCount: () => (email as any)?.starCount ?? 0,
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- ops is stable from useEmailDetailOperations
       }),
-      [ops.handleOpenReplyComposer, ops.handleArchive, ops.handleSnooze, ops.handleSetStarCount, email]
+      [ops, email]
     );
 
     // Scheduling handlers are provided by useEmailDetailTimePicker

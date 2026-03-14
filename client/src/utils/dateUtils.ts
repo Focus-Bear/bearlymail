@@ -7,6 +7,7 @@ import {
   MS_PER_SECOND,
   SECONDS_PER_MINUTE,
 } from 'constants/numbers';
+import { TYPEOF_STRING } from 'constants/strings';
 
 /**
  * Returns 9:00 AM the next business day in browser-local time.
@@ -43,8 +44,7 @@ export const formatScheduledTime = (date: Date): string =>
  */
 export function humanizeTimestamp(date: Date | string): string {
   const now = new Date();
-  // eslint-disable-next-line no-restricted-syntax -- 'string' is needed for TypeScript type narrowing
-  const timestamp = typeof date === 'string' ? new Date(date) : date;
+  const timestamp = typeof date === TYPEOF_STRING ? new Date(date) : date;
 
   // Get timezone from browser
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

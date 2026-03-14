@@ -48,7 +48,6 @@ export const MetadataIndicators: React.FC<MetadataIndicatorsProps> = ({ email })
             gap: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_ROBOT}{' '}
           {t('inbox.autoResponseBadge', {
             count: email.autoResponseCount,
@@ -69,7 +68,6 @@ export const MetadataIndicators: React.FC<MetadataIndicatorsProps> = ({ email })
             gap: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_CHECK} {t('inbox.actionItems', { count: email.actionItemsCount })}
         </span>
       )}
@@ -86,7 +84,6 @@ export const MetadataIndicators: React.FC<MetadataIndicatorsProps> = ({ email })
             gap: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_NOTE} {t('inbox.note')}
         </span>
       )}

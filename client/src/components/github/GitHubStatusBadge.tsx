@@ -14,7 +14,6 @@ interface GitHubStatusBadgeProps {
   link: GitHubLink;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Status badge rendering requires multiple conditional branches for different GitHub status types
 export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) => {
   const status = link.status;
   if (!status) {

@@ -43,7 +43,6 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects }) => {
               color: theme.colors.text.secondary,
             }}
           >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             {EMOJI_CLIPBOARD} {project.name}
           </div>
           {project.status && (

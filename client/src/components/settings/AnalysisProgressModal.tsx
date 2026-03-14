@@ -125,7 +125,6 @@ function shouldShowInsights(messageKey: string | undefined): boolean {
   return STAGES_WITH_INSIGHTS.some(stage => messageKey.includes(stage));
 }
 
-// eslint-disable-next-line max-lines-per-function -- Analysis progress modal component requires handling multiple progress states and UI elements
 export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({ analyzeProgress, onDismiss }) => {
   const { t } = useTranslation();
 
@@ -168,7 +167,6 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({ an
                 style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}
               >
                 <div style={{ width: '20px', height: '20px', color: theme.colors.accent.error, fontSize: '20px' }}>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
                   {EMOJI_WARNING}
                 </div>
                 <h3

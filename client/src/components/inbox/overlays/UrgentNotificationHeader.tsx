@@ -20,7 +20,6 @@ export const UrgentNotificationHeader: React.FC<UrgentNotificationHeaderProps> =
         marginBottom: theme.spacing.md,
       }}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <span style={{ fontSize: '1.5rem' }}>{EMOJI_SIREN}</span>
       <h3
         style={{

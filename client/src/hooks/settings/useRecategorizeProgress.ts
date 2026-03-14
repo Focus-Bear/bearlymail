@@ -50,7 +50,6 @@ const clearStorage = () => {
   }
 };
 
-// eslint-disable-next-line max-lines-per-function -- Progress tracking hook requires handling multiple states and localStorage
 export const useRecategorizeProgress = () => {
   const [progress, setProgress] = useState<RecategorizeProgressState>({
     batchId: null,
@@ -148,7 +147,6 @@ export const useRecategorizeProgress = () => {
     return () => {
       stopPolling();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startTracking = useCallback(

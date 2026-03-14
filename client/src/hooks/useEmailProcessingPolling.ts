@@ -28,6 +28,5 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
     }, LONG_TIMEOUT_MS);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length]);
 }

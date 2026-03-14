@@ -28,7 +28,6 @@ export function useInboxKeyboardNavigation({
       return;
     }
 
-    // eslint-disable-next-line complexity, max-statements -- Keyboard navigation requires handling multiple key combinations and actions
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === KEY_ESCAPE && splitView.selectedEmailId) {
         splitView.closeEmail();

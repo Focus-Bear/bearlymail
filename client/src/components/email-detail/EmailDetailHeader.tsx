@@ -41,7 +41,6 @@ interface EmailDetailHeaderProps {
   onClosePriorityExplanation: () => void;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Email detail header requires handling multiple email metadata and UI states
 export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   email,
   threadEmails = [],
@@ -67,7 +66,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
       showSuccess(t('emailDetail.emailCopied'));
       setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);
     }
   }, [correspondent.email, showSuccess, t]);
@@ -94,7 +92,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
           lineHeight: theme.typography.lineHeight.tight,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_EMAIL} {email.subject}
       </h1>
 
@@ -134,7 +131,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                 gap: theme.spacing.xs,
               }}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               {EMOJI_USER} {correspondent.name}
               {correspondent.email && (
                 <span
@@ -154,7 +150,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
                     &lt;{correspondent.email}&gt;
                   </span>
                   <button
@@ -204,8 +199,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                   marginTop: theme.spacing.xs,
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>To:</span> {email.to}
+                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.toLabel')}</span> {email.to}
               </div>
             )}
             {email.cc && (
@@ -216,8 +210,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                   marginTop: theme.spacing.xs,
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>CC:</span> {email.cc}
+                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.ccLabel')}</span> {email.cc}
               </div>
             )}
           </div>
@@ -257,7 +250,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             >
               {priorityExplanation.dimensions.goalAlignment && (
                 <div style={{ marginBottom: theme.spacing.xs }}>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
                   <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
                     {EMOJI_GOAL} {t('emailDetail.goalAlignment')}:{' '}
                   </span>
@@ -444,7 +436,6 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                   fontWeight: theme.typography.fontWeight.medium,
                 }}
               >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 {EMOJI_SETTINGS} {t('emailDetail.tweakRules')}
               </button>
             </div>

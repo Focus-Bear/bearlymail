@@ -67,7 +67,6 @@ const BookingRescheduleSuccess: React.FC<{ t: (key: string) => string }> = ({ t 
         maxWidth: `${MAX_WIDTH_500_PX}px`,
       }}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <div style={{ color: theme.colors.accent.success, fontSize: theme.typography.fontSize['3xl'], marginBottom: theme.spacing.lg }}>
         {EMOJI_CHECK}
       </div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
+import { EMOJI_DOWNLOAD } from 'constants/emojis';
 import { FONT_WEIGHT_MEDIUM, FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 interface EmailAttachment {
@@ -174,8 +175,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
                 {formatFileSize(attachment.size)} • {attachment.mimeType}
               </div>
             </div>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>⬇️</span>
+            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>{EMOJI_DOWNLOAD}</span>
           </button>
         ))}
       </div>

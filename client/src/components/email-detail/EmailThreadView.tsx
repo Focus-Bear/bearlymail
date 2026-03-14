@@ -18,7 +18,6 @@ interface EmailThreadViewProps {
   sanitizeAndProcessHtml: (html: string) => string;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Email thread view component requires handling multiple thread emails and UI states
 export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   email,
   threadEmails,
@@ -46,7 +45,6 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
           {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
         </h3>
         {threadEmails.map(
-          // eslint-disable-next-line max-lines-per-function -- Thread email rendering requires handling multiple states and UI elements
           threadEmail => {
             const isExpanded = expandedThreadItems.has(threadEmail.id);
             const isCurrentEmail = threadEmail.id === email.id;

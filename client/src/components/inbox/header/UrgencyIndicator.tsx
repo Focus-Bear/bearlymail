@@ -32,7 +32,6 @@ export const UrgencyIndicator: React.FC<UrgencyIndicatorProps> = ({ urgencyScore
         cursor: 'help',
       }}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       {EMOJI_SIREN} {t('inbox.urgent')} ({urgencyScore.toFixed(0)})
     </span>
   );

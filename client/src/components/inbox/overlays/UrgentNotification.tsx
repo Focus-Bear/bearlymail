@@ -107,7 +107,6 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({ count, e
         </>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           <span>{EMOJI_CHECK}</span>
           <p
             style={{

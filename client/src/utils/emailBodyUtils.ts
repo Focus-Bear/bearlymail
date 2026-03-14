@@ -15,7 +15,6 @@ import { NODE_NAME_ANCHOR } from 'constants/strings';
 /**
  * Remove email signature from text (works for both plain text and HTML)
  */
-// eslint-disable-next-line complexity, max-statements -- Signature detection requires complex logic to handle various email formats and edge cases
 export function removeSignature(content: string, isHtml: boolean = false): string {
   if (!content) {
     return '';

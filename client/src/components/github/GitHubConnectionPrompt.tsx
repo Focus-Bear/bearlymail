@@ -43,7 +43,6 @@ export const GitHubConnectionPrompt: React.FC = () => {
           marginBottom: theme.spacing.md,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <div style={{ fontSize: '24px' }}>{EMOJI_OCTOPUS}</div>
         <h3
           style={{
@@ -98,7 +97,6 @@ export const GitHubConnectionPrompt: React.FC = () => {
           }
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_LINK}{' '}
         {isConnecting ? t('github.connectionPrompt.connecting') : t('github.connectionPrompt.connectButton')}
       </button>

@@ -39,7 +39,6 @@ export const EmailDetailSidebar: React.FC = () => {
         onMouseLeave={event => (event.currentTarget.style.backgroundColor = theme.colors.background.paper)}
         title={t('emailDetail.backToInbox')}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_BACK}
       </button>
     );
@@ -77,7 +76,6 @@ export const EmailDetailSidebar: React.FC = () => {
         onMouseLeave={event => (event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT)}
         title={t('emailDetail.backToInbox')}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_BACK}
       </button>
     </div>

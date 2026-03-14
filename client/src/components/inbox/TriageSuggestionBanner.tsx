@@ -32,7 +32,6 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({ 
       }}
     >
       <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_LIGHTBULB} {t('inbox.suggested')}:
       </span>
       <div
@@ -59,7 +58,6 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({ 
         }}
         title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_STAR.repeat(suggestion.suggestedStarCount)}
       </div>
       <span

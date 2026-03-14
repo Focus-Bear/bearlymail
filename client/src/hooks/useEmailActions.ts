@@ -116,10 +116,10 @@ export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsRet
   const {
     mode, emails, setEmails, selectedEmailIds, setSelectedEmailIds,
     handleSetStarCountBase, handleArchiveBase, handleSnoozeBase,
-    handleMarkAsRead, handleBulkMarkAsRead, handleBulkMarkAsUnread,
+    handleBulkMarkAsRead, handleBulkMarkAsUnread,
     onShowStarDiscrepancy, onShowPriorityOverride,
     onShowBlockConfirm, onHideBlockConfirm, blockConfirmEmail, fetchEmails,
-    snoozeInput, emailListRef, selectedEmailIndex, setSelectedEmailIndex,
+    snoozeInput, emailListRef, setSelectedEmailIndex,
     splitView, onTabCountsUpdateOptimistically,
   } = props;
   const { handleSetStarCount } = useStarCountHandler({

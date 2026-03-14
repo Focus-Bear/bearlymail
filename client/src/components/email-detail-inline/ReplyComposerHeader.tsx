@@ -29,7 +29,6 @@ export const ReplyComposerHeader: React.FC<ReplyComposerHeaderProps> = ({ replyM
       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span style={{ fontSize: '1.2rem' }}>{isForward ? EMOJI_FORWARD : EMOJI_WRITE}</span>
         <strong style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg }}>
           {getHeaderTitle(replyMode, t)}
@@ -47,7 +46,6 @@ export const ReplyComposerHeader: React.FC<ReplyComposerHeaderProps> = ({ replyM
         }}
         title={t('common.close')}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_CLOSE}
       </button>
     </div>

@@ -336,6 +336,7 @@ module.exports = {
         'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
         complexity: ['error', 250],
         'id-denylist': 'off',
+        'max-params': ['error', 30], // NestJS DI constructors can have many injected services
       },
     },
 

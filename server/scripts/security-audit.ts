@@ -119,7 +119,6 @@ function findControllerFiles(srcDir: string): string[] {
   return files.sort();
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity, max-statements
 function parseController(filePath: string): ControllerInfo | null {
   const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.split("\n");
@@ -833,7 +832,6 @@ function printReport(result: AuditResult, jsonOutput: boolean): void {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line max-lines-per-function
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const ciMode = args.includes("--ci");

@@ -28,7 +28,6 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => {
         border: `2px solid ${theme.colors.accent.error}`,
       }}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <div style={{ fontSize: '3rem', marginBottom: theme.spacing.md }}>{EMOJI_WARNING}</div>
       <h3
         style={{

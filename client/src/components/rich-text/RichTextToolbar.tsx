@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 import { EmojiPickerPortal } from 'components/rich-text/EmojiPickerPortal';
 import { useLinkInputState } from 'components/rich-text/useLinkInputState';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { ICON_CLEAR_FORMATTING } from 'constants/emojis';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { ToolbarButton, ToolbarDivider } from './ToolbarButtonGroup';
@@ -321,11 +322,9 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
       <ToolbarButton onClick={handlers.redo} disabled={disabled || !handlers.canRedo()} title="Redo (Cmd+Shift+Z)">
         ↪
       </ToolbarButton>
-      {/* eslint-disable i18next/no-literal-string -- visual icon glyph, not translatable text */}
       <ToolbarButton onClick={handlers.clearFormatting} disabled={disabled} title="Clear formatting">
-        <span style={{ fontSize: '11px' }}>T̶ₓ</span>
+        <span style={{ fontSize: '11px' }}>{ICON_CLEAR_FORMATTING}</span>
       </ToolbarButton>
-      {/* eslint-enable i18next/no-literal-string */}
       <LinkPopup
         showLinkInput={showLinkInput}
         linkUrl={linkUrl}

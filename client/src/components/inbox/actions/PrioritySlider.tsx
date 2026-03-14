@@ -67,7 +67,6 @@ export const PrioritySlider: React.FC<PrioritySliderProps> = ({ email, keyboardH
             event.currentTarget.style.transform = 'scale(1)';
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           <span>{level.emoji}</span>
           <span
             style={{

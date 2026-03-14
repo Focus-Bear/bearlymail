@@ -115,7 +115,6 @@ export function useInboxInitialization({
     };
 
     initializeData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, hasInitiallyLoaded]);
 
   return { hasInitiallyLoaded, hasRunAnalysis };

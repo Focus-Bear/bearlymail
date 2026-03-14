@@ -152,7 +152,6 @@ describe('axios-interceptors', () => {
 
   describe('response interceptor', () => {
     it('should pass through successful responses', async () => {
-      // eslint-disable-next-line id-denylist -- 'data' is a standard property name for response objects
       const response = { data: { success: true } };
       const successHandler = responseInterceptor[0];
 

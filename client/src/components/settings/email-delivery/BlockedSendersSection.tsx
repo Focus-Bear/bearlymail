@@ -60,7 +60,6 @@ export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({ bl
           ▶
         </span>
         <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_BLOCK} {t('settings.blockedSenders.title')}
         </span>
         <span

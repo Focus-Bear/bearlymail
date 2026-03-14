@@ -1,4 +1,3 @@
-/* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
 import React from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -125,7 +124,6 @@ describe('useEmailManagement', () => {
 
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         const email1 = emails.find(event => event.id === '1');
         return email1?.isRead === true;
       });
@@ -170,7 +168,6 @@ describe('useEmailManagement', () => {
 
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         const email1 = emails.find(event => event.id === '1');
         return email1?.isRead === false;
       });
@@ -221,7 +218,6 @@ describe('useEmailManagement', () => {
       // Optimistic update
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         return emails.find(event => event.id === '1')?.isRead === true;
       });
       const emails1 = result.current.emails;
@@ -229,7 +225,6 @@ describe('useEmailManagement', () => {
 
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         return emails.find(event => event.id === '2')?.isRead === true;
       });
       const emails2 = result.current.emails;
@@ -237,7 +232,6 @@ describe('useEmailManagement', () => {
 
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         return emails.find(event => event.id === '3')?.isRead === false;
       });
       const emails3 = result.current.emails;
@@ -300,7 +294,6 @@ describe('useEmailManagement', () => {
 
       await waitFor(() => {
         const emails = result.current.emails;
-        // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
         return emails.find(event => event.id === '1')?.isRead === false;
       });
       const emails = result.current.emails;

@@ -36,7 +36,6 @@ export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({ actionCo
       }}
       title={t('quickActions.title')}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <span>{EMOJI_LIGHTNING}</span>
       {t('quickActions.title')}
       {actionCount > 0 && (

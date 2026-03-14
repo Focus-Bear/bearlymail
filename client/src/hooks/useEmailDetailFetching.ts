@@ -138,7 +138,6 @@ export function useEmailDetailFetching(emailId: string) {
     };
     // Only re-run when emailId changes - fetchEmail and fetchThreadEmails
     // are stable for a given emailId since they only depend on emailId
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emailId]);
 
   const expandedItemsSetRef = useRef<string | null>(null);

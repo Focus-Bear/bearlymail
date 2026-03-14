@@ -13,7 +13,6 @@ export interface UserContext {
   explanation?: string;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Context management hook requires handling multiple context types and operations
 export const useContextManagement = () => {
   const [contexts, setContexts] = useState<UserContext[]>([]);
   const [newContextValue, setNewContextValue] = useState('');

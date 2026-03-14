@@ -1,4 +1,3 @@
-/* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
 import { useNavigate } from 'react-router-dom';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';

@@ -20,7 +20,6 @@ interface SummarySectionProps {
   onUseCustomRule: (rule: { whenToUse: string; howToSummarize: string; ruleId?: string }) => void;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Summary section component requires handling multiple summary types and UI states
 export const SummarySection: React.FC<SummarySectionProps> = ({
   summary,
   summaryType,

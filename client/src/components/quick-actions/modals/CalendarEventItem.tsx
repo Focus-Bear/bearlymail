@@ -57,7 +57,6 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
           marginBottom: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_CALENDAR} {formatDate(event.start)} - {formatDate(event.end)}
       </div>
       {event.location && (
@@ -68,7 +67,6 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
             marginBottom: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_LOCATION} {event.location}
         </div>
       )}
@@ -80,7 +78,6 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
             marginBottom: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_PEOPLE} {event.attendees.map(attendee => attendee.email || attendee.displayName).join(', ')}
         </div>
       )}

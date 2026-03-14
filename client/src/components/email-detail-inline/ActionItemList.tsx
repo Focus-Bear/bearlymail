@@ -96,7 +96,6 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
               }}
               title={t('emailDetail.deleteActionItem')}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               {EMOJI_CLOSE}
             </button>
           )}

@@ -24,7 +24,6 @@ import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
-// eslint-disable-next-line max-lines-per-function -- Compose page component requires handling multiple form fields, validation, and email composition logic
 const Compose: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();

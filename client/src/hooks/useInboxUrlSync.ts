@@ -53,7 +53,7 @@ export function useInboxUrlSync({
     if (!urlMode) {
       navigate(`${basePath}/${mode}`, { replace: true });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync URL path when mode or split view email changes.
   useEffect(() => {
@@ -67,7 +67,7 @@ export function useInboxUrlSync({
       lastUrlRef.current = newPath;
       navigate(newPath, { replace: true });
     }
-  }, [mode, splitViewSelectedEmailId, navigate, basePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, splitViewSelectedEmailId, navigate, basePath]);
 
   // Sync mode/split view from URL params when they change (browser back/forward).
   useEffect(() => {
@@ -82,5 +82,5 @@ export function useInboxUrlSync({
     } else if (!urlThreadId && splitViewSelectedEmailId) {
       closeEmail();
     }
-  }, [urlMode, urlThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlMode, urlThreadId]);
 }

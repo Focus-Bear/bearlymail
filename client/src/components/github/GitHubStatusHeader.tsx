@@ -27,7 +27,6 @@ export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({ loading,
           gap: theme.spacing.sm,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_OCTOPUS} {t('github.status')}
       </h3>
       <button
@@ -62,7 +61,6 @@ export const GitHubStatusHeader: React.FC<GitHubStatusHeaderProps> = ({ loading,
           </>
         ) : (
           <>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             {EMOJI_REFRESH} {t('github.refresh')}
           </>
         )}

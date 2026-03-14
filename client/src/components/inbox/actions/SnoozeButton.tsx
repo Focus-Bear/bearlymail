@@ -37,7 +37,6 @@ export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze 
       onMouseEnter={event => (event.currentTarget.style.opacity = String(OPACITY_FULL))}
       onMouseLeave={event => (event.currentTarget.style.opacity = String(OPACITY_DISABLED))}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <span>{EMOJI_CLOCK}</span>
       <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
         {t('emailDetail.snooze')}

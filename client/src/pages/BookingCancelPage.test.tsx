@@ -48,7 +48,6 @@ describe('BookingCancelPage', () => {
   });
 
   it('should display booking details after loading', async () => {
-    // eslint-disable-next-line id-denylist
     mockedAxios.get.mockResolvedValue({ data: mockBooking });
 
     renderWithRouter('test-token');
@@ -61,7 +60,6 @@ describe('BookingCancelPage', () => {
 
   it('should show already cancelled message', async () => {
     mockedAxios.get.mockResolvedValue({
-      // eslint-disable-next-line id-denylist
       data: { ...mockBooking, status: 'cancelled' },
     });
 
@@ -83,10 +81,8 @@ describe('BookingCancelPage', () => {
   });
 
   it('should show success state after cancelling', async () => {
-    // eslint-disable-next-line id-denylist
     mockedAxios.get.mockResolvedValue({ data: mockBooking });
     mockedAxios.post.mockResolvedValue({
-      // eslint-disable-next-line id-denylist
       data: { success: true, message: 'Booking cancelled successfully' },
     });
 
@@ -105,7 +101,6 @@ describe('BookingCancelPage', () => {
   });
 
   it('should show error when cancellation fails', async () => {
-    // eslint-disable-next-line id-denylist
     mockedAxios.get.mockResolvedValue({ data: mockBooking });
     mockedAxios.post.mockRejectedValue(new Error('Failed'));
 

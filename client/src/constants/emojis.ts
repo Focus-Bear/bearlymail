@@ -49,3 +49,5 @@ export const EMOJI_DELETE = '🗑️';
 export const EMOJI_TRASH = '🗑️';
 export const EMOJI_INFO = 'ℹ️';
 export const EMOJI_MENU = '☰';
+export const EMOJI_DOWNLOAD = '⬇️';
+export const ICON_CLEAR_FORMATTING = 'T̶ₓ';

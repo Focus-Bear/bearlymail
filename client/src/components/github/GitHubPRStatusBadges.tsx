@@ -35,7 +35,6 @@ export const GitHubPRStatusBadges: React.FC<GitHubPRStatusBadgesProps> = ({
             marginRight: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_CHECK} {t('github.approved')}
         </div>
       )}
@@ -54,7 +53,6 @@ export const GitHubPRStatusBadges: React.FC<GitHubPRStatusBadgesProps> = ({
             marginRight: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_WARNING} {t('github.changesRequested')}
         </div>
       )}
@@ -72,7 +70,6 @@ export const GitHubPRStatusBadges: React.FC<GitHubPRStatusBadgesProps> = ({
             marginRight: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_COMMENT} {t('github.comments', { count: commentsCount })}
         </div>
       )}
@@ -89,7 +86,6 @@ export const GitHubPRStatusBadges: React.FC<GitHubPRStatusBadgesProps> = ({
             fontSize: theme.typography.fontSize.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_CHECK} {t('github.readyToMerge')}
         </div>
       )}

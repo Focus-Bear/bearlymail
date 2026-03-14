@@ -54,17 +54,14 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
           style={iconButtonStyle}
           title={t('priority.tooltip.showCategoryExplanation')}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {'ℹ️'}
         </button>
       )}
       <button onClick={onOpenOverride} style={iconButtonStyle} title={t('priority.categoryOverride.buttonTitle')}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {'✏️'}
       </button>
       {isAdmin && (
         <button onClick={onOpenDebug} style={iconButtonStyle} title={t('priority.categoryDebug.buttonTitle')}>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {'👎'}
         </button>
       )}

@@ -34,7 +34,6 @@ interface UseInboxStateOptions {
   isFocusedMode?: boolean;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Inbox state hook requires managing multiple inbox states, modes, and operations
 export function useInboxState(options: UseInboxStateOptions = {}) {
   const { isFocusedMode = false } = options;
   const dispatch = useDispatch<AppDispatch>();

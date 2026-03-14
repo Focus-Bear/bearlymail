@@ -5,6 +5,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { EMOJI_MENU } from 'constants/emojis';
 
 const sidebarBtnStyle: React.CSSProperties = {
   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -75,7 +76,6 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
           </div>
         )}
         {isCollapsed && onToggleCollapse ? (
-          /* eslint-disable i18next/no-literal-string */
           <button
             onClick={() => {
               captureEvent(ANALYTICS_EVENTS.SIDEBAR_EXPAND_CLICKED);
@@ -86,10 +86,9 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
             onMouseEnter={onSidebarBtnMouseEnter}
             onMouseLeave={onSidebarBtnMouseLeave}
           >
-            ☰
+            {EMOJI_MENU}
           </button>
         ) : (
-          /* eslint-enable i18next/no-literal-string */
           <button
             onClick={() => {
               captureEvent(ANALYTICS_EVENTS.SIDEBAR_LOGOUT_CLICKED);

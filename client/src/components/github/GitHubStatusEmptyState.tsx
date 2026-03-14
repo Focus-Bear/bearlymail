@@ -32,7 +32,6 @@ export const GitHubStatusEmptyState: React.FC<GitHubStatusEmptyStateProps> = ({ 
             gap: theme.spacing.xs,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_OCTOPUS} {t('github.statusNoLinks')}
         </span>
         <button
@@ -62,7 +61,6 @@ export const GitHubStatusEmptyState: React.FC<GitHubStatusEmptyStateProps> = ({ 
               }}
             />
           ) : (
-            /* eslint-disable-next-line i18next/no-literal-string */
             <>{EMOJI_REFRESH}</>
           )}
         </button>

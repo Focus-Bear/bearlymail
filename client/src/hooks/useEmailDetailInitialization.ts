@@ -185,7 +185,6 @@ export const useEmailDetailInitialization = ({
     });
     fetchGithubInfo();
     fetchSuggestedActions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting summary state to prevent re-fetch loops
   }, [
     id,
     fetchCustomRules,

@@ -36,7 +36,6 @@ interface RecipientFieldsProps {
   onSelectSearchResult: (contact: Contact) => void;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Recipient field management requires extensive form handling logic
 export const RecipientFields: React.FC<RecipientFieldsProps> = ({
   to,
   cc,
@@ -56,7 +55,6 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // eslint-disable-next-line max-lines-per-function -- Recipient field rendering requires extensive form handling logic
   const renderRecipientField = (
     label: string,
     recipients: Recipient[],

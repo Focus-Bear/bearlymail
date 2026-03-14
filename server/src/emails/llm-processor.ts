@@ -110,7 +110,6 @@ export class LLMProcessor implements OnModuleInit {
   private readonly priorityConcurrency: number;
   private readonly summaryConcurrency: number;
 
-  // eslint-disable-next-line max-params
   constructor(
     @Inject("PG_BOSS") private boss: PgBoss,
     @InjectRepository(Email)

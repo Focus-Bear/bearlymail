@@ -74,7 +74,6 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
               fontSize: theme.typography.fontSize.sm,
             }}
           >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             {EMOJI_CHECK} {t('settings.github.connected')}
           </div>
         )}

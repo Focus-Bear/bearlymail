@@ -30,20 +30,17 @@ interface AccountSetters {
 }
 
 async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
-  const [userRes, googleRes, office365Res, zohoRes] = await Promise.all([
+  const [userRes, googleResOrNull, office365ResOrNull, zohoResOrNull] = await Promise.all([
     axios.get(`${API_URL}/users/me`),
-    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
-    axios.get(`${API_URL}/google-accounts`).catch(() => ({ data: [] })),
-    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
-    axios.get(`${API_URL}/office365-accounts`).catch(() => ({ data: [] })),
-    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
-    axios.get(`${API_URL}/zoho-accounts`).catch(() => ({ data: [] })),
+    axios.get(`${API_URL}/google-accounts`).catch(() => null),
+    axios.get(`${API_URL}/office365-accounts`).catch(() => null),
+    axios.get(`${API_URL}/zoho-accounts`).catch(() => null),
   ]);
   const user = userRes.data;
   setters.setDisplayName(user.displayName);
   setters.setJobTitle(user.jobTitle);
   setters.setEmailSignature(user.emailSignature || 'Sent from BearlyMail (anti inbox overwhelm system)');
-  const googleAccts = googleRes.data;
+  const googleAccts = googleResOrNull?.data ?? [];
   const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
   if (hasTokens && googleAccts.length === 0) {
     setters.setGoogleAccounts([
@@ -52,8 +49,8 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
   } else {
     setters.setGoogleAccounts(googleAccts);
   }
-  setters.setOffice365Accounts(office365Res.data);
-  setters.setZohoAccounts(zohoRes.data);
+  setters.setOffice365Accounts(office365ResOrNull?.data ?? []);
+  setters.setZohoAccounts(zohoResOrNull?.data ?? []);
 }
 
 /**

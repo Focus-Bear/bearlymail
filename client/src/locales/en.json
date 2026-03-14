@@ -433,7 +433,9 @@
       "mondayMorning": "Monday morning",
       "thisAfternoon": "This afternoon",
       "pickDateTime": "Pick date & time..."
-    }
+    },
+    "toLabel": "To:",
+    "ccLabel": "CC:"
   },
   "settings": {
     "title": "Settings",
@@ -911,7 +913,10 @@
         "privateRepoHint": "One or more repositories could not be accessed. Private repositories require the 'repo' permission. Click below to reconnect and grant access to your private repos.",
         "tokenExpiredHint": "Your GitHub token appears to be invalid or expired. Reconnect GitHub to fix this.",
         "reconnect": "Reconnect GitHub",
-        "reconnectWithRepoAccess": "Grant private repo access"
+        "reconnectWithRepoAccess": "Grant private repo access",
+        "tokenValidUser": "Token valid — @{{login}}{{name}}",
+        "scopesList": "Permissions: {{scopes}}",
+        "tokenInvalidWithError": "Token invalid or expired: {{error}}"
       }
     }
   },

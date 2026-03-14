@@ -32,7 +32,6 @@ export const ReplyButtons: React.FC<ReplyButtonsProps> = ({ onReply, onReplyAll 
           gap: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span>{EMOJI_REPLY}</span>
         {t('emailDetail.reply')}
       </button>
@@ -52,7 +51,6 @@ export const ReplyButtons: React.FC<ReplyButtonsProps> = ({ onReply, onReplyAll 
           gap: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span>{EMOJI_REPLY_ALL}</span>
         {t('emailDetail.replyAll')}
       </button>

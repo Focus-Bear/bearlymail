@@ -37,7 +37,6 @@ export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({ 
           textDecoration: 'underline',
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_COMMENT} {t('priority.tooltip.correctPrioritization')}
       </a>
     </div>

@@ -131,7 +131,6 @@ function useCategoryFetchEffects({
         });
     });
     // expandedCategories intentionally omitted — see comment above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorySummary, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
 }
 

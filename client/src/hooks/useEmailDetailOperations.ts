@@ -119,7 +119,6 @@ function routeAfterSend({
   }
 }
 
-// eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
 export function useEmailDetailOperations(
   id: string | undefined,
   state: EmailDetailState,
@@ -347,7 +346,6 @@ export function useEmailDetailOperations(
     [id, setIsGeneratingSummary, setSummaryType, setSummary]
   );
 
-  // eslint-disable-next-line max-statements -- Email fetching logic requires extensive error handling and state management
   const fetchEmail = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/emails/${id}`);

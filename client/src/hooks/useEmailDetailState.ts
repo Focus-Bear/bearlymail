@@ -22,7 +22,6 @@ interface EmailDetailEmail {
   };
 }
 
-// eslint-disable-next-line max-lines-per-function -- Email detail state hook requires managing multiple state variables for email operations
 export function useEmailDetailState() {
   // Email data state
   const [email, setEmail] = useState<EmailDetailEmail | null>(null);

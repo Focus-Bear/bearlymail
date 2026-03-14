@@ -5,7 +5,6 @@ import { ReplyComposerFooter } from './ReplyComposerFooter';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     t: (key, params) => {
       if (params) {
 return `${key} ${JSON.stringify(params)}`;

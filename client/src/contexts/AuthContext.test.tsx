@@ -54,7 +54,6 @@ describe('AuthContext', () => {
 
   describe('AuthProvider', () => {
     it('should provide auth context to children', () => {
-      // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions -- Multiple assertions are appropriate for this test case
       render(
         <AuthProvider>
           <TestComponent />
@@ -80,7 +79,6 @@ describe('AuthContext', () => {
   describe('login', () => {
     it('should login user successfully', async () => {
       const mockResponse = {
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses and acceptable in tests
         data: {
           access_token: 'test-token',
           user: {
@@ -180,7 +178,6 @@ describe('AuthContext', () => {
   describe('register', () => {
     it('should register user successfully', async () => {
       const mockResponse = {
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses and acceptable in tests
         data: {
           access_token: 'test-token',
           user: {
@@ -203,7 +200,6 @@ describe('AuthContext', () => {
       const registerButton = screen.getByText('Register');
       await userEvent.click(registerButton);
 
-      // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions -- Multiple waitFor calls are needed to test different async operations
       await waitFor(() => {
         expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/register'), {
           email: 'test@example.com',
@@ -229,7 +225,6 @@ describe('AuthContext', () => {
 
     it('should register user without name', async () => {
       const mockResponse = {
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property name for response objects
         data: {
           access_token: 'test-token',
           user: {
@@ -334,7 +329,6 @@ describe('AuthContext', () => {
   describe('refreshUser', () => {
     it('should refresh user data successfully', async () => {
       const mockResponse = {
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses and acceptable in tests
         data: {
           id: 'user-123',
           email: 'test@example.com',
@@ -373,12 +367,10 @@ describe('AuthContext', () => {
       const refreshButton = screen.getByText('Refresh');
       await userEvent.click(refreshButton);
 
-      // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions -- Multiple waitFor calls are needed to test different async operations
       await waitFor(() => {
         expect(mockedAxios.get).toHaveBeenCalled();
       });
 
-      // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions -- Multiple waitFor calls are needed to test different async operations
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to refresh user', error);
       });

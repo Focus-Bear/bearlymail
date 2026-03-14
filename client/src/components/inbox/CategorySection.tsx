@@ -41,7 +41,6 @@ interface CategorySectionProps {
   handleDeleteProtoCategoryFromInbox: (id: string) => void;
 }
 
-// eslint-disable-next-line max-lines-per-function -- category section renders accordion with email items, proto-sub-accordions, and conditional UI
 export const CategorySection: React.FC<CategorySectionProps> = ({
   categoryItem,
   catIdx,

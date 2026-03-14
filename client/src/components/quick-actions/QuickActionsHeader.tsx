@@ -36,7 +36,6 @@ export const QuickActionsHeader: React.FC<QuickActionsHeaderProps> = ({ onClose 
           padding: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {EMOJI_CLOSE}
       </button>
     </div>

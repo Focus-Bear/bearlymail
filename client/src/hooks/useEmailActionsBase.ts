@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
+import { removeEmailFromCache } from 'utils/emailCache';
 
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
@@ -182,6 +183,7 @@ export function useEmailActionsBase({
       dispatch(addOptimisticArchive(emailId));
       dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
       dispatch(decrementCategorySummaryCount(categoryName));
+      removeEmailFromCache(emailId);
       onSuggestionRemove?.(emailId);
       const tid = setTimeout(() => {
         dispatch(removeEmail(emailId));

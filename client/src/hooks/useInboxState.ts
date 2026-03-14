@@ -130,6 +130,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({
     authLoading,
     user,
+    mode,
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,

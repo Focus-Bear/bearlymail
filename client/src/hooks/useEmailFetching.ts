@@ -2,6 +2,12 @@ import React, { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
+import {
+  getCachedCategoryEmails,
+  getCachedSummary,
+  setCachedCategoryEmails,
+  setCachedSummary,
+} from 'utils/emailCache';
 
 import { API_URL } from 'config/api';
 import { HTTP_UNAUTHORIZED, INBOX_FETCH_LIMIT } from 'constants/numbers';
@@ -22,6 +28,7 @@ import {
   selectLoadingCategoryNames,
 } from 'store/selectors/emailSelectors';
 import {
+  CategorySummaryItem,
   clearCategoryState,
   markCategoryLoaded,
   markCategoryLoadFailed,
@@ -94,12 +101,16 @@ async function fetchAutoRespondedEmails(
   });
 }
 
-async function fetchInboxSummary(dispatch: AppDispatch, buildSummaryParams: () => URLSearchParams): Promise<void> {
+async function fetchInboxSummary(
+  dispatch: AppDispatch,
+  buildSummaryParams: () => URLSearchParams
+): Promise<CategorySummaryItem[] | null> {
   const params = buildSummaryParams();
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
   const { total, categories } = response.data;
   dispatch(setCategorySummary(categories));
   dispatch(setTotalCount(total));
+  return categories ?? null;
 }
 
 export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
@@ -192,6 +203,42 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }
 
+/** Populate Redux from the localStorage cache and kick off a silent background refresh. */
+function serveCategoryFromCacheAndRefresh({
+  cachedEmails,
+  catKey,
+  categoryName,
+  mode,
+  dispatch,
+  buildCategoryParams,
+  fetchSessionRef,
+}: {
+  cachedEmails: Email[];
+  catKey: string;
+  categoryName: string;
+  mode: InboxMode;
+  dispatch: AppDispatch;
+  buildCategoryParams: (categoryKey: string) => URLSearchParams;
+  fetchSessionRef: React.MutableRefObject<number>;
+}): void {
+  dispatch(updateCategoryEmails({ categoryKey: catKey, emails: cachedEmails }));
+  dispatch(markCategoryLoaded(catKey));
+
+  const sessionId = fetchSessionRef.current;
+  const params = buildCategoryParams(catKey);
+  axios
+    .get(`${API_URL}/emails/inbox?${params.toString()}`)
+    .then(response => {
+      if (fetchSessionRef.current !== sessionId) {
+        return;
+      }
+      const freshEmails: Email[] = response.data.emails;
+      dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
+      setCachedCategoryEmails(mode, catKey, freshEmails);
+    })
+    .catch(err => console.warn('[Accordion] Background refresh failed for category:', categoryName, err));
+}
+
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl({
   categoryName,
@@ -213,24 +260,31 @@ async function fetchCategoryEmailsImpl({
   fetchSessionRef: React.MutableRefObject<number>;
 }) {
   // Compute the stable key: UUID when available, name as fallback
-  const categoryKey = getCategoryKey(categoryId, categoryName);
+  const catKey = getCategoryKey(categoryId, categoryName);
 
-  if (loadedCategoryNamesRef.current.includes(categoryKey)) {
+  if (loadedCategoryNamesRef.current.includes(catKey)) {
     return;
   }
-  if (loadingCategoryNamesRef.current.includes(categoryKey)) {
+  if (loadingCategoryNamesRef.current.includes(catKey)) {
     return;
   }
   if (mode === MODE_AUTORESPONDED) {
     return;
   }
 
+  // Stale-while-revalidate for categories: show cached emails instantly, refresh in background
+  const cachedEmails = getCachedCategoryEmails(mode, catKey);
+  if (cachedEmails !== null) {
+    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef });
+    return;
+  }
+
   const sessionId = fetchSessionRef.current;
-  dispatch(markCategoryLoading(categoryKey));
-  console.log('[Accordion] Fetching category:', categoryName, '(key:', categoryKey, ')');
+  dispatch(markCategoryLoading(catKey));
+  console.log('[Accordion] Fetching category:', categoryName, '(key:', catKey, ')');
 
   try {
-    const params = buildCategoryParams(categoryKey);
+    const params = buildCategoryParams(catKey);
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
     // Emails now include category_id (UUID) from the server, so groupEmailsByCategory
     // keys by UUID directly. No normalization needed.
@@ -240,25 +294,26 @@ async function fetchCategoryEmailsImpl({
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
-    dispatch(updateCategoryEmails({ categoryKey, emails }));
-    dispatch(markCategoryLoaded(categoryKey));
+    dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
+    dispatch(markCategoryLoaded(catKey));
+    setCachedCategoryEmails(mode, catKey, emails);
     console.log(
       '[Accordion] Loaded category:',
       categoryName,
       '(key:',
-      categoryKey,
+      catKey,
       ')',
       emails.length,
       'emails'
     );
   } catch (error: any) {
-    console.error('[Accordion] Failed to load category:', categoryName, '(key:', categoryKey, ')', error);
+    console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
     // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
     // markCategoryLoaded would set isLoaded=true with no emails, causing CategorySection
     // to return null and the accordion section to vanish entirely.
     if (fetchSessionRef.current === sessionId) {
       console.warn('[Accordion] Category load failed, allowing retry:', categoryName);
-      dispatch(markCategoryLoadFailed(categoryKey));
+      dispatch(markCategoryLoadFailed(catKey));
     }
   }
 }
@@ -293,8 +348,10 @@ async function refreshInPlaceImpl({
   try {
     const summaryParams = buildSummaryParams();
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
-    dispatch(setCategorySummary(summaryResponse.data.categories));
+    const freshCategories = summaryResponse.data.categories;
+    dispatch(setCategorySummary(freshCategories));
     dispatch(setTotalCount(summaryResponse.data.total));
+    setCachedSummary(mode, freshCategories);
   } catch (err) {
     console.warn('[refreshInPlace] Summary fetch failed:', err);
     return;
@@ -311,6 +368,7 @@ async function refreshInPlaceImpl({
         // Emails now include category_id (UUID) from the server; no normalization needed.
         const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
         dispatch(updateCategoryEmails({ categoryKey, emails }));
+        setCachedCategoryEmails(mode, categoryKey, emails);
       } catch (err) {
         console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
       }
@@ -389,6 +447,37 @@ function buildAutoRespondedSummaryImpl(emails: Email[]): Array<{ id: null; name:
   return Array.from(categoryCounts.entries()).map(([name, count]) => ({ id: null, name, count }));
 }
 
+/** Populate Redux from cached summary and kick off a silent background refresh. */
+function serveSummaryFromCacheAndRefresh({
+  cachedSummary,
+  mode,
+  dispatch,
+  buildSummaryParams,
+}: {
+  cachedSummary: CategorySummaryItem[];
+  mode: InboxMode;
+  dispatch: AppDispatch;
+  buildSummaryParams: () => URLSearchParams;
+}): void {
+  dispatch(setFetchError(null));
+  dispatch(clearCategoryState());
+  dispatch(setEmails([]));
+  dispatch(setCurrentOffset(0));
+  dispatch(setHasMore(false));
+  dispatch(setTotalCount(cachedSummary.reduce((sum, cat) => sum + cat.count, 0)));
+  dispatch(setCategorySummary(cachedSummary));
+  dispatch(setLoading(false));
+  dispatch(setDecrypting(false));
+  dispatch(setLastFetchedAt(Date.now()));
+  fetchInboxSummary(dispatch, buildSummaryParams)
+    .then(freshSummary => {
+      if (freshSummary) {
+        setCachedSummary(mode, freshSummary);
+      }
+    })
+    .catch(err => console.warn('[fetchEmails] Background refresh failed:', err));
+}
+
 async function fetchEmailsImpl({
   mode,
   dispatch,
@@ -402,6 +491,17 @@ async function fetchEmailsImpl({
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
 }) {
+  // Stale-while-revalidate: if we have cached summary data, serve it immediately (no spinner),
+  // then refresh in the background. This makes inbox navigation feel instant.
+  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode) : null;
+  const hasCachedData = cachedSummary !== null && cachedSummary.length > 0;
+
+  if (hasCachedData) {
+    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, buildSummaryParams });
+    return;
+  }
+
+  // No cache — full fetch with loading indicator
   dispatch(setDecrypting(true));
   dispatch(setFetchError(null));
   dispatch(clearCategoryState());
@@ -413,7 +513,10 @@ async function fetchEmailsImpl({
     if (mode === MODE_AUTORESPONDED) {
       await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
     } else {
-      await fetchInboxSummary(dispatch, buildSummaryParams);
+      const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams);
+      if (freshSummary) {
+        setCachedSummary(mode, freshSummary);
+      }
     }
     dispatch(setDecrypting(false));
     dispatch(setFetchError(null));

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
@@ -10,6 +11,8 @@ interface AutoResponderToggleProps {
 }
 
 export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enabled, onToggle }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       style={{
@@ -30,7 +33,7 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enable
             color: theme.colors.text.primary,
           }}
         >
-          {enabled ? 'Auto-Responder Enabled' : 'Auto-Responder Disabled'}
+          {enabled ? t('settings.autoResponder.enabled') : t('settings.autoResponder.disabled')}
         </div>
         <div
           style={{
@@ -40,8 +43,8 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enable
           }}
         >
           {enabled
-            ? 'New emails will receive automatic responses based on your settings.'
-            : 'No automatic responses will be sent.'}
+            ? t('settings.autoResponder.enabledDesc')
+            : t('settings.autoResponder.disabledDesc')}
         </div>
       </div>
 
@@ -58,7 +61,7 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enable
           transition: theme.transitions.default,
           flexShrink: 0,
         }}
-        aria-label={enabled ? 'Disable auto-responder' : 'Enable auto-responder'}
+        aria-label={enabled ? t('settings.autoResponder.disableA11y') : t('settings.autoResponder.enableA11y')}
       >
         <div
           style={{

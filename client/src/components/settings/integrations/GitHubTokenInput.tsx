@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface GitHubTokenInputProps {
@@ -42,7 +43,7 @@ export const GitHubTokenInput: React.FC<GitHubTokenInputProps> = ({
           fontSize: theme.typography.fontSize.sm,
         }}
       >
-        {showGithubToken ? 'Hide' : 'Show'}
+        {showGithubToken ? t('common.hide', { defaultValue: 'Hide' }) : t('common.show', { defaultValue: 'Show' })}
       </button>
     </div>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
@@ -19,7 +20,7 @@ export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({ query, loadi
           type="text"
           value={query}
           onChange={event => onQueryChange(event.target.value)}
-          placeholder="Search query (e.g., 'bug login error')"
+          placeholder={t('quickActions.searchPlaceholder', { defaultValue: "Search query (e.g., 'bug login error')" })}
           style={{
             flex: 1,
             padding: theme.spacing.sm,
@@ -40,8 +41,8 @@ export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({ query, loadi
             cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,
           }}
-        >
-          {loading ? 'Searching...' : 'Search'}
+>
+          {loading ? t('quickActions.searching', { defaultValue: 'Searching...' }) : t('common.search', { defaultValue: 'Search' })}
         </button>
       </div>
     </form>

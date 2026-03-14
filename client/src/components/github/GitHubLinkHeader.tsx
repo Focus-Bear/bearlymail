@@ -66,7 +66,7 @@ export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({ link, status
           }}
         >
           {isIssue ? '🔵' : '🟣'} {link.owner}/{link.repo}#{link.number}
-          <span style={{ fontSize: theme.typography.fontSize.xs, opacity: 0.7 }}>({isIssue ? 'Issue' : 'PR'})</span>
+          <span style={{ fontSize: theme.typography.fontSize.xs, opacity: 0.7 }}>({isIssue ? t('github.issueLabel', { defaultValue: 'Issue' }) : t('github.prLabel', { defaultValue: 'PR' })})</span>
         </a>
         {status.title && (
           <div

@@ -63,7 +63,7 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
   return (
     <ModalBackdrop onClose={onClose} zIndex={2001}>
       <ModalContent maxWidth="600px">
-        <ModalHeaderWithClose title="💬 Add Comment to Issue" onClose={onClose} />
+        <ModalHeaderWithClose title={t('quickActions.addCommentTitle', { defaultValue: '💬 Add Comment to Issue' })} onClose={onClose} />
         <IssueInfoDisplay owner={issueInfo.owner} repo={issueInfo.repo} number={issueInfo.number} />
         <form onSubmit={handleSubmit}>
           <CommentTextarea value={comment} onChange={setComment} />
@@ -71,8 +71,8 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
           <ModalFormActions
             loading={loading}
             disabled={!comment.trim()}
-            submitLabel="Add Comment"
-            loadingLabel="Adding..."
+            submitLabel={t('quickActions.addComment', { defaultValue: 'Add Comment' })}
+            loadingLabel={t('quickActions.adding', { defaultValue: 'Adding...' })}
             onCancel={onClose}
           />
         </form>

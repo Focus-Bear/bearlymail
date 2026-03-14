@@ -300,7 +300,7 @@
     "auto": "Automático",
     "custom": "Personalizado",
     "back": "Atrás",
-    "cancel": "Cancelar",
+    "cancel": "Cancel",
     "close": "Cerca",
     "confirm": "Confirmar",
     "delete": "Eliminar",
@@ -319,7 +319,10 @@
     "selected": "seleccionado",
     "send": "Enviar",
     "showLess": "Mostrar menos",
-    "showMore": "Mostrar más"
+    "showMore": "Mostrar más",
+    "search": "Buscar",
+    "hide": "Ocultar",
+    "show": "Mostrar"
   },
   "compose": {
     "addBcc": "Agregar CCO",
@@ -782,7 +785,9 @@
       "pickDateTime": "Elegir fecha y hora..."
     },
     "toLabel": "Para:",
-    "ccLabel": "CC:"
+    "ccLabel": "CC:",
+    "to": "Para",
+    "cc": "CC"
   },
   "contacts": {
     "title": "Contactos",
@@ -825,7 +830,8 @@
     "fieldTypeText": "Texto",
     "fieldTypeNumber": "Número",
     "fieldTypeDate": "Fecha",
-    "fieldTypeUrl": "URL"
+    "fieldTypeUrl": "URL",
+    "notFound": "Contact not found"
   },
   "crm": {
     "title": "CRM",
@@ -930,7 +936,9 @@
       "description": "Este correo menciona GitHub. Conecta tu cuenta de GitHub para ver el estado de PR y problemas, asignados y más directamente en tus correos.",
       "connectButton": "Conectar GitHub",
       "connecting": "Conectando..."
-    }
+    },
+    "issueLabel": "Issue",
+    "prLabel": "PR"
   },
   "gmail": {
     "connectButton": "Conectar Gmail",
@@ -1383,7 +1391,13 @@
     "urgentEmailsFound": "¡Se encontró {{count}} correo urgente!",
     "urgentEmailsFound_plural": "¡Se encontraron {{count}} correos urgentes!",
     "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
-    "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!"
+    "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!",
+    "blockConfirm": {
+      "title": "Block Sender",
+      "thisSender": "this sender",
+      "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
+      "confirm": "Block Sender"
+    }
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",
@@ -1542,7 +1556,12 @@
       "emailSystemOutlook": "Outlook/Office365",
       "emailSystemZoho": "Zoho Mail",
       "emailSystemOther": "Otro",
-      "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
+      "emailSystemOtherLabel": "Por favor especifica tu sistema de correo",
+      "firstName": "First Name",
+      "email": "Email",
+      "reason": "Why do you want to use BearlyMail?",
+      "submitting": "Submitting...",
+      "join": "Join Waitlist"
     },
     "sidebar": {
       "expand": "Expandir barra lateral"
@@ -1735,7 +1754,18 @@
       "open": "Abierto",
       "status": "Estado"
     },
-    "title": "Acciones Rápidas"
+    "title": "Acciones Rápidas",
+    "createIssueTitle": "🐛 Create GitHub Issue",
+    "createIssue": "Create Issue",
+    "creating": "Creating...",
+    "addCommentTitle": "💬 Add Comment to Issue",
+    "addComment": "Add Comment",
+    "adding": "Adding...",
+    "updateStatusTitle": "🔄 Update Issue Status",
+    "updateStatus": "Update Status",
+    "updating": "Updating...",
+    "searchPlaceholder": "Search query (e.g., 'bug login error')",
+    "searching": "Searching..."
   },
   "search": {
     "backToInbox": "← Volver a la bandeja de entrada",
@@ -2151,7 +2181,12 @@
         "loadAnalytics": "Cargar analíticas",
         "refresh": "Actualizar",
         "responsesByPriority": "Respuestas por prioridad",
-        "templateUsage": "Uso de plantillas"
+        "templateUsage": "Uso de plantillas",
+        "totalSent": "Total Sent",
+        "qaAnswerRate": "Q&A Answer Rate",
+        "qaSubtext": "of responses included AI answers",
+        "escalationRate": "Escalation Rate",
+        "escalationSubtext": "of senders requested priority bump"
       },
       "qa": {
         "title": "Respuestas impulsadas por IA",
@@ -2164,7 +2199,13 @@
       },
       "priority": {
         "title": "Enviar respuestas automáticas para"
-      }
+      },
+      "enabled": "Auto-responder enabled",
+      "disabled": "Auto-responder disabled",
+      "enabledDesc": "New emails will receive automatic responses based on your settings.",
+      "disabledDesc": "No automatic responses will be sent.",
+      "disableA11y": "Disable auto-responder",
+      "enableA11y": "Enable auto-responder"
     },
     "accountDeletion": {
       "title": "Eliminar cuenta",

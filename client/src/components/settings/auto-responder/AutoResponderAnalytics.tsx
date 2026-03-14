@@ -62,18 +62,18 @@ const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ total
       marginBottom: theme.spacing.lg,
     }}
   >
-    <StatCard label="Total Sent" value={totalSent.toString()} emoji="📤" />
+    <StatCard label={t('settings.autoResponder.analytics.totalSent', { defaultValue: 'Total Sent' })} value={totalSent.toString()} emoji="📤" />
     <StatCard
-      label="Q&A Answer Rate"
+      label={t('settings.autoResponder.analytics.qaAnswerRate', { defaultValue: 'Q&A Answer Rate' })}
       value={`${Math.round(qaAnswerRate * 100)}%`}
       emoji="🧠"
-      subtext="of responses included AI answers"
+      subtext={t('settings.autoResponder.analytics.qaSubtext', { defaultValue: 'of responses included AI answers' })}
     />
     <StatCard
-      label="Escalation Rate"
+      label={t('settings.autoResponder.analytics.escalationRate', { defaultValue: 'Escalation Rate' })}
       value={`${Math.round(escalationRate * 100)}%`}
       emoji="⚡"
-      subtext="of senders requested priority bump"
+      subtext={t('settings.autoResponder.analytics.escalationSubtext', { defaultValue: 'of senders requested priority bump' })}
     />
   </div>
 );

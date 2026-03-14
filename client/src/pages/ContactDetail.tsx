@@ -488,7 +488,7 @@ const ContactDetailPage: React.FC = () => {
   }
 
   if (error || !contact) {
-    return <ContactDetailStateView {...sidebarProps} message={error || 'Contact not found'} isError />;
+    return <ContactDetailStateView {...sidebarProps} message={error || t('contacts.notFound', { defaultValue: 'Contact not found' })} isError />;
   }
 
   const typeConfig = getTypeConfig(contact.contactType);

@@ -152,7 +152,7 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
           scrollMarginTop: `${INPUT_WIDTH_PX}px`,
         }}
       >
-        {t('settings.emailBatching.title') || 'Email Delivery Schedule'}
+        {t('settings.emailBatching.title', { defaultValue: 'Email Delivery Schedule' })}
       </h3>
       <p
         style={{

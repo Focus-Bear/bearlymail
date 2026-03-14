@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmModal } from 'components/ConfirmModal';
 import { UrgencyOverrideModal } from 'components/inbox/UrgencyOverrideModal';
@@ -56,15 +57,20 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
   onHidePriorityFeedback,
   onRefreshEmails,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <>
       <ConfirmModal
         isOpen={!!modals.blockConfirmEmail}
         icon="🚫"
-        title="Block Sender"
-        message={`Block all future emails from ${modals.blockConfirmEmail?.fromName || modals.blockConfirmEmail?.from || 'this sender'}? This email and any future emails from them will be automatically archived.`}
-        confirmLabel="Block Sender"
-        cancelLabel="Cancel"
+        title={t('inbox.blockConfirm.title', { defaultValue: 'Block Sender' })}
+        message={t('inbox.blockConfirm.message', {
+          from: modals.blockConfirmEmail?.fromName || modals.blockConfirmEmail?.from || t('inbox.blockConfirm.thisSender', { defaultValue: 'this sender' }),
+          defaultValue: 'Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.',
+        })}
+        confirmLabel={t('inbox.blockConfirm.confirm', { defaultValue: 'Block Sender' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
         onConfirm={onConfirmBlockSender}
         onCancel={onHideBlockConfirm}
       />

@@ -24,7 +24,10 @@
     "selected": "selected",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "saved": "✓ Saved"
+    "saved": "✓ Saved",
+    "search": "Search",
+    "hide": "Hide",
+    "show": "Show"
   },
   "auth": {
     "loginTitle": "Welcome Back",
@@ -300,6 +303,12 @@
       "noAccounts": "No accounts found",
       "noCategories": "No categories yet",
       "clearAll": "Clear Filters"
+    },
+    "blockConfirm": {
+      "title": "Block Sender",
+      "thisSender": "this sender",
+      "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
+      "confirm": "Block Sender"
     }
   },
   "emailDetail": {
@@ -435,7 +444,9 @@
       "pickDateTime": "Pick date & time..."
     },
     "toLabel": "To:",
-    "ccLabel": "CC:"
+    "ccLabel": "CC:",
+    "to": "To",
+    "cc": "CC"
   },
   "settings": {
     "title": "Settings",
@@ -677,7 +688,12 @@
         "loadAnalytics": "Load Analytics",
         "refresh": "Refresh",
         "responsesByPriority": "Responses by Priority",
-        "templateUsage": "Template Usage"
+        "templateUsage": "Template Usage",
+        "totalSent": "Total Sent",
+        "qaAnswerRate": "Q&A Answer Rate",
+        "qaSubtext": "of responses included AI answers",
+        "escalationRate": "Escalation Rate",
+        "escalationSubtext": "of senders requested priority bump"
       },
       "qa": {
         "title": "AI-Powered Answers",
@@ -690,7 +706,13 @@
       },
       "priority": {
         "title": "Send Auto-Responses For"
-      }
+      },
+      "enabled": "Auto-responder enabled",
+      "disabled": "Auto-responder disabled",
+      "enabledDesc": "New emails will receive automatic responses based on your settings.",
+      "disabledDesc": "No automatic responses will be sent.",
+      "disableA11y": "Disable auto-responder",
+      "enableA11y": "Enable auto-responder"
     },
     "accountDeletion": {
       "title": "Delete Account",
@@ -1180,7 +1202,8 @@
     "fieldTypeText": "Text",
     "fieldTypeNumber": "Number",
     "fieldTypeDate": "Date",
-    "fieldTypeUrl": "URL"
+    "fieldTypeUrl": "URL",
+    "notFound": "Contact not found"
   },
   "crm": {
     "title": "CRM",
@@ -1313,7 +1336,9 @@
       "description": "This email mentions GitHub. Connect your GitHub account to see PR and issue status, assignees, and more directly in your emails.",
       "connectButton": "Connect GitHub",
       "connecting": "Connecting..."
-    }
+    },
+    "issueLabel": "Issue",
+    "prLabel": "PR"
   },
   "gmail": {
     "connectTitle": "Connect Your Gmail Account",
@@ -2046,7 +2071,18 @@
       "foundIssues_plural": "Found {{count}} issues",
       "noIssuesFound": "No issues found",
       "commentLabel": "Comment"
-    }
+    },
+    "createIssueTitle": "🐛 Create GitHub Issue",
+    "createIssue": "Create Issue",
+    "creating": "Creating...",
+    "addCommentTitle": "💬 Add Comment to Issue",
+    "addComment": "Add Comment",
+    "adding": "Adding...",
+    "updateStatusTitle": "🔄 Update Issue Status",
+    "updateStatus": "Update Status",
+    "updating": "Updating...",
+    "searchPlaceholder": "Search query (e.g., 'bug login error')",
+    "searching": "Searching..."
   },
   "setupWizard": {
     "welcome": {
@@ -2252,7 +2288,12 @@
       "emailSystemOutlook": "Outlook/Office365",
       "emailSystemZoho": "Zoho Mail",
       "emailSystemOther": "Other",
-      "emailSystemOtherLabel": "Please specify your email system"
+      "emailSystemOtherLabel": "Please specify your email system",
+      "firstName": "First Name",
+      "email": "Email",
+      "reason": "Why do you want to use BearlyMail?",
+      "submitting": "Submitting...",
+      "join": "Join Waitlist"
     }
   },
   "keyboard": {

@@ -144,7 +144,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
 
       <form onSubmit={handleSubmit} style={formStyle}>
         <WaitlistFormField
-          label="First Name"
+          label={t('landing.waitlist.firstName', { defaultValue: 'First Name' })}
           type="text"
           value={firstName}
           onChange={setFirstName}
@@ -152,7 +152,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           required
         />
         <WaitlistFormField
-          label="Email"
+          label={t('landing.waitlist.email', { defaultValue: 'Email' })}
           type="email"
           value={email}
           onChange={setEmail}
@@ -160,7 +160,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           required
         />
         <WaitlistFormField
-          label="Why do you want to use BearlyMail?"
+          label={t('landing.waitlist.reason', { defaultValue: 'Why do you want to use BearlyMail?' })}
           type="textarea"
           value={reason}
           onChange={setReason}
@@ -191,7 +191,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         )}
 
         <button type="submit" disabled={submitting} style={getButtonStyle(isMobile, submitting)}>
-          {submitting ? 'Submitting...' : 'Join Waitlist'}
+          {submitting ? t('landing.waitlist.submitting', { defaultValue: 'Submitting...' }) : t('landing.waitlist.join', { defaultValue: 'Join Waitlist' })}
         </button>
       </form>
     </WaitlistFormContainer>

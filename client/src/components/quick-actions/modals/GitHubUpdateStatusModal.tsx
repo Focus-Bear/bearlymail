@@ -60,7 +60,7 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
   return (
     <ModalBackdrop onClose={onClose} zIndex={2001}>
       <ModalContent maxWidth="500px">
-        <ModalHeaderWithClose title="🔄 Update Issue Status" onClose={onClose} />
+        <ModalHeaderWithClose title={t('quickActions.updateStatusTitle', { defaultValue: '🔄 Update Issue Status' })} onClose={onClose} />
         <IssueInfoDisplay owner={issueInfo.owner} repo={issueInfo.repo} number={issueInfo.number} />
         <form onSubmit={handleSubmit}>
           <StatusSelector state={state} onStateChange={setState} />
@@ -68,8 +68,8 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
           <ModalFormActions
             loading={loading}
             disabled={false}
-            submitLabel="Update Status"
-            loadingLabel="Updating..."
+            submitLabel={t('quickActions.updateStatus', { defaultValue: 'Update Status' })}
+            loadingLabel={t('quickActions.updating', { defaultValue: 'Updating...' })}
             onCancel={onClose}
           />
         </form>

@@ -118,9 +118,10 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
           )}
           <span style={{ color: theme.colors.text.secondary }}>{humanizeTimestamp(new Date(receivedAt))}</span>
         </div>
-        {to && <AddressField label="To" value={to} />}
-        {cc && <AddressField label="CC" value={cc} />}
+        {to && <AddressField label={t('emailDetail.to', { defaultValue: 'To' })} value={to} />}
+        {cc && <AddressField label={t('emailDetail.cc', { defaultValue: 'CC' })} value={cc} />}
       </div>
+      {/* eslint-disable-next-line i18next/no-literal-string */}
       <span style={{ color: theme.colors.text.tertiary }}>{isExpanded ? '▼' : '▶'}</span>
     </div>
   );

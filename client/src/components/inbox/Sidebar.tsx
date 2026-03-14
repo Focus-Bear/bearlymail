@@ -369,7 +369,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       onNavigationClick={handleNavigationClick}
     />
     <SidebarItem
-      label="Search"
+      label={translate('common.search')}
       path={ROUTE_SEARCH}
       icon="🔍"
       active={location.pathname === ROUTE_SEARCH}

@@ -194,6 +194,15 @@ module.exports = {
         selector: "CallExpression[callee.name='captureEvent'] > Literal",
         message: "Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.",
       },
+      // Catch inline string literals inside JSX expression containers (ternary / logical expressions)
+      {
+        selector: "JSXExpressionContainer > ConditionalExpression Literal[value=/^[a-zA-Z ]{2,}$/]",
+        message: "String literals in JSX ternary expressions must use t() for i18n.",
+      },
+      {
+        selector: "JSXExpressionContainer > LogicalExpression Literal[value=/^[a-zA-Z ]{2,}$/]",
+        message: "String literals in JSX logical expressions must use t() for i18n.",
+      },
     ],
 
     // ===========================================

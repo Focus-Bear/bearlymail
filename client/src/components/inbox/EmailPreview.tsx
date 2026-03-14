@@ -75,7 +75,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
           }
           return (
             <span style={{ color: theme.colors.text.tertiary, fontStyle: 'italic' }}>
-              {t('inbox.noPreview') || 'Click to view email'}
+              {t('inbox.noPreview', { defaultValue: 'Click to view email' })}
             </span>
           );
         })()}

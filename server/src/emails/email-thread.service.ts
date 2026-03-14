@@ -238,6 +238,11 @@ export class EmailThreadService {
    * IMPORTANT: This method respects lastUserOperationAt - it will NOT override
    * a user's recent archive/unarchive action unless there's a new email in the thread.
    * This is called by sync processes, not by user actions.
+   *
+   * Additionally, threads that were recently auto-responded to (lastAutoRespondedAt within 24h)
+   * are excluded from sync-triggered archiving. When BearlyMail sends an auto-reply, Gmail
+   * may remove the INBOX label from the thread, causing our sync to set isArchived=true —
+   * which silently hides the thread from the user. The 24h guard prevents this data loss.
    */
   async batchUpdateThreadArchivedStatuses(
     userId: string,
@@ -246,6 +251,8 @@ export class EmailThreadService {
     if (updates.length === 0) return;
 
     const now = new Date();
+    // Cutoff: threads auto-responded to within the last 24 hours are protected from archiving
+    const autoRespondedCutoff = new Date(now.getTime() - MILLISECONDS.DAY);
 
     const filteredUpdates = updates;
 
@@ -257,7 +264,7 @@ export class EmailThreadService {
       .filter((update) => !update.isArchived)
       .map((update) => update.threadId);
 
-    // Batch update archived threads (only those without recent user operations)
+    // Batch update archived threads (only those without recent user operations or recent auto-responses)
     if (archivedThreadIds.length > 0) {
       await this.emailThreadRepository
         .createQueryBuilder()
@@ -268,6 +275,10 @@ export class EmailThreadService {
           threadIds: archivedThreadIds,
         })
         .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
+        .andWhere(
+          '("lastAutoRespondedAt" IS NULL OR "lastAutoRespondedAt" < :autoRespondedCutoff)',
+          { autoRespondedCutoff },
+        )
         .execute();
     }
 

@@ -573,6 +573,16 @@ export class AutoResponderService {
         classification,
       });
 
+      // Guard the thread from Gmail sync archiving. When we send an auto-reply, Gmail may
+      // remove the INBOX label from the thread (because a reply was sent), which causes
+      // the BearlyMail sync job to set isArchived=true — making the email invisible to
+      // the user. Setting lastAutoRespondedAt marks the thread so batchUpdateThreadArchivedStatuses
+      // will skip it for 24 hours, preserving inbox visibility.
+      await this.emailThreadRepository.update(
+        { id: emailThreadId },
+        { lastAutoRespondedAt: new Date() },
+      );
+
       await this.contextService.addCooldownSuppression(
         userId,
         senderEmailHash,

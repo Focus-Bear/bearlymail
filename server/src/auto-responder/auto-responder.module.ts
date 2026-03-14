@@ -10,6 +10,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
+import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { AutoResponderController } from "./auto-responder.controller";
 import { AutoResponderProcessor } from "./auto-responder.processor";
 import { AutoResponderService } from "./auto-responder.service";
@@ -48,6 +49,7 @@ import { QueueStatsService } from "./queue-stats.service";
     AutoResponderQaService,
     AutoResponderAnalyticsService,
     AutoResponderPreviewService,
+    AutoResponderArchiveAuditService,
   ],
   exports: [
     AutoResponderService,
@@ -59,6 +61,7 @@ import { QueueStatsService } from "./queue-stats.service";
     AutoResponderQaService,
     AutoResponderAnalyticsService,
     AutoResponderPreviewService,
+    AutoResponderArchiveAuditService,
   ],
 })
 export class AutoResponderModule {}

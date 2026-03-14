@@ -84,6 +84,7 @@ describe("AutoResponderService", () => {
           provide: getRepositoryToken(EmailThread),
           useValue: {
             findOne: jest.fn(),
+            update: jest.fn().mockResolvedValue({}),
           },
         },
         {
@@ -463,6 +464,62 @@ describe("AutoResponderService", () => {
       expect(result.sent).toBe(true);
       expect(mockProvider.sendReply).toHaveBeenCalled();
       expect(analyticsService.logAutoResponse).toHaveBeenCalled();
+    });
+
+    it("should set lastAutoRespondedAt on thread after sending auto-response (issue #857 guard)", async () => {
+      // Regression test: after sending an auto-reply, BearlyMail must stamp the thread
+      // with lastAutoRespondedAt so that the Gmail sync job cannot silently archive it.
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue(undefined),
+      };
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
+      } as any);
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+      emailThreadRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
+
+      expect(result.sent).toBe(true);
+      // Ensure lastAutoRespondedAt was set so sync cannot archive this thread
+      expect(emailThreadRepository.update).toHaveBeenCalledWith(
+        { id: "thread-1" },
+        expect.objectContaining({
+          lastAutoRespondedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it("should not set lastAutoRespondedAt if auto-response was not sent", async () => {
+      // If the auto-responder skips (disabled), it must not stamp lastAutoRespondedAt
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: false,
+        },
+      } as any);
+      emailThreadRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
+
+      expect(result.sent).toBe(false);
+      expect(emailThreadRepository.update).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ lastAutoRespondedAt: expect.any(Date) }),
+      );
     });
 
     it("should not send auto-response for emails older than 24 hours", async () => {

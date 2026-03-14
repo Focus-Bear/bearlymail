@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { AutoResponderService } from "./auto-responder.service";
 import { QueueStatsService } from "./queue-stats.service";
 import { AutoResponderConfig } from "./types/auto-responder.types";
@@ -32,6 +33,7 @@ export class AutoResponderController {
   constructor(
     private autoResponderService: AutoResponderService,
     private queueStatsService: QueueStatsService,
+    private archiveAuditService: AutoResponderArchiveAuditService,
   ) {}
 
   /**
@@ -230,5 +232,30 @@ export class AutoResponderController {
       body.senderEmail,
     );
     return { success: true };
+  }
+
+  /**
+   * Audit and recover email threads that were silently archived after an auto-response
+   * was sent (Issue #857). Threads are re-surfaced to the inbox if:
+   *   - They have an auto-response log entry
+   *   - They are currently archived (isArchived = true)
+   *   - The user did NOT explicitly archive them after the auto-response
+   *
+   * @param dryRun - If "true", only reports affected threads without modifying the DB
+   */
+  @Post("admin/audit-archived-threads")
+  async auditArchivedThreads(
+    @Request() req: AuthenticatedRequest,
+    @Query("dryRun") dryRun?: string,
+  ) {
+    const isDryRun = dryRun === "true";
+    this.logger.log(
+      `Archive audit requested by user ${req.user.userId} (dryRun=${isDryRun})`,
+    );
+    const result = await this.archiveAuditService.auditArchivedAutoRespondedThreads(
+      req.user.userId,
+      isDryRun,
+    );
+    return result;
   }
 }

@@ -12,20 +12,26 @@ import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { ACTION_TYPE_SCHEDULING_REQUEST, REPLY_MODE_FORWARD, STRING_NONE } from 'constants/strings';
+import {
+  ACTION_TYPE_CALENDAR_CREATE_INVITE,
+  ACTION_TYPE_SCHEDULING_REQUEST,
+  REPLY_MODE_FORWARD,
+  STRING_NONE,
+} from 'constants/strings';
 
 interface EmailDetailActionsProps {
   email: Email;
-  suggestedActions: any[];
+  suggestedActions: SuggestedAction[];
   showQuickActionsMenu: boolean;
-  selectedAction: any;
+  selectedAction: SuggestedAction | null;
   onShowQuickActionsMenu: () => void;
   onCloseQuickActionsMenu: () => void;
-  onSelectAction: (action: any) => void;
+  onSelectAction: (action: SuggestedAction) => void;
   onCloseAction: () => void;
   onActionSuccess: () => void;
   onOpenReplyComposer: (mode: 'reply' | 'replyAll' | 'forward') => void;
@@ -67,8 +73,15 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
+  // Treat both scheduling_request and calendar_create_invite as scheduling triggers.
+  // The LLM sometimes returns calendar_create_invite for the same intent, so we
+  // broaden the check here to avoid silently missing the SchedulingRequestCard.
   const hasSchedulingRequest = useMemo(
-    () => suggestedActions.some(action => action.type === ACTION_TYPE_SCHEDULING_REQUEST),
+    () =>
+      suggestedActions.some(
+        action =>
+          action.type === ACTION_TYPE_SCHEDULING_REQUEST || action.type === ACTION_TYPE_CALENDAR_CREATE_INVITE,
+      ),
     [suggestedActions]
   );
 

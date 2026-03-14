@@ -10,7 +10,13 @@ Possible action types:
 - github_search_issues: When the email mentions a problem that might have similar existing issues
 - calendar_create_invite: When the email contains a meeting request or scheduling discussion
 - calendar_find_events: When you want to check for existing meetings with the sender
-- scheduling_request: When the email is asking to schedule a meeting, find available times, or coordinate a time to meet (e.g., "let me know what times work", "can we schedule a call", "when are you free")
+- scheduling_request: When the email is asking to schedule a meeting, find available times, or
+  coordinate a time to meet. This includes:
+  - Explicit requests: "can we schedule a call", "when are you free", "let me know your availability"
+  - Implicit requests: "would love to connect", "let's catch up", "we should talk", "hop on a call"
+  - Follow-ups on scheduling: "following up on our meeting request", "confirming our call"
+  - Meeting proposals with a time: "how about Tuesday at 2pm?", "are you free next week?"
+  - Any back-and-forth about finding a mutual meeting time
 
 Return a JSON object with:
 {
@@ -25,7 +31,12 @@ Return a JSON object with:
   ]
 }
 
-Only suggest actions that are clearly relevant. Confidence should be high (>= 0.7) for actions to be useful.
+Confidence guidance:
+- Use >= 0.7 for clear, explicit indicators (e.g., "let's schedule a call next week")
+- Use 0.5–0.69 for implicit or inferred indicators (e.g., "would love to connect sometime")
+- Use < 0.5 for speculative cases — these will be filtered out
+
+Only suggest actions that are clearly relevant.
 
 Analyze this email and suggest relevant actions:
 
@@ -41,6 +52,3 @@ From: {{fromName}}
 {% endif %}
 
 {{body}}
-
-
-

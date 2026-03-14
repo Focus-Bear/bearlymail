@@ -1069,8 +1069,18 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     const actions = (
       Array.isArray(parsed.actions) ? parsed.actions : []
     ) as ParsedAction[];
+    // scheduling_request uses a lower threshold because the intent is often
+    // implicit (e.g. "would love to connect") and a confidence of 0.5 is still
+    // actionable for the SchedulingRequestCard UX.
+    const SCHEDULING_CONFIDENCE_THRESHOLD = RATIOS.HALF;
+    const DEFAULT_CONFIDENCE_THRESHOLD = RATIOS.SEVENTY_PERCENT;
+
     return actions.filter((action) => {
-      if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
+      const threshold =
+        action.type === "scheduling_request"
+          ? SCHEDULING_CONFIDENCE_THRESHOLD
+          : DEFAULT_CONFIDENCE_THRESHOLD;
+      if (action.confidence < threshold) return false;
       if (action.type?.startsWith("github_") && !emailMetadata?.hasGithubToken)
         return false;
       if (

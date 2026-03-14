@@ -81,5 +81,121 @@ tests:
           }
     description: "Should suggest calendar actions for meeting requests"
 
+  # --- Scheduling link detection tests (fix #810) ---
+
+  - vars:
+      subject: "Catching up"
+      fromName: "Alex Rivera"
+      githubContext: ""
+      integrationsNote: "Available integrations: Calendar"
+      body: "Hey! It's been a while — would love to reconnect and chat about what you've been working on. Let me know when you're free for a quick call."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          let cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+          if (jsonMatch) cleaned = jsonMatch[0];
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) {
+              throw new Error('Expected actions array');
+            }
+            // Implicit scheduling request — must produce scheduling_request OR calendar_create_invite
+            const hasSchedulingAction = parsed.actions.some(a =>
+              a.type === 'scheduling_request' || a.type === 'calendar_create_invite'
+            );
+            if (!hasSchedulingAction) {
+              throw new Error(
+                `Expected scheduling_request or calendar_create_invite for implicit scheduling email. Actions: ${JSON.stringify(parsed.actions.map(a => a.type))}`
+              );
+            }
+            // All returned actions must have valid confidence
+            parsed.actions.forEach((action, idx) => {
+              if (typeof action.confidence !== 'number') {
+                throw new Error(`Action ${idx} missing numeric confidence`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Implicit scheduling test failed: ${e.message}. Output: ${text.substring(0, 300)}`);
+          }
+    description: "Should detect implicit scheduling request (fix #810: confidence threshold 0.5)"
+
+  - vars:
+      subject: "Following up — our meeting request"
+      fromName: "Jamie Park"
+      githubContext: ""
+      integrationsNote: "Available integrations: Calendar"
+      body: "Following up on my previous email. I wanted to confirm whether you had a chance to look at my meeting request. Are you available Thursday at 3 PM or Friday morning?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          let cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+          if (jsonMatch) cleaned = jsonMatch[0];
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) {
+              throw new Error('Expected actions array');
+            }
+            // Explicit follow-up on scheduling — should return scheduling_request or calendar_create_invite
+            const hasSchedulingAction = parsed.actions.some(a =>
+              a.type === 'scheduling_request' || a.type === 'calendar_create_invite'
+            );
+            if (!hasSchedulingAction) {
+              throw new Error(
+                `Expected scheduling action for follow-up meeting request. Actions: ${JSON.stringify(parsed.actions.map(a => a.type))}`
+              );
+            }
+            // Explicit time proposals should have high confidence (>= 0.7)
+            const schedulingAction = parsed.actions.find(a =>
+              a.type === 'scheduling_request' || a.type === 'calendar_create_invite'
+            );
+            if (schedulingAction && schedulingAction.confidence < 0.7) {
+              throw new Error(
+                `Expected confidence >= 0.7 for explicit time proposal, got ${schedulingAction.confidence}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Explicit scheduling follow-up test failed: ${e.message}. Output: ${text.substring(0, 300)}`);
+          }
+    description: "Should detect explicit scheduling follow-up with high confidence (fix #810)"
+
+  - vars:
+      subject: "Q3 results"
+      fromName: "Finance Team"
+      githubContext: ""
+      integrationsNote: ""
+      body: "Please find attached the Q3 financial results. Revenue is up 12% year-over-year. The board has reviewed and approved the numbers. No action required."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          let cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+          if (jsonMatch) cleaned = jsonMatch[0];
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) {
+              throw new Error('Expected actions array');
+            }
+            // Informational email — should NOT produce scheduling_request or calendar_create_invite
+            const hasSchedulingAction = parsed.actions.some(a =>
+              a.type === 'scheduling_request' || a.type === 'calendar_create_invite'
+            );
+            if (hasSchedulingAction) {
+              throw new Error(
+                `Should NOT suggest scheduling actions for a non-scheduling email. Actions: ${JSON.stringify(parsed.actions.map(a => a.type))}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Non-scheduling email test failed: ${e.message}. Output: ${text.substring(0, 300)}`);
+          }
+    description: "Should NOT suggest scheduling actions for informational emails (fix #810 no false positives)"
+
 
 

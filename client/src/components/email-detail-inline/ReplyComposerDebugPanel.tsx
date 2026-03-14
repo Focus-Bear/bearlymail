@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 const DEBUG_PANEL_LINE_HEIGHT = 1.6;
@@ -25,6 +26,8 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
   currentEmailThreadId,
   replyOptions,
 }) => {
+  const { t } = useTranslation();
+
   if (!debugInfo && !currentEmailId) {
     return null;
   }
@@ -43,16 +46,16 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
       }}
     >
       <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.xs, color: theme.colors.warning.main }}>
-        Reply Generation Debug (Admin Only)
+        {t('debug.replyComposer.title')}
       </div>
       <div style={{ color: theme.colors.text.secondary, lineHeight: DEBUG_PANEL_LINE_HEIGHT }}>
         <div>
-          <strong>Current State:</strong>
+          <strong>{t('debug.replyComposer.currentState')}:</strong>
         </div>
         <div style={{ marginLeft: theme.spacing.md }}>
-          <div>Prop emailId: {currentEmailId || 'N/A'}</div>
-          <div>Email object ID: {currentEmailObjectId || 'N/A'}</div>
-          <div>Email threadId: {currentEmailThreadId || 'N/A'}</div>
+          <div>{t('debug.replyComposer.propEmailId')}: {currentEmailId || t('debug.replyComposer.notAvailable')}</div>
+          <div>{t('debug.replyComposer.emailObjectId')}: {currentEmailObjectId || t('debug.replyComposer.notAvailable')}</div>
+          <div>{t('debug.replyComposer.emailThreadId')}: {currentEmailThreadId || t('debug.replyComposer.notAvailable')}</div>
           <div
             style={{
               backgroundColor: idMatch ? theme.colors.success.light : theme.colors.error.light,
@@ -61,20 +64,20 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
               display: 'inline-block',
             }}
           >
-            ID Match: {idMatch ? 'YES' : 'NO - MISMATCH!'}
+            {t('debug.replyComposer.idMatch')}: {idMatch ? t('debug.replyComposer.idMatchYes') : t('debug.replyComposer.idMatchNo')}
           </div>
         </div>
         {debugInfo && (
           <>
             <div style={{ marginTop: theme.spacing.sm }}>
-              <strong>Generation Debug Info:</strong>
+              <strong>{t('debug.replyComposer.generationDebug')}:</strong>
             </div>
             <div style={{ marginLeft: theme.spacing.md }}>
-              <div>Generated for emailId: {debugInfo.propEmailId}</div>
-              <div>Email object ID at generation: {debugInfo.emailObjectId || 'N/A'}</div>
-              <div>Thread ID used for fetch: {debugInfo.threadIdUsedForFetch || 'N/A'}</div>
-              <div>Last generated for: {debugInfo.lastGeneratedForEmailId || 'N/A'}</div>
-              <div>Timestamp: {debugInfo.timestamp}</div>
+              <div>{t('debug.replyComposer.generatedForEmailId')}: {debugInfo.propEmailId}</div>
+              <div>{t('debug.replyComposer.emailObjectIdAtGeneration')}: {debugInfo.emailObjectId || t('debug.replyComposer.notAvailable')}</div>
+              <div>{t('debug.replyComposer.threadIdUsedForFetch')}: {debugInfo.threadIdUsedForFetch || t('debug.replyComposer.notAvailable')}</div>
+              <div>{t('debug.replyComposer.lastGeneratedFor')}: {debugInfo.lastGeneratedForEmailId || t('debug.replyComposer.notAvailable')}</div>
+              <div>{t('debug.replyComposer.timestamp')}: {debugInfo.timestamp}</div>
               <div
                 style={{
                   backgroundColor: genForCurrent ? theme.colors.success.light : theme.colors.error.light,
@@ -84,7 +87,7 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
                   marginTop: '4px',
                 }}
               >
-                Generated for current email: {genForCurrent ? 'YES' : 'NO - STALE DATA!'}
+                {t('debug.replyComposer.generatedForCurrent')}: {genForCurrent ? t('debug.replyComposer.generatedForCurrentYes') : t('debug.replyComposer.generatedForCurrentNo')}
               </div>
             </div>
           </>
@@ -92,7 +95,7 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
         {replyOptions && replyOptions.length > 0 && (
           <>
             <div style={{ marginTop: theme.spacing.sm }}>
-              <strong>Reply Options ({replyOptions.length}):</strong>
+              <strong>{t('debug.replyComposer.replyOptions', { count: replyOptions.length })}:</strong>
             </div>
             <div style={{ marginLeft: theme.spacing.md }}>
               {replyOptions.map((opt, idx) => (

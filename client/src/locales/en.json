@@ -920,6 +920,15 @@
         "scopesList": "Permissions: {{scopes}}",
         "tokenInvalidWithError": "Token invalid or expired: {{error}}"
       }
+    },
+    "debugMode": {
+      "label": "Troubleshooting Mode",
+      "description": "Enable debug information to help diagnose issues. Share this with support when reporting a problem.",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "troubleshooting": {
+      "title": "Troubleshooting"
     }
   },
   "admin": {
@@ -1057,7 +1066,8 @@
       "createdAt": "Created At",
       "retries": "Retries",
       "never": "Never",
-      "loadError": "Failed to load GitHub debug info"
+      "loadError": "Failed to load GitHub debug info",
+      "tokenValidWithName": "{{status}} — @{{login}} ({{name}})"
     },
     "contextAnalysis": {
       "title": "Context Analysis Failures",
@@ -1679,7 +1689,18 @@
       "notInDb": "not in DB (not synced)",
       "inActionOrFollowUp": "in Action/Follow-up",
       "starredInDbButHidden": "starred in DB but hidden",
-      "notStarredInDb": "in DB but not starred"
+      "notStarredInDb": "in DB but not starred",
+      "syncCheckResults": "Starred Sync Check Results — {{count}} Gmail starred threads",
+      "gmailError": "Gmail error",
+      "summaryStats": "{{foundInDb}} of {{total}} starred Gmail threads are in the DB. {{notInDb}} are missing. {{inActionOrFollowUp}} appear in Action/Follow-up.",
+      "staleUnsyncedTitle": "Unsynced for more than 5 minutes",
+      "staleUnsyncedThread": "{{threadId}} — {{minutesUnsynced}} min (archived: {{isArchived}}, starCount: {{starCount}})",
+      "fixStaleButton": "Fix Stale Unsynced Threads",
+      "fixStaleSuccess": "Fixed {{count}} stale unsynced threads",
+      "fixStaleError": "Error fixing stale unsynced threads",
+      "fixStaleFailed": "Failed to fix stale unsynced threads",
+      "noStaleThreads": "No stale unsynced threads found.",
+      "threadSubject": "— {{subject}}"
     },
     "view": {
       "title": "Debug View"
@@ -1697,7 +1718,25 @@
       "reasons": "Diagnostic Reasons",
       "emails": "Emails in Thread",
       "gmailApiResult": "Gmail API Lookup Result",
-      "gmailApiNotFound": "Could not resolve URL ID via Gmail API"
+      "gmailApiNotFound": "Could not resolve URL ID via Gmail API",
+      "gmailApiThreadId": "Gmail API Thread ID",
+      "gmailApiMessageId": "Gmail API Message ID",
+      "subject": "Subject",
+      "from": "From",
+      "date": "Date",
+      "starCount": "Star Count",
+      "archived": "Archived",
+      "priorityScore": "Priority Score",
+      "updatedAt": "Updated At",
+      "yes": "Yes",
+      "no": "No",
+      "notAvailable": "N/A",
+      "emailSubject": "Subject",
+      "emailFrom": "From",
+      "emailReceived": "Received",
+      "noSubject": "(no subject)",
+      "snoozedUntil": "Snoozed until",
+      "batchedUntil": "Batched until"
     },
     "syncHistory": {
       "sectionTitle": "Sync History",
@@ -1732,6 +1771,126 @@
       "mismatchExplanation": "Count Mismatch Detected",
       "summaryShows": "Summary shows",
       "emailsButLoaded": "emails but loaded"
+    },
+    "emailDetail": {
+      "title": "Debug Information (Admin Only)",
+      "gmailMessageId": "Gmail Message ID",
+      "gmailThreadId": "Gmail Thread ID",
+      "copyButton": "Copy",
+      "threadIdCopied": "Thread ID copied to clipboard!",
+      "labels": "Labels",
+      "labelsCount": "Labels Count",
+      "receivedAt": "Received At",
+      "isRead": "Is Read",
+      "isArchived": "Is Archived",
+      "starCount": "Star Count",
+      "notAvailable": "N/A",
+      "threadEmails": "Thread Emails ({{count}})",
+      "threadEmailItem": "[{{idx}}] MsgID: {{messageId}} | Labels: {{labels}} | Received: {{receivedAt}}",
+      "true": "true",
+      "false": "false"
+    },
+    "adminPanel": {
+      "title": "Debug Information (Admin Only)",
+      "emailId": "Email ID",
+      "threadId": "Thread ID",
+      "emailThreadId": "Email Thread ID",
+      "messageId": "Message ID",
+      "labels": "Labels",
+      "receivedAt": "Received At",
+      "isRead": "Is Read",
+      "isArchived": "Is Archived",
+      "starStatus": "Star Status",
+      "dbStarCount": "DB Star Count (from thread)",
+      "starCountField": "Star Count",
+      "notAvailable": "N/A",
+      "true": "true",
+      "false": "false",
+      "gmailLabels": "Gmail Labels (from API)",
+      "rawLabelIds": "Raw Label IDs",
+      "convertedNames": "Converted Names",
+      "count": "Count",
+      "labelMapping": "Label Mapping (ID → Name)",
+      "gmailError": "Gmail Error",
+      "matchStatus": "Match Status",
+      "match": "✓ MATCH",
+      "mismatch": "✗ MISMATCH",
+      "dbLabels": "DB Labels",
+      "rawDb": "Raw (stored in DB)",
+      "namesConverted": "Names (converted)",
+      "emailIdRef": "Email ID (for reference)",
+      "messageIdGmail": "Message ID (for Gmail lookup)",
+      "loadingGmailLabels": "Loading Gmail labels...",
+      "error": "Error"
+    },
+    "replyComposer": {
+      "title": "Reply Generation Debug (Admin Only)",
+      "currentState": "Current State",
+      "propEmailId": "Prop emailId",
+      "emailObjectId": "Email object ID",
+      "emailThreadId": "Email threadId",
+      "idMatch": "ID Match",
+      "idMatchYes": "YES",
+      "idMatchNo": "NO - MISMATCH!",
+      "generationDebug": "Generation Debug Info",
+      "generatedForEmailId": "Generated for emailId",
+      "emailObjectIdAtGeneration": "Email object ID at generation",
+      "threadIdUsedForFetch": "Thread ID used for fetch",
+      "lastGeneratedFor": "Last generated for",
+      "timestamp": "Timestamp",
+      "generatedForCurrent": "Generated for current email",
+      "generatedForCurrentYes": "YES",
+      "generatedForCurrentNo": "NO - STALE DATA!",
+      "replyOptions": "Reply Options ({{count}})",
+      "notAvailable": "N/A"
+    },
+    "emailList": {
+      "title": "📧 Current Tab Emails ({{count}})",
+      "threadId": "ThreadID",
+      "emailId": "EmailID",
+      "starCount": "StarCount",
+      "archived": "Archived",
+      "shouldBeIn": "Should be in",
+      "currentTab": "Current tab",
+      "priority": "Priority",
+      "lastChecked": "Last checked",
+      "archivedWarning": "⚠️ ARCHIVED!",
+      "wrongTabError": "❌ WRONG TAB!",
+      "noThreads": "No threads to display in debug view",
+      "noSubject": "(No Subject)",
+      "yes": "YES",
+      "no": "NO",
+      "threadIdRow": "ThreadID: {{id}}...",
+      "emailSummaryRow": "EmailID: {{id}}... | StarCount: {{starCount}} | Archived: {{archived}}",
+      "tabSummaryRow": "Should be in: {{shouldBeIn}} | Current tab: {{currentTab}} | Priority: {{priority}}"
+    },
+    "missingFromActionTab": {
+      "title": "⚠️ Missing from Action Tab",
+      "thread": "Thread",
+      "reason": "Reason",
+      "details": "Details",
+      "stars": "Stars",
+      "emails": "Emails",
+      "inGmail": "In Gmail",
+      "subject": "Subject"
+    },
+    "starredThreadsList": {
+      "title": "All Gmail Starred Threads ({{count}})",
+      "thread": "Thread",
+      "inDb": "In DB",
+      "notSynced": "❌ NOT SYNCED",
+      "starredInDb": "Starred in DB",
+      "actionFollowUp": "Action/FollowUp",
+      "category": "Category"
+    },
+    "threadsWithoutEmails": {
+      "title": "⚠️ Threads Without Emails ({{count}})",
+      "dbId": "DB ID",
+      "gmailThread": "Gmail Thread",
+      "stars": "Stars",
+      "archived": "Archived",
+      "yes": "YES",
+      "no": "NO"
     }
   },
   "search": {

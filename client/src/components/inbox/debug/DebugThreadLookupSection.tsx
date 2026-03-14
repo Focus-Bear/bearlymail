@@ -84,30 +84,30 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
       {gmailApiResult.foundInGmailApi ? (
         <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
           <li>
-            <strong>Gmail API Thread ID:</strong>{' '}
+            <strong>{t('debug.threadLookup.gmailApiThreadId')}:</strong>{' '}
             <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
               {gmailApiResult.apiThreadId}
             </code>
           </li>
           <li>
-            <strong>Gmail API Message ID:</strong>{' '}
+            <strong>{t('debug.threadLookup.gmailApiMessageId')}:</strong>{' '}
             <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>
               {gmailApiResult.apiMessageId}
             </code>
           </li>
           {gmailApiResult.subject && (
             <li>
-              <strong>Subject:</strong> {gmailApiResult.subject}
+              <strong>{t('debug.threadLookup.subject')}:</strong> {gmailApiResult.subject}
             </li>
           )}
           {gmailApiResult.from && (
             <li>
-              <strong>From:</strong> {gmailApiResult.from}
+              <strong>{t('debug.threadLookup.from')}:</strong> {gmailApiResult.from}
             </li>
           )}
           {gmailApiResult.receivedAt && (
             <li>
-              <strong>Date:</strong> {new Date(gmailApiResult.receivedAt).toLocaleString()}
+              <strong>{t('debug.threadLookup.date')}:</strong> {new Date(gmailApiResult.receivedAt).toLocaleString()}
             </li>
           )}
         </ul>
@@ -221,10 +221,10 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             >
               <strong>{t('debug.threadLookup.threadDetails')}:</strong>
               <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-                <li>Star Count: {threadLookupResult.thread.starCount}</li>
-                <li>Archived: {threadLookupResult.thread.isArchived ? 'Yes' : 'No'}</li>
-                <li>Priority Score: {threadLookupResult.thread.priorityScore ?? 'N/A'}</li>
-                <li>Updated At: {new Date(threadLookupResult.thread.updatedAt).toLocaleString()}</li>
+                <li>{t('debug.threadLookup.starCount')}: {threadLookupResult.thread.starCount}</li>
+                <li>{t('debug.threadLookup.archived')}: {threadLookupResult.thread.isArchived ? t('debug.threadLookup.yes') : t('debug.threadLookup.no')}</li>
+                <li>{t('debug.threadLookup.priorityScore')}: {threadLookupResult.thread.priorityScore ?? t('debug.threadLookup.notAvailable')}</li>
+                <li>{t('debug.threadLookup.updatedAt')}: {new Date(threadLookupResult.thread.updatedAt).toLocaleString()}</li>
               </ul>
             </div>
           )}
@@ -274,22 +274,22 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
                     }}
                   >
                     <div>
-                      <strong>Subject:</strong> {email.subject || '(no subject)'}
+                      <strong>{t('debug.threadLookup.emailSubject')}:</strong> {email.subject || t('debug.threadLookup.noSubject')}
                     </div>
                     <div>
-                      <strong>From:</strong> {email.from}
+                      <strong>{t('debug.threadLookup.emailFrom')}:</strong> {email.from}
                     </div>
                     <div>
-                      <strong>Received:</strong> {new Date(email.receivedAt).toLocaleString()}
+                      <strong>{t('debug.threadLookup.emailReceived')}:</strong> {new Date(email.receivedAt).toLocaleString()}
                     </div>
                     {email.isSnoozed && (
                       <div style={{ color: COLOR_WARNING_DARK }}>
-                        Snoozed until: {email.snoozeUntil ? new Date(email.snoozeUntil).toLocaleString() : 'N/A'}
+                        {t('debug.threadLookup.snoozedUntil')}: {email.snoozeUntil ? new Date(email.snoozeUntil).toLocaleString() : t('debug.threadLookup.notAvailable')}
                       </div>
                     )}
                     {email.isBatched && (
                       <div style={{ color: COLOR_INFO_VIOLET }}>
-                        Batched until: {email.batchReleaseAt ? new Date(email.batchReleaseAt).toLocaleString() : 'N/A'}
+                        {t('debug.threadLookup.batchedUntil')}: {email.batchReleaseAt ? new Date(email.batchReleaseAt).toLocaleString() : t('debug.threadLookup.notAvailable')}
                       </div>
                     )}
                   </div>

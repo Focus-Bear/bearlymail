@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface ThreadWithoutEmails {
@@ -17,6 +18,8 @@ const getThreadKey = (thread: ThreadWithoutEmails, index: number): string => {
 };
 
 export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> = ({ threads = [] }) => {
+  const { t } = useTranslation();
+
   if (!threads?.length) {
     return null;
   }
@@ -31,7 +34,7 @@ export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> =
           color: 'orange',
         }}
       >
-        ⚠️ Threads Without Emails ({threads.length})
+        {t('debug.threadsWithoutEmails.title', { count: threads.length })}
       </summary>
       {threads.map((thread, index) => (
         <div
@@ -45,8 +48,11 @@ export const ThreadsWithoutEmailsList: React.FC<ThreadsWithoutEmailsListProps> =
           }}
         >
           <span>
-            <strong>DB ID:</strong> {thread.id} | <strong>Gmail Thread:</strong> {thread.threadId} |{' '}
-            <strong>Stars:</strong> {thread.starCount} | <strong>Archived:</strong> {thread.isArchived ? 'YES' : 'NO'}
+            <strong>{t('debug.threadsWithoutEmails.dbId')}:</strong> {thread.id} |{' '}
+            <strong>{t('debug.threadsWithoutEmails.gmailThread')}:</strong> {thread.threadId} |{' '}
+            <strong>{t('debug.threadsWithoutEmails.stars')}:</strong> {thread.starCount} |{' '}
+            <strong>{t('debug.threadsWithoutEmails.archived')}:</strong>{' '}
+            {thread.isArchived ? t('debug.threadsWithoutEmails.yes') : t('debug.threadsWithoutEmails.no')}
           </span>
         </div>
       ))}

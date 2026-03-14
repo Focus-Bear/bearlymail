@@ -397,14 +397,6 @@ module.exports = {
       },
     },
     {
-      // Disable i18n for debug files - these are developer tools, not user-facing
-      files: ['**/debug/**/*.tsx', '**/debug/**/*.ts', '**/*Debug*.tsx', '**/*Debug*.ts'],
-      rules: {
-        'i18next/no-literal-string': 'off',
-        'no-restricted-syntax': 'off',
-      },
-    },
-    {
       // Disable i18n for legal content files - legal text is typically not translated
       files: ['**/terms/**/*.tsx', '**/privacy/**/*.tsx', '**/legal/**/*.tsx'],
       rules: {

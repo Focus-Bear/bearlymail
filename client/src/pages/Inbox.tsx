@@ -16,6 +16,7 @@ import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
+import { useDebugMode } from 'hooks/useDebugMode';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxState } from 'hooks/useInboxState';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -84,6 +85,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
     setPriorityFilter, clearFilters,
   } = filterState;
   const { isSidebarCollapsed, isMobileMenuOpen, handleToggleSidebarCollapse, openMobileMenu, handleCloseMobileMenu } = sidebarState;
+  const { isDebugModeEnabled } = useDebugMode();
   const activeFilterCount =
     (filters.accountIds.length > 0 ? 1 : 0) +
     (filters.categories.length > 0 ? 1 : 0) +
@@ -136,7 +138,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           hasActiveFilters={hasActiveFilters} setAccountFilter={setAccountFilter}
           setCategoryFilter={setCategoryFilter} setPriorityFilter={setPriorityFilter}
         />
-        {user?.isAdmin && debugPanel.debugViewOpen && (
+        {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel
             mode={mode} emails={emails} allEmails={debugPanel.allEmails} loadingAllEmails={debugPanel.loadingAllEmails}
             isOpen={debugPanel.debugViewOpen} onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}

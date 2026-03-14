@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_RED } from 'constants/colors';
@@ -48,6 +49,8 @@ const getBorderColor = (thread: StarredThread): string => {
 };
 
 export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads = [] }) => {
+  const { t } = useTranslation();
+
   return (
     <details>
       <summary
@@ -57,7 +60,7 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
           marginBottom: theme.spacing.sm,
         }}
       >
-        All Gmail Starred Threads ({threads?.length ?? 0})
+        {t('debug.starredThreadsList.title', { count: threads?.length ?? 0 })}
       </summary>
       {(threads ?? []).map((thread, index) => (
         <div
@@ -72,20 +75,21 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
         >
           <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
             <span>
-              <strong>Thread:</strong> {thread.threadId}
+              <strong>{t('debug.starredThreadsList.thread')}:</strong> {thread.threadId}
             </span>
             <span>
-              <strong>In DB:</strong> {thread.inDb ? '✅' : '❌ NOT SYNCED'}
+              <strong>{t('debug.starredThreadsList.inDb')}:</strong>{' '}
+              {thread.inDb ? '✅' : t('debug.starredThreadsList.notSynced')}
             </span>
             <span>
-              <strong>Starred in DB:</strong> {thread.isStarredInDb ? '⭐' : '—'}
+              <strong>{t('debug.starredThreadsList.starredInDb')}:</strong> {thread.isStarredInDb ? '⭐' : '—'}
             </span>
             <span>
-              <strong>Action/FollowUp:</strong> {thread.appearsInActionOrFollowUp ? '✅' : '—'}
+              <strong>{t('debug.starredThreadsList.actionFollowUp')}:</strong> {thread.appearsInActionOrFollowUp ? '✅' : '—'}
             </span>
             {thread.category && (
               <span>
-                <strong>Category:</strong> {thread.category}
+                <strong>{t('debug.starredThreadsList.category')}:</strong> {thread.category}
               </span>
             )}
           </div>

@@ -24,6 +24,7 @@ import {
   PARAM_CATEGORIES,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
+import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
@@ -502,6 +503,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
     onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox, onReanalyseOther,
   } = props;
 
+  const { isDebugModeEnabled } = useDebugMode();
   const panelFlex = computeEmailListFlex(splitView);
   const canRenderCategories = computeCanRenderCategories(
     loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, displayCategories.length
@@ -579,7 +581,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
         {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (
           <div ref={sentinelRef} style={{ height: '1px', visibility: 'hidden' }} aria-hidden="true" />
         )}
-        <DebugView emails={emails} />
+        {isDebugModeEnabled && <DebugView emails={emails} />}
       </div>
     </div>
   );

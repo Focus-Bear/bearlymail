@@ -124,6 +124,7 @@ export const SUMMARY_TYPE_CUSTOM_PREFIX = 'custom-' as const;
 // Keyboard keys
 export const KEY_ENTER = 'Enter' as const;
 export const KEY_ESCAPE = 'Escape' as const;
+export const KEY_SPACE = ' ' as const;
 export const KEY_TAB = 'Tab' as const;
 export const KEY_ARROW_DOWN = 'ArrowDown' as const;
 export const KEY_ARROW_UP = 'ArrowUp' as const;

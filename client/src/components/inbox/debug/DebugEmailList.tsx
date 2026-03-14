@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
 
@@ -14,6 +15,8 @@ interface DebugEmailListProps {
  * Displays current tab emails with debug information
  */
 export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) => {
+  const { t } = useTranslation();
+
   const getBackgroundColor = (isArchived: boolean, isInWrongTab: boolean): string => {
     if (isArchived) {
       return '#FFE6E6';
@@ -33,7 +36,7 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
 
   return (
     <>
-      <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0` }}>📧 Current Tab Emails ({emails.length})</h4>
+      <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0` }}>{t('debug.emailList.title', { count: emails.length })}</h4>
       {emails.map(email => {
         const starCount = email.starCount ?? 0;
         const shouldBeIn = starCount > 0 ? 'action' : 'triage';
@@ -71,22 +74,28 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                 }}
               >
                 <span style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                  <strong>ThreadID:</strong> {email.threadId?.substring(0, 8)}...
+                  {t('debug.emailList.threadIdRow', { id: email.threadId?.substring(0, 8) })}
                   <br />
-                  <strong>EmailID:</strong> {email.id.substring(0, 8)}... |<strong> StarCount:</strong> {starCount} |
-                  <strong> Archived:</strong> {isArchived ? 'YES' : 'NO'}
+                  {t('debug.emailList.emailSummaryRow', {
+                    id: email.id.substring(0, 8),
+                    starCount,
+                    archived: isArchived ? t('debug.emailList.yes') : t('debug.emailList.no'),
+                  })}
                   <br />
-                  <strong>Should be in:</strong> {shouldBeIn} |<strong> Current tab:</strong> {mode} |
-                  <strong> Priority:</strong> {getEmailPriorityScore(email).toFixed(1)}
+                  {t('debug.emailList.tabSummaryRow', {
+                    shouldBeIn,
+                    currentTab: mode,
+                    priority: getEmailPriorityScore(email).toFixed(1),
+                  })}
                   {email.lastCheckedAt && (
                     <>
                       <br />
-                      <strong>Last checked:</strong> {new Date(email.lastCheckedAt).toLocaleString()}
+                      <strong>{t('debug.emailList.lastChecked')}:</strong> {new Date(email.lastCheckedAt).toLocaleString()}
                     </>
                   )}
-                  {isArchived && <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>}
+                  {isArchived && <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> {t('debug.emailList.archivedWarning')}</span>}
                   {isInWrongTab && !isArchived && (
-                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ❌ WRONG TAB!</span>
+                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> {t('debug.emailList.wrongTabError')}</span>
                   )}
                 </span>
                 <span
@@ -95,7 +104,7 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                     color: theme.colors.text.secondary,
                   }}
                 >
-                  {email.subject || '(No Subject)'}
+                  {email.subject || t('debug.emailList.noSubject')}
                 </span>
               </div>
             </div>
@@ -103,7 +112,7 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
         );
       })}
       {emails.length === 0 && (
-        <div style={{ color: theme.colors.text.secondary }}>No threads to display in debug view</div>
+        <div style={{ color: theme.colors.text.secondary }}>{t('debug.emailList.noThreads')}</div>
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
@@ -7,61 +8,66 @@ const GmailApiLabelsInfo: React.FC<{ gmailLabels: any; isMatch: boolean; hasLabe
   gmailLabels,
   isMatch,
   hasLabelMapping,
-}) => (
-  <>
-    <div style={{ marginTop: theme.spacing.xs }}>
-      <strong>Gmail Labels (from API):</strong>
-      <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-        <div>
-          <strong>Raw Label IDs:</strong>{' '}
-          {gmailLabels.gmailLabels.labelIds ? JSON.stringify(gmailLabels.gmailLabels.labelIds) : '[]'}
-        </div>
-        <div>
-          <strong>Converted Names:</strong>{' '}
-          {gmailLabels.gmailLabels.labelNames ? JSON.stringify(gmailLabels.gmailLabels.labelNames) : '[]'}
-        </div>
-        <div>
-          <strong>Count:</strong> {gmailLabels.gmailLabels.labelIds?.length || 0}
-        </div>
-      </div>
-    </div>
-    {hasLabelMapping && (
+}) => {
+  const { t } = useTranslation();
+  return (
+    <>
       <div style={{ marginTop: theme.spacing.xs }}>
-        <strong>Label Mapping (ID → Name):</strong>
-        <div
-          style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}
-        >
-          {gmailLabels.labelMapping.map((mapping: any) => (
-            <div key={mapping.id}>
-              {mapping.id} → {mapping.name}
-            </div>
-          ))}
+        <strong>{t('debug.adminPanel.gmailLabels')}:</strong>
+        <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+          <div>
+            <strong>{t('debug.adminPanel.rawLabelIds')}:</strong>{' '}
+            {gmailLabels.gmailLabels.labelIds ? JSON.stringify(gmailLabels.gmailLabels.labelIds) : '[]'}
+          </div>
+          <div>
+            <strong>{t('debug.adminPanel.convertedNames')}:</strong>{' '}
+            {gmailLabels.gmailLabels.labelNames ? JSON.stringify(gmailLabels.gmailLabels.labelNames) : '[]'}
+          </div>
+          <div>
+            <strong>{t('debug.adminPanel.count')}:</strong> {gmailLabels.gmailLabels.labelIds?.length || 0}
+          </div>
         </div>
       </div>
-    )}
-    {gmailLabels.gmailLabels.error && (
-      <div style={{ color: theme.colors.error.main }}>
-        <strong>Gmail Error:</strong> {gmailLabels.gmailLabels.error}
+      {hasLabelMapping && (
+        <div style={{ marginTop: theme.spacing.xs }}>
+          <strong>{t('debug.adminPanel.labelMapping')}:</strong>
+          <div
+            style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}
+          >
+            {gmailLabels.labelMapping.map((mapping: any) => (
+              <div key={mapping.id}>
+                {mapping.id} → {mapping.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {gmailLabels.gmailLabels.error && (
+        <div style={{ color: theme.colors.error.main }}>
+          <strong>{t('debug.adminPanel.gmailError')}:</strong> {gmailLabels.gmailLabels.error}
+        </div>
+      )}
+      <div
+        style={{
+          marginTop: theme.spacing.xs,
+          padding: theme.spacing.xs,
+          backgroundColor: isMatch ? theme.colors.success.light : theme.colors.error.light,
+          borderRadius: theme.borderRadius.sm,
+        }}
+      >
+        <strong>{t('debug.adminPanel.matchStatus')}:</strong>{' '}
+        {isMatch ? t('debug.adminPanel.match') : t('debug.adminPanel.mismatch')}
       </div>
-    )}
-    <div
-      style={{
-        marginTop: theme.spacing.xs,
-        padding: theme.spacing.xs,
-        backgroundColor: isMatch ? theme.colors.success.light : theme.colors.error.light,
-        borderRadius: theme.borderRadius.sm,
-      }}
-    >
-      <strong>Match Status:</strong> {isMatch ? '✓ MATCH' : '✗ MISMATCH'}
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const AdminDebugGmailLabels: React.FC<{ gmailLabels: any; emailData: any; loadingLabels: boolean }> = ({
   gmailLabels,
   emailData,
   loadingLabels,
 }) => {
+  const { t } = useTranslation();
   const dbLabelsRaw = gmailLabels?.dbLabels?.raw
     ? JSON.stringify(gmailLabels.dbLabels.raw)
     : JSON.stringify(emailData.labels ?? []);
@@ -78,32 +84,32 @@ const AdminDebugGmailLabels: React.FC<{ gmailLabels: any; emailData: any; loadin
   return (
     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
       <div>
-        <strong>Email ID (for reference):</strong> {emailData.id}
+        <strong>{t('debug.adminPanel.emailIdRef')}:</strong> {emailData.id}
       </div>
       <div>
-        <strong>Message ID (for Gmail lookup):</strong> {emailData.messageId || 'N/A'}
+        <strong>{t('debug.adminPanel.messageIdGmail')}:</strong> {emailData.messageId || t('debug.adminPanel.notAvailable')}
       </div>
       <div style={{ marginTop: theme.spacing.xs }}>
-        <strong>DB Labels:</strong>
+        <strong>{t('debug.adminPanel.dbLabels')}:</strong>
         <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
           <div>
-            <strong>Raw (stored in DB):</strong> {dbLabelsRaw}
+            <strong>{t('debug.adminPanel.rawDb')}:</strong> {dbLabelsRaw}
           </div>
           <div>
-            <strong>Names (converted):</strong> {dbLabelsNames}
+            <strong>{t('debug.adminPanel.namesConverted')}:</strong> {dbLabelsNames}
           </div>
           <div>
-            <strong>Count:</strong> {dbLabelsCount}
+            <strong>{t('debug.adminPanel.count')}:</strong> {dbLabelsCount}
           </div>
         </div>
       </div>
-      {loadingLabels && <div>Loading Gmail labels...</div>}
+      {loadingLabels && <div>{t('debug.adminPanel.loadingGmailLabels')}</div>}
       {hasGmailLabels && (
         <GmailApiLabelsInfo gmailLabels={gmailLabels} isMatch={!!isMatch} hasLabelMapping={hasLabelMapping} />
       )}
       {gmailLabels?.error && (
         <div style={{ color: theme.colors.error.main }}>
-          <strong>Error:</strong> {gmailLabels.error}
+          <strong>{t('debug.adminPanel.error')}:</strong> {gmailLabels.error}
         </div>
       )}
     </div>
@@ -117,7 +123,8 @@ export const AdminDebugPanel: React.FC<{
   loadingLabels: boolean;
   loadingStarStatus: boolean;
 }> = ({ emailData, gmailLabels, gmailStarStatus, loadingLabels, loadingStarStatus }) => {
-  const starCountDisplay = gmailStarStatus?.dbStarCount ?? (loadingStarStatus ? 'loading...' : 'N/A');
+  const { t } = useTranslation();
+  const starCountDisplay = gmailStarStatus?.dbStarCount ?? (loadingStarStatus ? t('debug.stats.loading') : t('debug.adminPanel.notAvailable'));
   return (
     <div
       style={{
@@ -137,7 +144,7 @@ export const AdminDebugPanel: React.FC<{
           color: theme.colors.text.primary,
         }}
       >
-        Debug Information (Admin Only)
+        {t('debug.adminPanel.title')}
       </h3>
       <div
         style={{
@@ -148,16 +155,16 @@ export const AdminDebugPanel: React.FC<{
         }}
       >
         <div>
-          <strong>Email ID:</strong> {emailData.id}
+          <strong>{t('debug.adminPanel.emailId')}:</strong> {emailData.id}
         </div>
         <div>
-          <strong>Thread ID:</strong> {emailData.threadId || 'N/A'}
+          <strong>{t('debug.adminPanel.threadId')}:</strong> {emailData.threadId || t('debug.adminPanel.notAvailable')}
         </div>
         <div>
-          <strong>Email Thread ID:</strong> {emailData.emailThreadId || 'N/A'}
+          <strong>{t('debug.adminPanel.emailThreadId')}:</strong> {emailData.emailThreadId || t('debug.adminPanel.notAvailable')}
         </div>
         <div>
-          <strong>Message ID:</strong> {emailData.messageId || 'N/A'}
+          <strong>{t('debug.adminPanel.messageId')}:</strong> {emailData.messageId || t('debug.adminPanel.notAvailable')}
         </div>
         <div
           style={{
@@ -166,17 +173,17 @@ export const AdminDebugPanel: React.FC<{
             borderTop: `1px solid ${theme.colors.border.light}`,
           }}
         >
-          <strong>Labels:</strong>
+          <strong>{t('debug.adminPanel.labels')}:</strong>
           <AdminDebugGmailLabels gmailLabels={gmailLabels} emailData={emailData} loadingLabels={loadingLabels} />
         </div>
         <div>
-          <strong>Received At:</strong> {emailData.receivedAt}
+          <strong>{t('debug.adminPanel.receivedAt')}:</strong> {emailData.receivedAt}
         </div>
         <div>
-          <strong>Is Read:</strong> {emailData.isRead ? 'true' : 'false'}
+          <strong>{t('debug.adminPanel.isRead')}:</strong> {emailData.isRead ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
         </div>
         <div>
-          <strong>Is Archived:</strong> {emailData.isArchived ? 'true' : 'false'}
+          <strong>{t('debug.adminPanel.isArchived')}:</strong> {emailData.isArchived ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
         </div>
         <div
           style={{
@@ -185,13 +192,13 @@ export const AdminDebugPanel: React.FC<{
             borderTop: `1px solid ${theme.colors.border.light}`,
           }}
         >
-          <strong>Star Status:</strong>
+          <strong>{t('debug.adminPanel.starStatus')}:</strong>
           <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
             <div>
-              <strong>DB Star Count (from thread):</strong> {starCountDisplay}
+              <strong>{t('debug.adminPanel.dbStarCount')}:</strong> {starCountDisplay}
             </div>
             <div>
-              <strong>Star Count:</strong> {emailData.starCount || 0}
+              <strong>{t('debug.adminPanel.starCountField')}:</strong> {emailData.starCount || 0}
             </div>
           </div>
         </div>

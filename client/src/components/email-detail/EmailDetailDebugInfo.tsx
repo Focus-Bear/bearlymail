@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface Props {
@@ -10,25 +11,31 @@ interface ThreadEmailsListProps {
   threadEmails: any[];
 }
 
-const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => (
-  <div style={{ marginTop: theme.spacing.md }}>
-    <strong>Thread Emails ({threadEmails.length}):</strong>
-    {threadEmails.map((threadEmail, idx) => {
-      const threadEmailData = threadEmail as any;
-      return (
-        <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-          [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | From: {threadEmailData.from || 'N/A'} | To:{' '}
-          {threadEmailData.to || 'N/A'} | CC: {threadEmailData.cc || 'N/A'} | Labels:{' '}
-          {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received:{' '}
-          {threadEmailData.receivedAt}
-        </div>
-      );
-    })}
-  </div>
-);
+const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ marginTop: theme.spacing.md }}>
+      <strong>{t('debug.emailDetail.threadEmails', { count: threadEmails.length })}</strong>
+      {threadEmails.map((threadEmail, idx) => {
+        const threadEmailData = threadEmail as any;
+        return (
+          <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+            {t('debug.emailDetail.threadEmailItem', {
+              idx,
+              messageId: threadEmailData.messageId || t('debug.emailDetail.notAvailable'),
+              labels: threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]',
+              receivedAt: threadEmailData.receivedAt,
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 /** Admin-only debug information panel shown in email detail view. */
 export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
+  const { t } = useTranslation();
   const emailData = email as any;
   return (
     <div
@@ -49,7 +56,7 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
           color: theme.colors.text.primary,
         }}
       >
-        Debug Information (Admin Only)
+        {t('debug.emailDetail.title')}
       </h3>
       <div
         style={{
@@ -60,23 +67,10 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
         }}
       >
         <div>
-          <strong>From:</strong> {emailData.from || 'N/A'}
-          {emailData.fromName ? ` (${emailData.fromName})` : ''}
-        </div>
-        <div>
-          <strong>To:</strong> {emailData.to || 'N/A'}
-        </div>
-        <div>
-          <strong>CC:</strong> {emailData.cc || 'N/A'}
-        </div>
-        <div>
-          <strong>Reply-To:</strong> {emailData.replyTo || 'N/A'}
-        </div>
-        <div>
-          <strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}
+          <strong>{t('debug.emailDetail.gmailMessageId')}:</strong> {emailData.messageId || t('debug.emailDetail.notAvailable')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <strong>Gmail Thread ID:</strong>
+          <strong>{t('debug.emailDetail.gmailThreadId')}:</strong>
           <code
             style={{
               backgroundColor: theme.colors.primary.subtle,
@@ -85,13 +79,13 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
               fontFamily: 'monospace',
             }}
           >
-            {emailData.threadId || 'N/A'}
+            {emailData.threadId || t('debug.emailDetail.notAvailable')}
           </code>
           {emailData.threadId && (
             <button
               onClick={() => {
                 navigator.clipboard.writeText(emailData.threadId);
-                alert('Thread ID copied to clipboard!');
+                alert(t('debug.emailDetail.threadIdCopied'));
               }}
               style={{
                 padding: '2px 8px',
@@ -103,27 +97,27 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
                 cursor: 'pointer',
               }}
             >
-              Copy
+              {t('debug.emailDetail.copyButton')}
             </button>
           )}
         </div>
         <div>
-          <strong>Labels:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}
+          <strong>{t('debug.emailDetail.labels')}:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}
         </div>
         <div>
-          <strong>Labels Count:</strong> {emailData.labels?.length || 0}
+          <strong>{t('debug.emailDetail.labelsCount')}:</strong> {emailData.labels?.length || 0}
         </div>
         <div>
-          <strong>Received At:</strong> {emailData.receivedAt}
+          <strong>{t('debug.emailDetail.receivedAt')}:</strong> {emailData.receivedAt}
         </div>
         <div>
-          <strong>Is Read:</strong> {emailData.isRead ? 'true' : 'false'}
+          <strong>{t('debug.emailDetail.isRead')}:</strong> {emailData.isRead ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
         </div>
         <div>
-          <strong>Is Archived:</strong> {emailData.isArchived ? 'true' : 'false'}
+          <strong>{t('debug.emailDetail.isArchived')}:</strong> {emailData.isArchived ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
         </div>
         <div>
-          <strong>Star Count:</strong> {emailData.starCount || 0}
+          <strong>{t('debug.emailDetail.starCount')}:</strong> {emailData.starCount || 0}
         </div>
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
       </div>

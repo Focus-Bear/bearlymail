@@ -245,8 +245,10 @@ export const TokenTestResultDisplay: React.FC<TokenTestResultDisplayProps> = ({ 
           <p
             style={{ margin: 0, color: theme.colors.accent.success, fontWeight: theme.typography.fontWeight.semibold }}
           >
-            {t('admin.githubDebug.tokenValid')} — @{result.login}
-            {result.name ? ` (${result.name})` : ''}
+            {result.name
+              ? t('admin.githubDebug.tokenValidWithName', { status: t('admin.githubDebug.tokenValid'), login: result.login, name: result.name })
+              : `${t('admin.githubDebug.tokenValid')} — @${result.login}`
+            }
           </p>
           {result.scopes && result.scopes.length > 0 && (
             <p style={{ margin: 0, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>

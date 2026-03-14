@@ -14,6 +14,7 @@ import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
+import { TroubleshootingSection } from 'components/settings/TroubleshootingSection';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
 import { useAuth } from 'contexts/AuthContext';
@@ -264,6 +265,8 @@ const Settings: React.FC = () => {
         <DataExportSection />
 
         <AccountDeletionSection />
+
+        <TroubleshootingSection />
       </div>
     </div>
   );

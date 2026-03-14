@@ -15,6 +15,7 @@ import {
   COLOR_GREY_MID,
   COLOR_WHITE,
 } from 'constants/colors';
+import { EMOJI_WARNING } from 'constants/emojis';
 import { CATEGORY_OTHER, STRING_NONE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
@@ -154,7 +155,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                           fontSize: theme.typography.fontSize.xs,
                         }}
                       >
-                        ⚠️ {t('debug.categorySummary.mismatch')}
+                        {EMOJI_WARNING} {t('debug.categorySummary.mismatch')}
                       </span>
                     )}
                   </td>
@@ -301,7 +302,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                               <span
                                 style={{ color: COLOR_ERROR_MED, marginLeft: theme.spacing.xs, fontWeight: 'bold' }}
                               >
-                                ⚠️ {t('debug.categorySummary.noLoadedEmails')}
+                                {EMOJI_WARNING} {t('debug.categorySummary.noLoadedEmails')}
                               </span>
                             )}
                           </div>
@@ -316,7 +317,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                               color: COLOR_ERROR_DARK,
                             }}
                           >
-                            <strong>⚠️ {t('debug.categorySummary.mismatchExplanation')}:</strong>
+                            <strong>{EMOJI_WARNING} {t('debug.categorySummary.mismatchExplanation')}:</strong>
                             <br />
                             {t('debug.categorySummary.summaryShows')} {category.count}{' '}
                             {t('debug.categorySummary.emailsButLoaded')} {loadedEmails.length}

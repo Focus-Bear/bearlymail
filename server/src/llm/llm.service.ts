@@ -1214,6 +1214,13 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     },
     provider?: LLMProvider,
     userId?: string,
+    threadMessages?: Array<{
+      from: string;
+      fromName?: string;
+      body: string;
+      receivedAt: Date;
+      isFromUser: boolean;
+    }>,
   ): Promise<Array<{ label: string; text: string }>> {
     const cleanedBody = cleanEmailContent(
       originalEmail.body,
@@ -1248,6 +1255,25 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       );
     }
 
+    // Build prior thread context string for the prompt (excludes the latest email itself).
+    // Each message is stripped of quoted text/signatures via cleanEmailContent and
+    // capped to keep the prompt within a reasonable token budget.
+    const threadContext =
+      threadMessages && threadMessages.length > 0
+        ? threadMessages
+            .map((msg, idx) => {
+              const sender = msg.isFromUser ? "You" : msg.fromName || msg.from;
+              const date = new Date(msg.receivedAt).toLocaleDateString();
+              const cleanedMsgBody = cleanEmailContent(
+                msg.body,
+                null,
+                QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+              );
+              return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedMsgBody}`;
+            })
+            .join("\n\n---\n\n")
+        : "";
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
       userName,
@@ -1257,6 +1283,8 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
       body: cleanedBody,
+      threadContext,
+      hasThreadContext: threadContext.length > 0,
     });
 
     const response = await this.generateText(

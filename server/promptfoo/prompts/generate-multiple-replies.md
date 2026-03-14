@@ -44,13 +44,19 @@ SCHEDULING: If either reply option involves suggesting meeting times or discussi
 
 Return a JSON object with a key "options" which is an array of: { "label": string (short description), "text": string (full email body) }
 
-## Original Email
+{% if hasThreadContext %}
+## Prior Conversation
+The following messages show the thread history leading up to the latest email. Use this context to ensure your reply options are relevant and avoid repeating what has already been said or agreed.
+
+{{threadContext}}
+
+---
+{% endif %}
+
+## Latest Email (the one to reply to)
 From: {{fromName}}
 Subject: {{subject}}
 
 {{body}}
 
 Generate 2 reply options.
-
-
-

@@ -223,4 +223,113 @@ describe("LLMService", () => {
       });
     });
   });
+
+  describe("generateReplyOptions with thread context (#885)", () => {
+    it("should call generateText with a prompt containing thread context when threadMessages is provided", async () => {
+      const mockGenerateText = jest
+        .spyOn(service as any, "generateText")
+        .mockResolvedValueOnce(
+          JSON.stringify({
+            options: [
+              { label: "Agree", text: "Sure, I'll do that." },
+              { label: "Defer", text: "Let me check and get back to you." },
+            ],
+          }),
+        );
+
+      const threadMessages = [
+        {
+          from: "sarah@example.com",
+          fromName: "Sarah Chen",
+          body: "Can you share your notes from the sprint?",
+          receivedAt: new Date("2026-01-10T10:00:00Z"),
+          isFromUser: false,
+        },
+        {
+          from: "alex@example.com",
+          fromName: "Alex Rodriguez",
+          body: "Sure, I'll push everything by end of week.",
+          receivedAt: new Date("2026-01-11T09:00:00Z"),
+          isFromUser: true,
+        },
+      ];
+
+      await service.generateReplyOptions(
+        {
+          from: "sarah@example.com",
+          fromName: "Sarah Chen",
+          subject: "Project notes",
+          body: "Have you pushed the notes yet?",
+        },
+        { tone: "professional", userName: "Alex" },
+        undefined,
+        "test-user-id",
+        threadMessages,
+      );
+
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+      const [[callArgs]] = mockGenerateText.mock.calls;
+      // The rendered prompt should include prior conversation context
+      expect(callArgs.prompt).toContain("Prior Conversation");
+      expect(callArgs.prompt).toContain("Sarah Chen");
+    });
+
+    it("should call generateText without thread context block when threadMessages is empty", async () => {
+      const mockGenerateText = jest
+        .spyOn(service as any, "generateText")
+        .mockResolvedValueOnce(
+          JSON.stringify({
+            options: [
+              { label: "Agree", text: "Sure, sounds good." },
+              { label: "Defer", text: "Let me think about it." },
+            ],
+          }),
+        );
+
+      await service.generateReplyOptions(
+        {
+          from: "sender@example.com",
+          subject: "Test",
+          body: "Test body",
+        },
+        { tone: "professional" },
+        undefined,
+        "test-user-id",
+        [],
+      );
+
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+      const [[callArgs]] = mockGenerateText.mock.calls;
+      // No thread context block should appear when there are no prior messages
+      expect(callArgs.prompt).not.toContain("Prior Conversation");
+    });
+
+    it("should work correctly when threadMessages is omitted (backward compat)", async () => {
+      const mockGenerateText = jest
+        .spyOn(service as any, "generateText")
+        .mockResolvedValueOnce(
+          JSON.stringify({
+            options: [
+              { label: "Agree", text: "Sure." },
+              { label: "Defer", text: "Later." },
+            ],
+          }),
+        );
+
+      const result = await service.generateReplyOptions(
+        {
+          from: "sender@example.com",
+          subject: "Test",
+          body: "Test body",
+        },
+        { tone: "professional" },
+        undefined,
+        "test-user-id",
+        // threadMessages deliberately omitted
+      );
+
+      expect(result).toHaveLength(2);
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    });
+  });
 });

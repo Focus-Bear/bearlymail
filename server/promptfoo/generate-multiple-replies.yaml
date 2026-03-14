@@ -137,6 +137,45 @@ tests:
           }
     description: "Should generate contrasting reply options (positive and negative/defer)"
 
+  # Test: thread context is included in the prompt and influences reply generation (#885)
+  - vars:
+      userName: "Alex Rodriguez"
+      tone: "professional"
+      fromName: "Sarah Chen"
+      subject: "Project notes"
+      body: "Have you pushed the notes yet?"
+      hasThreadContext: true
+      threadContext: |
+        [Message 1 from Sarah Chen on 1/10/2026]:
+        Can you share your notes from the last sprint?
+
+        ---
+
+        [Message 2 from You on 1/11/2026]:
+        Sure, I'll push everything by end of week.
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            // At least one reply option should acknowledge the prior commitment
+            const allText = parsed.options.map(o => o.text.toLowerCase()).join(' ');
+            const contextWords = ['push', 'notes', 'sent', 'share', 'end of week', 'already', 'committed', 'following up'];
+            const hasContextAwareness = contextWords.some(w => allText.includes(w));
+            if (!hasContextAwareness) {
+              throw new Error(`Replies do not appear to reference the prior thread context. Got: ${allText.substring(0, 300)}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should generate context-aware replies when thread history is provided (#885)"
+
 
 
 

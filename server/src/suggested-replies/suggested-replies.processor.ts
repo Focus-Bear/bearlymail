@@ -289,6 +289,28 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
       return [{ label: "Follow Up", text: followUpText }];
     }
 
+    // Fetch the 5 most recent prior thread messages so the LLM can take the
+    // conversation history into account when generating reply options (fixes #885).
+    // Fetched newest-first (DESC) so `take: 5` captures recency, then reversed
+    // to chronological order for the prompt. The current email is excluded to
+    // avoid duplicating it in the AI prompt alongside the main email body.
+    const recentThreadEmails = await this.emailRepository.find({
+      where: { emailThreadId: threadId, userId },
+      order: { receivedAt: "DESC" },
+      take: 5,
+    });
+
+    const threadMessages = recentThreadEmails
+      .filter((emailEntry) => emailEntry.id !== latestEmail.id)
+      .reverse()
+      .map((emailEntry) => ({
+        from: emailEntry.from || "",
+        fromName: emailEntry.fromName || undefined,
+        body: emailEntry.body || "",
+        receivedAt: emailEntry.receivedAt,
+        isFromUser: emailEntry.from?.toLowerCase() === userEmail,
+      }));
+
     return this.llmService.generateReplyOptions(
       {
         from: latestEmail.from || "",
@@ -299,6 +321,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
       userContext,
       undefined,
       userId,
+      threadMessages,
     );
   }
 }

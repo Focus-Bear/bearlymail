@@ -452,11 +452,26 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           onCancel={handleCancelArchive}
         />
       )}
-      {isExpanded && (
-        <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')}>
-          {children}
-        </CategoryAccordionContent>
-      )}
+      {/*
+       * CSS grid trick for smooth height animation without knowing the element's
+       * exact pixel height. Transitioning grid-template-rows from '1fr' to '0fr'
+       * (with overflow:hidden and minHeight:0 on the inner div) produces a smooth
+       * collapse/expand in both directions without JavaScript height calculations.
+       */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: isExpanded ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.25s ease-out',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ minHeight: 0 }}>
+          <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')}>
+            {children}
+          </CategoryAccordionContent>
+        </div>
+      </div>
     </div>
   );
 };

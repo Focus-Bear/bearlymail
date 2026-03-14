@@ -1176,6 +1176,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       userName?: string;
       userJobTitle?: string;
       emailExamples?: string[];
+      calendarLink?: string | null;
     },
     provider?: LLMProvider,
     userId?: string,
@@ -1205,6 +1206,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     const userName = userContext.userName || "User";
     const userJobTitle = userContext.userJobTitle || "";
     const emailExamples = userContext.emailExamples?.slice(0, 5) || [];
+    const calendarLink = userContext.calendarLink || "";
 
     if (emailExamples.length > 0) {
       this.logger.debug(
@@ -1217,6 +1219,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       userName,
       userJobTitle,
       emailExamples,
+      calendarLink,
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
       body: cleanedBody,

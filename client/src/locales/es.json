@@ -1717,7 +1717,9 @@
       "displayNamePlaceholder": "ej., Jeremy",
       "jobTitleLabel": "Título del puesto (proporciona contexto para la IA)",
       "jobTitlePlaceholder": "ej., Ingeniero de Software, Gerente de Producto",
-      "notSet": "No establecido"
+      "notSet": "No establecido",
+      "calendarBookingUrlLabel": "URL de reserva de calendario (para respuestas de programación de IA)",
+      "calendarBookingUrlPlaceholder": "ej., https://calendly.com/tunombre"
     },
     "emailSignature": {
       "title": "Firma de Correo Electrónico",

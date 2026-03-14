@@ -23,6 +23,8 @@ interface ReplyContext {
     userName: string;
     userJobTitle: string;
     emailExamples: string[];
+    // Optional booking link to include in scheduling replies when available
+    calendarLink?: string | null;
   };
   emailExamples: string[];
 }
@@ -208,6 +210,8 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
       userName: user?.displayName || user?.name || "User",
       userJobTitle: user?.jobTitle || "",
       emailExamples,
+      // Expose booking link (if configured) to prompts so the LLM can include it
+      calendarLink: user?.calendarBookingUrl || null,
     };
 
     return { userEmail, userSentLast, userContext, emailExamples };

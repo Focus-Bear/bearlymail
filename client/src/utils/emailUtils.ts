@@ -117,7 +117,10 @@ export const plainTextToHtml = (text: string): string => {
   if (text.startsWith('<') && (text.includes('<p>') || text.includes('<br') || text.includes('<div'))) {
     return text;
   }
-  const paragraphs = text.split(/\n\n+/);
+  // Normalize escaped newline sequences (e.g., "\\n" -> actual newline) so that LLMs
+  // that return escaped newlines render correctly.
+  const normalized = text.replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\n/g, '\n');
+  const paragraphs = normalized.split(/\n\n+/);
   return paragraphs.map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`).join('');
 };
 

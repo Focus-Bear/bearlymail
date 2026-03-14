@@ -572,7 +572,9 @@
       "displayNamePlaceholder": "e.g., Jeremy",
       "jobTitleLabel": "Job Title (provides context for AI)",
       "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
-      "notSet": "Not set"
+      "notSet": "Not set",
+      "calendarBookingUrlLabel": "Calendar Booking URL (for AI scheduling replies)",
+      "calendarBookingUrlPlaceholder": "e.g., https://calendly.com/yourname"
     },
     "emailSignature": {
       "title": "Email Signature",

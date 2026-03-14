@@ -38,6 +38,10 @@ Hi John,\n\nThanks for reaching out. I'd be happy to help with that.\n\nLet me k
 
 IMPORTANT: Sign off using the user's name "{{userName}}" (not any other name). Match the user's writing style from the examples if provided.
 
+{% if calendarLink %}
+SCHEDULING: If either reply option involves suggesting meeting times or discussing availability, include this calendar booking link instead of proposing specific times: {{calendarLink}}
+{% endif %}
+
 Return a JSON object with a key "options" which is an array of: { "label": string (short description), "text": string (full email body) }
 
 ## Original Email

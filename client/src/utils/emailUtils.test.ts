@@ -1,6 +1,6 @@
 import { TYPEOF_UNDEFINED } from 'constants/strings';
 
-import { removeSignature, sanitizeAndProcessHtml } from './emailUtils';
+import { plainTextToHtml, removeSignature, sanitizeAndProcessHtml } from './emailUtils';
 
 // Mock DOMPurify for testing
 jest.mock('dompurify', () => {
@@ -275,6 +275,51 @@ describe('emailUtils', () => {
         const result = sanitizeAndProcessHtml(html);
         expect(result).not.toContain('<a');
       });
+    });
+  });
+
+  describe('plainTextToHtml', () => {
+    it('should return empty string for empty input', () => {
+      expect(plainTextToHtml('')).toBe('');
+    });
+
+    it('should convert real newlines to <br> within a paragraph', () => {
+      const result = plainTextToHtml('Hello,\nHow are you?');
+      expect(result).toContain('<br>');
+    });
+
+    it('should split on double newlines to create separate paragraphs', () => {
+      const result = plainTextToHtml('Paragraph one.\n\nParagraph two.');
+      expect(result).toContain('<p>Paragraph one.</p>');
+      expect(result).toContain('<p>Paragraph two.</p>');
+    });
+
+    it('should normalize escaped \\n sequences from LLM JSON output', () => {
+      // LLM sometimes returns literal \n (two chars) instead of real newlines
+      const result = plainTextToHtml('Hi there,\\n\\nThanks for reaching out.');
+      expect(result).toContain('<p>Hi there,</p>');
+      expect(result).toContain('<p>Thanks for reaching out.</p>');
+    });
+
+    it('should handle mixed escaped and real newlines', () => {
+      const result = plainTextToHtml('Line one\\nLine two\n\nParagraph two');
+      expect(result).toContain('<br>');
+      expect(result).toContain('<p>Paragraph two</p>');
+    });
+
+    it('should normalize escaped \\r\\n sequences without producing double newlines', () => {
+      // \\r\\n must be matched before its parts, otherwise \\n is replaced first
+      // leaving \\r + real newline → two newlines → extra paragraph break
+      const result = plainTextToHtml('Hello,\\r\\n\\r\\nHow are you?');
+      expect(result).toContain('<p>Hello,</p>');
+      expect(result).toContain('<p>How are you?</p>');
+      // Should be exactly two paragraphs, not three (no empty paragraph from double newline)
+      expect(result).toBe('<p>Hello,</p><p>How are you?</p>');
+    });
+
+    it('should pass through existing HTML unchanged', () => {
+      const html = '<p>Already HTML</p>';
+      expect(plainTextToHtml(html)).toBe(html);
     });
   });
 });

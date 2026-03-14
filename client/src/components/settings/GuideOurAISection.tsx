@@ -50,6 +50,7 @@ interface GuideOurAISectionProps {
   editContextPriority: number;
   displayName?: string;
   jobTitle?: string;
+  calendarBookingUrl?: string;
   onAnalyzeContext: () => Promise<void>;
   onAddToneRule: () => void;
   onRemoveToneRule: (index: number) => void;
@@ -79,7 +80,7 @@ interface GuideOurAISectionProps {
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
   onEditContextPriorityChange: (priority: number) => void;
-  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
+  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => Promise<void>;
   onRefreshContexts?: () => void;
 }
 
@@ -108,6 +109,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   editContextPriority,
   displayName,
   jobTitle,
+  calendarBookingUrl,
   onAnalyzeContext,
   onAddToneRule,
   onRemoveToneRule,
@@ -162,6 +164,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         newContextValue={newContextValue}
         displayName={displayName}
         jobTitle={jobTitle}
+        calendarBookingUrl={calendarBookingUrl}
         onAnalyzeContext={onAnalyzeContext}
         onAddContext={onAddContext}
         onUpdateContext={onUpdateContext}

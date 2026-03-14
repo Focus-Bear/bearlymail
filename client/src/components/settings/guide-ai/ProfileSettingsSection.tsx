@@ -10,7 +10,8 @@ const SAVING_OPACITY = 0.7;
 interface ProfileSettingsSectionProps {
   displayName?: string;
   jobTitle?: string;
-  onUpdate: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
+  calendarBookingUrl?: string;
+  onUpdate: (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => Promise<void>;
 }
 
 interface ProfileSectionHeaderProps {
@@ -98,23 +99,26 @@ const ProfileFormActions: React.FC<ProfileFormActionsProps> = ({ isSaving, onSav
 export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
   displayName: initialDisplayName,
   jobTitle: initialJobTitle,
+  calendarBookingUrl: initialCalendarBookingUrl,
   onUpdate,
 }) => {
   const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(initialDisplayName || '');
   const [jobTitle, setJobTitle] = useState(initialJobTitle || '');
+  const [calendarBookingUrl, setCalendarBookingUrl] = useState(initialCalendarBookingUrl || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setDisplayName(initialDisplayName || '');
     setJobTitle(initialJobTitle || '');
-  }, [initialDisplayName, initialJobTitle]);
+    setCalendarBookingUrl(initialCalendarBookingUrl || '');
+  }, [initialDisplayName, initialJobTitle, initialCalendarBookingUrl]);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onUpdate({ displayName, jobTitle });
+      await onUpdate({ displayName, jobTitle, calendarBookingUrl });
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
@@ -126,6 +130,7 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
   const handleCancel = () => {
     setDisplayName(initialDisplayName || '');
     setJobTitle(initialJobTitle || '');
+    setCalendarBookingUrl(initialCalendarBookingUrl || '');
     setIsEditing(false);
   };
 
@@ -165,6 +170,13 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
           isEditing={isEditing}
           placeholder={t('settings.profile.jobTitlePlaceholder')}
           onChange={setJobTitle}
+        />
+        <ProfileField
+          label={t('settings.profile.calendarBookingUrlLabel')}
+          value={calendarBookingUrl}
+          isEditing={isEditing}
+          placeholder={t('settings.profile.calendarBookingUrlPlaceholder')}
+          onChange={setCalendarBookingUrl}
         />
 
         {isEditing && <ProfileFormActions isSaving={isSaving} onSave={handleSave} onCancel={handleCancel} />}

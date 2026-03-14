@@ -202,6 +202,7 @@ const Settings: React.FC = () => {
           editContextPriority={settingsData.editContextPriority}
           displayName={settingsData.displayName}
           jobTitle={settingsData.jobTitle}
+          calendarBookingUrl={settingsData.calendarBookingUrl}
           onAnalyzeContext={settingsData.handleAnalyzeContext}
           onAddToneRule={settingsData.handleAddToneRule}
           onRemoveToneRule={settingsData.handleRemoveToneRule}

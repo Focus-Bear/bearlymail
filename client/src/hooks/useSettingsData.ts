@@ -26,6 +26,7 @@ interface AccountSetters {
   setZohoAccounts: (v: any[]) => void;
   setDisplayName: (v: string | undefined) => void;
   setJobTitle: (v: string | undefined) => void;
+  setCalendarBookingUrl: (v: string) => void;
   setEmailSignature: (v: string) => void;
 }
 
@@ -39,6 +40,7 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
   const user = userRes.data;
   setters.setDisplayName(user.displayName);
   setters.setJobTitle(user.jobTitle);
+  setters.setCalendarBookingUrl(user.calendarBookingUrl || '');
   setters.setEmailSignature(user.emailSignature || 'Sent from BearlyMail (anti inbox overwhelm system)');
   const googleAccts = googleResOrNull?.data ?? [];
   const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
@@ -71,10 +73,11 @@ function useAccountsList() {
 function useUserProfile() {
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [jobTitle, setJobTitle] = useState<string | undefined>(undefined);
+  const [calendarBookingUrl, setCalendarBookingUrl] = useState<string>('');
   const [emailSignature, setEmailSignature] = useState<string>('');
   const [savingSignature, setSavingSignature] = useState(false);
 
-  const updateProfile = useCallback(async (updates: { displayName?: string; jobTitle?: string }) => {
+  const updateProfile = useCallback(async (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => {
     try {
       await axios.put(`${API_URL}/users/me`, updates);
       if (updates.displayName !== undefined) {
@@ -82,6 +85,9 @@ function useUserProfile() {
       }
       if (updates.jobTitle !== undefined) {
         setJobTitle(updates.jobTitle);
+      }
+      if (updates.calendarBookingUrl !== undefined) {
+        setCalendarBookingUrl(updates.calendarBookingUrl);
       }
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -106,6 +112,8 @@ function useUserProfile() {
     setDisplayName,
     jobTitle,
     setJobTitle,
+    calendarBookingUrl,
+    setCalendarBookingUrl,
     emailSignature,
     setEmailSignature,
     savingSignature,
@@ -184,14 +192,14 @@ export function useSettingsData() {
   const { fetchToneRules } = toneRules;
   const { fetchApiKeys } = apiKeys;
   const { setGoogleAccounts, setOffice365Accounts, setZohoAccounts } = accounts;
-  const { setDisplayName, setJobTitle, setEmailSignature } = profile;
+  const { setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature } = profile;
 
   const fetchData = useCallback(async () => {
     try {
       await Promise.all([
         fetchUserAndAccounts({
           setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
-          setDisplayName, setJobTitle, setEmailSignature,
+          setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature,
         }),
         fetchSummarizationRules(), fetchContexts(), fetchBlockedSenders(),
         fetchBlockedKeywords(), fetchBatchSchedule(), fetchToneRules(), fetchApiKeys(),
@@ -205,7 +213,7 @@ export function useSettingsData() {
     fetchSummarizationRules, fetchContexts, fetchBlockedSenders, fetchBlockedKeywords,
     fetchBatchSchedule, fetchToneRules, fetchApiKeys,
     setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
-    setDisplayName, setJobTitle, setEmailSignature,
+    setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature,
   ]);
 
   const analysisProgress = useAnalysisProgress(fetchData);
@@ -226,6 +234,7 @@ export function useSettingsData() {
     loading,
     displayName: profile.displayName,
     jobTitle: profile.jobTitle,
+    calendarBookingUrl: profile.calendarBookingUrl,
     emailSignature: profile.emailSignature,
     savingSignature: profile.savingSignature,
     fetchData,

@@ -169,7 +169,9 @@ module.exports = {
     'no-restricted-syntax': [
       'warn',
       {
-        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/] > Literal[value=/[a-zA-Z]/]',
+        // Exclude typeof comparisons (e.g. typeof x === 'string') — these are valid
+        // TypeScript type-narrowing patterns, not magic strings.
+        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/]:not(:has(UnaryExpression[operator="typeof"])) > Literal[value=/[a-zA-Z]/]',
         message: 'Avoid magic strings in comparisons. Define them as constants instead.',
       },
       {
@@ -288,7 +290,9 @@ module.exports = {
         'no-magic-numbers': 'off', // Test files can use magic numbers
         'id-denylist': 'off', // Test files use standard Axios response shape with 'data' property
         'max-nested-callbacks': 'off', // Test files use nested describe/it blocks
+        'testing-library/no-wait-for-multiple-assertions': 'off', // Tests may need multiple assertions in a single waitFor for clarity
         'no-script-url': 'off', // Test files may test URL sanitization with javascript: URLs
+        'no-restricted-syntax': 'off', // Test files may use literal strings in comparisons (e.g. typeof checks)
         '@typescript-eslint/no-explicit-any': 'off', // Test files often use any for mocking
       },
     },
@@ -420,6 +424,15 @@ module.exports = {
       files: ['**/ErrorBoundary.tsx'],
       rules: {
         'i18next/no-literal-string': 'off',
+      },
+    },
+    {
+      // TypeScript type definition files — string literal types are valid TypeScript syntax,
+      // not magic strings. Also 'typeof x === "string"' is a necessary type-narrowing pattern.
+      files: ['**/*.types.ts', '**/*.types.tsx'],
+      rules: {
+        // String literals like 'pending' | 'active' are TypeScript union types, not magic strings
+        'no-restricted-syntax': 'off',
       },
     },
     {

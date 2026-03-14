@@ -84,6 +84,13 @@ export class User {
   googleCalendarRefreshToken: string;
 
   @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "User's calendar booking link for scheduling replies (encrypted)",
+  })
+  calendarBookingUrl: string;
+
+  @Column({
     default: false,
     comment: "Added field to track auth errors",
   })

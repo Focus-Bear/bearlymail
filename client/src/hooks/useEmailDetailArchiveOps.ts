@@ -217,7 +217,7 @@ export function useEmailDetailArchiveOps({
         }
       });
     }
-  }, [id, triggerAnimation, navigate, options, dispatch, emails]);
+  }, [id, triggerAnimation, navigate, options, dispatch, emails, getInboxPath]);
 
   const handleSnooze = useCallback(
     async (durationOverride?: string) => {
@@ -240,7 +240,7 @@ export function useEmailDetailArchiveOps({
         clearInputs: !durationOverride,
       });
     },
-    [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]
+    [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails, getInboxPath]
   );
 
   const handleDelete = useCallback(async () => {
@@ -253,7 +253,7 @@ export function useEmailDetailArchiveOps({
     axios.delete(`${API_URL}/emails/${id}`).catch(error => {
       console.error('Error deleting email:', error);
     });
-  }, [id, triggerAnimation, navigate]);
+  }, [id, triggerAnimation, navigate, getInboxPath]);
 
   return {
     performArchiveAfterReply,

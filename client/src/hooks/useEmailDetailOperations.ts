@@ -897,7 +897,7 @@ export function useEmailDetailOperations(
       // show priority animation then navigate back to inbox
       if (isTriageToAction && !options.onArchiveComplete) {
         await triggerAnimation(ANIMATION_TYPE_PRIORITY);
-        navigate('/inbox');
+        navigate(getInboxPath());
         return;
       }
 
@@ -906,7 +906,7 @@ export function useEmailDetailOperations(
         fetchEmail();
       }
     },
-    [id, fetchEmail, options, triggerAnimation, navigate]
+    [id, fetchEmail, options, triggerAnimation, navigate, getInboxPath]
   );
 
   const handleBlockSender = useCallback(
@@ -918,12 +918,12 @@ export function useEmailDetailOperations(
       try {
         await axios.post(`${API_URL}/emails/${emailId}/block-sender`);
         await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-        navigate('/inbox');
+        navigate(getInboxPath());
       } catch (error) {
         console.error('Error blocking sender:', error);
       }
     },
-    [email, triggerAnimation, navigate]
+    [email, triggerAnimation, navigate, getInboxPath]
   );
 
   const handleRespondToInvitation = useCallback(

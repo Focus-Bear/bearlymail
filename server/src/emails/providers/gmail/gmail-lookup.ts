@@ -1,6 +1,21 @@
 import { gmail_v1 } from "googleapis";
 
+/**
+ * Returns true if the given ID is a Gmail API hex thread/message ID.
+ * Hex thread IDs are exactly 16 lowercase hexadecimal characters.
+ * Legacy message IDs from Gmail web URLs are base64url-encoded and do not
+ * match this pattern, so they must be resolved via the Gmail API first.
+ */
+export function isHexThreadId(id: string): boolean {
+  return /^[0-9a-f]{16}$/i.test(id);
+}
+
 export function buildGmailUrlIdsToTry(urlId: string): string[] {
+  // Hex thread IDs can be used directly — no need to decode
+  if (isHexThreadId(urlId)) {
+    return [urlId];
+  }
+
   const idsToTry: string[] = [urlId];
   try {
     const base64 = urlId.replace(/-/g, "+").replace(/_/g, "/");

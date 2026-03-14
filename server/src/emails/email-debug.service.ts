@@ -919,6 +919,7 @@ export class EmailDebugService {
     subject: string | null;
     from: string | null;
     receivedAt: string | null;
+    error?: string;
   }> {
     try {
       const gmailLookup = await this.gmailProvider.lookupByGmailUrlId(
@@ -944,8 +945,10 @@ export class EmailDebugService {
         receivedAt: gmailLookup.receivedAt?.toISOString() ?? null,
       };
     } catch (error) {
+      const errorMessage = isError(error) ? error.message : "unknown error";
       this.logger.warn(
-        `Gmail API lookup failed for URL ID ${urlId}: ${isError(error) ? error.message : "unknown error"}`,
+        `Gmail API lookup failed for URL ID "${urlId}" (user ${userId}): ${errorMessage}. ` +
+          `Check Gmail auth scope for the debug context and verify the ID is a valid legacy message ID.`,
       );
       return {
         foundInGmailApi: false,
@@ -954,8 +957,54 @@ export class EmailDebugService {
         subject: null,
         from: null,
         receivedAt: null,
+        error: `Could not resolve legacy message ID "${urlId}" via Gmail API — ${errorMessage}. ` +
+          `Check Gmail auth scope for admin debug.`,
       };
     }
+  }
+
+  /**
+   * Detect the format of a Gmail web UI URL hash fragment.
+   * Gmail URLs use different formats depending on how the user navigated:
+   *   - inbox:  #inbox/<id>
+   *   - search: #search/<query>/<id>
+   *   - label:  #label/<labelName>/<id>
+   */
+  private detectGmailUrlFormat(
+    url: string,
+  ): "inbox" | "search" | "label" | "unknown" {
+    const hashIndex = url.indexOf("#");
+    if (hashIndex === -1) return "unknown";
+    const fragment = decodeURIComponent(url.slice(hashIndex + 1));
+    if (fragment.startsWith("inbox/")) return "inbox";
+    if (fragment.startsWith("search/")) return "search";
+    if (fragment.startsWith("label/")) return "label";
+    return "unknown";
+  }
+
+  /**
+   * Extract the message/thread ID from a Gmail web UI URL.
+   *
+   * All Gmail URL formats end with the ID as the last `/`-separated segment
+   * of the hash fragment. URL-decoding is applied first so that encoded
+   * characters in the query segment (e.g. `%40` for `@`) do not interfere
+   * with the split.
+   *
+   * Examples:
+   *   #inbox/FMfcgzQ...           → FMfcgzQ...
+   *   #search/email%40ex.com/FMfcgzQ... → FMfcgzQ...
+   *   #label/Important/FMfcgzQ... → FMfcgzQ...
+   */
+  private extractGmailUrlId(url: string): string {
+    const hashIndex = url.indexOf("#");
+    if (hashIndex === -1) {
+      // No hash — fall back to splitting the entire URL
+      const segments = url.split("/");
+      return segments[segments.length - 1] || url;
+    }
+    const fragment = decodeURIComponent(url.slice(hashIndex + 1));
+    const segments = fragment.split("/");
+    return segments[segments.length - 1] || fragment;
   }
 
   async lookupByGmailUrl(
@@ -970,13 +1019,14 @@ export class EmailDebugService {
         subject: string | null;
         from: string | null;
         receivedAt: string | null;
+        error?: string;
       };
     }
   > {
-    const urlParts = gmailUrl.split(/[/#]/);
-    const urlId = urlParts[urlParts.length - 1];
+    const detectedFormat = this.detectGmailUrlFormat(gmailUrl);
+    const urlId = this.extractGmailUrlId(gmailUrl);
     this.logger.log(
-      `Looking up Gmail URL for user ${userId}, extracted URL ID: ${urlId}`,
+      `Looking up Gmail URL for user ${userId}, format: ${detectedFormat}, extracted URL ID: ${urlId}`,
     );
 
     const byMessageId = await this.lookupByMessageId(userId, urlId);
@@ -1034,7 +1084,9 @@ export class EmailDebugService {
         wouldShowInFollowUp: false,
       },
       reasons: [
-        `URL ID "${urlId}" not found in BearlyMail database or Gmail API. The Gmail URL may be invalid or the email may have been deleted.`,
+        `URL ID "${urlId}" (Gmail URL format: ${detectedFormat}) not found in BearlyMail database or Gmail API. ` +
+          `The Gmail URL may be invalid, the email may have been deleted, or Gmail API auth may be unavailable for this user. ` +
+          (gmailApiResult?.error ? `Gmail API error: ${gmailApiResult.error}` : ""),
       ],
       gmailApiResult,
     };

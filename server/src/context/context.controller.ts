@@ -513,6 +513,22 @@ export class ContextController {
     return this.contextService.deleteContext(id, req.user.userId);
   }
 
+  @Post("compress")
+  async compressContext(@Request() req: { user: { userId: string } }) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] POST /context/compress received for user ${userId}`,
+    );
+
+    const result = await this.contextService.compressUserContext(userId, true);
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Compression complete for user ${userId}: ${result.originalCount} -> ${result.compressedCount} items (changed=${result.changed})`,
+    );
+
+    return result;
+  }
+
   @Post("consolidate-categories")
   async consolidateCategories(@Request() req: { user: { userId: string } }) {
     const { userId } = req.user;

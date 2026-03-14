@@ -690,10 +690,13 @@ export class GmailProvider implements EmailProvider {
             // Check ALL messages for STARRED label (stars are per-message in Gmail)
             const starCount = isThreadStarred(thread.messages) ? 3 : 0;
 
-            // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
-            const latestMessage = thread.messages[thread.messages.length - 1];
-            const latestLabelIds = latestMessage.labelIds || [];
-            const isArchived = !latestLabelIds.includes("INBOX");
+            // A thread is in the INBOX if ANY of its messages has the INBOX label.
+            // The latest message may be a SENT reply (e.g. from the auto-responder)
+            // which only has the SENT label — using only the latest would falsely
+            // archive threads that still have original messages in the inbox (#857).
+            const isArchived = !thread.messages.some((msg) =>
+              (msg.labelIds ?? []).includes("INBOX"),
+            );
 
             const existingThread = existingThreadMap.get(threadId);
             if (

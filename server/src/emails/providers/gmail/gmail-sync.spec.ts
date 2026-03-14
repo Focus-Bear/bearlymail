@@ -1,6 +1,6 @@
 import { gmail_v1 } from "googleapis";
 
-import { isThreadStarred } from "./gmail-sync";
+import { isThreadStarred, verifyThreadStatusesInGmail } from "./gmail-sync";
 
 describe("gmail-sync helpers", () => {
   describe("isThreadStarred", () => {
@@ -58,6 +58,154 @@ describe("gmail-sync helpers", () => {
       ];
 
       expect(isThreadStarred(messages)).toBe(false);
+    });
+  });
+
+  /*
+   * Regression tests for issue #857:
+   *   The autoresponder sends a reply to a thread. That reply becomes the
+   *   latest message and only carries the SENT label (not INBOX). The old
+   *   code checked only the latest message, which falsely marked the thread
+   *   as archived and hid it from all inbox views.
+   *
+   *   Fix: a thread is archived only when NO message in it has the INBOX label.
+   *
+   * These tests exercise verifyThreadStatusesInGmail via a mock Gmail client.
+   */
+  describe("verifyThreadStatusesInGmail — archive status (#857 regression)", () => {
+    function makeGmailMock(
+      threads: Record<string, gmail_v1.Schema$Thread>,
+    ): gmail_v1.Gmail {
+      return {
+        users: {
+          threads: {
+            get: jest.fn(
+              async ({ id }: { userId: string; id: string }) => ({
+                data: threads[id] ?? { messages: [] },
+              }),
+            ),
+          },
+        },
+      } as unknown as gmail_v1.Gmail;
+    }
+
+    it("should NOT archive a thread when original email is in INBOX and latest message is a SENT reply", async () => {
+      /*
+       * Scenario: user (or auto-responder) replied to an incoming email.
+       * Original message: INBOX + UNREAD labels.
+       * Reply (sent): SENT label only — no INBOX label.
+       * Expected: thread is NOT archived because the original email is still
+       * in the INBOX.
+       */
+      const gmail = makeGmailMock({
+        "thread-abc": {
+          messages: [
+            { id: "msg1", labelIds: ["INBOX", "UNREAD"] },
+            { id: "msg2", labelIds: ["SENT"] },
+          ],
+        },
+      });
+
+      const updates = await verifyThreadStatusesInGmail(
+        "user-1",
+        ["thread-abc"],
+        gmail,
+      );
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].isArchived).toBe(false);
+    });
+
+    it("should archive a thread when NO message has the INBOX label", async () => {
+      /*
+       * Scenario: the email was genuinely archived in Gmail — none of its
+       * messages carry the INBOX label any more.
+       */
+      const gmail = makeGmailMock({
+        "thread-def": {
+          messages: [
+            { id: "msg1", labelIds: ["All Mail"] },
+            { id: "msg2", labelIds: ["SENT"] },
+          ],
+        },
+      });
+
+      const updates = await verifyThreadStatusesInGmail(
+        "user-1",
+        ["thread-def"],
+        gmail,
+      );
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].isArchived).toBe(true);
+    });
+
+    it("should NOT archive a thread when auto-responder sent reply and original email remains in INBOX", async () => {
+      /*
+       * The canonical #857 scenario:
+       *   1. Email arrives in INBOX.
+       *   2. Auto-responder sends reply (becomes latest message, labels: SENT).
+       *   3. Gmail sync runs — must NOT mark thread as archived.
+       */
+      const gmail = makeGmailMock({
+        "thread-autoresponder": {
+          messages: [
+            { id: "incoming", labelIds: ["INBOX", "UNREAD", "CATEGORY_PERSONAL"] },
+            { id: "autoresponse", labelIds: ["SENT"] },
+          ],
+        },
+      });
+
+      const updates = await verifyThreadStatusesInGmail(
+        "user-1",
+        ["thread-autoresponder"],
+        gmail,
+      );
+
+      expect(updates[0].isArchived).toBe(false);
+    });
+
+    it("should keep thread archived if NO message has INBOX even after auto-responder sent reply", async () => {
+      /*
+       * Edge case: the thread was already manually archived (no INBOX label on
+       * original messages) before the auto-responder replied. Should remain archived.
+       */
+      const gmail = makeGmailMock({
+        "thread-pre-archived": {
+          messages: [
+            { id: "incoming", labelIds: ["All Mail"] },
+            { id: "autoresponse", labelIds: ["SENT"] },
+          ],
+        },
+      });
+
+      const updates = await verifyThreadStatusesInGmail(
+        "user-1",
+        ["thread-pre-archived"],
+        gmail,
+      );
+
+      expect(updates[0].isArchived).toBe(true);
+    });
+
+    it("should not affect star count calculation when checking archive status", async () => {
+      const gmail = makeGmailMock({
+        "thread-starred": {
+          messages: [
+            { id: "msg1", labelIds: ["INBOX", "STARRED"] },
+            { id: "msg2", labelIds: ["SENT"] },
+          ],
+        },
+      });
+
+      const updates = await verifyThreadStatusesInGmail(
+        "user-1",
+        ["thread-starred"],
+        gmail,
+      );
+
+      expect(updates[0].starCount).toBe(3);
+      expect(updates[0].isArchived).toBe(false);
     });
   });
 });

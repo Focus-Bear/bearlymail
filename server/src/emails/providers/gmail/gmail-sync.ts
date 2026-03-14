@@ -69,14 +69,20 @@ export async function verifyThreadStatusesInGmail(
           // Check ALL messages for STARRED label (stars are per-message in Gmail)
           const hasStarredMessage = isThreadStarred(thread.messages);
 
-          // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
-          const latestMessage = thread.messages[thread.messages.length - 1];
-          const latestLabelIds = latestMessage.labelIds || [];
+          // A thread is in the INBOX if ANY of its messages has the INBOX label.
+          // Checking only the latest message is incorrect: when a reply is sent
+          // (e.g. by the auto-responder), the sent message becomes the latest and
+          // carries only the SENT label — not INBOX — which would falsely mark
+          // the thread as archived even though the original email is still in the
+          // inbox (#857).
+          const isInInbox = thread.messages.some((msg) =>
+            (msg.labelIds ?? []).includes("INBOX"),
+          );
 
           updates.push({
             threadId,
             starCount: hasStarredMessage ? 3 : 0,
-            isArchived: !latestLabelIds.includes("INBOX"),
+            isArchived: !isInInbox,
           });
         } catch (threadError: unknown) {
           if (
@@ -158,14 +164,18 @@ export async function getExistingThreadUpdates(
       // Check ALL messages for STARRED label (stars are per-message in Gmail)
       const hasStarredMessage = isThreadStarred(thread.messages);
 
-      // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
-      const latestMessage = thread.messages[thread.messages.length - 1];
-      const latestLabelIds = latestMessage.labelIds || [];
+      // A thread is in the INBOX if ANY of its messages has the INBOX label.
+      // The latest message is often a SENT reply (from the auto-responder or
+      // the user) which only carries SENT — not INBOX — and should not be
+      // used alone to determine archive status (#857).
+      const isInInbox = thread.messages.some((msg) =>
+        (msg.labelIds ?? []).includes("INBOX"),
+      );
 
       updates.push({
         threadId: dbThread.threadId,
         starCount: hasStarredMessage ? 3 : 0,
-        isArchived: !latestLabelIds.includes("INBOX"),
+        isArchived: !isInInbox,
       });
     } catch (threadError: unknown) {
       if (

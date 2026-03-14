@@ -59,6 +59,10 @@ import {
 export { parseRecipientsFromString } from "../../utils/email-address.utils";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
 
+/** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
+const GMAIL_INBOX_QUERY =
+  "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
+
 @Injectable()
 export class GmailProvider implements EmailProvider {
   private readonly progressUpdateCounters = new Map<string, number>();
@@ -822,12 +826,12 @@ export class GmailProvider implements EmailProvider {
       const [inboxThreadIdList, starredThreadIdList] = await Promise.all([
         this.fetchAllThreadsWithPagination(
           gmail,
-          "in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+          GMAIL_INBOX_QUERY,
           QUERY_LIMITS.INBOX_TOTAL,
         ),
         this.fetchAllThreadsWithPagination(
           gmail,
-          "is:starred is:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+          `is:starred ${GMAIL_INBOX_QUERY}`,
           QUERY_LIMITS.INBOX_TOTAL,
         ),
       ]);
@@ -1211,7 +1215,19 @@ export class GmailProvider implements EmailProvider {
     }
     return this.fetchAllThreadsWithPagination(
       gmail,
-      "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+      `is:starred ${GMAIL_INBOX_QUERY}`,
+      QUERY_LIMITS.INBOX_TOTAL,
+    );
+  }
+
+  async getInboxThreadIds(userId: string): Promise<string[]> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) {
+      throw new Error("Gmail auth expired or not connected");
+    }
+    return this.fetchAllThreadsWithPagination(
+      gmail,
+      GMAIL_INBOX_QUERY,
       QUERY_LIMITS.INBOX_TOTAL,
     );
   }

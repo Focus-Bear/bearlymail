@@ -1,3 +1,4 @@
+export { AccordionGroup } from 'components/inbox/debug/AccordionGroup';
 export { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsGrid';
 export { DebugCategorySummarySection } from 'components/inbox/debug/DebugCategorySummarySection';
 export { DebugEmailList } from 'components/inbox/debug/DebugEmailList';

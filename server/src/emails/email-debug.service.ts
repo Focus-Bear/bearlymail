@@ -254,6 +254,8 @@ export class EmailDebugService {
       inActionOrFollowUp: number;
       starredInDbButHidden: number;
       notStarredInDb: number;
+      archivedInBearlyMail: number;
+      archiveConflicts: number;
     };
     threads: Array<{
       threadId: string;
@@ -263,6 +265,11 @@ export class EmailDebugService {
       category: string | null;
       appearsInActionOrFollowUp: boolean;
       reason: string;
+      isArchivedInDb: boolean;
+      isInGmailInbox: boolean;
+      syncStatus: "synced" | "unsynced";
+      hasUnsyncedChanges: boolean;
+      archiveStatusConflict: boolean;
     }>;
     staleUnsyncedThreads: Array<{
       threadId: string;
@@ -272,20 +279,27 @@ export class EmailDebugService {
       starCount: number;
     }>;
   }> {
-    // ── Step 1: Fetch starred inbox thread IDs from Gmail (lightweight threads.list) ──
+    // ── Step 1: Fetch starred inbox thread IDs AND all inbox thread IDs from Gmail ──
     let gmailStarredThreadIds: string[] = [];
+    let gmailInboxSet = new Set<string>();
     let gmailError: string | undefined;
 
     try {
-      gmailStarredThreadIds =
-        await this.gmailProvider.getStarredInboxThreadIds(userId);
+      const [starredIds, inboxIds] = await Promise.all([
+        this.gmailProvider.getStarredInboxThreadIds(userId),
+        this.gmailProvider
+          .getInboxThreadIds(userId)
+          .catch(() => [] as string[]),
+      ]);
+      gmailStarredThreadIds = starredIds;
+      gmailInboxSet = new Set(inboxIds);
       if (gmailStarredThreadIds.length === 0) {
         const provider =
           await this.emailProviderManager.getPrimaryProvider(userId);
         if (!provider) gmailError = "No email provider connected";
       }
       this.logger.debug(
-        `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads`,
+        `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads, ${gmailInboxSet.size} inbox threads`,
       );
     } catch (error: unknown) {
       gmailError = isError(error)
@@ -375,6 +389,11 @@ export class EmailDebugService {
             reason:
               "NOT_IN_DB: thread exists in Gmail but has never been synced to BearlyMail " +
               "(likely older than the sync window — try triggering a manual sync)",
+            isArchivedInDb: false,
+            isInGmailInbox: gmailInboxSet.has(gmailThreadId),
+            syncStatus: "synced" as const,
+            hasUnsyncedChanges: false,
+            archiveStatusConflict: false,
           };
         }
 
@@ -399,6 +418,11 @@ export class EmailDebugService {
           visibility,
         );
 
+        const isInGmailInbox = gmailInboxSet.has(gmailThreadId);
+        const hasUnsyncedChanges = thread.syncStatus === "unsynced";
+        const archiveStatusConflict =
+          thread.isArchived && isInGmailInbox && !hasUnsyncedChanges;
+
         return {
           threadId: gmailThreadId,
           subject:
@@ -411,6 +435,11 @@ export class EmailDebugService {
           category: thread.category ?? null,
           appearsInActionOrFollowUp: visibility.wouldShowInAction,
           reason,
+          isArchivedInDb: thread.isArchived,
+          isInGmailInbox,
+          syncStatus: thread.syncStatus as "synced" | "unsynced",
+          hasUnsyncedChanges,
+          archiveStatusConflict,
         };
       }),
     );
@@ -456,6 +485,13 @@ export class EmailDebugService {
         starCount: thread.starCount,
       }));
 
+    const archivedInBearlyMail = threads.filter(
+      (thread) => thread.inDb && thread.isArchivedInDb,
+    ).length;
+    const archiveConflicts = threads.filter(
+      (thread) => thread.archiveStatusConflict,
+    ).length;
+
     return {
       ...(gmailError ? { gmailError } : {}),
       summary: {
@@ -465,6 +501,8 @@ export class EmailDebugService {
         inActionOrFollowUp,
         starredInDbButHidden,
         notStarredInDb,
+        archivedInBearlyMail,
+        archiveConflicts,
       },
       threads,
       staleUnsyncedThreads,
@@ -1025,7 +1063,7 @@ export class EmailDebugService {
         userId,
         syncStatus: "unsynced",
       },
-      select: ["id", "threadId", "syncStatusUpdatedAt"],
+      select: ["id", "threadId", "syncStatusUpdatedAt", "isArchived"],
     });
 
     const actuallyStale = staleThreads.filter(
@@ -1038,18 +1076,53 @@ export class EmailDebugService {
       `Found ${actuallyStale.length} stale unsynced threads for user ${userId}`,
     );
 
-    // Mark them as synced
     if (actuallyStale.length > 0) {
-      await this.emailThreadRepository.update(
-        {
-          userId,
-          id: In(actuallyStale.map((thread) => thread.id)),
-        },
-        {
-          syncStatus: "synced",
-          syncStatusUpdatedAt: new Date(),
-        },
+      // Reconcile with Gmail before marking synced — avoids blindly resetting
+      // syncStatus on threads whose provider sync failed (e.g. rate limit).
+      let gmailFetchSucceeded = false;
+      let gmailInboxSet = new Set<string>();
+      try {
+        const inboxIds = await this.gmailProvider.getInboxThreadIds(userId);
+        gmailInboxSet = new Set(inboxIds);
+        gmailFetchSucceeded = true;
+        this.logger.log(
+          `Fetched ${gmailInboxSet.size} Gmail inbox thread IDs for reconciliation`,
+        );
+      } catch (error: unknown) {
+        this.logger.error(
+          "Failed to fetch Gmail inbox IDs for stale thread reconciliation — will mark synced without archive fix:",
+          error,
+        );
+      }
+
+      const now = new Date();
+
+      // Batch updates: separate threads into two groups to avoid N+1 DB writes.
+      // When Gmail fetch succeeded, derive archive status from inbox presence;
+      // otherwise fall back to the existing isArchived value for each thread.
+      const toMarkUnarchived = actuallyStale.filter((thread) =>
+        gmailFetchSucceeded
+          ? gmailInboxSet.has(thread.threadId)
+          : !thread.isArchived,
       );
+      const toMarkArchived = actuallyStale.filter((thread) =>
+        gmailFetchSucceeded
+          ? !gmailInboxSet.has(thread.threadId)
+          : thread.isArchived,
+      );
+
+      if (toMarkUnarchived.length > 0) {
+        await this.emailThreadRepository.update(
+          { id: In(toMarkUnarchived.map((thread) => thread.id)) },
+          { isArchived: false, syncStatus: "synced", syncStatusUpdatedAt: now },
+        );
+      }
+      if (toMarkArchived.length > 0) {
+        await this.emailThreadRepository.update(
+          { id: In(toMarkArchived.map((thread) => thread.id)) },
+          { isArchived: true, syncStatus: "synced", syncStatusUpdatedAt: now },
+        );
+      }
     }
 
     return {

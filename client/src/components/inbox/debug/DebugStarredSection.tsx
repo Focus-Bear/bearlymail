@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -115,49 +116,32 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
             onClick={event => event.stopPropagation()}
           >
             <h4 style={{ marginTop: 0 }}>
-              {t('debug.starred.syncCheckResults', { count: debugStarredData.summary?.gmailStarredCount ?? 0 })}
+              Starred Sync Check Results — {debugStarredData.summary?.gmailStarredCount ?? 0} Gmail starred threads
             </h4>
             {debugStarredData.gmailError && (
               <p style={{ color: 'red', marginTop: 0 }}>
-                {t('debug.starred.gmailError')}: {debugStarredData.gmailError}
+                Gmail error: {debugStarredData.gmailError}
               </p>
             )}
             {debugStarredData.summary && (
               <p style={{ marginTop: 0 }}>
-                {t('debug.starred.summaryStats', {
-                  foundInDb: debugStarredData.summary.foundInDb,
-                  total: debugStarredData.summary.gmailStarredCount,
-                  notInDb: debugStarredData.summary.notInDb,
-                  inActionOrFollowUp: debugStarredData.summary.inActionOrFollowUp,
-                })}
+                {debugStarredData.summary.foundInDb} of {debugStarredData.summary.gmailStarredCount} starred Gmail
+                threads are in the DB. {debugStarredData.summary.notInDb} are missing. {' '}
+                {debugStarredData.summary.inActionOrFollowUp} appear in Action/Follow-up.
               </p>
             )}
 
-            {/* Per-thread reason codes (replaces old gmailVisibilityChecks) */}
-            {debugStarredData.threads?.map(thread => (
-              <div key={thread.threadId} style={{ marginBottom: theme.spacing.sm }}>
-                <strong>{thread.threadId}</strong>
-                {thread.subject && (
-                  <span style={{ color: theme.colors.text.secondary }}>
-                    {' '}{t('debug.starred.threadSubject', { subject: thread.subject })}
-                  </span>
-                )}
-                <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>{thread.reason}</div>
-              </div>
-            ))}
+            {/* Per-thread accordion view */}
+            <StarredThreadsList threads={debugStarredData.threads ?? []} />
 
-            <h5>{t('debug.starred.staleUnsyncedTitle')}</h5>
+            <h5>Unsynced for more than 5 minutes</h5>
             {debugStarredData.staleUnsyncedThreads?.length ? (
               <>
                 <ul>
                   {debugStarredData.staleUnsyncedThreads.map(thread => (
                     <li key={thread.threadId}>
-                      {t('debug.starred.staleUnsyncedThread', {
-                        threadId: thread.threadId,
-                        minutesUnsynced: thread.minutesUnsynced,
-                        isArchived: String(thread.isArchived),
-                        starCount: thread.starCount,
-                      })}
+                      {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)},
+                      starCount: {thread.starCount})
                     </li>
                   ))}
                 </ul>
@@ -176,13 +160,13 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                       );
                       if (response.ok) {
                         const result = await response.json();
-                        alert(t('debug.starred.fixStaleSuccess', { count: result.fixed }));
+                        alert(`Fixed ${result.fixed} stale unsynced threads`);
                         await onFetchDebugStarred(); // Refresh the data
                       } else {
-                        alert(t('debug.starred.fixStaleFailed'));
+                        alert('Failed to fix stale unsynced threads');
                       }
                     } catch (error) {
-                      alert(`${t('debug.starred.fixStaleError')}: ${error}`);
+                      alert(`Error fixing stale unsynced threads: ${error}`);
                     }
                   }}
                   style={{
@@ -195,11 +179,11 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                     marginBottom: theme.spacing.sm,
                   }}
                 >
-                  {t('debug.starred.fixStaleButton')}
+                  Fix Stale Unsynced Threads
                 </button>
               </>
             ) : (
-              <p>{t('debug.starred.noStaleThreads')}</p>
+              <p>No stale unsynced threads found.</p>
             )}
 
             <button
@@ -213,7 +197,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {t('common.close')}
+              Close
             </button>
           </div>
         </div>

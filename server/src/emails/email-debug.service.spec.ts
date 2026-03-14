@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { Email } from "../database/entities/email.entity";
@@ -370,6 +370,252 @@ describe("EmailDebugService", () => {
       expect(result.thread.categoryExplanation).toBeNull();
       expect(result.emailCategories).toHaveLength(0);
       expect(result.protoCategories).toHaveLength(0);
+    });
+  });
+
+  describe("debugStarredThreads", () => {
+    const userId = "user-debug-starred";
+    const threadId1 = "thread-aaa";
+    const threadId2 = "thread-bbb";
+
+    const makeQueryBuilderMock = () =>
+      ({
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      }) as any;
+
+    beforeEach(() => {
+      (mockGmailProvider as any).getStarredInboxThreadIds = jest
+        .fn()
+        .mockResolvedValue([threadId1, threadId2]);
+      /*
+       * threadId1 is in inbox, threadId2 is archived in Gmail.
+       * Used to verify isInGmailInbox and archiveStatusConflict logic.
+       */
+      (mockGmailProvider as any).getInboxThreadIds = jest
+        .fn()
+        .mockResolvedValue([threadId1]);
+    });
+
+    it("should include isArchivedInDb, isInGmailInbox, syncStatus fields per thread", async () => {
+      const dbThread = {
+        id: "db-thread-1",
+        threadId: threadId1,
+        starCount: 3,
+        isArchived: false,
+        category: null,
+        syncStatus: "synced",
+        syncStatusUpdatedAt: new Date(),
+        isBatched: false,
+        batchReleaseAt: null,
+      } as unknown as EmailThread;
+
+      mockEmailThreadRepository.find
+        .mockResolvedValueOnce([dbThread])
+        .mockResolvedValueOnce([]);
+
+      mockEmailRepository.createQueryBuilder.mockReturnValue(
+        makeQueryBuilderMock(),
+      );
+
+      mockBlockedSendersService.isSenderBlocked = jest
+        .fn()
+        .mockResolvedValue(false);
+
+      const result = await service.debugStarredThreads(userId);
+
+      const foundThread = result.threads.find(
+        (th) => th.threadId === threadId1,
+      );
+      expect(foundThread).toBeDefined();
+      expect(foundThread?.isArchivedInDb).toBe(false);
+      expect(foundThread?.isInGmailInbox).toBe(true);
+      expect(foundThread?.syncStatus).toBe("synced");
+      expect(foundThread?.hasUnsyncedChanges).toBe(false);
+      expect(foundThread?.archiveStatusConflict).toBe(false);
+    });
+
+    it("should set archiveStatusConflict=true when archived in DB but Gmail says INBOX and syncStatus is synced", async () => {
+      /*
+       * Thread is archived in BearlyMail AND Gmail still shows it in inbox,
+       * AND syncStatus is synced — this is a genuine conflict.
+       */
+      const archivedThread = {
+        id: "db-thread-conflict",
+        threadId: threadId1,
+        starCount: 3,
+        isArchived: true,
+        category: null,
+        syncStatus: "synced",
+        syncStatusUpdatedAt: new Date(),
+        isBatched: false,
+        batchReleaseAt: null,
+      } as unknown as EmailThread;
+
+      mockEmailThreadRepository.find
+        .mockResolvedValueOnce([archivedThread])
+        .mockResolvedValueOnce([]);
+
+      mockEmailRepository.createQueryBuilder.mockReturnValue(
+        makeQueryBuilderMock(),
+      );
+
+      mockBlockedSendersService.isSenderBlocked = jest
+        .fn()
+        .mockResolvedValue(false);
+
+      const result = await service.debugStarredThreads(userId);
+
+      const conflictThread = result.threads.find(
+        (th) => th.threadId === threadId1,
+      );
+      expect(conflictThread?.isArchivedInDb).toBe(true);
+      expect(conflictThread?.isInGmailInbox).toBe(true);
+      expect(conflictThread?.archiveStatusConflict).toBe(true);
+      expect(result.summary.archiveConflicts).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should NOT set archiveStatusConflict when archived with unsynced changes pending", async () => {
+      /*
+       * Thread is archived but syncStatus is 'unsynced' — the provider sync
+       * has not completed yet, so there is no conflict to surface.
+       */
+      const unsyncedArchivedThread = {
+        id: "db-thread-unsynced",
+        threadId: threadId1,
+        starCount: 3,
+        isArchived: true,
+        category: null,
+        syncStatus: "unsynced",
+        syncStatusUpdatedAt: new Date(),
+        isBatched: false,
+        batchReleaseAt: null,
+      } as unknown as EmailThread;
+
+      mockEmailThreadRepository.find
+        .mockResolvedValueOnce([unsyncedArchivedThread])
+        .mockResolvedValueOnce([]);
+
+      mockEmailRepository.createQueryBuilder.mockReturnValue(
+        makeQueryBuilderMock(),
+      );
+
+      mockBlockedSendersService.isSenderBlocked = jest
+        .fn()
+        .mockResolvedValue(false);
+
+      const result = await service.debugStarredThreads(userId);
+
+      const unsyncedThread = result.threads.find(
+        (th) => th.threadId === threadId1,
+      );
+      expect(unsyncedThread?.hasUnsyncedChanges).toBe(true);
+      expect(unsyncedThread?.archiveStatusConflict).toBe(false);
+    });
+
+    it("should include new summary fields archivedInBearlyMail and archiveConflicts", async () => {
+      mockEmailThreadRepository.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      mockEmailRepository.createQueryBuilder.mockReturnValue(
+        makeQueryBuilderMock(),
+      );
+
+      const result = await service.debugStarredThreads(userId);
+
+      expect(result.summary).toHaveProperty("archivedInBearlyMail");
+      expect(result.summary).toHaveProperty("archiveConflicts");
+    });
+  });
+
+  describe("fixStaleUnsyncedThreads", () => {
+    const userId = "user-fix-stale";
+
+    it("should reconcile isArchived with Gmail inbox status before marking synced", async () => {
+      const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000);
+      /*
+       * Thread was archived in BearlyMail but Gmail reports it is still in
+       * inbox — fixStaleUnsyncedThreads should set isArchived=false to match.
+       */
+      const staleThread = {
+        id: "stale-1",
+        threadId: "stale-thread-aaa",
+        syncStatusUpdatedAt: sixMinutesAgo,
+        isArchived: true,
+      } as unknown as EmailThread;
+
+      mockEmailThreadRepository.find.mockResolvedValue([staleThread]);
+      mockEmailThreadRepository.update = jest
+        .fn()
+        .mockResolvedValue({ affected: 1 });
+
+      /*
+       * Gmail reports the thread as in-inbox, so shouldBeArchived resolves
+       * to false.
+       */
+      (mockGmailProvider as any).getInboxThreadIds = jest
+        .fn()
+        .mockResolvedValue(["stale-thread-aaa"]);
+
+      const result = await service.fixStaleUnsyncedThreads(userId);
+
+      expect(result.fixed).toBe(1);
+      // Batched update: thread is in Gmail inbox → goes to toMarkUnarchived batch
+      expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
+        { id: In(["stale-1"]) },
+        expect.objectContaining({
+          isArchived: false,
+          syncStatus: "synced",
+        }),
+      );
+    });
+
+    it("should fall back to existing isArchived when Gmail fetch fails", async () => {
+      const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000);
+      const staleThread = {
+        id: "stale-2",
+        threadId: "stale-thread-bbb",
+        syncStatusUpdatedAt: sixMinutesAgo,
+        isArchived: true,
+      } as unknown as EmailThread;
+
+      mockEmailThreadRepository.find.mockResolvedValue([staleThread]);
+      mockEmailThreadRepository.update = jest
+        .fn()
+        .mockResolvedValue({ affected: 1 });
+
+      (mockGmailProvider as any).getInboxThreadIds = jest
+        .fn()
+        .mockRejectedValue(new Error("Gmail auth expired"));
+
+      const result = await service.fixStaleUnsyncedThreads(userId);
+
+      expect(result.fixed).toBe(1);
+      /*
+       * When Gmail is unavailable, isArchived must be preserved as-is rather
+       * than blindly reset to false. Thread.isArchived=true → goes to
+       * toMarkArchived batch (batched update, not N individual writes).
+       */
+      expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
+        { id: In(["stale-2"]) },
+        expect.objectContaining({
+          isArchived: true,
+          syncStatus: "synced",
+        }),
+      );
+    });
+
+    it("should return zero fixed when no stale threads found", async () => {
+      mockEmailThreadRepository.find.mockResolvedValue([]);
+
+      const result = await service.fixStaleUnsyncedThreads(userId);
+
+      expect(result.fixed).toBe(0);
+      expect(result.threadIds).toHaveLength(0);
     });
   });
 });

@@ -23,6 +23,8 @@ import {
 } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
+const ROUTE_INBOX_SCHEDULED = '/inbox/scheduled' as const;
+
 interface SidebarItemProps {
   label: string;
   path: string;
@@ -365,6 +367,14 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       path={ROUTE_INBOX}
       icon="📥"
       active={location.pathname === ROUTE_INBOX}
+      isCollapsed={effectiveIsCollapsed}
+      onNavigationClick={handleNavigationClick}
+    />
+    <SidebarItem
+      label={translate('inbox.scheduled')}
+      path={ROUTE_INBOX_SCHEDULED}
+      icon="📅"
+      active={location.pathname === ROUTE_INBOX_SCHEDULED}
       isCollapsed={effectiveIsCollapsed}
       onNavigationClick={handleNavigationClick}
     />

@@ -29,7 +29,6 @@ import Inbox from 'pages/Inbox';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
-import ScheduledEmails from 'pages/ScheduledEmails';
 import Search from 'pages/Search';
 import Settings from 'pages/Settings';
 import SetupPassword from 'pages/SetupPassword';
@@ -181,7 +180,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/crm/contacts/:contactId" element={<PrivateRoute><ContactDetail /></PrivateRoute>} />
     <Route path="/crm/deals" element={<PrivateRoute><Deals /></PrivateRoute>} />
     <Route path="/stats" element={<PrivateRoute><Stats /></PrivateRoute>} />
-    <Route path="/scheduled" element={<PrivateRoute><ScheduledEmails /></PrivateRoute>} />
+    <Route path="/scheduled" element={<Navigate to="/inbox/scheduled" replace />} />
     <Route path="/compose" element={<PrivateRoute><Compose /></PrivateRoute>} />
     <Route path="/help" element={<PrivateRoute><Help /></PrivateRoute>} />
     <Route path="/help/:articleId" element={<PrivateRoute><HelpArticle /></PrivateRoute>} />

@@ -18,6 +18,7 @@ import {
   ERROR_GMAIL_REQUIRED,
   ERROR_NETWORK,
   MODE_AUTORESPONDED,
+  MODE_SCHEDULED,
   PARAM_CATEGORIES,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
@@ -512,6 +513,13 @@ async function fetchEmailsImpl({
   try {
     if (mode === MODE_AUTORESPONDED) {
       await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
+    } else if (mode === MODE_SCHEDULED) {
+      // Scheduled emails are managed by ScheduledEmailsManager, not the inbox email slice.
+      // Nothing to fetch here; clear loading state so the panel renders immediately.
+      dispatch(setDecrypting(false));
+      dispatch(setLoading(false));
+      dispatch(setLoadingModeSwitch(false));
+      return;
     } else {
       const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams);
       if (freshSummary) {

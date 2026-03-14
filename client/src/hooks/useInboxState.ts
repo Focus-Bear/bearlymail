@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
-import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
 import { useEmailActions } from 'hooks/useEmailActions';
@@ -24,7 +24,7 @@ import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { clearCategoryState } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED, MODE_AUTORESPONDED];
+const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED, MODE_AUTORESPONDED, MODE_SCHEDULED];
 
 function isValidMode(mode: string | undefined): mode is InboxMode {
   return mode !== undefined && VALID_MODES.includes(mode as InboxMode);

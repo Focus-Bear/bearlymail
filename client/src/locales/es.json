@@ -1401,7 +1401,8 @@
       "thisSender": "this sender",
       "message": "Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.",
       "confirm": "Block Sender"
-    }
+    },
+    "scheduled": "Programados"
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",

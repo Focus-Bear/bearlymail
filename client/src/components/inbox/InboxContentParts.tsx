@@ -15,11 +15,13 @@ import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
+import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import {
   CATEGORY_OTHER,
   MODE_FOLLOW_UP,
+  MODE_SCHEDULED,
   MODE_TRIAGE,
   PARAM_CATEGORIES,
   PARAM_CATEGORY_IDS,
@@ -541,6 +543,27 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
     mode, onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox,
     onReanalyseOther, renderItem,
   };
+
+  // Scheduled mode: render ScheduledEmailsManager inside the inbox shell
+  if (mode === MODE_SCHEDULED) {
+    return (
+      <div
+        ref={emailListRef}
+        tabIndex={0}
+        style={{
+          flex: panelFlex,
+          overflowY: 'auto',
+          padding: isMobile
+            ? `${theme.spacing.sm} ${theme.spacing.xs}`
+            : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
+        }}
+      >
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <ScheduledEmailsManager />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

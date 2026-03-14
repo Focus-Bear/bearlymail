@@ -1,8 +1,9 @@
 description: "Phishing detection accuracy tests for BearlyMail LLM analysis"
 
 providers:
-  - id: openai:gpt-4o-mini
+  - id: openai:gpt-5-mini
     config:
+      reasoning_effort: low
       temperature: 0
 
 prompts:
@@ -41,10 +42,17 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.phishing) throw new Error('Expected phishing field in response');
-          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true for credential phishing email. Got: ${JSON.stringify(output.phishing)}`);
-          if (!['medium', 'high'].includes(output.phishing.confidence)) throw new Error(`Expected medium/high confidence, got: ${output.phishing.confidence}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing) throw new Error('Expected phishing field in response');
+          if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true for credential phishing email. Got: ${JSON.stringify(parsed.phishing)}`);
+          if (!['medium', 'high'].includes(parsed.phishing.confidence)) throw new Error(`Expected medium/high confidence, got: ${parsed.phishing.confidence}`);
           return true;
 
   - description: "PayPal phishing — fake payment confirmation with credential link"
@@ -76,9 +84,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.phishing) throw new Error('Expected phishing field');
-          if (!output.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(output.phishing)}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing) throw new Error('Expected phishing field');
+          if (!parsed.phishing.is_phishing) throw new Error(`Expected is_phishing=true. Got: ${JSON.stringify(parsed.phishing)}`);
           return true;
 
   # ─── Legitimate emails with urgency language — must NOT flag ───────────────
@@ -108,10 +123,17 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.summary) throw new Error('Expected summary field');
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: legitimate deadline email flagged as phishing. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.summary) throw new Error('Expected summary field');
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate deadline email flagged as phishing. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -142,9 +164,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: legitimate password reset flagged. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate password reset flagged. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -174,9 +203,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: GitHub notification flagged. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: GitHub notification flagged. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -207,9 +243,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: legitimate order confirmation flagged. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: legitimate order confirmation flagged. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -246,9 +289,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: Mailchimp newsletter flagged as phishing. Domain mismatch is expected for ESP-sent emails. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: Mailchimp newsletter flagged as phishing. Domain mismatch is expected for ESP-sent emails. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -280,9 +330,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: SendGrid receipt flagged. Known ESP domain mismatch. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: SendGrid receipt flagged. Known ESP domain mismatch. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -312,9 +369,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (!output.phishing || !output.phishing.is_phishing) {
-            throw new Error(`Expected phishing detection for .ru domain impersonating Netflix. Got: ${JSON.stringify(output.phishing)}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (!parsed.phishing || !parsed.phishing.is_phishing) {
+            throw new Error(`Expected phishing detection for .ru domain impersonating Netflix. Got: ${JSON.stringify(parsed.phishing)}`);
           }
           return true;
 
@@ -339,9 +403,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
-          if (output.phishing && output.phishing.is_phishing) {
-            throw new Error(`False positive: casual internal email flagged. Reason: ${output.phishing?.reason}`);
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
+          if (parsed.phishing && parsed.phishing.is_phishing) {
+            throw new Error(`False positive: casual internal email flagged. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 
@@ -371,10 +442,17 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = typeof output === 'string' ? JSON.parse(output) : output;
+          let parsed;
+          try {
+            const raw = typeof output === 'string' ? output : JSON.stringify(output);
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch(e) {
+            throw new Error(`Expected JSON response, got: ${String(output).substring(0, 200)}`);
+          }
           // Should NOT flag as high-confidence phishing — matching domain + legit link
-          if (output.phishing && output.phishing.is_phishing && output.phishing.confidence === 'high') {
-            throw new Error(`Over-flagged: legit billing email from matching domain flagged high confidence. Reason: ${output.phishing?.reason}`);
+          if (parsed.phishing && parsed.phishing.is_phishing && parsed.phishing.confidence === 'high') {
+            throw new Error(`Over-flagged: legit billing email from matching domain flagged high confidence. Reason: ${parsed.phishing?.reason}`);
           }
           return true;
 

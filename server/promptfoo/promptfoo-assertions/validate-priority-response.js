@@ -75,7 +75,9 @@ module.exports = (output, context) => {
     parsed = parsed.result;
   }
 
-  // Validate required fields - new format uses urgencyScore, sentimentScore, reasoning, urgencyExplanation
+  // Validate required fields - new format uses urgencyScore, reasoning, urgencyExplanation
+  // Note: sentimentScore is NO LONGER returned by the priority prompt — it comes from the
+  // summary step (commit #781). Validation is intentionally omitted here.
   if (typeof parsed.urgencyScore !== 'number' || parsed.urgencyScore < 0 || parsed.urgencyScore > 100) {
     throw new Error('Response must have a valid urgencyScore (0-100)');
   }
@@ -84,8 +86,12 @@ module.exports = (output, context) => {
     throw new Error('Response must have an urgencyExplanation string');
   }
   
-  if (typeof parsed.sentimentScore !== 'number' || parsed.sentimentScore < -1 || parsed.sentimentScore > 1) {
-    throw new Error('Response must have a valid sentimentScore (-1 to 1)');
+  // sentimentScore is pre-computed from the summary step — the priority prompt omits it.
+  // If present (e.g., old test data), validate it; if absent, skip.
+  if (parsed.sentimentScore !== undefined && parsed.sentimentScore !== null) {
+    if (typeof parsed.sentimentScore !== 'number' || parsed.sentimentScore < -1 || parsed.sentimentScore > 1) {
+      throw new Error('sentimentScore present but invalid — must be a number between -1 and 1');
+    }
   }
   
   if (!parsed.reasoning || typeof parsed.reasoning !== 'string') {
@@ -120,7 +126,8 @@ module.exports = (output, context) => {
         ? context.config.expectedSentiment 
         : [context.config.expectedSentiment];
       
-      // Derive sentiment from sentimentScore if sentiment field is not present
+      // sentimentScore is no longer returned by the priority prompt (it comes from the summary step).
+      // Derive sentiment from sentimentScore if present; otherwise skip sentiment validation.
       let actualSentiment = parsed.sentiment;
       if (actualSentiment === undefined && typeof parsed.sentimentScore === 'number') {
         // Map sentimentScore to sentiment categories
@@ -135,27 +142,31 @@ module.exports = (output, context) => {
         }
       }
       
-      // If maxSentimentScore is also specified, allow OR logic: sentiment matches OR sentimentScore is negative
-      if (context.config.maxSentimentScore !== undefined) {
-        const sentimentMatches = expectedSentiments.includes(actualSentiment);
-        const sentimentScoreValid = typeof parsed.sentimentScore === 'number' && parsed.sentimentScore < context.config.maxSentimentScore;
-        
-        if (!sentimentMatches && !sentimentScoreValid) {
-          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${actualSentiment}, sentimentScore=${parsed.sentimentScore}`);
-        }
-      } else {
-        // No sentimentScore check, just validate sentiment
-        if (!expectedSentiments.includes(actualSentiment)) {
-          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${actualSentiment} (derived from sentimentScore: ${parsed.sentimentScore})`);
+      // If sentimentScore is absent (expected — the prompt no longer returns it),
+      // skip the sentiment check rather than failing.
+      if (actualSentiment !== undefined) {
+        // If maxSentimentScore is also specified, allow OR logic: sentiment matches OR sentimentScore is negative
+        if (context.config.maxSentimentScore !== undefined) {
+          const sentimentMatches = expectedSentiments.includes(actualSentiment);
+          const sentimentScoreValid = typeof parsed.sentimentScore === 'number' && parsed.sentimentScore < context.config.maxSentimentScore;
+          
+          if (!sentimentMatches && !sentimentScoreValid) {
+            throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${actualSentiment}, sentimentScore=${parsed.sentimentScore}`);
+          }
+        } else {
+          // No sentimentScore check, just validate sentiment
+          if (!expectedSentiments.includes(actualSentiment)) {
+            throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${actualSentiment} (derived from sentimentScore: ${parsed.sentimentScore})`);
+          }
         }
       }
+      // else: sentimentScore absent from priority prompt response — skip sentiment assertion
     }
     
     if (context.config.minSentimentScore !== undefined) {
       if (typeof parsed.sentimentScore !== 'number') {
-        throw new Error(`Expected sentimentScore to be a number, but it's missing or invalid`);
-      }
-      if (parsed.sentimentScore >= context.config.minSentimentScore) {
+        // sentimentScore absent (expected) — skip this check
+      } else if (parsed.sentimentScore >= context.config.minSentimentScore) {
         throw new Error(`Expected sentimentScore < ${context.config.minSentimentScore}, got ${parsed.sentimentScore}`);
       }
     }
@@ -163,10 +174,9 @@ module.exports = (output, context) => {
     // maxSentimentScore without expectedSentiment means just check sentimentScore
     if (context.config.maxSentimentScore !== undefined && !context.config.expectedSentiment) {
       if (typeof parsed.sentimentScore !== 'number') {
-        throw new Error(`Expected sentimentScore to be a number, but it's missing or invalid`);
-      }
-      // maxSentimentScore means "must be more negative than this" (e.g., if maxSentimentScore is -0.01, sentimentScore should be < -0.01)
-      if (parsed.sentimentScore >= context.config.maxSentimentScore) {
+        // sentimentScore absent (expected) — skip this check
+      } else if (parsed.sentimentScore >= context.config.maxSentimentScore) {
+        // maxSentimentScore means "must be more negative than this" (e.g., if maxSentimentScore is -0.01, sentimentScore should be < -0.01)
         throw new Error(`Expected sentimentScore < ${context.config.maxSentimentScore} (more negative), got ${parsed.sentimentScore}`);
       }
     }

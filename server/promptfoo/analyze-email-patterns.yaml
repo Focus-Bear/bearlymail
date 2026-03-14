@@ -154,6 +154,8 @@ tests:
 
   # Test 7: User themselves should NOT be identified as VIP (even if they send themselves emails)
   - vars:
+      userEmail: "jeremy@company.com"
+      currentContext: "No existing context."
       receivedEmails: |
         From: Jeremy Nagel, Subject: Reminder, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 2m (QUICK)
         From: Jeremy Nagel, Subject: Note to self, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 1m (QUICK)

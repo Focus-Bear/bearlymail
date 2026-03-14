@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { UsersService } from "../../users/users.service";
-import { InvalidTokenError } from "../../utils/errors";
+import { GmailRateLimitError, InvalidTokenError } from "../../utils/errors";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
@@ -207,5 +207,204 @@ describe("GmailProvider — validateToken", () => {
       const err = new InvalidTokenError("Token revoked");
       expect(err.message).toBe("Token revoked");
     });
+  });
+});
+
+describe("GmailProvider — pagination retry & auth failures", () => {
+  let provider: GmailProvider;
+  let usersService: jest.Mocked<UsersService>;
+
+  beforeEach(async () => {
+    usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue({
+        id: "user-123",
+        googleCalendarAccessToken: "access-token",
+        googleCalendarRefreshToken: "refresh-token",
+        updatedAt: new Date(),
+      }),
+      update: jest.fn().mockResolvedValue(undefined),
+      incrementScanProgress: jest.fn(),
+    } as unknown as jest.Mocked<UsersService>;
+
+    const emailsService = {
+      getThreadsByThreadIds: jest.fn().mockResolvedValue([]),
+      getExistingStarredThreads: jest.fn().mockResolvedValue([]),
+      getAllThreadsForSync: jest.fn().mockResolvedValue([]),
+      getAllNonArchivedThreadIds: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<EmailsService>;
+
+    const scanEmailService = {
+      findByMessageId: jest.fn(),
+      createScanEmail: jest.fn(),
+    } as unknown as jest.Mocked<ScanEmailService>;
+    const syncHistoryService = {
+      logSyncAttempt: jest.fn(),
+    } as unknown as jest.Mocked<SyncHistoryService>;
+    const pgBoss = { send: jest.fn() };
+
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: emailsService },
+        { provide: ScanEmailService, useValue: scanEmailService },
+        { provide: SyncHistoryService, useValue: syncHistoryService },
+        { provide: "PG_BOSS", useValue: pgBoss },
+      ],
+    }).compile();
+
+    provider = module.get<GmailProvider>(GmailProvider);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("throws GmailRateLimitError immediately on 429 — does NOT retry", async () => {
+    const fakeGmail: any = {
+      users: {
+        threads: {
+          list: jest.fn().mockImplementation(() => {
+            const err: any = new Error("Rate limited");
+            err.response = { status: 429, headers: { "retry-after": "60" } };
+            return Promise.reject(err);
+          }),
+        },
+      },
+    };
+
+    await expect(
+      (provider as any).fetchAllThreadsWithPagination(
+        fakeGmail,
+        "is:starred",
+        100,
+      ),
+    ).rejects.toThrow(GmailRateLimitError);
+
+    // Only ONE call should have been made — no retry loop on 429
+    expect((fakeGmail.users.threads.list as jest.Mock).mock.calls.length).toBe(
+      1,
+    );
+    expect(Logger.prototype.warn).toHaveBeenCalledWith(
+      expect.stringContaining("rate limit (429)"),
+    );
+  });
+
+  it("GmailRateLimitError preserves Retry-After seconds from response header", async () => {
+    const fakeGmail: any = {
+      users: {
+        threads: {
+          list: jest.fn().mockImplementation(() => {
+            const err: any = new Error("Rate limited");
+            err.response = { status: 429, headers: { "retry-after": "120" } };
+            return Promise.reject(err);
+          }),
+        },
+      },
+    };
+
+    let thrown: GmailRateLimitError | undefined;
+    try {
+      await (provider as any).fetchAllThreadsWithPagination(
+        fakeGmail,
+        "is:starred",
+        100,
+      );
+    } catch (err) {
+      thrown = err as GmailRateLimitError;
+    }
+
+    expect(thrown).toBeInstanceOf(GmailRateLimitError);
+    expect(thrown?.retryAfterSeconds).toBe(120);
+  });
+
+  it("retries on 5xx transient error and succeeds", async () => {
+    let callCount = 0;
+    const fakeGmail: any = {
+      users: {
+        threads: {
+          list: jest.fn().mockImplementation(() => {
+            callCount++;
+            if (callCount < 3) {
+              const err: any = new Error("Server error");
+              err.response = { status: 503, headers: {} };
+              return Promise.reject(err);
+            }
+            return Promise.resolve({
+              data: { threads: [{ id: "t1" }], nextPageToken: undefined },
+            });
+          }),
+        },
+      },
+    };
+
+    const result = await (provider as any).fetchAllThreadsWithPagination(
+      fakeGmail,
+      "is:starred",
+      100,
+    );
+
+    expect(result).toEqual(["t1"]);
+    // Should have retried (called more than once)
+    expect(
+      (fakeGmail.users.threads.list as jest.Mock).mock.calls.length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(Logger.prototype.warn).toHaveBeenCalledWith(
+      expect.stringContaining("transient"),
+    );
+  });
+
+  it("throws after exhausting 5xx retries", async () => {
+    const serverErr: any = new Error("Server error");
+    serverErr.response = { status: 500, headers: {} };
+
+    const fakeGmail: any = {
+      users: {
+        threads: {
+          list: jest.fn().mockRejectedValue(serverErr),
+        },
+      },
+    };
+
+    // Replace setTimeout with an immediate no-op for this test so exponential
+    // backoff sleeps complete instantly (avoids ~30s of real waiting).
+    const realSetTimeout = global.setTimeout;
+    global.setTimeout = ((fn: () => void) => {
+      fn();
+      return 0 as any;
+    }) as any;
+    try {
+      let thrown: unknown;
+      try {
+        await (provider as any).fetchAllThreadsWithPagination(
+          fakeGmail,
+          "is:starred",
+          100,
+        );
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe("Server error");
+      expect(thrown).not.toBeInstanceOf(GmailRateLimitError);
+      expect(Logger.prototype.error).toHaveBeenCalled();
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+  });
+
+  it("throws when Gmail not connected (auth failure) and logs a warning", async () => {
+    // Simulate no access token
+    (usersService.findOneWithTokens as jest.Mock).mockResolvedValueOnce({
+      id: "user-123",
+    });
+    await expect(provider.getStarredInboxThreadIds("user-123")).rejects.toThrow(
+      "Gmail auth expired or not connected",
+    );
+    expect(Logger.prototype.warn).toHaveBeenCalled();
   });
 });

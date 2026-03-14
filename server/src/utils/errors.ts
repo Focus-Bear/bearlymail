@@ -22,3 +22,26 @@ export class InvalidTokenError extends Error {
     Object.setPrototypeOf(this, InvalidTokenError.prototype);
   }
 }
+
+/**
+ * Thrown when Gmail returns 429 (Too Many Requests) during a sync run.
+ *
+ * Retrying 429s inside a paginated loop is counter-productive — each retry is
+ * another request against the same depleted quota window.  Instead, the whole
+ * sync run is aborted and the scheduler will retry the full sync later, once
+ * the quota window has reset.
+ *
+ * `retryAfterSeconds` is populated from the `Retry-After` response header
+ * when present, so callers / debug UIs can surface a human-readable hint.
+ */
+export class GmailRateLimitError extends Error {
+  /** Seconds until the quota window resets, from the Retry-After header (or undefined). */
+  readonly retryAfterSeconds: number | undefined;
+
+  constructor(message: string, retryAfterSeconds?: number) {
+    super(message);
+    this.name = "GmailRateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+    Object.setPrototypeOf(this, GmailRateLimitError.prototype);
+  }
+}

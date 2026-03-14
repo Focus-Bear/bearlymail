@@ -17,7 +17,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
-import { InvalidTokenError } from "../../utils/errors";
+import { GmailRateLimitError, InvalidTokenError } from "../../utils/errors";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
@@ -142,7 +142,14 @@ export class GmailProvider implements EmailProvider {
     isPrimary?: boolean;
   } | null> {
     const user = await this.usersService.findOneWithTokens(userId);
-    if (!user?.googleCalendarAccessToken) return null;
+    if (!user?.googleCalendarAccessToken) {
+      // Warn when attempting to create a client for a user without an access token.
+      // Do not log PII like email address or tokens — userId is sufficient for traceability.
+      this.logger.warn(
+        `[GmailProvider] createGmailClient: no access token available for user ${userId}`,
+      );
+      return null;
+    }
 
     return {
       email: user.email,
@@ -156,7 +163,12 @@ export class GmailProvider implements EmailProvider {
     userId: string,
   ): Promise<gmail_v1.Gmail | null> {
     const user = await this.usersService.findOneWithTokens(userId);
-    if (!user?.googleCalendarAccessToken) return null;
+    if (!user?.googleCalendarAccessToken) {
+      this.logger.warn(
+        `[GmailProvider] createGmailClient: no access token for user ${userId}`,
+      );
+      return null;
+    }
 
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -358,6 +370,24 @@ export class GmailProvider implements EmailProvider {
    * Fetch all thread IDs from Gmail using pagination.
    * Gmail API returns max 100 results per page, so we need to paginate.
    */
+  /**
+   * Fetch all thread IDs from Gmail using pagination.
+   *
+   * ## Retry strategy
+   *
+   * - **429 Too Many Requests** — abort immediately and throw `GmailRateLimitError`.
+   *   Retrying a rate-limited request inside a paginated loop is counter-productive:
+   *   every retry consumes more quota from the same already-depleted window.
+   *   The scheduler will re-run the full sync once the quota resets.
+   *   The `Retry-After` header value is preserved on the error so callers and
+   *   the debug UI can surface a human-readable hint.
+   *
+   * - **5xx transient server errors** — retry up to MAX_RETRIES times with
+   *   exponential backoff (capped at MAX_BACKOFF_SECONDS).  These are typically
+   *   short-lived and safe to retry within the same run.
+   *
+   * - **Any other error** — rethrow immediately; no retry.
+   */
   private async fetchAllThreadsWithPagination(
     gmail: gmail_v1.Gmail,
     query: string,
@@ -369,20 +399,104 @@ export class GmailProvider implements EmailProvider {
     const MAX_PAGES = 10;
     let pageCount = 0;
 
+    // Only used for 5xx transient retries — NOT for 429.
+    const MAX_RETRIES = 4;
+    const MAX_BACKOFF_SECONDS = 32;
+    const MIN_WAIT_MS = 500;
+
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
     while (allThreadIds.length < maxResults && pageCount < MAX_PAGES) {
-      const response = await gmail.users.threads.list({
-        userId: "me",
-        maxResults: Math.min(100, maxResults - allThreadIds.length),
-        q: query,
-        pageToken,
-      });
+      let attempt = 0;
+      let response: { data: gmail_v1.Schema$ListThreadsResponse } | undefined;
+      let lastError: unknown = null;
 
-      const threads = response.data.threads || [];
-      allThreadIds.push(...threads.map((thread) => thread.id!).filter(Boolean));
+      while (attempt < MAX_RETRIES) {
+        try {
+          response = await gmail.users.threads.list({
+            userId: "me",
+            maxResults: Math.min(100, maxResults - allThreadIds.length),
+            q: query,
+            pageToken,
+          });
+          lastError = null;
+          break;
+        } catch (error: unknown) {
+          lastError = error;
+          const errObj = error as {
+            response?: { status?: number; headers?: Record<string, string> };
+          };
+          const status = errObj?.response?.status;
+          const headers = errObj?.response?.headers ?? {};
 
-      pageToken = response.data.nextPageToken || undefined;
+          // 429: abort the entire pagination run — do NOT retry.
+          // Retrying here would only hammer a quota window that is already
+          // exhausted.  Surface a typed error so callers can distinguish
+          // rate-limit failures from transient errors.
+          if (status === HTTP_STATUS.TOO_MANY_REQUESTS) {
+            const retryAfterHeader =
+              headers["retry-after"] || headers["Retry-After"];
+            const retryAfterSeconds = retryAfterHeader
+              ? parseInt(retryAfterHeader, 10)
+              : undefined;
+            const hint = retryAfterSeconds
+              ? ` (Retry-After: ${retryAfterSeconds}s)`
+              : "";
+            this.logger.warn(
+              `[GmailProvider] Gmail rate limit (429) hit on page ${pageCount + 1}${hint} — aborting sync run; scheduler will retry later`,
+            );
+            throw new GmailRateLimitError(
+              `Gmail rate limit exceeded${hint}; sync aborted`,
+              Number.isNaN(retryAfterSeconds) ? undefined : retryAfterSeconds,
+            );
+          }
+
+          // 5xx: transient server error — retry with exponential backoff.
+          if (status && status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
+            attempt++;
+            const waitSeconds = Math.min(2 ** attempt, MAX_BACKOFF_SECONDS);
+            const waitMs = Math.max(MIN_WAIT_MS, waitSeconds * MS_PER_SECOND);
+            this.logger.warn(
+              `[GmailProvider] threads.list returned ${status} (transient); retrying attempt ${attempt}/${MAX_RETRIES} after ${waitMs}ms`,
+            );
+            await sleep(waitMs);
+            continue;
+          }
+
+          // Non-retriable error — rethrow immediately.
+          throw error;
+        }
+      }
+
+      if (lastError) {
+        // Exhausted 5xx retries
+        this.logger.error(
+          `[GmailProvider] Failed to fetch threads.list after ${MAX_RETRIES} attempts (5xx)`,
+          lastError,
+        );
+        throw lastError;
+      }
+
+      const threads = response?.data?.threads || [];
+      allThreadIds.push(
+        ...threads
+          .map((thread: gmail_v1.Schema$Thread) => thread.id)
+          .filter(Boolean),
+      );
+
+      pageToken = response?.data?.nextPageToken || undefined;
       pageCount++;
       if (!pageToken || threads.length === 0) break;
+    }
+
+    // If we hit pagination caps, log/truncate explicitly
+    if (
+      pageCount >= MAX_PAGES ||
+      (pageToken && allThreadIds.length >= maxResults)
+    ) {
+      this.logger.warn(
+        `[GmailProvider] Pagination truncated after ${pageCount} pages or reaching maxResults (${maxResults}) - returning ${allThreadIds.length} ids`,
+      );
     }
 
     return allThreadIds;

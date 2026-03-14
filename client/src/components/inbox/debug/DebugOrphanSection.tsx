@@ -69,7 +69,6 @@ export const DebugOrphanSection: React.FC<DebugOrphanSectionProps> = ({
           marginBottom: theme.spacing.md,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h4 style={{ margin: 0 }}>
           {EMOJI_LINK} {t('debug.orphan.sectionTitle')}
         </h4>

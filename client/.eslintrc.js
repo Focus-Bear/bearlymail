@@ -420,6 +420,30 @@ module.exports = {
       },
     },
     {
+      // Debug files — these are developer-only panels, never shown to end users.
+      // Literal strings, long functions, and array-index keys are acceptable here.
+      files: [
+        '**/debug/**/*.tsx',
+        '**/debug/**/*.ts',
+        '**/components/inbox/DebugPanel.tsx',
+        '**/components/email-detail-inline/ReplyComposerDebugPanel.tsx',
+      ],
+      rules: {
+        'i18next/no-literal-string': 'off',
+        'max-lines-per-function': 'off',
+        'react/no-array-index-key': 'off',
+      },
+    },
+    {
+      // GitHub integration components display data sourced directly from the GitHub API
+      // (project names, status labels, repo names). This content is external user data,
+      // not product UI strings, so i18n translation is not applicable.
+      files: ['**/components/github/GitHubProject.tsx'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+      },
+    },
+    {
       // Disable i18n for ErrorBoundary - error boundaries catch errors during render
       // and may not have access to translation context when the app crashes
       files: ['**/ErrorBoundary.tsx'],

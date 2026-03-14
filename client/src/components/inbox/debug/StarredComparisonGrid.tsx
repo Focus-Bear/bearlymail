@@ -36,7 +36,6 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ su
           borderRadius: theme.borderRadius.sm,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
           {EMOJI_EMAIL} {t('debug.starred.gmailTitle')}
         </h5>
@@ -57,7 +56,6 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ su
           borderRadius: theme.borderRadius.sm,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
           {EMOJI_DATABASE} {t('debug.starred.database')}
         </h5>

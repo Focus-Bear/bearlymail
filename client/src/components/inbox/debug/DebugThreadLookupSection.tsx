@@ -120,7 +120,6 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
   );
 };
 /* eslint-enable i18next/no-literal-string */
-// eslint-disable-next-line max-lines-per-function -- debug lookup panel
 export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> = ({
   threadLookupResult,
   loadingThreadLookup,

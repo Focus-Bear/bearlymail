@@ -22,7 +22,6 @@ interface DebugStarredSectionProps {
  * Debug starred section component
  * Displays starred threads debug information
  */
-// eslint-disable-next-line max-lines-per-function -- debug-only component with inline admin UI
 export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
   debugStarredData,
   loadingDebugData,

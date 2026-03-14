@@ -43,7 +43,6 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({ orphanEmails =
           marginBottom: theme.spacing.sm,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h5 style={{ margin: 0, color: COLOR_NAMED_RED }}>
           {EMOJI_WARNING} {t('debug.orphan.title')}
         </h5>
@@ -60,7 +59,6 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({ orphanEmails =
             opacity: fixingOrphans ? OPACITY_DISABLED : OPACITY_FULL,
           }}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {fixingOrphans ? t('debug.orphan.fixing') : `${EMOJI_WRENCH} ${t('debug.orphan.fixButton')}`}
         </button>
       </div>

@@ -99,7 +99,6 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
             </div>
             <div style={{ marginLeft: theme.spacing.md }}>
               {replyOptions.map((opt, idx) => (
-                // eslint-disable-next-line react/no-array-index-key -- debug panel: options may share labels, index is only stable key
                 <div key={idx}>
                   [{idx}] {opt.label}: {opt.text.substring(0, DEBUG_PANEL_PREVIEW_LENGTH)}...
                 </div>

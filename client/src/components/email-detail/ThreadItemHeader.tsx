@@ -7,6 +7,8 @@ import { SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useNotifications } from 'contexts/NotificationContext';
 
 const COPY_ICON = '⧉';
+const ICON_EXPANDED = '▼';
+const ICON_COLLAPSED = '▶';
 const getHeaderBgColor = (isCurrentEmail: boolean): string =>
   isCurrentEmail ? theme.colors.primary.subtle : theme.colors.background.subtle;
 
@@ -123,8 +125,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
         {to && <AddressField label={t('emailDetail.to', { defaultValue: 'To' })} value={to} />}
         {cc && <AddressField label={t('emailDetail.cc', { defaultValue: 'CC' })} value={cc} />}
       </div>
-      {/* eslint-disable-next-line i18next/no-literal-string */}
-      <span style={{ color: theme.colors.text.tertiary }}>{isExpanded ? '▼' : '▶'}</span>
+      <span style={{ color: theme.colors.text.tertiary }}>{isExpanded ? ICON_EXPANDED : ICON_COLLAPSED}</span>
     </div>
   );
 };

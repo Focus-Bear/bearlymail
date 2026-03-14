@@ -81,7 +81,6 @@ interface DebugPanelProps {
   loadingCategoryNames?: string[];
   expandedCategories?: Set<string>;
 }
-// eslint-disable-next-line max-lines-per-function -- debug panel with section toggles
 export const DebugPanel: React.FC<DebugPanelProps> = ({
   mode,
   emails,

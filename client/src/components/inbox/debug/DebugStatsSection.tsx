@@ -60,7 +60,6 @@ export const DebugStatsSection: React.FC<DebugStatsSectionProps> = ({ syncStatus
           marginBottom: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         {t('debug.stats.lastSync')}: {timeAgo} {isStale && `${EMOJI_WARNING} ${t('debug.stats.syncStale')}`}
       </div>
       {nextDeliveryInfo && (

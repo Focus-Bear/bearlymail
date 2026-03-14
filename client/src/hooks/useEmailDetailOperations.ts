@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
@@ -21,6 +22,8 @@ import {
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
+import { removeEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
 import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
@@ -124,6 +127,7 @@ export function useEmailDetailOperations(
   state: EmailDetailState,
   options: EmailDetailOperationsOptions = {}
 ) {
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
@@ -823,6 +827,12 @@ export function useEmailDetailOperations(
             ? t('emailDetail.replyScheduledSuccess')
             : t('emailDetail.replySentSuccess');
           showSuccess(successMessage);
+          // Optimistically remove thread from inbox list immediately after send.
+          // This covers the tone-check "Use Revised Text" and dispute-accepted paths
+          // where routeAfterSend calls navigate() without dispatching a list removal.
+          // The archive/snooze paths call removeEmail again inside their own handlers,
+          // but that is idempotent (filter on already-absent id is a no-op).
+          dispatch(removeEmail(currentId));
           routeAfterSend({ keepInAction, expectedReplyHours, scheduledSendAt, performArchiveAfterReply, performSnoozeAfterReply, navigate, getInboxPath });
         } catch (error: any) {
           console.error('Error sending reply:', error);
@@ -847,6 +857,7 @@ export function useEmailDetailOperations(
       disputeResult,
       triggerAnimation,
       t,
+      dispatch,
       navigate,
       getInboxPath,
       setCheckingTone,

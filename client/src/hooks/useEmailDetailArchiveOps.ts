@@ -60,11 +60,12 @@ async function executeSnoozeOp(params: {
   dispatch: AppDispatch;
   options: EmailDetailOperationsOptions;
   navigate: ReturnType<typeof useNavigate>;
+  getInboxPath: () => string;
   setSnoozeInput?: (v: string) => void;
   setShowSnoozeInput?: (v: boolean) => void;
   clearInputs: boolean;
 }) {
-  const { id, duration, emailToSnooze, dispatch, options, navigate, setSnoozeInput, setShowSnoozeInput, clearInputs } =
+  const { id, duration, emailToSnooze, dispatch, options, navigate, getInboxPath, setSnoozeInput, setShowSnoozeInput, clearInputs } =
     params;
   if (emailToSnooze) {
     dispatch(removeEmail(id));
@@ -82,7 +83,7 @@ async function executeSnoozeOp(params: {
       options.onSnoozeComplete(id);
     }
   } else {
-    navigate('/inbox');
+    navigate(getInboxPath());
     axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
       console.error('Error snoozing email:', error);
       if (emailToSnooze) {
@@ -207,7 +208,7 @@ export function useEmailDetailArchiveOps({
         dispatch(addOptimisticArchive(id));
       }
       await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-      navigate('/inbox');
+      navigate(getInboxPath());
       axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
         console.error('Error archiving email:', error);
         if (emailToArchive) {
@@ -233,6 +234,7 @@ export function useEmailDetailArchiveOps({
         dispatch,
         options,
         navigate,
+        getInboxPath,
         setSnoozeInput,
         setShowSnoozeInput,
         clearInputs: !durationOverride,
@@ -247,7 +249,7 @@ export function useEmailDetailArchiveOps({
     }
     captureEvent(ANALYTICS_EVENTS.EMAIL_DELETE_CLICKED, { email_id: id });
     await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-    navigate('/inbox');
+    navigate(getInboxPath());
     axios.delete(`${API_URL}/emails/${id}`).catch(error => {
       console.error('Error deleting email:', error);
     });

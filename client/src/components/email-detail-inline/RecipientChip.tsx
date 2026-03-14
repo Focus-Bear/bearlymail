@@ -7,11 +7,16 @@ interface RecipientChipProps {
   tag: string;
   index: number;
   onRemove: (index: number) => void;
+  /** When true the chip can be dragged to another recipient field */
+  draggable?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
 }
 
-export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemove }) => (
+export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemove, draggable = false, onDragStart }) => (
   <span
     key={tag}
+    draggable={draggable}
+    onDragStart={onDragStart}
     style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -22,6 +27,7 @@ export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemo
       borderRadius: theme.borderRadius.sm,
       fontSize: theme.typography.fontSize.xs,
       maxWidth: '200px',
+      cursor: draggable ? 'grab' : 'default',
     }}
   >
     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tag}</span>

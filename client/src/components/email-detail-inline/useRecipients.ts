@@ -333,6 +333,36 @@ export const useRecipients = ({
     [inputValues, toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]
   );
 
+  // ── Drag-and-drop state ─────────────────────────────────────────────────────
+  const [dragSource, setDragSource] = useState<{ field: FieldType; index: number } | null>(null);
+
+  const handleDragStart = useCallback((field: FieldType, index: number) => {
+    setDragSource({ field, index });
+  }, []);
+
+  const handleDrop = useCallback(
+    (targetField: FieldType) => {
+      if (!dragSource || dragSource.field === targetField) {
+        setDragSource(null);
+        return;
+      }
+      const sourceTags = getTagsForField(dragSource.field, toTags, ccTags, bccTags);
+      const movedTag = sourceTags[dragSource.index];
+      if (!movedTag) {
+        setDragSource(null);
+        return;
+      }
+      // Remove from source field
+      const newSourceTags = sourceTags.filter((_, i) => i !== dragSource.index);
+      dispatchToField(dragSource.field, newSourceTags.join(', '), dispatch);
+      // Add to target field
+      const targetTags = getTagsForField(targetField, toTags, ccTags, bccTags);
+      dispatchToField(targetField, [...targetTags, movedTag].join(', '), dispatch);
+      setDragSource(null);
+    },
+    [dragSource, toTags, ccTags, bccTags, dispatch]
+  );
+
   return {
     toTags, ccTags, bccTags,
     activeField, setActiveField,
@@ -340,5 +370,6 @@ export const useRecipients = ({
     selectedSuggestionIndex, setSelectedSuggestionIndex,
     inputValues, setInputValues, dropdownRef,
     handleInputChange, handleKeyDown, handleSelectContact, handleRemoveTag, handleBlur,
+    dragSource, handleDragStart, handleDrop,
   } as const;
 };

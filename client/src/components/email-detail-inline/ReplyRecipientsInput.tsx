@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
@@ -46,6 +46,12 @@ interface RecipientFieldProps {
   handleRemoveTag: (i: number, field: FieldType) => void;
   handleBlur: (field: FieldType) => void;
   setSelectedSuggestionIndex: (idx: number) => void;
+  /** Drag-and-drop */
+  isDragOver: boolean;
+  onDragOver: (event: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (event: React.DragEvent) => void;
+  onChipDragStart: (index: number, event: React.DragEvent) => void;
   t: (tKey: string) => string;
 }
 
@@ -65,6 +71,11 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
   handleRemoveTag,
   handleBlur,
   setSelectedSuggestionIndex,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onChipDragStart,
   t,
 }) => (
   <div style={{ marginBottom: theme.spacing.sm, position: 'relative' }}>
@@ -80,16 +91,23 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
     </label>
 
     <div
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: '4px',
         padding: '4px 8px',
-        border: `1px solid ${theme.colors.border.medium}`,
+        border: isDragOver
+          ? `2px dashed ${theme.colors.primary.main}`
+          : `1px solid ${theme.colors.border.medium}`,
         borderRadius: theme.borderRadius.md,
         minHeight: '38px',
         cursor: 'text',
+        backgroundColor: isDragOver ? theme.colors.primary.subtle : undefined,
+        transition: 'border-color 0.15s, background-color 0.15s',
       }}
       onClick={event => {
         const input = event.currentTarget.querySelector('input');
@@ -99,7 +117,14 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
       }}
     >
       {tags.map((tag, index) => (
-        <RecipientChip key={tag} tag={tag} index={index} onRemove={i => handleRemoveTag(i, field)} />
+        <RecipientChip
+          key={tag}
+          tag={tag}
+          index={index}
+          onRemove={i => handleRemoveTag(i, field)}
+          draggable
+          onDragStart={event => onChipDragStart(index, event)}
+        />
       ))}
       <input
         type="text"
@@ -123,6 +148,7 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
           outline: 'none',
           fontSize: theme.typography.fontSize.sm,
           padding: '4px 0',
+          backgroundColor: 'transparent',
         }}
         placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
       />
@@ -171,9 +197,33 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     handleRemoveTag,
     handleBlur,
     setSelectedSuggestionIndex,
+    handleDragStart,
+    handleDrop,
   } = useRecipients({ replyRecipients, replyCc, replyBcc, onRecipientsChange, onCcChange, onBccChange });
 
-  const fieldProps = {
+  // Track which field container is currently being dragged over
+  const [dragOverField, setDragOverField] = useState<FieldType | null>(null);
+
+  const makeDropHandlers = (field: FieldType) => ({
+    isDragOver: dragOverField === field,
+    onDragOver: (event: React.DragEvent) => {
+      event.preventDefault();
+      setDragOverField(field);
+    },
+    onDragLeave: () => setDragOverField(null),
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      setDragOverField(null);
+      handleDrop(field);
+    },
+    onChipDragStart: (index: number, event: React.DragEvent) => {
+      // Set drag data so the browser shows a ghost; the real state is in handleDragStart
+      event.dataTransfer.effectAllowed = 'move';
+      handleDragStart(field, index);
+    },
+  });
+
+  const baseFieldProps = {
     activeField,
     setActiveField,
     searchResults,
@@ -191,9 +241,31 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      <RecipientField label={t('compose.to')} tags={toTags} field={EMAIL_FIELD_TO} {...fieldProps} />
-      {showCc && <RecipientField label={t('compose.cc')} tags={ccTags} field={EMAIL_FIELD_CC} {...fieldProps} />}
-      {showBcc && <RecipientField label={t('compose.bcc')} tags={bccTags} field={EMAIL_FIELD_BCC} {...fieldProps} />}
+      <RecipientField
+        label={t('compose.to')}
+        tags={toTags}
+        field={EMAIL_FIELD_TO}
+        {...baseFieldProps}
+        {...makeDropHandlers(EMAIL_FIELD_TO)}
+      />
+      {showCc && (
+        <RecipientField
+          label={t('compose.cc')}
+          tags={ccTags}
+          field={EMAIL_FIELD_CC}
+          {...baseFieldProps}
+          {...makeDropHandlers(EMAIL_FIELD_CC)}
+        />
+      )}
+      {showBcc && (
+        <RecipientField
+          label={t('compose.bcc')}
+          tags={bccTags}
+          field={EMAIL_FIELD_BCC}
+          {...baseFieldProps}
+          {...makeDropHandlers(EMAIL_FIELD_BCC)}
+        />
+      )}
 
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         {!showCc && (

@@ -20,7 +20,7 @@ interface UseEmailDetailDraftSyncParams {
   setReplyMode: (mode: 'reply' | 'replyAll') => void;
   setShowReplyComposer: (show: boolean) => void;
   setReplyOptions: (options: unknown) => void;
-  setToneCheckResult: (result: unknown) => void;
+  setToneCheckResult: (result: null) => void;
   handleGenerateDraft: () => void;
 }
 

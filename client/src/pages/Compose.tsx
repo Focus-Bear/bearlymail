@@ -13,6 +13,7 @@ import { ComposeMessages } from 'components/compose/ComposeMessages';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
+import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -335,12 +336,14 @@ const Compose: React.FC = () => {
             onAddRecipient={handleAddRecipient}
           />
 
+          <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
           <ToneCheckResult
             toneCheckResult={toneCheckResult}
             onUseRevisedText={text => {
               form.setBody(text);
               setToneCheckResult({ isOk: true, suggestions: [] });
             }}
+            onDismiss={() => setToneCheckResult(null)}
             emailText={form.body}
             onDispute={disputeToneCheck}
             disputing={disputing}

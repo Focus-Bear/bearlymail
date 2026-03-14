@@ -345,6 +345,7 @@
     "messages": "messages",
     "clickToExpand": "click to expand",
     "draftReply": "Draft Reply",
+    "keepOriginal": "Keep original",
     "toneCheckIssues": "Tone Check: Issues Found",
     "suggestedRevision": "Suggested Revision:",
     "useRevision": "Use this revision",

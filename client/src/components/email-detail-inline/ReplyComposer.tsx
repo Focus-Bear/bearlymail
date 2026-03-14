@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyComposerDebugPanel } from 'components/email-detail-inline/ReplyComposerDebugPanel';
 import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
@@ -26,6 +27,7 @@ interface ToneCheckResultData {
   isOk: boolean;
   suggestions: string[];
   revisedText?: string;
+  attachmentReminder?: string | null;
 }
 interface DisputeResult {
   accepted: boolean;
@@ -86,6 +88,8 @@ interface ReplyComposerProps {
   onSchedule?: () => void;
   onClearSchedule?: () => void;
   onScheduleForMorning?: () => void;
+  /** Called when the user dismisses the tone check and wants to keep their original draft. */
+  onDismissToneCheck?: () => void;
 }
 
 const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
@@ -297,6 +301,7 @@ interface ReplyComposerBodyProps {
   onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledAt?: Date, keepInAction?: boolean) => void;
   onSchedule?: () => void;
   onClearSchedule?: () => void;
+  onDismissToneCheck?: () => void;
 }
 
 const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
@@ -309,7 +314,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
   onReplyOptionSelect, onDraftChange, onPasteFiles, onFilesChange,
   onRemoveForwardAttachment, onUseRevisedText, onClose, onSend,
-  onSchedule, onClearSchedule,
+  onSchedule, onClearSchedule, onDismissToneCheck,
 }) => (
   <>
     <ReplyComposerHeader replyMode={replyMode} onClose={onClose} />
@@ -341,9 +346,11 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     />
     <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
     <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
+    <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
     <ToneCheckResult
       toneCheckResult={toneCheckResult}
       onUseRevisedText={onUseRevisedText}
+      onDismiss={onDismissToneCheck}
       emailText={draft || ''}
       onDispute={onDispute}
       disputing={disputing}
@@ -381,7 +388,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onCcChange, onBccChange, onShowCc, onShowBcc, onDraftChange,
   onReplyOptionSelect, onClose, onSend, onUseRevisedText, textareaRef,
   onDispute, disputing, disputeResult, onSchedule, onClearSchedule,
-  onScheduleForMorning,
+  onScheduleForMorning, onDismissToneCheck,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -416,6 +423,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onRemoveForwardAttachment: handleRemoveForwardAttachment,
     onUseRevisedText: handleUseRevisedText,
     onClose: handleClose, onSend: handleSend, onSchedule, onClearSchedule,
+    onDismissToneCheck,
   };
 
   return (

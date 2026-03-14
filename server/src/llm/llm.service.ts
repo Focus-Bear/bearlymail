@@ -891,6 +891,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     significance?: "low" | "medium" | "high";
     suggestions: string[];
     revisedText?: string;
+    attachmentReminder?: string | null;
   }> {
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {

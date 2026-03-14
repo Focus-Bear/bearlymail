@@ -787,7 +787,8 @@
     "toLabel": "Para:",
     "ccLabel": "CC:",
     "to": "Para",
-    "cc": "CC"
+    "cc": "CC",
+    "keepOriginal": "Mantener original"
   },
   "contacts": {
     "title": "Contactos",

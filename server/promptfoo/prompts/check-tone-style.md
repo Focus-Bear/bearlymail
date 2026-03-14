@@ -36,7 +36,8 @@ Return a JSON object with:
   "isOk": boolean,
   "significance": "low" | "medium" | "high",
   "suggestions": string[],
-  "revisedText": string
+  "revisedText": string,
+  "attachmentReminder": string | null
 }
 ```
 
@@ -48,6 +49,7 @@ Rules:
   - `"high"` — a genuine risk of misunderstanding, offense, or reputational harm
 - Only set `isOk: false` when `significance` is `"medium"` or `"high"`. If the only issues you can find are `"low"` significance, set `isOk: true` instead.
 - Provide specific, actionable suggestions and a revised version that maintains the user's voice.
+- **`attachmentReminder`**: If the draft text explicitly references an attachment (e.g., "see attached", "attached is", "I've attached", "please find attached", "attachment enclosed", "as attached") but no attachment icon or placeholder is visible, set this to a short reminder string such as `"You mentioned an attachment — did you forget to attach it?"`. Otherwise set it to `null`. This field is independent of `isOk` — you may set it even when `isOk` is `true`. Do NOT set it unless the draft clearly references an attachment by keyword.
 
 ---BEGIN DRAFT---
 {{text}}

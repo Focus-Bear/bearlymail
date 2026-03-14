@@ -24,6 +24,8 @@ interface ToneCheckResultProps {
     revisedText?: string;
   } | null;
   onUseRevisedText: (text: string) => void;
+  /** Called when the user dismisses the tone check and wants to keep their original draft. */
+  onDismiss?: () => void;
   emailText?: string;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
   disputing?: boolean;
@@ -342,6 +344,7 @@ const ToneIssuesList: React.FC<ToneIssuesListProps> = ({
 export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   toneCheckResult,
   onUseRevisedText,
+  onDismiss,
   emailText,
   onDispute,
   disputing = false,
@@ -394,6 +397,27 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
         onUseRevisedText={onUseRevisedText}
         onScheduleForMorning={onScheduleForMorning}
       />
+      {onDismiss && (
+        <div style={{ marginTop: theme.spacing.sm }}>
+          <button
+            onClick={() => {
+              captureEvent(ANALYTICS_EVENTS.TONE_CHECK_DISMISSED);
+              onDismiss();
+            }}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: COLOR_TRANSPARENT,
+              color: theme.colors.text.secondary,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {t('emailDetail.keepOriginal')}
+          </button>
+        </div>
+      )}
       {onDispute && emailText && (
         <DisputeSection
           emailText={emailText}

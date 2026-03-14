@@ -77,6 +77,7 @@ export const ANALYTICS_EVENTS = {
   SIDEBAR_EXPAND_CLICKED: 'sidebar_expand_clicked',
   SIDEBAR_FOCUSBEAR_LINK_CLICKED: 'sidebar_focusbear_link_clicked',
   SIDEBAR_LOGOUT_CLICKED: 'sidebar_logout_clicked',
+  TONE_CHECK_DISMISSED: 'tone_check_dismissed',
   TONE_CHECK_DISPUTE_FORM_OPENED: 'tone_check_dispute_form_opened',
   TONE_CHECK_DISPUTE_SUBMITTED: 'tone_check_dispute_submitted',
   TONE_CHECK_REVISED_TEXT_USED: 'tone_check_revised_text_used',

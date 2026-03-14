@@ -206,6 +206,7 @@ describe("LLMController (Integration)", () => {
         isOk: true,
         suggestions: [],
         revisedText: undefined,
+        attachmentReminder: null,
       });
     });
 
@@ -255,6 +256,7 @@ describe("LLMController (Integration)", () => {
         isOk: true,
         suggestions: [],
         revisedText: undefined,
+        attachmentReminder: null,
       });
     });
 

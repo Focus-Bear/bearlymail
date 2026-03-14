@@ -7,6 +7,7 @@ interface ToneCheckResult {
   isOk: boolean;
   suggestions: string[];
   revisedText?: string;
+  attachmentReminder?: string | null;
 }
 
 interface DisputeResult {
@@ -23,12 +24,16 @@ export function useEmailDetailToneCheck() {
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<DisputeResult | null>(null);
 
-  const checkTone = useCallback(async (draft: string): Promise<boolean> => {
+  const checkTone = useCallback(async (draft: string, scheduledSendAt?: Date | null): Promise<boolean> => {
     setCheckingTone(true);
     setDisputeResult(null);
     try {
       const currentTime = new Date().toISOString();
-      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft, currentTime });
+      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
+        text: draft,
+        currentTime,
+        scheduledSendAt: scheduledSendAt?.toISOString(),
+      });
       setToneCheckResult(toneResponse.data);
 
       if (!toneResponse.data.isOk) {

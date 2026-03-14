@@ -67,6 +67,7 @@ export function useEmailDetailState() {
     isOk: boolean;
     suggestions: string[];
     revisedText?: string;
+    attachmentReminder?: string | null;
   } | null>(null);
   const [checkingTone, setCheckingTone] = useState(false);
   const [disputing, setDisputing] = useState(false);

@@ -60,8 +60,14 @@ export class LLMController {
     );
 
     // Suppress low-significance results — trivial rewording should never block a send.
+    // Preserve attachmentReminder even when isOk is forced true.
     if (result.significance === "low") {
-      return { isOk: true, suggestions: [], revisedText: undefined };
+      return {
+        isOk: true,
+        suggestions: [],
+        revisedText: undefined,
+        attachmentReminder: result.attachmentReminder ?? null,
+      };
     }
 
     // If the user already has a scheduled send time in the future, filter out any
@@ -94,7 +100,12 @@ export class LLMController {
 
         if (nonTimingSuggestions.length === 0) {
           // All suggestions were timing-related — email is fine.
-          return { isOk: true, suggestions: [], revisedText: undefined };
+          return {
+            isOk: true,
+            suggestions: [],
+            revisedText: undefined,
+            attachmentReminder: result.attachmentReminder ?? null,
+          };
         }
 
         if (nonTimingSuggestions.length < result.suggestions.length) {

@@ -41,8 +41,15 @@ export const formatScheduledTime = (date: Date): string =>
 /**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")
  * Uses the user's browser timezone automatically via toLocaleString
+ *
+ * @param date - The date to humanize
+ * @param options.showAbsoluteDate - When true, appends the absolute date in brackets,
+ *   e.g. "4 weeks ago [Feb 14]". Defaults to false for backward compatibility.
  */
-export function humanizeTimestamp(date: Date | string): string {
+export function humanizeTimestamp(
+  date: Date | string,
+  options: { showAbsoluteDate?: boolean } = {}
+): string {
   const now = new Date();
   const timestamp = typeof date === TYPEOF_STRING ? new Date(date) : date;
 
@@ -60,39 +67,54 @@ export function humanizeTimestamp(date: Date | string): string {
   const diffYears = Math.floor(diffDays / DAYS_PER_YEAR);
 
   // Humanize based on time difference
+  let relative: string;
   if (diffSeconds < SECONDS_PER_MINUTE) {
-    return 'Just now';
+    relative = 'Just now';
   } else if (diffMinutes < MINUTES_PER_HOUR) {
-    return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    relative = `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
   } else if (diffHours < HOURS_PER_DAY) {
-    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    relative = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
   } else if (diffDays === 1) {
-    return 'Yesterday';
+    relative = 'Yesterday';
   } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
+    relative = `${diffDays} days ago`;
   } else if (diffWeeks === 1) {
-    return 'A week ago';
-  } else if (diffWeeks < 4) {
-    return `${diffWeeks} weeks ago`;
+    relative = 'A week ago';
+  } else if (diffDays < DAYS_IN_MONTH_30) {
+    // Use diffDays < DAYS_IN_MONTH_30 (instead of diffWeeks < 4) to cover 28-29 day
+    // emails that would otherwise produce "0 months ago" (fixes #887).
+    relative = `${diffWeeks} weeks ago`;
   } else if (diffMonths === 1) {
-    return 'A month ago';
+    relative = 'A month ago';
   } else if (diffMonths < MONTHS_IN_YEAR) {
-    return `${diffMonths} months ago`;
+    relative = `${diffMonths} months ago`;
   } else if (diffYears === 1) {
-    return 'A year ago';
+    relative = 'A year ago';
   } else if (diffYears < 2) {
-    return 'Over a year ago';
+    relative = 'Over a year ago';
+  } else {
+    // For very old dates, show full date in user's timezone
+    relative = `${timestamp.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: timestamp.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      timeZone: timezone,
+    })} at ${timestamp.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: timezone,
+    })}`;
   }
 
-  // For very old dates, show full date in user's timezone
-  return `${timestamp.toLocaleDateString('en-US', {
+  if (!options.showAbsoluteDate) {
+    return relative;
+  }
+
+  const absDate = timestamp.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: timestamp.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     timeZone: timezone,
-  })} at ${timestamp.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: timezone,
-  })}`;
+  });
+  return `${relative} [${absDate}]`;
 }

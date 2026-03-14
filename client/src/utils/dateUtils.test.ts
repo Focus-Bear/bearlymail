@@ -157,5 +157,52 @@ describe('dateUtils', () => {
       // Should still format it, might show negative or handle gracefully
       expect(result).toBeTruthy();
     });
+
+    // Regression tests for #887: "0 months ago" bug for 28-29 day old emails
+    it('should return "4 weeks ago" for an email received 28 days ago (not "0 months ago")', () => {
+      const now = new Date('2024-02-28T12:00:00Z').getTime();
+      jest.setSystemTime(now);
+      // 28 days before Feb 28 = Jan 31
+      const timestamp = new Date('2024-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp);
+      expect(result).toBe('4 weeks ago');
+    });
+
+    it('should return "4 weeks ago" for an email received 29 days ago (not "0 months ago")', () => {
+      const now = new Date('2024-02-29T12:00:00Z').getTime();
+      jest.setSystemTime(now);
+      // 29 days before Feb 29 = Jan 31
+      const timestamp = new Date('2024-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp);
+      expect(result).toBe('4 weeks ago');
+    });
+
+    it('should return "A month ago" for an email received exactly 30 days ago', () => {
+      const now = new Date('2024-03-01T12:00:00Z').getTime();
+      jest.setSystemTime(now);
+      const timestamp = new Date('2024-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp);
+      expect(result).toBe('A month ago');
+    });
+
+    // Tests for showAbsoluteDate option
+    it('should append absolute date in brackets when showAbsoluteDate is true', () => {
+      const now = new Date('2024-02-28T12:00:00Z').getTime();
+      jest.setSystemTime(now);
+      const timestamp = new Date('2024-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp, { showAbsoluteDate: true });
+      // Should contain the relative part
+      expect(result).toContain('4 weeks ago');
+      // Should contain brackets with a date
+      expect(result).toMatch(/\[.+\]/);
+    });
+
+    it('should not include absolute date by default (backward compat)', () => {
+      const now = new Date('2024-02-28T12:00:00Z').getTime();
+      jest.setSystemTime(now);
+      const timestamp = new Date('2024-01-31T12:00:00Z');
+      const result = humanizeTimestamp(timestamp);
+      expect(result).not.toContain('[');
+    });
   });
 });

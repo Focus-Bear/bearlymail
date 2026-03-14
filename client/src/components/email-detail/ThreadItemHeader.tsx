@@ -116,7 +116,9 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               </button>
             </span>
           )}
-          <span style={{ color: theme.colors.text.secondary }}>{humanizeTimestamp(new Date(receivedAt))}</span>
+          <span style={{ color: theme.colors.text.secondary }}>
+            {humanizeTimestamp(new Date(receivedAt), { showAbsoluteDate: true })}
+          </span>
         </div>
         {to && <AddressField label={t('emailDetail.to', { defaultValue: 'To' })} value={to} />}
         {cc && <AddressField label={t('emailDetail.cc', { defaultValue: 'CC' })} value={cc} />}

@@ -169,16 +169,21 @@ const useReplyComposerState = (
     scheduledAt?: Date,
     keepInAction?: boolean
   ) => {
+    // Capture the current attachment lists before calling onSend so they are
+    // passed by value to the send handler.  Do NOT clear them here — if the
+    // tone check blocks the send, the composer stays open and the user would
+    // otherwise lose their attached files.  Cleanup happens in handleClose
+    // (manual close) or via component unmount on a successful send.
+    const currentFiles = files;
+    const currentForwardIds = forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined;
     onSend(
-      files,
+      currentFiles,
       expectedReplyHours,
-      forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
+      currentForwardIds,
       draftOverride,
       scheduledAt,
       keepInAction
     );
-    setFiles([]);
-    setForwardAttachmentIds([]);
   };
 
   const handleClose = () => {

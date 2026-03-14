@@ -30,7 +30,13 @@ export class LLMController {
   @Post("check-tone")
   async checkTone(
     @Request() req,
-    @Body() body: { text: string; rules?: string[]; currentTime?: string },
+    @Body()
+    body: {
+      text: string;
+      rules?: string[];
+      currentTime?: string;
+      scheduledSendAt?: string;
+    },
   ) {
     // Fetch user tone settings if rules not provided
     let { rules } = body;
@@ -44,13 +50,65 @@ export class LLMController {
       return { isOk: true, suggestions: [], revisedText: undefined };
     }
 
-    return this.llmService.checkTone(
+    const result = await this.llmService.checkTone(
       body.text,
       rules,
       undefined,
       req.user.userId,
       body.currentTime,
+      body.scheduledSendAt,
     );
+
+    // Suppress low-significance results — trivial rewording should never block a send.
+    if (result.significance === "low") {
+      return { isOk: true, suggestions: [], revisedText: undefined };
+    }
+
+    // If the user already has a scheduled send time in the future, filter out any
+    // timing / scheduling suggestions that the LLM may have produced.
+    if (body.scheduledSendAt) {
+      const scheduledTime = new Date(body.scheduledSendAt);
+      const isScheduledInFuture =
+        !isNaN(scheduledTime.getTime()) && scheduledTime > new Date();
+
+      if (isScheduledInFuture && result.suggestions.length > 0) {
+        const timingKeywords = [
+          "late",
+          "night",
+          "weekend",
+          "early",
+          "morning",
+          "timing",
+          "hour",
+          "after hours",
+          "business hours",
+          "off hours",
+          "schedule",
+          "monday",
+          "next business",
+        ];
+        const nonTimingSuggestions = result.suggestions.filter(
+          (suggestion) =>
+            !timingKeywords.some((kw) => suggestion.toLowerCase().includes(kw)),
+        );
+
+        if (nonTimingSuggestions.length === 0) {
+          // All suggestions were timing-related — email is fine.
+          return { isOk: true, suggestions: [], revisedText: undefined };
+        }
+
+        if (nonTimingSuggestions.length < result.suggestions.length) {
+          // Some timing suggestions removed — recalculate isOk based on remaining.
+          return {
+            ...result,
+            isOk: nonTimingSuggestions.length === 0 ? true : result.isOk,
+            suggestions: nonTimingSuggestions,
+          };
+        }
+      }
+    }
+
+    return result;
   }
 
   @Post("extract-actions")

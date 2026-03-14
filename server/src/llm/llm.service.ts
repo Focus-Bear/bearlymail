@@ -885,7 +885,13 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     provider?: LLMProvider,
     userId?: string,
     currentTime?: string,
-  ): Promise<{ isOk: boolean; suggestions: string[]; revisedText?: string }> {
+    scheduledSendAt?: string,
+  ): Promise<{
+    isOk: boolean;
+    significance?: "low" | "medium" | "high";
+    suggestions: string[];
+    revisedText?: string;
+  }> {
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {
       this.logger.error(
@@ -898,6 +904,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       rules,
       text,
       currentTime: currentTime || new Date().toISOString(),
+      scheduledSendAt: scheduledSendAt || "",
     });
 
     const response = await this.generateText(

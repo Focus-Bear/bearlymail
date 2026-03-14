@@ -767,7 +767,13 @@ export function useEmailDetailOperations(
       if (!draftOverride && !disputeResult?.accepted) {
         setCheckingTone(true);
         try {
-          const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draftToSend });
+          const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
+            text: draftToSend,
+            currentTime: new Date().toISOString(),
+            // Pass the scheduled send time so the server can suppress timing nags when
+            // the user has already queued the email for a specific delivery time.
+            scheduledSendAt: scheduledSendAt?.toISOString(),
+          });
           setToneCheckResult(toneResponse.data);
 
           if (!toneResponse.data.isOk) {

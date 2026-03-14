@@ -118,6 +118,7 @@ describe("LLMController (Integration)", () => {
         undefined,
         "test-user-id",
         undefined,
+        undefined,
       );
     });
 
@@ -136,6 +137,7 @@ describe("LLMController (Integration)", () => {
         ["Be professional", "Keep it concise"],
         undefined,
         "test-user-id",
+        undefined,
         undefined,
       );
     });
@@ -160,6 +162,196 @@ describe("LLMController (Integration)", () => {
       });
       // Should not call checkTone service when no rules
       expect(mockLLMService.checkTone).not.toHaveBeenCalled();
+    });
+
+    it("should pass scheduledSendAt to checkTone service", async () => {
+      const scheduledTime = new Date(Date.now() + 3600 * 1000).toISOString();
+
+      await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Test email",
+          rules: ["Be professional"],
+          scheduledSendAt: scheduledTime,
+        })
+        .expect(201);
+
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
+        "Test email",
+        ["Be professional"],
+        undefined,
+        "test-user-id",
+        undefined,
+        scheduledTime,
+      );
+    });
+
+    it("should suppress low-significance results", async () => {
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "low",
+        suggestions: ["Consider using more formal language"],
+        revisedText: "Dear colleague,",
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Hey there!",
+          rules: ["Be professional"],
+        })
+        .expect(201);
+
+      expect(response.body).toEqual({
+        isOk: true,
+        suggestions: [],
+        revisedText: undefined,
+      });
+    });
+
+    it("should not suppress medium-significance results", async () => {
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "medium",
+        suggestions: ["Tone is too casual"],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Hey!",
+          rules: ["Be professional"],
+        })
+        .expect(201);
+
+      expect(response.body.isOk).toBe(false);
+      expect(response.body.suggestions).toEqual(["Tone is too casual"]);
+    });
+
+    it("should filter all timing suggestions when scheduledSendAt is in the future", async () => {
+      const futureTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "high",
+        suggestions: [
+          "Sending late at night may reduce response rates",
+          "Consider sending during business hours",
+          "Weekend emails are often ignored",
+        ],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Hi! Quick question...",
+          rules: ["Be professional"],
+          scheduledSendAt: futureTime,
+        })
+        .expect(201);
+
+      expect(response.body).toEqual({
+        isOk: true,
+        suggestions: [],
+        revisedText: undefined,
+      });
+    });
+
+    it("should filter only timing suggestions and keep non-timing ones", async () => {
+      const futureTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "high",
+        suggestions: [
+          "Avoid sending emails late at night",
+          "Use a more formal greeting",
+        ],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Hey!",
+          rules: ["Be professional"],
+          scheduledSendAt: futureTime,
+        })
+        .expect(201);
+
+      expect(response.body.suggestions).toEqual(["Use a more formal greeting"]);
+    });
+
+    it("should not filter suggestions when scheduledSendAt is in the past", async () => {
+      const pastTime = new Date(Date.now() - 3600 * 1000).toISOString();
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "high",
+        suggestions: ["Avoid sending emails late at night"],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Test",
+          rules: ["Be professional"],
+          scheduledSendAt: pastTime,
+        })
+        .expect(201);
+
+      // Past scheduledSendAt → no filtering
+      expect(response.body.suggestions).toEqual([
+        "Avoid sending emails late at night",
+      ]);
+    });
+
+    it("should not filter suggestions when scheduledSendAt is invalid", async () => {
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "high",
+        suggestions: ["Avoid sending emails on weekends"],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Test",
+          rules: ["Be professional"],
+          scheduledSendAt: "not-a-date",
+        })
+        .expect(201);
+
+      expect(response.body.suggestions).toEqual([
+        "Avoid sending emails on weekends",
+      ]);
+    });
+
+    it("should return result unchanged when no timing suggestions match keywords", async () => {
+      const futureTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      mockLLMService.checkTone.mockResolvedValueOnce({
+        isOk: false,
+        significance: "high",
+        suggestions: ["Be more concise", "Avoid passive voice"],
+        revisedText: undefined,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Test email content",
+          rules: ["Be professional"],
+          scheduledSendAt: futureTime,
+        })
+        .expect(201);
+
+      // Non-timing suggestions should not be filtered
+      expect(response.body.suggestions).toEqual([
+        "Be more concise",
+        "Avoid passive voice",
+      ]);
+      expect(response.body.isOk).toBe(false);
     });
   });
 

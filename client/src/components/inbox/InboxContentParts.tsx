@@ -399,7 +399,9 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
       const group = emailCategoryMap.get(categoryKey);
       const categoryEmails = group?.emails ?? [];
 
-      if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
+      // Hide the category when it has been loaded and all its emails have been
+      // archived (even if the server-side summary count hasn't refreshed yet).
+      if (isLoaded && categoryEmails.length === 0) {
         return null;
       }
 

@@ -365,6 +365,21 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const emailIds = emails.map(event => event.id);
   const isOtherCategory = category === CATEGORY_OTHER;
 
+  // Auto-collapse when all emails in this category have been archived individually.
+  // We only trigger the collapse once per transition to empty (tracked via ref) to
+  // avoid calling onToggle() in a loop if the parent re-renders with emails=[] while
+  // already collapsed.
+  const wasExpandedWithEmailsRef = useRef(false);
+  useEffect(() => {
+    if (emails.length > 0) {
+      wasExpandedWithEmailsRef.current = isExpanded;
+    } else if (wasExpandedWithEmailsRef.current && isExpanded) {
+      // Category just became empty while expanded — collapse it.
+      wasExpandedWithEmailsRef.current = false;
+      onToggle();
+    }
+  }, [emails.length, isExpanded, onToggle]);
+
   const handleEditCategoryClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     navigate('/settings#email-categories');

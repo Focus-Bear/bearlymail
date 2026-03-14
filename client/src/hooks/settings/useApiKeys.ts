@@ -29,11 +29,19 @@ export const useApiKeys = () => {
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [hasGithubToken, setHasGithubToken] = useState(false);
 
+  // Anthropic key state
+  const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [anthropicApiKeySaved, setAnthropicApiKeySaved] = useState(false);
+  const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
+
   const fetchApiKeys = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/users/me`);
       setOpenAiApiKey('');
       setHasGithubToken(!!response.data.githubToken);
+      // hasAnthropicKey is returned as a boolean by the server (never the raw key)
+      setHasAnthropicKey(!!response.data.hasAnthropicKey);
     } catch (error) {
       console.error('Error fetching API keys:', error);
     }
@@ -68,6 +76,42 @@ export const useApiKeys = () => {
       alert(t('settings.keyRemoved'));
     } catch (error) {
       console.error('Error removing API key:', error);
+      alert(t('settings.keyRemoveError'));
+    }
+  }, [t]);
+
+  const saveAnthropicKey = useCallback(async () => {
+    if (!anthropicApiKey.trim()) {
+      alert(t('settings.enterApiKey'));
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/llm/me/anthropic-key`, { key: anthropicApiKey.trim() });
+      setAnthropicApiKeySaved(true);
+      setHasAnthropicKey(true);
+      setAnthropicApiKey('');
+      setTimeout(() => setAnthropicApiKeySaved(false), TOAST_DURATION_MS);
+    } catch (error: any) {
+      console.error('Error saving Anthropic API key:', error);
+      const message = error?.response?.data?.message;
+      alert(message ?? t('settings.apiKeyError'));
+    }
+  }, [anthropicApiKey, t]);
+
+  const removeAnthropicKey = useCallback(async () => {
+    if (!window.confirm(t('settings.confirmRemoveKey'))) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/llm/me/anthropic-key`);
+      setAnthropicApiKey('');
+      setShowAnthropicKey(false);
+      setHasAnthropicKey(false);
+      alert(t('settings.keyRemoved'));
+    } catch (error) {
+      console.error('Error removing Anthropic API key:', error);
       alert(t('settings.keyRemoveError'));
     }
   }, [t]);
@@ -120,6 +164,15 @@ export const useApiKeys = () => {
     fetchApiKeys,
     saveOpenAiApiKey,
     removeOpenAiApiKey,
+    // Anthropic
+    anthropicApiKey,
+    showAnthropicKey,
+    anthropicApiKeySaved,
+    hasAnthropicKey,
+    setAnthropicApiKey,
+    setShowAnthropicKey,
+    saveAnthropicKey,
+    removeAnthropicKey,
     connectGitHub,
     connectGitHubWithRepoAccess,
     disconnectGitHub,

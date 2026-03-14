@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Request,
@@ -9,6 +11,7 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
+import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
 
 @Controller("llm")
@@ -247,5 +250,46 @@ export class LLMController {
       rulesUpdated: false,
       remainingRules: currentRules,
     };
+  }
+
+  // ─── Anthropic API key management ────────────────────────────────────────
+
+  /**
+   * Validate and save an Anthropic API key or OAuth token for the current user.
+   * The key is validated via a minimal inference call before being persisted.
+   * Keys are stored encrypted at rest and never returned to the client.
+   */
+  @Post("me/anthropic-key")
+  async saveAnthropicKey(
+    @Request() req: { user: { userId: string } },
+    @Body() body: { key: string },
+  ) {
+    const { key } = body;
+    if (!key?.startsWith("sk-ant-")) {
+      throw new BadRequestException(
+        "Invalid key format — Anthropic keys start with 'sk-ant-'",
+      );
+    }
+
+    const result = await validateAnthropicKey(key);
+    if (!result.valid) {
+      throw new BadRequestException(result.error ?? "Key validation failed");
+    }
+
+    await this.usersService.update(req.user.userId, {
+      anthropicApiKey: key,
+    } as Parameters<typeof this.usersService.update>[1]);
+    return { success: true };
+  }
+
+  /**
+   * Remove the stored Anthropic API key for the current user.
+   */
+  @Delete("me/anthropic-key")
+  async removeAnthropicKey(@Request() req: { user: { userId: string } }) {
+    await this.usersService.update(req.user.userId, {
+      anthropicApiKey: null,
+    } as Parameters<typeof this.usersService.update>[1]);
+    return { success: true };
   }
 }

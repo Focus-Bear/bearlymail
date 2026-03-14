@@ -102,6 +102,17 @@ export class UsersService {
   }
 
   /**
+   * Optimized for Anthropic LLM service — selects id + anthropicApiKey only.
+   */
+  async findOneWithAnthropicKey(id: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder("user")
+      .select(["user.id", "user.anthropicApiKey"])
+      .where("user.id = :id", { id })
+      .getOne();
+  }
+
+  /**
    * Fastest query - only checks if user exists.
    * Returns true if user exists, false otherwise.
    */

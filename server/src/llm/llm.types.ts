@@ -3,6 +3,7 @@ import { LLMOperation } from "./llm-operations";
 export enum LLMProvider {
   GEMINI = "gemini",
   OPENAI = "openai",
+  ANTHROPIC = "anthropic",
 }
 
 export interface LLMRequest {

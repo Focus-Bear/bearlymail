@@ -251,6 +251,14 @@ const Settings: React.FC = () => {
           showApiKey={settingsData.showApiKey}
           apiKeySaved={settingsData.apiKeySaved}
           hasGithubToken={settingsData.hasGithubToken}
+          anthropicApiKey={settingsData.anthropicApiKey}
+          showAnthropicKey={settingsData.showAnthropicKey}
+          anthropicApiKeySaved={settingsData.anthropicApiKeySaved}
+          hasAnthropicKey={settingsData.hasAnthropicKey}
+          onAnthropicApiKeyChange={settingsData.setAnthropicApiKey}
+          onShowAnthropicKeyChange={settingsData.setShowAnthropicKey}
+          onSaveAnthropicKey={settingsData.handleSaveAnthropicKey}
+          onRemoveAnthropicKey={settingsData.handleRemoveAnthropicKey}
           onOpenAiApiKeyChange={settingsData.setOpenAiApiKey}
           onShowApiKeyChange={settingsData.setShowApiKey}
           onSaveApiKey={settingsData.handleSaveApiKey}

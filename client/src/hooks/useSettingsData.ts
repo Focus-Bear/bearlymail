@@ -157,6 +157,8 @@ function buildSettingsAliases({
     handleEditToneRule: toneRules.editToneRule,
     handleSaveApiKey: apiKeys.saveOpenAiApiKey,
     handleRemoveApiKey: apiKeys.removeOpenAiApiKey,
+    handleSaveAnthropicKey: apiKeys.saveAnthropicKey,
+    handleRemoveAnthropicKey: apiKeys.removeAnthropicKey,
     handleConnectGitHub: apiKeys.connectGitHub,
     handleConnectGitHubWithRepoAccess: apiKeys.connectGitHubWithRepoAccess,
     handleDisconnectGitHub: apiKeys.disconnectGitHub,

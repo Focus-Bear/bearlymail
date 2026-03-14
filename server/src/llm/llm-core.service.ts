@@ -1,5 +1,12 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 
@@ -12,11 +19,15 @@ import { LLM_OP_UNKNOWN } from "./llm-operations";
 import { supportsReasoningEffort } from "./llm-utils";
 import { TokenUsageService } from "./token-usage.service";
 
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
+
 @Injectable()
 export class LLMCoreService {
   private readonly logger = new Logger(LLMCoreService.name);
   private geminiClient: GoogleGenerativeAI | null = null;
   private openaiClient: OpenAI | null = null;
+  private anthropicClient: Anthropic | null = null;
   private defaultProvider: LLMProvider;
 
   constructor(
@@ -57,6 +68,21 @@ export class LLMCoreService {
     } else {
       this.logger.warn("OPENAI_API_KEY not found, OpenAI will be unavailable");
     }
+
+    // Initialize Anthropic (optional system key; users can supply their own)
+    const anthropicApiKey = this.configService.get<string>("ANTHROPIC_API_KEY");
+    if (anthropicApiKey) {
+      try {
+        this.anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
+        this.logger.log("Anthropic client initialized");
+      } catch (error) {
+        this.logger.error("Failed to initialize Anthropic client", error);
+      }
+    } else {
+      this.logger.warn(
+        "ANTHROPIC_API_KEY not set — Anthropic will use user keys only",
+      );
+    }
   }
 
   async generateText(
@@ -73,6 +99,8 @@ export class LLMCoreService {
           return await this.generateWithGemini(request, effectiveUserId);
         case LLMProvider.OPENAI:
           return await this.generateWithOpenAI(request, effectiveUserId);
+        case LLMProvider.ANTHROPIC:
+          return await this.generateWithAnthropic(request, effectiveUserId);
         default:
           throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
       }
@@ -81,6 +109,11 @@ export class LLMCoreService {
         `Error generating text with ${selectedProvider}`,
         error,
       );
+      // Do not fall back from Anthropic — auth errors (401/403) surface as
+      // UnauthorizedException and should be returned as-is to the caller.
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       // Fallback to the other provider if available
       if (selectedProvider === LLMProvider.GEMINI) {
         this.logger.log(
@@ -361,10 +394,110 @@ export class LLMCoreService {
     });
   }
 
+  private async generateWithAnthropic(
+    request: LLMRequest,
+    userId?: string,
+  ): Promise<string> {
+    let client = this.anthropicClient;
+    let apiKeySource = "system";
+
+    // User key overrides the system key
+    if (userId) {
+      try {
+        const user = await this.usersService.findOneWithAnthropicKey(userId);
+        if (user?.anthropicApiKey) {
+          client = new Anthropic({ apiKey: user.anthropicApiKey });
+          apiKeySource = "user";
+          this.logger.debug(`Using user Anthropic key for userId=${userId}`);
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to fetch Anthropic key for userId=${userId}, using system key`,
+          err,
+        );
+      }
+    }
+
+    if (!client) {
+      throw new Error(
+        "No Anthropic client available (no system key and no user key set)",
+      );
+    }
+
+    const model =
+      this.configService.get<string>("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
+
+    return this.retryOperation(async () => {
+      const startTime = Date.now();
+      this.logger.debug(
+        `Generating text with Anthropic model: ${model} using ${apiKeySource} API key`,
+      );
+
+      const params: Anthropic.MessageCreateParamsNonStreaming = {
+        model,
+        max_tokens: request.maxTokens ?? QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+        messages: [{ role: "user", content: request.prompt }],
+      };
+
+      if (request.systemPrompt) {
+        params.system = request.systemPrompt;
+      }
+
+      // Anthropic has no native JSON mode flag; instruct via system prompt.
+      // params.system may be string | TextBlockParam[] — normalise to string for the check.
+      const currentSystem =
+        typeof params.system === "string" ? params.system : "";
+      if (request.jsonMode && !currentSystem.includes("JSON")) {
+        params.system = `${
+          currentSystem
+        }\nRespond with valid JSON only. No markdown fences, no commentary.`;
+      }
+
+      let response: Anthropic.Message;
+      try {
+        response = await client!.messages.create(params);
+      } catch (err: unknown) {
+        const { status } = err as { status?: number };
+        if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {
+          throw new UnauthorizedException(
+            "Your Anthropic API key is invalid or has expired. Please update it in Settings → Integrations.",
+          );
+        }
+        throw err;
+      }
+
+      const durationMs = Date.now() - startTime;
+
+      if (response.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: userId ?? null,
+          operation: request.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.ANTHROPIC,
+          model,
+          promptTokens: response.usage.input_tokens,
+          completionTokens: response.usage.output_tokens,
+          totalTokens:
+            response.usage.input_tokens + response.usage.output_tokens,
+          durationMs,
+          promptText: request.prompt,
+          systemPromptText: request.systemPrompt,
+          emailIds: request.metadata?.emailIds,
+        });
+      }
+
+      const block = response.content[0];
+      if (!block || block.type !== "text") {
+        throw new Error("Anthropic returned an unexpected content block type");
+      }
+      return block.text;
+    });
+  }
+
   getAvailableProviders(): LLMProvider[] {
     const providers: LLMProvider[] = [];
     if (this.geminiClient) providers.push(LLMProvider.GEMINI);
     if (this.openaiClient) providers.push(LLMProvider.OPENAI);
+    if (this.anthropicClient) providers.push(LLMProvider.ANTHROPIC);
     return providers;
   }
 

@@ -172,6 +172,14 @@ export class User {
   @Column({
     nullable: true,
     transformer: encryptedColumnTransformer,
+    comment:
+      "Anthropic API key (encrypted) - allows users to use their own key (sk-ant-api03-* or sk-ant-oat-* OAuth token)",
+  })
+  anthropicApiKey: string;
+
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
     comment: "GitHub fine-grained PAT (encrypted) - for GitHub integration",
   })
   githubToken: string;

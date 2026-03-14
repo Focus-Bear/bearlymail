@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { AnthropicApiKeySection } from 'components/settings/integrations/AnthropicApiKeySection';
 import { GitHubConnectionStatusSection } from 'components/settings/integrations/GitHubConnectionStatusSection';
 import { GitHubIntegrationSection } from 'components/settings/integrations/GitHubIntegrationSection';
 import { GitHubRepoMappingsSection } from 'components/settings/integrations/GitHubRepoMappingsSection';
@@ -10,6 +11,15 @@ interface IntegrationsSectionProps {
   showApiKey: boolean;
   apiKeySaved: boolean;
   hasGithubToken: boolean;
+  // Anthropic
+  anthropicApiKey: string;
+  showAnthropicKey: boolean;
+  anthropicApiKeySaved: boolean;
+  hasAnthropicKey: boolean;
+  onAnthropicApiKeyChange: (key: string) => void;
+  onShowAnthropicKeyChange: (show: boolean) => void;
+  onSaveAnthropicKey: () => Promise<void>;
+  onRemoveAnthropicKey: () => Promise<void>;
   onOpenAiApiKeyChange: (key: string) => void;
   onShowApiKeyChange: (show: boolean) => void;
   onSaveApiKey: () => Promise<void>;
@@ -24,6 +34,14 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
   showApiKey,
   apiKeySaved,
   hasGithubToken,
+  anthropicApiKey,
+  showAnthropicKey,
+  anthropicApiKeySaved,
+  hasAnthropicKey,
+  onAnthropicApiKeyChange,
+  onShowAnthropicKeyChange,
+  onSaveAnthropicKey,
+  onRemoveAnthropicKey,
   onOpenAiApiKeyChange,
   onShowApiKeyChange,
   onSaveApiKey,
@@ -42,6 +60,16 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
         onShowApiKeyChange={onShowApiKeyChange}
         onSaveApiKey={onSaveApiKey}
         onRemoveApiKey={onRemoveApiKey}
+      />
+      <AnthropicApiKeySection
+        anthropicApiKey={anthropicApiKey}
+        showAnthropicKey={showAnthropicKey}
+        anthropicApiKeySaved={anthropicApiKeySaved}
+        hasAnthropicKey={hasAnthropicKey}
+        onAnthropicApiKeyChange={onAnthropicApiKeyChange}
+        onShowAnthropicKeyChange={onShowAnthropicKeyChange}
+        onSaveAnthropicKey={onSaveAnthropicKey}
+        onRemoveAnthropicKey={onRemoveAnthropicKey}
       />
       <GitHubIntegrationSection
         hasGithubToken={hasGithubToken}

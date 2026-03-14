@@ -56,6 +56,8 @@ export const ANALYTICS_EVENTS = {
   INBOX_VIEWED: 'inbox_viewed',
   KEYWORD_UNBLOCKED: 'keyword_unblocked',
   OPENAI_API_KEY_REMOVED: 'openai_api_key_removed',
+  ANTHROPIC_API_KEY_SAVED: 'anthropic_api_key_saved',
+  ANTHROPIC_API_KEY_REMOVED: 'anthropic_api_key_removed',
   OPENAI_API_KEY_SAVED: 'openai_api_key_saved',
   PASSWORD_SETUP_COMPLETED: 'password_setup_completed',
   PRIVATE_NOTE_AUTO_SAVED: 'private_note_auto_saved',

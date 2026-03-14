@@ -262,7 +262,10 @@
       "successMessage": "Su reunión ha sido reprogramada. Se ha enviado una invitación de calendario actualizada.",
       "failedToLoad": "No se pudieron cargar los detalles de la reserva. El enlace puede ser inválido o estar expirado.",
       "failedToReschedule": "No se pudo reprogramar la reserva. Por favor inténtelo de nuevo.",
-      "alreadyCancelled": "Esta reserva ha sido cancelada y no se puede reprogramar."
+      "alreadyCancelled": "Esta reserva ha sido cancelada y no se puede reprogramar.",
+      "loadMore": "Cargar más horarios",
+      "loadingMore": "Cargando más...",
+      "failedToLoadMore": "No se pudieron cargar más horarios. Por favor, intente de nuevo."
     },
     "cancel": {
       "title": "Cancelar reserva",

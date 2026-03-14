@@ -881,7 +881,7 @@ describe("CalendarService", () => {
       expect(result.timezone).toBe("UTC");
     });
 
-    it("should paginate slots using offset and limit", async () => {
+    it("should paginate slots using afterDate and limit", async () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       // Use a wide range so many slots are generated
       mockCalendar.freebusy.query.mockResolvedValue({
@@ -894,22 +894,27 @@ describe("CalendarService", () => {
         },
       });
 
-      // Fetch first page (offset=0, limit=5)
+      // Fetch first page (limit=5, no afterDate)
       const page1 = await service.getAvailableSlotsWithTimezone(
         "user-1",
         90,
         0,
         5,
       );
-      // Fetch second page (offset=5, limit=5)
+
+      expect(page1.slots.length).toBeLessThanOrEqual(5);
+      expect(page1.slots.length).toBeGreaterThan(0);
+
+      // Fetch second page using the last slot's end time as afterDate
+      const lastSlotEnd = page1.slots[page1.slots.length - 1].end;
       const page2 = await service.getAvailableSlotsWithTimezone(
         "user-1",
         90,
+        0,
         5,
-        5,
+        new Date(lastSlotEnd),
       );
 
-      expect(page1.slots.length).toBeLessThanOrEqual(5);
       expect(page2.slots.length).toBeLessThanOrEqual(5);
       // Pages should not overlap
       const page1Keys = new Set(page1.slots.map((slot) => slot.start));

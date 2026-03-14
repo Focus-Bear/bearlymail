@@ -70,6 +70,7 @@ export class CalendarService {
     userId: string,
     daysAhead: number = 7,
     prefsOverride?: SchedulingPreferenceData,
+    options?: { limit?: number; afterDate?: Date },
   ): Promise<TimeSlot[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -85,19 +86,24 @@ export class CalendarService {
       version: "v3",
       auth: this.oauth2Client,
     });
-    const now = new Date();
-    const endDate = new Date(now.getTime() + daysAhead * MILLISECONDS.DAY);
+    // Start from afterDate if provided (for "load more" pagination), otherwise now
+    const startDate = options?.afterDate
+      ? new Date(options.afterDate)
+      : new Date();
+    const endDate = new Date(
+      startDate.getTime() + daysAhead * MILLISECONDS.DAY,
+    );
 
     try {
       const response = await calendar.freebusy.query({
         requestBody: {
-          timeMin: now.toISOString(),
+          timeMin: startDate.toISOString(),
           timeMax: endDate.toISOString(),
           items: [{ id: "primary" }],
         },
       });
 
-      // Find free slots (simplified - in production, you'd calculate gaps between busy periods)
+      // Find free slots — stop early once `limit` slots are found
       const busy = (response.data.calendars?.primary?.busy || []).filter(
         (period): period is BusyPeriod =>
           period.start !== undefined && period.end !== undefined,
@@ -106,7 +112,13 @@ export class CalendarService {
         prefsOverride ||
         (await this.schedulingPreferencesService.getPreferences(userId));
 
-      const freeSlots = this.calculateFreeSlots(now, endDate, busy, prefs);
+      const freeSlots = this.calculateFreeSlots(
+        startDate,
+        endDate,
+        busy,
+        prefs,
+        options?.limit,
+      );
 
       return freeSlots;
     } catch (error) {
@@ -130,17 +142,23 @@ export class CalendarService {
   async getAvailableSlotsWithTimezone(
     userId: string,
     daysAhead: number = 7,
-    offset: number = 0,
-    limit: number = 50,
+    _offset: number = 0,
+    limit: number = 8,
+    afterDate?: Date,
   ): Promise<TimeSlotsWithTimezone> {
     const prefs =
       await this.schedulingPreferencesService.getPreferences(userId);
-    const allSlots = await this.getAvailableTimeSlots(userId, daysAhead, prefs);
-    const paginatedSlots = allSlots.slice(offset, offset + limit);
+    // Pass limit+1 to detect hasMore without fetching unlimited slots
+    const slots = await this.getAvailableTimeSlots(userId, daysAhead, prefs, {
+      limit: limit + 1,
+      afterDate,
+    });
+    const hasMore = slots.length > limit;
+    const paginatedSlots = slots.slice(0, limit);
     return {
       slots: paginatedSlots,
       timezone: prefs.timezone || "UTC",
-      hasMore: offset + limit < allSlots.length,
+      hasMore,
     };
   }
 
@@ -203,6 +221,7 @@ export class CalendarService {
     end: Date,
     busy: BusyPeriod[],
     prefs?: SchedulingPreferenceData,
+    limit?: number,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];
     const slotDuration = prefs?.slotDurationMinutes || MINUTES.THIRTY;
@@ -303,6 +322,11 @@ export class CalendarService {
         duration: slotDuration,
       });
       meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
+
+      // Early exit when we have enough slots — avoids scanning the full window
+      if (limit !== undefined && slots.length >= limit) {
+        break;
+      }
 
       current = new Date(
         current.getTime() + slotDuration * MILLISECONDS.MINUTE,

@@ -1635,7 +1635,10 @@
       "successMessage": "Your meeting has been rescheduled. An updated calendar invitation has been sent.",
       "failedToLoad": "Failed to load booking details. The link may be invalid or expired.",
       "failedToReschedule": "Failed to reschedule the booking. Please try again.",
-      "alreadyCancelled": "This booking has been cancelled and cannot be rescheduled."
+      "alreadyCancelled": "This booking has been cancelled and cannot be rescheduled.",
+      "loadMore": "Load more times",
+      "loadingMore": "Loading more...",
+      "failedToLoadMore": "Failed to load more time slots. Please try again."
     },
     "cancel": {
       "title": "Cancel Booking",

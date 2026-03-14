@@ -8,7 +8,7 @@ import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
 import { EMOJI_CHECK } from 'constants/emojis';
-import { MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT, WIDTH_FULL_PX } from 'constants/numbers';
+import { MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT, OPACITY_DISABLED, OPACITY_FULL, WIDTH_FULL_PX } from 'constants/numbers';
 import {
   BOOKING_ERROR,
   BOOKING_IDLE,
@@ -107,6 +107,8 @@ const CurrentBookingInfo: React.FC<CurrentBookingInfoProps> = ({ booking, t }) =
   </div>
 );
 
+const SLOTS_PER_PAGE = 8;
+
 const BookingReschedulePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const { t } = useTranslation();
@@ -115,6 +117,9 @@ const BookingReschedulePage: React.FC = () => {
   const [timezone, setTimezone] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<
     typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR
   >(BOOKING_IDLE);
@@ -125,6 +130,7 @@ const BookingReschedulePage: React.FC = () => {
       const bookingResponse = await axios.get(`${API_URL}/public/calendar/booking/${token}`);
       const bookingData = bookingResponse.data;
       setBooking(bookingData);
+      setUserId(bookingData.userId);
 
       if (bookingData.status === BOOKING_STATUS_CANCELLED) {
         setError(t('booking.reschedule.alreadyCancelled'));
@@ -132,15 +138,40 @@ const BookingReschedulePage: React.FC = () => {
         return;
       }
 
-      const slotsResponse = await axios.get(`${API_URL}/public/calendar/${bookingData.userId}/slots`);
+      const slotsResponse = await axios.get(
+        `${API_URL}/public/calendar/${bookingData.userId}/slots`,
+        { params: { limit: SLOTS_PER_PAGE } }
+      );
       setSlots(slotsResponse.data.slots);
       setTimezone(slotsResponse.data.timezone);
+      setHasMore(slotsResponse.data.hasMore ?? false);
     } catch {
       setError(t('booking.reschedule.failedToLoad'));
     } finally {
       setLoading(false);
     }
   }, [token, t]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!userId || loadingMore || !hasMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const lastSlot = slots[slots.length - 1];
+      const afterDate = lastSlot ? lastSlot.end : undefined;
+      const slotsResponse = await axios.get(
+        `${API_URL}/public/calendar/${userId}/slots`,
+        { params: { limit: SLOTS_PER_PAGE, afterDate } }
+      );
+      setSlots(prev => [...prev, ...slotsResponse.data.slots]);
+      setHasMore(slotsResponse.data.hasMore ?? false);
+    } catch {
+      setError(t('booking.reschedule.failedToLoadMore'));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [userId, slots, loadingMore, hasMore, t]);
 
   useEffect(() => {
     if (token) {
@@ -220,6 +251,27 @@ const BookingReschedulePage: React.FC = () => {
                 onSelectSlot={setSelectedSlot}
                 timezone={timezone}
               />
+              {hasMore && (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  style={{
+                    marginTop: theme.spacing.sm,
+                    width: WIDTH_FULL_PX,
+                    padding: theme.spacing.md,
+                    backgroundColor: 'transparent',
+                    color: theme.colors.primary.main,
+                    border: `1px solid ${theme.colors.primary.main}`,
+                    borderRadius: theme.borderRadius.md,
+                    cursor: loadingMore ? STRING_NOT_ALLOWED : STRING_POINTER,
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    opacity: loadingMore ? OPACITY_DISABLED : OPACITY_FULL,
+                  }}
+                >
+                  {loadingMore ? t('booking.reschedule.loadingMore') : t('booking.reschedule.loadMore')}
+                </button>
+              )}
               <button
                 onClick={handleReschedule}
                 disabled={!selectedSlot || status === BOOKING_SUBMITTING}

@@ -13,8 +13,8 @@ import {
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
 
-const DEFAULT_SLOTS_LIMIT = 50;
-const MAX_SLOTS_LIMIT = 100;
+const DEFAULT_SLOTS_LIMIT = 8;
+const MAX_SLOTS_LIMIT = 50;
 
 @Controller("public/calendar")
 export class PublicCalendarController {
@@ -28,18 +28,23 @@ export class PublicCalendarController {
     @Query("daysAhead") daysAhead?: string,
     @Query("offset") offset?: string,
     @Query("limit") limit?: string,
+    @Query("afterDate") afterDate?: string,
   ) {
-    const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.MONTH;
+    // Search a 14-day window from afterDate (or now). A 14-day window is enough
+    // to find 8 slots for most users without over-fetching calendar data.
+    const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.WEEK * 2;
     const slotOffset = offset ? parseInt(offset, 10) : 0;
     const slotLimit = limit
       ? Math.min(parseInt(limit, 10), MAX_SLOTS_LIMIT)
       : DEFAULT_SLOTS_LIMIT;
+    const afterDateParsed = afterDate ? new Date(afterDate) : undefined;
     try {
       return await this.calendarService.getAvailableSlotsWithTimezone(
         userId,
         days,
         slotOffset,
         slotLimit,
+        afterDateParsed,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

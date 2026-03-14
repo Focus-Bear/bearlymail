@@ -27,6 +27,9 @@ import {
 interface EmailDetailActionsProps {
   email: Email;
   suggestedActions: SuggestedAction[];
+  /** Scheduling-specific suggested actions (scheduling_request, calendar_create_invite).
+   *  Separated upstream so they never appear in QuickActionsSection alongside SchedulingRequestCard. */
+  schedulingActions?: SuggestedAction[];
   showQuickActionsMenu: boolean;
   selectedAction: SuggestedAction | null;
   onShowQuickActionsMenu: () => void;
@@ -48,6 +51,7 @@ interface EmailDetailActionsProps {
 export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   email,
   suggestedActions,
+  schedulingActions = [],
   showQuickActionsMenu,
   selectedAction,
   onShowQuickActionsMenu,
@@ -73,16 +77,16 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
-  // Treat both scheduling_request and calendar_create_invite as scheduling triggers.
-  // The LLM sometimes returns calendar_create_invite for the same intent, so we
-  // broaden the check here to avoid silently missing the SchedulingRequestCard.
+  // Derive hasSchedulingRequest from the pre-partitioned schedulingActions list (not from
+  // suggestedActions, which now contains only non-GitHub, non-scheduling actions).
+  // This ensures SchedulingRequestCard and QuickActionsSection are mutually exclusive.
   const hasSchedulingRequest = useMemo(
     () =>
-      suggestedActions.some(
+      schedulingActions.some(
         action =>
           action.type === ACTION_TYPE_SCHEDULING_REQUEST || action.type === ACTION_TYPE_CALENDAR_CREATE_INVITE,
       ),
-    [suggestedActions]
+    [schedulingActions]
   );
 
   const unsubscribeLink = useMemo(() => {

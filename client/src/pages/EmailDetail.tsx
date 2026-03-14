@@ -25,10 +25,12 @@ import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import {
+  ACTION_TYPE_CALENDAR_CREATE_INVITE,
   ACTION_TYPE_GITHUB_ADD_COMMENT,
   ACTION_TYPE_GITHUB_CREATE_ISSUE,
   ACTION_TYPE_GITHUB_SEARCH_ISSUES,
   ACTION_TYPE_GITHUB_UPDATE_STATUS,
+  ACTION_TYPE_SCHEDULING_REQUEST,
   SUMMARY_TYPE_CUSTOM,
   SUMMARY_TYPE_CUSTOM_PREFIX,
 } from 'constants/strings';
@@ -54,12 +56,20 @@ export const EMAIL_DETAIL_VARIANT_FULL: EmailDetailVariant = 'full';
 export const EMAIL_DETAIL_VARIANT_COMPACT: EmailDetailVariant = 'compact';
 export const EMAIL_DETAIL_VARIANT_INLINE: EmailDetailVariant = 'inline';
 
-// Module-level constant: stable across renders, no need to include in useMemo deps.
+// Module-level constants: stable across renders, no need to include in useMemo deps.
 const GITHUB_ACTION_TYPES = new Set([
   ACTION_TYPE_GITHUB_ADD_COMMENT,
   ACTION_TYPE_GITHUB_CREATE_ISSUE,
   ACTION_TYPE_GITHUB_SEARCH_ISSUES,
   ACTION_TYPE_GITHUB_UPDATE_STATUS,
+]);
+
+// Scheduling/calendar action types that belong in SchedulingRequestCard, not QuickActionsSection.
+// Both types are included because the LLM sometimes returns calendar_create_invite for the same
+// scheduling intent — keeping them here prevents duplication in the Quick Actions dropdown.
+const SCHEDULING_ACTION_TYPES = new Set([
+  ACTION_TYPE_SCHEDULING_REQUEST,
+  ACTION_TYPE_CALENDAR_CREATE_INVITE,
 ]);
 
 interface EmailDetailProps {
@@ -440,14 +450,19 @@ const EmailDetailContent: React.FC<any> = ({
     st.setShowReplyComposer
   );
 
-  // Partition suggested actions: GitHub-specific ones go into the GitHub card;
-  // everything else stays in the QuickActionsSection menu.
-  // GITHUB_ACTION_TYPES is defined at module level — stable reference, no deps needed.
-  const { githubActions, otherActions } = useMemo(() => {
+  // Partition suggested actions into three buckets:
+  //   githubActions    → GitHubStatusSection → GitHubLinkCard (fixed by #819)
+  //   schedulingActions → EmailDetailActions → SchedulingRequestCard (#807)
+  //   otherActions     → EmailDetailActions → QuickActionsSection
+  // Constants are defined at module level — stable references, no deps needed.
+  const { githubActions, schedulingActions, otherActions } = useMemo(() => {
     const all: any[] = st.suggestedActions ?? [];
     return {
       githubActions: all.filter((action: any) => GITHUB_ACTION_TYPES.has(action.type)),
-      otherActions: all.filter((action: any) => !GITHUB_ACTION_TYPES.has(action.type)),
+      schedulingActions: all.filter((action: any) => SCHEDULING_ACTION_TYPES.has(action.type)),
+      otherActions: all.filter(
+        (action: any) => !GITHUB_ACTION_TYPES.has(action.type) && !SCHEDULING_ACTION_TYPES.has(action.type)
+      ),
     };
   }, [st.suggestedActions]);
 
@@ -502,6 +517,7 @@ const EmailDetailContent: React.FC<any> = ({
         <EmailDetailActions
           email={st.email as any}
           suggestedActions={otherActions}
+          schedulingActions={schedulingActions}
           showQuickActionsMenu={st.showQuickActionsMenu}
           selectedAction={st.selectedAction}
           onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)}

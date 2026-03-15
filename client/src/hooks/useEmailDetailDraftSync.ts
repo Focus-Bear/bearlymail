@@ -74,15 +74,13 @@ export const useEmailDetailDraftSync = ({
     }
   }, [id, email?.threadId, setShowReplyComposer, setDraft, setReplyOptions, setToneCheckResult, saveDraft]);
 
-  // Keep refs updated with current draft state
+  // Keep previous-state refs current for the email-switching effect above.
   useEffect(() => {
     previousDraftRef.current = draft;
   }, [draft]);
-
   useEffect(() => {
     previousReplyModeRef.current = replyMode;
   }, [replyMode]);
-
   useEffect(() => {
     previousRecipientsRef.current = replyRecipients;
   }, [replyRecipients]);
@@ -108,22 +106,7 @@ export const useEmailDetailDraftSync = ({
     }
   }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
 
-  // Auto-save draft every 10 seconds while reply composer is open
-  useEffect(() => {
-    if (!showReplyComposer || !email?.threadId) {
-      return;
-    }
-
-    const autoSaveInterval = setInterval(() => {
-      if (draft && draft.trim()) {
-        saveDraft(draft, replyMode, replyRecipients);
-      }
-    }, AUTO_SAVE_INTERVAL_MS);
-
-    return () => {
-      clearInterval(autoSaveInterval);
-    };
-  }, [showReplyComposer, email?.threadId, draft, replyMode, replyRecipients, saveDraft]);
+  useAutoSaveDraft({ showReplyComposer, threadId: email?.threadId, draft, replyMode, replyRecipients, saveDraft });
 
   // Scroll to reply composer when it opens
   useEffect(() => {
@@ -136,6 +119,69 @@ export const useEmailDetailDraftSync = ({
 
   useAutoGenerateReplies({ autoGenerateReplies, id, email, draft, replyOptions, handleGenerateDraft });
 };
+
+/**
+ * Periodically auto-saves the draft to the server while the reply composer is open.
+ *
+ * Fix #978: The `draft`, `replyMode`, and `replyRecipients` values are accessed via
+ * refs rather than being listed as effect dependencies. The previous implementation
+ * included `draft` in the dependency array, which caused the setInterval to be torn
+ * down and recreated on every single keystroke (because `draft` changes on every
+ * character). With refs the interval fires once per AUTO_SAVE_INTERVAL_MS and always
+ * reads the latest values — no interval thrashing, no re-render cascade.
+ */
+interface UseAutoSaveDraftParams {
+  showReplyComposer: boolean;
+  threadId: string | undefined;
+  draft: string;
+  replyMode: string;
+  replyRecipients: string;
+  saveDraft: (draft: string, mode: string, recipients: string) => void;
+}
+
+function useAutoSaveDraft({
+  showReplyComposer,
+  threadId,
+  draft,
+  replyMode,
+  replyRecipients,
+  saveDraft,
+}: UseAutoSaveDraftParams): void {
+  const draftRef = useRef(draft);
+  const replyModeRef = useRef(replyMode);
+  const replyRecipientsRef = useRef(replyRecipients);
+  const saveDraftFnRef = useRef(saveDraft);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  useEffect(() => {
+    replyModeRef.current = replyMode;
+  }, [replyMode]);
+  useEffect(() => {
+    replyRecipientsRef.current = replyRecipients;
+  }, [replyRecipients]);
+  useEffect(() => {
+    saveDraftFnRef.current = saveDraft;
+  }, [saveDraft]);
+
+  useEffect(() => {
+    if (!showReplyComposer || !threadId) {
+      return;
+    }
+
+    const autoSaveInterval = setInterval(() => {
+      const currentDraft = draftRef.current;
+      if (currentDraft && currentDraft.trim()) {
+        saveDraftFnRef.current(currentDraft, replyModeRef.current, replyRecipientsRef.current);
+      }
+    }, AUTO_SAVE_INTERVAL_MS);
+
+    return () => {
+      clearInterval(autoSaveInterval);
+    };
+  }, [showReplyComposer, threadId]);
+}
 
 function useAutoGenerateReplies({
   autoGenerateReplies,

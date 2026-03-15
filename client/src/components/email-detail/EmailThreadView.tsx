@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
@@ -18,39 +18,63 @@ interface EmailThreadViewProps {
   sanitizeAndProcessHtml: (html: string) => string;
 }
 
-export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
-  email,
-  threadEmails,
-  expandedThreadItems,
-  onToggleThreadItem,
-  extractCleanBody,
-  removeSignature,
-  extractCleanHtmlBody,
-  sanitizeAndProcessHtml,
-}) => {
-  const { t } = useTranslation();
+/**
+ * Renders the email thread or single-email body.
+ *
+ * Wrapped in React.memo (#978): this component calls DOMParser.parseFromString() and
+ * DOMPurify for each email in the thread, which is expensive synchronous DOM work.
+ * Previously, any `draft` state change in the parent (EmailDetail) would cause this
+ * component to re-render on every keystroke, even though none of its props had changed.
+ * React.memo prevents that by bailing out when props are reference-equal.
+ *
+ * Pre-computed body values are memoised via useMemo so that they are only recalculated
+ * when the thread emails themselves change, not on every render.
+ */
+export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
+  ({
+    email,
+    threadEmails,
+    expandedThreadItems,
+    onToggleThreadItem,
+    extractCleanBody,
+    removeSignature,
+    extractCleanHtmlBody,
+    sanitizeAndProcessHtml,
+  }) => {
+    const { t } = useTranslation();
 
-  if (threadEmails.length > 0) {
-    return (
-      <div style={{ marginBottom: theme.spacing.xl }}>
-        <h3
-          style={{
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.lg,
-          }}
-        >
-          💬 {t('emailDetail.thread')} ({threadEmails.length}{' '}
-          {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
-        </h3>
-        {threadEmails.map(
-          threadEmail => {
+    // Pre-compute clean plain-text bodies for all thread emails once (keyed on email ids
+    // + body content). This avoids re-running DOMParser on every render when the user
+    // toggles a thread item (expandedThreadItems changes) but the bodies haven't changed.
+    const cleanBodiesByEmailId = useMemo(() => {
+      const map = new Map<string, string>();
+      for (const threadEmail of threadEmails) {
+        const rawBody = threadEmail.body || '';
+        const rawHtmlBody = (threadEmail as any).htmlBody || '';
+        map.set(threadEmail.id, rawBody ? extractCleanBody(rawBody, rawHtmlBody) : '');
+      }
+      return map;
+    }, [threadEmails, extractCleanBody]);
+
+    if (threadEmails.length > 0) {
+      return (
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <h3
+            style={{
+              fontSize: theme.typography.fontSize.lg,
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.lg,
+            }}
+          >
+            💬 {t('emailDetail.thread')} ({threadEmails.length}{' '}
+            {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
+          </h3>
+          {threadEmails.map(threadEmail => {
             const isExpanded = expandedThreadItems.has(threadEmail.id);
             const isCurrentEmail = threadEmail.id === email.id;
-            const rawBody = threadEmail.body || '';
             const rawHtmlBody = (threadEmail as any).htmlBody || '';
-            const cleanBody = rawBody ? extractCleanBody(rawBody, rawHtmlBody) : '';
+            const cleanBody = cleanBodiesByEmailId.get(threadEmail.id) ?? '';
 
             return (
               <div
@@ -161,31 +185,33 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
                 )}
               </div>
             );
-          }
+          })}
+        </div>
+      );
+    }
+
+    const singleEmailHtmlBody = (email as any).htmlBody || '';
+
+    return (
+      <div
+        style={{
+          color: theme.colors.text.primary,
+          lineHeight: '1.8',
+          fontSize: theme.typography.fontSize.lg,
+          marginBottom: theme.spacing.xl,
+        }}
+      >
+        {singleEmailHtmlBody ? (
+          <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(singleEmailHtmlBody))} />
+        ) : (
+          <div style={{ whiteSpace: 'pre-wrap' }}>{extractCleanBody(email.body || '') || email.body || ''}</div>
+        )}
+        {email.attachments && email.attachments.length > 0 && (
+          <EmailAttachments emailId={email.id} attachments={email.attachments} />
         )}
       </div>
     );
   }
+);
 
-  const singleEmailHtmlBody = (email as any).htmlBody || '';
-
-  return (
-    <div
-      style={{
-        color: theme.colors.text.primary,
-        lineHeight: '1.8',
-        fontSize: theme.typography.fontSize.lg,
-        marginBottom: theme.spacing.xl,
-      }}
-    >
-      {singleEmailHtmlBody ? (
-        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(singleEmailHtmlBody))} />
-      ) : (
-        <div style={{ whiteSpace: 'pre-wrap' }}>{extractCleanBody(email.body || '') || email.body || ''}</div>
-      )}
-      {email.attachments && email.attachments.length > 0 && (
-        <EmailAttachments emailId={email.id} attachments={email.attachments} />
-      )}
-    </div>
-  );
-};
+EmailThreadView.displayName = 'EmailThreadView';

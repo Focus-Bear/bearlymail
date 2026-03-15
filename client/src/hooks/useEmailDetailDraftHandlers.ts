@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 
+import { DEBOUNCE_DELAY_MS } from 'constants/numbers';
 import { ACTION_TYPE_CUSTOM } from 'constants/strings';
 
 interface ReplyOption {
@@ -22,6 +23,14 @@ interface ReplyOption {
  * non-Custom option. The flag is set synchronously before `setDraft(text)` (which
  * triggers the cascade) and cleared in a microtask so any synchronous Tiptap callbacks
  * in the same tick still observe it as true.
+ *
+ * Fix #978: `setDraft` is debounced (300 ms) so that lifting draft content up to the
+ * root EmailDetail state does not happen on every single keystroke. Typing lag was caused
+ * by the full component tree (including EmailThreadView with expensive DOMParser work)
+ * re-rendering on every character. The TipTap editor manages its own content internally;
+ * the React draft state is only needed by the send handler and auto-save, which tolerate
+ * a short delay. `customDraftRef` still updates synchronously so tab-switching stays
+ * correct.
  */
 export function useEmailDetailDraftHandlers(
   replyOptions: ReplyOption[] | null,
@@ -39,11 +48,22 @@ export function useEmailDetailDraftHandlers(
   // (fixes #886).
   const isSelectingOptionRef = useRef<boolean>(false);
 
+  // Pending debounce timer for setDraft (fixes #978).
+  const draftDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelDraftDebounce = () => {
+    if (draftDebounceTimerRef.current !== null) {
+      clearTimeout(draftDebounceTimerRef.current);
+      draftDebounceTimerRef.current = null;
+    }
+  };
+
   const handleDraftChange = (newDraft: string) => {
-    setDraft(newDraft);
+    // Update the ref synchronously so tab-switching (handleReplyOptionSelect) always
+    // has the latest typed content even before the debounce fires.
+    customDraftRef.current = newDraft;
     setToneCheckResult(null);
     // Always persist user input so it can be restored if they switch to a suggestion and come back.
-    customDraftRef.current = newDraft;
     if (replyOptions && !isSelectingOptionRef.current) {
       const customIdx = replyOptions.findIndex(opt => opt.label === ACTION_TYPE_CUSTOM);
       // If the current tab is not already the Custom tab, switch to it.
@@ -51,9 +71,21 @@ export function useEmailDetailDraftHandlers(
         setSelectedReplyOption(customIdx);
       }
     }
+
+    // Debounce the expensive React state update (#978). The TipTap editor stores the
+    // content internally; we only need the React state to be current when the user
+    // pauses or sends, so 300 ms of latency is imperceptible.
+    cancelDraftDebounce();
+    draftDebounceTimerRef.current = setTimeout(() => {
+      draftDebounceTimerRef.current = null;
+      setDraft(newDraft);
+    }, DEBOUNCE_DELAY_MS);
   };
 
   const handleReplyOptionSelect = (idx: number, text: string) => {
+    // Cancel any pending debounce so a queued keystroke setDraft doesn't override
+    // the programmatically selected option text immediately after selection.
+    cancelDraftDebounce();
     const customIdx = replyOptions?.findIndex(opt => opt.label === ACTION_TYPE_CUSTOM) ?? 0;
     if (idx === customIdx) {
       // User is switching back to the Custom tab — restore their previously typed content.
@@ -75,6 +107,8 @@ export function useEmailDetailDraftHandlers(
   };
 
   const handleReplyClose = () => {
+    // Cancel any pending debounce to avoid setting stale draft state after close.
+    cancelDraftDebounce();
     setShowReplyComposer(false);
     setDraft('');
     setReplyOptions(null);

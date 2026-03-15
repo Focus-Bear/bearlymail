@@ -3,6 +3,14 @@ import { act, renderHook } from '@testing-library/react';
 import { useEmailDetailDraftHandlers } from './useEmailDetailDraftHandlers';
 
 describe('useEmailDetailDraftHandlers', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   const makeSetters = () => ({
     setDraft: jest.fn(),
     setSelectedReplyOption: jest.fn(),
@@ -32,6 +40,7 @@ describe('useEmailDetailDraftHandlers', () => {
 
     act(() => {
       result.current.handleDraftChange('new draft text');
+      jest.runAllTimers();
     });
 
     expect(setters.setDraft).toHaveBeenCalledWith('new draft text');

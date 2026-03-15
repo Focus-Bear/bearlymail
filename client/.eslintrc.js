@@ -162,6 +162,30 @@ module.exports = {
     'react/jsx-max-depth': ['warn', { max: 8 }],
 
     // ===========================================
+    // REACT HOOK IMPORT ENFORCEMENT
+    // ===========================================
+    // Disallow using React hooks as globals without an explicit import from 'react'.
+    // If you have `import { useState } from 'react'` the local binding takes precedence
+    // and this rule will NOT fire — only unimported usage is flagged.
+    'no-restricted-globals': [
+      'error',
+      { name: 'useState',              message: 'Import useState explicitly from "react".' },
+      { name: 'useEffect',             message: 'Import useEffect explicitly from "react".' },
+      { name: 'useRef',                message: 'Import useRef explicitly from "react".' },
+      { name: 'useCallback',           message: 'Import useCallback explicitly from "react".' },
+      { name: 'useMemo',               message: 'Import useMemo explicitly from "react".' },
+      { name: 'useContext',            message: 'Import useContext explicitly from "react".' },
+      { name: 'useReducer',            message: 'Import useReducer explicitly from "react".' },
+      { name: 'useLayoutEffect',       message: 'Import useLayoutEffect explicitly from "react".' },
+      { name: 'useImperativeHandle',   message: 'Import useImperativeHandle explicitly from "react".' },
+      { name: 'useDebugValue',         message: 'Import useDebugValue explicitly from "react".' },
+      { name: 'useId',                 message: 'Import useId explicitly from "react".' },
+      { name: 'useTransition',         message: 'Import useTransition explicitly from "react".' },
+      { name: 'useDeferredValue',      message: 'Import useDeferredValue explicitly from "react".' },
+      { name: 'useSyncExternalStore',  message: 'Import useSyncExternalStore explicitly from "react".' },
+    ],
+
+    // ===========================================
     // MAGIC STRINGS ENFORCEMENT
     // ===========================================
     // Warn about magic strings (string literals that should be constants)

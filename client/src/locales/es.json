@@ -1966,6 +1966,7 @@
       }
     },
     "emailCategories": {
+      "moreActions": "Más acciones de categorías",
       "recategorize": "Recategorizar correos en Bandeja",
       "recategorizing": "Recategorizando...",
       "consolidate": "Consolidar Categorias",

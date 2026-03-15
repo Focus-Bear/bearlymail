@@ -572,6 +572,7 @@
       }
     },
     "emailCategories": {
+      "moreActions": "More category actions",
       "recategorize": "Recategorise emails in Inbox",
       "recategorizing": "Recategorising...",
       "consolidate": "Consolidate Categories",

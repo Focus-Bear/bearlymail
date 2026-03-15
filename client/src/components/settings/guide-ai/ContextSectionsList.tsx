@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiMoreVertical } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -12,6 +13,7 @@ import { OPACITY_DISABLED } from 'constants/numbers';
 import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
 import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
+
 
 const CONSOLIDATE_RELOAD_DELAY_MS = 1500;
 
@@ -249,8 +251,16 @@ interface EmailCategoryControlsProps {
   actions: CategoryActionsState;
 }
 
+/**
+ * Overflow ⋮ menu for email-category actions.
+ *
+ * Shown on ALL viewport sizes — no responsive breakpoint switching.
+ * Items: View proto-categories | Consolidate categories | Recategorize
+ */
 const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }) => {
   const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const {
     isConsolidating, isRecategorizing,
     recategorizeProgress, dismissProgress, showProtoCategoriesModal,
@@ -258,18 +268,106 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
     handleRecategorize,
   } = actions as CategoryActionsState & { handleConsolidateCategories: () => void };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
+
+  const menuItemStyle: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    background: 'transparent',
+    border: 'none',
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    cursor: 'pointer',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.primary,
+    whiteSpace: 'nowrap',
+  };
+
+  const menuItemDisabledStyle: React.CSSProperties = {
+    ...menuItemStyle,
+    opacity: OPACITY_DISABLED,
+    cursor: 'not-allowed',
+  };
+
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <button onClick={() => setShowProtoCategoriesModal(true)} style={ghostButtonStyle(false, theme.colors.primary.main)}>
-        {t('settings.protoCategories.viewButton')}
-      </button>
-      <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={ghostButtonStyle(isConsolidating, theme.colors.primary.main)}>
-        {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
-      </button>
-      <button onClick={handleRecategorize} disabled={isRecategorizing} style={ghostButtonStyle(isRecategorizing, theme.colors.accent.warning)}>
-        {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
-      </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
+      <div style={{ position: 'relative' }} ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen(prev => !prev)}
+          title={t('settings.emailCategories.moreActions')}
+          aria-label={t('settings.emailCategories.moreActions')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            background: 'transparent',
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            cursor: 'pointer',
+            color: theme.colors.text.secondary,
+          }}
+        >
+          <FiMoreVertical size={16} />
+        </button>
+        {menuOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 'calc(100% + 4px)',
+              zIndex: 20,
+              backgroundColor: theme.colors.background.paper,
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.md,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: '200px',
+            }}
+          >
+            <button
+              style={menuItemStyle}
+              onClick={() => {
+                setShowProtoCategoriesModal(true);
+                setMenuOpen(false);
+              }}
+            >
+              {t('settings.protoCategories.viewButton')}
+            </button>
+            <button
+              style={isConsolidating ? menuItemDisabledStyle : menuItemStyle}
+              disabled={isConsolidating}
+              onClick={() => {
+                handleConsolidateCategories();
+                setMenuOpen(false);
+              }}
+            >
+              {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+            </button>
+            <button
+              style={isRecategorizing ? menuItemDisabledStyle : menuItemStyle}
+              disabled={isRecategorizing}
+              onClick={() => {
+                handleRecategorize();
+                setMenuOpen(false);
+              }}
+            >
+              {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+            </button>
+          </div>
+        )}
+      </div>
       {showProtoCategoriesModal && <ProtoCategoriesModal onClose={() => setShowProtoCategoriesModal(false)} />}
     </div>
   );

@@ -59,7 +59,7 @@ export function useInboxContentState({
   const { sentinelRef } = useInboxScrollObserver({ hasMore: hasMore ?? false, onLoadMore });
 
   const splitViewHandlers = useInboxSplitViewHandlers({
-    onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet,
+    mode, onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet,
     updateDraft, bulkSend, fetchThreadsWithDrafts,
   });
 

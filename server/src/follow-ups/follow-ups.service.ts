@@ -375,6 +375,22 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
   }
 
   /**
+   * Find an active (awaiting reply or due) follow-up for a given thread.
+   * Returns null if no active follow-up exists.
+   */
+  async findActiveFollowUpByThread(
+    userId: string,
+    threadId: string,
+  ): Promise<FollowUp | null> {
+    return this.followUpRepository.findOne({
+      where: [
+        { userId, threadId, status: FollowUpStatus.AWAITING_REPLY },
+        { userId, threadId, status: FollowUpStatus.FOLLOW_UP_DUE },
+      ],
+    });
+  }
+
+  /**
    * Get a single follow-up by ID
    */
   async getFollowUp(

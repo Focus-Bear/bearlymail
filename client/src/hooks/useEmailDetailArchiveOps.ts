@@ -112,18 +112,20 @@ function usePostReplyOps({ id, emails, dispatch, options, navigate, getInboxPath
     const emailToArchive = emails.find(event => event.id === id);
     dispatch(removeEmail(id));
     dispatch(addOptimisticArchive(id));
-    if (options.onArchiveComplete) {
-      options.onArchiveComplete(id);
-    } else {
-      navigate(getInboxPath());
-    }
-    axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
+    try {
+      await axios.put(`${API_URL}/emails/${id}/archive`);
+    } catch (error) {
       console.error('Error archiving email after reply:', error);
       dispatch(removeOptimisticArchive(id));
       if (emailToArchive) {
         dispatch(restoreEmail(emailToArchive));
       }
-    });
+    }
+    if (options.onArchiveComplete) {
+      options.onArchiveComplete(id);
+    } else {
+      navigate(getInboxPath());
+    }
   }, [id, emails, dispatch, options, navigate, getInboxPath]);
 
   const performSnoozeAfterReply = useCallback(

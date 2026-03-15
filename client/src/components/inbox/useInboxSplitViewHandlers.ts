@@ -1,9 +1,12 @@
 import { useCallback } from 'react';
 import axios from 'axios';
+import { InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
+import { MODE_FOLLOW_UP } from 'constants/strings';
 
 interface UseInboxSplitViewHandlersParams {
+  mode: InboxMode;
   onSplitViewArchive?: (emailId: string) => void;
   onSplitViewSnooze?: (emailId: string) => void;
   onSplitViewPrioritySet?: (emailId: string, starCount: number) => void;
@@ -20,6 +23,7 @@ interface UseInboxSplitViewHandlersResult {
 }
 
 export function useInboxSplitViewHandlers({
+  mode,
   onSplitViewArchive,
   onSplitViewSnooze,
   onSplitViewPrioritySet,
@@ -32,8 +36,11 @@ export function useInboxSplitViewHandlers({
       if (onSplitViewArchive && emailId) {
         onSplitViewArchive(emailId);
       }
+      if (mode === MODE_FOLLOW_UP) {
+        fetchThreadsWithDrafts();
+      }
     },
-    [onSplitViewArchive]
+    [mode, onSplitViewArchive, fetchThreadsWithDrafts]
   );
 
   const handleSplitViewSnooze = useCallback(

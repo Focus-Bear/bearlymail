@@ -683,6 +683,25 @@ ${closing}`;
       } catch (followUpError) {
         this.logger.error("Failed to create follow-up:", followUpError);
       }
+    } else {
+      try {
+        const existingFollowUp =
+          await this.followUpsService.findActiveFollowUpByThread(
+            userId,
+            email.threadId,
+          );
+        if (existingFollowUp) {
+          await this.followUpsService.cancelFollowUp(
+            existingFollowUp.id,
+            userId,
+          );
+        }
+      } catch (cancelError) {
+        this.logger.warn(
+          "Failed to cancel existing follow-up on reply:",
+          cancelError,
+        );
+      }
     }
   }
 }

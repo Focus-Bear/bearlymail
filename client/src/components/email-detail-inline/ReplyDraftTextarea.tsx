@@ -9,6 +9,8 @@ interface ReplyDraftTextareaProps {
   onDraftChange: (draft: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onPasteFiles?: (files: File[]) => void;
+  /** Called when a pasted image is registered as a CID inline attachment. */
+  onInlineImage?: (cid: string, file: File) => void;
 }
 
 export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
@@ -17,6 +19,7 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
   hasToneError,
   onDraftChange,
   onPasteFiles,
+  onInlineImage,
 }) => {
   return (
     <RichTextEditor
@@ -26,6 +29,7 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
       disabled={false}
       hasToneError={hasToneError}
       onPasteFiles={onPasteFiles}
+      onInlineImage={onInlineImage}
     />
   );
 };

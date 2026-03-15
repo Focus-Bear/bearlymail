@@ -24,6 +24,12 @@ interface RichTextEditorProps {
   disabled?: boolean;
   hasToneError?: boolean;
   onPasteFiles?: (files: File[]) => void;
+  /**
+   * Called when a pasted image is registered as an inline CID attachment.
+   * The parent should store (cid → file) so it can be sent as a MIME inline
+   * part instead of a base64 data: URI embedded in the email body.
+   */
+  onInlineImage?: (cid: string, file: File) => void;
   minHeight?: string;
 }
 
@@ -42,13 +48,25 @@ const createLinkShortcut = (onTrigger: () => void) =>
     },
   });
 
-function buildPasteHandler(onPasteFiles?: (files: File[]) => void) {
+/**
+ * Build a unique Content-ID for an inline image attachment.
+ * Format: `inline-{uuid}@bearlymail` — matches the `cid:` src in the editor
+ * and the `Content-ID: <...>` MIME header on the server.
+ */
+function generateInlineCid(): string {
+  return `inline-${crypto.randomUUID()}@bearlymail`;
+}
+
+function buildPasteHandler(
+  onPasteFiles?: (files: File[]) => void,
+  onInlineImage?: (cid: string, file: File) => void,
+) {
   return (_view: any, event: ClipboardEvent): boolean => {
     const items = event.clipboardData?.items;
     if (!items) {
       return false;
     }
-    const files: File[] = [];
+    const nonImageFiles: File[] = [];
     const imageFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -58,7 +76,7 @@ function buildPasteHandler(onPasteFiles?: (files: File[]) => void) {
           if (file.type.startsWith('image/')) {
             imageFiles.push(file);
           } else {
-            files.push(file);
+            nonImageFiles.push(file);
           }
         }
       }
@@ -66,20 +84,22 @@ function buildPasteHandler(onPasteFiles?: (files: File[]) => void) {
     if (imageFiles.length > 0) {
       event.preventDefault();
       imageFiles.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result;
-          if (typeof result === TYPEOF_STRING) {
-            _view.dispatch(_view.state.tr.replaceSelectionWith(_view.state.schema.nodes.image.create({ src: result })));
-          }
-        };
-        reader.readAsDataURL(file);
+        const cid = generateInlineCid();
+        // Insert <img src="cid:…"> into the editor — the image travels as a
+        // MIME inline attachment, avoiding base64 data: URIs in the email body
+        // which exceed the server body-parser limit.
+        _view.dispatch(
+          _view.state.tr.replaceSelectionWith(
+            _view.state.schema.nodes.image.create({ src: `cid:${cid}` }),
+          ),
+        );
+        onInlineImage?.(cid, file);
       });
       return true;
     }
-    if (files.length > 0 && onPasteFiles) {
+    if (nonImageFiles.length > 0 && onPasteFiles) {
       event.preventDefault();
-      onPasteFiles(files);
+      onPasteFiles(nonImageFiles);
       return true;
     }
     return false;
@@ -93,6 +113,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   disabled = false,
   hasToneError = false,
   onPasteFiles,
+  onInlineImage,
   minHeight = '200px',
 }) => {
   const isInternalUpdate = useRef(false);
@@ -130,7 +151,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const isEmpty = ed.isEmpty;
       onChange(isEmpty ? '' : html);
     },
-    editorProps: { handlePaste: buildPasteHandler(onPasteFiles) },
+    editorProps: { handlePaste: buildPasteHandler(onPasteFiles, onInlineImage) },
   });
 
   useEffect(() => {

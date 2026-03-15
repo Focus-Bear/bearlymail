@@ -78,7 +78,8 @@ interface ReplyComposerProps {
     forwardAttachmentIds?: string[],
     draftOverride?: string,
     scheduledSendAt?: Date,
-    keepInAction?: boolean
+    keepInAction?: boolean,
+    inlineImages?: Map<string, File>
   ) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
@@ -145,6 +146,7 @@ const useReplyComposerState = (
 ) => {
   const [files, setFiles] = useState<File[]>([]);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
+  const [inlineImages, setInlineImages] = useState<Map<string, File>>(new Map());
   const prevAttachmentsRef = useRef<string>('');
 
   useEffect(() => {
@@ -157,6 +159,10 @@ const useReplyComposerState = (
 
   const handlePasteFiles = useCallback((pastedFiles: File[]) => {
     setFiles(prev => [...prev, ...pastedFiles]);
+  }, []);
+
+  const handleInlineImage = useCallback((cid: string, file: File) => {
+    setInlineImages(prev => new Map(prev).set(cid, file));
   }, []);
 
   const handleRemoveForwardAttachment = (attachmentId: string) => {
@@ -180,19 +186,22 @@ const useReplyComposerState = (
     // (manual close) or via component unmount on a successful send.
     const currentFiles = files;
     const currentForwardIds = forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined;
+    const currentInlineImages = inlineImages.size > 0 ? inlineImages : undefined;
     onSend(
       currentFiles,
       expectedReplyHours,
       currentForwardIds,
       draftOverride,
       scheduledAt,
-      keepInAction
+      keepInAction,
+      currentInlineImages,
     );
   };
 
   const handleClose = () => {
     setFiles([]);
     setForwardAttachmentIds([]);
+    setInlineImages(new Map());
     onClose();
   };
 
@@ -205,7 +214,9 @@ const useReplyComposerState = (
     files,
     setFiles,
     forwardAttachmentIds,
+    inlineImages,
     handlePasteFiles,
+    handleInlineImage,
     handleRemoveForwardAttachment,
     handleDraftChange,
     handleSend,
@@ -294,6 +305,7 @@ interface ReplyComposerBodyProps {
   onReplyOptionSelect: (index: number, text: string) => void;
   onDraftChange: (draft: string) => void;
   onPasteFiles: (pastedFiles: File[]) => void;
+  onInlineImage: (cid: string, file: File) => void;
   onFilesChange: (files: File[]) => void;
   onRemoveForwardAttachment: (attachmentId: string) => void;
   onUseRevisedText: (text: string) => void;
@@ -312,7 +324,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   currentEmailObjectId, currentEmailThreadId, isAdmin, textareaRef,
   onDispute, disputing, disputeResult, onScheduleForMorning,
   onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
-  onReplyOptionSelect, onDraftChange, onPasteFiles, onFilesChange,
+  onReplyOptionSelect, onDraftChange, onPasteFiles, onInlineImage, onFilesChange,
   onRemoveForwardAttachment, onUseRevisedText, onClose, onSend,
   onSchedule, onClearSchedule, onDismissToneCheck,
 }) => (
@@ -343,6 +355,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       onDraftChange={onDraftChange}
       textareaRef={textareaRef}
       onPasteFiles={onPasteFiles}
+      onInlineImage={onInlineImage}
     />
     <ReplyComposerAttachments files={files} onFilesChange={onFilesChange} />
     <ForwardedAttachmentsList attachments={forwardAttachments} onRemove={onRemoveForwardAttachment} />
@@ -395,7 +408,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   const attachments = initialAttachments ?? EMPTY_ATTACHMENTS;
   const {
     files, setFiles, forwardAttachmentIds,
-    handlePasteFiles, handleRemoveForwardAttachment,
+    handlePasteFiles, handleInlineImage, handleRemoveForwardAttachment,
     handleDraftChange, handleSend, handleClose, handleUseRevisedText,
   } = useReplyComposerState(attachments, onClose, onSend, onDraftChange, onUseRevisedText);
   const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragFiles(
@@ -419,7 +432,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onDispute, disputing, disputeResult, onScheduleForMorning,
     onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
     onReplyOptionSelect, onDraftChange: handleDraftChange,
-    onPasteFiles: handlePasteFiles, onFilesChange: setFiles,
+    onPasteFiles: handlePasteFiles, onInlineImage: handleInlineImage, onFilesChange: setFiles,
     onRemoveForwardAttachment: handleRemoveForwardAttachment,
     onUseRevisedText: handleUseRevisedText,
     onClose: handleClose, onSend: handleSend, onSchedule, onClearSchedule,

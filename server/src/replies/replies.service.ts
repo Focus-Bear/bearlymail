@@ -453,6 +453,13 @@ ${closing}`;
         mimeType: string;
         content: Buffer;
       }>;
+      /** Inline images to embed as CID MIME parts in the email. */
+      inlineImages?: Array<{
+        contentId: string;
+        filename: string;
+        mimeType: string;
+        content: Buffer;
+      }>;
       expectedReplyHours?: number;
       forwardAttachmentIds?: string[];
       recipients?: string;
@@ -463,6 +470,7 @@ ${closing}`;
   ): Promise<void> {
     const {
       attachments,
+      inlineImages,
       expectedReplyHours,
       forwardAttachmentIds,
       recipients,
@@ -523,6 +531,10 @@ ${closing}`;
           )
         : [];
     const allAttachments = [...(attachments || []), ...forwardedAttachments];
+    // Inline images are passed separately so the MIME builder can wrap them in
+    // multipart/related with Content-ID headers instead of treating them as
+    // regular attachments with Content-Disposition: attachment.
+    const allInlineImages = inlineImages ?? [];
 
     let sentMessage: { messageId: string; threadId: string };
 
@@ -533,6 +545,10 @@ ${closing}`;
       const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
       const bccRecipients = bcc ? parseRecipientsFromString(bcc) : undefined;
 
+      const forwardAttachmentsWithInline = [
+        ...allAttachments,
+        ...allInlineImages,
+      ];
       sentMessage = await provider.sendEmail(
         userId,
         toRecipients,
@@ -540,10 +556,17 @@ ${closing}`;
         bodyWithSignature,
         ccRecipients,
         bccRecipients,
-        allAttachments.length > 0 ? allAttachments : undefined,
+        forwardAttachmentsWithInline.length > 0 ? forwardAttachmentsWithInline : undefined,
       );
     } else {
       // Regular reply — thread into the existing conversation
+      // Merge inline images into the attachments list with contentId set.
+      // buildEmailContent (gmail-send.ts) routes them into multipart/related
+      // when contentId is present.
+      const attachmentsWithInline = [
+        ...allAttachments,
+        ...allInlineImages,
+      ];
       sentMessage = await provider.sendReply(
         userId,
         email.threadId,
@@ -551,7 +574,7 @@ ${closing}`;
         replySubject,
         bodyWithSignature,
         {
-          attachments: allAttachments.length > 0 ? allAttachments : undefined,
+          attachments: attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
           htmlBody: bodyWithSignature,
           cc: cc || undefined,
           bcc: bcc || undefined,

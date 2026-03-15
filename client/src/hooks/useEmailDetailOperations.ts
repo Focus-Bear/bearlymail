@@ -41,6 +41,8 @@ interface SendReplyPayload {
   expectedReplyHours?: number;
   scheduledSendAt?: Date;
   files: File[];
+  /** Inline images keyed by their CID (from <img src="cid:…"> in the draft). */
+  inlineImages?: Map<string, File>;
 }
 
 function buildSendReplyFormData(payload: SendReplyPayload): FormData {
@@ -63,11 +65,17 @@ function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   payload.files.forEach(file => {
     formData.append('files', file);
   });
+  // Encode inline images: filename = "<cid>::::<original_filename>"
+  payload.inlineImages?.forEach((file, cid) => {
+    formData.append('inlineImages', file, `${cid}::::${file.name}`);
+  });
   return formData;
 }
 
 async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
-  if (payload.files.length > 0) {
+  const hasAttachments =
+    payload.files.length > 0 || (payload.inlineImages && payload.inlineImages.size > 0);
+  if (hasAttachments) {
     const formData = buildSendReplyFormData(payload);
     await axios.post(`${API_URL}/replies/send/${payload.emailId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -760,7 +768,8 @@ export function useEmailDetailOperations(
       expectedReplyHours?: number,
       draftOverride?: string,
       scheduledSendAt?: Date,
-      keepInAction?: boolean
+      keepInAction?: boolean,
+      inlineImages?: Map<string, File>
     ) => {
       const draftToSend = draftOverride || draft;
       if (!id || !draftToSend) {
@@ -818,6 +827,7 @@ export function useEmailDetailOperations(
           expectedReplyHours,
           scheduledSendAt,
           files,
+          inlineImages,
         };
         try {
           await sendReplyRequest(payload);

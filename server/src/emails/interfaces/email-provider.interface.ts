@@ -46,6 +46,13 @@ export interface EmailAttachmentData {
   filename: string;
   mimeType: string;
   content: Buffer;
+  /**
+   * When set, this attachment is an inline image referenced in the HTML body
+   * via `<img src="cid:{contentId}">`. The value must match the `cid:` reference
+   * in the HTML (without angle brackets). The MIME part will be sent with
+   * `Content-ID: <{contentId}>` and `Content-Disposition: inline`.
+   */
+  contentId?: string;
 }
 
 /**

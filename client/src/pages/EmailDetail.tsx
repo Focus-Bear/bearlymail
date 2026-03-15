@@ -572,8 +572,9 @@ const EmailDetailContent: React.FC<any> = ({
                 _fwd?: string[],
                 draft?: string,
                 sched?: Date,
-                keepInAction?: boolean
-              ) => ops.handleSendReply(files, hrs, draft, sched, keepInAction)}
+                keepInAction?: boolean,
+                inlineImages?: Map<string, File>
+              ) => ops.handleSendReply(files, hrs, draft, sched, keepInAction, inlineImages)}
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);
               }}

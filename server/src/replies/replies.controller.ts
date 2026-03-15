@@ -13,7 +13,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
+import { AnyFilesInterceptor } from "@nestjs/platform-express";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { EmailsService } from "../emails/emails.service";
@@ -86,7 +86,7 @@ export class RepliesController {
   }
 
   @Post("send/:id")
-  @UseInterceptors(FilesInterceptor("files", 10))
+  @UseInterceptors(AnyFilesInterceptor())
   async sendReply(
     @Request() req,
     @Param("id") id: string,
@@ -103,13 +103,42 @@ export class RepliesController {
       scheduledSendAt?: string;
       userTimezone?: string;
     },
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() allFiles?: Express.Multer.File[],
   ) {
-    const attachments = files?.map((file) => ({
+    // Separate regular file attachments from inline images.
+    // Inline images use fieldname 'inlineImages'; their originalname encodes the
+    // CID as "<cid>::::<filename>" so the MIME Content-ID header can be set correctly.
+    const regularFiles = (allFiles ?? []).filter(
+      (fileItem) => fileItem.fieldname === "files",
+    );
+    const inlineImageFiles = (allFiles ?? []).filter(
+      (fileItem) => fileItem.fieldname === "inlineImages",
+    );
+
+    const attachments = regularFiles.map((file) => ({
       filename: file.originalname,
       mimeType: file.mimetype,
       content: file.buffer,
     }));
+
+    const inlineImages = inlineImageFiles.map((file) => {
+      // originalname format: "<cid>::::<original_filename>"
+      const separatorIndex = file.originalname.indexOf("::::");
+      const contentId =
+        separatorIndex >= 0
+          ? file.originalname.substring(0, separatorIndex)
+          : file.originalname;
+      const filename =
+        separatorIndex >= 0
+          ? file.originalname.substring(separatorIndex + 4)
+          : file.originalname;
+      return {
+        contentId,
+        filename,
+        mimeType: file.mimetype,
+        content: file.buffer,
+      };
+    });
     const forwardAttachmentIds = this.parseForwardAttachmentIds(
       body.forwardAttachmentIds,
     );
@@ -133,6 +162,7 @@ export class RepliesController {
 
     await this.repliesService.sendReply(req.user.userId, id, body.reply, {
       attachments,
+      inlineImages: inlineImages.length > 0 ? inlineImages : undefined,
       expectedReplyHours: isNaN(expectedReplyHours as number)
         ? undefined
         : expectedReplyHours,

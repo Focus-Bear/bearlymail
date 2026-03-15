@@ -21,6 +21,7 @@ interface SendReplyParams {
   scheduleTime: Date | null;
   userTimezone: string;
   files: File[];
+  inlineImages?: Map<string, File>;
   isScheduled: boolean;
   setDraft: (d: string | null) => void;
   setReplyRecipients: (v: string) => void;
@@ -50,8 +51,9 @@ async function sendReplyRequest(params: SendReplyParams): Promise<void> {
     scheduleTime,
     userTimezone,
     files,
+    inlineImages,
   } = params;
-  if (files.length > 0) {
+  if (files.length > 0 || (inlineImages && inlineImages.size > 0)) {
     const formData = buildReplyFormData({
       draftToSend,
       recipients,
@@ -63,6 +65,7 @@ async function sendReplyRequest(params: SendReplyParams): Promise<void> {
       scheduleTime,
       userTimezone,
       files,
+      inlineImages,
     });
     await axios.post(`${API_URL}/replies/send/${emailId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -176,7 +179,7 @@ function buildReplyAddresses(
   return { recipients: replyToAddress, cc: null, showCc: false };
 }
 
-// Pure helper: builds FormData for reply with file attachments.
+// Pure helper: builds FormData for reply with file attachments and inline images.
 function buildReplyFormData(params: {
   draftToSend: string;
   recipients: string;
@@ -188,6 +191,8 @@ function buildReplyFormData(params: {
   scheduleTime?: Date | null;
   userTimezone: string;
   files: File[];
+  /** Map of CID → File for inline images embedded via <img src="cid:…"> */
+  inlineImages?: Map<string, File>;
 }): FormData {
   const {
     draftToSend,
@@ -200,6 +205,7 @@ function buildReplyFormData(params: {
     scheduleTime,
     userTimezone,
     files,
+    inlineImages,
   } = params;
   const formData = new FormData();
   formData.append('reply', draftToSend);
@@ -223,6 +229,15 @@ function buildReplyFormData(params: {
     formData.append('userTimezone', userTimezone);
   }
   files.forEach(file => formData.append('files', file));
+  // Inline images are sent as 'inlineImages' with the CID encoded in the filename
+  // as "<cid>::::<original_filename>". The server parses the CID from the filename
+  // prefix and attaches each image as a MIME Content-ID inline part.
+  if (inlineImages) {
+    inlineImages.forEach((file, cid) => {
+      const encodedName = `${cid}::::${file.name}`;
+      formData.append('inlineImages', file, encodedName);
+    });
+  }
   return formData;
 }
 

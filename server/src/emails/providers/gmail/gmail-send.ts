@@ -30,7 +30,6 @@ export function buildEmailContent(options: {
       ? options.bcc.map(formatRecipient).join(", ")
       : null;
 
-  const hasAttachments = options.attachments && options.attachments.length > 0;
   const hasHtmlBody = !!options.htmlBody;
 
   // Build email headers
@@ -54,10 +53,23 @@ export function buildEmailContent(options: {
     }
   }
 
+  const regularAttachments = (options.attachments ?? []).filter(
+    (att) => !att.contentId,
+  );
+  const inlineAttachments = (options.attachments ?? []).filter(
+    (att) => !!att.contentId,
+  );
+  const hasRegularAttachments = regularAttachments.length > 0;
+  const hasInlineAttachments = inlineAttachments.length > 0;
+
   let bodyContent: string;
 
-  if (hasAttachments) {
-    bodyContent = buildMultipartMixedBody(options, headerLines);
+  if (hasRegularAttachments || hasInlineAttachments) {
+    bodyContent = buildMultipartMixedBody(
+      { ...options, attachments: regularAttachments },
+      headerLines,
+      inlineAttachments,
+    );
   } else if (hasHtmlBody) {
     bodyContent = buildMultipartAlternativeBody(options, headerLines);
   } else {
@@ -73,31 +85,77 @@ function buildBodyParts(
   body: string,
   htmlBody: string | undefined,
   mixedBoundary: string,
+  inlineAttachments: EmailAttachmentData[] = [],
 ): string[] {
   const parts: string[] = [];
 
   if (htmlBody) {
-    const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
-    parts.push(
-      `--${mixedBoundary}`,
-      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
-      "",
-    );
-    parts.push(
-      `--${altBoundary}`,
-      "Content-Type: text/plain; charset=UTF-8",
-      "Content-Transfer-Encoding: 7bit",
-      "",
-      body,
-    );
-    parts.push(
-      `--${altBoundary}`,
-      "Content-Type: text/html; charset=UTF-8",
-      "Content-Transfer-Encoding: 7bit",
-      "",
-      htmlBody,
-    );
-    parts.push(`--${altBoundary}--`);
+    if (inlineAttachments.length > 0) {
+      // Wrap text+html in multipart/related so inline CID images travel with the body
+      const relatedBoundary = `----=_Rel_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
+      const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
+
+      parts.push(
+        `--${mixedBoundary}`,
+        `Content-Type: multipart/related; boundary="${relatedBoundary}"`,
+        "",
+        // multipart/alternative inside multipart/related
+        `--${relatedBoundary}`,
+        `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+        "",
+        `--${altBoundary}`,
+        "Content-Type: text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        body,
+        `--${altBoundary}`,
+        "Content-Type: text/html; charset=UTF-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        htmlBody,
+        `--${altBoundary}--`,
+      );
+
+      // Inline image parts inside multipart/related
+      for (const img of inlineAttachments) {
+        const base64Content = img.content.toString("base64");
+        const chunkedContent =
+          base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
+        parts.push(
+          `--${relatedBoundary}`,
+          `Content-Type: ${img.mimeType}; name="${img.filename}"`,
+          "Content-Transfer-Encoding: base64",
+          "Content-Disposition: inline",
+          `Content-ID: <${img.contentId}>`,
+          "",
+          chunkedContent,
+        );
+      }
+
+      parts.push(`--${relatedBoundary}--`);
+    } else {
+      const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
+      parts.push(
+        `--${mixedBoundary}`,
+        `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+        "",
+      );
+      parts.push(
+        `--${altBoundary}`,
+        "Content-Type: text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        body,
+      );
+      parts.push(
+        `--${altBoundary}`,
+        "Content-Type: text/html; charset=UTF-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        htmlBody,
+      );
+      parts.push(`--${altBoundary}--`);
+    }
   } else {
     parts.push(
       `--${mixedBoundary}`,
@@ -141,6 +199,7 @@ function buildMultipartMixedBody(
     attachments?: EmailAttachmentData[];
   },
   headerLines: string[],
+  inlineAttachments: EmailAttachmentData[] = [],
 ): string {
   const mixedBoundary = `----=_Part_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
   headerLines.push(
@@ -148,7 +207,12 @@ function buildMultipartMixedBody(
   );
 
   const parts = [
-    ...buildBodyParts(options.body, options.htmlBody, mixedBoundary),
+    ...buildBodyParts(
+      options.body,
+      options.htmlBody,
+      mixedBoundary,
+      inlineAttachments,
+    ),
     ...(options.attachments
       ? buildAttachmentParts(options.attachments, mixedBoundary)
       : []),

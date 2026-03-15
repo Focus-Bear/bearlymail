@@ -7,6 +7,8 @@ import { FILTER_ALL } from 'constants/strings';
 import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
 import { PRIORITY_RANGES } from 'hooks/useInboxFilters';
 
+import { getMultiSelectDisplayText } from './inboxFilters.helpers';
+
 interface InboxFiltersProps {
   onFilterChange?: () => void;
   isFilterBarVisible: boolean;
@@ -213,20 +215,6 @@ const MultiSelectTriggerButton: React.FC<MultiSelectTriggerButtonProps> = ({
     </button>
   </>
 );
-
-function getMultiSelectDisplayText(
-  selectedIds: string[],
-  options: Array<{ id: string; label: string }>,
-  placeholder: string,
-): string {
-  if (selectedIds.length === 0) {
-    return placeholder;
-  }
-  if (selectedIds.length === 1) {
-    return options.find(opt => opt.id === selectedIds[0])?.label || placeholder;
-  }
-  return `${selectedIds.length} selected`;
-}
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   label,

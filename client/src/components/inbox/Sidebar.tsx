@@ -23,6 +23,8 @@ import {
 } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
+import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
+
 const ROUTE_INBOX_SCHEDULED = '/inbox/scheduled' as const;
 
 interface SidebarItemProps {
@@ -154,91 +156,9 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-interface SettingsSubNavItemType {
-  id: string;
-  label: string;
-  anchor: string;
-}
-
-interface SettingsSubNavGroupType {
-  label: string;
-  items: SettingsSubNavItemType[];
-}
-
 const getGroupKey = (label: string): string => {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 };
-
-type TFunction = (key: string) => string;
-
-function getSettingsNavItems(translate: TFunction): (SettingsSubNavItemType | SettingsSubNavGroupType)[] {
-  return [
-    {
-      label: translate('settings.nav.emailDelivery'),
-      items: [
-        { id: 'google-accounts', label: translate('settings.nav.googleAccounts'), anchor: 'google-accounts' },
-        { id: 'email-batching', label: translate('settings.nav.emailBatching'), anchor: 'email-batching' },
-        { id: 'blocked-senders', label: translate('settings.nav.blockedSenders'), anchor: 'blocked-senders' },
-      ],
-    },
-    {
-      label: translate('settings.nav.guideOurAI'),
-      items: [
-        { id: 'context', label: translate('settings.contextAboutMeTitle'), anchor: 'context' },
-        { id: 'email-categories', label: translate('settings.nav.emailCategories'), anchor: 'email-categories' },
-        { id: 'tone-settings', label: translate('settings.nav.toneSettings'), anchor: 'tone-settings' },
-        { id: 'summarization', label: translate('settings.nav.summarization'), anchor: 'summarization' },
-        { id: 'auto-responder', label: translate('settings.nav.autoResponder'), anchor: 'auto-responder' },
-      ],
-    },
-    {
-      label: translate('settings.nav.schedulingPreferences'),
-      items: [
-        {
-          id: 'scheduling-availability',
-          label: translate('settings.nav.schedulingAvailability'),
-          anchor: 'scheduling-availability',
-        },
-        {
-          id: 'scheduling-meeting-gap',
-          label: translate('settings.nav.schedulingMeetingGap'),
-          anchor: 'scheduling-meeting-gap',
-        },
-        {
-          id: 'scheduling-deep-work',
-          label: translate('settings.nav.schedulingDeepWork'),
-          anchor: 'scheduling-deep-work',
-        },
-        {
-          id: 'scheduling-slot-duration',
-          label: translate('settings.nav.schedulingSlotDuration'),
-          anchor: 'scheduling-slot-duration',
-        },
-      ],
-    },
-    {
-      label: translate('settings.nav.integrations'),
-      items: [
-        { id: 'api-key', label: translate('settings.nav.openAiApiKey'), anchor: 'api-key' },
-        { id: 'github-integration', label: translate('settings.nav.githubIntegration'), anchor: 'github-integration' },
-      ],
-    },
-  ];
-}
-
-const SCROLL_DELAY_MS = 50;
-
-function makeScrollToSection(navigate: ReturnType<typeof useNavigate>): (anchor: string) => void {
-  return (anchor: string) => {
-    navigate(`/settings#${anchor}`, { replace: true });
-    setTimeout(() => {
-      const element = document.getElementById(anchor);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, SCROLL_DELAY_MS);
-  };
-}
 
 const SETTINGS_EXPANDED_DEFAULTS: Record<string, boolean> = {
   'email-delivery': true,
@@ -248,7 +168,7 @@ const SETTINGS_EXPANDED_DEFAULTS: Record<string, boolean> = {
 };
 
 interface RenderNavItemProps {
-  item: SettingsSubNavItemType | SettingsSubNavGroupType;
+  item: SettingsSubNavItem | SettingsSubNavGroup;
   hash?: string;
   expandedGroups: Record<string, boolean>;
   scrollToSection: (anchor: string) => void;

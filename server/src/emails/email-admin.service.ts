@@ -14,10 +14,14 @@ import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 
-type ValidMode = typeof INBOX_MODES.TRIAGE | typeof INBOX_MODES.ACTION;
+type ValidMode =
+  | typeof INBOX_MODES.TRIAGE
+  | typeof INBOX_MODES.ACTION
+  | typeof INBOX_MODES.FOLLOW_UP;
 const VALID_MODES: readonly ValidMode[] = [
   INBOX_MODES.TRIAGE,
   INBOX_MODES.ACTION,
+  INBOX_MODES.FOLLOW_UP,
 ];
 
 @Injectable()

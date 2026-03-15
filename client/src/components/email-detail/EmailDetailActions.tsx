@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight } from 'react-icons/fi';
+import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiPrinter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { isCalendarInvitation } from 'utils/calendarUtils';
 import { captureEvent } from 'utils/posthog';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
+import { OverflowMenu } from 'components/common/OverflowMenu';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
+import { PrintableThread } from 'components/email-detail/PrintableThread';
 import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
@@ -26,6 +28,7 @@ import {
 
 interface EmailDetailActionsProps {
   email: Email;
+  threadEmails?: Email[];
   suggestedActions: SuggestedAction[];
   /** Scheduling-specific suggested actions (scheduling_request, calendar_create_invite).
    *  Separated upstream so they never appear in QuickActionsSection alongside SchedulingRequestCard. */
@@ -50,6 +53,7 @@ interface EmailDetailActionsProps {
 
 export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   email,
+  threadEmails = [],
   suggestedActions,
   schedulingActions = [],
   showQuickActionsMenu,
@@ -73,6 +77,18 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
   const emailWithStarCount = email as any;
+
+  const overflowMenuItems = useMemo(
+    () => [
+      {
+        key: 'saveAsPdf',
+        label: t('emailDetail.saveAsPdf'),
+        icon: <FiPrinter size={14} />,
+        onClick: () => window.print(),
+      },
+    ],
+    [t]
+  );
   const starCount = emailWithStarCount?.starCount ?? 0;
 
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
@@ -90,8 +106,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   );
 
   const unsubscribeLink = useMemo(() => {
-    const htmlBody = (email as any).htmlBody;
-    return extractUnsubscribeLink(htmlBody, email.body);
+    return extractUnsubscribeLink(email.htmlBody, email.body);
   }, [email]);
 
   const handleUnsubscribeClick = (event: React.MouseEvent) => {
@@ -258,6 +273,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               {t('emailDetail.snooze')}
             </button>
 
+            {/* Overflow menu (⋮) — Save as PDF and future actions */}
+            <OverflowMenu
+              items={overflowMenuItems}
+              aria-label={t('emailDetail.moreOptions')}
+            />
+
             {/* Unsubscribe / Block Sender */}
             {unsubscribeLink ? (
               <button
@@ -341,6 +362,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           />
         </div>
       )}
+
+      {/* Hidden print-only thread renderer — shown by @media print in email-thread-print.css */}
+      <PrintableThread email={email} threadEmails={threadEmails} />
     </div>
   );
 };

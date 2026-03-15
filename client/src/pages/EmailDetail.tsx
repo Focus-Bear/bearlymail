@@ -516,6 +516,7 @@ const EmailDetailContent: React.FC<any> = ({
         )}
         <EmailDetailActions
           email={st.email as any}
+          threadEmails={st.threadEmails as Email[]}
           suggestedActions={otherActions}
           schedulingActions={schedulingActions}
           showQuickActionsMenu={st.showQuickActionsMenu}

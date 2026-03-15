@@ -66,6 +66,10 @@ jest.mock('components/inbox/actions/SnoozeInputForm', () => ({
   SnoozeInputForm: () => <div data-testid="SnoozeInputForm" />,
 }));
 
+jest.mock('components/email-detail/PrintableThread', () => ({
+  PrintableThread: () => <div data-testid="PrintableThread" />,
+}));
+
 jest.mock('react-icons/fi', () => ({
   FiArchive: () => null,
   FiClock: () => null,

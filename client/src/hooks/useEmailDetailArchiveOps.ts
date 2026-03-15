@@ -217,7 +217,7 @@ export function useEmailDetailArchiveOps({
         }
       });
     }
-  }, [id, triggerAnimation, navigate, options, dispatch, emails, getInboxPath]);
+  }, [id, triggerAnimation, navigate, getInboxPath, options, dispatch, emails]);
 
   const handleSnooze = useCallback(
     async (durationOverride?: string) => {
@@ -240,7 +240,7 @@ export function useEmailDetailArchiveOps({
         clearInputs: !durationOverride,
       });
     },
-    [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails, getInboxPath]
+    [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, getInboxPath, options, dispatch, emails]
   );
 
   const handleDelete = useCallback(async () => {

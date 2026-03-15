@@ -449,4 +449,167 @@ describe('useEmailDetailOperations', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/triage');
     });
   });
+
+  describe('handleArchive – navigate back to correct inbox tab', () => {
+    it('navigates to /inbox when no fromMode', async () => {
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleArchive();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox');
+    });
+
+    it('navigates to /inbox/action when fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleArchive();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
+
+    it('navigates to /inbox/follow-up when fromMode is follow-up', async () => {
+      mockLocationState.fromMode = 'follow-up';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleArchive();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/follow-up');
+    });
+
+    it('calls onArchiveComplete callback instead of navigating in split view', async () => {
+      const onArchiveComplete = jest.fn();
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), { onArchiveComplete }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleArchive();
+      });
+
+      expect(onArchiveComplete).toHaveBeenCalledWith(TEST_EMAIL_ID);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleSnooze – navigate back to correct inbox tab', () => {
+    it('navigates to /inbox when no fromMode', async () => {
+      const mockState = createMockState();
+      mockState.snoozeInput = '2h';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, mockState, {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSnooze('2h');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox');
+    });
+
+    it('navigates to /inbox/action when fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const mockState = createMockState();
+      mockState.snoozeInput = '2h';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, mockState, {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleSnooze('2h');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
+
+    it('calls onSnoozeComplete callback instead of navigating in split view', async () => {
+      const onSnoozeComplete = jest.fn();
+      const mockState = createMockState();
+      mockState.snoozeInput = '2h';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, mockState, { onSnoozeComplete }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSnooze('2h');
+      });
+
+      expect(onSnoozeComplete).toHaveBeenCalledWith(TEST_EMAIL_ID);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleDelete – navigate back to correct inbox tab', () => {
+    it('navigates to /inbox when no fromMode', async () => {
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleDelete();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox');
+    });
+
+    it('navigates to /inbox/action when fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleDelete();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
+
+    it('navigates to /inbox/follow-up when fromMode is follow-up', async () => {
+      mockLocationState.fromMode = 'follow-up';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}), {
+        wrapper: createWrapper(store),
+      });
+
+      await act(async () => {
+        await result.current.handleDelete();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/follow-up');
+    });
+  });
 });

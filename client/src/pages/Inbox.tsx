@@ -74,7 +74,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
     triageSuggestions, followUpDataMap, isGeneratingDrafts, followUpsError, generateDrafts,
     updateDraft, bulkSend, fetchThreadsWithDrafts, snoozeInput, onboarding, urgentNotification,
     debugPanel, modals, priorityTooltip, keyboardHint, splitView, emailActions, keyboardShortcuts,
-    hasInitiallyLoaded, loadingModeSwitch, loading, decrypting, fetchError, hasRunAnalysis,
+    hasInitiallyLoaded, loadingModeSwitch, loading, decrypting, fetchError,
     nextDelivery, lastUrgentCheck, tabCounts, triageTabRef, actionTabRef, followUpTabRef,
     deliverBtnRef, emailListRef, emailDetailRef, handleEmailClick, handleEmailSelect, tourSteps,
     emails, loadMore, hasMore, expandedCategories, stableCategoryOrder, toggleCategory,
@@ -120,7 +120,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           needsRelogin={user?.needsRelogin} onLogout={logout}
         />
         <InboxHeader
-          mode={mode} setMode={setMode} loadingModeSwitch={loadingModeSwitch} hasRunAnalysis={hasRunAnalysis}
+          mode={mode} setMode={setMode} loadingModeSwitch={loadingModeSwitch}
           triageTabRef={triageTabRef} actionTabRef={actionTabRef} followUpTabRef={followUpTabRef} tabCounts={tabCounts}
           onToggleMobileMenu={openMobileMenu} isFilterBarVisible={isFilterBarVisible}
           hasActiveFilters={hasActiveFilters} activeFilterCount={activeFilterCount} onToggleFilterBar={toggleFilterBar}

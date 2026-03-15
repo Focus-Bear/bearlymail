@@ -110,7 +110,6 @@ interface InboxHeaderProps {
   mode: InboxMode;
   setMode: (mode: InboxMode) => void;
   loadingModeSwitch: boolean;
-  hasRunAnalysis: boolean | null;
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
@@ -134,7 +133,6 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   mode,
   setMode,
   loadingModeSwitch,
-  hasRunAnalysis,
   triageTabRef,
   actionTabRef,
   followUpTabRef,
@@ -211,7 +209,6 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
 
       <InboxHeaderActions
         mode={mode}
-        hasRunAnalysis={hasRunAnalysis}
         isAdmin={isAdmin}
         debugViewOpen={debugViewOpen}
         onToggleDebug={onToggleDebug}

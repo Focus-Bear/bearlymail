@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
-import { AnalyzeEmailsButton } from 'components/inbox/header/AnalyzeEmailsButton';
 import { ComposeButton } from 'components/inbox/header/ComposeButton';
 import { HelpLink } from 'components/inbox/header/HelpLink';
 import { EMOJI_BUG } from 'constants/emojis';
@@ -13,24 +12,12 @@ import { ROUTE_SCHEDULED } from 'constants/strings';
 
 interface InboxHeaderActionsProps {
   mode: InboxMode;
-  hasRunAnalysis: boolean | null;
   isAdmin?: boolean;
   debugViewOpen?: boolean;
   onToggleDebug?: () => void;
   onViewBlockedEmails?: () => void;
   onViewAutoRespondedEmails?: () => void;
 }
-
-const SECONDARY_BUTTON_STYLE: React.CSSProperties = {
-  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-  fontSize: theme.typography.fontSize.xs,
-  borderRadius: theme.borderRadius.md,
-  border: `1px solid ${theme.colors.border.medium}`,
-  backgroundColor: theme.colors.background.paper,
-  color: theme.colors.text.secondary,
-  cursor: 'pointer',
-  whiteSpace: 'nowrap' as const,
-};
 
 const MENU_ITEM_STYLE: React.CSSProperties = {
   width: '100%',
@@ -47,13 +34,16 @@ const MENU_ITEM_STYLE: React.CSSProperties = {
  *
  * The Scheduled link lives here rather than in the left sidebar (#955 removed
  * it from the nav) so users can still reach /scheduled from the inbox header.
- * Blocked / auto-responded actions are promoted to inline buttons elsewhere;
- * this menu is intentionally Scheduled-only so the ⋮ stays minimal.
+ * Blocked / auto-responded actions are also in this menu so the header stays clean.
  */
-const InboxOverflowMenu: React.FC<{ scheduledLabel: string; moreActionsLabel: string }> = ({
-  scheduledLabel,
-  moreActionsLabel,
-}) => {
+const InboxOverflowMenu: React.FC<{
+  scheduledLabel: string;
+  moreActionsLabel: string;
+  viewBlockedLabel: string;
+  viewAutoRespondedLabel: string;
+  onViewBlockedEmails?: () => void;
+  onViewAutoRespondedEmails?: () => void;
+}> = ({ scheduledLabel, moreActionsLabel, viewBlockedLabel, viewAutoRespondedLabel, onViewBlockedEmails, onViewAutoRespondedEmails }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -106,6 +96,28 @@ const InboxOverflowMenu: React.FC<{ scheduledLabel: string; moreActionsLabel: st
             minWidth: '190px',
           }}
         >
+          {onViewBlockedEmails && (
+            <button
+              onClick={() => {
+                onViewBlockedEmails();
+                setMenuOpen(false);
+              }}
+              style={MENU_ITEM_STYLE}
+            >
+              🚫 {viewBlockedLabel}
+            </button>
+          )}
+          {onViewAutoRespondedEmails && (
+            <button
+              onClick={() => {
+                onViewAutoRespondedEmails();
+                setMenuOpen(false);
+              }}
+              style={MENU_ITEM_STYLE}
+            >
+              🤖 {viewAutoRespondedLabel}
+            </button>
+          )}
           <button
             onClick={() => {
               navigate(ROUTE_SCHEDULED);
@@ -123,16 +135,11 @@ const InboxOverflowMenu: React.FC<{ scheduledLabel: string; moreActionsLabel: st
 
 /**
  * Inbox header actions component.
- * Displays action buttons: debug toggle (admin only), secondary navigation buttons,
- * help link, compose, and analyse.
- *
- * "View blocked emails" and "View auto-responded emails" are exposed as direct
- * inline buttons. The ⋮ overflow menu is retained for the Scheduled link —
- * Scheduled was removed from the left sidebar (#955) but remains reachable here.
+ * Displays action buttons: debug toggle (admin only), help link, compose,
+ * and the ⋮ overflow menu (which contains blocked / auto-responded / scheduled).
  */
 export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
   mode,
-  hasRunAnalysis,
   isAdmin,
   debugViewOpen,
   onToggleDebug,
@@ -166,27 +173,16 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
           <span>{EMOJI_BUG}</span>
         </button>
       )}
-      {onViewBlockedEmails && (
-        <button onClick={onViewBlockedEmails} style={SECONDARY_BUTTON_STYLE} title={t('inbox.viewBlockedEmails')}>
-          {t('inbox.viewBlockedEmails')}
-        </button>
-      )}
-      {onViewAutoRespondedEmails && (
-        <button
-          onClick={onViewAutoRespondedEmails}
-          style={SECONDARY_BUTTON_STYLE}
-          title={t('inbox.viewAutoRespondedEmails')}
-        >
-          {t('inbox.viewAutoRespondedEmails')}
-        </button>
-      )}
       <InboxOverflowMenu
         scheduledLabel={t('nav.scheduled')}
         moreActionsLabel={t('inbox.moreInboxActions')}
+        viewBlockedLabel={t('inbox.viewBlockedEmails')}
+        viewAutoRespondedLabel={t('inbox.viewAutoRespondedEmails')}
+        onViewBlockedEmails={onViewBlockedEmails}
+        onViewAutoRespondedEmails={onViewAutoRespondedEmails}
       />
       <HelpLink mode={mode} />
       <ComposeButton />
-      <AnalyzeEmailsButton hasRunAnalysis={hasRunAnalysis} />
     </div>
   );
 };

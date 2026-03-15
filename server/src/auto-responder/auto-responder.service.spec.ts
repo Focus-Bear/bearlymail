@@ -89,7 +89,11 @@ describe("AutoResponderService", () => {
         },
         {
           provide: getRepositoryToken(Email),
-          useValue: {},
+          useValue: {
+            // save() is called when the autoresponder persists the sent email
+            // with sentByAutoResponder=true (fixes #884)
+            save: jest.fn().mockResolvedValue({}),
+          },
         },
         {
           provide: getRepositoryToken(UserContext),
@@ -442,7 +446,10 @@ describe("AutoResponderService", () => {
 
     it("should send auto-response for valid email", async () => {
       const mockProvider = {
-        sendReply: jest.fn().mockResolvedValue(undefined),
+        sendReply: jest.fn().mockResolvedValue({
+          messageId: "mock-msg-id",
+          threadId: "thread-1",
+        }),
       };
       const analyticsService = module.get(AutoResponderAnalyticsService);
       userRepository.findOne.mockResolvedValue({
@@ -584,7 +591,10 @@ describe("AutoResponderService", () => {
         ],
       };
       const mockProvider = {
-        sendReply: jest.fn().mockResolvedValue(undefined),
+        sendReply: jest.fn().mockResolvedValue({
+          messageId: "mock-msg-id",
+          threadId: "thread-1",
+        }),
       };
       userRepository.findOne.mockResolvedValue({
         ...mockUser,

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { User } from "../database/entities/user.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -45,6 +46,8 @@ export class AutoResponderService {
     private userRepository: Repository<User>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
     private contextService: AutoResponderContextService,
     private templateService: AutoResponderTemplateService,
     private analyticsService: AutoResponderAnalyticsService,
@@ -498,7 +501,7 @@ export class AutoResponderService {
       config,
       thread,
       latestEmail,
-      user.id,
+      user,
       emailThreadId,
       prepared,
     );
@@ -509,10 +512,11 @@ export class AutoResponderService {
     config: AutoResponderConfig,
     thread: EmailThread,
     latestEmail: { from: string; replyTo: string | null },
-    userId: string,
+    user: User,
     emailThreadId: string,
     prepared: PreparedResponse,
   ): Promise<{ sent: boolean; reason: string }> {
+    const userId = user.id;
     const {
       senderEmailHash,
       priorityLevel,
@@ -541,7 +545,7 @@ export class AutoResponderService {
       }
 
       const replyToAddress = latestEmail.replyTo || latestEmail.from;
-      await provider.sendReply(
+      const sentResult = await provider.sendReply(
         userId,
         thread.threadId,
         replyToAddress,
@@ -549,6 +553,32 @@ export class AutoResponderService {
         responseBody,
         { htmlBody: responseHtmlBody },
       );
+
+      // Save an Email entity for the sent reply with sentByAutoResponder=true.
+      // This allows checkThreadFollowUpStatus to identify autoresponder replies
+      // deterministically — no fragile timestamp cross-referencing needed.
+      // Gmail sync will skip this messageId (already exists) when it runs later.
+      // sentResult may be undefined for providers that don't return message metadata;
+      // we still mark the thread and proceed, but skip saving the Email entity when
+      // no messageId is available (Gmail sync will create the entity on next sync).
+      if (sentResult?.messageId) {
+        await this.emailRepository.save({
+          userId,
+          messageId: sentResult.messageId,
+          threadId: thread.threadId,
+          emailThreadId,
+          from: user.email,
+          to: replyToAddress,
+          subject: responseSubject,
+          body: responseBody,
+          htmlBody: responseHtmlBody,
+          isRead: true,
+          isSnoozed: false,
+          isBatched: false,
+          wasDeliveredEarly: false,
+          sentByAutoResponder: true,
+        });
+      }
 
       await this.analyticsService.logAutoResponse({
         userId,

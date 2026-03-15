@@ -1174,13 +1174,21 @@ export class EmailsService {
       const lastEmailFrom = lastEmail.from?.toLowerCase() || "";
       const userSentLast = lastEmailFrom === userEmail.toLowerCase();
 
+      // If the user appears to have sent last, check whether it was actually
+      // the autoresponder acting on their behalf. sentByAutoResponder is set
+      // deterministically at send time — no timestamp cross-referencing needed.
+      // If true, treat the thread as if the user has NOT replied so it stays in
+      // "Action" rather than being moved to "Follow Up".
+      const effectiveUserSentLast =
+        userSentLast && !lastEmail.sentByAutoResponder;
+
       // No reply received if user sent last and there's no message after the last user message
       const replyReceived =
-        !userSentLast ||
+        !effectiveUserSentLast ||
         (lastTheirReplyAt && lastMyReplyAt && lastTheirReplyAt > lastMyReplyAt);
 
       return {
-        userSentLast,
+        userSentLast: effectiveUserSentLast,
         replyReceived,
         lastTheirReplyAt,
         lastMyReplyAt,

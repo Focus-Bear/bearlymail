@@ -212,6 +212,15 @@ export class Email {
   })
   batchDecisionReason: string | null;
 
+  @Column({
+    default: false,
+    comment:
+      "True when this email was sent by the BearlyMail autoresponder on behalf of the user. " +
+      "Used by checkThreadFollowUpStatus to avoid classifying autoresponder-sent emails as " +
+      "human replies (which would incorrectly move threads from Action to Follow-Up).",
+  })
+  sentByAutoResponder: boolean;
+
   @CreateDateColumn()
   receivedAt: Date;
 

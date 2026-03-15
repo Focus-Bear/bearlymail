@@ -7,12 +7,6 @@ import * as ical from "node-ical";
 import { Repository } from "typeorm";
 
 import {
-  IcsAttendee,
-  IcsEventData,
-  IcsInfoResponse,
-} from "./ics-event.types";
-
-import {
   HOURS,
   MILLISECONDS,
   MINUTES,
@@ -31,6 +25,7 @@ import {
   generateMeetingReply,
   respondToInvitation,
 } from "./calendar-invitation-response.service";
+import { IcsAttendee, IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
@@ -763,8 +758,11 @@ Manage this booking:
     emailId: string,
     attachmentId: string,
   ): Promise<IcsEventData> {
-    const { attachmentBuffer } =
-      await this.emailsService.getAttachment(userId, emailId, attachmentId);
+    const { attachmentBuffer } = await this.emailsService.getAttachment(
+      userId,
+      emailId,
+      attachmentId,
+    );
 
     const icsString = attachmentBuffer.toString("utf-8");
     const parsed = ical.sync.parseICS(icsString);
@@ -779,9 +777,7 @@ Manage this booking:
     }
 
     const startDate: Date | undefined =
-      eventEntry.start instanceof Date
-        ? eventEntry.start
-        : undefined;
+      eventEntry.start instanceof Date ? eventEntry.start : undefined;
     const endDate: Date | undefined =
       eventEntry.end instanceof Date ? eventEntry.end : undefined;
 
@@ -846,8 +842,7 @@ Manage this booking:
       attendeeList = [rawAttendees];
     }
     for (const att of attendeeList) {
-      const rawVal: string =
-        typeof att === "string" ? att : (att.val ?? "");
+      const rawVal: string = typeof att === "string" ? att : (att.val ?? "");
       const email = rawVal.replace(/^mailto:/i, "").trim();
       if (!email) continue;
       const params: IcsRawParamBag =
@@ -855,7 +850,8 @@ Manage this booking:
       attendees.push({
         email,
         name: typeof params.CN === "string" ? params.CN : undefined,
-        status: typeof params.PARTSTAT === "string" ? params.PARTSTAT : undefined,
+        status:
+          typeof params.PARTSTAT === "string" ? params.PARTSTAT : undefined,
       });
     }
 
@@ -875,8 +871,12 @@ Manage this booking:
       startAt: startDate.toISOString(),
       endAt: endDate?.toISOString(),
       allDay,
-      location: typeof extEntry.location === "string" ? extEntry.location : undefined,
-      description: typeof extEntry.description === "string" ? extEntry.description : undefined,
+      location:
+        typeof extEntry.location === "string" ? extEntry.location : undefined,
+      description:
+        typeof extEntry.description === "string"
+          ? extEntry.description
+          : undefined,
       organizer,
       attendees,
       timezone,
@@ -903,7 +903,10 @@ Manage this booking:
       refresh_token: user.googleCalendarRefreshToken,
     });
 
-    const calendar = google.calendar({ version: "v3", auth: this.oauth2Client });
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
     const startMs = new Date(eventData.startAt).getTime();
     const FIVE_MINUTES_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
@@ -951,7 +954,10 @@ Manage this booking:
       refresh_token: user.googleCalendarRefreshToken,
     });
 
-    const calendar = google.calendar({ version: "v3", auth: this.oauth2Client });
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
 
     const eventBody: calendar_v3.Schema$Event = {
       summary: eventData.title,
@@ -959,7 +965,10 @@ Manage this booking:
       description: eventData.description,
       start: eventData.allDay
         ? { date: eventData.startAt.slice(0, 10) }
-        : { dateTime: eventData.startAt, timeZone: eventData.timezone ?? "UTC" },
+        : {
+            dateTime: eventData.startAt,
+            timeZone: eventData.timezone ?? "UTC",
+          },
       end: eventData.allDay
         ? { date: (eventData.endAt ?? eventData.startAt).slice(0, 10) }
         : {
@@ -994,7 +1003,10 @@ Manage this booking:
     attachmentId: string,
   ): Promise<IcsInfoResponse> {
     const event = await this.parseIcsAttachment(userId, emailId, attachmentId);
-    const { exists, calendarEventId } = await this.checkEventExists(userId, event);
+    const { exists, calendarEventId } = await this.checkEventExists(
+      userId,
+      event,
+    );
     return { event, alreadyInCalendar: exists, calendarEventId };
   }
 

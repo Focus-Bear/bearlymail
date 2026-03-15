@@ -15,7 +15,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*', 'src/llm/llm-operations.ts', 'src/llm/prompts.ts'],
+  ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*'],
   rules: {
     // ===========================================
     // IMPORT ORDERING
@@ -324,7 +324,6 @@ module.exports = {
       files: [
         'src/emails/llm-processor.ts',
         'src/emails/providers/gmail.provider.ts',
-        'src/emails/providers/office365.provider.ts',
         'src/emails/providers/zoho.provider.ts',
         'src/context/context.service.ts',
         'src/context/context-gmail-data.service.ts',

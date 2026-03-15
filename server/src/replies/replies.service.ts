@@ -556,17 +556,16 @@ ${closing}`;
         bodyWithSignature,
         ccRecipients,
         bccRecipients,
-        forwardAttachmentsWithInline.length > 0 ? forwardAttachmentsWithInline : undefined,
+        forwardAttachmentsWithInline.length > 0
+          ? forwardAttachmentsWithInline
+          : undefined,
       );
     } else {
       // Regular reply — thread into the existing conversation
       // Merge inline images into the attachments list with contentId set.
       // buildEmailContent (gmail-send.ts) routes them into multipart/related
       // when contentId is present.
-      const attachmentsWithInline = [
-        ...allAttachments,
-        ...allInlineImages,
-      ];
+      const attachmentsWithInline = [...allAttachments, ...allInlineImages];
       sentMessage = await provider.sendReply(
         userId,
         email.threadId,
@@ -574,7 +573,10 @@ ${closing}`;
         replySubject,
         bodyWithSignature,
         {
-          attachments: attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
+          attachments:
+            attachmentsWithInline.length > 0
+              ? attachmentsWithInline
+              : undefined,
           htmlBody: bodyWithSignature,
           cc: cc || undefined,
           bcc: bcc || undefined,

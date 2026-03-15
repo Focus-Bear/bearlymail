@@ -40,6 +40,7 @@ import { QueueStatsService } from "./queue-stats.service";
     forwardRef(() => LLMModule),
     forwardRef(() => EmailsModule),
     QueueModule,
+    UsersModule,
   ],
   controllers: [AutoResponderController],
   providers: [

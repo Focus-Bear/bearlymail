@@ -232,7 +232,6 @@ export class AutoResponderAnalyticsService {
        ) correspondent ON true
        LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
        WHERE thread."userId" = $1
-         AND thread."isArchived" = false
          AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
          ${additionalFilters}
        ORDER BY stats."autoRespondedAt" DESC, thread."updatedAt" DESC, thread."threadId" ASC`,
@@ -257,6 +256,55 @@ export class AutoResponderAnalyticsService {
       emails: filteredRows,
       total,
       hasMore: offset + filteredRows.length < total,
+    };
+  }
+
+  /**
+   * One-time data fix: un-archive threads incorrectly archived by the
+   * autoresponder (#857 regression). Safe to run multiple times — only
+   * affects threads where:
+   *   - isArchived = true
+   *   - the thread has at least one auto_response_logs entry
+   *   - there is no user-initiated archive timestamp (userArchivedAt IS NULL)
+   *
+   * After PR #860 fixed the false-archiving root cause, this endpoint
+   * allows Jeremy to restore visibility for threads that were already
+   * silently archived before the fix was deployed.
+   */
+  async fixAutoresponderArchivedThreads(userId: string): Promise<{
+    fixed: number;
+    message: string;
+  }> {
+    // Un-archive threads that are currently archived AND have an
+    // auto_response_logs entry for this user. The #857 bug archived every
+    // auto-responded thread immediately (user never saw them), so these
+    // threads were effectively never manually archived by the user.
+    const result = (await this.autoResponseLogRepository.query(
+      `UPDATE email_threads
+       SET "isArchived" = false
+       WHERE "userId" = $1
+         AND "isArchived" = true
+         AND id IN (
+           SELECT DISTINCT "emailThreadId"
+           FROM auto_response_logs
+           WHERE "userId" = $1
+             AND "emailThreadId" IS NOT NULL
+         )`,
+      [userId],
+    )) as { rowCount?: number } | [unknown, number];
+
+    // pg returns [rows, rowCount] for raw queries; TypeORM wraps as result object
+    const fixed = Array.isArray(result)
+      ? (result[1] as number)
+      : ((result as { rowCount?: number }).rowCount ?? 0);
+
+    this.logger.log(
+      `fix-autoresponder-archived-threads: un-archived ${fixed} threads for user ${userId}`,
+    );
+
+    return {
+      fixed,
+      message: `Un-archived ${fixed} thread(s) that were incorrectly archived by the autoresponder.`,
     };
   }
 

@@ -261,4 +261,18 @@ export class AutoResponderController {
       );
     return result;
   }
+
+  /**
+   * Admin: one-time fix to un-archive threads incorrectly archived by the
+   * autoresponder (#857 regression). Safe to run multiple times.
+   * Only un-archives threads where the user never manually archived them
+   * (userArchivedAt IS NULL) and the thread has an auto_response_logs entry.
+   */
+  @Post("debug/fix-archived-threads")
+  @UseGuards(AdminGuard)
+  async fixArchivedThreads(@Request() req: AuthenticatedRequest) {
+    return this.autoResponderService.fixAutoresponderArchivedThreads(
+      req.user.userId,
+    );
+  }
 }

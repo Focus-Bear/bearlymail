@@ -733,6 +733,14 @@ export class AutoResponderService {
   }
 
   /**
+   * One-time admin fix: un-archive threads incorrectly archived by the
+   * autoresponder (#857 regression). See analytics service for full details.
+   */
+  async fixAutoresponderArchivedThreads(userId: string) {
+    return this.analyticsService.fixAutoresponderArchivedThreads(userId);
+  }
+
+  /**
    * Get analytics for auto-responses
    */
   async getAnalytics(

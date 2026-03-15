@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { TypeOrmModule } from "@nestjs/typeorm";
-
+import { UserThrottlerGuard } from "./auth/user-throttler.guard";
 import { ActionItemsModule } from "./action-items/action-items.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -46,12 +48,45 @@ import { UsersModule } from "./users/users.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
 import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 
+const ONE_HOUR_MS = 3_600_000;
+const ONE_MINUTE_MS = 60_000;
+const DEFAULT_FEEDBACK_LIMIT = 10;
+const DEFAULT_GENERAL_LIMIT = 60;
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ".env",
       validate,
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          name: "feedback",
+          ttl: configService.get<number>(
+            "FEEDBACK_THROTTLE_TTL_MS",
+            ONE_HOUR_MS,
+          ),
+          limit: configService.get<number>(
+            "FEEDBACK_THROTTLE_LIMIT",
+            DEFAULT_FEEDBACK_LIMIT,
+          ),
+        },
+        {
+          name: "default",
+          ttl: configService.get<number>(
+            "DEFAULT_THROTTLE_TTL_MS",
+            ONE_MINUTE_MS,
+          ),
+          limit: configService.get<number>(
+            "DEFAULT_THROTTLE_LIMIT",
+            DEFAULT_GENERAL_LIMIT,
+          ),
+        },
+      ],
     }),
     ErrorTrackingModule,
     QueueModule,
@@ -107,6 +142,6 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     ProtoCategoriesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: UserThrottlerGuard }],
 })
 export class AppModule {}

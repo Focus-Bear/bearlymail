@@ -7,6 +7,7 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -88,6 +89,7 @@ export class PriorityController {
   }
 
   @Post("star-feedback")
+  @Throttle({ feedback: {} })
   async storeStarFeedback(
     @Request() req,
     @Body()
@@ -190,6 +192,7 @@ export class PriorityController {
   }
 
   @Post(":emailId/feedback")
+  @Throttle({ feedback: {} })
   async providePriorityFeedback(
     @Request() req,
     @Param("emailId") emailId: string,

@@ -18,6 +18,7 @@ import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
+import { User } from "../database/entities/user.entity";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
@@ -26,6 +27,24 @@ import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import { analyzeThreadStyle } from "../utils/thread-style-extractor";
 import { FollowUpsService } from "./follow-ups.service";
+
+type ThreadMessage = {
+  from: string;
+  fromName?: string;
+  body: string;
+  receivedAt: Date;
+  isFromUser: boolean;
+};
+
+type FollowUpContext = {
+  user: User;
+  userEmail: string;
+  threadMessages: ThreadMessage[];
+  theirName: string;
+  businessDaysWaiting: number;
+  userCommunicationStyle: { tone?: string; commonPhrases?: string[] };
+  threadStyleInfo: ReturnType<typeof analyzeThreadStyle>;
+};
 
 @Injectable()
 export class FollowUpsProcessor implements OnModuleInit {
@@ -59,6 +78,145 @@ export class FollowUpsProcessor implements OnModuleInit {
     this.logger.log("Follow-ups processor initialized");
   }
 
+  /**
+   * Gather all data needed to generate a follow-up draft:
+   * user info, thread messages (decrypted), communication style, thread style analysis.
+   */
+  private async buildFollowUpContext(
+    userId: string,
+    threadId: string,
+  ): Promise<FollowUpContext> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) throw new Error("User not found");
+    const userEmail = EncryptionHelper.decrypt(user.email);
+
+    const threadEmails = await this.emailRepository.find({
+      where: { userId, threadId },
+      order: { receivedAt: "ASC" },
+    });
+    if (threadEmails.length === 0) throw new Error("No emails found in thread");
+
+    const lastMessages = threadEmails.slice(-THREAD_LIMITS.LAST_MESSAGES);
+    const threadMessages: ThreadMessage[] = await Promise.all(
+      lastMessages.map(async (email) => {
+        const isFromUser =
+          email.labels?.includes("SENT") ||
+          EncryptionHelper.decrypt(email.from).toLowerCase() ===
+            userEmail.toLowerCase();
+        return {
+          from: EncryptionHelper.decrypt(email.from),
+          fromName: email.fromName
+            ? EncryptionHelper.decrypt(email.fromName)
+            : undefined,
+          body: EncryptionHelper.decrypt(email.body),
+          receivedAt: email.receivedAt,
+          isFromUser,
+        };
+      }),
+    );
+
+    const lastUserMessage = threadMessages
+      .filter((message) => message.isFromUser)
+      .sort(
+        (itemA, itemB) =>
+          itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
+      )[0];
+    if (!lastUserMessage) throw new Error("No user message found in thread");
+
+    const businessDaysWaiting = calculateBusinessDays(
+      lastUserMessage.receivedAt,
+      new Date(),
+    );
+
+    const contexts = await this.contextService.getUserContext(userId);
+    const tone = contexts.find(
+      (item) => item.contextKey === ContextKey.WRITING_STYLE_TONE,
+    )?.contextValue;
+    const commonPhrases = contexts
+      .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
+      .map((item) => EncryptionHelper.decrypt(item.contextValue));
+
+    const recipientMessages = threadMessages
+      .filter((message) => !message.isFromUser)
+      .sort(
+        (itemA, itemB) =>
+          itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
+      );
+
+    const lastTheirMessage = recipientMessages[0];
+    const theirName =
+      lastTheirMessage?.fromName || lastTheirMessage?.from || "there";
+
+    const userDisplayName = user.displayName
+      ? EncryptionHelper.decrypt(user.displayName)
+      : undefined;
+    const threadStyleInfo = analyzeThreadStyle(
+      recipientMessages,
+      userDisplayName,
+    );
+
+    return {
+      user,
+      userEmail,
+      threadMessages,
+      theirName,
+      businessDaysWaiting,
+      userCommunicationStyle: {
+        tone,
+        commonPhrases: commonPhrases.length > 0 ? commonPhrases : undefined,
+      },
+      threadStyleInfo,
+    };
+  }
+
+  /** Record a generation failure on the FollowUp entity without throwing. */
+  private async recordFollowUpGenerationError(
+    userId: string,
+    followUpId: string,
+    error: unknown,
+  ): Promise<void> {
+    try {
+      const followUp = await this.followUpRepository.findOne({
+        where: { id: followUpId, userId },
+      });
+      if (followUp) {
+        followUp.generationStatus = "error";
+        followUp.generationError =
+          error instanceof Error ? error.message : String(error);
+        await this.followUpRepository.save(followUp);
+      }
+    } catch (saveError) {
+      this.logger.error(
+        `Failed to save error state for follow-up ${followUpId}:`,
+        saveError,
+      );
+    }
+  }
+
+  /** Record a send failure on the FollowUp entity without throwing. */
+  private async recordFollowUpSendError(
+    userId: string,
+    followUpId: string,
+    error: unknown,
+  ): Promise<void> {
+    try {
+      const followUp = await this.followUpRepository.findOne({
+        where: { id: followUpId, userId },
+      });
+      if (followUp) {
+        followUp.sendStatus = "failed";
+        followUp.sendError =
+          error instanceof Error ? error.message : String(error);
+        await this.followUpRepository.save(followUp);
+      }
+    } catch (saveError) {
+      this.logger.error(
+        `Failed to save error state for follow-up ${followUpId}:`,
+        saveError,
+      );
+    }
+  }
+
   private async handleGenerateFollowUpDraftJob(job: PgBoss.Job) {
     const { userId, followUpId, threadId } = job.data as {
       userId: string;
@@ -89,103 +247,21 @@ export class FollowUpsProcessor implements OnModuleInit {
       followUp.generationError = null;
       await this.followUpRepository.save(followUp);
 
-      const user = await this.usersService.findOne(userId);
-      if (!user) throw new Error("User not found");
-      const userEmail = EncryptionHelper.decrypt(user.email);
-
-      const threadEmails = await this.emailRepository.find({
-        where: { userId, threadId },
-        order: { receivedAt: "ASC" },
-      });
-
-      if (threadEmails.length === 0)
-        throw new Error("No emails found in thread");
-
-      const lastMessages = threadEmails.slice(-THREAD_LIMITS.LAST_MESSAGES);
-      const threadMessages = await Promise.all(
-        lastMessages.map(async (email) => {
-          const isFromUser =
-            email.labels?.includes("SENT") ||
-            EncryptionHelper.decrypt(email.from).toLowerCase() ===
-              userEmail.toLowerCase();
-
-          return {
-            from: EncryptionHelper.decrypt(email.from),
-            fromName: email.fromName
-              ? EncryptionHelper.decrypt(email.fromName)
-              : undefined,
-            body: EncryptionHelper.decrypt(email.body),
-            receivedAt: email.receivedAt,
-            isFromUser,
-          };
-        }),
-      );
-
-      const lastUserMessage = threadMessages
-        .filter((message) => message.isFromUser)
-        .sort(
-          (itemA, itemB) =>
-            itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
-        )[0];
-
-      if (!lastUserMessage) throw new Error("No user message found in thread");
-
-      const now = new Date();
-      const businessDaysWaiting = calculateBusinessDays(
-        lastUserMessage.receivedAt,
-        now,
-      );
-
-      const contexts = await this.contextService.getUserContext(userId);
-      const tone = contexts.find(
-        (item) => item.contextKey === ContextKey.WRITING_STYLE_TONE,
-      )?.contextValue;
-      const commonPhrases = contexts
-        .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
-        .map((item) => EncryptionHelper.decrypt(item.contextValue));
-
-      const userCommunicationStyle = {
-        tone,
-        commonPhrases: commonPhrases.length > 0 ? commonPhrases : undefined,
-      };
-
-      // Analyze thread style to extract preferred name and greeting style
-      // This helps make follow-ups sound more natural by matching the recipient's style
-      const recipientMessages = threadMessages
-        .filter((message) => !message.isFromUser)
-        .sort(
-          (itemA, itemB) =>
-            itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
-        );
-
-      // Get recipient name (formal name from email headers)
-      const lastTheirMessage = recipientMessages[0];
-      const theirName =
-        lastTheirMessage?.fromName || lastTheirMessage?.from || "there";
-
-      // Get user's display name to help detect greeting patterns
-      const userDisplayName = user.displayName
-        ? EncryptionHelper.decrypt(user.displayName)
-        : undefined;
-
-      const threadStyleInfo = analyzeThreadStyle(
-        recipientMessages,
-        userDisplayName,
-      );
+      const ctx = await this.buildFollowUpContext(userId, threadId);
 
       this.logger.debug(
-        `Thread style analysis for follow-up ${followUpId}: hasPreferredName=${!!threadStyleInfo.preferredName}, greetingStyle=${threadStyleInfo.greetingStyle}`,
+        `Thread style analysis for follow-up ${followUpId}: hasPreferredName=${!!ctx.threadStyleInfo.preferredName}, greetingStyle=${ctx.threadStyleInfo.greetingStyle}`,
       );
 
       const draft = await this.llmService.generateFollowUpDraft(
         followUp.subject || "Follow up",
-        threadMessages,
-        theirName,
-        businessDaysWaiting,
-        userCommunicationStyle,
+        ctx.threadMessages,
+        ctx.theirName,
+        ctx.businessDaysWaiting,
+        ctx.userCommunicationStyle,
         undefined,
         userId,
-        threadStyleInfo,
+        ctx.threadStyleInfo,
       );
 
       followUp.draftFollowUp = draft;
@@ -202,23 +278,7 @@ export class FollowUpsProcessor implements OnModuleInit {
         `[Worker ${workerId}] Error generating follow-up draft for ${followUpId}:`,
         error,
       );
-
-      try {
-        const followUp = await this.followUpRepository.findOne({
-          where: { id: followUpId, userId },
-        });
-        if (followUp) {
-          followUp.generationStatus = "error";
-          followUp.generationError =
-            error instanceof Error ? error.message : String(error);
-          await this.followUpRepository.save(followUp);
-        }
-      } catch (saveError) {
-        this.logger.error(
-          `Failed to save error state for follow-up ${followUpId}:`,
-          saveError,
-        );
-      }
+      await this.recordFollowUpGenerationError(userId, followUpId, error);
     }
   }
 
@@ -276,6 +336,73 @@ export class FollowUpsProcessor implements OnModuleInit {
     if (lastError) throw lastError;
   }
 
+  /**
+   * Process a single follow-up within the bulk-send job.
+   * Returns a result object (success/failure) — never throws.
+   */
+  private async sendSingleFollowUp(
+    userId: string,
+    followUpId: string,
+  ): Promise<{ followUpId: string; success: boolean; error?: string }> {
+    try {
+      const followUp = await this.followUpRepository.findOne({
+        where: { id: followUpId, userId },
+      });
+
+      if (!followUp) {
+        return { followUpId, success: false, error: "Follow-up not found" };
+      }
+      if (!followUp.draftFollowUp) {
+        return { followUpId, success: false, error: "No draft available" };
+      }
+
+      followUp.sendStatus = "sending";
+      followUp.sendError = null;
+      await this.followUpRepository.save(followUp);
+
+      const threadEmails = await this.emailRepository.find({
+        where: { userId, threadId: followUp.threadId },
+        order: { receivedAt: "DESC" },
+        take: 1,
+      });
+
+      if (threadEmails.length === 0) throw new Error("Thread not found");
+
+      const lastEmail = threadEmails[0];
+      const recipient = EncryptionHelper.decrypt(lastEmail.from);
+      const rawSubject =
+        followUp.subject ||
+        EncryptionHelper.decrypt(lastEmail.subject) ||
+        "Follow up";
+      const subject = rawSubject.toLowerCase().startsWith("re:")
+        ? rawSubject
+        : `Re: ${rawSubject}`;
+
+      const draft = EncryptionHelper.decrypt(followUp.draftFollowUp);
+      await this.sendFollowUpWithRetry(
+        userId,
+        followUp,
+        draft,
+        recipient,
+        subject,
+      );
+
+      followUp.sendStatus = "sent";
+      followUp.status = FollowUpStatus.COMPLETED;
+      await this.followUpRepository.save(followUp);
+
+      return { followUpId, success: true };
+    } catch (error) {
+      this.logger.error(`Error sending follow-up ${followUpId}:`, error);
+      await this.recordFollowUpSendError(userId, followUpId, error);
+      return {
+        followUpId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   private async handleBulkSendFollowUpsJob(job: PgBoss.Job) {
     const { userId, followUpIds } = job.data as {
       userId: string;
@@ -286,100 +413,11 @@ export class FollowUpsProcessor implements OnModuleInit {
       `[Worker ${workerId}] Starting bulk send for ${followUpIds.length} follow-ups`,
     );
 
-    const results: Array<{
-      followUpId: string;
-      success: boolean;
-      error?: string;
-    }> = [];
-
-    for (const followUpId of followUpIds) {
-      try {
-        const followUp = await this.followUpRepository.findOne({
-          where: { id: followUpId, userId },
-        });
-
-        if (!followUp) {
-          results.push({
-            followUpId,
-            success: false,
-            error: "Follow-up not found",
-          });
-          continue;
-        }
-
-        if (!followUp.draftFollowUp) {
-          results.push({
-            followUpId,
-            success: false,
-            error: "No draft available",
-          });
-          continue;
-        }
-
-        followUp.sendStatus = "sending";
-        followUp.sendError = null;
-        await this.followUpRepository.save(followUp);
-
-        const threadEmails = await this.emailRepository.find({
-          where: { userId, threadId: followUp.threadId },
-          order: { receivedAt: "DESC" },
-          take: 1,
-        });
-
-        if (threadEmails.length === 0) throw new Error("Thread not found");
-
-        const lastEmail = threadEmails[0];
-        const recipient = EncryptionHelper.decrypt(lastEmail.from);
-        let subject =
-          followUp.subject ||
-          EncryptionHelper.decrypt(lastEmail.subject) ||
-          "Follow up";
-
-        if (!subject.toLowerCase().startsWith("re:")) {
-          subject = `Re: ${subject}`;
-        }
-
-        const draft = EncryptionHelper.decrypt(followUp.draftFollowUp);
-        await this.sendFollowUpWithRetry(
-          userId,
-          followUp,
-          draft,
-          recipient,
-          subject,
-        );
-
-        followUp.sendStatus = "sent";
-        followUp.status = FollowUpStatus.COMPLETED;
-        await this.followUpRepository.save(followUp);
-
-        results.push({ followUpId, success: true });
-      } catch (error) {
-        this.logger.error(`Error sending follow-up ${followUpId}:`, error);
-
-        try {
-          const followUp = await this.followUpRepository.findOne({
-            where: { id: followUpId, userId },
-          });
-          if (followUp) {
-            followUp.sendStatus = "failed";
-            followUp.sendError =
-              error instanceof Error ? error.message : String(error);
-            await this.followUpRepository.save(followUp);
-          }
-        } catch (saveError) {
-          this.logger.error(
-            `Failed to save error state for follow-up ${followUpId}:`,
-            saveError,
-          );
-        }
-
-        results.push({
-          followUpId,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    const results = await Promise.all(
+      followUpIds.map((followUpId) =>
+        this.sendSingleFollowUp(userId, followUpId),
+      ),
+    );
 
     this.logger.log(
       `[Worker ${workerId}] Bulk send completed: ${results.filter((result) => result.success).length}/${results.length} succeeded`,

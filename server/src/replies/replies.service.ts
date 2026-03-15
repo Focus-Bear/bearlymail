@@ -29,6 +29,22 @@ export interface ReplyRule {
   priority: number;
 }
 
+type ReplyAttachment = { filename: string; mimeType: string; content: Buffer };
+type InlineImage = {
+  contentId: string;
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+};
+
+type ReplyPayload = {
+  bodyWithSignature: string;
+  replySubject: string;
+  replyToAddress: string;
+  allAttachments: ReplyAttachment[];
+  allInlineImages: InlineImage[];
+};
+
 @Injectable()
 export class RepliesService {
   private readonly logger = new Logger(RepliesService.name);
@@ -443,52 +459,43 @@ ${closing}`;
     return `${userText}\n\n${header}\n\n${originalBody}`;
   }
 
-  async sendReply(
+  /**
+   * Build the reply subject with the appropriate prefix (Re:/Fwd:).
+   */
+  private buildReplySubject(subject: string, isForward: boolean): string {
+    if (isForward) {
+      return subject.toLowerCase().startsWith("fwd:")
+        ? subject
+        : `Fwd: ${subject}`;
+    }
+    return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
+  }
+
+  /**
+   * Gather all attachment data (user-supplied + forwarded) and resolve the
+   * reply-to address.  Returns the complete payload ready for dispatch.
+   */
+  private async buildReplyPayload(
     userId: string,
-    emailId: string,
     body: string,
+    email: Email,
+    user: { emailSignature: string | null },
+    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
     options: {
-      attachments?: Array<{
-        filename: string;
-        mimeType: string;
-        content: Buffer;
-      }>;
-      /** Inline images to embed as CID MIME parts in the email. */
-      inlineImages?: Array<{
-        contentId: string;
-        filename: string;
-        mimeType: string;
-        content: Buffer;
-      }>;
-      expectedReplyHours?: number;
+      attachments?: ReplyAttachment[];
+      inlineImages?: InlineImage[];
       forwardAttachmentIds?: string[];
       recipients?: string;
-      cc?: string;
-      bcc?: string;
       isForward?: boolean;
-    } = {},
-  ): Promise<void> {
+    },
+  ): Promise<ReplyPayload> {
     const {
       attachments,
       inlineImages,
-      expectedReplyHours,
       forwardAttachmentIds,
       recipients,
-      cc,
-      bcc,
       isForward = false,
     } = options;
-
-    const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    const user = await this.usersService.findOne(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const userEmail = EncryptionHelper.decrypt(user.email);
 
     // Bug 4 fix: append original email content for forwards
     const bodyForSending = isForward
@@ -499,22 +506,7 @@ ${closing}`;
       user.emailSignature,
     );
 
-    // Bug 2 fix: use Fwd: prefix for forwards, Re: for replies
-    let replySubject = email.subject;
-    if (isForward) {
-      if (!replySubject.toLowerCase().startsWith("fwd:")) {
-        replySubject = `Fwd: ${replySubject}`;
-      }
-    } else if (!replySubject.toLowerCase().startsWith("re:")) {
-      replySubject = `Re: ${replySubject}`;
-    }
-
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (!provider) {
-      throw new Error(
-        "No email provider connected. Please connect your email account.",
-      );
-    }
+    const replySubject = this.buildReplySubject(email.subject, isForward);
 
     const replyToAddress =
       recipients && recipients.trim()
@@ -530,26 +522,48 @@ ${closing}`;
             forwardAttachmentIds,
           )
         : [];
-    const allAttachments = [...(attachments || []), ...forwardedAttachments];
-    // Inline images are passed separately so the MIME builder can wrap them in
-    // multipart/related with Content-ID headers instead of treating them as
-    // regular attachments with Content-Disposition: attachment.
-    const allInlineImages = inlineImages ?? [];
 
-    let sentMessage: { messageId: string; threadId: string };
+    return {
+      bodyWithSignature,
+      replySubject,
+      replyToAddress,
+      allAttachments: [...(attachments || []), ...forwardedAttachments],
+      allInlineImages: inlineImages ?? [],
+    };
+  }
+
+  /**
+   * Send the email via the provider — forward (new thread) or reply (same thread).
+   */
+  private async dispatchReply(
+    userId: string,
+    email: Email,
+    provider: NonNullable<
+      Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>
+    >,
+    payload: ReplyPayload,
+    options: { cc?: string; bcc?: string; isForward?: boolean },
+  ): Promise<{ messageId: string; threadId: string }> {
+    const { cc, bcc, isForward = false } = options;
+    const {
+      bodyWithSignature,
+      replySubject,
+      replyToAddress,
+      allAttachments,
+      allInlineImages,
+    } = payload;
 
     if (isForward) {
-      // Bug 3 fix: forwards go out as new standalone emails (no threadId),
-      // so they start a fresh conversation in the recipient's inbox.
+      // Bug 3 fix: forwards go out as new standalone emails (no threadId)
       const toRecipients = parseRecipientsFromString(replyToAddress);
       const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
       const bccRecipients = bcc ? parseRecipientsFromString(bcc) : undefined;
-
       const forwardAttachmentsWithInline = [
         ...allAttachments,
         ...allInlineImages,
       ];
-      sentMessage = await provider.sendEmail(
+
+      return provider.sendEmail(
         userId,
         toRecipients,
         replySubject,
@@ -560,37 +574,87 @@ ${closing}`;
           ? forwardAttachmentsWithInline
           : undefined,
       );
-    } else {
-      // Regular reply — thread into the existing conversation
-      // Merge inline images into the attachments list with contentId set.
-      // buildEmailContent (gmail-send.ts) routes them into multipart/related
-      // when contentId is present.
-      const attachmentsWithInline = [...allAttachments, ...allInlineImages];
-      sentMessage = await provider.sendReply(
-        userId,
-        email.threadId,
-        replyToAddress,
-        replySubject,
-        bodyWithSignature,
-        {
-          attachments:
-            attachmentsWithInline.length > 0
-              ? attachmentsWithInline
-              : undefined,
-          htmlBody: bodyWithSignature,
-          cc: cc || undefined,
-          bcc: bcc || undefined,
-        },
+    }
+
+    // Regular reply — thread into the existing conversation
+    const attachmentsWithInline = [...allAttachments, ...allInlineImages];
+    return provider.sendReply(
+      userId,
+      email.threadId,
+      replyToAddress,
+      replySubject,
+      bodyWithSignature,
+      {
+        attachments:
+          attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
+        htmlBody: bodyWithSignature,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+      },
+    );
+  }
+
+  async sendReply(
+    userId: string,
+    emailId: string,
+    body: string,
+    options: {
+      attachments?: ReplyAttachment[];
+      /** Inline images to embed as CID MIME parts in the email. */
+      inlineImages?: InlineImage[];
+      expectedReplyHours?: number;
+      forwardAttachmentIds?: string[];
+      recipients?: string;
+      cc?: string;
+      bcc?: string;
+      isForward?: boolean;
+    } = {},
+  ): Promise<void> {
+    const { expectedReplyHours, cc, bcc, isForward = false } = options;
+
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) throw new Error("Email not found");
+
+    const user = await this.usersService.findOne(userId);
+    if (!user) throw new Error("User not found");
+
+    const userEmail = EncryptionHelper.decrypt(user.email);
+
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error(
+        "No email provider connected. Please connect your email account.",
       );
     }
+
+    const payload = await this.buildReplyPayload(
+      userId,
+      body,
+      email,
+      user,
+      provider,
+      options,
+    );
+
+    const sentMessage = await this.dispatchReply(
+      userId,
+      email,
+      provider,
+      payload,
+      {
+        cc,
+        bcc,
+        isForward,
+      },
+    );
 
     await this.storeSentReply(
       userId,
       user,
       email,
       sentMessage,
-      replySubject,
-      bodyWithSignature,
+      payload.replySubject,
+      payload.bodyWithSignature,
       userEmail,
     );
 

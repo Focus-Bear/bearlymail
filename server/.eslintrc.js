@@ -342,16 +342,13 @@ module.exports = {
     {
       // Additional large legacy modules pending decomposition.
       files: [
-        'src/auto-responder/auto-responder.service.ts',
         'src/context/context-batch-analysis.processor.ts',
         'src/context/context-error-handler.ts',
         'src/emails/email-debug.service.ts',
         'src/emails/email-search.service.ts',
         'src/emails/emails.service.ts',
-        'src/follow-ups/follow-ups.processor.ts',
         'src/llm/llm.service.ts',
         'src/llm/priority-analysis.service.ts',
-        'src/replies/replies.service.ts',
       ],
       rules: {
         'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],

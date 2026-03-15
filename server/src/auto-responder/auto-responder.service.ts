@@ -91,6 +91,60 @@ export class AutoResponderService {
   }
 
   /**
+   * Load the thread and resolve the latest (most-recent) email.
+   * Returns a skip result when the thread is missing/empty, too old,
+   * or already has user replies.
+   */
+  private async resolveLatestEmail(
+    userId: string,
+    emailThreadId: string,
+    logContext: AutoresponderDecisionContext,
+  ): Promise<
+    | { skip: { sent: boolean; reason: string } }
+    | { thread: EmailThread; latestEmail: Email; hasUserReplies: boolean }
+  > {
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: emailThreadId, userId },
+      relations: ["emails"],
+    });
+
+    if (!thread || !thread.emails || thread.emails.length === 0) {
+      const reason = "Thread or emails not found";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { threadFound: !!thread, emailCount: thread?.emails?.length },
+      });
+      return { skip: { sent: false, reason } };
+    }
+
+    const latestEmail = thread.emails.sort(
+      (emailA, emailB) =>
+        new Date(emailB.receivedAt).getTime() -
+        new Date(emailA.receivedAt).getTime(),
+    )[0];
+
+    logContext.senderEmail = latestEmail.from;
+    logContext.subject = latestEmail.subject;
+
+    const ageCheck = this.checkEmailAge(latestEmail.receivedAt, logContext);
+    if (ageCheck) return { skip: ageCheck };
+
+    const hasUserReplies = await this.threadHasUserReplies(userId, thread);
+    if (hasUserReplies) {
+      const reason = "Thread already has user replies";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { emailCount: thread.emails.length },
+      });
+      return { skip: { sent: false, reason } };
+    }
+
+    return { thread, latestEmail, hasUserReplies };
+  }
+
+  /**
    * Main entry point: determine if auto-response should be sent and send it
    */
   async processEmailForAutoResponse(
@@ -98,15 +152,10 @@ export class AutoResponderService {
     emailThreadId: string,
     headers?: Record<string, string>,
   ): Promise<{ sent: boolean; reason: string }> {
-    const logContext: AutoresponderDecisionContext = {
-      userId,
-      emailThreadId,
-    };
-
+    const logContext: AutoresponderDecisionContext = { userId, emailThreadId };
     autoresponderLogger.logProcessingStart(logContext);
 
     const config = await this.getConfig(userId);
-
     autoresponderLogger.logConfigCheck(logContext, config.enabled, {
       sendForHighPriority: config.sendFor.highPriority,
       sendForStandardPriority: config.sendFor.standardPriority,
@@ -128,46 +177,13 @@ export class AutoResponderService {
     );
     if (earlySkip) return earlySkip;
 
-    const thread = await this.emailThreadRepository.findOne({
-      where: { id: emailThreadId, userId },
-      relations: ["emails"],
-    });
-
-    if (!thread || !thread.emails || thread.emails.length === 0) {
-      const reason = "Thread or emails not found";
-      autoresponderLogger.logDecision(logContext, {
-        decision: "SKIP",
-        reason,
-        details: { threadFound: !!thread, emailCount: thread?.emails?.length },
-      });
-      return { sent: false, reason };
-    }
-
-    const latestEmail = thread.emails.sort(
-      (emailA, emailB) =>
-        new Date(emailB.receivedAt).getTime() -
-        new Date(emailA.receivedAt).getTime(),
-    )[0];
-
-    logContext.senderEmail = latestEmail.from;
-    logContext.subject = latestEmail.subject;
-
-    const emailAgeCheck = this.checkEmailAge(
-      latestEmail.receivedAt,
+    const threadResult = await this.resolveLatestEmail(
+      userId,
+      emailThreadId,
       logContext,
     );
-    if (emailAgeCheck) return emailAgeCheck;
-
-    const hasUserReplies = await this.threadHasUserReplies(userId, thread);
-    if (hasUserReplies) {
-      const reason = "Thread already has user replies";
-      autoresponderLogger.logDecision(logContext, {
-        decision: "SKIP",
-        reason,
-        details: { emailCount: thread.emails.length },
-      });
-      return { sent: false, reason };
-    }
+    if ("skip" in threadResult) return threadResult.skip;
+    const { thread, latestEmail, hasUserReplies } = threadResult;
 
     const { skip: classificationSkip, classification } =
       await this.checkClassificationSkip(
@@ -197,7 +213,10 @@ export class AutoResponderService {
       latestEmail,
       user,
       emailThreadId,
-      { priorityLevel, classification: classification! },
+      {
+        priorityLevel,
+        classification: classification!,
+      },
     );
   }
 
@@ -220,6 +239,37 @@ export class AutoResponderService {
       return { sent: false, reason };
     }
     return null;
+  }
+
+  /** Check custom exclusion rules; returns a skip result or null if no match. */
+  private async checkCustomExclusionSkip(
+    logContext: AutoresponderDecisionContext,
+    config: AutoResponderConfig,
+    latestEmail: {
+      from: string;
+      fromName: string | null;
+      subject: string;
+      body: string;
+    },
+  ): Promise<{ sent: boolean; reason: string } | null> {
+    if (!config.customExclusionRules?.length) return null;
+    const result = await this.contextService.checkCustomExclusionRules(
+      {
+        from: latestEmail.from,
+        fromName: latestEmail.fromName || undefined,
+        subject: latestEmail.subject,
+        body: latestEmail.body,
+      },
+      config.customExclusionRules,
+    );
+    if (!result.matched) return null;
+    const reason = `Custom exclusion rule matched: ${result.matchedRule} (${result.reason})`;
+    autoresponderLogger.logDecision(logContext, {
+      decision: "SKIP",
+      reason,
+      details: { matchedRule: result.matchedRule, ruleReason: result.reason },
+    });
+    return { sent: false, reason };
   }
 
   private async checkClassificationSkip(
@@ -307,30 +357,12 @@ export class AutoResponderService {
       };
     }
 
-    if (config.customExclusionRules && config.customExclusionRules.length > 0) {
-      const customExclusionResult =
-        await this.contextService.checkCustomExclusionRules(
-          {
-            from: latestEmail.from,
-            fromName: latestEmail.fromName || undefined,
-            subject: latestEmail.subject,
-            body: latestEmail.body,
-          },
-          config.customExclusionRules,
-        );
-      if (customExclusionResult.matched) {
-        const reason = `Custom exclusion rule matched: ${customExclusionResult.matchedRule} (${customExclusionResult.reason})`;
-        autoresponderLogger.logDecision(logContext, {
-          decision: "SKIP",
-          reason,
-          details: {
-            matchedRule: customExclusionResult.matchedRule,
-            ruleReason: customExclusionResult.reason,
-          },
-        });
-        return { skip: { sent: false, reason }, classification: null };
-      }
-    }
+    const customSkip = await this.checkCustomExclusionSkip(
+      logContext,
+      config,
+      latestEmail,
+    );
+    if (customSkip) return { skip: customSkip, classification: null };
 
     return { skip: null, classification };
   }
@@ -507,6 +539,89 @@ export class AutoResponderService {
     );
   }
 
+  /**
+   * Persist the sent auto-response: save the Email entity, log analytics,
+   * guard the thread from sync-archiving, and add cooldown suppression.
+   */
+  private async persistAutoResponseRecord(
+    userId: string,
+    emailThreadId: string,
+    thread: EmailThread,
+    user: User,
+    replyToAddress: string,
+    sentResult: { messageId?: string } | null | undefined,
+    prepared: PreparedResponse,
+    config: AutoResponderConfig,
+  ): Promise<void> {
+    const {
+      senderEmailHash,
+      priorityLevel,
+      qaResult,
+      templateUsed,
+      responseBody,
+      responseSubject,
+      responseHtmlBody,
+      classification,
+    } = prepared;
+
+    // Save an Email entity for the sent reply with sentByAutoResponder=true.
+    // sentResult may be undefined for providers that don't return message metadata;
+    // we skip saving the Email entity in that case (Gmail sync creates it on next sync).
+    if (sentResult?.messageId) {
+      await this.emailRepository.save({
+        userId,
+        messageId: sentResult.messageId,
+        threadId: thread.threadId,
+        emailThreadId,
+        from: user.email,
+        to: replyToAddress,
+        subject: responseSubject,
+        body: responseBody,
+        htmlBody: responseHtmlBody,
+        isRead: true,
+        isSnoozed: false,
+        isBatched: false,
+        wasDeliveredEarly: false,
+        sentByAutoResponder: true,
+      });
+    }
+
+    await this.analyticsService.logAutoResponse({
+      userId,
+      emailThreadId,
+      senderEmailHash,
+      priorityLevel,
+      qaResult: qaResult
+        ? {
+            answer: qaResult.answer,
+            confidence: qaResult.confidence,
+            sources:
+              (
+                qaResult as {
+                  sources?: Array<{ question: string; answer: string }>;
+                }
+              ).sources || [],
+          }
+        : { answer: "", confidence: 0, sources: [] },
+      templateUsed,
+      responseSubject,
+      responseBody,
+      classification,
+    });
+
+    // Guard thread from Gmail sync archiving for 24 h (see inline docs in original method).
+    await this.emailThreadRepository.update(
+      { id: emailThreadId },
+      { lastAutoRespondedAt: new Date() },
+    );
+
+    await this.contextService.addCooldownSuppression(
+      userId,
+      senderEmailHash,
+      config.cooldownPeriodDays,
+    );
+  }
+
   private async sendAutoResponse(
     logContext: AutoresponderDecisionContext,
     config: AutoResponderConfig,
@@ -518,14 +633,12 @@ export class AutoResponderService {
   ): Promise<{ sent: boolean; reason: string }> {
     const userId = user.id;
     const {
-      senderEmailHash,
+      templateUsed,
       priorityLevel,
       qaResult,
-      templateUsed,
       responseBody,
       responseSubject,
       responseHtmlBody,
-      classification,
     } = prepared;
     try {
       const provider =
@@ -554,69 +667,15 @@ export class AutoResponderService {
         { htmlBody: responseHtmlBody },
       );
 
-      // Save an Email entity for the sent reply with sentByAutoResponder=true.
-      // This allows checkThreadFollowUpStatus to identify autoresponder replies
-      // deterministically — no fragile timestamp cross-referencing needed.
-      // Gmail sync will skip this messageId (already exists) when it runs later.
-      // sentResult may be undefined for providers that don't return message metadata;
-      // we still mark the thread and proceed, but skip saving the Email entity when
-      // no messageId is available (Gmail sync will create the entity on next sync).
-      if (sentResult?.messageId) {
-        await this.emailRepository.save({
-          userId,
-          messageId: sentResult.messageId,
-          threadId: thread.threadId,
-          emailThreadId,
-          from: user.email,
-          to: replyToAddress,
-          subject: responseSubject,
-          body: responseBody,
-          htmlBody: responseHtmlBody,
-          isRead: true,
-          isSnoozed: false,
-          isBatched: false,
-          wasDeliveredEarly: false,
-          sentByAutoResponder: true,
-        });
-      }
-
-      await this.analyticsService.logAutoResponse({
+      await this.persistAutoResponseRecord(
         userId,
         emailThreadId,
-        senderEmailHash,
-        priorityLevel,
-        qaResult: qaResult
-          ? {
-              answer: qaResult.answer,
-              confidence: qaResult.confidence,
-              sources:
-                (
-                  qaResult as {
-                    sources?: Array<{ question: string; answer: string }>;
-                  }
-                ).sources || [],
-            }
-          : { answer: "", confidence: 0, sources: [] },
-        templateUsed,
-        responseSubject,
-        responseBody,
-        classification,
-      });
-
-      // Guard the thread from Gmail sync archiving. When we send an auto-reply, Gmail may
-      // remove the INBOX label from the thread (because a reply was sent), which causes
-      // the BearlyMail sync job to set isArchived=true — making the email invisible to
-      // the user. Setting lastAutoRespondedAt marks the thread so batchUpdateThreadArchivedStatuses
-      // will skip it for 24 hours, preserving inbox visibility.
-      await this.emailThreadRepository.update(
-        { id: emailThreadId },
-        { lastAutoRespondedAt: new Date() },
-      );
-
-      await this.contextService.addCooldownSuppression(
-        userId,
-        senderEmailHash,
-        config.cooldownPeriodDays,
+        thread,
+        user,
+        replyToAddress,
+        sentResult,
+        prepared,
+        config,
       );
 
       autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
@@ -630,7 +689,6 @@ export class AutoResponderService {
           recipient: latestEmail.from,
         },
       });
-
       this.logger.log(
         `Auto-response sent for thread ${emailThreadId} to ${latestEmail.from}`,
       );

@@ -2,71 +2,79 @@
 
 > **Created by:** Monk of Modularity (AI planning agent)
 > **Issue:** https://github.com/Focus-Bear/BearlyMail/issues/805
+> **Previous implementation:** PR #817 was closed without merging — please review notes below.
 
 ---
 
 ## Problem Analysis
 
-When all emails in a category are archived, the category accordion remains visible (empty/expanded). It should auto-collapse and ideally disappear from the visible list, but archive feedback (the undo toast) should still be accessible even when the category is collapsed.
+When all emails in a category are individually archived (one by one), the category accordion remains visible and expanded — showing an empty state. It should auto-collapse and/or disappear when its email count hits 0.
+
+**Note:** The "Archive All" flow in `CategoryAccordion.handleConfirmArchive` already calls `onToggle()` to collapse after bulk archive. The bug is specifically about archiving emails **one by one** until the category is empty — no collapse happens.
 
 ---
 
-## Root Cause Hypothesis
+## Root Cause
 
-### No auto-collapse logic
-`CategoryAccordion` in `client/src/components/inbox/CategoryAccordion.tsx` does not watch the email count and auto-collapse when it hits 0. The `isExpanded` state is controlled externally (in the parent `Inbox` or `TriageInbox` components), and nothing responds to email count hitting 0.
+`useInboxCategoryAccordion` maintains `expandedCategories` as a `Set<string>`. Nothing in the accordion code watches the email count per category and auto-collapses when a category's email count drops to 0.
 
-### Archive feedback visibility when collapsed
-`ArchiveConfirmationToast` is rendered inside the accordion body. If the category auto-collapses on empty, the toast disappears with it. The toast needs to be rendered at a higher level (above the accordion) so it persists.
+The `displayCategories` array (built by `buildDisplayCategories` in `inboxCategoryHelpers.ts`) tracks category email counts. When an email is archived, `filteredEmails` (which filters out archived emails) shrinks, and `emailCategoryMap` updates. But `expandedCategories` never responds to this change.
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Auto-collapse category when email count drops to 0
+### Step 1: Auto-collapse when category email count drops to 0
 
-**File:** `client/src/pages/Inbox.tsx` (or `FocusedInbox.tsx` / wherever `CategoryAccordion` is rendered)
+**File:** `client/src/hooks/useInboxCategoryAccordion.ts`
 
-- When the `emails` prop for a category becomes an empty array (all archived), trigger a collapse (set `isExpanded = false` for that category).
-- Use a `useEffect` that watches the email count per category and calls `onToggle` or sets a local `expandedCategories` state.
+Add a new effect that watches `displayCategories` (or `emailCategoryMap`) and collapses any expanded category whose email count is now 0:
 
-**Alternative (simpler): Handle in `CategoryAccordion` itself:**
+```typescript
+// After all categories are loaded and rendered, auto-collapse empty ones
+useEffect(() => {
+  if (!displayCategories.length) return;
+  setExpandedCategories(prev => {
+    let changed = false;
+    const next = new Set(prev);
+    for (const cat of displayCategories) {
+      const key = getCategoryKey(cat.id, cat.name);
+      if (next.has(key) && cat.count === 0) {
+        next.delete(key);
+        changed = true;
+      }
+    }
+    return changed ? next : prev;
+  });
+}, [displayCategories]);
+```
 
-**File:** `client/src/components/inbox/CategoryAccordion.tsx`
+**Alternative location:** `client/src/components/inbox/useInboxContentState.ts` — add a similar effect that uses `emailCategoryMap`.
 
-- Add a `useEffect` in `CategoryAccordion` that calls `onToggle()` (to collapse) when `emails.length === 0` and the accordion is currently expanded.
-- After collapsing, the empty category div can either:
-  a. Stay visible but collapsed (shows "0 emails" in badge) — less clean but easier.
-  b. Be hidden entirely (`display: none` or not rendered) — cleaner but needs parent coordination.
+### Step 2: Hide empty categories from the rendered list
 
-For option (b): The parent must filter out categories with `emailCount === 0` from the rendered list. Add `emails.filter(cat => cat.emails.length > 0)` before the map in the inbox page.
+**File:** `client/src/components/inbox/InboxContentParts.tsx` (or where `CategoryAccordion` is rendered)
 
-### Step 2: Keep archive feedback (undo toast) visible after collapse
+Filter out categories with 0 emails before rendering:
+```typescript
+const nonEmptyCategories = displayCategories.filter(cat => cat.count > 0 || loadingCategoryNames.includes(key));
+```
 
-**File:** `client/src/components/inbox/CategoryAccordion.tsx` and/or `client/src/pages/Inbox.tsx`
+Only hide if `count === 0` AND the category is not currently loading (to avoid flicker during load).
 
-**Current issue:** `ArchiveConfirmationToast` is inside the accordion. When the accordion collapses or the category disappears from DOM, the toast goes with it.
+### Step 3: Handle undo toast visibility
 
-**Fix options:**
+**Context:** If the category disappears from DOM when all emails are archived, any in-category archive feedback toast disappears too.
 
-**Option A (recommended):** Move the archive confirmation/undo toast to a portal or to the top-level inbox page, outside the accordion hierarchy.
-- When archiving all emails in a category, the toast/undo state is managed at the inbox level, not inside `CategoryAccordion`.
-- The `onArchiveAll` callback (already at inbox level) can trigger a top-level undo toast.
+**Check:** Does `ArchiveConfirmationToast` render inside `CategoryAccordion`? If yes:
+- Move it to a React portal (`ReactDOM.createPortal(toast, document.body)`) so it persists regardless of accordion state.
+- OR: Render the toast at the `Inbox.tsx` / `FocusedInbox.tsx` level, controlled by state lifted up from the category.
 
-**Option B:** Keep the accordion in DOM (collapsed, zero count) for as long as the undo period (e.g., 5 seconds), then remove it.
-- Use a timeout: after `onArchiveAll` completes, wait 5s before hiding the category from the list.
+**File:** `client/src/components/inbox/ArchiveConfirmationToast.tsx` — add portal support if needed.
 
-**Recommended:** Option A — lift the archive undo toast out of `CategoryAccordion` entirely.
+### Step 4: Smooth transition (optional but nice)
 
-**File:** `client/src/components/inbox/ArchiveConfirmationToast.tsx`
-- Render via React portal (`ReactDOM.createPortal`) into document body so it persists regardless of category accordion state.
-
-### Step 3: Smooth transition
-
-**File:** `client/src/components/inbox/CategoryAccordion.tsx`
-
-- Add a CSS transition when a category disappears (fade-out/slide-up) to avoid jarring removal.
-- Example: set `opacity: 0` and `height: 0` over 300ms before removing from DOM.
+Add a CSS fade-out when a category collapses to avoid jarring removal. Use an `opacity` + `max-height` CSS transition with a short delay (200–300ms).
 
 ---
 
@@ -74,34 +82,39 @@ For option (b): The parent must filter out categories with `emailCount === 0` fr
 
 | File | Change |
 |------|--------|
-| `client/src/components/inbox/CategoryAccordion.tsx` | Add auto-collapse useEffect when emails.length === 0 |
-| `client/src/pages/Inbox.tsx` (or parent) | Filter out empty categories from rendered list; manage undo toast at page level |
-| `client/src/components/inbox/ArchiveConfirmationToast.tsx` | Render via portal (or move state up) so it persists after category collapse |
+| `client/src/hooks/useInboxCategoryAccordion.ts` | Add useEffect to auto-collapse categories with 0 emails |
+| `client/src/components/inbox/InboxContentParts.tsx` | Filter out empty categories from rendered list |
+| `client/src/components/inbox/ArchiveConfirmationToast.tsx` | Portal-ify if needed for toast persistence |
+| `client/src/components/inbox/CategoryAccordion.tsx` | Optional: add collapse transition |
 
 ---
 
 ## Testing Approach
 
-1. **Manual test — single archive:**
-   - Archive the last email in a category using the email row action.
-   - Verify the category collapses/disappears.
-   - Verify any undo toast is still visible.
+1. **Archive last email one-by-one:**
+   - Go to inbox in categorized mode
+   - Archive emails in a category one at a time (using the archive button on each email card)
+   - After the last email is archived, verify the category collapses/disappears
+   - Verify any undo toast remains visible
 
-2. **Manual test — archive all:**
-   - Click "Archive All" on a category with multiple emails.
-   - Verify the category collapses (with undo feedback visible).
-   - Click undo — verify emails are restored and category re-expands.
+2. **Archive All path (regression):**
+   - Click "Archive All" on a category
+   - Verify category collapses (should already work per existing code — verify no regression)
 
-3. **Unit test:**
-   - `CategoryAccordion` with `emails={[]}` and `isExpanded={true}` — `onToggle` should be called once on mount/update.
+3. **Multiple categories:**
+   - Archiving all emails in one category should not affect other categories
 
-4. **Edge case:**
-   - Multiple categories: archiving all in one should not affect other categories' expanded state.
-   - Re-categorising emails back: category should re-appear / re-expand if new emails arrive.
+4. **Unit tests:**
+   - `useInboxCategoryAccordion`: test that when `displayCategories` updates to show 0 count for a category, the expanded set removes that category
+
+5. **Edge case:**
+   - New emails arriving in an empty category should cause it to reappear (not affected by this change since it only collapses, not permanently removes)
 
 ---
 
-## Notes
+## Notes for Codebeard
 
-- The `count` prop (from inbox summary) and `emails.length` may differ during loading. Use `emails.length` for collapse logic since that reflects actual loaded state.
-- Consider whether the "category disappears" vs "category collapses" UX is the right choice. The issue says "collapse/disappear" — preference for disappear (cleaner), but collapse is safer as a first implementation.
+- Previous implementation PR #817 was closed. Check what went wrong before reimplementing.
+- The `count` on `displayCategories` is from the category summary (server-side). Use `emailCategoryMap` (local, computed from loaded emails) for more accurate real-time count tracking.
+- Be careful about the loading state: a category might show `count=0` briefly during loading. Guard the collapse with `!loadingCategoryNames.includes(key)`.
+- Do NOT change how "Archive All" works — that already collapses the category.

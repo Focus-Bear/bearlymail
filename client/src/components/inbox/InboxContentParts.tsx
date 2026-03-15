@@ -3,7 +3,7 @@
  * the max-lines-per-function limit. All components are co-located here because they
  * are only used by InboxContent.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
@@ -216,6 +216,17 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
 }) => {
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
+
+  // Auto-collapse when all emails in this category have been archived one-by-one.
+  // We guard with isLoaded so we don't collapse during the initial load (when the
+  // email list is empty before the first fetch completes). The isExpanded guard
+  // ensures we only call onToggleCategory when collapsing is needed (prevents
+  // calling toggle on an already-collapsed category and re-expanding it).
+  useEffect(() => {
+    if (isLoaded && categoryEmails.length === 0 && isExpanded) {
+      onToggleCategory(categoryKey);
+    }
+  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory]);
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
 
@@ -401,8 +412,9 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
       const group = emailCategoryMap.get(categoryKey);
       const categoryEmails = group?.emails ?? [];
 
-      // Hide the category when it has been loaded and all its emails have been
-      // archived (even if the server-side summary count hasn't refreshed yet).
+      // Hide category once loaded with no remaining emails (all archived locally).
+      // We intentionally do not require categoryItem.count === 0 here because that
+      // reflects the server summary which may lag behind local optimistic archive state.
       if (isLoaded && categoryEmails.length === 0) {
         return null;
       }

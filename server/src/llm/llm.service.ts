@@ -884,14 +884,15 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     rules: string[] = ["Be concise", "Use non-violent communication"],
     provider?: LLMProvider,
     userId?: string,
-    currentTime?: string,
-    scheduledSendAt?: string,
+    scheduledSendAt?: string | null,
+    currentTime?: string | null,
   ): Promise<{
     isOk: boolean;
     significance?: "low" | "medium" | "high";
     suggestions: string[];
     revisedText?: string;
     attachmentReminder?: string | null;
+    inappropriateTiming?: string | null;
   }> {
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {
@@ -904,8 +905,8 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     const prompt = renderPrompt(promptConfig.prompt || "", {
       rules,
       text,
-      currentTime: currentTime || new Date().toISOString(),
-      scheduledSendAt: scheduledSendAt || "",
+      currentTime: currentTime ?? null,
+      scheduledSendAt: scheduledSendAt ?? null,
     });
 
     const response = await this.generateText(

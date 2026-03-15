@@ -22,6 +22,7 @@ interface ToneCheckResultProps {
     isOk: boolean;
     suggestions: string[];
     revisedText?: string;
+    inappropriateTiming?: string | null;
   } | null;
   onUseRevisedText: (text: string) => void;
   /** Called when the user dismisses the tone check and wants to keep their original draft. */
@@ -241,8 +242,12 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
   );
 };
 
-/** Returns true if any suggestion hint relates to timing (late night / weekend send). */
-const hasSendTimingSuggestion = (suggestions: string[]): boolean => {
+/** Returns true if there is an inappropriate timing suggestion (from the dedicated field or legacy keyword scan). */
+const hasSendTimingSuggestion = (suggestions: string[], inappropriateTiming?: string | null): boolean => {
+  if (inappropriateTiming) {
+    return true;
+  }
+  // Fallback: legacy keyword scan for old API responses that may still embed timing in suggestions
   const timingKeywords = [
     'late',
     'night',
@@ -261,6 +266,7 @@ const hasSendTimingSuggestion = (suggestions: string[]): boolean => {
 interface ToneIssuesListProps {
   suggestions: string[];
   revisedText?: string;
+  inappropriateTiming?: string | null;
   onUseRevisedText: (text: string) => void;
   onScheduleForMorning?: () => void;
 }
@@ -268,18 +274,34 @@ interface ToneIssuesListProps {
 const ToneIssuesList: React.FC<ToneIssuesListProps> = ({
   suggestions,
   revisedText,
+  inappropriateTiming,
   onUseRevisedText,
   onScheduleForMorning,
 }) => {
   const { t } = useTranslation();
   return (
     <>
+      {inappropriateTiming && (
+        <div
+          style={{
+            marginBottom: theme.spacing.sm,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.default,
+            border: `1px solid ${theme.colors.accent.warning ?? theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          🕐 <strong>{t('emailDetail.inappropriateTiming', 'Timing note:')}</strong> {inappropriateTiming}
+        </div>
+      )}
       <ul style={{ margin: 0, paddingLeft: theme.spacing.lg, color: theme.colors.text.primary }}>
         {suggestions.map(suggestion => (
           <li key={suggestion}>{suggestion}</li>
         ))}
       </ul>
-      {onScheduleForMorning && hasSendTimingSuggestion(suggestions) && (
+      {onScheduleForMorning && hasSendTimingSuggestion(suggestions, inappropriateTiming) && (
         <button
           onClick={() => {
             captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SCHEDULE_FOR_MORNING_CLICKED);
@@ -358,6 +380,52 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   }
 
   if (toneCheckResult.isOk) {
+    // Even when tone is OK, show a timing warning if the scheduled time is inappropriate
+    if (toneCheckResult.inappropriateTiming) {
+      return (
+        <div
+          style={{
+            marginTop: theme.spacing.md,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.sunray.light4,
+            border: `1px solid ${theme.colors.accent.warning ?? theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
+            <span>{EMOJI_CHECK}</span>
+            <span style={{ color: theme.colors.accent.success }}>{t('emailDetail.toneCheckPassed')}</span>
+          </div>
+          <div style={{ color: theme.colors.text.secondary }}>
+            🕐 <strong>{t('emailDetail.inappropriateTiming', 'Timing note:')}</strong>{' '}
+            {toneCheckResult.inappropriateTiming}
+          </div>
+          {onScheduleForMorning && (
+            <button
+              onClick={() => {
+                captureEvent(ANALYTICS_EVENTS.TONE_CHECK_SCHEDULE_FOR_MORNING_CLICKED);
+                onScheduleForMorning();
+              }}
+              style={{
+                marginTop: theme.spacing.sm,
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: theme.colors.primary.light,
+                color: theme.colors.primary.main,
+                border: `1px solid ${theme.colors.primary.main}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
+              🌅 {t('emailDetail.scheduleForMorning')}
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div
         style={{
@@ -394,6 +462,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
       <ToneIssuesList
         suggestions={toneCheckResult.suggestions}
         revisedText={toneCheckResult.revisedText}
+        inappropriateTiming={toneCheckResult.inappropriateTiming}
         onUseRevisedText={onUseRevisedText}
         onScheduleForMorning={onScheduleForMorning}
       />

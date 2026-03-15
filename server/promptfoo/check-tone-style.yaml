@@ -127,3 +127,84 @@ tests:
 
 
 
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "Hey, just checking in on the project status. Can you send me an update?"
+      scheduledSendAt: "2026-03-14T20:00:00+00:00"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error('Expected isOk boolean');
+            }
+
+            // inappropriateTiming must be a string or null — never undefined (unless absent)
+            if ('inappropriateTiming' in parsed && parsed.inappropriateTiming !== null && typeof parsed.inappropriateTiming !== 'string') {
+              throw new Error(`inappropriateTiming must be string or null, got: ${typeof parsed.inappropriateTiming}`);
+            }
+
+            // Scheduled at 20:00 Saturday — timing is inappropriate, so inappropriateTiming must be non-null
+            if (!parsed.inappropriateTiming) {
+              throw new Error(
+                'Expected inappropriateTiming to be populated for a Saturday evening scheduled send, got: ' + JSON.stringify(parsed.inappropriateTiming)
+              );
+            }
+
+            // Timing advice must NOT bleed into revisedText
+            if (parsed.revisedText) {
+              const SCHEDULING_PATTERN = /\(if not urgent|\(consider scheduling|\(schedule this/i;
+              if (SCHEDULING_PATTERN.test(parsed.revisedText)) {
+                throw new Error(
+                  `Scheduling advice must not appear in revisedText. Found in: ${parsed.revisedText.substring(0, 200)}`
+                );
+              }
+            }
+
+            // Timing advice must NOT appear in the suggestions array (it belongs in inappropriateTiming)
+            const hasSchedulingInSuggestions = parsed.suggestions && parsed.suggestions.some(s =>
+              /schedul|monday|08:00|business day/i.test(s)
+            );
+            if (hasSchedulingInSuggestions) {
+              throw new Error(
+                'Scheduling advice must be in inappropriateTiming field, not in suggestions array. Suggestions: ' + JSON.stringify(parsed.suggestions)
+              );
+            }
+
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Scheduling advice must appear in inappropriateTiming field only — never in revisedText or suggestions"
+
+  - vars:
+      rules:
+        - "Be professional"
+      text: "Hey, just checking in on the project status. Can you send me an update?"
+      scheduledSendAt: null
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error('Expected isOk boolean');
+            }
+            // No scheduledSendAt provided — inappropriateTiming must be null/absent
+            if (parsed.inappropriateTiming != null) {
+              throw new Error(
+                `inappropriateTiming must be null when no scheduled time is provided, got: ${JSON.stringify(parsed.inappropriateTiming)}`
+              );
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "inappropriateTiming must be null when no scheduledSendAt is provided"

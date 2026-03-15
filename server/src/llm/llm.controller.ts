@@ -37,8 +37,8 @@ export class LLMController {
     body: {
       text: string;
       rules?: string[];
-      currentTime?: string;
-      scheduledSendAt?: string;
+      currentTime?: string | null;
+      scheduledSendAt?: string | null;
     },
   ) {
     // Fetch user tone settings if rules not provided
@@ -50,7 +50,12 @@ export class LLMController {
 
     // If user has no tone settings, skip tone check and return OK
     if (!rules || rules.length === 0) {
-      return { isOk: true, suggestions: [], revisedText: undefined };
+      return {
+        isOk: true,
+        suggestions: [],
+        revisedText: undefined,
+        inappropriateTiming: null,
+      };
     }
 
     const result = await this.llmService.checkTone(
@@ -58,68 +63,21 @@ export class LLMController {
       rules,
       undefined,
       req.user.userId,
-      body.currentTime,
-      body.scheduledSendAt,
+      body.scheduledSendAt ?? null,
+      body.currentTime ?? null,
     );
 
     // Suppress low-significance results — trivial rewording should never block a send.
-    // Preserve attachmentReminder even when isOk is forced true.
+    // Preserve attachmentReminder and inappropriateTiming even when isOk is forced true
+    // (both are sender-only fields independent of the tone check gate).
     if (result.significance === "low") {
       return {
         isOk: true,
         suggestions: [],
         revisedText: undefined,
         attachmentReminder: result.attachmentReminder ?? null,
+        inappropriateTiming: result.inappropriateTiming ?? null,
       };
-    }
-
-    // If the user already has a scheduled send time in the future, filter out any
-    // timing / scheduling suggestions that the LLM may have produced.
-    if (body.scheduledSendAt) {
-      const scheduledTime = new Date(body.scheduledSendAt);
-      const isScheduledInFuture =
-        !isNaN(scheduledTime.getTime()) && scheduledTime > new Date();
-
-      if (isScheduledInFuture && result.suggestions.length > 0) {
-        const timingKeywords = [
-          "late",
-          "night",
-          "weekend",
-          "early",
-          "morning",
-          "timing",
-          "hour",
-          "after hours",
-          "business hours",
-          "off hours",
-          "schedule",
-          "monday",
-          "next business",
-        ];
-        const nonTimingSuggestions = result.suggestions.filter(
-          (suggestion) =>
-            !timingKeywords.some((kw) => suggestion.toLowerCase().includes(kw)),
-        );
-
-        if (nonTimingSuggestions.length === 0) {
-          // All suggestions were timing-related — email is fine.
-          return {
-            isOk: true,
-            suggestions: [],
-            revisedText: undefined,
-            attachmentReminder: result.attachmentReminder ?? null,
-          };
-        }
-
-        if (nonTimingSuggestions.length < result.suggestions.length) {
-          // Some timing suggestions removed — recalculate isOk based on remaining.
-          return {
-            ...result,
-            isOk: nonTimingSuggestions.length === 0 ? true : result.isOk,
-            suggestions: nonTimingSuggestions,
-          };
-        }
-      }
     }
 
     return result;

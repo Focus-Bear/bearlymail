@@ -28,6 +28,7 @@ interface ToneCheckResultData {
   suggestions: string[];
   revisedText?: string;
   attachmentReminder?: string | null;
+  inappropriateTiming?: string | null;
 }
 interface DisputeResult {
   accepted: boolean;

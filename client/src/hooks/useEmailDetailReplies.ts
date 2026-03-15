@@ -307,7 +307,7 @@ interface SendReplyHandlerDeps {
   replyBcc: string;
   replyMode: string;
   scheduledSendAt: Date | null;
-  checkTone: (draft: string, scheduledSendAt?: Date | null) => Promise<boolean>;
+  checkTone: (draft: string, scheduledSendAt?: string | null) => Promise<boolean>;
   setDraft: (d: string | null) => void;
   setReplyCc: (v: string) => void;
   setReplyBcc: (v: string) => void;
@@ -347,7 +347,7 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
       }
       // Pass the scheduled send time so the server can suppress timing nags when
       // the user has already queued the email for a specific delivery time.
-      if (!draftOverride && !(await checkTone(draftToSend, scheduleTime))) {
+      if (!draftOverride && !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null))) {
         return;
       }
       setShowReplyComposer(false);

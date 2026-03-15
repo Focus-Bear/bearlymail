@@ -117,8 +117,8 @@ describe("LLMController (Integration)", () => {
         ["Be professional", "Avoid slang"],
         undefined,
         "test-user-id",
-        undefined,
-        undefined,
+        null,
+        null,
       );
     });
 
@@ -137,8 +137,8 @@ describe("LLMController (Integration)", () => {
         ["Be professional", "Keep it concise"],
         undefined,
         "test-user-id",
-        undefined,
-        undefined,
+        null,
+        null,
       );
     });
 
@@ -158,7 +158,7 @@ describe("LLMController (Integration)", () => {
       expect(response.body).toEqual({
         isOk: true,
         suggestions: [],
-        revisedText: undefined,
+        inappropriateTiming: null,
       });
       // Should not call checkTone service when no rules
       expect(mockLLMService.checkTone).not.toHaveBeenCalled();
@@ -181,8 +181,54 @@ describe("LLMController (Integration)", () => {
         ["Be professional"],
         undefined,
         "test-user-id",
-        undefined,
         scheduledTime,
+        null,
+      );
+    });
+
+    it("should pass currentTime to checkTone service for immediate-send timing checks", async () => {
+      const currentTime = new Date().toISOString();
+
+      await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Test email",
+          rules: ["Be professional"],
+          currentTime,
+        })
+        .expect(201);
+
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
+        "Test email",
+        ["Be professional"],
+        undefined,
+        "test-user-id",
+        null,
+        currentTime,
+      );
+    });
+
+    it("should pass both currentTime and scheduledSendAt to checkTone service", async () => {
+      const currentTime = new Date().toISOString();
+      const scheduledTime = new Date(Date.now() + 3600 * 1000).toISOString();
+
+      await request(app.getHttpServer())
+        .post("/llm/check-tone")
+        .send({
+          text: "Scheduled email",
+          rules: ["Be professional"],
+          currentTime,
+          scheduledSendAt: scheduledTime,
+        })
+        .expect(201);
+
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
+        "Scheduled email",
+        ["Be professional"],
+        undefined,
+        "test-user-id",
+        scheduledTime,
+        currentTime,
       );
     });
 
@@ -205,8 +251,8 @@ describe("LLMController (Integration)", () => {
       expect(response.body).toEqual({
         isOk: true,
         suggestions: [],
-        revisedText: undefined,
         attachmentReminder: null,
+        inappropriateTiming: null,
       });
     });
 
@@ -230,17 +276,15 @@ describe("LLMController (Integration)", () => {
       expect(response.body.suggestions).toEqual(["Tone is too casual"]);
     });
 
-    it("should filter all timing suggestions when scheduledSendAt is in the future", async () => {
+    it("should return inappropriateTiming field from LLM response", async () => {
       const futureTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
       mockLLMService.checkTone.mockResolvedValueOnce({
-        isOk: false,
+        isOk: true,
         significance: "high",
-        suggestions: [
-          "Sending late at night may reduce response rates",
-          "Consider sending during business hours",
-          "Weekend emails are often ignored",
-        ],
+        suggestions: [],
         revisedText: undefined,
+        inappropriateTiming:
+          "Consider sending Monday morning at 08:00 instead of Saturday evening",
       });
 
       const response = await request(app.getHttpServer())
@@ -252,36 +296,34 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(response.body).toEqual({
-        isOk: true,
-        suggestions: [],
-        revisedText: undefined,
-        attachmentReminder: null,
-      });
+      expect(response.body.inappropriateTiming).toBe(
+        "Consider sending Monday morning at 08:00 instead of Saturday evening",
+      );
     });
 
-    it("should filter only timing suggestions and keep non-timing ones", async () => {
-      const futureTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    it("should preserve inappropriateTiming even for low-significance results", async () => {
       mockLLMService.checkTone.mockResolvedValueOnce({
         isOk: false,
-        significance: "high",
-        suggestions: [
-          "Avoid sending emails late at night",
-          "Use a more formal greeting",
-        ],
-        revisedText: undefined,
+        significance: "low",
+        suggestions: ["Minor phrasing tweak"],
+        revisedText: "Dear colleague,",
+        inappropriateTiming: "Avoid sending on weekends",
       });
 
       const response = await request(app.getHttpServer())
         .post("/llm/check-tone")
         .send({
-          text: "Hey!",
+          text: "Hey there!",
           rules: ["Be professional"],
-          scheduledSendAt: futureTime,
         })
         .expect(201);
 
-      expect(response.body.suggestions).toEqual(["Use a more formal greeting"]);
+      // Low significance suppresses isOk/suggestions, but inappropriateTiming is preserved
+      expect(response.body.isOk).toBe(true);
+      expect(response.body.suggestions).toEqual([]);
+      expect(response.body.inappropriateTiming).toBe(
+        "Avoid sending on weekends",
+      );
     });
 
     it("should not filter suggestions when scheduledSendAt is in the past", async () => {

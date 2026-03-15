@@ -95,3 +95,74 @@ tests:
           minCount: 2
           shouldContain: ["clarify", "pricing", "schedule", "call"]
 
+  # Test 7: User's own reply with feedback to another party (isUserSender = true)
+  - vars:
+      from: "producer@videostudio.com"
+      fromName: "Alex Producer"
+      subject: "Re: Marketing video feedback"
+      body: |
+        Hi Alex, thanks for sending over the draft. Here's my feedback:
+
+        Please shorten the intro — it's about 20 seconds too long.
+        You should add captions throughout for accessibility.
+        Can you revise the colour palette to match our brand guidelines (attached)?
+        The music choice is great, keep that.
+
+        I'll review the final cut by Friday once you've made these changes.
+
+        Thanks,
+        Jeremy
+      isUserSender: true
+      hasExistingActions: false
+      existingActions: ""
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 1
+          maxCount: 2
+          shouldContain: ["review", "final cut"]
+          shouldNotContain:
+            - "shorten the intro"
+            - "add captions"
+            - "revise the colour"
+            - "colour palette"
+            - "please shorten"
+            - "can you revise"
+
+  # Test 8: User's sent email where they made commitments AND gave suggestions (isUserSender = true)
+  - vars:
+      from: "contractor@design.com"
+      fromName: "Sam Designer"
+      subject: "Re: Website redesign"
+      body: |
+        Hi Sam,
+
+        A few notes on the mockups:
+        - The hero section needs a stronger CTA button — please make it more prominent
+        - You should reduce the font size on mobile by 2px
+        - Consider simplifying the navigation menu
+
+        On my end: I'll send over the updated copy by Tuesday and I need to get approval
+        from the marketing team before we proceed.
+
+        Best,
+        Jeremy
+      isUserSender: true
+      hasExistingActions: false
+      existingActions: ""
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 2
+          maxCount: 3
+          shouldContain: ["copy", "tuesday", "approval", "marketing"]
+          shouldNotContain:
+            - "CTA button"
+            - "hero section"
+            - "font size"
+            - "navigation menu"
+            - "please make"
+            - "you should reduce"
+

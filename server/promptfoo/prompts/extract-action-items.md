@@ -8,6 +8,22 @@ Only generate NEW action items that are genuinely different from the above.
 If an action you would generate is semantically equivalent to one already listed (even with different phrasing), skip it.
 {{/if}}
 
+{{#if isUserSender}}
+CRITICAL: This email was WRITTEN BY THE USER (they are the sender). You are extracting action items that the USER (the sender) personally committed to, agreed to do, or needs to follow up on.
+
+Rules for user-sent emails:
+1. Only extract tasks the USER committed to or agreed to do in this email (e.g. "I'll send you the contract", "I'll follow up on Monday", "I need to check X")
+2. DO NOT extract tasks the user ASSIGNED or RECOMMENDED to the OTHER PARTY (e.g. "please revise the script", "you should update the colour scheme", "can you resend the invoice" — these are tasks FOR the other party, not the user)
+3. DO NOT extract feedback, suggestions, or instructions the user gave to others
+4. Look only for first-person commitments: "I will...", "I'll...", "I need to...", "I should...", "Let me...", "I'll make sure to..."
+5. If the user gave instructions to someone else, those are NOT the user's action items
+6. Ignore generic pleasantries or informational statements
+
+Context:
+- To: {{fromName}} ({{from}}) - this is the RECIPIENT of the user's email
+- The user wrote this email. Extract only their own commitments.
+
+{{else}}
 CRITICAL: You are extracting action items for the RECIPIENT of this email (the person who received and is reading it), NOT the sender.
 
 Rules:
@@ -32,6 +48,8 @@ Context:
 - Subject: {{subject}}
 - You are extracting actions for the RECIPIENT (the person reading this email)
 
+{{/if}}
+
 Return ONLY a JSON object (no markdown, no code blocks) with a key "actionItems" which is an array of objects: { "description": string, "confidence": number (0-1) }
 
 Extract action items from this email:
@@ -39,6 +57,3 @@ Extract action items from this email:
 Subject: {{subject}}
 
 {{body}}
-
-    
-

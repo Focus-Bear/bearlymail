@@ -87,8 +87,8 @@ function getChangedPromptFiles() {
       // three-dot: uses merge-base (needs full history)
       // direct: compares trees directly (works in shallow clones)
       const diffArgs = diffMode === 'three-dot'
-        ? ['diff', '--name-only', `${ref}...HEAD`, '--', 'server/promptfoo/']
-        : ['diff', '--name-only', ref, 'HEAD', '--', 'server/promptfoo/'];
+        ? ['diff', '--name-only', `${ref}...HEAD`, '--', 'promptfoo/']
+        : ['diff', '--name-only', ref, 'HEAD', '--', 'promptfoo/'];
       try {
         result = execFileSync('git', diffArgs, { encoding: 'utf-8' });
         selectedRef = `${ref} (${diffMode})`;

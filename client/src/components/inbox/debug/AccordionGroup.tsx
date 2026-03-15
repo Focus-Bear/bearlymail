@@ -17,7 +17,6 @@ export const AccordionGroup: React.FC<AccordionGroupProps> = ({
   children,
 }) => (
   <details open={defaultOpen} style={{ marginBottom: theme.spacing.sm }}>
-    {/* eslint-disable-next-line i18next/no-literal-string */}
     <summary
       style={{
         cursor: 'pointer',

@@ -1,4 +1,3 @@
-/* eslint-disable i18next/no-literal-string */
 import React from 'react';
 import { theme } from 'theme/theme';
 
@@ -42,26 +41,21 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread }) => (
   >
     <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
       <span>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <strong>Thread:</strong> {thread.threadId}
       </span>
       <span>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <strong>Starred in DB:</strong> {thread.isStarredInDb ? '⭐' : '—'}
       </span>
       <span>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <strong>Action/FollowUp:</strong> {thread.appearsInActionOrFollowUp ? '✅' : '—'}
       </span>
       {thread.syncStatus && (
         <span>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           <strong>Sync:</strong> {thread.syncStatus}
         </span>
       )}
       {thread.category && (
         <span>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           <strong>Category:</strong> {thread.category}
         </span>
       )}
@@ -79,13 +73,11 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread }) => (
     )}
     {thread.archiveStatusConflict && (
       <div style={{ color: '#d32f2f', fontWeight: 'bold', marginTop: '4px' }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         ⚠️ Archive conflict: Gmail says INBOX but BearlyMail has archived (syncStatus=synced)
       </div>
     )}
     {thread.hasUnsyncedChanges && !thread.archiveStatusConflict && (
       <div style={{ color: '#f57c00', marginTop: '4px' }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         🔄 Unsynced change pending
       </div>
     )}
@@ -118,7 +110,6 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
       <AccordionGroup title="In Action" count={inAction.length} headerColor="#D4EDDA">
         {inAction.length === 0 ? (
           <p style={{ margin: `${theme.spacing.xs} 0`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             No threads in action.
           </p>
         ) : (
@@ -129,7 +120,6 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
       <AccordionGroup title="In Follow Up" count={inFollowUp.length} headerColor="#E6F0FF">
         {inFollowUp.length === 0 ? (
           <p style={{ margin: `${theme.spacing.xs} 0`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             No threads in follow up.
           </p>
         ) : (
@@ -140,7 +130,6 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
       <AccordionGroup title="Archived in BearlyMail" count={archived.length} headerColor="#FFF3CD">
         {archived.length === 0 ? (
           <p style={{ margin: `${theme.spacing.xs} 0`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             No archived threads.
           </p>
         ) : (
@@ -151,7 +140,6 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
       <AccordionGroup title="Missing in BearlyMail" count={missing.length} headerColor="#FFE6E6">
         {missing.length === 0 ? (
           <p style={{ margin: `${theme.spacing.xs} 0`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             No missing threads.
           </p>
         ) : (

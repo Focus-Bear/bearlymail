@@ -2220,7 +2220,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
           `Unexpected JSON structure from validateWritingExample: ${cleaned.substring(0, 100)}`,
         );
         return null;
-      } catch (parseError) {
+      } catch (_parseError) {
         this.logger.warn(
           `Failed to parse validateWritingExample JSON response: ${cleaned.substring(0, 100)}`,
         );

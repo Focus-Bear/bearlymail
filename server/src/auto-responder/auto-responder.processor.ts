@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import PgBoss = require("pg-boss");
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";

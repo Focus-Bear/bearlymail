@@ -72,7 +72,7 @@ export function clearAnalysisLog() {
     if (fs.existsSync(ANALYSIS_LOG_FILE)) {
       fs.writeFileSync(ANALYSIS_LOG_FILE, "", "utf8");
     }
-  } catch (err) {
+  } catch (_err) {
     // Silently fail
   }
 }

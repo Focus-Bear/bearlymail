@@ -16,6 +16,7 @@
  *   - all: Run all scenarios
  */
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import PgBoss = require("pg-boss");
 import * as dotenv from "dotenv";
 import * as path from "path";

@@ -368,4 +368,190 @@ Return ONLY a JSON array of objects.`;
       (isDirectQuestion && hasTimeSensitivePattern)
     );
   }
+
+  /**
+   * Convert a natural language search query to Gmail search syntax using LLM.
+   * Falls back to keyword-OR search when LLM conversion fails.
+   * Extracted from EmailSearchService as part of issue #939 batch 2.
+   */
+  async convertQueryToGmailSearch(
+    userId: string,
+    query: string,
+  ): Promise<string> {
+    const gmailOperators = [
+      "from:",
+      "to:",
+      "subject:",
+      "has:",
+      "in:",
+      "is:",
+      "before:",
+      "after:",
+      "older:",
+      "newer:",
+    ];
+    if (gmailOperators.some((op) => query.toLowerCase().includes(op))) {
+      return query;
+    }
+
+    const conversionPrompt = `Convert this natural language email search query to Gmail search syntax: "${query}"
+
+Gmail search syntax rules:
+- Use "from:" for sender (e.g., "from:john@example.com")
+- Use "subject:" for subject line (e.g., "subject:meeting")
+- Use "has:" for attachments (e.g., "has:attachment")
+- Use "in:" for labels/folders (e.g., "in:inbox")
+- Use "is:" for flags (e.g., "is:read", "is:unread", "is:starred")
+- Use "before:" and "after:" for dates (e.g., "after:2024/1/1")
+- Combine terms with spaces (AND) or use OR for alternatives
+- Use quotes for exact phrases (e.g., "subject:\"team meeting\"")
+
+Return ONLY the Gmail search query, nothing else.`;
+
+    try {
+      const response = await this.llmService.generateText(
+        {
+          prompt: conversionPrompt,
+          systemPrompt:
+            "You are a helpful assistant that converts natural language to Gmail search syntax. Return only the search query.",
+          temperature: 0.3,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+        },
+        undefined,
+        userId,
+      );
+      const cleaned = response
+        .trim()
+        .replace(/^```[\w]*\n?/g, "")
+        .replace(/\n?```$/g, "")
+        .trim();
+      if (
+        cleaned.length > 0 &&
+        cleaned.length < QUERY_LIMITS.SUBSTRING_BODY_PREVIEW
+      ) {
+        return cleaned;
+      }
+    } catch (error) {
+      this.logger.warn("Failed to convert query using AI:", error);
+    }
+
+    const words = query
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+      .map((word) => `"${word}"`)
+      .join(" OR ");
+    return `subject:(${words}) OR ${words}`;
+  }
+
+  /**
+   * Rank and filter emails by relevance score (no per-email explanations).
+   * Returns filteredEmails, a score map, and the current date.
+   * Extracted from EmailSearchService as part of issue #939 batch 2.
+   */
+  async rankEmails(
+    userId: string,
+    originalQuery: string,
+    matchedEmails: Email[],
+    maxResults: number,
+    calculateDaysSinceLastEmail?: (
+      userId: string,
+      email: Partial<Email>,
+    ) => Promise<number | undefined>,
+  ): Promise<{
+    filteredEmails: Email[];
+    allScores: Map<number, number>;
+    now: Date;
+  }> {
+    const now = new Date();
+    const allScores: Map<number, number> = new Map();
+
+    if (matchedEmails.length === 0) {
+      return {
+        filteredEmails: matchedEmails.slice(0, maxResults),
+        allScores,
+        now,
+      };
+    }
+
+    const emailSummaries = await this.buildEmailSummaries(
+      userId,
+      matchedEmails,
+      calculateDaysSinceLastEmail,
+    );
+    const mostRecentDays = calculateDaysSinceLastEmail
+      ? await calculateDaysSinceLastEmail(userId, matchedEmails[0])
+      : undefined;
+
+    let filteredEmails = matchedEmails;
+
+    try {
+      searchLogger.logAIScoringStart(
+        userId,
+        originalQuery,
+        matchedEmails.length,
+      );
+      const isTimeSensitive = this.isTimeSensitiveQuery(originalQuery);
+      const rankingPrompt = this.buildRankingPrompt(
+        originalQuery,
+        emailSummaries,
+        mostRecentDays,
+        isTimeSensitive,
+      );
+
+      const rankingResponse = await this.llmService.generateText(
+        {
+          prompt: rankingPrompt,
+          systemPrompt:
+            "You are a helpful email search assistant. Return only valid JSON arrays.",
+          temperature: QUERY_LIMITS.LLM_TEMPERATURE,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
+        },
+        undefined,
+        userId,
+      );
+
+      searchLogger.logAIScoringComplete(
+        userId,
+        originalQuery,
+        matchedEmails.length,
+        filteredEmails.length,
+        matchedEmails.length - filteredEmails.length,
+      );
+
+      try {
+        const jsonMatch = rankingResponse.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const rankings: Array<{ index: number; relevanceScore: number }> =
+            JSON.parse(jsonMatch[0]);
+          if (Array.isArray(rankings)) {
+            rankings.forEach((rank) => {
+              allScores.set(rank.index, rank.relevanceScore);
+            });
+            filteredEmails = matchedEmails.filter(
+              (_email, index) =>
+                (allScores.get(index) ?? 0) >=
+                PRIORITY_BOOSTS.RELEVANCE_THRESHOLD,
+            );
+            filteredEmails.sort((itemA, itemB) => {
+              const scoreA = allScores.get(matchedEmails.indexOf(itemA)) ?? 0;
+              const scoreB = allScores.get(matchedEmails.indexOf(itemB)) ?? 0;
+              return scoreB - scoreA;
+            });
+            filteredEmails = filteredEmails.slice(0, maxResults);
+          }
+        }
+      } catch (parseError) {
+        this.logger.warn(
+          "Failed to parse AI ranking response, using all results:",
+          parseError,
+        );
+        filteredEmails = matchedEmails.slice(0, maxResults);
+      }
+    } catch (error) {
+      this.logger.error("AI ranking failed, using all results:", error);
+      filteredEmails = matchedEmails.slice(0, maxResults);
+    }
+
+    return { filteredEmails, allScores, now };
+  }
 }

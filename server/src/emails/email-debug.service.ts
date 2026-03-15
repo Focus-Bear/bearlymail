@@ -7,12 +7,19 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { isError } from "../types/common";
+import {
+  analyzeStarredThread,
+  buildConditionReasons,
+  buildThreadVisibility,
+  computeStarredSummary,
+  detectGmailUrlFormat,
+  extractGmailUrlId,
+  StarredThreadEntry,
+} from "./email-debug-thread.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
-// Fallback duration when syncStatusUpdatedAt is null (we don't know when it was last updated)
-const UNKNOWN_DURATION_MINUTES = 999;
 import PgBoss from "pg-boss";
 
 import { getJobPriority } from "../queue/job-priorities";
@@ -75,169 +82,6 @@ export class EmailDebugService {
     return this.dataSource.getRepository(EmailThread);
   }
 
-  private async buildConditionReasons(
-    thread: EmailThread,
-    emails: Email[],
-    userId: string,
-    latestEmail: Email | undefined,
-  ): Promise<{ reasons: string[]; isBlocked: boolean }> {
-    const reasons: string[] = [];
-
-    if (emails.length === 0) {
-      reasons.push(
-        "Thread exists but has no emails linked to it (orphan thread)",
-      );
-    }
-
-    // Check sync status first - if unsynced, Gmail state is not yet reflected
-    if (thread.syncStatus === "unsynced") {
-      const minutesSinceUpdate = thread.syncStatusUpdatedAt
-        ? Math.floor(
-            (Date.now() - new Date(thread.syncStatusUpdatedAt).getTime()) /
-              MILLISECONDS.MINUTE,
-          )
-        : UNKNOWN_DURATION_MINUTES;
-      reasons.push(
-        `Thread has UNSYNCED changes (${minutesSinceUpdate} min ago) - local state may differ from Gmail`,
-      );
-    }
-
-    if (thread.starCount === 0) {
-      reasons.push(
-        "Thread starCount is 0 in BearlyMail - will appear in Triage, not Action tab",
-      );
-    }
-
-    if (thread.isArchived) {
-      reasons.push(
-        "Thread is ARCHIVED - archived threads don't show in any inbox view",
-      );
-    }
-
-    let isBlocked = false;
-    if (latestEmail) {
-      isBlocked = await this.blockedSendersService.isSenderBlocked(
-        userId,
-        latestEmail.from || "",
-      );
-      if (isBlocked) {
-        reasons.push(`Sender "${latestEmail.from}" is BLOCKED`);
-      }
-
-      if (
-        latestEmail.isSnoozed &&
-        latestEmail.snoozeUntil &&
-        new Date(latestEmail.snoozeUntil) > new Date()
-      ) {
-        reasons.push(
-          `Email is SNOOZED until ${new Date(latestEmail.snoozeUntil).toISOString()}`,
-        );
-      }
-    }
-
-    if (
-      thread.isBatched &&
-      thread.batchReleaseAt &&
-      new Date(thread.batchReleaseAt) > new Date()
-    ) {
-      reasons.push(
-        `Thread is BATCHED and will be released at ${new Date(thread.batchReleaseAt).toISOString()}`,
-      );
-    }
-
-    return { reasons, isBlocked };
-  }
-
-  private buildThreadVisibility(
-    thread: EmailThread,
-    latestEmail: Email | undefined,
-    isBlocked: boolean,
-  ): {
-    wouldShowInTriage: boolean;
-    wouldShowInAction: boolean;
-    wouldShowInFollowUp: boolean;
-    baseConditionsMet: boolean;
-  } {
-    const isNotArchived = !thread.isArchived;
-    const hasNoBlockedSender = !isBlocked;
-    const isNotSnoozed =
-      !latestEmail ||
-      !latestEmail.isSnoozed ||
-      !latestEmail.snoozeUntil ||
-      new Date(latestEmail.snoozeUntil) <= new Date();
-    const isNotBatched =
-      !thread.isBatched ||
-      !thread.batchReleaseAt ||
-      new Date(thread.batchReleaseAt) <= new Date();
-
-    const baseConditionsMet =
-      isNotArchived && hasNoBlockedSender && isNotSnoozed && isNotBatched;
-
-    return {
-      wouldShowInTriage: baseConditionsMet && thread.starCount === 0,
-      wouldShowInAction: baseConditionsMet && thread.starCount > 0,
-      wouldShowInFollowUp: baseConditionsMet && thread.starCount > 0,
-      baseConditionsMet,
-    };
-  }
-
-  /**
-   * Build a human-readable reason code explaining why a Gmail-starred thread is absent
-   * from the Action / Follow-Up inbox.
-   *
-   * Reason codes (prefix before ":"): OK | NOT_STARRED_IN_DB | ARCHIVED | SNOOZED |
-   * BATCHED | BLOCKED_SENDER | UNSYNCED | UNKNOWN
-   */
-  private buildStarredThreadReason(
-    thread: EmailThread,
-    latestEmail: Email | undefined,
-    isBlocked: boolean,
-    visibility: ReturnType<typeof this.buildThreadVisibility>,
-  ): string {
-    if (visibility.wouldShowInAction) {
-      return "OK: thread is starred and should appear in Action tab";
-    }
-    if (thread.starCount === 0) {
-      return (
-        "NOT_STARRED_IN_DB: thread exists in BearlyMail but starCount is 0 — " +
-        "Gmail and BearlyMail stars are out of sync. Trigger a manual sync to re-star."
-      );
-    }
-    if (thread.isArchived) {
-      return "ARCHIVED: thread is archived in BearlyMail and won't appear in any inbox view";
-    }
-    if (
-      latestEmail?.isSnoozed &&
-      latestEmail.snoozeUntil &&
-      new Date(latestEmail.snoozeUntil) > new Date()
-    ) {
-      return `SNOOZED: thread is snoozed until ${new Date(latestEmail.snoozeUntil).toISOString()}`;
-    }
-    if (
-      thread.isBatched &&
-      thread.batchReleaseAt &&
-      new Date(thread.batchReleaseAt) > new Date()
-    ) {
-      return `BATCHED: thread will be released from batch at ${new Date(thread.batchReleaseAt).toISOString()}`;
-    }
-    if (isBlocked) {
-      return `BLOCKED_SENDER: sender "${latestEmail?.from ?? "unknown"}" is blocked`;
-    }
-    if (thread.syncStatus === "unsynced") {
-      const minutesSinceUpdate = thread.syncStatusUpdatedAt
-        ? Math.floor(
-            (Date.now() - new Date(thread.syncStatusUpdatedAt).getTime()) /
-              MILLISECONDS.MINUTE,
-          )
-        : UNKNOWN_DURATION_MINUTES;
-      return (
-        `UNSYNCED: thread has pending Gmail changes that haven't been applied yet ` +
-        `(${minutesSinceUpdate} min ago) — the local BearlyMail state may differ from Gmail`
-      );
-    }
-    return "UNKNOWN: thread does not meet Action tab conditions for an unidentified reason";
-  }
-
   /**
    * Debug starred threads — answers "why isn't this Gmail-starred email showing in
    * Action / Follow-Up?" for every starred thread.
@@ -245,6 +89,149 @@ export class EmailDebugService {
    * Returns a flat `threads` list (one entry per Gmail starred thread) with an
    * actionable `reason` field, plus aggregate `summary` counts.
    */
+  /**
+   * Fetch and reconcile starred thread data for debug display.
+   * Returns all the maps/arrays needed by debugStarredThreads().
+   */
+  private async fetchStarredThreadData(userId: string): Promise<{
+    gmailStarredThreadIds: string[];
+    gmailInboxSet: Set<string>;
+    gmailError: string | undefined;
+    dbThreadMap: Map<string, EmailThread>;
+    latestEmailsByThread: Map<string, Email>;
+  }> {
+    let gmailStarredThreadIds: string[] = [];
+    let gmailInboxSet = new Set<string>();
+    let gmailError: string | undefined;
+
+    try {
+      const [starredIds, inboxIds] = await Promise.all([
+        this.gmailProvider.getStarredInboxThreadIds(userId),
+        this.gmailProvider
+          .getInboxThreadIds(userId)
+          .catch(() => [] as string[]),
+      ]);
+      gmailStarredThreadIds = starredIds;
+      gmailInboxSet = new Set(inboxIds);
+      if (gmailStarredThreadIds.length === 0) {
+        const provider =
+          await this.emailProviderManager.getPrimaryProvider(userId);
+        if (!provider) gmailError = "No email provider connected";
+      }
+      this.logger.debug(
+        `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads, ${gmailInboxSet.size} inbox threads`,
+      );
+    } catch (error: unknown) {
+      gmailError = isError(error)
+        ? error.message
+        : "Failed to fetch starred thread IDs from Gmail";
+      this.logger.error(
+        "Error fetching starred inbox thread IDs from Gmail:",
+        error,
+      );
+    }
+
+    const dbThreads =
+      gmailStarredThreadIds.length > 0
+        ? await this.emailThreadRepository.find({
+            where: { userId, threadId: In(gmailStarredThreadIds) },
+            select: [
+              "id",
+              "threadId",
+              "starCount",
+              "isArchived",
+              "category",
+              "syncStatus",
+              "syncStatusUpdatedAt",
+              "isBatched",
+              "batchReleaseAt",
+            ],
+          })
+        : [];
+
+    const dbThreadMap = new Map(
+      dbThreads.map((thread) => [thread.threadId, thread]),
+    );
+    const dbThreadInternalIds = dbThreads.map((thread) => thread.id);
+
+    const latestEmailsByThread = new Map<string, Email>();
+    if (dbThreadInternalIds.length > 0) {
+      const emails = await this.emailRepository
+        .createQueryBuilder("email")
+        .select([
+          "email.id",
+          "email.emailThreadId",
+          "email.subject",
+          "email.from",
+          "email.fromName",
+          "email.receivedAt",
+          "email.isSnoozed",
+          "email.snoozeUntil",
+          "email.isBatched",
+          "email.batchReleaseAt",
+        ])
+        .where("email.userId = :userId", { userId })
+        .andWhere('email."emailThreadId" IN (:...threadIds)', {
+          threadIds: dbThreadInternalIds,
+        })
+        .orderBy("email.receivedAt", "DESC")
+        .getMany();
+
+      for (const email of emails) {
+        if (
+          email.emailThreadId &&
+          !latestEmailsByThread.has(email.emailThreadId)
+        ) {
+          latestEmailsByThread.set(email.emailThreadId, email);
+        }
+      }
+    }
+
+    return {
+      gmailStarredThreadIds,
+      gmailInboxSet,
+      gmailError,
+      dbThreadMap,
+      latestEmailsByThread,
+    };
+  }
+
+  /**
+   * Fetch stale unsynced threads (syncStatus='unsynced' for >5 min).
+   * Extracted from debugStarredThreads to reduce its line count.
+   */
+  private async fetchStaleUnsyncedThreads(userId: string): Promise<
+    Array<{
+      threadId: string;
+      syncStatusUpdatedAt: string | null;
+      minutesUnsynced: number;
+      isArchived: boolean;
+      starCount: number;
+    }>
+  > {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
+    const entities = await this.emailThreadRepository.find({
+      where: { userId, syncStatus: "unsynced" },
+      select: ["threadId", "syncStatusUpdatedAt", "isArchived", "starCount"],
+    });
+    return entities
+      .filter(
+        (thread) =>
+          thread.syncStatusUpdatedAt &&
+          thread.syncStatusUpdatedAt < fiveMinutesAgo,
+      )
+      .map((thread) => ({
+        threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+        syncStatusUpdatedAt: thread.syncStatusUpdatedAt?.toISOString() ?? null,
+        minutesUnsynced: Math.floor(
+          (Date.now() - new Date(thread.syncStatusUpdatedAt ?? 0).getTime()) /
+            MILLISECONDS.MINUTE,
+        ),
+        isArchived: thread.isArchived,
+        starCount: thread.starCount,
+      }));
+  }
+
   async debugStarredThreads(userId: string): Promise<{
     gmailError?: string;
     summary: {
@@ -279,231 +266,42 @@ export class EmailDebugService {
       starCount: number;
     }>;
   }> {
-    // ── Step 1: Fetch starred inbox thread IDs AND all inbox thread IDs from Gmail ──
-    let gmailStarredThreadIds: string[] = [];
-    let gmailInboxSet = new Set<string>();
-    let gmailError: string | undefined;
+    // Steps 1-3: fetch starred thread IDs + DB thread data + latest emails
+    const {
+      gmailStarredThreadIds,
+      gmailInboxSet,
+      gmailError,
+      dbThreadMap,
+      latestEmailsByThread,
+    } = await this.fetchStarredThreadData(userId);
 
-    try {
-      const [starredIds, inboxIds] = await Promise.all([
-        this.gmailProvider.getStarredInboxThreadIds(userId),
-        this.gmailProvider
-          .getInboxThreadIds(userId)
-          .catch(() => [] as string[]),
-      ]);
-      gmailStarredThreadIds = starredIds;
-      gmailInboxSet = new Set(inboxIds);
-      if (gmailStarredThreadIds.length === 0) {
-        const provider =
-          await this.emailProviderManager.getPrimaryProvider(userId);
-        if (!provider) gmailError = "No email provider connected";
-      }
-      this.logger.debug(
-        `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads, ${gmailInboxSet.size} inbox threads`,
-      );
-    } catch (error: unknown) {
-      gmailError = isError(error)
-        ? error.message
-        : "Failed to fetch starred thread IDs from Gmail";
-      this.logger.error(
-        "Error fetching starred inbox thread IDs from Gmail:",
-        error,
-      );
-    }
-
-    // ── Step 2: Bulk-fetch all matching EmailThread rows from DB ──
-    // We query ALL threads whose Gmail threadId appears in the starred list so we can
-    // distinguish "starred in Gmail, not in DB" from "in DB with starCount=0".
-    const dbThreads =
-      gmailStarredThreadIds.length > 0
-        ? await this.emailThreadRepository.find({
-            where: { userId, threadId: In(gmailStarredThreadIds) },
-            select: [
-              "id",
-              "threadId",
-              "starCount",
-              "isArchived",
-              "category",
-              "syncStatus",
-              "syncStatusUpdatedAt",
-              "isBatched",
-              "batchReleaseAt",
-            ],
-          })
-        : [];
-
-    const dbThreadMap = new Map(
-      dbThreads.map((thread) => [thread.threadId, thread]),
-    );
-    const dbThreadInternalIds = dbThreads.map((thread) => thread.id);
-
-    // ── Step 3: Fetch the latest email per thread (for subject) ──
-    // We need one email per thread — we use a subquery to get the most recent one.
-    const latestEmailsByThread = new Map<string, Email>();
-    if (dbThreadInternalIds.length > 0) {
-      const emails = await this.emailRepository
-        .createQueryBuilder("email")
-        .select([
-          "email.id",
-          "email.emailThreadId",
-          "email.subject",
-          "email.from",
-          "email.fromName",
-          "email.receivedAt",
-          "email.isSnoozed",
-          "email.snoozeUntil",
-          "email.isBatched",
-          "email.batchReleaseAt",
-        ])
-        .where("email.userId = :userId", { userId })
-        .andWhere('email."emailThreadId" IN (:...threadIds)', {
-          threadIds: dbThreadInternalIds,
-        })
-        .orderBy("email.receivedAt", "DESC")
-        .getMany();
-
-      // Keep only the first (most-recent) email per thread
-      for (const email of emails) {
-        if (
-          email.emailThreadId &&
-          !latestEmailsByThread.has(email.emailThreadId)
-        ) {
-          latestEmailsByThread.set(email.emailThreadId, email);
-        }
-      }
-    }
-
-    // ── Step 4: Build per-thread result rows ──
-    const threads = await Promise.all(
-      gmailStarredThreadIds.map(async (gmailThreadId) => {
-        const thread = dbThreadMap.get(gmailThreadId);
-
-        if (!thread) {
-          return {
-            threadId: gmailThreadId,
-            subject: null,
-            inDb: false,
-            isStarredInDb: false,
-            category: null,
-            appearsInActionOrFollowUp: false,
-            reason:
-              "NOT_IN_DB: thread exists in Gmail but has never been synced to BearlyMail " +
-              "(likely older than the sync window — try triggering a manual sync)",
-            isArchivedInDb: false,
-            isInGmailInbox: gmailInboxSet.has(gmailThreadId),
-            syncStatus: "synced" as const,
-            hasUnsyncedChanges: false,
-            archiveStatusConflict: false,
-          };
-        }
-
-        const latestEmail = latestEmailsByThread.get(thread.id);
-        const isBlocked = latestEmail
-          ? await this.blockedSendersService.isSenderBlocked(
-              userId,
-              latestEmail.from ?? "",
-            )
-          : false;
-
-        const visibility = this.buildThreadVisibility(
-          thread,
-          latestEmail,
-          isBlocked,
-        );
-
-        const reason = this.buildStarredThreadReason(
-          thread,
-          latestEmail,
-          isBlocked,
-          visibility,
-        );
-
-        const isInGmailInbox = gmailInboxSet.has(gmailThreadId);
-        const hasUnsyncedChanges = thread.syncStatus === "unsynced";
-        const archiveStatusConflict =
-          thread.isArchived && isInGmailInbox && !hasUnsyncedChanges;
-
-        return {
-          threadId: gmailThreadId,
-          subject:
-            latestEmail?.subject?.substring(
-              0,
-              QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH,
-            ) ?? null,
-          inDb: true,
-          isStarredInDb: thread.starCount > 0,
-          category: thread.category ?? null,
-          appearsInActionOrFollowUp: visibility.wouldShowInAction,
-          reason,
-          isArchivedInDb: thread.isArchived,
-          isInGmailInbox,
-          syncStatus: thread.syncStatus as "synced" | "unsynced",
-          hasUnsyncedChanges,
-          archiveStatusConflict,
-        };
-      }),
-    );
-
-    // ── Step 5: Compute summary ──
-    const foundInDb = threads.filter((thread) => thread.inDb).length;
-    const notInDb = threads.filter((thread) => !thread.inDb).length;
-    const inActionOrFollowUp = threads.filter(
-      (thread) => thread.appearsInActionOrFollowUp,
-    ).length;
-    const notStarredInDb = threads.filter(
-      (thread) => thread.inDb && !thread.isStarredInDb,
-    ).length;
-    // "Starred in DB but hidden" = in DB, starCount > 0, still not in Action.
-    const starredInDbButHidden = threads.filter(
-      (thread) =>
-        thread.inDb &&
-        thread.isStarredInDb &&
-        !thread.appearsInActionOrFollowUp,
-    ).length;
-
-    // ── Step 6: stale unsynced threads (syncStatus='unsynced' for >5 min) ──
-    // Re-added to support the "Fix Stale Unsynced Threads" button in the debug popup.
-    const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
-    const staleUnsyncedEntities = await this.emailThreadRepository.find({
-      where: { userId, syncStatus: "unsynced" },
-      select: ["threadId", "syncStatusUpdatedAt", "isArchived", "starCount"],
-    });
-    const staleUnsyncedThreads = staleUnsyncedEntities
-      .filter(
-        (thread) =>
-          thread.syncStatusUpdatedAt &&
-          thread.syncStatusUpdatedAt < fiveMinutesAgo,
-      )
-      .map((thread) => ({
-        threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        syncStatusUpdatedAt: thread.syncStatusUpdatedAt?.toISOString() ?? null,
-        minutesUnsynced: Math.floor(
-          (Date.now() - new Date(thread.syncStatusUpdatedAt ?? 0).getTime()) /
-            MILLISECONDS.MINUTE,
+    // Step 4: Build per-thread result rows
+    const threads: StarredThreadEntry[] = await Promise.all(
+      gmailStarredThreadIds.map((gmailThreadId) =>
+        analyzeStarredThread(
+          gmailThreadId,
+          dbThreadMap,
+          latestEmailsByThread,
+          gmailInboxSet,
+          (uid, senderEmail) =>
+            this.blockedSendersService.isSenderBlocked(uid, senderEmail),
+          userId,
         ),
-        isArchived: thread.isArchived,
-        starCount: thread.starCount,
-      }));
+      ),
+    );
 
-    const archivedInBearlyMail = threads.filter(
-      (thread) => thread.inDb && thread.isArchivedInDb,
-    ).length;
-    const archiveConflicts = threads.filter(
-      (thread) => thread.archiveStatusConflict,
-    ).length;
+    // Step 5: Compute summary
+    const summary = computeStarredSummary(
+      threads,
+      gmailStarredThreadIds.length,
+    );
+
+    // Step 6: stale unsynced threads
+    const staleUnsyncedThreads = await this.fetchStaleUnsyncedThreads(userId);
 
     return {
       ...(gmailError ? { gmailError } : {}),
-      summary: {
-        gmailStarredCount: gmailStarredThreadIds.length,
-        foundInDb,
-        notInDb,
-        inActionOrFollowUp,
-        starredInDbButHidden,
-        notStarredInDb,
-        archivedInBearlyMail,
-        archiveConflicts,
-      },
+      summary,
       threads,
       staleUnsyncedThreads,
     };
@@ -786,11 +584,13 @@ export class EmailDebugService {
     const latestEmail = emails[0];
 
     // 3. Check conditions and build reasons
-    const { reasons, isBlocked } = await this.buildConditionReasons(
+    const { reasons, isBlocked } = await buildConditionReasons(
       thread,
       emails,
       userId,
       latestEmail,
+      (uid, senderEmail) =>
+        this.blockedSendersService.isSenderBlocked(uid, senderEmail),
     );
 
     // 4. Determine visibility in each mode
@@ -799,7 +599,7 @@ export class EmailDebugService {
       wouldShowInAction,
       wouldShowInFollowUp,
       baseConditionsMet,
-    } = this.buildThreadVisibility(thread, latestEmail, isBlocked);
+    } = buildThreadVisibility(thread, latestEmail, isBlocked);
 
     // 5. Add mode-specific reasons
     if (baseConditionsMet) {
@@ -964,50 +764,6 @@ export class EmailDebugService {
     }
   }
 
-  /**
-   * Detect the format of a Gmail web UI URL hash fragment.
-   * Gmail URLs use different formats depending on how the user navigated:
-   *   - inbox:  #inbox/<id>
-   *   - search: #search/<query>/<id>
-   *   - label:  #label/<labelName>/<id>
-   */
-  private detectGmailUrlFormat(
-    url: string,
-  ): "inbox" | "search" | "label" | "unknown" {
-    const hashIndex = url.indexOf("#");
-    if (hashIndex === -1) return "unknown";
-    const fragment = decodeURIComponent(url.slice(hashIndex + 1));
-    if (fragment.startsWith("inbox/")) return "inbox";
-    if (fragment.startsWith("search/")) return "search";
-    if (fragment.startsWith("label/")) return "label";
-    return "unknown";
-  }
-
-  /**
-   * Extract the message/thread ID from a Gmail web UI URL.
-   *
-   * All Gmail URL formats end with the ID as the last `/`-separated segment
-   * of the hash fragment. URL-decoding is applied first so that encoded
-   * characters in the query segment (e.g. `%40` for `@`) do not interfere
-   * with the split.
-   *
-   * Examples:
-   *   #inbox/FMfcgzQ...           → FMfcgzQ...
-   *   #search/email%40ex.com/FMfcgzQ... → FMfcgzQ...
-   *   #label/Important/FMfcgzQ... → FMfcgzQ...
-   */
-  private extractGmailUrlId(url: string): string {
-    const hashIndex = url.indexOf("#");
-    if (hashIndex === -1) {
-      // No hash — fall back to splitting the entire URL
-      const segments = url.split("/");
-      return segments[segments.length - 1] || url;
-    }
-    const fragment = decodeURIComponent(url.slice(hashIndex + 1));
-    const segments = fragment.split("/");
-    return segments[segments.length - 1] || fragment;
-  }
-
   async lookupByGmailUrl(
     userId: string,
     gmailUrl: string,
@@ -1024,8 +780,8 @@ export class EmailDebugService {
       };
     }
   > {
-    const detectedFormat = this.detectGmailUrlFormat(gmailUrl);
-    const urlId = this.extractGmailUrlId(gmailUrl);
+    const detectedFormat = detectGmailUrlFormat(gmailUrl);
+    const urlId = extractGmailUrlId(gmailUrl);
     this.logger.log(
       `Looking up Gmail URL for user ${userId}, format: ${detectedFormat}, extracted URL ID: ${urlId}`,
     );

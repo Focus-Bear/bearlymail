@@ -3,15 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
-import * as ical from "node-ical";
 import { Repository } from "typeorm";
 
-import {
-  HOURS,
-  MILLISECONDS,
-  MINUTES,
-  MINUTES_PER_HOUR,
-} from "../constants/time-constants";
+import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
@@ -21,11 +15,13 @@ import {
 } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
+import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
+import { parseIcsString } from "./calendar-ics-parser";
 import {
   generateMeetingReply,
   respondToInvitation,
 } from "./calendar-invitation-response.service";
-import { IcsAttendee, IcsEventData, IcsInfoResponse } from "./ics-event.types";
+import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
@@ -40,11 +36,6 @@ export interface TimeSlotsWithTimezone {
   slots: TimeSlot[];
   timezone: string;
   hasMore: boolean;
-}
-
-interface BusyPeriod {
-  start: string;
-  end: string;
 }
 
 @Injectable()
@@ -114,7 +105,7 @@ export class CalendarService {
         prefsOverride ||
         (await this.schedulingPreferencesService.getPreferences(userId));
 
-      const freeSlots = this.calculateFreeSlots(
+      const freeSlots = calculateFreeSlots(
         startDate,
         endDate,
         busy,
@@ -162,211 +153,6 @@ export class CalendarService {
       timezone: prefs.timezone || "UTC",
       hasMore,
     };
-  }
-
-  private toTzDate(date: Date, tz: string): Date {
-    // Get the time in the target timezone as a formatted string
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-      hourCycle: "h23",
-    });
-    const parts = formatter.formatToParts(date);
-    const dateMap: Record<string, string> = {};
-    parts.forEach((part) => {
-      if (part.type !== "literal") {
-        dateMap[part.type] = part.value;
-      }
-    });
-
-    // Create a Date object using the timezone-specific values
-    // This represents the same wall-clock time in the target timezone
-    return new Date(
-      Number(dateMap.year),
-      Number(dateMap.month) - 1,
-      Number(dateMap.day),
-      Number(dateMap.hour),
-      Number(dateMap.minute),
-      Number(dateMap.second),
-    );
-  }
-
-  private toDayKey(date: Date, tz: string): string {
-    const tzDate = this.toTzDate(date, tz);
-    const year = tzDate.getFullYear();
-    const month = String(tzDate.getMonth() + 1).padStart(2, "0");
-    const day = String(tzDate.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  private alignToSlotBoundary(date: Date, slotDurationMinutes: number): Date {
-    const aligned = new Date(date);
-    const minutes = aligned.getMinutes();
-    const remainder = minutes % slotDurationMinutes;
-    if (remainder !== 0) {
-      aligned.setMinutes(minutes + (slotDurationMinutes - remainder));
-      aligned.setSeconds(0, 0);
-    } else {
-      aligned.setSeconds(0, 0);
-    }
-    return aligned;
-  }
-
-  private calculateFreeSlots(
-    start: Date,
-    end: Date,
-    busy: BusyPeriod[],
-    prefs?: SchedulingPreferenceData,
-    limit?: number,
-  ): TimeSlot[] {
-    const slots: TimeSlot[] = [];
-    const slotDuration = prefs?.slotDurationMinutes || MINUTES.THIRTY;
-    const startHour = prefs?.availabilityStartHour ?? HOURS.NINE;
-    const endHour = prefs?.availabilityEndHour ?? HOURS.SEVENTEEN;
-    const availDays = prefs?.availabilityDays ?? [1, 2, 3, 4, 5];
-    const gapMinutes = prefs?.meetingGapMinutes ?? MINUTES.THIRTY;
-    const deepWorkHours = prefs?.deepWorkHoursPerDay ?? 2;
-    const tz = prefs?.timezone || "UTC";
-    let current = this.alignToSlotBoundary(start, slotDuration);
-
-    const meetingMinutesPerDay = new Map<string, number>();
-
-    while (current < end) {
-      const slotEnd = new Date(
-        current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-      );
-      const tzDate = this.toTzDate(current, tz);
-      const dayKey = this.toDayKey(current, tz);
-      const dayOfWeek = tzDate.getDay();
-      const hourInTz = tzDate.getHours();
-
-      if (!availDays.includes(dayOfWeek)) {
-        current = new Date(
-          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-        );
-        continue;
-      }
-
-      if (hourInTz < startHour || hourInTz >= endHour) {
-        current = new Date(
-          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-        );
-        continue;
-      }
-
-      const isBusy = busy.some((itemB) => {
-        const busyStart = new Date(itemB.start);
-        const busyEnd = new Date(itemB.end);
-        return (
-          (current >= busyStart && current < busyEnd) ||
-          (slotEnd > busyStart && slotEnd <= busyEnd) ||
-          (current <= busyStart && slotEnd >= busyEnd)
-        );
-      });
-
-      if (isBusy) {
-        current = new Date(
-          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-        );
-        continue;
-      }
-
-      const isTooCloseToMeeting = busy.some((itemB) => {
-        const busyEnd = new Date(itemB.end);
-        const busyStart = new Date(itemB.start);
-        const gapMs = gapMinutes * MILLISECONDS.MINUTE;
-        const tooCloseAfter =
-          current.getTime() >= busyEnd.getTime() &&
-          current.getTime() < busyEnd.getTime() + gapMs;
-        const tooCloseBefore =
-          slotEnd.getTime() <= busyStart.getTime() &&
-          slotEnd.getTime() > busyStart.getTime() - gapMs;
-        return tooCloseAfter || tooCloseBefore;
-      });
-
-      if (isTooCloseToMeeting) {
-        current = new Date(
-          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-        );
-        continue;
-      }
-
-      const totalAvailMinutes = (endHour - startHour) * MINUTES_PER_HOUR;
-      const existingMeetingMinutes = this.getMeetingMinutesForDay(
-        dayKey,
-        busy,
-        startHour,
-        endHour,
-        tz,
-      );
-      const bookedSlotMinutes = meetingMinutesPerDay.get(dayKey) || 0;
-      const totalBooked = existingMeetingMinutes + bookedSlotMinutes;
-      const deepWorkMinutes = deepWorkHours * MINUTES_PER_HOUR;
-      const maxBookableMinutes = totalAvailMinutes - deepWorkMinutes;
-
-      if (totalBooked + slotDuration > maxBookableMinutes) {
-        current = new Date(
-          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-        );
-        continue;
-      }
-
-      // Slot is available!
-      slots.push({
-        start: current.toISOString(),
-        end: slotEnd.toISOString(),
-        duration: slotDuration,
-      });
-      meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
-
-      // Early exit when we have enough slots — avoids scanning the full window
-      if (limit !== undefined && slots.length >= limit) {
-        break;
-      }
-
-      current = new Date(
-        current.getTime() + slotDuration * MILLISECONDS.MINUTE,
-      );
-    }
-
-    return slots;
-  }
-
-  private getMeetingMinutesForDay(
-    dayKey: string,
-    busy: BusyPeriod[],
-    startHour: number,
-    endHour: number,
-    tz: string,
-  ): number {
-    let total = 0;
-    for (const itemB of busy) {
-      const busyStart = new Date(itemB.start);
-      const busyEnd = new Date(itemB.end);
-      if (this.toDayKey(busyStart, tz) !== dayKey) continue;
-      const tzStart = this.toTzDate(busyStart, tz);
-      const dayStart = new Date(tzStart);
-      dayStart.setHours(startHour, 0, 0, 0);
-      const dayEnd = new Date(tzStart);
-      dayEnd.setHours(endHour, 0, 0, 0);
-      const effectiveStart = tzStart < dayStart ? dayStart : tzStart;
-      const effectiveEnd =
-        this.toTzDate(busyEnd, tz) > dayEnd
-          ? dayEnd
-          : this.toTzDate(busyEnd, tz);
-      if (effectiveEnd > effectiveStart) {
-        total +=
-          (effectiveEnd.getTime() - effectiveStart.getTime()) /
-          MILLISECONDS.MINUTE;
-      }
-    }
-    return total;
   }
 
   async createEvent(
@@ -763,125 +549,7 @@ Manage this booking:
       emailId,
       attachmentId,
     );
-
-    const icsString = attachmentBuffer.toString("utf-8");
-    const parsed = ical.sync.parseICS(icsString);
-
-    // Find the first VEVENT component
-    const eventEntry = Object.values(parsed).find(
-      (entry) => entry.type === "VEVENT",
-    ) as ical.VEvent | undefined;
-
-    if (!eventEntry) {
-      throw new Error("No VEVENT found in ICS attachment");
-    }
-
-    const startDate: Date | undefined =
-      eventEntry.start instanceof Date ? eventEntry.start : undefined;
-    const endDate: Date | undefined =
-      eventEntry.end instanceof Date ? eventEntry.end : undefined;
-
-    if (!startDate) {
-      throw new Error("ICS VEVENT has no valid DTSTART");
-    }
-
-    /**
-     * node-ical VEvent does not declare all properties in its type definition.
-     * We intersect extra types here to avoid `as any` casts throughout the parser.
-     * (We do NOT extend VEvent to avoid TS2430 property type conflicts.)
-     */
-    interface IcsVEventExtra {
-      /** "date" for all-day events, "date-time" for timed events */
-      datetype?: string;
-      /** Raw attendee value(s) — single object or array */
-      attendee?: IcsRawAttendee | IcsRawAttendee[];
-      /** RRULE recurrence rule object */
-      rrule?: unknown;
-    }
-    interface IcsRawParamBag {
-      CN?: string;
-      PARTSTAT?: string;
-      // node-ical Attendee.params uses string | number | boolean in the index signature
-      [key: string]: string | number | boolean | undefined;
-    }
-    interface IcsRawAttendee {
-      val: string;
-      params?: IcsRawParamBag;
-    }
-    interface IcsRawOrganizer {
-      val?: string;
-      params?: IcsRawParamBag;
-    }
-
-    const extEntry = eventEntry as ical.VEvent & IcsVEventExtra;
-
-    // Determine all-day: node-ical sets `datetype` to 'date' for all-day events
-    const allDay = extEntry.datetype === "date";
-
-    // Parse organizer
-    let organizer: IcsEventData["organizer"] | undefined;
-    if (extEntry.organizer) {
-      const org = extEntry.organizer as unknown as string | IcsRawOrganizer;
-      const raw: string = typeof org === "string" ? org : (org.val ?? "");
-      const email = raw.replace(/^mailto:/i, "").trim();
-      const rawCn = typeof org === "object" ? org.params?.CN : undefined;
-      const cn: string | undefined =
-        typeof rawCn === "string" ? rawCn : undefined;
-      organizer = { email, name: cn };
-    }
-
-    // Parse attendees
-    const attendees: IcsAttendee[] = [];
-    const rawAttendees = extEntry.attendee;
-    let attendeeList: (string | IcsRawAttendee)[];
-    if (!rawAttendees) {
-      attendeeList = [];
-    } else if (Array.isArray(rawAttendees)) {
-      attendeeList = rawAttendees;
-    } else {
-      attendeeList = [rawAttendees];
-    }
-    for (const att of attendeeList) {
-      const rawVal: string = typeof att === "string" ? att : (att.val ?? "");
-      const email = rawVal.replace(/^mailto:/i, "").trim();
-      if (!email) continue;
-      const params: IcsRawParamBag =
-        typeof att === "object" ? (att.params ?? {}) : {};
-      attendees.push({
-        email,
-        name: typeof params.CN === "string" ? params.CN : undefined,
-        status:
-          typeof params.PARTSTAT === "string" ? params.PARTSTAT : undefined,
-      });
-    }
-
-    // Detect RRULE (recurring events)
-    const isRecurring = Boolean(extEntry.rrule);
-
-    // Extract TZID from raw DTSTART property if present
-    const tzidMatch = icsString.match(/DTSTART;TZID=([^:]+):/i);
-    const timezone = tzidMatch ? tzidMatch[1] : undefined;
-
-    const rawSummary = extEntry.summary;
-    const title = typeof rawSummary === "string" ? rawSummary : "(No title)";
-
-    return {
-      uid: extEntry.uid ?? crypto.randomUUID(),
-      title,
-      startAt: startDate.toISOString(),
-      endAt: endDate?.toISOString(),
-      allDay,
-      location:
-        typeof extEntry.location === "string" ? extEntry.location : undefined,
-      description:
-        typeof extEntry.description === "string"
-          ? extEntry.description
-          : undefined,
-      organizer,
-      attendees,
-      timezone,
-      isRecurring,
-    };
+    return parseIcsString(attachmentBuffer.toString("utf-8"));
   }
 
   /**

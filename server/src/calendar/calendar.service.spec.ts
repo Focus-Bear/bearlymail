@@ -7,6 +7,12 @@ import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
+import {
+  alignToSlotBoundary,
+  calculateFreeSlots,
+  toDayKey,
+  toTzDate,
+} from "./calendar-free-slots.helper";
 import { CalendarService } from "./calendar.service";
 
 // Mock googleapis
@@ -713,8 +719,7 @@ describe("CalendarService", () => {
       const end = new Date("2024-01-15T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
-      // Access private method through any cast for testing
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeGreaterThan(0);
@@ -727,7 +732,7 @@ describe("CalendarService", () => {
       const end = new Date("2024-01-22T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeGreaterThan(10);
@@ -745,7 +750,7 @@ describe("CalendarService", () => {
         },
       ];
 
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       // Should not include slots that overlap with busy period
       expect(Array.isArray(result)).toBe(true);
@@ -756,7 +761,7 @@ describe("CalendarService", () => {
       const end = new Date("2024-01-15T18:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       result.forEach((slot: { start: string }) => {
         const slotDate = new Date(slot.start);
@@ -772,7 +777,7 @@ describe("CalendarService", () => {
       const end = new Date("2024-01-20T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       // Without the hard cap, multiple business days should yield many more slots
       expect(result.length).toBeGreaterThan(10);
@@ -783,7 +788,7 @@ describe("CalendarService", () => {
       const end = new Date("2024-01-15T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
-      const result = (service as any).calculateFreeSlots(start, end, busy);
+      const result = calculateFreeSlots(start, end, busy);
 
       expect(result.length).toBeGreaterThan(0);
       result.forEach((slot: { start: string }) => {
@@ -797,7 +802,7 @@ describe("CalendarService", () => {
   describe("alignToSlotBoundary", () => {
     it("should round up to next 30-minute boundary", () => {
       const date = new Date("2024-01-15T09:22:15Z");
-      const result = (service as any).alignToSlotBoundary(date, 30);
+      const result = alignToSlotBoundary(date, 30);
       expect(result.getMinutes()).toBe(30);
       expect(result.getSeconds()).toBe(0);
       expect(result.getMilliseconds()).toBe(0);
@@ -805,21 +810,21 @@ describe("CalendarService", () => {
 
     it("should keep already-aligned times unchanged", () => {
       const date = new Date("2024-01-15T09:00:00Z");
-      const result = (service as any).alignToSlotBoundary(date, 30);
+      const result = alignToSlotBoundary(date, 30);
       expect(result.getMinutes()).toBe(0);
       expect(result.getSeconds()).toBe(0);
     });
 
     it("should handle 15-minute slot durations", () => {
       const date = new Date("2024-01-15T09:07:30Z");
-      const result = (service as any).alignToSlotBoundary(date, 15);
+      const result = alignToSlotBoundary(date, 15);
       expect(result.getMinutes()).toBe(15);
       expect(result.getSeconds()).toBe(0);
     });
 
     it("should handle 60-minute slot durations", () => {
       const date = new Date("2024-01-15T09:45:00Z");
-      const result = (service as any).alignToSlotBoundary(date, 60);
+      const result = alignToSlotBoundary(date, 60);
       expect(result.getHours()).toBe(10);
       expect(result.getMinutes()).toBe(0);
       expect(result.getSeconds()).toBe(0);
@@ -827,14 +832,14 @@ describe("CalendarService", () => {
 
     it("should handle time at exact boundary for 15-minute slots", () => {
       const date = new Date("2024-01-15T09:15:00Z");
-      const result = (service as any).alignToSlotBoundary(date, 15);
+      const result = alignToSlotBoundary(date, 15);
       expect(result.getMinutes()).toBe(15);
       expect(result.getSeconds()).toBe(0);
     });
 
     it("should zero out seconds and milliseconds", () => {
       const date = new Date("2024-01-15T09:30:45.123Z");
-      const result = (service as any).alignToSlotBoundary(date, 30);
+      const result = alignToSlotBoundary(date, 30);
       expect(result.getMinutes()).toBe(30);
       expect(result.getSeconds()).toBe(0);
       expect(result.getMilliseconds()).toBe(0);
@@ -983,7 +988,7 @@ describe("CalendarService", () => {
       // The key fix: using hourCycle: "h23" ensures midnight is represented as "00" not "24"
       // This test validates the formatter options are correct
       const date = new Date("2024-01-15T00:00:00Z");
-      const result = (service as any).toTzDate(date, "UTC");
+      const result = toTzDate(date, "UTC");
 
       // Should not throw or produce invalid date
       expect(result).toBeInstanceOf(Date);
@@ -1002,7 +1007,7 @@ describe("CalendarService", () => {
       ];
 
       midnightTestCases.forEach(({ date, tz }) => {
-        const result = (service as any).toTzDate(date, tz);
+        const result = toTzDate(date, tz);
         // Should produce a valid date (not NaN or rolled over incorrectly)
         expect(result).toBeInstanceOf(Date);
         expect(isNaN(result.getTime())).toBe(false);
@@ -1025,7 +1030,7 @@ describe("CalendarService", () => {
       ];
 
       testCases.forEach((date) => {
-        const result = (service as any).toTzDate(date, "UTC");
+        const result = toTzDate(date, "UTC");
         expect(result).toBeInstanceOf(Date);
         expect(isNaN(result.getTime())).toBe(false);
       });
@@ -1044,7 +1049,7 @@ describe("CalendarService", () => {
       ];
 
       timezones.forEach((tz) => {
-        const result = (service as any).toTzDate(date, tz);
+        const result = toTzDate(date, tz);
         expect(result).toBeInstanceOf(Date);
         expect(isNaN(result.getTime())).toBe(false);
       });
@@ -1053,10 +1058,7 @@ describe("CalendarService", () => {
     it("should handle DST transitions", () => {
       // March 10, 2024: DST starts in US
       const dstTransition = new Date("2024-03-10T07:00:00Z");
-      const result = (service as any).toTzDate(
-        dstTransition,
-        "America/New_York",
-      );
+      const result = toTzDate(dstTransition, "America/New_York");
 
       expect(result).toBeInstanceOf(Date);
       expect(isNaN(result.getTime())).toBe(false);
@@ -1064,7 +1066,7 @@ describe("CalendarService", () => {
 
     it("should preserve all time components", () => {
       const date = new Date("2024-01-15T12:34:56Z");
-      const result = (service as any).toTzDate(date, "UTC");
+      const result = toTzDate(date, "UTC");
 
       // Validate it's a valid date
       expect(result).toBeInstanceOf(Date);
@@ -1075,7 +1077,7 @@ describe("CalendarService", () => {
   describe("toDayKey", () => {
     it("should generate a valid day key format (YYYY-MM-DD)", () => {
       const date = new Date("2024-01-15T12:00:00Z");
-      const result = (service as any).toDayKey(date, "UTC");
+      const result = toDayKey(date, "UTC");
 
       // Should match YYYY-MM-DD format
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -1083,7 +1085,7 @@ describe("CalendarService", () => {
 
     it("should generate a valid day key for midnight", () => {
       const date = new Date("2024-01-15T00:00:00Z");
-      const result = (service as any).toDayKey(date, "UTC");
+      const result = toDayKey(date, "UTC");
 
       // Should produce a valid date key (not crash or produce malformed output)
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -1091,7 +1093,7 @@ describe("CalendarService", () => {
 
     it("should pad month and day with zeros", () => {
       const date = new Date("2024-03-05T12:00:00Z");
-      const result = (service as any).toDayKey(date, "UTC");
+      const result = toDayKey(date, "UTC");
 
       // Should have leading zeros for single-digit month and day
       expect(result).toMatch(/^\d{4}-03-05$/);
@@ -1107,7 +1109,7 @@ describe("CalendarService", () => {
       ];
 
       timezones.forEach((tz) => {
-        const result = (service as any).toDayKey(date, tz);
+        const result = toDayKey(date, tz);
         expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       });
     });

@@ -2,12 +2,8 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
-import {
-  PRIORITY_BOOSTS,
-  PRIORITY_SCORES,
-} from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS, MILLISECONDS } from "../constants/time-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { LLMService } from "../llm/llm.service";
 import { searchLogger } from "../utils/search-logger";
@@ -99,100 +95,25 @@ export class EmailSearchService {
       skipLlmRanking,
     } = options;
     const originalQuery = query;
-    const queriesTried: QueryTried[] = [];
     const searchStartTime = Date.now();
-
-    // Log search start
     searchLogger.logSearchStart(userId, originalQuery);
 
     try {
-      // Get and filter connected providers
       const providersToSearch = await this.getFilteredProviders(
         userId,
         accountTypes,
       );
       if (!providersToSearch) {
-        // In CI / test mode fall back to an in-memory DB search so that
-        // e2e tests can run against seeded data without a real email provider.
-        if (process.env.CI_SEARCH_FALLBACK === "true") {
-          this.logger.log(
-            `[SEARCH] No provider connected for user ${userId}; using CI local-DB fallback`,
-          );
-          return this.searchEmailsFromLocalDb(userId, originalQuery);
-        }
-
-        const message = accountTypes?.length
-          ? `No matching email accounts found for the selected filters: ${accountTypes?.join(", ")}`
-          : "No email provider connected";
-        const logMsg = accountTypes?.length
-          ? `No matching email providers for user ${userId} with filter ${accountTypes?.join(", ")}`
-          : `No email provider connected for user ${userId}`;
-        this.logger.warn(logMsg);
-        searchLogger.logSearchError(userId, originalQuery, message);
-        return [
-          {
-            id: "no-results",
-            subject: "",
-            from: "",
-            body: "",
-            receivedAt: new Date().toISOString(),
-            debugInfo: { originalQuery, queriesTried: [], message },
-          } as unknown as EmailWithMetadata,
-        ];
+        return this.handleNoProvider(userId, originalQuery, accountTypes);
       }
 
-      // Step 1: Search immediately using the user's original query
-      onProgress?.(
-        "searching",
-        `Searching for emails across ${providersToSearch.length} account(s)...`,
-      );
-
-      const {
-        rawEmails: directRawEmails,
-        successfulQuery: directSuccessfulQuery,
-        queriesTried: directQueriesTried,
-      } = await this.searchAllProviders(
-        userId,
-        [originalQuery],
-        providersToSearch,
-      );
-
-      let rawEmails = directRawEmails;
-      let successfulQuery = directSuccessfulQuery;
-      let gmailQueries = [originalQuery];
-      queriesTried.push(...directQueriesTried);
-
-      // Step 2: If no direct matches, use AI to craft alternative query terms
-      if (rawEmails.length === 0) {
-        onProgress?.("converting", "Crafting alternative search queries...");
-        const aiQueries = await this.buildGmailQueriesFromNaturalLanguage(
+      const { rawEmails, successfulQuery, gmailQueries, queriesTried } =
+        await this.executeSearchWithFallback(
           userId,
           originalQuery,
-        );
-        gmailQueries = [
-          originalQuery,
-          ...aiQueries.filter(
-            (generatedQuery) => generatedQuery !== originalQuery,
-          ),
-        ];
-
-        onProgress?.(
-          "searching",
-          `Searching for emails across ${providersToSearch.length} account(s)...`,
-        );
-        const {
-          rawEmails: fallbackRawEmails,
-          successfulQuery: fallbackSuccessfulQuery,
-          queriesTried: fallbackQueriesTried,
-        } = await this.searchAllProviders(
-          userId,
-          gmailQueries.slice(1),
           providersToSearch,
+          onProgress,
         );
-        rawEmails = fallbackRawEmails;
-        successfulQuery = fallbackSuccessfulQuery;
-        queriesTried.push(...fallbackQueriesTried);
-      }
 
       if (rawEmails.length === 0) {
         searchLogger.logSearchComplete(
@@ -201,145 +122,163 @@ export class EmailSearchService {
           0,
           Date.now() - searchStartTime,
         );
-        // Return a special "no-results" marker with debug info including queries tried
-        return [
-          {
-            id: "no-results",
-            subject: "",
-            from: "",
-            body: "",
-            receivedAt: new Date().toISOString(),
-            debugInfo: {
-              originalQuery,
-              queriesTried,
-              message: "No emails found matching your search",
-            },
-          } as unknown as EmailWithMetadata,
-        ];
+        return this.buildNoResultsMarker(
+          originalQuery,
+          queriesTried,
+          "No emails found matching your search",
+        );
       }
 
-      // Step 3: Fetch full email data from our database
       onProgress?.("fetching", "Fetching email details...");
-      const matchedEmails = await this.fetchMatchedDbEmails(userId, rawEmails);
-      const messageIds = rawEmails
-        .map((emailEntry) => emailEntry.messageId as string | undefined)
-        .filter((id): id is string => id !== null && id !== undefined);
+      const { emails: matchedEmails, noResultsReason } =
+        await this.syncAndFetchMatchedEmails(userId, rawEmails, onProgress);
 
       if (matchedEmails.length === 0) {
-        // Emails were found in the provider but aren't in our DB yet.
-        // Trigger a targeted sync for those specific threads, then re-query.
-        const byProvider = new Map<string, Set<string>>();
-        for (const rawEmail of rawEmails) {
-          const threadId = rawEmail.threadId as string | undefined;
-          const providerType = (rawEmail._providerType as string) || "gmail";
-          if (threadId) {
-            if (!byProvider.has(providerType))
-              byProvider.set(providerType, new Set());
-            byProvider.get(providerType)!.add(threadId);
-          }
-        }
-
-        const MAX_THREADS_TO_SYNC = 10;
-        for (const [providerType, threadIdSet] of byProvider.entries()) {
-          const provider = await this.emailProviderManager.getProvider(
-            userId,
-            providerType,
-          );
-          if (!provider) continue;
-          const threadIds = [...threadIdSet].slice(0, MAX_THREADS_TO_SYNC);
-          this.logger.log(
-            `[SEARCH] Syncing ${threadIds.length} missing threads from ${providerType} for user ${userId}`,
-          );
-          try {
-            onProgress?.(
-              "syncing",
-              `Syncing ${threadIds.length} email(s) to BearlyMail...`,
-            );
-            await provider.syncEmails(userId, {
-              threadIds,
-              isContinuation: true,
-            });
-          } catch (syncError) {
-            this.logger.warn(
-              `[SEARCH] Targeted sync for ${providerType} failed:`,
-              syncError,
-            );
-          }
-        }
-
-        // Re-query the database after the sync
-        const syncedDbEmails = await this.emailRepository.find({
-          where: {
-            userId,
-            messageId: In(messageIds as string[]),
-          },
-          order: { receivedAt: "DESC" },
-        });
-        const syncedEmailMap = new Map(
-          syncedDbEmails.map((emailEntry) => [
-            emailEntry.messageId,
-            emailEntry,
-          ]),
-        );
-        for (const rawEmail of rawEmails) {
-          const messageId = rawEmail.messageId as string | undefined;
-          if (messageId && syncedEmailMap.has(messageId)) {
-            matchedEmails.push(syncedEmailMap.get(messageId)!);
-          }
-        }
-
-        if (matchedEmails.length === 0) {
-          searchLogger.logSearchComplete(
-            userId,
-            originalQuery,
-            0,
-            Date.now() - searchStartTime,
-          );
-          // Return a special "no-results" marker with debug info including queries tried
-          return [
-            {
-              id: "no-results",
-              subject: "",
-              from: "",
-              body: "",
-              receivedAt: new Date().toISOString(),
-              debugInfo: {
-                originalQuery,
-                queriesTried,
-                message:
-                  "Emails found in your email provider but could not be synced to BearlyMail. They will appear after the next automatic sync.",
-              },
-            } as unknown as EmailWithMetadata,
-          ];
-        }
-      }
-
-      // If skipLlmRanking is set, return raw results immediately without LLM processing
-      if (skipLlmRanking) {
-        const rawResults = matchedEmails.slice(
-          0,
-          maxResults,
-        ) as EmailWithMetadata[];
-        if (rawResults.length > 0) {
-          rawResults[0].debugInfo = {
-            originalQuery,
-            queriesTried,
-            gmailQuery: successfulQuery || gmailQueries[0] || query,
-            totalRawEmails: rawEmails.length,
-          };
-        }
         searchLogger.logSearchComplete(
           userId,
           originalQuery,
-          rawResults.length,
+          0,
           Date.now() - searchStartTime,
         );
-        return rawResults;
+        return this.buildNoResultsMarker(
+          originalQuery,
+          queriesTried,
+          noResultsReason ?? "No matching emails found",
+        );
       }
 
-      // Step 4: Rank results using AI
-      onProgress?.("analyzing", "Analyzing email relevance...");
-      const { filteredEmails, allScores, now } = await this.rankAndFilterEmails(
+      return this.performRankedSearch(
+        userId,
+        originalQuery,
+        query,
+        matchedEmails,
+        rawEmails,
+        {
+          maxResults,
+          skipLlmRanking,
+          calculateDaysSinceLastEmail,
+          onProgress,
+          successfulQuery,
+          gmailQueries,
+          queriesTried,
+          searchStartTime,
+        },
+      );
+    } catch (error) {
+      this.logger.error("Search failed:", error);
+      searchLogger.logSearchError(userId, originalQuery, String(error));
+      throw error;
+    }
+  }
+
+  /**
+   * Run the provider search with an AI-generated fallback if no direct results.
+   * Extracted from searchEmails() as part of issue #939 batch 2.
+   */
+  /**
+   * Handle the case where no providers are available for a search.
+   * Returns a response array (always non-null) with a no-results or CI-fallback result.
+   */
+  private async handleNoProvider(
+    userId: string,
+    originalQuery: string,
+    accountTypes?: string[],
+  ): Promise<EmailWithMetadata[]> {
+    if (process.env.CI_SEARCH_FALLBACK === "true") {
+      this.logger.log(
+        `[SEARCH] No provider connected for user ${userId}; using CI local-DB fallback`,
+      );
+      return this.searchEmailsFromLocalDb(userId, originalQuery) as Promise<
+        EmailWithMetadata[]
+      >;
+    }
+    const message = accountTypes?.length
+      ? `No matching email accounts found for the selected filters: ${accountTypes.join(", ")}`
+      : "No email provider connected";
+    this.logger.warn(
+      accountTypes?.length
+        ? `No matching email providers for user ${userId} with filter ${accountTypes.join(", ")}`
+        : `No email provider connected for user ${userId}`,
+    );
+    searchLogger.logSearchError(userId, originalQuery, message);
+    return this.buildNoResultsMarker(originalQuery, [], message);
+  }
+
+  /** Build the sentinel "no-results" array returned when nothing was found. */
+  private buildNoResultsMarker(
+    originalQuery: string,
+    queriesTried: QueryTried[],
+    message: string,
+  ): EmailWithMetadata[] {
+    return [
+      {
+        id: "no-results",
+        subject: "",
+        from: "",
+        body: "",
+        receivedAt: new Date().toISOString(),
+        debugInfo: { originalQuery, queriesTried, message },
+      } as unknown as EmailWithMetadata,
+    ];
+  }
+
+  /**
+   * Apply LLM ranking (or skip it) and build the final result array.
+   * Extracted from searchEmails() to reduce its statement/line count.
+   */
+  private async performRankedSearch(
+    userId: string,
+    originalQuery: string,
+    query: string,
+    matchedEmails: Email[],
+    rawEmails: RawSearchEmail[],
+    context: {
+      maxResults: number;
+      skipLlmRanking?: boolean;
+      calculateDaysSinceLastEmail?: SearchEmailsOptions["calculateDaysSinceLastEmail"];
+      onProgress?: SearchEmailsOptions["onProgress"];
+      successfulQuery: string | null;
+      gmailQueries: string[];
+      queriesTried: QueryTried[];
+      searchStartTime: number;
+    },
+  ): Promise<EmailWithMetadata[]> {
+    const {
+      maxResults,
+      skipLlmRanking,
+      calculateDaysSinceLastEmail,
+      onProgress,
+      successfulQuery,
+      gmailQueries,
+      queriesTried,
+      searchStartTime,
+    } = context;
+
+    if (skipLlmRanking) {
+      const rawResults = matchedEmails.slice(
+        0,
+        maxResults,
+      ) as EmailWithMetadata[];
+      if (rawResults.length > 0) {
+        rawResults[0].debugInfo = {
+          originalQuery,
+          queriesTried,
+          gmailQuery: successfulQuery || gmailQueries[0] || query,
+          totalRawEmails: rawEmails.length,
+        };
+      }
+      searchLogger.logSearchComplete(
+        userId,
+        originalQuery,
+        rawResults.length,
+        Date.now() - searchStartTime,
+      );
+      return rawResults;
+    }
+
+    onProgress?.("analyzing", "Analyzing email relevance...");
+    const { filteredEmails, allScores, now } =
+      await this.emailSearchRankingService.rankEmails(
         userId,
         originalQuery,
         matchedEmails,
@@ -347,43 +286,175 @@ export class EmailSearchService {
         calculateDaysSinceLastEmail,
       );
 
-      // Generate explanations and build results
-      onProgress?.("explaining", "Generating explanations...");
-      const result = await this.buildSearchResults(
-        userId,
-        originalQuery,
-        query,
-        matchedEmails,
-        filteredEmails,
-        rawEmails,
-        allScores,
-        now,
-        successfulQuery,
-        gmailQueries,
+    onProgress?.("explaining", "Generating explanations...");
+    const result = await this.buildSearchResults(
+      userId,
+      originalQuery,
+      query,
+      matchedEmails,
+      filteredEmails,
+      rawEmails,
+      allScores,
+      now,
+      successfulQuery,
+      gmailQueries,
+      queriesTried,
+      maxResults,
+    );
+
+    searchLogger.logSearchComplete(
+      userId,
+      originalQuery,
+      result.length,
+      Date.now() - searchStartTime,
+    );
+    return result as EmailWithMetadata[];
+  }
+
+  private async executeSearchWithFallback(
+    userId: string,
+    originalQuery: string,
+    providersToSearch: Array<{ type: string }>,
+    onProgress?: SearchEmailsOptions["onProgress"],
+  ): Promise<{
+    rawEmails: RawSearchEmail[];
+    successfulQuery: string | null;
+    gmailQueries: string[];
+    queriesTried: QueryTried[];
+  }> {
+    const queriesTried: QueryTried[] = [];
+    onProgress?.(
+      "searching",
+      `Searching for emails across ${providersToSearch.length} account(s)...`,
+    );
+
+    const {
+      rawEmails: direct,
+      successfulQuery: directSQ,
+      queriesTried: directQt,
+    } = await this.searchAllProviders(
+      userId,
+      [originalQuery],
+      providersToSearch,
+    );
+    queriesTried.push(...directQt);
+
+    if (direct.length > 0) {
+      return {
+        rawEmails: direct,
+        successfulQuery: directSQ,
+        gmailQueries: [originalQuery],
         queriesTried,
-        maxResults,
-      );
-
-      const searchDuration = Date.now() - searchStartTime;
-      searchLogger.logSearchComplete(
-        userId,
-        originalQuery,
-        result.length,
-        searchDuration,
-      );
-
-      return result as Array<
-        Email & {
-          searchExplanation?: string;
-          relevanceScore?: number;
-          debugInfo?: Record<string, unknown>;
-        }
-      >;
-    } catch (error) {
-      this.logger.error("Search failed:", error);
-      searchLogger.logSearchError(userId, originalQuery, String(error));
-      throw error;
+      };
     }
+
+    onProgress?.("converting", "Crafting alternative search queries...");
+    const aiQueries = await this.buildGmailQueriesFromNaturalLanguage(
+      userId,
+      originalQuery,
+    );
+    const gmailQueries = [
+      originalQuery,
+      ...aiQueries.filter((aiQuery) => aiQuery !== originalQuery),
+    ];
+
+    onProgress?.(
+      "searching",
+      `Searching for emails across ${providersToSearch.length} account(s)...`,
+    );
+    const {
+      rawEmails: fallback,
+      successfulQuery: fallbackSQ,
+      queriesTried: fallbackQt,
+    } = await this.searchAllProviders(
+      userId,
+      gmailQueries.slice(1),
+      providersToSearch,
+    );
+    queriesTried.push(...fallbackQt);
+
+    return {
+      rawEmails: fallback,
+      successfulQuery: fallbackSQ,
+      gmailQueries,
+      queriesTried,
+    };
+  }
+
+  /**
+   * Fetch matched emails from DB; if empty, trigger targeted provider sync and re-query.
+   * Extracted from searchEmails() as part of issue #939 batch 2.
+   */
+  private async syncAndFetchMatchedEmails(
+    userId: string,
+    rawEmails: RawSearchEmail[],
+    onProgress?: SearchEmailsOptions["onProgress"],
+  ): Promise<{ emails: Email[]; noResultsReason?: string }> {
+    const initial = await this.fetchMatchedDbEmails(userId, rawEmails);
+    if (initial.length > 0) return { emails: initial };
+
+    const messageIds = rawEmails
+      .map((emailEntry) => emailEntry.messageId as string | undefined)
+      .filter((id): id is string => id != null);
+
+    const byProvider = new Map<string, Set<string>>();
+    for (const rawEmail of rawEmails) {
+      const threadId = rawEmail.threadId as string | undefined;
+      const providerType = (rawEmail._providerType as string) || "gmail";
+      if (threadId) {
+        if (!byProvider.has(providerType))
+          byProvider.set(providerType, new Set());
+        byProvider.get(providerType)!.add(threadId);
+      }
+    }
+
+    const MAX_THREADS_TO_SYNC = 10;
+    for (const [providerType, threadIdSet] of byProvider.entries()) {
+      const provider = await this.emailProviderManager.getProvider(
+        userId,
+        providerType,
+      );
+      if (!provider) continue;
+      const threadIds = [...threadIdSet].slice(0, MAX_THREADS_TO_SYNC);
+      this.logger.log(
+        `[SEARCH] Syncing ${threadIds.length} missing threads from ${providerType} for user ${userId}`,
+      );
+      try {
+        onProgress?.(
+          "syncing",
+          `Syncing ${threadIds.length} email(s) to BearlyMail...`,
+        );
+        await provider.syncEmails(userId, { threadIds, isContinuation: true });
+      } catch (syncError) {
+        this.logger.warn(
+          `[SEARCH] Targeted sync for ${providerType} failed:`,
+          syncError,
+        );
+      }
+    }
+
+    const syncedDbEmails = await this.emailRepository.find({
+      where: { userId, messageId: In(messageIds) },
+      order: { receivedAt: "DESC" },
+    });
+    const syncedMap = new Map(
+      syncedDbEmails.map((emailItem) => [emailItem.messageId, emailItem]),
+    );
+    const synced: Email[] = [];
+    for (const rawEmail of rawEmails) {
+      const messageId = rawEmail.messageId as string | undefined;
+      if (messageId && syncedMap.has(messageId))
+        synced.push(syncedMap.get(messageId)!);
+    }
+
+    if (synced.length === 0) {
+      return {
+        emails: [],
+        noResultsReason:
+          "Emails found in your email provider but could not be synced to BearlyMail. They will appear after the next automatic sync.",
+      };
+    }
+    return { emails: synced };
   }
 
   private async getFilteredProviders(
@@ -415,10 +486,11 @@ export class EmailSearchService {
     const gmailQueries: string[] = [];
     for (const naturalVar of naturalVariations) {
       try {
-        const gmailQuery = await this.convertQueryToGmailSearch(
-          userId,
-          naturalVar,
-        );
+        const gmailQuery =
+          await this.emailSearchRankingService.convertQueryToGmailSearch(
+            userId,
+            naturalVar,
+          );
         if (gmailQuery && !gmailQueries.includes(gmailQuery)) {
           gmailQueries.push(gmailQuery);
         }
@@ -428,7 +500,11 @@ export class EmailSearchService {
     }
 
     if (gmailQueries.length === 0) {
-      const gmailQuery = await this.convertQueryToGmailSearch(userId, query);
+      const gmailQuery =
+        await this.emailSearchRankingService.convertQueryToGmailSearch(
+          userId,
+          query,
+        );
       gmailQueries.push(gmailQuery);
     }
 
@@ -534,194 +610,6 @@ export class EmailSearchService {
       }
       return email;
     });
-  }
-
-  private async rankAndFilterEmails(
-    userId: string,
-    originalQuery: string,
-    matchedEmails: Email[],
-    maxResults: number,
-    calculateDaysSinceLastEmail?: SearchEmailsOptions["calculateDaysSinceLastEmail"],
-  ): Promise<{
-    filteredEmails: Email[];
-    allScores: Map<number, number>;
-    now: Date;
-  }> {
-    const now = new Date();
-    const allScores: Map<number, number> = new Map();
-
-    if (matchedEmails.length === 0) {
-      return {
-        filteredEmails: matchedEmails.slice(0, maxResults),
-        allScores,
-        now,
-      };
-    }
-
-    const emailSummaries = await Promise.all(
-      matchedEmails.map(async (email) => {
-        const receivedDate = new Date(email.receivedAt);
-        const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
-        );
-        const daysSince = calculateDaysSinceLastEmail
-          ? await calculateDaysSinceLastEmail(userId, email)
-          : undefined;
-        return {
-          index: matchedEmails.indexOf(email),
-          from: email.fromName || email.from || "",
-          subject: email.subject || "",
-          snippet:
-            email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
-            "",
-          daysAgo,
-          isRecent: daysAgo <= DAYS.WEEK,
-          daysSinceLastEmail: daysSince,
-        };
-      }),
-    );
-
-    const mostRecentDays = calculateDaysSinceLastEmail
-      ? await calculateDaysSinceLastEmail(userId, matchedEmails[0])
-      : undefined;
-
-    let filteredEmails = matchedEmails;
-
-    try {
-      searchLogger.logAIScoringStart(
-        userId,
-        originalQuery,
-        matchedEmails.length,
-      );
-      const isTimeSensitive = this.isTimeSensitiveQuery(originalQuery);
-      const rankingPrompt = this.buildRankingPrompt(
-        originalQuery,
-        emailSummaries,
-        mostRecentDays,
-        isTimeSensitive,
-      );
-
-      const rankingResponse = await this.llmService.generateText(
-        {
-          prompt: rankingPrompt,
-          systemPrompt:
-            "You are a helpful email search assistant. Return only valid JSON arrays.",
-          temperature: QUERY_LIMITS.LLM_TEMPERATURE,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
-        },
-        undefined,
-        userId,
-      );
-
-      searchLogger.logAIScoringComplete(
-        userId,
-        originalQuery,
-        matchedEmails.length,
-        filteredEmails.length,
-        matchedEmails.length - filteredEmails.length,
-      );
-
-      try {
-        const jsonMatch = rankingResponse.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const rankings: Array<{ index: number; relevanceScore: number }> =
-            JSON.parse(jsonMatch[0]);
-          if (Array.isArray(rankings)) {
-            rankings.forEach((rank) => {
-              allScores.set(rank.index, rank.relevanceScore);
-            });
-            filteredEmails = matchedEmails.filter(
-              (_email, index) =>
-                (allScores.get(index) ?? 0) >=
-                PRIORITY_BOOSTS.RELEVANCE_THRESHOLD,
-            );
-            filteredEmails.sort((itemA, itemB) => {
-              const scoreA = allScores.get(matchedEmails.indexOf(itemA)) ?? 0;
-              const scoreB = allScores.get(matchedEmails.indexOf(itemB)) ?? 0;
-              return scoreB - scoreA;
-            });
-            filteredEmails = filteredEmails.slice(0, maxResults);
-          }
-        }
-      } catch (parseError) {
-        this.logger.warn(
-          "Failed to parse AI ranking response, using all results:",
-          parseError,
-        );
-        filteredEmails = matchedEmails.slice(0, maxResults);
-      }
-    } catch (error) {
-      this.logger.error("AI ranking failed, using all results:", error);
-      filteredEmails = matchedEmails.slice(0, maxResults);
-    }
-
-    return { filteredEmails, allScores, now };
-  }
-
-  private buildRankingPrompt(
-    originalQuery: string,
-    emailSummaries: Array<{
-      index: number;
-      from: string;
-      subject: string;
-      snippet: string;
-      daysAgo: number;
-      isRecent: boolean;
-      daysSinceLastEmail?: number;
-    }>,
-    daysSinceLastEmail: number | undefined,
-    isTimeSensitive: boolean,
-  ): string {
-    const recency30DPenalty = isTimeSensitive
-      ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY *
-        QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
-      : PRIORITY_BOOSTS.RECENCY_30D_PENALTY;
-    const recency60DPenalty = isTimeSensitive
-      ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY *
-        QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
-      : PRIORITY_BOOSTS.RECENCY_60D_PENALTY;
-    const timeSensitivityNote = isTimeSensitive
-      ? "\n\n⚠️ TIME-SENSITIVE QUERY DETECTED: OLDER emails should be penalized MORE HEAVILY. Emails older than 30 days should receive significantly lower scores unless extremely relevant."
-      : "";
-
-    const emailLines = emailSummaries
-      .map((emailEntry, index) => {
-        let recencyLabel = "";
-        if (emailEntry.daysAgo === 0) recencyLabel = " (TODAY!)";
-        else if (emailEntry.daysAgo <= 1) recencyLabel = " (LAST 24 HOURS!)";
-        else if (emailEntry.isRecent) recencyLabel = " (RECENT)";
-        return `${index}. From: ${emailEntry.from}, Subject: ${emailEntry.subject}, Received: ${emailEntry.daysAgo} days ago${recencyLabel}, Preview: ${emailEntry.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
-      })
-      .join("\n");
-
-    return `You are an email search assistant. Rank these ${emailSummaries.length} emails by relevance to the search query: "${originalQuery}"
-
-IMPORTANT CONTEXT:
-- The most recent email in this set was received ${daysSinceLastEmail} days ago
-- Prioritize RECENT emails heavily${timeSensitivityNote}
-
-CRITICAL RELEVANCE RULES:
-1. If the query asks about a specific person, emails MUST be from that person or mention them prominently
-2. Emails that don't mention the person should get a score of 0-20
-3. Emails from automated services that don't mention the person should get very low scores (0-15)
-4. Only emails that directly relate to the query should score above ${PRIORITY_SCORES.MEDIUM_THRESHOLD}
-
-CRITICAL RECENCY RULES:
-- TODAY: +${PRIORITY_BOOSTS.RECENCY_TODAY} bonus
-- Last 24 hours: +${PRIORITY_BOOSTS.RECENCY_24H} bonus
-- Last ${DAYS.WEEK} days: +${PRIORITY_BOOSTS.RECENCY_7D} bonus
-- ${DAYS.WEEK + 1}-${DAYS.MONTH} days: +${PRIORITY_BOOSTS.RECENCY_30D} bonus
-- Older than ${DAYS.MONTH} days: ${recency30DPenalty} penalty
-- Older than 60 days: ${recency60DPenalty} penalty
-
-STRICT FILTERING: Only include emails with final score >= ${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD}.
-
-Return a JSON array: [{"index": 2, "relevanceScore": 95}, ...]
-
-Emails:
-${emailLines}
-
-Return ONLY a JSON array of objects.`;
   }
 
   private async fetchMatchedDbEmails(
@@ -878,7 +766,11 @@ Return ONLY a JSON array of objects.`;
     for (const altQuery of alternativeQueries) {
       let gmailQuery: string;
       try {
-        gmailQuery = await this.convertQueryToGmailSearch(userId, altQuery);
+        gmailQuery =
+          await this.emailSearchRankingService.convertQueryToGmailSearch(
+            userId,
+            altQuery,
+          );
       } catch {
         gmailQuery = altQuery;
       }
@@ -935,92 +827,6 @@ Return ONLY a JSON array of objects.`;
   }
 
   /**
-   * Convert natural language query to Gmail search syntax using AI
-   */
-  private async convertQueryToGmailSearch(
-    userId: string,
-    query: string,
-  ): Promise<string> {
-    // Check if query already looks like Gmail syntax (contains operators like from:, to:, subject:, etc.)
-    const gmailOperators = [
-      "from:",
-      "to:",
-      "subject:",
-      "has:",
-      "in:",
-      "is:",
-      "before:",
-      "after:",
-      "older:",
-      "newer:",
-    ];
-
-    const hasGmailOperator = gmailOperators.some((op) =>
-      query.toLowerCase().includes(op),
-    );
-
-    if (hasGmailOperator) {
-      // Query already contains Gmail operators, return as-is
-      return query;
-    }
-
-    // Use AI to convert natural language to Gmail search syntax
-    const conversionPrompt = `Convert this natural language email search query to Gmail search syntax: "${query}"
-
-Gmail search syntax rules:
-- Use "from:" for sender (e.g., "from:john@example.com")
-- Use "subject:" for subject line (e.g., "subject:meeting")
-- Use "has:" for attachments (e.g., "has:attachment")
-- Use "in:" for labels/folders (e.g., "in:inbox")
-- Use "is:" for flags (e.g., "is:read", "is:unread", "is:starred")
-- Use "before:" and "after:" for dates (e.g., "after:2024/1/1")
-- Combine terms with spaces (AND) or use OR for alternatives
-- Use quotes for exact phrases (e.g., "subject:\"team meeting\"")
-
-Return ONLY the Gmail search query, nothing else.`;
-
-    try {
-      const response = await this.llmService.generateText(
-        {
-          prompt: conversionPrompt,
-          systemPrompt:
-            "You are a helpful assistant that converts natural language to Gmail search syntax. Return only the search query.",
-          temperature: 0.3,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
-        },
-        undefined,
-        userId,
-      );
-
-      // Extract the query (remove any markdown formatting or extra text)
-      const cleaned = response
-        .trim()
-        .replace(/^```[\w]*\n?/g, "")
-        .replace(/\n?```$/g, "")
-        .trim();
-
-      // If the response looks valid, use it; otherwise fall back to simple keyword search
-      if (
-        cleaned.length > 0 &&
-        cleaned.length < QUERY_LIMITS.SUBSTRING_BODY_PREVIEW
-      ) {
-        return cleaned;
-      }
-    } catch (error) {
-      this.logger.warn("Failed to convert query using AI:", error);
-    }
-
-    // Fallback: simple keyword-based search
-    // Split query into words and search in subject and body
-    const words = query
-      .split(/\s+/)
-      .filter((word) => word.length > 0)
-      .map((word) => `"${word}"`)
-      .join(" OR ");
-    return `subject:(${words}) OR ${words}`;
-  }
-
-  /**
    * CI / local-DB search fallback.
    *
    * Used when no email provider is connected (e.g. in CI e2e tests against
@@ -1063,20 +869,11 @@ Return ONLY the Gmail search query, nothing else.`;
     queriesTried[0].resultCount = matched.length;
 
     if (matched.length === 0) {
-      return [
-        {
-          id: "no-results",
-          subject: "",
-          from: "",
-          body: "",
-          receivedAt: new Date().toISOString(),
-          debugInfo: {
-            originalQuery: query,
-            queriesTried,
-            message: "No emails found matching your search",
-          },
-        } as unknown as EmailWithMetadata,
-      ];
+      return this.buildNoResultsMarker(
+        query,
+        queriesTried,
+        "No emails found matching your search",
+      );
     }
 
     return matched.map((email, idx) => {
@@ -1100,34 +897,5 @@ Return ONLY the Gmail search query, nothing else.`;
       } as unknown as EmailWithMetadata;
       return result;
     });
-  }
-
-  private isTimeSensitiveQuery(query: string): boolean {
-    const lowerQuery = query.toLowerCase();
-
-    const timeSensitivePatterns = [
-      /\b(is|are|will|coming|going|attending|joining|participating)\b/i,
-      /\b(meeting|appointment|call|conference|event|gathering|session)\b/i,
-      /\b(when|what time|what day|which day|tomorrow|today|this week|next week)\b/i,
-      /\b(status|confirmed|cancel|reschedule|postpone)\b/i,
-      /\b(plan|schedule|arrange|organize|set up)\b/i,
-    ];
-
-    const hasQuestionWord = /\b(is|are|will|when|what|where|who|how)\b/i.test(
-      lowerQuery,
-    );
-    const hasTimeSensitivePattern = timeSensitivePatterns.some((pattern) =>
-      pattern.test(lowerQuery),
-    );
-
-    const isDirectQuestion =
-      /\b(is|are|will|when|what|where|who|how)\b/i.test(
-        lowerQuery.trim().split(/\s+/)[0],
-      ) || lowerQuery.includes("?");
-
-    return (
-      (hasQuestionWord && hasTimeSensitivePattern) ||
-      (isDirectQuestion && hasTimeSensitivePattern)
-    );
   }
 }

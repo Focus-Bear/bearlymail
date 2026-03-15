@@ -327,7 +327,6 @@ module.exports = {
         'src/emails/providers/zoho.provider.ts',
         'src/context/context.service.ts',
         'src/context/context-gmail-data.service.ts',
-        'src/calendar/calendar.service.ts',
       ],
       rules: {
         'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
@@ -344,8 +343,6 @@ module.exports = {
       files: [
         'src/context/context-batch-analysis.processor.ts',
         'src/context/context-error-handler.ts',
-        'src/emails/email-debug.service.ts',
-        'src/emails/email-search.service.ts',
         'src/emails/emails.service.ts',
         'src/llm/llm.service.ts',
         'src/llm/priority-analysis.service.ts',

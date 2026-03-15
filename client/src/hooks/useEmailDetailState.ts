@@ -81,6 +81,7 @@ export function useEmailDetailState() {
   } | null>(null);
 
   // Snooze state
+  const [autoSendCountdown, setAutoSendCountdown] = useState<number | null>(null);
   const [snoozeInput, setSnoozeInput] = useState<string>('');
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
 
@@ -182,6 +183,8 @@ export function useEmailDetailState() {
     setDisputing,
     disputeResult,
     setDisputeResult,
+    autoSendCountdown,
+    setAutoSendCountdown,
 
     // Snooze
     snoozeInput,

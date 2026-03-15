@@ -79,6 +79,8 @@ export interface EmailDetailState {
       remainingRules: string[];
     } | null
   ) => void;
+  autoSendCountdown: number | null;
+  setAutoSendCountdown: React.Dispatch<React.SetStateAction<number | null>>;
   snoozeInput: string;
   setSnoozeInput: (input: string) => void;
   showSnoozeInput: boolean;

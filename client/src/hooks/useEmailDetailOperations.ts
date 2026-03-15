@@ -10,8 +10,7 @@ import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { TIMEOUT_800_MS } from 'constants/numbers';
+import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, TIMEOUT_800_MS } from 'constants/numbers';
 import {
   ACTION_ITEM_SOURCE_LLM,
   ANIMATION_TYPE_ARCHIVE,
@@ -185,6 +184,7 @@ export function useEmailDetailOperations(
     disputeResult,
     setDisputing,
     setDisputeResult,
+    setAutoSendCountdown,
     snoozeInput,
     setSnoozeInput,
     setShowSnoozeInput,
@@ -885,6 +885,12 @@ export function useEmailDetailOperations(
     ]
   );
 
+  const AUTO_SEND_COUNTDOWN_SECONDS = 5;
+
+  // Stable ref so the countdown useEffect never captures a stale handleSendReply
+  const handleSendReplyRef = useRef<typeof handleSendReply>(handleSendReply);
+  handleSendReplyRef.current = handleSendReply;
+
   const disputeToneCheck = useCallback(
     async (emailText: string, userArgument: string) => {
       setDisputing(true);
@@ -894,14 +900,40 @@ export function useEmailDetailOperations(
           userArgument,
         });
         setDisputeResult(response.data);
+        if (response.data?.accepted) {
+          captureEvent(ANALYTICS_EVENTS.TONE_CHECK_DISPUTE_AUTO_SEND_TRIGGERED);
+          setAutoSendCountdown(AUTO_SEND_COUNTDOWN_SECONDS);
+        }
       } catch (error) {
         console.error('Error disputing tone check:', error);
       } finally {
         setDisputing(false);
       }
     },
-    [setDisputing, setDisputeResult]
+    [setDisputing, setDisputeResult, setAutoSendCountdown]
   );
+
+  const cancelAutoSend = useCallback(() => {
+    captureEvent(ANALYTICS_EVENTS.TONE_CHECK_DISPUTE_AUTO_SEND_CANCELLED);
+    setAutoSendCountdown(null);
+  }, [setAutoSendCountdown]);
+
+  // Tick the countdown every second; fire send when it reaches 0
+  useEffect(() => {
+    const autoSendCountdown = state.autoSendCountdown;
+    if (autoSendCountdown === null) {
+      return;
+    }
+    if (autoSendCountdown <= 0) {
+      void handleSendReplyRef.current([]);
+      setAutoSendCountdown(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setAutoSendCountdown(prev => (prev !== null ? prev - 1 : null));
+    }, MS_PER_SECOND);
+    return () => clearTimeout(timer);
+  }, [state.autoSendCountdown, setAutoSendCountdown]);
 
   const handleSetStarCount = useCallback(
     async (emailId: string, starCount: number) => {
@@ -995,6 +1027,7 @@ export function useEmailDetailOperations(
     handleGenerateDraft,
     handleSendReply,
     disputeToneCheck,
+    cancelAutoSend,
     handleArchive,
     handleSnooze,
     handleDelete,

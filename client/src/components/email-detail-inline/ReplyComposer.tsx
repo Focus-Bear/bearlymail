@@ -92,6 +92,10 @@ interface ReplyComposerProps {
   onScheduleForMorning?: () => void;
   /** Called when the user dismisses the tone check and wants to keep their original draft. */
   onDismissToneCheck?: () => void;
+  /** Seconds remaining before auto-send fires; null = not active */
+  autoSendCountdown?: number | null;
+  onCancelAutoSend?: () => void;
+  onSendNow?: () => void;
 }
 
 const useDragFiles = (onFilesAdded: (newFiles: File[]) => void) => {
@@ -315,6 +319,9 @@ interface ReplyComposerBodyProps {
   onSchedule?: () => void;
   onClearSchedule?: () => void;
   onDismissToneCheck?: () => void;
+  autoSendCountdown?: number | null;
+  onCancelAutoSend?: () => void;
+  onSendNow?: () => void;
 }
 
 const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
@@ -328,6 +335,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   onReplyOptionSelect, onDraftChange, onPasteFiles, onInlineImage, onFilesChange,
   onRemoveForwardAttachment, onUseRevisedText, onClose, onSend,
   onSchedule, onClearSchedule, onDismissToneCheck,
+  autoSendCountdown, onCancelAutoSend, onSendNow,
 }) => (
   <>
     <ReplyComposerHeader replyMode={replyMode} onClose={onClose} />
@@ -370,6 +378,9 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       disputing={disputing}
       disputeResult={disputeResult}
       onScheduleForMorning={onScheduleForMorning}
+      autoSendCountdown={autoSendCountdown}
+      onCancelAutoSend={onCancelAutoSend}
+      onSendNow={onSendNow}
     />
     {isAdmin && (
       <ReplyComposerDebugPanel
@@ -403,6 +414,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onReplyOptionSelect, onClose, onSend, onUseRevisedText, textareaRef,
   onDispute, disputing, disputeResult, onSchedule, onClearSchedule,
   onScheduleForMorning, onDismissToneCheck,
+  autoSendCountdown, onCancelAutoSend, onSendNow,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -438,6 +450,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onUseRevisedText: handleUseRevisedText,
     onClose: handleClose, onSend: handleSend, onSchedule, onClearSchedule,
     onDismissToneCheck,
+    autoSendCountdown, onCancelAutoSend, onSendNow,
   };
 
   return (

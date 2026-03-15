@@ -811,7 +811,9 @@
       "viewEvent": "Ver en Google Calendar",
       "error": "No se pudo cargar la invitación de calendario",
       "recurring": "🔁 Recurrente"
-    }
+    },
+    "autoSendingIn": "Enviando en {{seconds}}s…",
+    "sendNow": "Enviar ahora"
   },
   "contacts": {
     "title": "Contactos",

@@ -476,7 +476,9 @@
       "viewEvent": "View in Google Calendar",
       "error": "Could not load calendar invite",
       "recurring": "🔁 Recurring"
-    }
+    },
+    "autoSendingIn": "Sending in {{seconds}}s…",
+    "sendNow": "Send Now"
   },
   "settings": {
     "title": "Settings",

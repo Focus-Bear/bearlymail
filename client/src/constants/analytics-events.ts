@@ -85,6 +85,8 @@ export const ANALYTICS_EVENTS = {
   TONE_CHECK_REVISED_TEXT_USED: 'tone_check_revised_text_used',
   TONE_CHECK_SCHEDULE_FOR_MORNING_CLICKED: 'tone_check_schedule_for_morning_clicked',
   TONE_CHECK_SCHEDULE_FOR_MORNING_COMPOSE: 'tone_check_schedule_for_morning_compose',
+  TONE_CHECK_DISPUTE_AUTO_SEND_TRIGGERED: 'tone_check_dispute_auto_send_triggered',
+  TONE_CHECK_DISPUTE_AUTO_SEND_CANCELLED: 'tone_check_dispute_auto_send_cancelled',
   TONE_RULE_ADDED: 'tone_rule_added',
   TONE_RULE_EDITED: 'tone_rule_edited',
   TONE_RULE_REMOVED: 'tone_rule_removed',

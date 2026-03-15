@@ -17,6 +17,64 @@ interface DisputeResult {
   remainingRules: string[];
 }
 
+interface AutoSendCountdownBannerProps {
+  countdown: number;
+  onSendNow: () => void;
+  onCancel: () => void;
+}
+
+const AutoSendCountdownBanner: React.FC<AutoSendCountdownBannerProps> = ({ countdown, onSendNow, onCancel }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.primary.light,
+        border: `1px solid ${theme.colors.primary.main}`,
+        borderRadius: theme.borderRadius.sm,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.sm,
+      }}
+    >
+      <span style={{ flex: 1, color: theme.colors.primary.dark }}>
+        {t('emailDetail.autoSendingIn', { seconds: countdown })}
+      </span>
+      <button
+        onClick={onSendNow}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: theme.colors.primary.main,
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.sm,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
+        {t('emailDetail.sendNow')}
+      </button>
+      <button
+        onClick={onCancel}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.sm,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('common.cancel')}
+      </button>
+    </div>
+  );
+};
+
 interface ToneCheckResultProps {
   toneCheckResult: {
     isOk: boolean;
@@ -32,6 +90,10 @@ interface ToneCheckResultProps {
   disputing?: boolean;
   disputeResult?: DisputeResult | null;
   onScheduleForMorning?: () => void;
+  /** Countdown in seconds before auto-send fires; null means not active */
+  autoSendCountdown?: number | null;
+  onCancelAutoSend?: () => void;
+  onSendNow?: () => void;
 }
 
 interface DisputeResultDisplayProps {
@@ -372,6 +434,9 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   disputing = false,
   disputeResult,
   onScheduleForMorning,
+  autoSendCountdown = null,
+  onCancelAutoSend,
+  onSendNow,
 }) => {
   const { t } = useTranslation();
 
@@ -494,6 +559,13 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
           disputing={disputing}
           disputeResult={disputeResult}
           onDispute={onDispute}
+        />
+      )}
+      {autoSendCountdown !== null && onCancelAutoSend && onSendNow && (
+        <AutoSendCountdownBanner
+          countdown={autoSendCountdown}
+          onSendNow={onSendNow}
+          onCancel={onCancelAutoSend}
         />
       )}
     </div>

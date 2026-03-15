@@ -581,6 +581,9 @@ const EmailDetailContent: React.FC<any> = ({
               onDispute={ops.disputeToneCheck}
               disputing={st.disputing}
               disputeResult={st.disputeResult}
+              autoSendCountdown={st.autoSendCountdown}
+              onCancelAutoSend={ops.cancelAutoSend}
+              onSendNow={ops.handleSendReply}
               onDismissToneCheck={() => st.setToneCheckResult(null)}
               onSchedule={handleOpenTimePicker}
               onClearSchedule={handleClearSchedule}

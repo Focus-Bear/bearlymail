@@ -167,6 +167,8 @@ const createMockState = () => ({
   setAnimationClass: jest.fn(),
   loading: false,
   setLoading: jest.fn(),
+  autoSendCountdown: null,
+  setAutoSendCountdown: jest.fn(),
 });
 
 const createWrapper =
@@ -610,6 +612,61 @@ describe('useEmailDetailOperations', () => {
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/follow-up');
+    });
+  });
+
+  describe('disputeToneCheck – auto-send countdown', () => {
+    it('starts countdown at 5 when dispute is accepted', async () => {
+      const store = createTestStore();
+      const state = createMockState();
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
+        { wrapper: createWrapper(store) },
+      );
+
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { accepted: true, rulesToRemove: [], explanation: 'ok', rulesUpdated: false, remainingRules: [] },
+      });
+
+      await act(async () => {
+        await result.current.disputeToneCheck('email text', 'my argument');
+      });
+
+      expect(state.setAutoSendCountdown).toHaveBeenCalledWith(5);
+    });
+
+    it('does not start countdown when dispute is rejected', async () => {
+      const store = createTestStore();
+      const state = createMockState();
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
+        { wrapper: createWrapper(store) },
+      );
+
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { accepted: false, rulesToRemove: [], explanation: 'no', rulesUpdated: false, remainingRules: [] },
+      });
+
+      await act(async () => {
+        await result.current.disputeToneCheck('email text', 'my argument');
+      });
+
+      expect(state.setAutoSendCountdown).not.toHaveBeenCalled();
+    });
+
+    it('cancelAutoSend resets countdown to null', () => {
+      const store = createTestStore();
+      const state = createMockState();
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
+        { wrapper: createWrapper(store) },
+      );
+
+      act(() => {
+        result.current.cancelAutoSend();
+      });
+
+      expect(state.setAutoSendCountdown).toHaveBeenCalledWith(null);
     });
   });
 });

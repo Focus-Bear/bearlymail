@@ -222,11 +222,15 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   // email list is empty before the first fetch completes). The isExpanded guard
   // ensures we only call onToggleCategory when collapsing is needed (prevents
   // calling toggle on an already-collapsed category and re-expanding it).
+  // We also require categoryItem.count === 0 so that categories whose server
+  // summary still shows emails (e.g. "Other" with a priority-filtered fetch that
+  // returns 0 results) are not incorrectly auto-collapsed — the user explicitly
+  // expanded them and should see an empty accordion rather than it snapping shut.
   useEffect(() => {
-    if (isLoaded && categoryEmails.length === 0 && isExpanded) {
+    if (isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0) {
       onToggleCategory(categoryKey);
     }
-  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory]);
+  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count]);
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
 
@@ -412,10 +416,13 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
       const group = emailCategoryMap.get(categoryKey);
       const categoryEmails = group?.emails ?? [];
 
-      // Hide category once loaded with no remaining emails (all archived locally).
-      // We intentionally do not require categoryItem.count === 0 here because that
-      // reflects the server summary which may lag behind local optimistic archive state.
-      if (isLoaded && categoryEmails.length === 0) {
+      // Hide category once loaded with no remaining emails AND the server summary
+      // also reports zero. Without the count guard, a category disappears when a
+      // priority-filtered category fetch returns fewer emails than the cached summary
+      // (e.g. "Other" accordion expands but emails never display because all emails
+      // have priority < minPriority). Requiring categoryItem.count === 0 ensures we
+      // only hide after the server has confirmed the category is truly empty.
+      if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
         return null;
       }
 

@@ -27,12 +27,15 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
   onProvideFeedback,
 }) => {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, flex: 1, minWidth: 0 }}>
       <strong
         style={{
           color: email.isRead ? theme.colors.text.secondary : theme.colors.text.primary,
           fontSize: theme.typography.fontSize.base,
           fontWeight: theme.typography.fontWeight.semibold,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
         {email.correspondentName || email.correspondentEmail || email.fromName || email.from}

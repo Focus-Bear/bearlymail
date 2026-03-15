@@ -56,7 +56,7 @@ jest.mock('react-i18next', () => ({
 jest.mock('theme/theme', () => ({ theme: { colors: { border: { light: '#ccc' } } } }));
 
 const DEFAULT_PROPS = {
-  categoryItem: { id: 'cat-1', name: 'Newsletters', count: 3 },
+  categoryItem: { id: 'cat-1', name: 'Newsletters', count: 0 },
   categoryKey: 'cat-1',
   isExpanded: true,
   isLoaded: true,
@@ -140,5 +140,11 @@ describe('InboxCategoryItem – auto-collapse on empty category (#805)', () => {
     await waitFor(() => {
       expect(DEFAULT_PROPS.onToggleCategory).toHaveBeenCalledWith('cat-1');
     });
+  });
+
+  it('does NOT call onToggleCategory when emails are empty but server count is non-zero (Other accordion bug)', async () => {
+    render(<InboxCategoryItem {...DEFAULT_PROPS} categoryItem={{ id: 'cat-1', name: 'Other', count: 5 }} />);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(DEFAULT_PROPS.onToggleCategory).not.toHaveBeenCalled();
   });
 });

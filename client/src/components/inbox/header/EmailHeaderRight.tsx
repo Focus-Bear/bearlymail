@@ -111,6 +111,7 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
         color: theme.colors.text.tertiary,
         cursor: 'pointer',
         position: 'relative',
+        flexShrink: 0,
       }}
       onClick={handleClick}
     >

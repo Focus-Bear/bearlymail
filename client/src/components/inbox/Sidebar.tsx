@@ -25,7 +25,6 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
 
-const ROUTE_INBOX_SCHEDULED = '/inbox/scheduled' as const;
 
 interface SidebarItemProps {
   label: string;
@@ -291,14 +290,6 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
       onNavigationClick={handleNavigationClick}
     />
     <SidebarItem
-      label={translate('inbox.scheduled')}
-      path={ROUTE_INBOX_SCHEDULED}
-      icon="📅"
-      active={location.pathname === ROUTE_INBOX_SCHEDULED}
-      isCollapsed={effectiveIsCollapsed}
-      onNavigationClick={handleNavigationClick}
-    />
-    <SidebarItem
       label={translate('common.search')}
       path={ROUTE_SEARCH}
       icon="🔍"
@@ -409,7 +400,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
       <div
         style={{
-          width: effectiveIsCollapsed ? '80px' : '280px',
+          width: effectiveIsCollapsed ? '80px' : '220px',
           backgroundColor: theme.colors.background.paper,
           borderRight: `1px solid ${theme.colors.border.light}`,
           padding: effectiveIsCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
@@ -423,7 +414,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             top: 0,
             zIndex: 1000,
             transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
-            width: '240px',
+            width: '220px',
             padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
           }),
         }}

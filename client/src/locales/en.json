@@ -459,7 +459,23 @@
     "to": "To",
     "cc": "CC",
     "saveAsPdf": "Save as PDF",
-    "moreOptions": "More options"
+    "moreOptions": "More options",
+    "icsInvite": {
+      "loading": "Loading calendar invite...",
+      "title": "Calendar Invite",
+      "allDay": "All day",
+      "organizer": "Organizer",
+      "attendees": "Attendees",
+      "moreAttendees": "+{{count}} more",
+      "addToCalendar": "Add to Google Calendar",
+      "adding": "Adding...",
+      "alreadyAdded": "Already on your calendar",
+      "added": "Added to Google Calendar",
+      "noCalendarConnected": "Connect Google Calendar to add events",
+      "viewEvent": "View in Google Calendar",
+      "error": "Could not load calendar invite",
+      "recurring": "🔁 Recurring"
+    }
   },
   "settings": {
     "title": "Settings",

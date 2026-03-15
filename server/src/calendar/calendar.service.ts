@@ -3,7 +3,14 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
+import * as ical from "node-ical";
 import { Repository } from "typeorm";
+
+import {
+  IcsAttendee,
+  IcsEventData,
+  IcsInfoResponse,
+} from "./ics-event.types";
 
 import {
   HOURS,
@@ -741,5 +748,269 @@ Manage this booking:
     provider?: "gemini" | "openai",
   ): Promise<string> {
     return generateMeetingReply(this, userId, emailId, provider);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ICS attachment support
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fetch an ICS attachment via the emails service, parse the first VEVENT,
+   * and return a structured IcsEventData object.
+   */
+  async parseIcsAttachment(
+    userId: string,
+    emailId: string,
+    attachmentId: string,
+  ): Promise<IcsEventData> {
+    const { attachmentBuffer } =
+      await this.emailsService.getAttachment(userId, emailId, attachmentId);
+
+    const icsString = attachmentBuffer.toString("utf-8");
+    const parsed = ical.sync.parseICS(icsString);
+
+    // Find the first VEVENT component
+    const eventEntry = Object.values(parsed).find(
+      (entry) => entry.type === "VEVENT",
+    ) as ical.VEvent | undefined;
+
+    if (!eventEntry) {
+      throw new Error("No VEVENT found in ICS attachment");
+    }
+
+    const startDate: Date | undefined =
+      eventEntry.start instanceof Date
+        ? eventEntry.start
+        : undefined;
+    const endDate: Date | undefined =
+      eventEntry.end instanceof Date ? eventEntry.end : undefined;
+
+    if (!startDate) {
+      throw new Error("ICS VEVENT has no valid DTSTART");
+    }
+
+    /**
+     * node-ical VEvent does not declare all properties in its type definition.
+     * We intersect extra types here to avoid `as any` casts throughout the parser.
+     * (We do NOT extend VEvent to avoid TS2430 property type conflicts.)
+     */
+    interface IcsVEventExtra {
+      /** "date" for all-day events, "date-time" for timed events */
+      datetype?: string;
+      /** Raw attendee value(s) — single object or array */
+      attendee?: IcsRawAttendee | IcsRawAttendee[];
+      /** RRULE recurrence rule object */
+      rrule?: unknown;
+    }
+    interface IcsRawParamBag {
+      CN?: string;
+      PARTSTAT?: string;
+      // node-ical Attendee.params uses string | number | boolean in the index signature
+      [key: string]: string | number | boolean | undefined;
+    }
+    interface IcsRawAttendee {
+      val: string;
+      params?: IcsRawParamBag;
+    }
+    interface IcsRawOrganizer {
+      val?: string;
+      params?: IcsRawParamBag;
+    }
+
+    const extEntry = eventEntry as ical.VEvent & IcsVEventExtra;
+
+    // Determine all-day: node-ical sets `datetype` to 'date' for all-day events
+    const allDay = extEntry.datetype === "date";
+
+    // Parse organizer
+    let organizer: IcsEventData["organizer"] | undefined;
+    if (extEntry.organizer) {
+      const org = extEntry.organizer as unknown as string | IcsRawOrganizer;
+      const raw: string = typeof org === "string" ? org : (org.val ?? "");
+      const email = raw.replace(/^mailto:/i, "").trim();
+      const rawCn = typeof org === "object" ? org.params?.CN : undefined;
+      const cn: string | undefined =
+        typeof rawCn === "string" ? rawCn : undefined;
+      organizer = { email, name: cn };
+    }
+
+    // Parse attendees
+    const attendees: IcsAttendee[] = [];
+    const rawAttendees = extEntry.attendee;
+    let attendeeList: (string | IcsRawAttendee)[];
+    if (!rawAttendees) {
+      attendeeList = [];
+    } else if (Array.isArray(rawAttendees)) {
+      attendeeList = rawAttendees;
+    } else {
+      attendeeList = [rawAttendees];
+    }
+    for (const att of attendeeList) {
+      const rawVal: string =
+        typeof att === "string" ? att : (att.val ?? "");
+      const email = rawVal.replace(/^mailto:/i, "").trim();
+      if (!email) continue;
+      const params: IcsRawParamBag =
+        typeof att === "object" ? (att.params ?? {}) : {};
+      attendees.push({
+        email,
+        name: typeof params.CN === "string" ? params.CN : undefined,
+        status: typeof params.PARTSTAT === "string" ? params.PARTSTAT : undefined,
+      });
+    }
+
+    // Detect RRULE (recurring events)
+    const isRecurring = Boolean(extEntry.rrule);
+
+    // Extract TZID from raw DTSTART property if present
+    const tzidMatch = icsString.match(/DTSTART;TZID=([^:]+):/i);
+    const timezone = tzidMatch ? tzidMatch[1] : undefined;
+
+    const rawSummary = extEntry.summary;
+    const title = typeof rawSummary === "string" ? rawSummary : "(No title)";
+
+    return {
+      uid: extEntry.uid ?? crypto.randomUUID(),
+      title,
+      startAt: startDate.toISOString(),
+      endAt: endDate?.toISOString(),
+      allDay,
+      location: typeof extEntry.location === "string" ? extEntry.location : undefined,
+      description: typeof extEntry.description === "string" ? extEntry.description : undefined,
+      organizer,
+      attendees,
+      timezone,
+      isRecurring,
+    };
+  }
+
+  /**
+   * Check whether a user's Google Calendar already contains an event matching
+   * the given ICS event (by title + start time proximity ±5 minutes).
+   * Returns { exists: false } if the user hasn't connected Google Calendar.
+   */
+  async checkEventExists(
+    userId: string,
+    eventData: IcsEventData,
+  ): Promise<{ exists: boolean; calendarEventId?: string }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      return { exists: false };
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: this.oauth2Client });
+    const startMs = new Date(eventData.startAt).getTime();
+    const FIVE_MINUTES_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
+
+    try {
+      const response = await calendar.events.list({
+        calendarId: "primary",
+        timeMin: new Date(startMs - FIVE_MINUTES_MS).toISOString(),
+        timeMax: new Date(startMs + FIVE_MINUTES_MS).toISOString(),
+        q: eventData.title,
+        singleEvents: true,
+      });
+
+      const match = (response.data.items ?? []).find((ev) => {
+        const evStart = ev.start?.dateTime ?? ev.start?.date;
+        if (!evStart) return false;
+        const diff = Math.abs(new Date(evStart).getTime() - startMs);
+        return diff <= FIVE_MINUTES_MS;
+      });
+
+      if (match) {
+        return { exists: true, calendarEventId: match.id ?? undefined };
+      }
+      return { exists: false };
+    } catch {
+      // If we can't check, assume not exists (add button will surface any error)
+      return { exists: false };
+    }
+  }
+
+  /**
+   * Add a parsed ICS event to the user's primary Google Calendar.
+   * Returns { success, eventLink }.
+   */
+  async addIcsEventToCalendar(
+    userId: string,
+    eventData: IcsEventData,
+  ): Promise<{ success: boolean; eventLink?: string }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: this.oauth2Client });
+
+    const eventBody: calendar_v3.Schema$Event = {
+      summary: eventData.title,
+      location: eventData.location,
+      description: eventData.description,
+      start: eventData.allDay
+        ? { date: eventData.startAt.slice(0, 10) }
+        : { dateTime: eventData.startAt, timeZone: eventData.timezone ?? "UTC" },
+      end: eventData.allDay
+        ? { date: (eventData.endAt ?? eventData.startAt).slice(0, 10) }
+        : {
+            dateTime: eventData.endAt ?? eventData.startAt,
+            timeZone: eventData.timezone ?? "UTC",
+          },
+      attendees: eventData.attendees.map((att) => ({
+        email: att.email,
+        displayName: att.name,
+        responseStatus: this.mapAttendeeStatus(att.status),
+      })),
+    };
+
+    const created = await calendar.events.insert({
+      calendarId: "primary",
+      requestBody: eventBody,
+    });
+
+    return {
+      success: true,
+      eventLink: created.data.htmlLink ?? undefined,
+    };
+  }
+
+  /**
+   * Full flow: parse ICS attachment and check if the event already exists in
+   * Google Calendar. Returns structured IcsInfoResponse for the frontend.
+   */
+  async getIcsInfo(
+    userId: string,
+    emailId: string,
+    attachmentId: string,
+  ): Promise<IcsInfoResponse> {
+    const event = await this.parseIcsAttachment(userId, emailId, attachmentId);
+    const { exists, calendarEventId } = await this.checkEventExists(userId, event);
+    return { event, alreadyInCalendar: exists, calendarEventId };
+  }
+
+  /** Map ICS PARTSTAT to Google Calendar responseStatus */
+  private mapAttendeeStatus(
+    partstat?: string,
+  ): "accepted" | "declined" | "tentative" | "needsAction" {
+    switch ((partstat ?? "").toUpperCase()) {
+      case "ACCEPTED":
+        return "accepted";
+      case "DECLINED":
+        return "declined";
+      case "TENTATIVE":
+        return "tentative";
+      default:
+        return "needsAction";
+    }
   }
 }

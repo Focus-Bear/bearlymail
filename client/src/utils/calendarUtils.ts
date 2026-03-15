@@ -41,7 +41,9 @@ export function isCalendarInvitation(email: Email): boolean {
     combinedText.includes('attendee:mailto:') ||
     (combinedText.includes('uid:') && combinedText.includes('@'));
 
-  // Only return true if we have strong indicators
-  // Require either invitation keyword in subject OR iCal patterns
+  // Only return true if we have strong indicators from body/subject.
+  // ICS attachments are detected separately (via email.attachments) and handled by
+  // IcsInviteCard — including them here would cause IcsInviteCard to never render
+  // because it is gated by !isInvitation.
   return hasInvitationKeyword || hasICalPattern || hasICalHeaders;
 }

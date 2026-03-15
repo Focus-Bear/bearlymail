@@ -82,6 +82,7 @@
     "luxon": "^3.7.2",
     "mjml": "^4.18.0",
     "natural": "^6.10.3",
+    "node-ical": "^0.25.6",
     "openai": "^6.21.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",

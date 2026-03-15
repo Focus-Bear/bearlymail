@@ -9,6 +9,7 @@ import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { OverflowMenu } from 'components/common/OverflowMenu';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
+import { IcsInviteCard } from 'components/email-detail/IcsInviteCard';
 import { PrintableThread } from 'components/email-detail/PrintableThread';
 import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
@@ -93,9 +94,22 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
+  // Deterministic ICS attachment detection — checked via MIME type and filename,
+  // not via LLM. Takes priority over the generic SchedulingRequestCard.
+  const hasIcsAttachment = useMemo(
+    () =>
+      email.attachments?.some(
+        (att) =>
+          att.mimeType === 'text/calendar' ||
+          att.filename?.toLowerCase().endsWith('.ics'),
+      ) ?? false,
+    [email.attachments],
+  );
+
   // Derive hasSchedulingRequest from the pre-partitioned schedulingActions list (not from
   // suggestedActions, which now contains only non-GitHub, non-scheduling actions).
   // This ensures SchedulingRequestCard and QuickActionsSection are mutually exclusive.
+  // Treat both scheduling_request and calendar_create_invite as scheduling triggers.
   const hasSchedulingRequest = useMemo(
     () =>
       schedulingActions.some(
@@ -126,15 +140,15 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         gap: theme.spacing.md,
       }}
     >
-      {isInvitation && onRespondToInvitation && (
+      {hasIcsAttachment && <IcsInviteCard email={email} />}
+      {!hasIcsAttachment && isInvitation && onRespondToInvitation && (
         <CalendarInviteActions
           email={email}
           onAccept={() => onRespondToInvitation(email.id, 'accepted')}
           onDecline={() => onRespondToInvitation(email.id, 'declined')}
         />
       )}
-
-      {hasSchedulingRequest && !isInvitation && <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />}
+      {hasSchedulingRequest && !isInvitation && !hasIcsAttachment && <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />}
 
       <QuickActionsSection
         suggestedActions={suggestedActions}

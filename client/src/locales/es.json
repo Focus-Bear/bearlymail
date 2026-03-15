@@ -793,7 +793,23 @@
     "cc": "CC",
     "keepOriginal": "Mantener original",
     "saveAsPdf": "Guardar como PDF",
-    "moreOptions": "Más opciones"
+    "moreOptions": "Más opciones",
+    "icsInvite": {
+      "loading": "Cargando invitación de calendario...",
+      "title": "Invitación de Calendario",
+      "allDay": "Todo el día",
+      "organizer": "Organizador",
+      "attendees": "Asistentes",
+      "moreAttendees": "+{{count}} más",
+      "addToCalendar": "Añadir a Google Calendar",
+      "adding": "Añadiendo...",
+      "alreadyAdded": "Ya está en tu calendario",
+      "added": "Añadido a Google Calendar",
+      "noCalendarConnected": "Conecta Google Calendar para añadir eventos",
+      "viewEvent": "Ver en Google Calendar",
+      "error": "No se pudo cargar la invitación de calendario",
+      "recurring": "🔁 Recurrente"
+    }
   },
   "contacts": {
     "title": "Contactos",

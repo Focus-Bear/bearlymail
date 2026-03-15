@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
+import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AutoResponderService } from "./auto-responder.service";
 import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
@@ -243,6 +244,7 @@ export class AutoResponderController {
    *
    * @param dryRun - If "true", only reports affected threads without modifying the DB
    */
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Post("admin/audit-archived-threads")
   async auditArchivedThreads(
     @Request() req: AuthenticatedRequest,

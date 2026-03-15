@@ -1,6 +1,7 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { AuthModule } from "../auth/auth.module";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 import { Email } from "../database/entities/email.entity";
@@ -10,6 +11,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
+import { UsersModule } from "../users/users.module";
 import { AutoResponderController } from "./auto-responder.controller";
 import { AutoResponderProcessor } from "./auto-responder.processor";
 import { AutoResponderService } from "./auto-responder.service";
@@ -33,6 +35,8 @@ import { QueueStatsService } from "./queue-stats.service";
       AutoResponseLog,
       AutoResponseSuppression,
     ]),
+    forwardRef(() => AuthModule),
+    forwardRef(() => UsersModule),
     forwardRef(() => LLMModule),
     forwardRef(() => EmailsModule),
     QueueModule,

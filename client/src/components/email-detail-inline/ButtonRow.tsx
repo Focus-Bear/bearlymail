@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FiCalendar } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
+import { InlineSpinner } from 'components/common/InlineSpinner';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
@@ -72,8 +73,14 @@ export const ButtonRow: React.FC<ButtonRowProps> = ({
           cursor: isDisabled ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,
+          minWidth: '120px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: theme.spacing.xs,
         }}
       >
+        {(checkingTone || sending) && <InlineSpinner size={14} />}
         {buttonText}
       </button>
 

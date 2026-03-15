@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 
 import {
   ADMIN_TAB_CONTEXT_ANALYSIS,
+  ADMIN_TAB_FEEDBACK,
   ADMIN_TAB_GITHUB_DEBUG,
   ADMIN_TAB_JOBS,
   ADMIN_TAB_QUEUE_DASHBOARD,
@@ -61,6 +62,7 @@ export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) 
     { id: ADMIN_TAB_QUEUE_DASHBOARD, label: t('admin.dashboard.queueDashboard') },
     { id: ADMIN_TAB_GITHUB_DEBUG, label: t('admin.dashboard.githubDebug') },
     { id: ADMIN_TAB_CONTEXT_ANALYSIS, label: t('admin.dashboard.contextAnalysis') },
+    { id: ADMIN_TAB_FEEDBACK, label: t('admin.dashboard.feedback') },
   ];
 
   return (

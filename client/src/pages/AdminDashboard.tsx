@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { AdminDashboardHeader } from 'components/admin/AdminDashboardHeader';
 import { AdminTabs } from 'components/admin/AdminTabs';
 import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection';
+import { FeedbackSection } from 'components/admin/FeedbackSection';
 import { GitHubDebugSection } from 'components/admin/GitHubDebugSection';
 import { JobsSection } from 'components/admin/JobsSection';
 import { QueueDashboardSection } from 'components/admin/QueueDashboardSection';
@@ -14,6 +15,7 @@ import { WaitlistSection } from 'components/admin/WaitlistSection';
 import { Sidebar } from 'components/inbox/Sidebar';
 import {
   ADMIN_TAB_CONTEXT_ANALYSIS,
+  ADMIN_TAB_FEEDBACK,
   ADMIN_TAB_GITHUB_DEBUG,
   ADMIN_TAB_JOBS,
   ADMIN_TAB_QUEUE_DASHBOARD,
@@ -57,7 +59,8 @@ const AdminDashboard: React.FC = () => {
       activeTab !== ADMIN_TAB_TOKEN_USAGE &&
       activeTab !== ADMIN_TAB_QUEUE_DASHBOARD &&
       activeTab !== ADMIN_TAB_GITHUB_DEBUG &&
-      activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS
+      activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS &&
+      activeTab !== ADMIN_TAB_FEEDBACK
     ) {
       return <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>{t('admin.dashboard.loading')}</div>;
     }
@@ -80,6 +83,9 @@ const AdminDashboard: React.FC = () => {
     }
     if (activeTab === ADMIN_TAB_CONTEXT_ANALYSIS) {
       return <ContextAnalysisSection />;
+    }
+    if (activeTab === ADMIN_TAB_FEEDBACK) {
+      return <FeedbackSection />;
     }
     return (
       <SubscriptionsSection

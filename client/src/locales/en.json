@@ -1016,7 +1016,8 @@
       "noPendingRequests": "No pending requests",
       "noApprovedEntries": "No approved entries",
       "emailSystem": "Email System",
-      "decline": "Decline"
+      "decline": "Decline",
+      "feedback": "Feedback"
     },
     "jobs": {
       "title": "Job Queue Statistics",
@@ -2398,5 +2399,25 @@
     "from": "From:",
     "to": "To:",
     "date": "Date:"
+  },
+  "contactFeedback": {
+    "title": "Send Feedback",
+    "description": "Found a bug or have a suggestion? Let us know — we read every submission.",
+    "placeholder": "What happened? What did you expect?",
+    "messagelabel": "Feedback message",
+    "submit": "Send Feedback",
+    "submitting": "Sending…",
+    "submitSuccess": "Thanks! Your feedback has been received.",
+    "submitError": "Failed to send feedback. Please try again.",
+    "sendFeedbackButton": "Send Feedback",
+    "adminTitle": "User Feedback",
+    "adminEmpty": "No feedback submitted yet.",
+    "adminLoading": "Loading…",
+    "adminError": "Failed to load feedback",
+    "adminDelete": "Delete",
+    "adminVersionPrefix": "v",
+    "adminPageOf": "Page {{page}} of {{total}}",
+    "adminPrev": "← Prev",
+    "adminNext": "Next →"
   }
 }

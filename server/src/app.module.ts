@@ -11,6 +11,7 @@ import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { CalendarModule } from "./calendar/calendar.module";
+import { validate } from "./config/env.validation";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { CrmModule } from "./crm/crm.module";
@@ -22,6 +23,7 @@ import { EmailModule } from "./email/email.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
+import { FeedbackModule } from "./feedback/feedback.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
@@ -49,6 +51,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ".env",
+      validate,
     }),
     ErrorTrackingModule,
     QueueModule,
@@ -84,6 +87,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     SubscriptionsModule,
     ActionItemsModule,
     BatchScheduleModule,
+    FeedbackModule,
     FollowUpsModule,
     ContactsModule,
     CrmModule,

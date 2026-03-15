@@ -5,6 +5,7 @@ export const ADMIN_TAB_TOKEN_USAGE = 'token-usage' as const;
 export const ADMIN_TAB_QUEUE_DASHBOARD = 'queue-dashboard' as const;
 export const ADMIN_TAB_GITHUB_DEBUG = 'github-debug' as const;
 export const ADMIN_TAB_CONTEXT_ANALYSIS = 'context-analysis' as const;
+export const ADMIN_TAB_FEEDBACK = 'feedback' as const;
 
 export type AdminTab =
   | typeof ADMIN_TAB_WAITLIST
@@ -13,4 +14,5 @@ export type AdminTab =
   | typeof ADMIN_TAB_TOKEN_USAGE
   | typeof ADMIN_TAB_QUEUE_DASHBOARD
   | typeof ADMIN_TAB_GITHUB_DEBUG
-  | typeof ADMIN_TAB_CONTEXT_ANALYSIS;
+  | typeof ADMIN_TAB_CONTEXT_ANALYSIS
+  | typeof ADMIN_TAB_FEEDBACK;

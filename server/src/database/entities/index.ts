@@ -10,6 +10,7 @@ export { Contact } from "./contact.entity";
 export { ContextAnalysis } from "./context-analysis.entity";
 export { Email } from "./email.entity";
 export { EmailThread } from "./email-thread.entity";
+export { Feedback } from "./feedback.entity";
 export { FollowUp } from "./follow-up.entity";
 export { GitHubRepoMapping } from "./github-repo-mapping.entity";
 export { GoogleAccount } from "./google-account.entity";

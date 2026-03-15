@@ -28,7 +28,8 @@
       "contextAnalysis": "Fallos de Análisis",
       "waitlist": "Lista de espera",
       "emailSystem": "Sistema de correo",
-      "decline": "Rechazar"
+      "decline": "Rechazar",
+      "feedback": "Comentarios"
     },
     "jobs": {
       "active": "Activo",
@@ -2401,5 +2402,25 @@
     "from": "De:",
     "to": "Para:",
     "date": "Fecha:"
+  },
+  "contactFeedback": {
+    "title": "Enviar comentarios",
+    "description": "¿Encontraste un error o tienes una sugerencia? Avísanos — leemos cada mensaje.",
+    "placeholder": "¿Qué sucedió? ¿Qué esperabas?",
+    "messagelabel": "Mensaje de comentarios",
+    "submit": "Enviar comentarios",
+    "submitting": "Enviando…",
+    "submitSuccess": "¡Gracias! Tus comentarios han sido recibidos.",
+    "submitError": "Error al enviar los comentarios. Por favor, inténtalo de nuevo.",
+    "sendFeedbackButton": "Enviar comentarios",
+    "adminTitle": "Comentarios de usuarios",
+    "adminEmpty": "Aún no se han enviado comentarios.",
+    "adminLoading": "Cargando…",
+    "adminError": "Error al cargar los comentarios",
+    "adminDelete": "Eliminar",
+    "adminVersionPrefix": "v",
+    "adminPageOf": "Página {{page}} de {{total}}",
+    "adminPrev": "← Anterior",
+    "adminNext": "Siguiente →"
   }
 }

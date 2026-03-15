@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
 
@@ -17,6 +18,8 @@ interface GitHubLinkHeaderProps {
 }
 
 export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({ link, status, isIssue, isOpen, isMerged }) => {
+  const { t } = useTranslation();
+
   const getStatusBadgeColor = (): string => {
     if (isOpen) {
       return theme.colors.accent.success || '#10b981';

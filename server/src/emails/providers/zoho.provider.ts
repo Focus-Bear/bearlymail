@@ -577,6 +577,45 @@ export class ZohoProvider implements EmailProvider {
     }
   }
 
+  /** Fetches recent inbox + trash messages from Zoho and filters to the last DAYS.WEEK days. */
+  private async fetchRecentZohoMessages(
+    zohoClient: AxiosInstance,
+    zohoAccountId: string,
+  ): Promise<ZohoMailMessage[]> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
+    const sevenDaysAgoTimestamp = Math.floor(
+      sevenDaysAgo.getTime() / MS_PER_SECOND,
+    );
+
+    const [inboxResponse, trashResponse] = await Promise.all([
+      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
+        params: {
+          limit: 200,
+          sort: "receivedTime",
+          sortorder: "desc",
+          folderid: "inbox",
+        },
+      }),
+      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
+        params: {
+          limit: 100,
+          sort: "receivedTime",
+          sortorder: "desc",
+          folderid: "trash",
+        },
+      }),
+    ]);
+
+    const allMessages = [
+      ...(inboxResponse.data.data || []),
+      ...(trashResponse.data.data || []),
+    ] as ZohoMailMessage[];
+    return allMessages.filter(
+      (msg) => (msg.receivedTime ?? 0) >= sevenDaysAgoTimestamp,
+    );
+  }
+
   async scanHistory(userId: string): Promise<void> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) return;
@@ -586,37 +625,9 @@ export class ZohoProvider implements EmailProvider {
 
     try {
       const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
-      const sevenDaysAgoTimestamp = Math.floor(
-        sevenDaysAgo.getTime() / MS_PER_SECOND,
-      );
-
-      // Fetch from both inbox and trash
-      const [inboxResponse, trashResponse] = await Promise.all([
-        zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-          params: {
-            limit: 200,
-            sort: "receivedTime",
-            sortorder: "desc",
-            folderid: "inbox",
-          },
-        }),
-        zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-          params: {
-            limit: 100,
-            sort: "receivedTime",
-            sortorder: "desc",
-            folderid: "trash",
-          },
-        }),
-      ]);
-
-      const inboxMessages = inboxResponse.data.data || [];
-      const trashMessages = trashResponse.data.data || [];
-      const allMessages = [...inboxMessages, ...trashMessages];
-      const filteredMessages = (allMessages as ZohoMailMessage[]).filter(
-        (msg) => (msg.receivedTime ?? 0) >= sevenDaysAgoTimestamp,
+      const filteredMessages = await this.fetchRecentZohoMessages(
+        zohoClient,
+        zohoAccountId,
       );
       const total = Math.min(
         filteredMessages.length,

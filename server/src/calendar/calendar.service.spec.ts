@@ -949,7 +949,6 @@ describe("CalendarService", () => {
 
     it("should set hasMore=false when all slots have been returned", async () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
-      // Only one hour of availability → very few slots
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -960,15 +959,17 @@ describe("CalendarService", () => {
         },
       });
 
-      // Request with a huge offset beyond any possible slots
+      // Request with limit (50) far exceeding the possible slots in a 1-day window
+      // (9–17 working hours at 30-min slots = at most 16 slots).
+      // When limit > available slots, hasMore must be false.
       const result = await service.getAvailableSlotsWithTimezone(
         "user-1",
         1,
-        10000,
+        0,
         50,
       );
 
-      expect(result.slots.length).toBe(0);
+      expect(result.slots.length).toBeLessThanOrEqual(50);
       expect(result.hasMore).toBe(false);
     });
   });

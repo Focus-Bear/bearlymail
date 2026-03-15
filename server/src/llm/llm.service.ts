@@ -1717,13 +1717,48 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     );
 
     try {
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      // Primary path: prompt specifies { "qa_pairs": [...] }
+      let parsedArr: unknown[] | null = null;
+      const jsonObjMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonObjMatch) {
+        const parsedObj = JSON.parse(jsonObjMatch[0]) as Record<
+          string,
+          unknown
+        >;
+        if (Array.isArray(parsedObj.qa_pairs)) {
+          parsedArr = parsedObj.qa_pairs;
+        } else {
+          const arrayKey = Object.keys(parsedObj).find((key) =>
+            Array.isArray(parsedObj[key]),
+          );
+          if (arrayKey) {
+            this.logger.warn(
+              `[QA-EXTRACTION] Expected key 'qa_pairs' but found '${arrayKey}'. Using fallback.`,
+            );
+            parsedArr = parsedObj[arrayKey] as unknown[];
+          }
+        }
+      }
+      // Last-resort fallback: bare array
+      if (!parsedArr) {
+        const jsonArrMatch = jsonString.match(/\[[\s\S]*\]/);
+        if (jsonArrMatch) {
+          this.logger.warn(
+            `[QA-EXTRACTION] Response was a bare array instead of wrapped object. Accepting with warning.`,
+          );
+          parsedArr = JSON.parse(jsonArrMatch[0]) as unknown[];
+        }
+      }
+      if (Array.isArray(parsedArr)) {
         // Require minimum occurrences
-        return Array.isArray(parsed)
-          ? parsed.filter((qa) => qa.frequency >= QA_EXTRACTION.MIN_FREQUENCY)
-          : [];
+        return (
+          parsedArr as Array<{ question: string; answer: string; frequency: number }>
+        ).filter((qa) => (qa.frequency ?? 0) >= QA_EXTRACTION.MIN_FREQUENCY);
       }
     } catch (error) {
       this.logger.warn(
@@ -2408,36 +2443,68 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
         .replace(/^```\s*/i, "")
         .replace(/\s*```$/i, "")
         .trim();
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
+      // Primary path: prompt specifies { "consolidated_categories": [...] }
+      const jsonObjMatch = jsonString.match(/\{[\s\S]*\}/);
+      let parsedArr: unknown[] | null = null;
+      if (jsonObjMatch) {
+        const parsedObj = JSON.parse(jsonObjMatch[0]) as Record<
+          string,
+          unknown
+        >;
+        if (Array.isArray(parsedObj.consolidated_categories)) {
+          parsedArr = parsedObj.consolidated_categories;
+        } else {
+          // Fallback: find any array-valued top-level key
+          const arrayKey = Object.keys(parsedObj).find((key) =>
+            Array.isArray(parsedObj[key]),
+          );
+          if (arrayKey) {
+            this.logger.warn(
+              `[CATEGORY-CONSOLIDATION] Expected key 'consolidated_categories' but found '${arrayKey}'. Using fallback.`,
+            );
+            parsedArr = parsedObj[arrayKey] as unknown[];
+          }
+        }
+      }
+      // Last-resort fallback: bare array (pre-schema-fix responses or non-json_object providers)
+      if (!parsedArr) {
+        const jsonArrMatch = jsonString.match(/\[[\s\S]*\]/);
+        if (jsonArrMatch) {
+          this.logger.warn(
+            `[CATEGORY-CONSOLIDATION] Response was a bare array instead of wrapped object. Accepting with warning.`,
+          );
+          parsedArr = JSON.parse(jsonArrMatch[0]) as unknown[];
+        }
+      }
+      if (!Array.isArray(parsedArr)) {
         this.logger.warn(
           `[CATEGORY-CONSOLIDATION] No JSON array found in response`,
         );
         return null;
       }
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
+      if (!Array.isArray(parsedArr) || parsedArr.length === 0) {
         this.logger.warn(
           `[CATEGORY-CONSOLIDATION] Parsed array is empty or not an array`,
         );
         return null;
       }
-      const consolidated = parsed
-        .filter(
-          (item: { name?: string; description?: string }) =>
-            item.name && item.description,
-        )
-        .map(
-          (item: {
+      const consolidated = parsedArr
+        .filter((item: unknown) => {
+          const typedItem = item as { name?: string; description?: string };
+          return typedItem.name && typedItem.description;
+        })
+        .map((item: unknown) => {
+          const typedItem = item as {
             name: string;
             description: string;
             isUserAdded?: boolean;
-          }) => ({
-            name: String(item.name).trim(),
-            description: String(item.description).trim(),
-            isUserAdded: !!item.isUserAdded,
-          }),
-        );
+          };
+          return {
+            name: String(typedItem.name).trim(),
+            description: String(typedItem.description).trim(),
+            isUserAdded: !!typedItem.isUserAdded,
+          };
+        });
       const withEmojis = consolidated.map((category) => ({
         ...category,
         name: category.isUserAdded
@@ -2569,24 +2636,56 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
         .replace(/^```\s*/i, "")
         .replace(/\s*```$/i, "")
         .trim();
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) return null;
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed)) return null;
+      // Primary path: prompt specifies { "generated_categories": [...] }
+      let parsedArr: unknown[] | null = null;
+      const jsonObjMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonObjMatch) {
+        const parsedObj = JSON.parse(jsonObjMatch[0]) as Record<
+          string,
+          unknown
+        >;
+        if (Array.isArray(parsedObj.generated_categories)) {
+          parsedArr = parsedObj.generated_categories;
+        } else {
+          const arrayKey = Object.keys(parsedObj).find((key) =>
+            Array.isArray(parsedObj[key]),
+          );
+          if (arrayKey) {
+            this.logger.warn(
+              `[GENERATE-CATEGORIES] Expected key 'generated_categories' but found '${arrayKey}'. Using fallback.`,
+            );
+            parsedArr = parsedObj[arrayKey] as unknown[];
+          }
+        }
+      }
+      // Last-resort fallback: bare array
+      if (!parsedArr) {
+        const jsonArrMatch = jsonString.match(/\[[\s\S]*\]/);
+        if (jsonArrMatch) {
+          this.logger.warn(
+            `[GENERATE-CATEGORIES] Response was a bare array instead of wrapped object. Accepting with warning.`,
+          );
+          parsedArr = JSON.parse(jsonArrMatch[0]) as unknown[];
+        }
+      }
+      if (!Array.isArray(parsedArr)) return null;
       const existingNames = new Set(
         existingCategories.map((item) =>
           item.name.toLowerCase().replace(/^[^\w]+/, ""),
         ),
       );
-      return parsed
-        .filter(
-          (item: { name?: string; description?: string }) =>
-            item.name && item.description,
-        )
-        .map((item: { name: string; description: string }) => ({
-          name: this.ensureCategoryEmoji(String(item.name).trim()),
-          description: String(item.description).trim(),
-        }))
+      return parsedArr
+        .filter((item: unknown) => {
+          const typedItem = item as { name?: string; description?: string };
+          return typedItem.name && typedItem.description;
+        })
+        .map((item: unknown) => {
+          const typedItem = item as { name: string; description: string };
+          return {
+            name: this.ensureCategoryEmoji(String(typedItem.name).trim()),
+            description: String(typedItem.description).trim(),
+          };
+        })
         .filter(
           (cat) =>
             !existingNames.has(cat.name.toLowerCase().replace(/^[^\w]+/, "")),
@@ -2706,39 +2805,71 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
         .replace(/^```\s*/i, "")
         .replace(/\s*```$/i, "")
         .trim();
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) return null;
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed)) return null;
-      return parsed
-        .filter(
-          (item: {
+      // Primary path: prompt specifies { "custom_labels": [...] }
+      let parsedArr: unknown[] | null = null;
+      const jsonObjMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonObjMatch) {
+        const parsedObj = JSON.parse(jsonObjMatch[0]) as Record<
+          string,
+          unknown
+        >;
+        if (Array.isArray(parsedObj.custom_labels)) {
+          parsedArr = parsedObj.custom_labels;
+        } else {
+          const arrayKey = Object.keys(parsedObj).find((key) =>
+            Array.isArray(parsedObj[key]),
+          );
+          if (arrayKey) {
+            this.logger.warn(
+              `[IDENTIFY-CUSTOM-LABELS] Expected key 'custom_labels' but found '${arrayKey}'. Using fallback.`,
+            );
+            parsedArr = parsedObj[arrayKey] as unknown[];
+          }
+        }
+      }
+      // Last-resort fallback: bare array
+      if (!parsedArr) {
+        const jsonArrMatch = jsonString.match(/\[[\s\S]*\]/);
+        if (jsonArrMatch) {
+          this.logger.warn(
+            `[IDENTIFY-CUSTOM-LABELS] Response was a bare array instead of wrapped object. Accepting with warning.`,
+          );
+          parsedArr = JSON.parse(jsonArrMatch[0]) as unknown[];
+        }
+      }
+      if (!Array.isArray(parsedArr)) return null;
+      return parsedArr
+        .filter((item: unknown) => {
+          const typedItem = item as {
             label?: string;
             categoryName?: string;
             description?: string;
             confidence?: string;
-          }) =>
-            item.label &&
-            item.categoryName &&
-            item.description &&
-            item.confidence,
-        )
-        .map(
-          (item: {
+          };
+          return (
+            typedItem.label &&
+            typedItem.categoryName &&
+            typedItem.description &&
+            typedItem.confidence
+          );
+        })
+        .map((item: unknown) => {
+          const typedItem = item as {
             label: string;
             categoryName: string;
             description: string;
             confidence: string;
-          }) => ({
-            label: String(item.label).trim(),
-            categoryName: String(item.categoryName).trim(),
-            description: String(item.description).trim(),
-            confidence: String(item.confidence).trim() as
+          };
+          return {
+            label: String(typedItem.label).trim(),
+            categoryName: String(typedItem.categoryName).trim(),
+            description: String(typedItem.description).trim(),
+            confidence: String(typedItem.confidence).trim() as
               | "HIGH"
               | "MEDIUM"
               | "LOW",
-          }),
-        );
+          };
+        });
     } catch (error) {
       this.logger.error(
         `[IDENTIFY-CUSTOM-LABELS] === ERROR === Failed to parse LLM response: ${getErrorMessage(error)}`,

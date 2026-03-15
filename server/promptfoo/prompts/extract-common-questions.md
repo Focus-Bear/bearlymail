@@ -8,14 +8,22 @@ CRITICAL REQUIREMENTS:
 - Questions must be DISTINCT - avoid repetitive or overlapping questions
 - Answers must be SPECIFIC and ACTIONABLE - describe what the user actually says/does
 
-Output JSON array of objects:
-[
-  {
-    "question": "A SPECIFIC, CONCRETE question that people actually ask the user (preserve actual wording when possible, but remove names/dates)",
-    "answer": "What the user typically says or does when answering this question (be SPECIFIC and concrete)",
-    "frequency": number of times this Q&A pattern appears
-  }
-]
+Return your response as a JSON object with exactly this structure:
+{ "qa_pairs": [ { "question": "...", "answer": "...", "frequency": 3 } ] }
+The top-level key MUST be exactly `qa_pairs`. If no patterns are found, use an empty array: { "qa_pairs": [] }
+
+Example entry:
+{
+  "qa_pairs": [
+    {
+      "question": "A SPECIFIC, CONCRETE question that people actually ask the user (preserve actual wording when possible, but remove names/dates)",
+      "answer": "What the user typically says or does when answering this question (be SPECIFIC and concrete)",
+      "frequency": 3
+    }
+  ]
+}
+
+IMPORTANT: The top-level response MUST be a JSON object with key `qa_pairs`, NOT a bare array.
 
 Question format examples:
 - GOOD: "Did you receive my invitation?" (specific, concrete)

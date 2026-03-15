@@ -35,11 +35,17 @@ Return ONLY a JSON array of consolidated categories. Each category should have:
 - "description": A brief description of what emails belong in this category
 - "isUserAdded": true if this was a user-added category that must be preserved, false otherwise
 
-Example output format:
-[
-  {"name": "👔 Recruitment", "description": "Job applications, internships, career opportunities, and hiring-related emails", "isUserAdded": false},
-  {"name": "🎧 Customer Support", "description": "Support tickets, customer inquiries, help requests, and service issues", "isUserAdded": false},
-  {"name": "My Important Project", "description": "Emails about my specific project", "isUserAdded": true}
-]
+Return your response as a JSON object with exactly this structure:
+{ "consolidated_categories": [ { "name": "...", "description": "...", "isUserAdded": false } ] }
+The top-level key MUST be exactly `consolidated_categories`.
 
-Return ONLY the JSON array, no markdown code blocks, no explanation.
+Example output format:
+{
+  "consolidated_categories": [
+    {"name": "👔 Recruitment", "description": "Job applications, internships, career opportunities, and hiring-related emails", "isUserAdded": false},
+    {"name": "🎧 Customer Support", "description": "Support tickets, customer inquiries, help requests, and service issues", "isUserAdded": false},
+    {"name": "My Important Project", "description": "Emails about my specific project", "isUserAdded": true}
+  ]
+}
+
+IMPORTANT: The top-level response MUST be a JSON object with key `consolidated_categories`, NOT a bare array.

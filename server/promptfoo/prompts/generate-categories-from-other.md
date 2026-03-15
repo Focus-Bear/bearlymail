@@ -23,12 +23,16 @@ Return ONLY a JSON array of new categories. Each category should have:
 - "name": A concise category name with emoji (2-4 words)
 - "description": A brief description of what emails belong in this category
 
+Return your response as a JSON object with exactly this structure:
+{ "generated_categories": [ { "name": "...", "description": "..." } ] }
+The top-level key MUST be exactly `generated_categories`. If no clear patterns emerge, use an empty array: { "generated_categories": [] }
+
 Example output format:
-[
-  {"name": "🔔 System Notifications", "description": "Automated alerts, system status updates, and monitoring notifications"},
-  {"name": "📝 Document Requests", "description": "Requests for documents, signatures, or file sharing"}
-]
+{
+  "generated_categories": [
+    {"name": "🔔 System Notifications", "description": "Automated alerts, system status updates, and monitoring notifications"},
+    {"name": "📝 Document Requests", "description": "Requests for documents, signatures, or file sharing"}
+  ]
+}
 
-If no clear patterns emerge from the emails, return an empty array: []
-
-Return ONLY the JSON array, no markdown code blocks, no explanation.
+IMPORTANT: The top-level response MUST be a JSON object with key `generated_categories`, NOT a bare array.

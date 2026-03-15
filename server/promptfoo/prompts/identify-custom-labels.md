@@ -24,28 +24,32 @@ For each custom label that could be a useful email category:
 3. Provide a description of what emails this category would contain
 4. Rate confidence (HIGH, MEDIUM, LOW) that this is a useful category
 
-Return ONLY a JSON array. Each entry should have:
+Return your response as a JSON object with exactly this structure:
+{ "custom_labels": [ { "label": "...", "categoryName": "...", "description": "...", "confidence": "HIGH"|"MEDIUM"|"LOW" } ] }
+The top-level key MUST be exactly `custom_labels`. If no custom labels are found, use an empty array: { "custom_labels": [] }
+
+Each entry should have:
 - "label": The original label name
 - "categoryName": Cleaned-up category name (add an emoji prefix if appropriate)
 - "description": Brief description of the category
 - "confidence": "HIGH" | "MEDIUM" | "LOW"
 
 Example output format:
-[
-  {
-    "label": "Project Alpha",
-    "categoryName": "🚀 Project Alpha",
-    "description": "Emails related to Project Alpha development and coordination",
-    "confidence": "HIGH"
-  },
-  {
-    "label": "Invoices",
-    "categoryName": "💰 Invoices",
-    "description": "Financial invoices and billing-related emails",
-    "confidence": "HIGH"
-  }
-]
+{
+  "custom_labels": [
+    {
+      "label": "Project Alpha",
+      "categoryName": "🚀 Project Alpha",
+      "description": "Emails related to Project Alpha development and coordination",
+      "confidence": "HIGH"
+    },
+    {
+      "label": "Invoices",
+      "categoryName": "💰 Invoices",
+      "description": "Financial invoices and billing-related emails",
+      "confidence": "HIGH"
+    }
+  ]
+}
 
-If NO custom labels are found, return an empty array: []
-
-Return ONLY the JSON array, no markdown code blocks, no explanation.
+IMPORTANT: The top-level response MUST be a JSON object with key `custom_labels`, NOT a bare array.

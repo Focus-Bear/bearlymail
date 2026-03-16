@@ -2133,14 +2133,17 @@
       "createInvite": "Create Invite"
     },
     "github": {
-      "status": "Status",
-      "open": "Open",
       "closed": "Closed",
-      "issue": "Issue",
+      "commentLabel": "Comment",
       "foundIssues": "Found {{count}} issue",
       "foundIssues_plural": "Found {{count}} issues",
+      "issue": "Issue",
+      "loadingStatuses": "Loading statuses…",
       "noIssuesFound": "No issues found",
-      "commentLabel": "Comment"
+      "open": "Open",
+      "searchStatus": "Search or type a status…",
+      "status": "Status",
+      "statusRequired": "Status is required"
     },
     "createIssueTitle": "🐛 Create GitHub Issue",
     "createIssue": "Create Issue",

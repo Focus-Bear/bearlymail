@@ -22,8 +22,6 @@ import {
 import { GITHUB_STATE_OPEN, GITHUB_STATUS_MERGED, LINK_TYPE_ISSUE } from 'constants/strings';
 
 const ACTION_LABELS: Record<string, string> = {
-  [ACTION_TYPE_GITHUB_ADD_COMMENT]: '💬 Add Comment',
-  [ACTION_TYPE_GITHUB_UPDATE_STATUS]: '🔄 Update Status',
   [ACTION_TYPE_GITHUB_CREATE_ISSUE]: '✏️ Create Issue',
   [ACTION_TYPE_GITHUB_SEARCH_ISSUES]: '🔍 Search Issues',
 };
@@ -49,7 +47,15 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
     onRefresh?.();
   };
 
-  const actionButtons = suggestedActions.length > 0 && (
+  // Filter out update-status and add-comment — these are now accessible via
+  // the pencil and comment icons inline in GitHubProject (see #1067).
+  const visibleActions = suggestedActions.filter(
+    action =>
+      action.type !== ACTION_TYPE_GITHUB_UPDATE_STATUS &&
+      action.type !== ACTION_TYPE_GITHUB_ADD_COMMENT,
+  );
+
+  const actionButtons = visibleActions.length > 0 && (
     <div
       style={{
         marginTop: theme.spacing.sm,
@@ -58,7 +64,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         gap: theme.spacing.xs,
       }}
     >
-      {suggestedActions.map(action => (
+      {visibleActions.map(action => (
         <button
           key={`${action.type}-${action.reason}`}
           onClick={() => setActiveAction(action)}
@@ -115,7 +121,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         )}
         <GitHubLabels labels={status.labels || []} />
         <GitHubAssignees assignees={status.assignees || []} />
-        <GitHubProject projects={status.projects} issueInfo={issueInfo} onRefresh={onRefresh} />
+        <GitHubProject projects={status.projects} issueInfo={issueInfo} onRefresh={onRefresh} emailBody={email?.body} />
         {actionButtons}
       </div>
 

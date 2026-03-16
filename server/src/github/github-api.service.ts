@@ -6,6 +6,32 @@ import { getErrorMessage, isApiError } from "../types/common";
 import { ParsedGitHubLink } from "./github.service";
 
 /**
+ * GraphQL response for fetching project status field options via Projects v2
+ */
+interface ProjectStatusOptionsGraphQLResponse {
+  repository?: {
+    issue?: {
+      projectItems?: {
+        nodes?: Array<{
+          project?: {
+            title?: string;
+            fields?: {
+              nodes?: Array<{
+                name?: string;
+                options?: Array<{
+                  id: string;
+                  name: string;
+                }>;
+              } | null>;
+            };
+          };
+        } | null>;
+      };
+    };
+  };
+}
+
+/**
  * GraphQL response for project items query
  * This is a complex nested structure from GitHub's GraphQL API
  */
@@ -849,6 +875,82 @@ export class GitHubApiService {
         throw new Error("GitHub token is invalid or expired");
       }
       throw error;
+    }
+  }
+
+  /**
+   * GraphQL query to fetch the Status field options from the project(s) an issue belongs to.
+   * Returns the single-select options for the "Status" field in GitHub Projects v2.
+   */
+  private readonly projectStatusOptionsQuery = `
+    query($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          projectItems(first: 10) {
+            nodes {
+              project {
+                ... on ProjectV2 {
+                  title
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        name
+                        options {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  /**
+   * Fetch the available Status field options from GitHub Projects v2 for a given issue.
+   * Returns an array of { id, name } objects representing the project column/status options.
+   */
+  async fetchProjectStatusOptions(
+    token: string,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<Array<{ id: string; name: string }>> {
+    try {
+      const octokit = this.createClient(token);
+      const response =
+        await octokit.graphql<ProjectStatusOptionsGraphQLResponse>(
+          this.projectStatusOptionsQuery,
+          { owner, repo, issueNumber },
+        );
+
+      const projectNodes =
+        response?.repository?.issue?.projectItems?.nodes ?? [];
+
+      // Collect options from the first project's Status field
+      for (const item of projectNodes) {
+        if (!item?.project?.fields?.nodes) continue;
+        for (const field of item.project.fields.nodes) {
+          if (!field) continue;
+          const fieldName = field.name?.toLowerCase();
+          if (fieldName === "status" && field.options?.length) {
+            return field.options.map((opt) => ({ id: opt.id, name: opt.name }));
+          }
+        }
+      }
+
+      return [];
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      this.logger.warn(
+        `Failed to fetch project status options for ${owner}/${repo}#${issueNumber}: ${errorMessage}`,
+      );
+      return [];
     }
   }
 }

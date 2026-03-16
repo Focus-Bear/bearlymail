@@ -51,6 +51,40 @@ export class GitHubController {
     private readonly repoMappingService: GitHubRepoMappingService,
   ) {}
 
+  @Get("projects/status-options")
+  async getProjectStatusOptions(
+    @Request() req,
+    @Query("owner") owner: string,
+    @Query("repo") repo: string,
+    @Query("issueNumber") issueNumberStr: string,
+  ) {
+    const { userId } = req.user;
+    const issueNumber = parseInt(issueNumberStr, 10);
+
+    if (!owner || !repo || isNaN(issueNumber)) {
+      return { options: [] };
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      return { options: [] };
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      return { options: [] };
+    }
+
+    const options = await this.githubApiService.fetchProjectStatusOptions(
+      token,
+      owner,
+      repo,
+      issueNumber,
+    );
+
+    return { options };
+  }
+
   @Get("emails/:id")
   async getEmailGitHubInfo(@Request() req, @Param("id") emailId: string) {
     const { userId } = req.user;

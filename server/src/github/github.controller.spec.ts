@@ -51,6 +51,7 @@ describe("GitHubController - getAdminDebugInfo", () => {
     fetchMultipleStatuses: jest.fn(),
     testToken: jest.fn(),
     testRepoAccess: jest.fn(),
+    fetchProjectStatusOptions: jest.fn(),
   };
 
   const mockGitHubAppService = {
@@ -310,6 +311,7 @@ describe("GitHubController - testUserToken", () => {
     fetchMultipleStatuses: jest.fn(),
     testToken: jest.fn(),
     testRepoAccess: jest.fn(),
+    fetchProjectStatusOptions: jest.fn(),
   };
   const mockGitHubAppService = {
     getFrontendUrl: jest.fn(),
@@ -471,6 +473,7 @@ describe("GitHubController - getMyConnectionStatus", () => {
     fetchMultipleStatuses: jest.fn(),
     testToken: jest.fn(),
     testRepoAccess: jest.fn(),
+    fetchProjectStatusOptions: jest.fn(),
   };
   const mockGitHubAppService = {
     getFrontendUrl: jest.fn(),
@@ -686,6 +689,7 @@ describe("GitHubController - createConnectToken", () => {
     fetchMultipleStatuses: jest.fn(),
     testToken: jest.fn(),
     testRepoAccess: jest.fn(),
+    fetchProjectStatusOptions: jest.fn(),
   };
   const mockGitHubAppService = {
     getFrontendUrl: jest.fn(),

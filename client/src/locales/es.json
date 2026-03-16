@@ -1815,9 +1815,12 @@
       "foundIssues": "Se encontró el problema {{count}}",
       "foundIssues_plural": "Se encontraron {{count}} problemas",
       "issue": "Asunto",
+      "loadingStatuses": "Cargando estados…",
       "noIssuesFound": "No se encontraron problemas",
       "open": "Abierto",
-      "status": "Estado"
+      "searchStatus": "Buscar o escribir un estado…",
+      "status": "Estado",
+      "statusRequired": "El estado es obligatorio"
     },
     "title": "Acciones Rápidas",
     "createIssueTitle": "🐛 Create GitHub Issue",

@@ -8,7 +8,7 @@ import { ModalContent } from 'components/modal/ModalContent';
 import { ModalFormActions } from 'components/modal/ModalFormActions';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
-import { StatusSelector } from 'components/quick-actions/modals/github/StatusSelector';
+import { StatusOption, StatusSelector } from 'components/quick-actions/modals/github/StatusSelector';
 import { API_URL } from 'config/api';
 
 interface GitHubUpdateStatusModalProps {
@@ -23,23 +23,41 @@ interface GitHubUpdateStatusModalProps {
 
 export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = ({ issueInfo, onClose, onSuccess }) => {
   const { t } = useTranslation();
-  const [state, setState] = useState<'open' | 'closed'>('closed');
+  const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchIssue = async () => {
+    const fetchOptions = async () => {
+      setOptionsLoading(true);
       try {
-        await axios.get(`${API_URL}/github/emails/dummy`);
-      } catch (err) {
-        // Ignore - we'll proceed without pre-fetching
+        const response = await axios.get(`${API_URL}/github/projects/status-options`, {
+          params: {
+            owner: issueInfo.owner,
+            repo: issueInfo.repo,
+            issueNumber: issueInfo.number,
+          },
+        });
+        setStatusOptions(response.data?.options ?? []);
+      } catch {
+        // If fetching options fails, fall back to free-text entry (empty options list)
+        setStatusOptions([]);
+      } finally {
+        setOptionsLoading(false);
       }
     };
-    fetchIssue();
-  }, [issueInfo]);
+    fetchOptions();
+  }, [issueInfo.owner, issueInfo.repo, issueInfo.number]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!selectedStatus.trim()) {
+      setError(t('quickActions.github.statusRequired', { defaultValue: 'Please enter or select a status.' }));
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -48,7 +66,7 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
         owner: issueInfo.owner,
         repo: issueInfo.repo,
         issueNumber: issueInfo.number,
-        state,
+        projectStatusValue: selectedStatus,
       });
       onSuccess();
       onClose();
@@ -65,11 +83,16 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
         <ModalHeaderWithClose title={t('quickActions.updateStatusTitle', { defaultValue: '🔄 Update Issue Status' })} onClose={onClose} />
         <IssueInfoDisplay owner={issueInfo.owner} repo={issueInfo.repo} number={issueInfo.number} />
         <form onSubmit={handleSubmit}>
-          <StatusSelector state={state} onStateChange={setState} />
+          <StatusSelector
+            options={statusOptions}
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            loading={optionsLoading}
+          />
           <ErrorDisplay error={error} />
           <ModalFormActions
             loading={loading}
-            disabled={false}
+            disabled={!selectedStatus.trim()}
             submitLabel={t('quickActions.updateStatus', { defaultValue: 'Update Status' })}
             loadingLabel={t('quickActions.updating', { defaultValue: 'Updating...' })}
             onCancel={onClose}

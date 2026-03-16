@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { FiEdit2 } from 'react-icons/fi';
+import { FiEdit2, FiMessageSquare } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
+import { GitHubAddCommentModal } from 'components/quick-actions/modals/GitHubAddCommentModal';
 import { GitHubUpdateStatusModal } from 'components/quick-actions/modals/GitHubUpdateStatusModal';
 import { EMOJI_CLIPBOARD } from 'constants/emojis';
 
@@ -16,14 +17,29 @@ interface GitHubProjectProps {
     name: string;
     status?: string;
   }>;
-  /** When provided, a pencil icon is shown next to each project status to allow editing. */
+  /** When provided, pencil and comment icons are shown next to each project status. */
   issueInfo?: IssueInfo;
   /** Called after a project status is updated successfully so the parent can refresh. */
   onRefresh?: () => void;
+  /** Email body used to pre-fill the add-comment modal. */
+  emailBody?: string;
 }
 
-export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects, issueInfo, onRefresh }) => {
+const iconButtonStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  padding: '2px',
+  color: theme.colors.text.secondary,
+  display: 'inline-flex',
+  alignItems: 'center',
+  opacity: 0.6,
+  lineHeight: 1,
+};
+
+export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects, issueInfo, onRefresh, emailBody }) => {
   const [editingProject, setEditingProject] = useState<string | null>(null);
+  const [commentingProject, setCommentingProject] = useState<string | null>(null);
 
   if (!projects || projects.length === 0) {
     return null;
@@ -76,24 +92,24 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects, issueInf
               </span>
             )}
             {issueInfo && (
-              <button
-                onClick={() => setEditingProject(project.name)}
-                title="Edit project status"
-                aria-label="Edit project status"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  color: theme.colors.text.secondary,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  opacity: 0.6,
-                  lineHeight: 1,
-                }}
-              >
-                <FiEdit2 size={11} />
-              </button>
+              <>
+                <button
+                  onClick={() => setEditingProject(project.name)}
+                  title="Edit project status"
+                  aria-label="Edit project status"
+                  style={iconButtonStyle}
+                >
+                  <FiEdit2 size={11} />
+                </button>
+                <button
+                  onClick={() => setCommentingProject(project.name)}
+                  title="Add comment"
+                  aria-label="Add comment"
+                  style={iconButtonStyle}
+                >
+                  <FiMessageSquare size={11} />
+                </button>
+              </>
             )}
           </div>
         ))}
@@ -105,6 +121,18 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects, issueInf
           onClose={() => setEditingProject(null)}
           onSuccess={() => {
             setEditingProject(null);
+            onRefresh?.();
+          }}
+        />
+      )}
+
+      {commentingProject !== null && issueInfo && (
+        <GitHubAddCommentModal
+          issueInfo={issueInfo}
+          email={{ body: emailBody ?? '' }}
+          onClose={() => setCommentingProject(null)}
+          onSuccess={() => {
+            setCommentingProject(null);
             onRefresh?.();
           }}
         />

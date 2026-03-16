@@ -87,6 +87,9 @@ export interface Email {
   // Correspondent info for display (the other person in the conversation)
   correspondentEmail?: string | null;
   correspondentName?: string | null;
+  // Pre-resolved contact ID for the sender (populated at ingest). Enables instant
+  // navigation to the contact page without a search API call on every click.
+  senderContactId?: string | null;
   // CRM contact type for the correspondent (loaded asynchronously)
   contactType?: string | null;
   // Auto-responder metadata (autoresponded inbox mode)

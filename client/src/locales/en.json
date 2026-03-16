@@ -478,7 +478,8 @@
       "recurring": "🔁 Recurring"
     },
     "autoSendingIn": "Sending in {{seconds}}s…",
-    "sendNow": "Send Now"
+    "sendNow": "Send Now",
+    "viewContact": "View contact"
   },
   "settings": {
     "title": "Settings",
@@ -1241,7 +1242,19 @@
     "fieldTypeNumber": "Number",
     "fieldTypeDate": "Date",
     "fieldTypeUrl": "URL",
-    "notFound": "Contact not found"
+    "notFound": "Contact not found",
+    "threads": {
+      "title": "Email Threads",
+      "searchPlaceholder": "Search threads by subject or sender…",
+      "roleAll": "All",
+      "roleTo": "To",
+      "roleCc": "CC",
+      "loading": "Loading email threads…",
+      "noThreads": "No email threads found for this contact.",
+      "noResults": "No threads match your search.",
+      "loadError": "Failed to load email threads. Please try again.",
+      "count": "{{count}} thread(s)"
+    }
   },
   "crm": {
     "title": "CRM",

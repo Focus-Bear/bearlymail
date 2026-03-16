@@ -30,7 +30,9 @@ export class UserThrottlerGuard extends ThrottlerGuard {
     const feedbackPaths = ["/priority/star-feedback"];
     const isFeedbackRoute =
       typeof request.url === "string" &&
-      (feedbackPaths.some((feedbackPath) => request.url!.endsWith(feedbackPath)) ||
+      (feedbackPaths.some((feedbackPath) =>
+        request.url!.endsWith(feedbackPath),
+      ) ||
         /\/priority\/[^/]+\/feedback/.test(request.url));
 
     const message = isFeedbackRoute

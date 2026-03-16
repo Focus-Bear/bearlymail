@@ -18,6 +18,7 @@ import {
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD, SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useContactNavigation } from 'hooks/useContactNavigation';
 
 interface PriorityExplanation {
   score: number;
@@ -31,6 +32,8 @@ interface PriorityExplanation {
 
 const COPY_ICON = '⧉';
 const SENTIMENT_KEYWORD = 'sentiment';
+const KEY_ENTER = 'Enter';
+const KEY_SPACE = ' ';
 
 interface EmailDetailHeaderProps {
   email: Email;
@@ -57,6 +60,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   const correspondent = useMemo(() => {
     return getCorrespondent(email, user?.email, threadEmails);
   }, [email, threadEmails, user?.email]);
+
+  const { navigateToContact } = useContactNavigation();
 
   const [emailCopied, setEmailCopied] = useState(false);
   const handleCopyEmail = useCallback(async () => {
@@ -106,6 +111,15 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
           <div
+            role="button"
+            tabIndex={0}
+            onClick={event => navigateToContact(event, correspondent.email, email.senderContactId)}
+            onKeyDown={event => {
+              if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
+                navigateToContact(event, correspondent.email, email.senderContactId);
+              }
+            }}
+            title={t('emailDetail.viewContact')}
             style={{
               width: '48px',
               height: '48px',
@@ -117,6 +131,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               justifyContent: 'center',
               fontWeight: theme.typography.fontWeight.bold,
               fontSize: theme.typography.fontSize.lg,
+              cursor: 'pointer',
             }}
           >
             {correspondent.name[0].toUpperCase()}
@@ -131,7 +146,20 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                 gap: theme.spacing.xs,
               }}
             >
-              {EMOJI_USER} {correspondent.name}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={event => navigateToContact(event, correspondent.email, email.senderContactId)}
+                onKeyDown={event => {
+                  if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
+                    navigateToContact(event, correspondent.email, email.senderContactId);
+                  }
+                }}
+                title={t('emailDetail.viewContact')}
+                style={{ cursor: 'pointer' }}
+              >
+                {EMOJI_USER} {correspondent.name}
+              </span>
               {correspondent.email && (
                 <span
                   style={{

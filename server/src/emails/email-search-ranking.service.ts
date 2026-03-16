@@ -326,7 +326,10 @@ Return ONLY a JSON array of objects.`;
         index: idx,
         from: email.fromName || email.from || "",
         subject: email.subject || "",
-        body: (email.summary?.trim() || email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)) || "",
+        body:
+          email.summary?.trim() ||
+          email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
+          "",
         receivedAt: email.receivedAt
           ? email.receivedAt.toISOString()
           : new Date().toISOString(),

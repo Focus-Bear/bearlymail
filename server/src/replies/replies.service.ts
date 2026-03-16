@@ -18,6 +18,7 @@ import { LLMProvider, LLMService } from "../llm/llm.service";
 import { SnoozeService } from "../snooze/snooze.service";
 import { UsersService } from "../users/users.service";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 
 export interface ReplyRule {
@@ -360,11 +361,17 @@ ${closing}`;
     replySubject: string,
     bodyWithSignature: string,
     userEmail: string,
+    replyToAddress: string,
+    cc?: string,
   ): Promise<void> {
     try {
       const thread = await this.emailThreadRepository.findOne({
         where: { userId, threadId: email.threadId },
       });
+      const toHmac = computeRecipientsHmac(replyToAddress || null);
+      const ccHmac = computeRecipientsHmac(cc ?? null);
+      const recipientEmailsHmac =
+        toHmac || ccHmac ? [toHmac, ccHmac].filter(Boolean).join(",") : null;
       const sentEmail = this.emailRepository.create({
         userId,
         threadId: email.threadId,
@@ -377,6 +384,8 @@ ${closing}`;
         isRead: true,
         receivedAt: new Date(),
         labels: ["SENT"],
+        senderEmailHmac: computeEmailHmac(userEmail),
+        recipientEmailsHmac,
       });
       await this.emailRepository.save(sentEmail);
       this.logger.log(
@@ -656,6 +665,8 @@ ${closing}`;
       payload.replySubject,
       payload.bodyWithSignature,
       userEmail,
+      payload.replyToAddress,
+      cc,
     );
 
     try {
@@ -684,24 +695,28 @@ ${closing}`;
         this.logger.error("Failed to create follow-up:", followUpError);
       }
     } else {
-      try {
-        const existingFollowUp =
-          await this.followUpsService.findActiveFollowUpByThread(
-            userId,
-            email.threadId,
-          );
-        if (existingFollowUp) {
-          await this.followUpsService.cancelFollowUp(
-            existingFollowUp.id,
-            userId,
-          );
-        }
-      } catch (cancelError) {
-        this.logger.warn(
-          "Failed to cancel existing follow-up on reply:",
-          cancelError,
+      await this.cancelExistingFollowUp(userId, email.threadId);
+    }
+  }
+
+  private async cancelExistingFollowUp(
+    userId: string,
+    threadId: string,
+  ): Promise<void> {
+    try {
+      const existingFollowUp =
+        await this.followUpsService.findActiveFollowUpByThread(
+          userId,
+          threadId,
         );
+      if (existingFollowUp) {
+        await this.followUpsService.cancelFollowUp(existingFollowUp.id, userId);
       }
+    } catch (cancelError) {
+      this.logger.warn(
+        "Failed to cancel existing follow-up on reply:",
+        cancelError,
+      );
     }
   }
 }

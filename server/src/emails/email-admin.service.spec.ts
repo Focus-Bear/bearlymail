@@ -4,8 +4,8 @@ import { Repository } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { INBOX_MODES } from "../constants/query-limits";
-import { EmailThread } from "../database/entities/email-thread.entity";
 import { ContactsService } from "../contacts/contacts.service";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailsService } from "./emails.service";
 
@@ -83,9 +83,7 @@ describe("EmailAdminService", () => {
 
   describe("queueBulkRecategorization", () => {
     it("should return queued: 0 and batchId: null when no emails exist", async () => {
-      mockEmailsService.getInbox = jest
-        .fn()
-        .mockResolvedValue({ emails: [] });
+      mockEmailsService.getInbox = jest.fn().mockResolvedValue({ emails: [] });
 
       const result = await service.queueBulkRecategorization("user-1");
       expect(result.queued).toBe(0);

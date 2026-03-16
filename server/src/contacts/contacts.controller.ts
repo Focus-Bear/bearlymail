@@ -130,6 +130,15 @@ export class ContactsController {
     return this.contactsService.getContactDetail(req.user.userId, id);
   }
 
+  /**
+   * Return all email threads involving this contact (as sender, direct
+   * recipient, or CC). Used by the contact detail page thread list.
+   */
+  @Get(":id/threads")
+  async getContactThreads(@Request() req, @Param("id") id: string) {
+    return this.contactsService.getContactThreads(req.user.userId, id);
+  }
+
   @Put(":id")
   async updateContact(
     @Request() req,

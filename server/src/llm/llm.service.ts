@@ -1757,7 +1757,11 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       if (Array.isArray(parsedArr)) {
         // Require minimum occurrences
         return (
-          parsedArr as Array<{ question: string; answer: string; frequency: number }>
+          parsedArr as Array<{
+            question: string;
+            answer: string;
+            frequency: number;
+          }>
         ).filter((qa) => (qa.frequency ?? 0) >= QA_EXTRACTION.MIN_FREQUENCY);
       }
     } catch (error) {

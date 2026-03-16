@@ -2,12 +2,34 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Contact } from "../database/entities/contact.entity";
+import { Email } from "../database/entities/email.entity";
+import {
+  buildRecipientHmacPattern,
+  computeEmailHmac,
+} from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { ContactCrmService } from "./contact-crm.service";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
+
+/** Which role the contact plays in a given thread. */
+export type ContactThreadRole = "from" | "to" | "cc";
+
+export interface ContactThreadSummary {
+  emailThreadId: string;
+  threadId: string;
+  subject: string | null;
+  /** Decrypted sender address of the latest email in the thread. */
+  from: string | null;
+  fromName: string | null;
+  receivedAt: Date;
+  isRead: boolean;
+  /** Whether the contact appears as the sender, a direct recipient, or a CC recipient. */
+  role: ContactThreadRole;
+}
 
 export interface ContactSearchResult {
   id: string;
@@ -54,6 +76,8 @@ export class ContactsService {
   constructor(
     @InjectRepository(Contact)
     private contactRepository: Repository<Contact>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
     private gmailContactsProvider: GmailContactsProvider,
     private contactCrmService: ContactCrmService,
   ) {}
@@ -122,6 +146,8 @@ export class ContactsService {
           },
         });
 
+        let savedContactId: string;
+
         if (existing) {
           // Update existing contact
           await this.contactRepository.update(existing.id, {
@@ -137,9 +163,10 @@ export class ContactsService {
             searchTokens: JSON.stringify(searchTokens),
             lastSyncedAt: new Date(),
           });
+          savedContactId = existing.id;
         } else {
           // Create new contact
-          await this.contactRepository.save({
+          const created = await this.contactRepository.save({
             userId,
             provider,
             providerId: raw.providerId,
@@ -155,6 +182,21 @@ export class ContactsService {
             searchTokens: JSON.stringify(searchTokens),
             lastSyncedAt: new Date(),
           });
+          savedContactId = created.id;
+        }
+
+        // Backfill senderContactId on emails already ingested for this contact
+        const contactEmailHmac = computeEmailHmac(raw.email);
+        if (contactEmailHmac) {
+          await this.emailRepository
+            .createQueryBuilder()
+            .update()
+            .set({ senderContactId: savedContactId })
+            .where(
+              '"userId" = :userId AND "senderEmailHmac" = :hmac AND "senderContactId" IS NULL',
+              { userId, hmac: contactEmailHmac },
+            )
+            .execute();
         }
 
         upserted++;
@@ -494,6 +536,102 @@ export class ContactsService {
         }),
       ),
     };
+  }
+
+  /**
+   * Return all email threads that involve a given contact (as sender, direct
+   * recipient, or CC recipient).
+   *
+   * Because `from`, `to`, and `cc` on the Email entity are AES-GCM encrypted
+   * with a random IV per write, they cannot be filtered in SQL.  We load the
+   * most-recent CONTACT_THREAD_EMAIL_SCAN emails for the user (TypeORM's column
+   * transformer decrypts them on load), then filter in application memory.
+   *
+   * Only the newest email per thread is kept in the result so we surface the
+   * most-recent activity for each conversation.
+   */
+  async getContactThreads(
+    userId: string,
+    contactId: string,
+  ): Promise<ContactThreadSummary[]> {
+    const contact = await this.contactRepository.findOne({
+      where: { id: contactId, userId },
+    });
+    if (!contact) throw new NotFoundException("Contact not found");
+
+    const contactEmail = contact.email.toLowerCase();
+    const senderHmac = computeEmailHmac(contactEmail);
+    const recipientPattern = buildRecipientHmacPattern(contactEmail);
+
+    // Use HMAC fingerprints for an indexed SQL lookup so we avoid loading and
+    // decrypting every email for the user.  Emails ingested before the HMAC
+    // columns were added will have NULL fingerprints; the post-filter below
+    // catches any that slip through (e.g. during the transition period).
+    const emails = await this.emailRepository
+      .createQueryBuilder("email")
+      .select([
+        "email.id",
+        "email.emailThreadId",
+        "email.threadId",
+        "email.from",
+        "email.fromName",
+        "email.to",
+        "email.cc",
+        "email.subject",
+        "email.receivedAt",
+        "email.isRead",
+        "email.senderEmailHmac",
+        "email.recipientEmailsHmac",
+      ])
+      .where("email.userId = :userId", { userId })
+      .andWhere(
+        "(email.senderEmailHmac = :senderHmac OR email.recipientEmailsHmac LIKE :recipientPattern OR email.senderEmailHmac IS NULL)",
+        { senderHmac, recipientPattern },
+      )
+      .orderBy("email.receivedAt", "DESC")
+      .take(QUERY_LIMITS.CONTACT_THREAD_EMAIL_SCAN)
+      .getMany();
+
+    // Post-filter: verify with decrypted values (handles NULL-HMAC legacy rows
+    // and guards against the negligible chance of HMAC collision).
+    const seenThreadIds = new Set<string>();
+    const threads: ContactThreadSummary[] = [];
+
+    for (const email of emails) {
+      if (seenThreadIds.has(email.emailThreadId)) continue;
+
+      const fromDecrypted = (email.from ?? "").toLowerCase();
+      const toDecrypted = (email.to ?? "").toLowerCase();
+      const ccDecrypted = (email.cc ?? "").toLowerCase();
+
+      const isInFrom = fromDecrypted.includes(contactEmail);
+      const isInTo = toDecrypted.includes(contactEmail);
+      const isInCc = ccDecrypted.includes(contactEmail);
+
+      if (!isInFrom && !isInTo && !isInCc) continue;
+
+      seenThreadIds.add(email.emailThreadId);
+      let role: ContactThreadRole;
+      if (isInFrom) {
+        role = "from";
+      } else if (isInTo) {
+        role = "to";
+      } else {
+        role = "cc";
+      }
+      threads.push({
+        emailThreadId: email.emailThreadId,
+        threadId: email.threadId,
+        subject: email.subject ?? null,
+        from: email.from ?? null,
+        fromName: email.fromName ?? null,
+        receivedAt: email.receivedAt,
+        isRead: email.isRead,
+        role,
+      });
+    }
+
+    return threads;
   }
 
   async updateContact(

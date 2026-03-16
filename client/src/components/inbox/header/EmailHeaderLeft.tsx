@@ -5,6 +5,10 @@ import { Email } from 'types/email';
 import { InboxContactTypeBadge } from 'components/crm/InboxContactTypeBadge';
 import { EmailLabels } from 'components/inbox/header/EmailLabels';
 import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
+import { useContactNavigation } from 'hooks/useContactNavigation';
+
+const KEY_ENTER = 'Enter';
+const KEY_SPACE = ' ';
 
 interface EmailHeaderLeftProps {
   email: Email;
@@ -26,9 +30,20 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
   onOverrideUrgency,
   onProvideFeedback,
 }) => {
+  const { navigateToContact } = useContactNavigation();
+  const senderEmail = email.correspondentEmail || email.from;
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, flex: 1, minWidth: 0 }}>
       <strong
+        role="button"
+        tabIndex={0}
+        onClick={event => navigateToContact(event, senderEmail, email.senderContactId)}
+        onKeyDown={event => {
+          if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
+            navigateToContact(event, senderEmail, email.senderContactId);
+          }
+        }}
         style={{
           color: email.isRead ? theme.colors.text.secondary : theme.colors.text.primary,
           fontSize: theme.typography.fontSize.base,
@@ -36,6 +51,7 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          cursor: 'pointer',
         }}
       >
         {email.correspondentName || email.correspondentEmail || email.fromName || email.from}

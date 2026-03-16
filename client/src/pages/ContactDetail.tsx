@@ -34,11 +34,13 @@ import {
   STRING_WHITE,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useContactThreads } from 'hooks/useContactThreads';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
 
 import ContactActivityList from './contact-detail/components/ContactActivityList';
 import ContactDetailHeader from './contact-detail/components/ContactDetailHeader';
+import { ContactThreadList } from './contact-detail/components/ContactThreadList';
 import useContactActions from './contact-detail/hooks/useContactActions';
 import useContactDetailData from './contact-detail/hooks/useContactDetailData';
 
@@ -466,6 +468,15 @@ const ContactDetailPage: React.FC = () => {
   const { contact, contactTypes, loading, error, fetchContact, getTypeConfig } = useContactDetailData(contactId);
   const { handleUpdateField, handleAddNote, handleDeleteNote, handleSetCustomFieldValue, handleAddCustomField } =
     useContactActions(contactId, fetchContact);
+  const {
+    threads: filteredThreads,
+    isLoading: threadsLoading,
+    hasError: threadsHasError,
+    keyword: threadKeyword,
+    roleFilter: threadRoleFilter,
+    setKeyword: setThreadKeyword,
+    setRoleFilter: setThreadRoleFilter,
+  } = useContactThreads(contactId);
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -568,6 +579,19 @@ const ContactDetailPage: React.FC = () => {
             setNewFieldType={setNewFieldType}
             onSetCustomFieldValue={handleSetCustomFieldValue}
             onAddCustomField={handleAddCustomField}
+          />
+
+          <ContactThreadList
+            filteredThreads={filteredThreads}
+            isLoading={threadsLoading}
+            hasError={threadsHasError}
+            keyword={threadKeyword}
+            roleFilter={threadRoleFilter}
+            onKeywordChange={setThreadKeyword}
+            onRoleFilterChange={setThreadRoleFilter}
+            sectionStyle={sectionStyle}
+            inputStyle={styles.inputStyle}
+            t={(key, opts) => t(key, opts)}
           />
 
           <ContactActivityList

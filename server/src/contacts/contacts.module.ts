@@ -6,6 +6,7 @@ import { ContactCustomField } from "../database/entities/contact-custom-field.en
 import { ContactCustomFieldValue } from "../database/entities/contact-custom-field-value.entity";
 import { ContactNote } from "../database/entities/contact-note.entity";
 import { ContactType } from "../database/entities/contact-type.entity";
+import { Email } from "../database/entities/email.entity";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
 import { ContactCrmService } from "./contact-crm.service";
@@ -22,6 +23,7 @@ import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
       ContactCustomField,
       ContactCustomFieldValue,
       ContactType,
+      Email,
     ]),
     forwardRef(() => UsersModule),
     QueueModule,

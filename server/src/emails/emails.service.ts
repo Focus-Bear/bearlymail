@@ -25,6 +25,7 @@ import {
 import { ActionItem } from "../database/entities/action-item.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { CategoryOverride } from "../database/entities/category-override.entity";
+import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
@@ -40,6 +41,7 @@ import { getJobPriority } from "../queue/job-priorities";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
+import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugService } from "./email-debug.service";
@@ -104,6 +106,8 @@ export class EmailsService {
     private actionItemRepository: Repository<ActionItem>,
     @InjectRepository(CategoryOverride)
     private categoryOverrideRepository: Repository<CategoryOverride>,
+    @InjectRepository(Contact)
+    private contactRepository: Repository<Contact>,
     private priorityService: PriorityService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
@@ -768,7 +772,7 @@ export class EmailsService {
         e."from", e."fromName", e."senderJobTitle", e.subject,
         e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
         e."phishingConfidence", e."phishingReason",
-        e."receivedAt", e.labels, e."cc",
+        e."receivedAt", e.labels, e."cc", e."senderContactId",
         correspondent."from" as "correspondentEmail",
         correspondent."fromName" as "correspondentName"
       FROM email_threads thread
@@ -778,7 +782,7 @@ export class EmailsService {
           em."googleAccountId", em."office365AccountId", em."zohoAccountId",
           em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
           em."phishingConfidence", em."phishingReason",
-          em."receivedAt", em.labels, em."cc"
+          em."receivedAt", em.labels, em."cc", em."senderContactId"
         FROM emails em
         WHERE em."emailThreadId" = thread.id AND em."userId" = $1
         ORDER BY em."receivedAt" DESC, em.id DESC
@@ -1684,6 +1688,25 @@ export class EmailsService {
     const email = (
       Array.isArray(createdEntities) ? createdEntities[0] : createdEntities
     ) as Email;
+
+    // Populate HMAC fingerprints so contact-thread lookup can use an indexed
+    // SQL WHERE instead of decrypting all emails in memory.  Values are
+    // computed from the plaintext fields before the TypeORM transformer
+    // encrypts them on save.
+    email.senderEmailHmac = computeEmailHmac(emailData.from ?? "");
+    const toHmac = computeRecipientsHmac(emailData.to ?? null);
+    const ccHmac = computeRecipientsHmac(emailData.cc ?? null);
+    email.recipientEmailsHmac =
+      toHmac || ccHmac ? [toHmac, ccHmac].filter(Boolean).join(",") : null;
+
+    // Link sender contact if known (enables instant frontend navigation without API call)
+    if (email.senderEmailHmac) {
+      const senderContact = await this.contactRepository.findOne({
+        where: { userId, emailHash: email.senderEmailHmac },
+        select: ["id"],
+      });
+      email.senderContactId = senderContact?.id ?? null;
+    }
 
     if (isBlocked) {
       return this.saveBlockedEmail(

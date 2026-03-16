@@ -100,4 +100,7 @@ export const QUERY_LIMITS = {
   CI_LOCAL_DB_SCORE_STEP: 5,
   // Minimum score for local-DB search results
   CI_LOCAL_DB_MIN_SCORE: 10,
+  // How many of the most-recent emails to scan when building the contact thread list.
+  // Covers most active inboxes without a full table scan.
+  CONTACT_THREAD_EMAIL_SCAN: 1000,
 } as const;

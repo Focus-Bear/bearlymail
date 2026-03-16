@@ -824,7 +824,8 @@
       "recurring": "🔁 Recurrente"
     },
     "autoSendingIn": "Enviando en {{seconds}}s…",
-    "sendNow": "Enviar ahora"
+    "sendNow": "Enviar ahora",
+    "viewContact": "Ver contacto"
   },
   "contacts": {
     "title": "Contactos",
@@ -868,7 +869,19 @@
     "fieldTypeNumber": "Número",
     "fieldTypeDate": "Fecha",
     "fieldTypeUrl": "URL",
-    "notFound": "Contact not found"
+    "notFound": "Contact not found",
+    "threads": {
+      "title": "Hilos de correo",
+      "searchPlaceholder": "Buscar hilos por asunto o remitente…",
+      "roleAll": "Todos",
+      "roleTo": "Para",
+      "roleCc": "CC",
+      "loading": "Cargando hilos de correo…",
+      "noThreads": "No se encontraron hilos de correo para este contacto.",
+      "noResults": "Ningún hilo coincide con tu búsqueda.",
+      "loadError": "Error al cargar los hilos de correo. Inténtalo de nuevo.",
+      "count": "{{count}} hilo(s)"
+    }
   },
   "crm": {
     "title": "CRM",

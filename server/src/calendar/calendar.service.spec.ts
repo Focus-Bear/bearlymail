@@ -7,13 +7,13 @@ import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
+import { CalendarService } from "./calendar.service";
 import {
   alignToSlotBoundary,
   calculateFreeSlots,
   toDayKey,
   toTzDate,
 } from "./calendar-free-slots.helper";
-import { CalendarService } from "./calendar.service";
 
 // Mock googleapis
 jest.mock("googleapis", () => ({

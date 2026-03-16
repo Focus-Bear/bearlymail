@@ -32,6 +32,8 @@ import { ZohoAccount } from "./zoho-account.entity";
 @Index(["emailThreadId"])
 // For batch-status queries (getNextBatchReleaseTime)
 @Index(["userId", "isBatched", "batchReleaseAt"])
+// For contact-thread HMAC lookup (indexed SQL search — avoids full table scan)
+@Index(["userId", "senderEmailHmac"])
 export class Email {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -79,6 +81,31 @@ export class Email {
 
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   cc: string;
+
+  /**
+   * HMAC-SHA256 fingerprint of the sender's email address (normalised to
+   * lower-case).  Stored alongside the AES-encrypted `from` field so that
+   * contact-thread lookup can use an indexed SQL WHERE instead of full scan.
+   * Populated on email ingestion; null for emails ingested before this column.
+   */
+  @Column({ nullable: true })
+  senderEmailHmac: string | null;
+
+  /**
+   * Contact ID for the sender of this email. Populated at ingest using the
+   * senderEmailHmac → Contact.emailHash indexed lookup. Null for senders
+   * not in the contacts table, or emails ingested before this column.
+   */
+  @Column({ nullable: true })
+  senderContactId: string | null;
+
+  /**
+   * Comma-delimited HMAC fingerprints of all recipient addresses from `to`
+   * and `cc` fields, stored as `,hmac1,hmac2,` so LIKE '%,<hmac>,%' matches
+   * exactly.  Null for emails ingested before this column.
+   */
+  @Column({ type: "text", nullable: true })
+  recipientEmailsHmac: string | null;
 
   @Column({
     nullable: true,

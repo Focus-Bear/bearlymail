@@ -1,7 +1,9 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { Contact } from "../database/entities/contact.entity";
+import { Email } from "../database/entities/email.entity";
 import { ContactCrmService } from "./contact-crm.service";
 import { ContactsService } from "./contacts.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
@@ -9,6 +11,25 @@ import { SearchIndexHelper } from "./search-index.helper";
 
 describe("ContactsService", () => {
   let service: ContactsService;
+
+  // Shared email query-builder stub — individual tests can override getMany.
+  const mockEmailQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+    // Update query-builder chain (used by upsertContacts backfill)
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ affected: 0 }),
+  };
+
+  const mockEmailRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue(mockEmailQueryBuilder),
+  };
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -54,6 +75,10 @@ describe("ContactsService", () => {
           useValue: mockRepository,
         },
         {
+          provide: getRepositoryToken(Email),
+          useValue: mockEmailRepository,
+        },
+        {
           provide: GmailContactsProvider,
           useValue: mockGmailContactsProvider,
         },
@@ -69,6 +94,20 @@ describe("ContactsService", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Reset email query builder so each test starts clean.
+    mockEmailQueryBuilder.select.mockReturnThis();
+    mockEmailQueryBuilder.where.mockReturnThis();
+    mockEmailQueryBuilder.andWhere.mockReturnThis();
+    mockEmailQueryBuilder.orderBy.mockReturnThis();
+    mockEmailQueryBuilder.limit.mockReturnThis();
+    mockEmailQueryBuilder.take.mockReturnThis();
+    mockEmailQueryBuilder.getMany.mockResolvedValue([]);
+    mockEmailQueryBuilder.update.mockReturnThis();
+    mockEmailQueryBuilder.set.mockReturnThis();
+    mockEmailQueryBuilder.execute.mockResolvedValue({ affected: 0 });
+    mockEmailRepository.createQueryBuilder.mockReturnValue(
+      mockEmailQueryBuilder,
+    );
   });
 
   describe("syncContacts", () => {
@@ -521,6 +560,195 @@ describe("ContactsService", () => {
       const result = await service.getContactByEmail(userId, email);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("getContactThreads", () => {
+    const userId = "user-123";
+    const contactId = "contact-abc";
+    const contactEmail = "alice@example.com";
+
+    const mockContact = {
+      id: contactId,
+      userId,
+      email: contactEmail,
+    };
+
+    const makeEmail = (
+      overrides: Partial<{
+        id: string;
+        emailThreadId: string;
+        threadId: string;
+        from: string;
+        fromName: string | null;
+        to: string;
+        cc: string;
+        subject: string;
+        receivedAt: Date;
+        isRead: boolean;
+      }>,
+    ) => ({
+      id: "email-1",
+      emailThreadId: "thread-1",
+      threadId: "gmail-thread-1",
+      from: "other@example.com",
+      fromName: "Other Person",
+      to: "me@example.com",
+      cc: "",
+      subject: "Hello",
+      receivedAt: new Date("2025-01-01T10:00:00Z"),
+      isRead: true,
+      ...overrides,
+    });
+
+    it("throws NotFoundException when contact does not exist", async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getContactThreads(userId, contactId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("returns empty array when no emails involve the contact", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({ from: "nobody@example.com", to: "me@example.com", cc: "" }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toEqual([]);
+    });
+
+    it("assigns role='from' when contact appears in the from field", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({ from: contactEmail, to: "me@example.com", cc: "" }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("from");
+      expect(result[0].emailThreadId).toBe("thread-1");
+    });
+
+    it("assigns role='to' when contact appears in the to field (not from)", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({ from: "other@example.com", to: contactEmail, cc: "" }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("to");
+    });
+
+    it("assigns role='cc' when contact appears only in the cc field", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({
+          from: "other@example.com",
+          to: "me@example.com",
+          cc: contactEmail,
+        }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("cc");
+    });
+
+    it("deduplicates threads — only the first (newest) email per emailThreadId is kept", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({
+          id: "email-1",
+          emailThreadId: "thread-shared",
+          from: contactEmail,
+          receivedAt: new Date("2025-02-01T12:00:00Z"),
+        }),
+        makeEmail({
+          id: "email-2",
+          emailThreadId: "thread-shared",
+          from: contactEmail,
+          receivedAt: new Date("2025-01-01T10:00:00Z"),
+        }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].emailThreadId).toBe("thread-shared");
+    });
+
+    it("returns multiple threads when the contact appears in different threads", async () => {
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({
+          id: "email-1",
+          emailThreadId: "thread-A",
+          from: contactEmail,
+        }),
+        makeEmail({
+          id: "email-2",
+          emailThreadId: "thread-B",
+          to: contactEmail,
+          from: "other@example.com",
+        }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(2);
+      const threadIds = result.map((thread) => thread.emailThreadId).sort();
+      expect(threadIds).toEqual(["thread-A", "thread-B"]);
+    });
+
+    it("maps email fields to ContactThreadSummary shape correctly", async () => {
+      const receivedAt = new Date("2025-03-01T08:00:00Z");
+      mockRepository.findOne.mockResolvedValue(mockContact);
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({
+          emailThreadId: "thread-xyz",
+          threadId: "gmail-thread-xyz",
+          from: contactEmail,
+          fromName: "Alice",
+          subject: "Important meeting",
+          receivedAt,
+          isRead: false,
+        }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result[0]).toMatchObject({
+        emailThreadId: "thread-xyz",
+        threadId: "gmail-thread-xyz",
+        subject: "Important meeting",
+        from: contactEmail,
+        fromName: "Alice",
+        receivedAt,
+        isRead: false,
+        role: "from",
+      });
+    });
+
+    it("performs case-insensitive matching against the contact email", async () => {
+      mockRepository.findOne.mockResolvedValue({
+        ...mockContact,
+        email: "Alice@Example.COM",
+      });
+      mockEmailQueryBuilder.getMany.mockResolvedValue([
+        makeEmail({ from: "alice@example.com", to: "me@example.com", cc: "" }),
+      ]);
+
+      const result = await service.getContactThreads(userId, contactId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("from");
     });
   });
 

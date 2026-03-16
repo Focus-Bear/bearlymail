@@ -12,6 +12,7 @@ interface UseInboxCategoryAccordionParams {
   fetchCategoryEmails: (name: string, id?: string) => Promise<void>;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  exhaustedCategoryNames?: string[];
 }
 
 const INITIAL_PRELOAD_COUNT = 3;
@@ -22,6 +23,7 @@ interface UseCategoryFetchEffectsParams {
   expandedCategoriesRef: React.MutableRefObject<Set<string>>;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  exhaustedCategoryNames: string[];
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
   loadingCategoryNamesRef: React.MutableRefObject<string[]>;
   fetchCategoryEmails: (name: string, id?: string) => Promise<void>;
@@ -41,6 +43,7 @@ function useCategoryFetchEffects({
   expandedCategoriesRef,
   loadedCategoryNames,
   loadingCategoryNames,
+  exhaustedCategoryNames,
   loadedCategoryNamesRef,
   loadingCategoryNamesRef,
   fetchCategoryEmails,
@@ -106,6 +109,8 @@ function useCategoryFetchEffects({
       key =>
         !loadedCategoryNames.includes(key) &&
         !loadingCategoryNames.includes(key) &&
+        // Skip categories that have exhausted retries — wait for user to manually retry
+        !exhaustedCategoryNames.includes(key) &&
         !limboDispatchedRef.current.has(key)
     );
     if (limboCategories.length === 0) {
@@ -131,7 +136,7 @@ function useCategoryFetchEffects({
         });
     });
     // expandedCategories intentionally omitted — see comment above.
-  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
+  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails]);
 }
 
 /**
@@ -148,6 +153,7 @@ export function useInboxCategoryAccordion({
   fetchCategoryEmails,
   loadedCategoryNames,
   loadingCategoryNames,
+  exhaustedCategoryNames = [],
 }: UseInboxCategoryAccordionParams) {
   // Both sets store category *keys* (UUID or name), not display names.
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -215,6 +221,7 @@ export function useInboxCategoryAccordion({
     expandedCategoriesRef,
     loadedCategoryNames,
     loadingCategoryNames,
+    exhaustedCategoryNames,
     loadedCategoryNamesRef,
     loadingCategoryNamesRef,
     fetchCategoryEmails,

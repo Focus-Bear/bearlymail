@@ -84,6 +84,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     categorySummary,
     loadedCategoryNames,
     loadingCategoryNames,
+    exhaustedCategoryNames,
     handleSetStarCount: handleSetStarCountBase,
     handleArchive: handleArchiveBase,
     handleSnooze: handleSnoozeBase,
@@ -222,7 +223,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
   const { expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, resetForModeChange } =
-    useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames });
+    useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames });
 
   const setMode = useCallback(
     (newMode: InboxMode) => {

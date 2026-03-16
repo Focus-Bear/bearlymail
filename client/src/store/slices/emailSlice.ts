@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Email, getEmailPriorityScore } from 'types/email';
 
-import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, CATEGORY_OTHER, TYPEOF_STRING } from 'constants/strings';
+import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, CATEGORY_OTHER } from 'constants/strings';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
@@ -35,6 +35,9 @@ export interface EmailState {
   summaryLoading: boolean;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  /** Category keys that have been permanently failed after exhausting all retries.
+   *  Effect 2 will not re-fetch these until the user explicitly retries (resetCategoryExhausted). */
+  exhaustedCategoryNames: string[];
   /** Unix timestamp (ms) of the last successful inbox fetch. Used for stale-while-revalidate caching. */
   lastFetchedAt: number | null;
 }
@@ -56,6 +59,7 @@ const initialState: EmailState = {
   summaryLoading: false,
   loadedCategoryNames: [],
   loadingCategoryNames: [],
+  exhaustedCategoryNames: [],
   lastFetchedAt: null,
 };
 
@@ -209,6 +213,24 @@ const emailSlice = createSlice({
       // Existing emails (if any) are intentionally preserved.
       state.loadingCategoryNames = state.loadingCategoryNames.filter(name => name !== action.payload);
     },
+    /**
+     * Permanently marks a category as exhausted after max retries.
+     * Unlike markCategoryLoadFailed, this prevents Effect 2 from automatically re-fetching
+     * until the user explicitly retries (dispatch resetCategoryExhausted + fetchCategoryEmails).
+     */
+    markCategoryFetchExhausted: (state, action: PayloadAction<string>) => {
+      state.loadingCategoryNames = state.loadingCategoryNames.filter(name => name !== action.payload);
+      if (!state.exhaustedCategoryNames.includes(action.payload)) {
+        state.exhaustedCategoryNames.push(action.payload);
+      }
+    },
+    /**
+     * Clears the exhausted state for a category so the user can manually retry.
+     * Call this before re-invoking fetchCategoryEmails from the error UI.
+     */
+    resetCategoryExhausted: (state, action: PayloadAction<string>) => {
+      state.exhaustedCategoryNames = state.exhaustedCategoryNames.filter(name => name !== action.payload);
+    },
     clearCategoryState: state => {
       state.categorySummary = null;
       // Set summaryLoading = true immediately so isRefetchingWithoutData is true
@@ -216,6 +238,7 @@ const emailSlice = createSlice({
       state.summaryLoading = true;
       state.loadedCategoryNames = [];
       state.loadingCategoryNames = [];
+      state.exhaustedCategoryNames = [];
     },
     decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
       const { categoryName, count } =
@@ -277,6 +300,8 @@ export const {
   markCategoryLoaded,
   markCategoryLoading,
   markCategoryLoadFailed,
+  markCategoryFetchExhausted,
+  resetCategoryExhausted,
   clearCategoryState,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,

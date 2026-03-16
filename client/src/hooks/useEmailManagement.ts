@@ -4,13 +4,13 @@ import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
-import { TYPEOF_FUNCTION } from 'constants/strings';
 import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
 import { useEmailFetching } from 'hooks/useEmailFetching';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import {
   selectCategorySummary,
   selectDecrypting,
+  selectExhaustedCategoryNames,
   selectFetchError,
   selectHasMore,
   selectLoadedCategoryNames,
@@ -74,6 +74,7 @@ interface EmailReduxState {
   categorySummary: CategorySummaryItem[] | null;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  exhaustedCategoryNames: string[];
 }
 
 function useEmailReduxState(): EmailReduxState {
@@ -88,6 +89,7 @@ function useEmailReduxState(): EmailReduxState {
     categorySummary: useSelector(selectCategorySummary),
     loadedCategoryNames: useSelector(selectLoadedCategoryNames),
     loadingCategoryNames: useSelector(selectLoadingCategoryNames),
+    exhaustedCategoryNames: useSelector(selectExhaustedCategoryNames),
   };
 }
 
@@ -145,6 +147,7 @@ interface UseEmailManagementReturn {
   categorySummary: CategorySummaryItem[] | null;
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
+  exhaustedCategoryNames: string[];
   handleSetStarCount: (
     emailId: string,
     starCount: number,
@@ -162,7 +165,7 @@ interface UseEmailManagementReturn {
 export function useEmailManagement(props: UseEmailManagementProps): UseEmailManagementReturn {
   const { mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters } = props;
   const dispatch = useDispatch<AppDispatch>();
-  const { emails, loading, decrypting, refreshing, loadingModeSwitch, fetchError, hasMore, categorySummary, loadedCategoryNames, loadingCategoryNames } = useEmailReduxState();
+  const { emails, loading, decrypting, refreshing, loadingModeSwitch, fetchError, hasMore, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames } = useEmailReduxState();
 
   const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
@@ -250,6 +253,7 @@ export function useEmailManagement(props: UseEmailManagementProps): UseEmailMana
     categorySummary,
     loadedCategoryNames,
     loadingCategoryNames,
+    exhaustedCategoryNames,
     handleSetStarCount,
     handleArchive,
     handleSnooze,

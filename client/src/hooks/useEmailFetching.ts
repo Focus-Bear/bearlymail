@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
@@ -10,7 +10,14 @@ import {
 } from 'utils/emailCache';
 
 import { API_URL } from 'config/api';
-import { HTTP_UNAUTHORIZED, INBOX_FETCH_LIMIT } from 'constants/numbers';
+import {
+  BACKOFF_RETRY_BUFFER_MS,
+  HTTP_TOO_MANY_REQUESTS,
+  HTTP_UNAUTHORIZED,
+  INBOX_FETCH_LIMIT,
+  MAX_CATEGORY_FETCH_RETRIES,
+  MS_PER_SECOND,
+} from 'constants/numbers';
 import {
   CATEGORY_OTHER,
   ERROR_CODE_ERR_NETWORK,
@@ -23,6 +30,7 @@ import {
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
+import { BackoffContext,usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 import {
   selectCurrentOffset,
   selectLoadedCategoryNames,
@@ -31,6 +39,7 @@ import {
 import {
   CategorySummaryItem,
   clearCategoryState,
+  markCategoryFetchExhausted,
   markCategoryLoaded,
   markCategoryLoadFailed,
   markCategoryLoading,
@@ -134,6 +143,11 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   // This prevents a stale fetchCategoryEmails from marking a category as "loaded" after
   // fetchEmails() cleared the state, which would block a subsequent re-fetch via the guard.
   const fetchSessionRef = useRef(0);
+  // Backoff circuit breaker for category fetches. Stored in refs (not useState) so that
+  // backoff tracking never triggers a re-render, which would re-fire Effect 2.
+  const categoryBackoff = usePollingWithBackoff({ maxRetries: MAX_CATEGORY_FETCH_RETRIES });
+  // Timers used to schedule retry renders after the backoff window elapses
+  const pendingRetryTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const buildSummaryParams = useCallback(() => buildSummaryParamsImpl(mode, filters), [mode, filters]);
   const buildCategoryParams = useCallback(
@@ -171,11 +185,26 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
         loadedCategoryNamesRef,
         loadingCategoryNamesRef,
         fetchSessionRef,
+        categoryBackoff,
+        pendingRetryTimersRef,
       });
       // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
     },
+    // categoryBackoff is from usePollingWithBackoff — its functions are stable (useCallback with []).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [mode, dispatch, buildCategoryParams]
   );
+
+  // Cleanup: cancel all pending retry timers on unmount
+  useEffect(() => {
+    const pendingTimers = pendingRetryTimersRef.current;
+    return () => {
+      pendingTimers.forEach(clearTimeout);
+      pendingTimers.clear();
+      categoryBackoff.cancelAll();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMoreRef.current) {
@@ -240,17 +269,8 @@ function serveCategoryFromCacheAndRefresh({
     .catch(err => console.warn('[Accordion] Background refresh failed for category:', categoryName, err));
 }
 
-/** Extracted: fetch emails for a single category on expand. */
-async function fetchCategoryEmailsImpl({
-  categoryName,
-  categoryId,
-  mode,
-  dispatch,
-  buildCategoryParams,
-  loadedCategoryNamesRef,
-  loadingCategoryNamesRef,
-  fetchSessionRef,
-}: {
+/** Arguments shared between fetchCategoryEmailsImpl and handleCategoryFetchError. */
+interface CategoryFetchArgs {
   categoryName: string;
   categoryId?: string | null;
   mode: InboxMode;
@@ -259,17 +279,65 @@ async function fetchCategoryEmailsImpl({
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
   loadingCategoryNamesRef: React.MutableRefObject<string[]>;
   fetchSessionRef: React.MutableRefObject<number>;
-}) {
+  categoryBackoff: BackoffContext;
+  pendingRetryTimersRef: React.MutableRefObject<Set<ReturnType<typeof setTimeout>>>;
+}
+
+/** Handles a failed category fetch: applies backoff state and schedules a retry timer. */
+function handleCategoryFetchError(
+  args: CategoryFetchArgs,
+  catKey: string,
+  error: any,
+  sessionId: number
+) {
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef } = args;
+  console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
+  if (fetchSessionRef.current !== sessionId) {
+return;
+}
+
+  const backoffState = categoryBackoff.onError(catKey, error);
+  if (backoffState.exhausted) {
+    dispatch(markCategoryFetchExhausted(catKey));
+    console.error('[Accordion] Category fetch exhausted after', backoffState.retryCount, 'retries:', categoryName);
+    return;
+  }
+
+  const is429 = error?.response?.status === HTTP_TOO_MANY_REQUESTS;
+  const delayMs = Math.max(0, backoffState.nextAllowedAt - Date.now());
+  console.warn(
+    `[Accordion] Category load failed (${is429 ? '429' : 'error'}), retry ${backoffState.retryCount}/${MAX_CATEGORY_FETCH_RETRIES} in ${Math.round(delayMs / MS_PER_SECOND)}s:`,
+    categoryName
+  );
+  dispatch(markCategoryLoadFailed(catKey));
+
+  const retryTimer = setTimeout(() => {
+    pendingRetryTimersRef.current.delete(retryTimer);
+    fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef })
+      .catch(err => console.error('[limbo-recovery] Backoff retry failed:', err));
+  }, delayMs + BACKOFF_RETRY_BUFFER_MS);
+  pendingRetryTimersRef.current.add(retryTimer);
+}
+
+/** Returns true if a category fetch should be skipped (already loaded, loading, wrong mode, or in backoff). */
+function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boolean {
+  const { mode, loadedCategoryNamesRef, loadingCategoryNamesRef, categoryBackoff } = args;
+  return (
+    loadedCategoryNamesRef.current.includes(catKey) ||
+    loadingCategoryNamesRef.current.includes(catKey) ||
+    mode === MODE_AUTORESPONDED ||
+    categoryBackoff.shouldSkip(catKey)
+  );
+}
+
+/** Extracted: fetch emails for a single category on expand. */
+async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff } = args;
   // Compute the stable key: UUID when available, name as fallback
   const catKey = getCategoryKey(categoryId, categoryName);
 
-  if (loadedCategoryNamesRef.current.includes(catKey)) {
-    return;
-  }
-  if (loadingCategoryNamesRef.current.includes(catKey)) {
-    return;
-  }
-  if (mode === MODE_AUTORESPONDED) {
+  // Early-exit: already loaded/loading, wrong mode, or in backoff/circuit-open state.
+  if (shouldSkipCategoryFetch(args, catKey)) {
     return;
   }
 
@@ -281,6 +349,7 @@ async function fetchCategoryEmailsImpl({
   }
 
   const sessionId = fetchSessionRef.current;
+  categoryBackoff.markInFlight(catKey);
   dispatch(markCategoryLoading(catKey));
   console.log('[Accordion] Fetching category:', categoryName, '(key:', catKey, ')');
 
@@ -295,27 +364,15 @@ async function fetchCategoryEmailsImpl({
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
+    categoryBackoff.onSuccess(catKey);
     dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
     dispatch(markCategoryLoaded(catKey));
     setCachedCategoryEmails(mode, catKey, emails);
-    console.log(
-      '[Accordion] Loaded category:',
-      categoryName,
-      '(key:',
-      catKey,
-      ')',
-      emails.length,
-      'emails'
-    );
+    console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
   } catch (error: any) {
-    console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
-    // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
-    // markCategoryLoaded would set isLoaded=true with no emails, causing CategorySection
-    // to return null and the accordion section to vanish entirely.
-    if (fetchSessionRef.current === sessionId) {
-      console.warn('[Accordion] Category load failed, allowing retry:', categoryName);
-      dispatch(markCategoryLoadFailed(catKey));
-    }
+    handleCategoryFetchError(args, catKey, error, sessionId);
+  } finally {
+    categoryBackoff.clearInFlight(catKey);
   }
 }
 
@@ -479,6 +536,17 @@ function serveSummaryFromCacheAndRefresh({
     .catch(err => console.warn('[fetchEmails] Background refresh failed:', err));
 }
 
+/** Reset inbox state before a full (non-cache) fetch. */
+function dispatchFetchStart(dispatch: AppDispatch) {
+  dispatch(setDecrypting(true));
+  dispatch(setFetchError(null));
+  dispatch(clearCategoryState());
+  dispatch(setEmails([]));
+  dispatch(setCurrentOffset(0));
+  dispatch(setHasMore(false));
+  dispatch(setTotalCount(0));
+}
+
 async function fetchEmailsImpl({
   mode,
   dispatch,
@@ -503,13 +571,7 @@ async function fetchEmailsImpl({
   }
 
   // No cache — full fetch with loading indicator
-  dispatch(setDecrypting(true));
-  dispatch(setFetchError(null));
-  dispatch(clearCategoryState());
-  dispatch(setEmails([]));
-  dispatch(setCurrentOffset(0));
-  dispatch(setHasMore(false));
-  dispatch(setTotalCount(0));
+  dispatchFetchStart(dispatch);
   try {
     if (mode === MODE_AUTORESPONDED) {
       await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);

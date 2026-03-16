@@ -5,11 +5,15 @@ import { devDebug, devError, devLog } from 'utils/dev-logger';
 import { API_URL } from 'config/api';
 import {
   DELAY_1_SECOND_MS,
+  HTTP_TOO_MANY_REQUESTS,
   LONG_TIMEOUT_MS,
+  MAX_POLL_RETRIES_429,
   MAX_RETRIES_POLLING,
+  MS_PER_SECOND,
   POLLING_DELAY_MS,
   POLLING_INTERVAL_MS,
 } from 'constants/numbers';
+import { usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 
 // Static stage-order mapping — defined at module level so it is stable across renders
 const STAGE_ORDER: Record<string, number> = {
@@ -96,6 +100,11 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   const cancelledRef = useRef(false);
   const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
   const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
+  // Backoff circuit breaker for 429 handling — uses a single synthetic key since there is
+  // only one analysis-progress polling loop. Stored in refs so it never triggers re-renders.
+  const backoff = usePollingWithBackoff({ maxRetries: MAX_POLL_RETRIES_429 });
+  // Stable key for the single analysis-progress poll
+  const ANALYSIS_BACKOFF_KEY = 'analysis-progress';
 
   // Stage order is now a stable module-level constant (STAGE_ORDER)
 
@@ -105,10 +114,11 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     devDebug('Setting analyzing state to true');
     console.log('[FRONTEND] Setting analyzing state to true');
 
-    // Reset cancellation flag and high water marks when starting new analysis
+    // Reset cancellation flag, high water marks, and backoff state when starting new analysis
     cancelledRef.current = false;
     progressHighWaterMark.current = 0;
     messageKeyHighWaterMark.current = null;
+    backoff.onSuccess(ANALYSIS_BACKOFF_KEY); // clear any prior exhausted/backoff state
 
     setAnalyzing(true);
     setAnalyzeProgress({
@@ -209,6 +219,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       const isComplete = total > 0 && effectiveCurrent >= total;
       errorCount = 0;
       retryCount = 0;
+      backoff.onSuccess(ANALYSIS_BACKOFF_KEY);
 
       // CRITICAL: Use stage-based high water mark for messageKey to prevent message going backwards
       // (e.g., showing "fetching" after "analyzing" due to backend race conditions)
@@ -263,30 +274,6 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         show: true,
         progress: null,
         error: 'Analysis timed out. You can re-run it from Settings.',
-        isComplete: false,
-      });
-    };
-
-    const handleFetchError = (error: any, timeoutId: ReturnType<typeof setTimeout> | null) => {
-      devError('Error fetching analysis progress:', error);
-      devError('Error response:', error.response?.data);
-      devError('Error status:', error.response?.status);
-      console.error('Error fetching analysis progress:', error);
-      errorCount++;
-      if (errorCount < 3) {
-        return;
-      }
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      setAnalyzing(false);
-      setAnalysisId(null); // Clear analysis ID on fetch error
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
-      setAnalyzeProgress({
-        show: true,
-        progress: null,
-        error: errorMessage,
         isComplete: false,
       });
     };
@@ -353,14 +340,59 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           }, POLLING_INTERVAL_MS);
         }
       } catch (error: any) {
-        handleFetchError(error, pollingTimeoutRef.current);
-        // Wait 2 seconds even on error before retrying
+        devError('Error fetching analysis progress:', error);
+        console.error('Error fetching analysis progress:', error);
+
+        const backoffState = backoff.onError(ANALYSIS_BACKOFF_KEY, error);
+        const is429 = (error as any)?.response?.status === HTTP_TOO_MANY_REQUESTS;
+
+        if (backoffState.exhausted) {
+          // Max retries reached — surface a permanent error to the user.
+          setAnalyzing(false);
+          setAnalysisId(null);
+          const errorMessage = is429
+            ? 'Too many requests. Please wait a moment and try again.'
+            : (error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.');
+          setAnalyzeProgress({
+            show: true,
+            progress: null,
+            error: errorMessage,
+            isComplete: false,
+          });
+          isPolling = false;
+          return; // Stop polling — exhausted
+        }
+
+        const delayMs = Math.max(0, backoffState.nextAllowedAt - Date.now());
+        console.warn(
+          `[useAnalysisProgress] ${is429 ? '429 rate-limited' : 'Fetch error'}, retry ${backoffState.retryCount}/${MAX_POLL_RETRIES_429} in ${Math.round(delayMs / MS_PER_SECOND)}s`
+        );
+
+        // Fall back to error-count gating for non-429 errors
+        if (!is429) {
+          errorCount++;
+          if (errorCount >= 3) {
+            setAnalyzing(false);
+            setAnalysisId(null);
+            const errorMessage =
+              error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
+            setAnalyzeProgress({
+              show: true,
+              progress: null,
+              error: errorMessage,
+              isComplete: false,
+            });
+            isPolling = false;
+            return;
+          }
+        }
+
         if (!cancelledRef.current) {
           pollingTimeoutRef.current = setTimeout(() => {
             if (!cancelledRef.current) {
               pollProgress();
             }
-          }, POLLING_INTERVAL_MS);
+          }, delayMs);
         }
       } finally {
         isPolling = false;
@@ -375,7 +407,10 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         clearTimeout(pollingTimeoutRef.current);
         pollingTimeoutRef.current = null;
       }
+      backoff.cancelAll();
     };
+    // backoff functions are stable (from usePollingWithBackoff with useCallback([]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzing, analysisId, onComplete]);
 
   const dismissProgress = useCallback(() => {

@@ -42,6 +42,7 @@ const createTestStore = (emails: Email[] = []) => {
         summaryLoading: false,
         loadedCategoryNames: [] as string[],
         loadingCategoryNames: [] as string[],
+        exhaustedCategoryNames: [] as string[],
         lastFetchedAt: null as number | null,
       },
     },

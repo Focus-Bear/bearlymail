@@ -21,7 +21,8 @@ const mockUsersService = {
 };
 
 const mockScreenshotsService = {
-  createPresignedPutUrl: jest.fn(),
+  uploadScreenshot: jest.fn(),
+  getPresignedGetUrl: jest.fn(),
   deleteScreenshot: jest.fn(),
 };
 
@@ -133,19 +134,23 @@ describe("FeedbackService", () => {
   });
 
   describe("listFeedback", () => {
-    it("should return paginated items and total", async () => {
+    it("should return paginated items with screenshotUrl and total", async () => {
       const rows = [
         {
           id: "fb-10",
           message: "Hello",
           userEmailEncrypted: "user@example.com",
-          screenshotS3Key: null,
+          screenshotS3Key: "feedback/abc.jpg",
           createdAt: new Date("2026-01-01"),
           appVersion: "2.0",
           userAgent: "Chrome",
         } as Feedback,
       ];
+      const presignedUrl = "https://s3.example.com/presigned-get";
       mockFeedbackRepo.findAndCount.mockResolvedValueOnce([rows, 1]);
+      mockScreenshotsService.getPresignedGetUrl.mockResolvedValueOnce(
+        presignedUrl,
+      );
 
       const result = await service.listFeedback(0, 10);
 
@@ -154,15 +159,39 @@ describe("FeedbackService", () => {
         skip: 0,
         take: 10,
       });
+      expect(mockScreenshotsService.getPresignedGetUrl).toHaveBeenCalledWith(
+        "feedback/abc.jpg",
+      );
       expect(result.total).toBe(1);
       expect(result.items).toHaveLength(1);
       expect(result.items[0]).toMatchObject({
         id: "fb-10",
         message: "Hello",
-        screenshotS3Key: null,
+        screenshotS3Key: "feedback/abc.jpg",
+        screenshotUrl: presignedUrl,
         appVersion: "2.0",
         userAgent: "Chrome",
       });
+    });
+
+    it("should return screenshotUrl=null when no screenshot", async () => {
+      const rows = [
+        {
+          id: "fb-11",
+          message: "No screenshot",
+          userEmailEncrypted: null,
+          screenshotS3Key: null,
+          createdAt: new Date("2026-02-01"),
+          appVersion: null,
+          userAgent: null,
+        } as Feedback,
+      ];
+      mockFeedbackRepo.findAndCount.mockResolvedValueOnce([rows, 1]);
+
+      const result = await service.listFeedback(0, 10);
+
+      expect(mockScreenshotsService.getPresignedGetUrl).not.toHaveBeenCalled();
+      expect(result.items[0].screenshotUrl).toBeNull();
     });
 
     it("should clamp limit to 100 (MAX_FEEDBACK_PAGE_SIZE)", async () => {

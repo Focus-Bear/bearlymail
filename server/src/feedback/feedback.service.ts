@@ -61,7 +61,7 @@ export class FeedbackService {
       take: safeLimit,
     });
 
-    const items = rows.map((row) => this.toAdminDto(row));
+    const items = await Promise.all(rows.map((row) => this.toAdminDto(row)));
     return { items, total };
   }
 
@@ -80,13 +80,23 @@ export class FeedbackService {
     await this.feedbackRepository.delete(id);
   }
 
-  private toAdminDto(row: Feedback): FeedbackAdminDto {
+  private async toAdminDto(row: Feedback): Promise<FeedbackAdminDto> {
     // userEmailEncrypted is automatically decrypted by the column transformer
+    let screenshotUrl: string | null = null;
+    if (row.screenshotS3Key) {
+      // Generate a 1-hour presigned GET URL so admin can view the screenshot
+      // without exposing a permanent public URL.
+      screenshotUrl = await this.screenshotsService.getPresignedGetUrl(
+        row.screenshotS3Key,
+      );
+    }
+
     return {
       id: row.id,
       userEmail: row.userEmailEncrypted ?? null,
       message: row.message,
       screenshotS3Key: row.screenshotS3Key ?? null,
+      screenshotUrl,
       createdAt: row.createdAt,
       appVersion: row.appVersion ?? null,
       userAgent: row.userAgent ?? null,
@@ -99,6 +109,8 @@ export interface FeedbackAdminDto {
   userEmail: string | null;
   message: string;
   screenshotS3Key: string | null;
+  /** Presigned GET URL for admin to view screenshot (1-hour TTL). Null when no screenshot. */
+  screenshotUrl: string | null;
   createdAt: Date;
   appVersion: string | null;
   userAgent: string | null;

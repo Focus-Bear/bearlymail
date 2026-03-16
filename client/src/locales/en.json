@@ -2448,7 +2448,16 @@
     "adminVersionPrefix": "v",
     "adminPageOf": "Page {{page}} of {{total}}",
     "adminPrev": "← Prev",
-    "adminNext": "Next →"
+    "adminNext": "Next →",
+    "screenshotLabel": "Screenshot (optional)",
+    "screenshotAdd": "Add screenshot",
+    "screenshotRemove": "Remove screenshot",
+    "screenshotPreviewAlt": "Screenshot preview",
+    "screenshotTooLarge": "Screenshot is too large (max 10 MB).",
+    "screenshotUploadError": "Failed to upload screenshot. Please try again.",
+    "screenshotUploading": "Uploading screenshot…",
+    "adminScreenshotAlt": "Feedback screenshot",
+    "screenshotRemoveIcon": "✕"
   },
   "serviceError": {
     "message": "BearlyMail is temporarily unavailable. Please try again.",

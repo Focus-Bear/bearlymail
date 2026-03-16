@@ -16,7 +16,8 @@ const mockFeedbackService = {
 };
 
 const mockScreenshotsService = {
-  createPresignedPutUrl: jest.fn(),
+  uploadScreenshot: jest.fn(),
+  getPresignedGetUrl: jest.fn(),
   deleteScreenshot: jest.fn(),
 };
 
@@ -86,6 +87,34 @@ describe("FeedbackController (integration)", () => {
       await blockedApp.close();
     });
 
+    it("should return 403 when JwtAuthGuard rejects on POST /feedback/screenshot", async () => {
+      const jwtBlockedModule: TestingModule = await Test.createTestingModule({
+        controllers: [FeedbackController],
+        providers: [
+          { provide: FeedbackService, useValue: mockFeedbackService },
+          {
+            provide: FeedbackScreenshotsService,
+            useValue: mockScreenshotsService,
+          },
+        ],
+      })
+        .overrideGuard(JwtAuthGuard)
+        .useValue({ canActivate: jest.fn().mockReturnValue(false) })
+        .overrideGuard(AdminGuard)
+        .useValue({ canActivate: jest.fn().mockReturnValue(false) })
+        .compile();
+
+      const blockedApp = jwtBlockedModule.createNestApplication();
+      await blockedApp.init();
+
+      await request(blockedApp.getHttpServer())
+        .post("/feedback/screenshot")
+        .attach("file", Buffer.from("fake"), "shot.png")
+        .expect(403);
+
+      await blockedApp.close();
+    });
+
     it("should return 403 when AdminGuard rejects on GET /feedback/admin", async () => {
       const nonAdminApp = await buildApp({ isAdmin: false });
 
@@ -129,7 +158,7 @@ describe("FeedbackController (integration)", () => {
       const controller = app.get(FeedbackController);
       const interceptors = Reflect.getMetadata(
         "__interceptors__",
-        controller.createScreenshotUpload,
+        controller.uploadScreenshot,
       ) as unknown[];
       const hasRateLimiter =
         Array.isArray(interceptors) &&
@@ -166,50 +195,48 @@ describe("FeedbackController (integration)", () => {
   });
 
   describe("POST /feedback/screenshot", () => {
-    it("should call createPresignedPutUrl and return key + url", async () => {
-      const presignResult = {
-        key: "feedback/uuid-1.png",
-        url: "https://s3.example.com/presigned",
-        maxBytes: 5242880,
-      };
-      mockScreenshotsService.createPresignedPutUrl.mockResolvedValueOnce(
-        presignResult,
-      );
+    it("should call uploadScreenshot with buffer and userId, returning key", async () => {
+      const s3Key = "feedback/test-user-id/uuid-123456.png";
+      mockScreenshotsService.uploadScreenshot.mockResolvedValueOnce(s3Key);
 
       const res = await request(app.getHttpServer())
         .post("/feedback/screenshot")
-        .send({ filename: "capture.png", contentType: "image/png" })
+        .attach("file", Buffer.from("fake-png-bytes"), {
+          filename: "capture.png",
+          contentType: "image/png",
+        })
         .expect(201);
 
-      expect(mockScreenshotsService.createPresignedPutUrl).toHaveBeenCalledWith(
-        "capture.png",
-        "image/png",
+      expect(mockScreenshotsService.uploadScreenshot).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        "test-user-id",
       );
-      expect(res.body).toMatchObject({ key: "feedback/uuid-1.png" });
+      expect(res.body).toMatchObject({ key: s3Key });
     });
 
-    it("should pass undefined when body fields are omitted", async () => {
-      mockScreenshotsService.createPresignedPutUrl.mockResolvedValueOnce({
-        key: "feedback/uuid-2.png",
-        url: "https://s3.example.com/presigned2",
-        maxBytes: 5242880,
-      });
+    it("should propagate UnprocessableEntityException (422) from service on invalid MIME", async () => {
+      const { UnprocessableEntityException } = await import(
+        "@nestjs/common"
+      );
+      mockScreenshotsService.uploadScreenshot.mockRejectedValueOnce(
+        new UnprocessableEntityException(
+          'Unsupported file type "application/pdf".',
+        ),
+      );
 
       await request(app.getHttpServer())
         .post("/feedback/screenshot")
-        .send({})
-        .expect(201);
-
-      expect(mockScreenshotsService.createPresignedPutUrl).toHaveBeenCalledWith(
-        undefined,
-        undefined,
-      );
+        .attach("file", Buffer.from("fake-pdf"), {
+          filename: "evil.pdf",
+          contentType: "application/pdf",
+        })
+        .expect(422);
     });
   });
 
   describe("GET /feedback/admin", () => {
     it("should return paginated feedback list when admin guard passes", async () => {
-      const listResult = { items: [{ id: "fb-5", message: "Hi" }], total: 1 };
+      const listResult = { items: [{ id: "fb-5", message: "Hi", screenshotUrl: null }], total: 1 };
       mockFeedbackService.listFeedback.mockResolvedValueOnce(listResult);
 
       const res = await request(app.getHttpServer())

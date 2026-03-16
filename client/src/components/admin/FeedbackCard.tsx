@@ -63,6 +63,35 @@ export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t })
         {item.message}
       </p>
 
+      {item.screenshotUrl && (
+        <div>
+          <a
+            href={item.screenshotUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block' }}
+            aria-label={t('contactFeedback.adminScreenshotAlt')}
+          >
+            <img
+              src={item.screenshotUrl}
+              alt={t('contactFeedback.adminScreenshotAlt')}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '200px',
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.light}`,
+                display: 'block',
+                cursor: 'pointer',
+              }}
+              onError={(event) => {
+                // Hide broken image (e.g. expired presigned URL)
+                (event.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </a>
+        </div>
+      )}
+
       {item.userAgent && (
         <p style={{ margin: 0, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
           {item.userAgent}

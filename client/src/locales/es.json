@@ -2451,7 +2451,16 @@
     "adminVersionPrefix": "v",
     "adminPageOf": "Página {{page}} de {{total}}",
     "adminPrev": "← Anterior",
-    "adminNext": "Siguiente →"
+    "adminNext": "Siguiente →",
+    "screenshotLabel": "Captura de pantalla (opcional)",
+    "screenshotAdd": "Agregar captura de pantalla",
+    "screenshotRemove": "Eliminar captura de pantalla",
+    "screenshotPreviewAlt": "Vista previa de captura de pantalla",
+    "screenshotTooLarge": "La captura de pantalla es demasiado grande (máx. 10 MB).",
+    "screenshotUploadError": "Error al subir la captura de pantalla. Inténtalo de nuevo.",
+    "screenshotUploading": "Subiendo captura de pantalla…",
+    "adminScreenshotAlt": "Captura de pantalla del comentario",
+    "screenshotRemoveIcon": "✕"
   },
   "serviceError": {
     "message": "BearlyMail no está disponible temporalmente. Por favor, inténtalo de nuevo.",

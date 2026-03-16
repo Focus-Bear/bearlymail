@@ -1,29 +1,49 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
-import * as path from "path";
 
 import { BYTE_CONVERSIONS } from "../constants/service-constants";
-import { SECONDS_PER_MINUTE } from "../constants/time-constants";
 
-const ALLOWED_CONTENT_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-]);
+// file-type is an ESM-only package; use a dynamic import so this CommonJS
+// module can still consume it at runtime.
+type FileTypeResult = { mime: string; ext: string } | undefined;
 
-const MAX_UPLOAD_MB = 5;
-/** Maximum screenshot upload size: 5 MB */
-const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * BYTE_CONVERSIONS.MB;
+async function detectMimeType(buffer: Buffer): Promise<FileTypeResult> {
+  // Dynamic import for ESM compatibility
+  const { fileTypeFromBuffer } = await import("file-type");
+  return fileTypeFromBuffer(buffer) as Promise<FileTypeResult>;
+}
 
-/** How long (minutes) a screenshot presigned PUT URL remains valid. */
-const PRESIGN_EXPIRY_MINUTES = 5;
+/** Accepted MIME types for screenshot uploads (magic-byte validated). */
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+/** Map validated MIME → safe file extension. */
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const MAX_UPLOAD_MB = 10;
+/** Maximum screenshot upload size: 10 MB (per plan). */
+export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * BYTE_CONVERSIONS.MB;
+
+/** Multer memory storage file limit exposed for controller config. */
+export const MULTER_FILE_SIZE_LIMIT = MAX_UPLOAD_BYTES;
+
+/** How long (seconds) a presigned GET URL remains valid for admin view (1 hour per plan). */
+const PRESIGN_GET_EXPIRY_SECONDS = 3600;
 
 @Injectable()
 export class FeedbackScreenshotsService {
@@ -45,37 +65,69 @@ export class FeedbackScreenshotsService {
     }
   }
 
-  async createPresignedPutUrl(filename?: string, contentType = "image/png") {
-    // Validate content type to prevent misuse of presigned URLs for arbitrary uploads
-    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+  /**
+   * Validate a screenshot buffer via magic-byte detection and upload it to S3.
+   *
+   * @param buffer   - Raw file bytes received from Multer memory storage.
+   * @param userId   - Authenticated user ID (used in the S3 key path).
+   * @returns The S3 key of the uploaded object.
+   * @throws UnprocessableEntityException (HTTP 422) when MIME type is not accepted.
+   * @throws BadRequestException when bucket is not configured.
+   */
+  async uploadScreenshot(buffer: Buffer, userId: string): Promise<string> {
+    if (!this.bucket) {
       throw new BadRequestException(
-        `Unsupported content type "${contentType}". Allowed types: ${[...ALLOWED_CONTENT_TYPES].join(", ")}`,
+        "Screenshot upload is not configured on this server.",
       );
     }
 
-    const ext = filename ? path.extname(filename) : ".png";
-    const key = `feedback/${randomUUID()}${ext}`;
+    // Magic-byte MIME detection — never trust client-supplied Content-Type.
+    const detected = await detectMimeType(buffer);
+    const mime = detected?.mime ?? "";
 
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      ContentType: contentType,
-      ACL: "private",
-      // Note: ContentLengthRange enforcement requires a bucket policy or POST
-      // presigned URLs. For PUT presigned URLs, clients must honour maxBytes;
-      // add a bucket policy for server-side enforcement if needed.
-    });
+    if (!ALLOWED_MIME_TYPES.has(mime)) {
+      throw new UnprocessableEntityException(
+        `Unsupported file type "${mime || "unknown"}". Accepted: image/jpeg, image/png, image/webp.`,
+      );
+    }
 
-    const url = await getSignedUrl(this.s3, command, {
-      expiresIn: PRESIGN_EXPIRY_MINUTES * SECONDS_PER_MINUTE,
-    });
+    // Derive extension from validated MIME — never from user-supplied filename.
+    const ext = MIME_TO_EXT[mime];
+    const key = `feedback/${userId}/${randomUUID()}-${Date.now()}.${ext}`;
 
-    return { key, url, maxBytes: MAX_UPLOAD_BYTES };
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: mime,
+        ACL: "private",
+      }),
+    );
+
+    this.logger.log(`Uploaded feedback screenshot: key=${key}, mime=${mime}`);
+    return key;
   }
 
   /**
-   * Delete a previously uploaded screenshot from S3/R2.
-   * Called when the parent feedback entry is deleted so orphaned objects are cleaned up.
+   * Generate a presigned GET URL for admin access to a screenshot.
+   * TTL is 1 hour (3600 s) per plan.
+   */
+  async getPresignedGetUrl(key: string): Promise<string> {
+    if (!this.bucket) {
+      return "";
+    }
+
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    return getSignedUrl(this.s3, command, {
+      expiresIn: PRESIGN_GET_EXPIRY_SECONDS,
+    });
+  }
+
+  /**
+   * Delete a previously uploaded screenshot from S3.
+   * Called when the parent feedback entry is deleted so orphaned objects
+   * are cleaned up.
    */
   async deleteScreenshot(key: string): Promise<void> {
     if (!this.bucket) {

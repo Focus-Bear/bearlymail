@@ -48,7 +48,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (screenshotKey?: string) => {
     const trimmed = message.trim();
     if (!trimmed) {
       return;
@@ -56,7 +56,10 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
 
     setIsSubmitting(true);
     try {
-      await axios.post(`${API_URL}/feedback`, { message: trimmed });
+      await axios.post(`${API_URL}/feedback`, {
+        message: trimmed,
+        ...(screenshotKey ? { screenshotS3Key: screenshotKey } : {}),
+      });
       // Show inline ✅ success state only (no duplicate toast).
       setSubmitted(true);
       setTimeout(() => onClose(), FEEDBACK_SUCCESS_CLOSE_MS);

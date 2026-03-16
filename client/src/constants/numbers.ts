@@ -236,3 +236,7 @@ export const HTTP_TOO_MANY_REQUESTS = 429;
 export const RETRY_AFTER_MIN_MS = 5_000;        // floor when Retry-After is missing/too small
 export const MAX_CATEGORY_FETCH_RETRIES = 4;    // give up after 4 attempts (useEmailFetching)
 export const MAX_POLL_RETRIES_429 = 5;          // give up after 5 consecutive 429s (useAnalysisProgress)
+
+// File size units
+export const BYTES_PER_KB = 1024;
+export const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;

@@ -8,27 +8,22 @@ import {
   Post,
   Query,
   Request,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { IsOptional, IsString } from "class-validator";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateFeedbackDto } from "./create-feedback.dto";
 import { FeedbackService } from "./feedback.service";
 import { FeedbackRateLimitInterceptor } from "./feedback-rate-limit.interceptor";
-import { FeedbackScreenshotsService } from "./feedback-screenshots.service";
-
-export class CreateScreenshotUploadDto {
-  @IsOptional()
-  @IsString()
-  filename?: string;
-
-  @IsOptional()
-  @IsString()
-  contentType?: string;
-}
+import {
+  FeedbackScreenshotsService,
+  MULTER_FILE_SIZE_LIMIT,
+} from "./feedback-screenshots.service";
 
 @Controller("feedback")
 @UseGuards(JwtAuthGuard)
@@ -63,23 +58,38 @@ export class FeedbackController {
   }
 
   /**
-   * Request a presigned URL to upload a screenshot for feedback.
+   * Upload a screenshot for feedback.
    * POST /feedback/screenshot
-   * Body: { filename?: string, contentType?: string }
-   * Rate-limited alongside the main submit endpoint.
+   * Accepts: multipart/form-data, field name "file".
+   * Server-side MIME validation via magic-byte detection (file-type package).
+   * Accepted types: image/jpeg, image/png, image/webp.
+   * Max size: 10 MB.
+   * Returns: { key: string } — the S3 key to reference in POST /feedback.
    */
   @Post("screenshot")
-  @UseInterceptors(FeedbackRateLimitInterceptor)
-  async createScreenshotUpload(@Body() dto: CreateScreenshotUploadDto) {
-    return this.screenshotsService.createPresignedPutUrl(
-      dto.filename,
-      dto.contentType,
+  @UseInterceptors(
+    FeedbackRateLimitInterceptor,
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: MULTER_FILE_SIZE_LIMIT },
+    }),
+  )
+  async uploadScreenshot(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ key: string }> {
+    const userId = req.user?.userId as string;
+    const key = await this.screenshotsService.uploadScreenshot(
+      file.buffer,
+      userId,
     );
+    return { key };
   }
 
   /**
    * Admin: list all feedback submissions (paginated).
    * GET /feedback/admin
+   * Returns each item with a presigned GET URL for the screenshot (1-hour TTL).
    */
   @Get("admin")
   @UseGuards(AdminGuard)

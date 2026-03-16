@@ -289,7 +289,8 @@
       "convertToCategory": "Convert to category",
       "converting": "Converting...",
       "convertSuccess": "\"{{name}}\" has been converted to a real category",
-      "convertError": "Failed to convert category. Please try again."
+      "convertError": "Failed to convert category. Please try again.",
+      "deleteError": "Failed to delete category. Please try again."
     },
     "filters": {
       "toggle": "Toggle filters",

@@ -99,7 +99,18 @@ export class ProtoCategoriesController {
     @Request() req: { user: { userId: string } },
   ) {
     const { userId } = req.user;
-    await this.protoCategoriesService.deleteProtoCategory(userId, id);
+    try {
+      await this.protoCategoriesService.deleteProtoCategory(userId, id);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Unexpected error deleting proto category ${id} for user ${userId}`,
+        error,
+      );
+      throw error;
+    }
     return { success: true };
   }
 }

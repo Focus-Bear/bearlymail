@@ -95,10 +95,11 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
       setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
     } catch (error) {
       console.error('Error deleting proto category:', error);
+      showNotification(t('inbox.protoCategory.deleteError'), 'error');
     } finally {
       setDeletingProtoCategoryId(null);
     }
-  }, []);
+  }, [showNotification, t]);
 
   return {
     protoCategories,

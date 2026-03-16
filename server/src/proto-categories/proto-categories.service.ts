@@ -5,8 +5,8 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -27,6 +27,8 @@ export class ProtoCategoriesService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
+    @InjectDataSource()
+    private dataSource: DataSource,
   ) {}
 
   /**
@@ -121,7 +123,7 @@ export class ProtoCategoriesService {
     });
 
     if (!protoCategory) {
-      throw new Error(`Proto category ${protoCategoryId} not found`);
+      throw new NotFoundException(`Proto category ${protoCategoryId} not found`);
     }
 
     this.logger.log(
@@ -342,7 +344,8 @@ export class ProtoCategoriesService {
   }
 
   /**
-   * Delete a proto category and clear its reference from threads
+   * Delete a proto category and clear its reference from threads.
+   * Wrapped in a transaction so the thread-nullification and the delete are atomic.
    */
   async deleteProtoCategory(
     userId: string,
@@ -353,18 +356,21 @@ export class ProtoCategoriesService {
     });
 
     if (!protoCategory) {
-      throw new Error(
+      throw new NotFoundException(
         `Proto category ${protoCategoryId} not found for user ${userId}`,
       );
     }
 
-    // Clear proto category reference from all threads
-    await this.emailThreadRepository.update(
-      { protoCategoryId: protoCategory.id },
-      { protoCategoryId: null },
-    );
+    await this.dataSource.transaction(async (manager) => {
+      // Clear proto category reference from all threads first
+      await manager.update(
+        EmailThread,
+        { protoCategoryId: protoCategory.id },
+        { protoCategoryId: null },
+      );
 
-    await this.protoCategoryRepository.delete({ id: protoCategoryId, userId });
+      await manager.delete(ProtoCategory, { id: protoCategoryId, userId });
+    });
 
     this.logger.log(
       `Deleted proto category "${protoCategory.name}" for user ${userId}`,

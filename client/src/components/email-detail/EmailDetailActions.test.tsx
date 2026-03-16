@@ -75,6 +75,18 @@ jest.mock('react-icons/fi', () => ({
   FiClock: () => null,
   FiCornerUpLeft: () => null,
   FiCornerUpRight: () => null,
+  FiPrinter: () => null,
+}));
+
+jest.mock('hooks/useResponsiveBreakpoints', () => ({
+  useResponsiveBreakpoints: jest.fn(() => ({ isMobile: false, isTablet: false, isDesktop: true })),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const mockUseResponsiveBreakpoints = require('hooks/useResponsiveBreakpoints').useResponsiveBreakpoints as jest.MockedFunction<() => { isMobile: boolean; isTablet: boolean; isDesktop: boolean }>;
+
+jest.mock('components/common/OverflowMenu', () => ({
+  OverflowMenu: () => <div data-testid="OverflowMenu" />,
 }));
 
 jest.mock('theme/theme', () => ({
@@ -82,13 +94,17 @@ jest.mock('theme/theme', () => ({
     spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px' },
     colors: {
       background: { paper: '#fff' },
-      border: { light: '#eee' },
+      border: { light: '#eee', medium: '#ccc' },
       text: { primary: '#000', secondary: '#666' },
-      primary: { main: '#0070f3' },
+      primary: { main: '#0070f3', light: '#e0f0ff' },
     },
     borderRadius: { md: '8px' },
-    typography: { fontSize: { sm: '12px' }, fontWeight: { semibold: '600' } },
+    typography: { fontSize: { sm: '12px', xl: '20px' }, fontWeight: { semibold: '600', medium: '500', bold: '700' } },
   },
+}));
+
+jest.mock('constants/layout', () => ({
+  TOUCH_TARGET_MIN_PX: 44,
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,6 +138,10 @@ const baseProps = {
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  mockUseResponsiveBreakpoints.mockReturnValue({ isMobile: false, isTablet: false, isDesktop: true });
+});
 
 describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
   it('renders SchedulingRequestCard when schedulingActions contains scheduling_request', () => {
@@ -198,5 +218,35 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
     const section = screen.getByTestId('QuickActionsSection');
     expect(section).toHaveAttribute('data-count', '1');
+  });
+});
+
+describe('EmailDetailActions — mobile layout (fixes #1068)', () => {
+  beforeEach(() => {
+    mockUseResponsiveBreakpoints.mockReturnValue({ isMobile: true, isTablet: false, isDesktop: false });
+  });
+
+  afterEach(() => {
+    mockUseResponsiveBreakpoints.mockReturnValue({ isMobile: false, isTablet: false, isDesktop: true });
+  });
+
+  it('renders the two-row mobile layout with Reply All, Forward, Archive, and Snooze buttons', () => {
+    render(<EmailDetailActions {...baseProps} />);
+
+    // Both rows should be present — verify key action labels
+    expect(screen.getByText('emailDetail.replyAll')).toBeInTheDocument();
+    expect(screen.getByText('emailDetail.forward')).toBeInTheDocument();
+    expect(screen.getByText('emailDetail.archive')).toBeInTheDocument();
+    expect(screen.getByText('emailDetail.snooze')).toBeInTheDocument();
+  });
+
+  it('renders OverflowMenu in the first row on mobile', () => {
+    render(<EmailDetailActions {...baseProps} />);
+    expect(screen.getByTestId('OverflowMenu')).toBeInTheDocument();
+  });
+
+  it('renders the block sender button in row 2 when there is no unsubscribe link', () => {
+    render(<EmailDetailActions {...baseProps} />);
+    expect(screen.getByText('inbox.blockSender')).toBeInTheDocument();
   });
 });

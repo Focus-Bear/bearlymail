@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
 
+import { TOUCH_TARGET_MIN_PX } from 'constants/layout';
 import { STRING_NONE } from 'constants/strings';
 
 const OVERFLOW_MENU_ICON = '\u22EE';
@@ -65,13 +66,15 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
         aria-expanded={isOpen}
         onClick={() => setIsOpen(prev => !prev)}
         style={{
+          minWidth: `${TOUCH_TARGET_MIN_PX}px`,
+          minHeight: `${TOUCH_TARGET_MIN_PX}px`,
           padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
           backgroundColor: 'transparent',
           color: theme.colors.text.secondary,
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: 'pointer',
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.xl,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

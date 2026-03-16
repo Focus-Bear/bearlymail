@@ -19,6 +19,7 @@ import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
+import { TOUCH_TARGET_MIN_PX } from 'constants/layout';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import {
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
@@ -26,6 +27,7 @@ import {
   REPLY_MODE_FORWARD,
   STRING_NONE,
 } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface EmailDetailActionsProps {
   email: Email;
@@ -52,6 +54,70 @@ interface EmailDetailActionsProps {
   hideActionButtons?: boolean;
 }
 
+// ── Shared button-style helper ─────────────────────────────────────────────
+
+interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** When true, the button expands to fill available space (flex: 1) and
+   *  enforces the minimum 44 px touch target height. Used in the mobile layout. */
+  mobile?: boolean;
+  variant?: 'primary' | 'secondary' | 'ghost';
+  /** Extra inline styles merged on top of the base style. */
+  extraStyle?: React.CSSProperties;
+  children: React.ReactNode;
+}
+
+const ActionButton: React.FC<ActionButtonProps> = ({
+  mobile = false,
+  variant = 'ghost',
+  extraStyle,
+  children,
+  style: _ignoredStyle,
+  ...rest
+}) => {
+  const baseStyle: React.CSSProperties = {
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    border: STRING_NONE,
+    borderRadius: theme.borderRadius.md,
+    cursor: 'pointer',
+    fontSize: theme.typography.fontSize.sm,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    ...(mobile
+      ? { flex: 1, minHeight: `${TOUCH_TARGET_MIN_PX}px` }
+      : {}),
+  };
+
+  const variantStyle: React.CSSProperties =
+    variant === 'primary'
+      ? {
+          backgroundColor: theme.colors.text.primary,
+          color: COLOR_NAMED_WHITE,
+          fontWeight: theme.typography.fontWeight.semibold,
+        }
+      : variant === 'secondary'
+      ? {
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.medium}`,
+          fontWeight: theme.typography.fontWeight.medium,
+        }
+      : /* ghost */ {
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          fontWeight: theme.typography.fontWeight.medium,
+        };
+
+  return (
+    <button style={{ ...baseStyle, ...variantStyle, ...extraStyle }} {...rest}>
+      {children}
+    </button>
+  );
+};
+
+// ── Main component ─────────────────────────────────────────────────────────
+
 export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   email,
   threadEmails = [],
@@ -75,6 +141,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   hideActionButtons = false,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
   const emailWithStarCount = email as any;
@@ -131,6 +198,94 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     }
   };
 
+  // ── Shared action buttons ──────────────────────────────────────────────────
+
+  const replyAllButton = (
+    <ActionButton
+      mobile={isMobile}
+      variant="primary"
+      onClick={() => onOpenReplyComposer('replyAll')}
+      extraStyle={isMobile ? {} : { justifyContent: 'flex-start' }}
+    >
+      <FiCornerUpLeft size={15} />
+      {t('emailDetail.replyAll')}
+    </ActionButton>
+  );
+
+  const forwardButton = (
+    <ActionButton
+      mobile={isMobile}
+      variant="secondary"
+      onClick={() => onOpenReplyComposer(REPLY_MODE_FORWARD)}
+      extraStyle={isMobile ? {} : { justifyContent: 'flex-start' }}
+    >
+      <FiCornerUpRight size={15} />
+      {t('emailDetail.forward')}
+    </ActionButton>
+  );
+
+  const archiveButton = (
+    <ActionButton
+      mobile={isMobile}
+      variant="ghost"
+      onClick={onArchive}
+      extraStyle={isMobile ? {} : { justifyContent: 'flex-start' }}
+    >
+      <FiArchive size={15} />
+      {t('emailDetail.archive')}
+    </ActionButton>
+  );
+
+  const snoozeButton = (
+    <ActionButton
+      mobile={isMobile}
+      variant="ghost"
+      onClick={() => {
+        captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: email.id });
+        setShowSnoozeInput(!showSnoozeInput);
+      }}
+      title={t('emailDetail.snooze')}
+      extraStyle={{
+        ...(isMobile ? {} : { justifyContent: 'flex-start' }),
+        backgroundColor: showSnoozeInput ? theme.colors.primary.light : COLOR_TRANSPARENT,
+        border: showSnoozeInput ? `1px solid ${theme.colors.primary.main}` : STRING_NONE,
+      }}
+    >
+      <FiClock size={15} />
+      {t('emailDetail.snooze')}
+    </ActionButton>
+  );
+
+  const unsubscribeOrBlockButton = unsubscribeLink ? (
+    <ActionButton
+      mobile={isMobile}
+      variant="ghost"
+      onClick={handleUnsubscribeClick}
+      title={t('inbox.unsubscribe')}
+      extraStyle={{
+        opacity: OPACITY_DISABLED,
+        ...(isMobile ? {} : { marginLeft: 'auto', justifyContent: 'flex-start' }),
+      }}
+    >
+      <span>{EMOJI_LINK}</span>
+      <span>{t('inbox.unsubscribe')}</span>
+    </ActionButton>
+  ) : (
+    <ActionButton
+      mobile={isMobile}
+      variant="ghost"
+      onClick={() => onBlockSender(email.id)}
+      title={t('inbox.blockSender')}
+      extraStyle={{
+        opacity: OPACITY_DISABLED,
+        ...(isMobile ? {} : { marginLeft: 'auto', justifyContent: 'flex-start' }),
+      }}
+    >
+      <span>{EMOJI_BLOCK}</span>
+      <span>{t('inbox.blockSender')}</span>
+    </ActionButton>
+  );
+
   return (
     <div
       style={{
@@ -174,174 +329,63 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             gap: theme.spacing.md,
           }}
         >
-          {/* Action buttons row */}
-          <div
-            style={{
-              display: 'flex',
-              gap: theme.spacing.sm,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Reply All */}
-            <button
-              onClick={() => onOpenReplyComposer('replyAll')}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.text.primary,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                fontWeight: theme.typography.fontWeight.semibold,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <FiCornerUpLeft size={15} />
-              {t('emailDetail.replyAll')}
-            </button>
+          {/* Action buttons — single row on desktop, two rows on mobile */}
+          {isMobile ? (
+            /* ── Mobile: two-row layout ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              {/* Row 1: Reply All · Forward · ⋮ */}
+              <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+                {replyAllButton}
+                {forwardButton}
+                {/* Overflow menu (⋮) — 44×44px touch target */}
+                <OverflowMenu
+                  items={overflowMenuItems}
+                  aria-label={t('emailDetail.moreOptions')}
+                />
+              </div>
 
-            {/* Forward */}
-            <button
-              onClick={() => onOpenReplyComposer(REPLY_MODE_FORWARD)}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.text.secondary,
-                border: `1px solid ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                fontWeight: theme.typography.fontWeight.medium,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <FiCornerUpRight size={15} />
-              {t('emailDetail.forward')}
-            </button>
-
-            {/* Separator */}
+              {/* Row 2: Archive · Snooze · Unsubscribe/Block */}
+              <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+                {archiveButton}
+                {snoozeButton}
+                {unsubscribeOrBlockButton}
+              </div>
+            </div>
+          ) : (
+            /* ── Desktop: original single-row layout ── */
             <div
               style={{
-                width: '1px',
-                height: '28px',
-                backgroundColor: theme.colors.border.light,
-                flexShrink: 0,
-              }}
-            />
-
-            {/* Archive */}
-            <button
-              onClick={() => {
-                console.log(
-                  '%c[ARCHIVE DEBUG] EmailDetailActions Archive button clicked!',
-                  'background: purple; color: white; font-size: 20px;'
-                );
-                onArchive();
-              }}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.text.secondary,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                fontWeight: theme.typography.fontWeight.medium,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
                 display: 'flex',
+                gap: theme.spacing.sm,
                 alignItems: 'center',
-                gap: theme.spacing.xs,
+                flexWrap: 'wrap',
               }}
             >
-              <FiArchive size={15} />
-              {t('emailDetail.archive')}
-            </button>
+              {replyAllButton}
+              {forwardButton}
 
-            {/* Snooze */}
-            <button
-              onClick={() => {
-                captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CLICKED, { email_id: email.id });
-                setShowSnoozeInput(!showSnoozeInput);
-              }}
-              title={t('emailDetail.snooze')}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
-                color: theme.colors.text.secondary,
-                border: showSnoozeInput ? `1px solid ${theme.colors.primary.main}` : 'none',
-                borderRadius: theme.borderRadius.md,
-                fontWeight: theme.typography.fontWeight.medium,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <FiClock size={15} />
-              {t('emailDetail.snooze')}
-            </button>
-
-            {/* Overflow menu (⋮) — Save as PDF and future actions */}
-            <OverflowMenu
-              items={overflowMenuItems}
-              aria-label={t('emailDetail.moreOptions')}
-            />
-
-            {/* Unsubscribe / Block Sender */}
-            {unsubscribeLink ? (
-              <button
-                onClick={handleUnsubscribeClick}
-                title={t('inbox.unsubscribe')}
+              {/* Separator */}
+              <div
                 style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: COLOR_TRANSPARENT,
-                  color: theme.colors.text.secondary,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.md,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.xs,
-                  opacity: OPACITY_DISABLED,
-                  marginLeft: 'auto',
+                  width: '1px',
+                  height: '28px',
+                  backgroundColor: theme.colors.border.light,
+                  flexShrink: 0,
                 }}
-              >
-                <span>{EMOJI_LINK}</span>
-                <span>{t('inbox.unsubscribe')}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => onBlockSender(email.id)}
-                title={t('inbox.blockSender')}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: COLOR_TRANSPARENT,
-                  color: theme.colors.text.secondary,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.md,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.xs,
-                  opacity: OPACITY_DISABLED,
-                  marginLeft: 'auto',
-                }}
-              >
-                <span>{EMOJI_BLOCK}</span>
-                <span>{t('inbox.blockSender')}</span>
-              </button>
-            )}
-          </div>
+              />
+
+              {archiveButton}
+              {snoozeButton}
+
+              {/* Overflow menu (⋮) — Save as PDF and future actions */}
+              <OverflowMenu
+                items={overflowMenuItems}
+                aria-label={t('emailDetail.moreOptions')}
+              />
+
+              {unsubscribeOrBlockButton}
+            </div>
+          )}
 
           {/* Snooze input */}
           {showSnoozeInput && (

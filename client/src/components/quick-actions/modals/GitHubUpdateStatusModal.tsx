@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
@@ -21,6 +22,7 @@ interface GitHubUpdateStatusModalProps {
 }
 
 export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = ({ issueInfo, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [state, setState] = useState<'open' | 'closed'>('closed');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

@@ -37,6 +37,7 @@
     "migration:fix": "ts-node -r tsconfig-paths/register src/scripts/fix-migration-state.ts",
     "check-indexes": "ts-node -r tsconfig-paths/register scripts/check-and-add-indexes.ts",
     "check-schema-drift": "node scripts/check-schema-drift.js",
+    "check:schema": "ts-node -r tsconfig-paths/register scripts/check-schema-sync.ts",
     "analyze-queries": "ts-node -r tsconfig-paths/register scripts/analyze-slow-queries.ts",
     "jobs:reset": "ts-node -r tsconfig-paths/register src/scripts/reset-stuck-jobs.ts",
     "fix:stuck-calculating": "ts-node -r tsconfig-paths/register src/scripts/fix-stuck-calculating.ts",

@@ -69,7 +69,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^11.1.16",
     "@nestjs/throttler": "^6.5.0",
-    "@nestjs/typeorm": "^10.0.1",
+    "@nestjs/typeorm": "^11.0.0",
     "@octokit/rest": "^22.0.1",
     "@pg-boss/dashboard": "^1.1.0",
     "@types/mjml": "^4.7.4",

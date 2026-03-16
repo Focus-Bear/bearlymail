@@ -252,14 +252,47 @@ describe("EmailsController", () => {
       expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
         userId,
         "triage",
+        undefined,
       );
       expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
         userId,
         "action",
+        undefined,
       );
       expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
         userId,
         "follow-up",
+        undefined,
+      );
+    });
+
+    it("should forward minPriority filter to getInboxSummary", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getInboxSummary
+        .mockResolvedValueOnce({ total: 4, categories: [] })
+        .mockResolvedValueOnce({ total: 2, categories: [] })
+        .mockResolvedValueOnce({ total: 1, categories: [] });
+
+      const result = await controller.getTabCounts(mockRequest, "3");
+
+      expect(result).toEqual({ triage: 4, action: 2, followUp: 1 });
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledTimes(3);
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "triage",
+        { minPriority: 3 },
+      );
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "action",
+        { minPriority: 3 },
+      );
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "follow-up",
+        { minPriority: 3 },
       );
     });
 

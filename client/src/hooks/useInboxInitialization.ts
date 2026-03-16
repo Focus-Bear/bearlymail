@@ -16,7 +16,8 @@ interface UseInboxInitializationProps {
   mode: string;
   fetchEmails: () => Promise<void>;
   fetchBatchStatus: () => Promise<void>;
-  fetchTabCounts: (force?: boolean) => Promise<void>;
+  fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
+  minPriority?: number | null;
   /** Silent background refresh — does not show a loading spinner. Used for stale-while-revalidate. */
   refreshInPlace: () => Promise<void>;
 }
@@ -39,6 +40,7 @@ export function useInboxInitialization({
   fetchEmails,
   fetchBatchStatus,
   fetchTabCounts,
+  minPriority,
   refreshInPlace,
 }: UseInboxInitializationProps) {
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
@@ -89,7 +91,7 @@ export function useInboxInitialization({
           await Promise.all([
             refreshInPlace().catch(err => console.error('Error refreshing inbox in background:', err)),
             fetchBatchStatus().catch(err => console.error('Error fetching batch status:', err)),
-            fetchTabCounts(false).catch(err => console.error('Error fetching tab counts:', err)),
+            fetchTabCounts(false, minPriority).catch(err => console.error('Error fetching tab counts:', err)),
 
             axios
               .get(`${API_URL}/context`)
@@ -110,7 +112,7 @@ export function useInboxInitialization({
           await Promise.all([
             fetchEmails().catch(err => console.error('Error fetching emails:', err)),
             fetchBatchStatus().catch(err => console.error('Error fetching batch status:', err)),
-            fetchTabCounts(true).catch(err => console.error('Error fetching tab counts:', err)),
+            fetchTabCounts(true, minPriority).catch(err => console.error('Error fetching tab counts:', err)),
 
             axios
               .get(`${API_URL}/context`)

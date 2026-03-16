@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -134,6 +134,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,
+    minPriority: inboxFilters.filters.minPriority,
     refreshInPlace,
   });
 
@@ -150,6 +151,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,
+    minPriority: inboxFilters.filters.minPriority,
     setEmails,
     setLoadingModeSwitch,
     clearSuggestionsCache,
@@ -157,6 +159,22 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     emails,
     loadingSuggestions,
   });
+
+  // Re-fetch tab counts when minPriority filter changes so badge counts reflect the active filter
+  const prevMinPriorityRef = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    // Skip the very first render (initialization handles the initial fetch)
+    if (prevMinPriorityRef.current === undefined) {
+      prevMinPriorityRef.current = inboxFilters.filters.minPriority;
+      return;
+    }
+    if (prevMinPriorityRef.current !== inboxFilters.filters.minPriority) {
+      prevMinPriorityRef.current = inboxFilters.filters.minPriority;
+      fetchTabCounts(true, inboxFilters.filters.minPriority).catch(err =>
+        console.error('Error fetching tab counts on filter change:', err)
+      );
+    }
+  }, [inboxFilters.filters.minPriority, fetchTabCounts]);
 
   // Email action handlers
   const emailActions = useEmailActions({

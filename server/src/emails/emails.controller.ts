@@ -220,17 +220,24 @@ export class EmailsController {
   }
 
   @Get("tab-counts")
-  async getTabCounts(@Request() req) {
+  async getTabCounts(
+    @Request() req,
+    @Query("minPriority") minPriority?: string,
+  ) {
     const { userId } = req.user;
+    const filters =
+      minPriority !== undefined
+        ? { minPriority: parseInt(minPriority, 10) }
+        : undefined;
 
     // Use getInboxSummary() for all modes - the same lightweight query used by the inbox display.
     // This ensures tab counts are always consistent with what the inbox shows.
     // Previously used getInbox() which applies heavier in-memory filtering (blocked senders,
     // user-sent-last checks) that can diverge from the inbox-summary query results.
     const [triageSummary, actionSummary, followUpSummary] = await Promise.all([
-      this.emailsService.getInboxSummary(userId, "triage"),
-      this.emailsService.getInboxSummary(userId, "action"),
-      this.emailsService.getInboxSummary(userId, "follow-up"),
+      this.emailsService.getInboxSummary(userId, "triage", filters),
+      this.emailsService.getInboxSummary(userId, "action", filters),
+      this.emailsService.getInboxSummary(userId, "follow-up", filters),
     ]);
 
     return {

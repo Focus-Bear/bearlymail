@@ -18,7 +18,7 @@ interface TabCountChanges {
 interface UseTabCountsReturn {
   tabCounts: TabCounts | null;
   loading: boolean;
-  fetchTabCounts: (force?: boolean) => Promise<void>;
+  fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
   updateTabCountsOptimistically: (changes: TabCountChanges) => void;
 }
 
@@ -34,11 +34,16 @@ export function useTabCounts(): UseTabCountsReturn {
   const [tabCounts, setTabCounts] = useState<TabCounts | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchTabCounts = useCallback(async (force = false) => {
+  const fetchTabCounts = useCallback(async (force = false, minPriority?: number | null) => {
     // Check localStorage cache first (unless force refresh is requested)
+    // Cache is keyed by minPriority so different filter values are cached independently
+    const cacheKey = minPriority !== undefined && minPriority !== null
+      ? `${TAB_COUNTS_CACHE_KEY}_p${minPriority}`
+      : TAB_COUNTS_CACHE_KEY;
+
     if (!force) {
       try {
-        const cached = localStorage.getItem(TAB_COUNTS_CACHE_KEY);
+        const cached = localStorage.getItem(cacheKey);
         if (cached) {
           const cacheEntry: CacheEntry = JSON.parse(cached);
           const age = Date.now() - cacheEntry.timestamp;
@@ -54,7 +59,10 @@ export function useTabCounts(): UseTabCountsReturn {
 
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/emails/tab-counts`);
+      const params = minPriority !== null && minPriority !== undefined
+        ? `?minPriority=${minPriority}`
+        : '';
+      const response = await axios.get(`${API_URL}/emails/tab-counts${params}`);
       const counts: TabCounts = {
         triage: response.data.triage || 0,
         action: response.data.action || 0,
@@ -67,7 +75,7 @@ export function useTabCounts(): UseTabCountsReturn {
         counts,
         timestamp: Date.now(),
       };
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify(cacheEntry));
+      localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
     } catch (error) {
       console.error('Error fetching tab counts:', error);
     } finally {

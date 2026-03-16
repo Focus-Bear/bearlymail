@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Request, UseGuards } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OnboardingService } from "./onboarding.service";
@@ -14,6 +15,7 @@ export class OnboardingController {
   }
 
   @Get("scan-progress")
+  @SkipThrottle()
   async getScanProgress(@Request() req) {
     return this.onboardingService.getScanProgress(req.user.userId);
   }
@@ -29,6 +31,7 @@ export class OnboardingController {
   }
 
   @Get("email-import-progress")
+  @SkipThrottle()
   async getEmailImportProgress(@Request() req) {
     return this.onboardingService.getEmailImportProgress(req.user.userId);
   }

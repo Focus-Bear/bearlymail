@@ -1458,7 +1458,9 @@
       "lowLabel": "prioridad baja",
       "nextTierQuestion": "Hay {{count}} correos de {{tier}} esperando. ¿Quieres abordarlos ahora?",
       "showTier": "Mostrar correos de {{tier}}",
-      "later": "Quizás más tarde"
+      "later": "Quizás más tarde",
+      "allCaughtUp": "¡Todo al día! 🏆",
+      "allCaughtUpSub": "Has limpiado todos los niveles de prioridad. Disfruta de tu tiempo de concentración."
     }
   },
   "landing": {

@@ -184,7 +184,10 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           }}
           onRetry={fetchEmails} updateDraft={updateDraft} bulkSend={bulkSend}
           fetchThreadsWithDrafts={fetchThreadsWithDrafts} emailListRef={emailListRef} emailDetailRef={emailDetailRef}
-          onBulkArchive={emailActions.handleBulkArchiveByIds} expandedCategories={expandedCategories}
+          onBulkArchive={async (emailIds: string[]) => {
+            await emailActions.handleBulkArchiveByIds(emailIds);
+            fetchPriorityCounts();
+          }} expandedCategories={expandedCategories}
           stableCategoryOrder={stableCategoryOrder} onToggleCategory={toggleCategory}
           onUpdateStableCategoryOrder={updateStableCategoryOrder} onLoadMore={loadMore} hasMore={hasMore}
           categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}

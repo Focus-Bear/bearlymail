@@ -318,7 +318,9 @@
       "lowLabel": "low priority",
       "nextTierQuestion": "There are {{count}} {{tier}} emails waiting. Want to tackle them next?",
       "showTier": "Show {{tier}} emails",
-      "later": "Maybe later"
+      "later": "Maybe later",
+      "allCaughtUp": "You’re all caught up! 🏆",
+      "allCaughtUpSub": "You’ve cleared every priority tier. Enjoy your focus time."
     }
   },
   "emailDetail": {

@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
-import { EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
+import { AllCaughtUpState, EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
+import { HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
-/** Threshold at which the inbox is considered "high priority" for progressive unlock */
-const HIGH_PRIORITY_THRESHOLD = 50;
 /** Threshold at which the inbox is considered "medium priority" for progressive unlock */
 const MEDIUM_PRIORITY_THRESHOLD = 20;
 
@@ -117,6 +116,18 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
           onLater={handleDismissPrompt}
         />
       );
+    }
+
+    // Final "all caught up" state: user reached low tier, completed it, nothing remains
+    if (
+      !isUnlockPromptDismissed &&
+      minPriority !== null &&
+      minPriority !== undefined &&
+      minPriority < MEDIUM_PRIORITY_THRESHOLD &&
+      priorityCounts &&
+      priorityCounts.low === 0
+    ) {
+      return <AllCaughtUpState />;
     }
 
     return <EmptyState mode={mode} />;

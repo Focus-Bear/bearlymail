@@ -35,6 +35,7 @@ describe("EmailsController", () => {
     expandSearchResults: jest.fn(),
     getPriorityExplanation: jest.fn(),
     getThreadEmails: jest.fn(),
+    getPriorityCounts: jest.fn(),
   };
 
   const mockEmailProviderManager = {
@@ -322,6 +323,44 @@ describe("EmailsController", () => {
       const result = await controller.getTabCounts(mockRequest);
 
       expect(result).toEqual({ triage: 0, action: 0, followUp: 0 });
+    });
+  });
+
+  describe("getPriorityCounts", () => {
+    it("should return priority counts from emailsService.getPriorityCounts", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const mockCounts = { high: 5, medium: 12, low: 3 };
+
+      mockEmailsService.getPriorityCounts.mockResolvedValue(mockCounts);
+
+      const result = await controller.getPriorityCounts(mockRequest);
+
+      expect(result).toEqual(mockCounts);
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId);
+    });
+
+    it("should return zero counts when user has no inbox emails", async () => {
+      const userId = "user-456";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getPriorityCounts.mockResolvedValue({ high: 0, medium: 0, low: 0 });
+
+      const result = await controller.getPriorityCounts(mockRequest);
+
+      expect(result).toEqual({ high: 0, medium: 0, low: 0 });
+    });
+
+    it("should delegate to emailsService with the authenticated user id", async () => {
+      const userId = "user-789";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getPriorityCounts.mockResolvedValue({ high: 1, medium: 0, low: 0 });
+
+      await controller.getPriorityCounts(mockRequest);
+
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledTimes(1);
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId);
     });
   });
 

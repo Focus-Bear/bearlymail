@@ -18,7 +18,10 @@ export interface ConnectedAccount {
 }
 
 const STORAGE_KEY = 'inbox_filters';
-const DEFAULT_MIN_PRIORITY = 50;
+const FIRST_LOAD_KEY = 'inbox_first_load_seen';
+
+/** Threshold for the high-priority tier. Shared with EmailListStates. */
+export const HIGH_PRIORITY_THRESHOLD = 50;
 
 // Priority ranges as specified in the issue
 export const PRIORITY_RANGES = [
@@ -30,25 +33,27 @@ export const PRIORITY_RANGES = [
   { label: 'Very High', value: 50, displayValue: '> 50' },
 ] as const;
 
+function loadInitialFilters(): InboxFilter {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      // User has previously stored preferences — respect them as-is
+      if (!localStorage.getItem(FIRST_LOAD_KEY)) {
+        localStorage.setItem(FIRST_LOAD_KEY, '1');
+      }
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Failed to load filters from localStorage:', error);
+  }
+  // First visit (no stored filters) — default to high priority to reduce overwhelm
+  localStorage.setItem(FIRST_LOAD_KEY, '1');
+  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD };
+}
+
 export function useInboxFilters() {
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(false);
-  const [filters, setFilters] = useState<InboxFilter>(() => {
-    // Load filters from localStorage on init
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Failed to load filters from localStorage:', error);
-    }
-    // Default: high priority for new users — progressive unlock from there
-    return {
-      accountIds: [],
-      categories: [],
-      minPriority: DEFAULT_MIN_PRIORITY,
-    };
-  });
+  const [filters, setFilters] = useState<InboxFilter>(loadInitialFilters);
 
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -115,18 +120,17 @@ export function useInboxFilters() {
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({
-      accountIds: [],
-      categories: [],
-      minPriority: null,
-    });
+    setFilters({ accountIds: [], categories: [], minPriority: null });
+  }, []);
+
+  const resetToHighPriority = useCallback(() => {
+    setFilters(prev => ({ ...prev, minPriority: HIGH_PRIORITY_THRESHOLD }));
   }, []);
 
   const hasActiveFilters =
     filters.accountIds.length > 0 || filters.categories.length > 0 || filters.minPriority !== null;
 
   return {
-    // State
     isFilterBarVisible,
     filters,
     connectedAccounts,
@@ -134,12 +138,11 @@ export function useInboxFilters() {
     loadingAccounts,
     loadingCategories,
     hasActiveFilters,
-
-    // Actions
     toggleFilterBar,
     setAccountFilter,
     setCategoryFilter,
     setPriorityFilter,
     clearFilters,
+    resetToHighPriority,
   };
 }

@@ -304,18 +304,6 @@ export class LLMProcessor implements OnModuleInit {
               BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
             );
 
-      // Format thread emails for LLM (exclude current email, already in chronological order)
-      // Pass summaries instead of full bodies when available.
-      const threadEmailsForLLM = threadEmails
-        .filter((emailEntry) => emailEntry.id !== email.id)
-        .map((emailEntry) => ({
-          from: emailEntry.from || "",
-          fromName: emailEntry.fromName,
-          subject: emailEntry.subject || "",
-          body: emailEntry.summary || emailEntry.body || "",
-          receivedAt: emailEntry.receivedAt || new Date(),
-        }));
-
       tracker.endPhase("processing");
       tracker.startPhase("llmCall");
 
@@ -334,7 +322,6 @@ export class LLMProcessor implements OnModuleInit {
         userId,
         userContext,
         replyStatus,
-        threadEmailsForLLM.length > 0 ? threadEmailsForLLM : undefined,
         // Pass pre-computed sentiment from summary step to avoid re-computing or losing it.
         email.sentimentScore ?? undefined,
       );
@@ -483,54 +470,10 @@ export class LLMProcessor implements OnModuleInit {
       // Format user context for batch LLM call
       const userContext = this.buildUserContext(contexts, protoCategories);
 
-      // FIX 4 — Add thread context to batch path: fetch sibling emails for each
-      // email so the LLM has conversation history (parity with single-email path).
-      const threadEmailsMap = new Map<
-        string,
-        Array<{
-          from: string;
-          fromName?: string;
-          subject: string;
-          body: string;
-          receivedAt: Date;
-        }>
-      >();
-
-      await Promise.all(
-        emailsToProcess.map(async (email) => {
-          if (email.threadId) {
-            const threadEmails = await this.emailsService.getThreadEmails(
-              userId,
-              email.threadId,
-              {
-                limit: LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT,
-                order: "ASC",
-              },
-            );
-            const siblings = threadEmails
-              .filter((emailEntry) => emailEntry.id !== email.id)
-              .map((emailEntry) => ({
-                from: emailEntry.from || "",
-                fromName: emailEntry.fromName,
-                subject: emailEntry.subject || "",
-                body: emailEntry.body || "",
-                receivedAt: emailEntry.receivedAt || new Date(),
-              }));
-            if (siblings.length > 0) {
-              threadEmailsMap.set(email.id, siblings);
-            }
-          }
-        }),
-      );
-
-      // Prepare batch emails for LLM (with optional thread context per email)
+      // Prepare batch emails for LLM — use compact summary for token reduction.
+      // Per architecture: only the summarisation prompt receives raw thread content;
+      // all classification prompts receive the compact summary only.
       const batchEmails = emailsToProcess.map((email) => {
-        const siblings = threadEmailsMap.get(email.id);
-        const threadContext =
-          siblings && siblings.length > 0
-            ? this.buildBatchThreadContext(siblings)
-            : undefined;
-        // Use the compact summary for token reduction.
         // Fall back to cleaned body only if no summary is available yet.
         const bodyForBatch =
           email.summary && email.summary.trim()
@@ -547,7 +490,6 @@ export class LLMProcessor implements OnModuleInit {
           senderJobTitle: email.senderJobTitle,
           subject: email.subject || "",
           body: bodyForBatch,
-          threadContext,
           // Pass pre-computed sentiment from summary step to avoid re-computing or losing it.
           preComputedSentimentScore: email.sentimentScore ?? undefined,
         };
@@ -647,38 +589,6 @@ export class LLMProcessor implements OnModuleInit {
       tracker.finish(error as Error);
       throw error;
     }
-  }
-
-  /**
-   * Build a compact thread context string for use in batch LLM calls.
-   * Formats sibling emails chronologically as a brief summary per message.
-   */
-  private buildBatchThreadContext(
-    threadEmails: Array<{
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: Date;
-    }>,
-  ): string {
-    const limit = LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT;
-    const emailsToInclude = threadEmails.slice(-limit);
-    const messages = emailsToInclude.map((emailEntry, i) => {
-      const cleanedBody = cleanEmailContent(
-        emailEntry.body,
-        null,
-        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
-      );
-      const dateStr = emailEntry.receivedAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-      const senderName = emailEntry.fromName || emailEntry.from;
-      return `[Msg ${i + 1} from ${senderName} on ${dateStr}]: Subject: ${emailEntry.subject} | ${cleanedBody}`;
-    });
-    return messages.join("\n");
   }
 
   private buildUserContext(
@@ -1716,7 +1626,9 @@ export class LLMProcessor implements OnModuleInit {
             from: emailEntry.from || "",
             fromName: emailEntry.fromName,
             subject: emailEntry.subject || "",
-            body: emailEntry.body || "",
+            // Prefer compact summary over raw body (consistent with architecture:
+            // only the summarisation prompt receives raw thread content).
+            body: emailEntry.summary || emailEntry.body || "",
             receivedAt: emailEntry.receivedAt || new Date(),
           })),
       );

@@ -6,7 +6,6 @@ import {
 } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import { cleanEmailContent } from "./email-content-cleaner";
@@ -101,40 +100,6 @@ export class PriorityAnalysisService {
     };
   }
 
-  private buildThreadContextText(
-    threadEmails?: Array<{
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: Date;
-    }>,
-  ): string {
-    if (!threadEmails || threadEmails.length === 0) return "";
-
-    const sortedThreadEmails = [...threadEmails].sort(
-      (itemA, itemB) => itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
-    );
-    const emailsToInclude = sortedThreadEmails.slice(
-      -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
-    );
-    const threadMessages = emailsToInclude.map((threadEmail, index) => {
-      const cleanedThreadBody = cleanEmailContent(
-        threadEmail.body,
-        null,
-        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
-      );
-      const dateStr = threadEmail.receivedAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-      const senderName = threadEmail.fromName || threadEmail.from;
-      return `[Message ${index + 1} from ${senderName} on ${dateStr}]:\nSubject: ${threadEmail.subject}\nBody: ${cleanedThreadBody}`;
-    });
-    return `\n\nThread Context (${emailsToInclude.length} previous messages, chronological order):\n${threadMessages.join("\n\n---\n\n")}`;
-  }
-
   async analyzePriority(
     email: {
       from: string;
@@ -164,13 +129,6 @@ export class PriorityAnalysisService {
       userShouldReply?: boolean;
       lastReplyFrom?: string;
     },
-    threadEmails?: Array<{
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: Date;
-    }>,
     preComputedSentimentScore?: number,
   ): Promise<{
     urgencyScore: number;
@@ -227,8 +185,6 @@ export class PriorityAnalysisService {
       ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
       : "";
 
-    const threadContextText = this.buildThreadContextText(threadEmails);
-
     const prompt = renderPrompt(promptConfig.prompt, {
       from: email.fromName || email.from,
       fromName: email.fromName || email.from,
@@ -244,7 +200,6 @@ export class PriorityAnalysisService {
       dontCareContext: dontCareContextText,
       emailCategories: emailCategoriesText,
       threadInfo: threadInfoText,
-      threadContext: threadContextText,
     });
 
     const response = await this.llmCoreService.generateText(
@@ -417,8 +372,6 @@ export class PriorityAnalysisService {
       senderJobTitle?: string;
       subject: string;
       body: string;
-      /** Optional thread context (previous messages) to improve LLM accuracy for replies */
-      threadContext?: string;
       /**
        * Pre-computed sentiment score from the summarisation step.
        * If provided, it is used directly and the priority LLM is not asked to compute sentiment.
@@ -488,12 +441,9 @@ export class PriorityAnalysisService {
         null,
         BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
       );
-      const threadContextSection = email.threadContext
-        ? `\nThread Context (previous messages, chronological):\n${email.threadContext}`
-        : "";
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
 From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
-Subject: ${email.subject}${threadContextSection}
+Subject: ${email.subject}
 Summary: ${cleanedBody}`;
     });
 

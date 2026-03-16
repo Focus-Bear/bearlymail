@@ -115,10 +115,6 @@ User doesn't care about:
 
 **Thread Information:**
 {% if threadInfo %}{{threadInfo}}{% else %}No thread information available.{% endif %}
-{% if threadContext %}
-
-**Thread Context:**
-{{threadContext}}{% endif %}
 
 **Current Date:** {% if currentDate %}{{currentDate}}{% else %}Not specified{% endif %}
 

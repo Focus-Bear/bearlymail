@@ -102,7 +102,7 @@ tests:
         - "Customer Feedback": Bug reports and feature requests from customers
         - "QA Passed": Items that have passed QA testing and are ready for deployment
         - "Development": Active development work and code changes
-      threadContext: |
+      threadInfo: |
         [Message 1 from John Customer on Jan 15, 2026]:
         Subject: Bug report - Login button not working
         Body: Hi, I'm having trouble with the login button on your website. It doesn't respond when I click it in Chrome. This is very frustrating!
@@ -428,7 +428,7 @@ tests:
         - "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": PRs created or initiated by Devin AI
         - "PRs from humans (not Devin)": Pull requests authored by human developers, not Devin.ai or other AI bots
         - "New Github issues based on customer feedback. Only issues not pull requests. Not for issues raised by QA": Customer feedback issues on GitHub
-      threadContext: |
+      threadInfo: |
         [Message 1 from devin-ai-integration[bot] on Feb 20, 2026]:
         Subject: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
         Body: devin-ai-integration[bot] opened a pull request. This PR sets up Storybook for React Native to enable component-driven development and visual testing.

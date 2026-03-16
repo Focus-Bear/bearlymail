@@ -133,8 +133,8 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
         }}
       >
         {lastSavedAt
-          ? `Only visible to you · Saved ${humanizeDuration(Date.now() - lastSavedAt)}`
-          : 'Only visible to you'}
+          ? t('emailDetail.onlyVisibleToYouSaved', { duration: humanizeDuration(Date.now() - lastSavedAt) })
+          : t('emailDetail.onlyVisibleToYou')}
       </div>
     </CollapsibleSection>
   );

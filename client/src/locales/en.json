@@ -479,7 +479,9 @@
     },
     "autoSendingIn": "Sending in {{seconds}}s…",
     "sendNow": "Send Now",
-    "viewContact": "View contact"
+    "viewContact": "View contact",
+    "onlyVisibleToYou": "Only visible to you",
+    "onlyVisibleToYouSaved": "Only visible to you · Saved {{duration}}"
   },
   "settings": {
     "title": "Settings",

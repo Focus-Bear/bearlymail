@@ -218,13 +218,19 @@ module.exports = {
         selector: "CallExpression[callee.name='captureEvent'] > Literal",
         message: "Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.",
       },
-      // Catch inline string literals inside JSX expression containers (ternary / logical expressions)
+      // Catch user-facing string literals inside JSX TEXT expression containers.
+      // Targets only JSXExpressionContainers that appear as element children (text content),
+      // NOT as JSX attribute values (e.g. type={x ? 'text' : 'password'}).
+      // Uses direct-child (>) to avoid false positives on strings nested inside objects
+      // inside those expressions (e.g. style={{ display: 'flex' }}).
+      // Examples caught: {isSaving ? 'saving' : 'save'}, {hasError && 'Something went wrong'}
+      // Examples NOT caught: type={show ? 'text' : 'password'}, title={x ? 'hint' : undefined}
       {
-        selector: "JSXExpressionContainer > ConditionalExpression Literal[value=/^[a-zA-Z ]{2,}$/]",
+        selector: "JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > ConditionalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]",
         message: "String literals in JSX ternary expressions must use t() for i18n.",
       },
       {
-        selector: "JSXExpressionContainer > LogicalExpression Literal[value=/^[a-zA-Z ]{2,}$/]",
+        selector: "JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > LogicalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]",
         message: "String literals in JSX logical expressions must use t() for i18n.",
       },
     ],
@@ -452,6 +458,10 @@ module.exports = {
       ],
       rules: {
         'i18next/no-literal-string': 'off',
+        // no-restricted-syntax JSX i18n selectors don't apply to debug panels —
+        // they display raw internal state (IDs, flags, timestamps) that is never
+        // user-facing and does not need translation.
+        'no-restricted-syntax': 'off',
         'max-lines-per-function': 'off',
         'react/no-array-index-key': 'off',
       },

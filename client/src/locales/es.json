@@ -825,7 +825,9 @@
     },
     "autoSendingIn": "Enviando en {{seconds}}s…",
     "sendNow": "Enviar ahora",
-    "viewContact": "Ver contacto"
+    "viewContact": "Ver contacto",
+    "onlyVisibleToYou": "Solo visible para ti",
+    "onlyVisibleToYouSaved": "Solo visible para ti · Guardado {{duration}}"
   },
   "contacts": {
     "title": "Contactos",

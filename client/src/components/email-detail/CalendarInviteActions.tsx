@@ -190,7 +190,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             color: theme.colors.text.primary,
           }}
         >
-          {t('emailDetail.calendarInvite.title') || 'Calendar Invitation'}
+          {t('emailDetail.calendarInvite.title')}
         </span>
       </div>
 

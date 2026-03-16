@@ -604,5 +604,80 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-1")?.category).toBe("Other");
       expect(results.get("email-2")?.category).toBe("Other");
     });
+
+    it("should use preComputedSentimentScore from each email in batch, not LLM output", async () => {
+      // Batch emails with pre-computed sentiment scores from the summary step
+      const batchEmailsWithSentiment = [
+        {
+          emailKey: "email-1",
+          from: "sender1@example.com",
+          subject: "Angry customer",
+          body: "Summary of angry customer email",
+          preComputedSentimentScore: -0.9,
+        },
+        {
+          emailKey: "email-2",
+          from: "sender2@example.com",
+          subject: "Happy feedback",
+          body: "Summary of positive feedback email",
+          preComputedSentimentScore: 0.7,
+        },
+      ];
+
+      // LLM response intentionally includes sentimentScore — these should be ignored
+      const responseWithLlmSentiment = JSON.stringify({
+        priority_results: [
+          {
+            key: "email-1",
+            urgencyScore: 80,
+            urgencyExplanation: "Upset customer",
+            /* LLM value — should be ignored */
+            sentimentScore: 0,
+            goalAlignmentScore: 70,
+            goalAlignmentExplanation: "Support issue",
+            category: "Customer Support",
+            categoryExplanation: "Complaint",
+            reasoning: "Angry customer requiring prompt response",
+          },
+          {
+            key: "email-2",
+            urgencyScore: 20,
+            urgencyExplanation: "Positive feedback, no action needed",
+            /* LLM value — should be ignored */
+            sentimentScore: 0,
+            goalAlignmentScore: 30,
+            goalAlignmentExplanation: "Positive signal",
+            category: "Customer Support",
+            categoryExplanation: "Feedback",
+            reasoning: "Happy feedback, low urgency",
+          },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        responseWithLlmSentiment,
+      );
+
+      const results = await service.analyzePriorityBatch(
+        batchEmailsWithSentiment,
+      );
+
+      // Pre-computed sentiment should be used — LLM sentimentScore (0) must be ignored
+      expect(results.get("email-1")?.sentimentScore).toBe(-0.9);
+      expect(results.get("email-2")?.sentimentScore).toBe(0.7);
+    });
+
+    it("should return sentimentScore: undefined for batch emails without preComputedSentimentScore", async () => {
+      // batchEmails has no preComputedSentimentScore field set
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validBatchResponse,
+      );
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      // No pre-computed sentiment — sentimentScore should be undefined so callers
+      // skip the DB write rather than overwriting with 0
+      expect(results.get("email-1")?.sentimentScore).toBeUndefined();
+      expect(results.get("email-2")?.sentimentScore).toBeUndefined();
+    });
   });
 });

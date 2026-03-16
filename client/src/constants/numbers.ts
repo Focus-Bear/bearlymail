@@ -218,3 +218,10 @@ export const BLOCKQUOTE_MIN_POSITION = 20; // Minimum position before blockquote
 export const SIGNATURE_MIN_CONTENT_PLAINTEXT = 100; // Minimum content for plain text signature detection
 
 export const MAX_BADGE_DISPLAY = 99; // Maximum badge count before showing 99+
+
+// HTTP status thresholds
+export const HTTP_SERVER_ERROR_THRESHOLD = 500; // 5xx errors are server-side; below this is a client error
+
+// Retry constants
+export const MAX_RETRIES = 3;
+export const RETRY_BASE_DELAY_MS = 1000;

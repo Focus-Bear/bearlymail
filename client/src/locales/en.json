@@ -2447,5 +2447,9 @@
     "adminPageOf": "Page {{page}} of {{total}}",
     "adminPrev": "← Prev",
     "adminNext": "Next →"
+  },
+  "serviceError": {
+    "message": "BearlyMail is temporarily unavailable. Please try again.",
+    "retry": "Retry"
   }
 }

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { devLog } from 'utils/dev-logger';
 import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
@@ -33,9 +34,45 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ServiceErrorScreen: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        gap: '16px',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      <p style={{ fontSize: '18px', margin: 0 }}>
+        {t('serviceError.message', 'BearlyMail is temporarily unavailable. Please try again.')}
+      </p>
+      <button
+        onClick={onRetry}
+        style={{
+          padding: '10px 24px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          borderRadius: '6px',
+          border: '1px solid #ccc',
+          backgroundColor: '#fff',
+        }}
+      >
+        {t('serviceError.retry', 'Retry')}
+      </button>
+    </div>
+  );
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [serviceError, setServiceError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const logout = () => {
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
@@ -45,7 +82,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  useAuthInitialization(setUser, setLoading, logout);
+  const handleRetry = useCallback(() => {
+    setServiceError(false);
+    setLoading(true);
+    setRetryCount(prev => prev + 1);
+  }, []);
+
+  useAuthInitialization(setUser, setLoading, logout, setServiceError, retryCount);
+
+  if (serviceError) {
+    return <ServiceErrorScreen onRetry={handleRetry} />;
+  }
 
   const login = async (email: string, password: string) => {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });

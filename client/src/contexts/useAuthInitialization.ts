@@ -4,7 +4,13 @@ import { setupAxiosInterceptors } from 'utils/axios-interceptors';
 import { identifyUser } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
-import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
+import {
+  HTTP_SERVER_ERROR_THRESHOLD,
+  HTTP_UNAUTHORIZED,
+  MAX_RETRIES,
+  MS_PER_SECOND,
+  RETRY_BASE_DELAY_MS,
+} from 'constants/numbers';
 
 interface User {
   id: string;
@@ -21,10 +27,33 @@ interface User {
   privacyVersion?: string;
 }
 
+const fetchUserWithRetry = async (url: string): Promise<User> => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await axios.get<User>(url);
+      return response.data;
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      // Only retry on 5xx or network errors — not on 4xx client errors
+      if (status && status < HTTP_SERVER_ERROR_THRESHOLD) {
+        throw err;
+      }
+      lastError = err;
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** attempt));
+      }
+    }
+  }
+  throw lastError;
+};
+
 export const useAuthInitialization = (
   setUser: (user: User | null) => void,
   setLoading: (loading: boolean) => void,
-  logout: () => void
+  logout: () => void,
+  setServiceError: (error: boolean) => void,
+  retryCount: number = 0
 ) => {
   const logoutRef = useRef<(() => void) | null>(null);
 
@@ -61,10 +90,8 @@ export const useAuthInitialization = (
       console.log('Token found and valid, verifying with server...');
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      axios
-        .get(`${API_URL}/users/me`)
-        .then(response => {
-          const userData = response.data;
+      fetchUserWithRetry(`${API_URL}/users/me`)
+        .then(userData => {
           console.log('User data fetched successfully:', userData?.email || 'no email');
           setUser(userData);
           if (userData?.id) {
@@ -80,22 +107,22 @@ export const useAuthInitialization = (
             url: error.config?.url,
           });
 
-          if (error.response?.status === HTTP_UNAUTHORIZED || isTokenExpired(token)) {
-            console.log('Auth failed (401 or expired), clearing token and user state');
+          const status = error.response?.status;
+          if (status === HTTP_UNAUTHORIZED || isTokenExpired(token)) {
+            // Auth failure — clear token and redirect to login
             localStorage.removeItem('token');
             delete axios.defaults.headers.common['Authorization'];
             setUser(null);
           } else {
-            console.warn(
-              'Failed to fetch user (non-auth error), keeping token but setting user to null:',
-              error.message
-            );
-            setUser(null);
+            // Service error (503, network error etc.) — keep token, show error state
+            console.error('Service unavailable after retries, showing error state');
+            setServiceError(true);
           }
         })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
-  }, [setUser, setLoading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setUser, setLoading, retryCount]);
 };

@@ -2450,5 +2450,9 @@
     "adminPageOf": "Página {{page}} de {{total}}",
     "adminPrev": "← Anterior",
     "adminNext": "Siguiente →"
+  },
+  "serviceError": {
+    "message": "BearlyMail no está disponible temporalmente. Por favor, inténtalo de nuevo.",
+    "retry": "Reintentar"
   }
 }

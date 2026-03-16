@@ -332,7 +332,7 @@ module.exports = {
         'testing-library/no-wait-for-multiple-assertions': 'off', // Tests may need multiple assertions in a single waitFor for clarity
         'no-script-url': 'off', // Test files may test URL sanitization with javascript: URLs
         'no-restricted-syntax': 'off', // Test files may use literal strings in comparisons (e.g. typeof checks)
-        '@typescript-eslint/no-explicit-any': 'off', // Test files often use any for mocking
+        '@typescript-eslint/no-explicit-any': 'warn', // I-3: tightened from off → warn; encourages unknown/mock types
       },
     },
     {
@@ -348,13 +348,15 @@ module.exports = {
       // Relax function length for page components (they often have lots of JSX)
       files: ['**/pages/*.tsx', '**/pages/*.ts'],
       rules: {
-        'max-lines-per-function': ['warn', { max: 350, skipBlankLines: true, skipComments: true }],
+        'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }], // I-6: tightened from 350 → 200; pages should be thin wrappers
       },
     },
     {
       // Large hooks pending decomposition (tracked in issue #778)
       // These hooks encapsulate complex stateful logic that requires significant refactoring
       // to break apart without introducing regressions. Tracked for decomposition.
+      // I-2: Removed from override (within normal limits):
+      //   useEmailProcessingPolling.ts (32 lines), useInboxModeChanges.ts (96 lines), useInboxUrlSync.ts (86 lines)
       files: [
         '**/hooks/useEmailDetailOperations.ts',
         '**/hooks/useEmailDetailState.ts',
@@ -363,14 +365,11 @@ module.exports = {
         '**/hooks/useInboxState.ts',
         '**/hooks/useInboxCategoryAccordion.ts',
         '**/hooks/useInboxInitialization.ts',
-        '**/hooks/useInboxModeChanges.ts',
-        '**/hooks/useEmailProcessingPolling.ts',
         '**/hooks/settings/useAnalysisProgress.ts',
         '**/hooks/settings/useContextManagement.ts',
         '**/hooks/settings/useRecategorizeProgress.ts',
         '**/hooks/settings/useSummarizationRules.ts',
         '**/hooks/useInboxKeyboardNavigation.ts',
-        '**/hooks/useInboxUrlSync.ts',
         '**/hooks/useReplyDraftGeneration.ts',
       ],
       rules: {
@@ -503,7 +502,8 @@ module.exports = {
         'no-restricted-syntax': 'off',
         'prefer-template': 'off',
         'id-denylist': 'off',
-        'no-restricted-imports': 'off',
+        // I-4: no-restricted-imports re-enabled (removed from off). Absolute imports are good
+        // practice even in stories. Storybook resolves the same path aliases as the app.
       },
     },
   ],

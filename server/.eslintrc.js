@@ -264,7 +264,7 @@ module.exports = {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
         'max-statements': 'off',
-        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-explicit-any': 'warn', // I-3: tightened from off → warn; encourages unknown/mock types
         '@typescript-eslint/no-magic-numbers': 'off',
         // Test data variables often use generic names like 'data', which is acceptable in tests
         'id-denylist': 'off',
@@ -290,21 +290,12 @@ module.exports = {
       },
     },
     {
-      // Relax rules for migration files
-      files: ['**/migrations/**/*.ts'],
-      rules: {
-        'max-lines': 'off',
-        'max-lines-per-function': 'off',
-        '@typescript-eslint/no-explicit-any': 'off',
-      },
-    },
-    {
       // Scripts are CLI tools that legitimately use console.log for output
       files: ['**/scripts/**/*.ts'],
       rules: {
         'max-lines': 'off',
         'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
-        'max-statements': ['error', 100, { ignoreTopLevelFunctions: true }],
+        'max-statements': ['error', 60, { ignoreTopLevelFunctions: true }], // I-5: tightened from 100 → 60
         'no-console': 'off',
         // Scripts use prompt IDs for CLI display
         'no-restricted-syntax': 'off',
@@ -340,9 +331,9 @@ module.exports = {
 
     {
       // Additional large legacy modules pending decomposition.
+      // I-1: context-error-handler.ts (81 lines) removed — it's within normal limits and needs no override.
       files: [
         'src/context/context-batch-analysis.processor.ts',
-        'src/context/context-error-handler.ts',
         'src/emails/emails.service.ts',
         'src/llm/llm.service.ts',
         'src/llm/priority-analysis.service.ts',

@@ -12,7 +12,7 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
@@ -75,7 +75,8 @@ export class ContextController {
   }
 
   @Get("analyze-progress")
-  @SkipThrottle()
+  @SkipThrottle({ default: true, feedback: true })
+  @Throttle({ polling: {} })
   async getAnalyzeProgress(
     @Request() req,
     @Query("analysisId") analysisId?: string,

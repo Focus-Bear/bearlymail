@@ -18,14 +18,14 @@ import {
 // Re-implement the partition logic inline so we can test it without mounting
 // the full EmailDetail component (which has heavy provider dependencies).
 // The real implementation lives in EmailDetail.tsx useMemo; this mirrors it exactly.
-const GITHUB_ACTION_TYPES = new Set([
+const GITHUB_ACTION_TYPES: Set<string> = new Set([
   ACTION_TYPE_GITHUB_ADD_COMMENT,
   ACTION_TYPE_GITHUB_CREATE_ISSUE,
   ACTION_TYPE_GITHUB_SEARCH_ISSUES,
   ACTION_TYPE_GITHUB_UPDATE_STATUS,
 ]);
 
-const SCHEDULING_ACTION_TYPES = new Set([
+const SCHEDULING_ACTION_TYPES: Set<string> = new Set([
   ACTION_TYPE_SCHEDULING_REQUEST,
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
 ]);

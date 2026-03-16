@@ -26,14 +26,23 @@ const createTestStore = (preloadedState = {}) => {
     },
     preloadedState: {
       email: {
-        emails: [],
-        optimisticallyArchived: [],
-        optimisticallySnoozed: [],
+        emails: [] as import('types/email').Email[],
+        optimisticallyArchived: [] as string[],
+        optimisticallySnoozed: [] as string[],
+        animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
         loading: true,
         decrypting: false,
         refreshing: false,
         loadingModeSwitch: false,
-        fetchError: null,
+        fetchError: null as string | null,
+        hasMore: false,
+        totalCount: 0,
+        currentOffset: 0,
+        categorySummary: null,
+        summaryLoading: false,
+        loadedCategoryNames: [] as string[],
+        loadingCategoryNames: [] as string[],
+        lastFetchedAt: null as number | null,
         ...preloadedState,
       },
     },
@@ -43,7 +52,7 @@ const createTestStore = (preloadedState = {}) => {
 // Wrapper component for Redux Provider
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(Provider, { store }, children);
+    return React.createElement(Provider, { store, children });
   };
 };
 

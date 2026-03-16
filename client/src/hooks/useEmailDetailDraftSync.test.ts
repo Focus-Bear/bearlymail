@@ -30,7 +30,7 @@ const makeBaseParams = (overrides: Record<string, unknown> = {}) => ({
   autoGenerateReplies: false,
   replyOptions: null,
   showReplyComposer: true,
-  replyComposerRef: { current: null } as React.RefObject<HTMLDivElement>,
+  replyComposerRef: { current: null } as unknown as React.RefObject<HTMLDivElement>,
   saveDraft: jest.fn(),
   fetchDraft: jest.fn().mockResolvedValue(null),
   setDraft: jest.fn(),

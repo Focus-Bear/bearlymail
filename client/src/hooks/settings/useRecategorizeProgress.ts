@@ -61,7 +61,7 @@ export const useRecategorizeProgress = () => {
     isShowing: false,
   });
 
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
   const isPollingRef = useRef(false);
 

@@ -29,7 +29,7 @@ export const RoleFilterTab: React.FC<RoleFilterTabProps> = ({
       fontSize: theme.typography.fontSize.sm,
       fontWeight: active
         ? theme.typography.fontWeight.medium
-        : theme.typography.fontWeight.regular,
+        : theme.typography.fontWeight.normal,
     }}
   >
     {label}

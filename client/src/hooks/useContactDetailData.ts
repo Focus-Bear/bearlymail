@@ -43,7 +43,7 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
   const [addingNote, setAddingNote] = useState(false);
   const [showAddCustomField, setShowAddCustomField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState(FIELD_TYPE_TEXT);
+  const [newFieldType, setNewFieldType] = useState<string>(FIELD_TYPE_TEXT);
 
   const fetchContact = useCallback(async () => {
     if (!contactId) {

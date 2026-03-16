@@ -21,7 +21,7 @@ const translateMock = (key: string, opts?: Record<string, unknown>) => {
 
 describe('getNextDeliveryText', () => {
   beforeAll(() => {
-    jest.useFakeTimers('modern');
+    jest.useFakeTimers();
     // fixed reference time: 2026-03-12T12:00:00.000Z
     jest.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
   });
@@ -58,7 +58,7 @@ describe('getNextDeliveryText', () => {
 
 describe('getLastCheckText', () => {
   beforeAll(() => {
-    jest.useFakeTimers('modern');
+    jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-03-12T12:00:00.000Z'));
   });
 

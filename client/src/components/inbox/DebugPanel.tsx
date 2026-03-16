@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 
 import {
   DebugCategorySummarySection,
@@ -53,7 +53,7 @@ interface SyncStatus {
 }
 
 interface DebugPanelProps {
-  mode: 'triage' | 'action' | 'follow-up';
+  mode: InboxMode;
   emails: Email[];
   allEmails: Email[];
   loadingAllEmails: boolean;

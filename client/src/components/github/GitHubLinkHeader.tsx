@@ -19,7 +19,6 @@ interface GitHubLinkHeaderProps {
 
 export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({ link, status, isIssue, isOpen, isMerged }) => {
   const { t } = useTranslation();
-
   const getStatusBadgeColor = (): string => {
     if (isOpen) {
       return theme.colors.accent.success || '#10b981';

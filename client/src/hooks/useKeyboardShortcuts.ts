@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { Email } from 'types/email';
 
 import {
@@ -19,7 +19,7 @@ const ARCHIVE_CONFIRM_TIMEOUT = 3000;
 
 // Pure helpers extracted to reduce handleKeyDown statement count.
 
-function scrollEmailIntoView(index: number, emailListRef: MutableRefObject<HTMLDivElement | null>): void {
+function scrollEmailIntoView(index: number, emailListRef: React.RefObject<HTMLDivElement | null> | undefined): void {
   if (!emailListRef?.current) {
     return;
   }
@@ -32,7 +32,7 @@ function scrollEmailIntoView(index: number, emailListRef: MutableRefObject<HTMLD
 }
 
 function buildArchiveTargetIds(
-  splitViewSelectedEmailId: string | undefined,
+  splitViewSelectedEmailId: string | null | undefined,
   selectedEmailIds: Set<string>,
   selectedEmailIndex: number,
   visibleEmails: Email[]

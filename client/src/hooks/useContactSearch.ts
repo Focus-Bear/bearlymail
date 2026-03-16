@@ -31,7 +31,7 @@ export interface UseContactSearchResult {
 
 function scheduleDebouncedSearch(
   query: string,
-  timeoutRef: React.MutableRefObject<NodeJS.Timeout | null>,
+  timeoutRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
   searchFn: (q: string) => Promise<void>
 ): void {
   if (timeoutRef.current) {
@@ -50,7 +50,7 @@ export const useContactSearch = (): UseContactSearchResult => {
   const [activeField, setActiveField] = useState<'to' | 'cc' | 'bcc' | null>(null);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchContacts = useCallback(async (query: string) => {
     if (!query || query.length < 2) {

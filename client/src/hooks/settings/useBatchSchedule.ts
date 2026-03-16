@@ -27,8 +27,8 @@ export const useBatchSchedule = () => {
       if (response.data) {
         setBatchSchedule({
           // Normalize to numbers: simple-array TypeORM columns return strings from DB
-          deliveryDays: [...new Set((response.data.deliveryDays || [1, 2, 3, 4, 5]).map(Number))].sort(
-            (itemA, itemB) => itemA - itemB
+          deliveryDays: ([...new Set((response.data.deliveryDays || [1, 2, 3, 4, 5]).map(Number))] as number[]).sort(
+            (itemA, itemB) => (itemA as number) - (itemB as number)
           ),
           deliveryTimes: response.data.deliveryTimes || ['11:00', '15:00'],
           timezone: response.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,

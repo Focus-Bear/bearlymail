@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
+import { useSplitView } from 'hooks/useSplitView';
 
 interface EmailHandlerParams {
   emails: any[];
@@ -16,9 +17,9 @@ interface EmailHandlerParams {
   handleArchiveBase: (emailId: string, event: React.MouseEvent) => void;
   handleSetStarCountBase: (emailId: string, count: number) => void;
   handleMarkAsRead: (emailId: string) => void;
-  splitView: { isMobile: boolean; selectedEmailId?: string; openEmail: (id: string) => void; closeEmail: () => void };
-  emailListRef: React.RefObject<HTMLDivElement>;
-  emailDetailRef: React.RefObject<HTMLDivElement>;
+  splitView: ReturnType<typeof useSplitView>;
+  emailListRef: React.RefObject<HTMLDivElement | null>;
+  emailDetailRef: React.RefObject<HTMLDivElement | null>;
   navigate: ReturnType<typeof useNavigate>;
   mode: InboxMode;
 }

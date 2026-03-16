@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
@@ -30,6 +31,7 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const [comment, setComment] = useState(email.body?.substring(0, MAX_DESCRIPTION_LENGTH) || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

@@ -73,7 +73,7 @@ export const GitHubConnectionPrompt: React.FC = () => {
         disabled={isConnecting}
         style={{
           backgroundColor: isConnecting ? theme.colors.primary.dark : theme.colors.primary.main,
-          color: theme.colors.primary.contrast,
+          color: theme.colors.common.white,
           border: 'none',
           borderRadius: theme.borderRadius.md,
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,

@@ -7,7 +7,7 @@ import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface DebugEmailListProps {
   emails: Email[];
-  mode: 'triage' | 'action' | 'follow-up';
+  mode: import('types/email').InboxMode;
 }
 
 /**

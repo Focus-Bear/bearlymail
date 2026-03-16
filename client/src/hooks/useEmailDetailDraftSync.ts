@@ -1,25 +1,24 @@
 import { RefObject, useEffect, useRef } from 'react';
-import { Email } from 'types/email';
 
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 
 interface UseEmailDetailDraftSyncParams {
-  id: string | undefined;
-  email: Email | null | undefined;
-  draft: string;
+  id: string | null | undefined;
+  email: { id?: string; threadId?: string } | null | undefined;
+  draft: string | null;
   replyMode: 'reply' | 'replyAll';
   replyRecipients: string;
   autoGenerateReplies: boolean;
   replyOptions: unknown;
   showReplyComposer: boolean;
-  replyComposerRef: RefObject<HTMLDivElement>;
-  saveDraft: (draft: string, mode: string, recipients: string) => void;
+  replyComposerRef: RefObject<HTMLDivElement | null>;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll', recipients: string) => void | Promise<void>;
   fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
   setReplyMode: (mode: 'reply' | 'replyAll') => void;
   setShowReplyComposer: (show: boolean) => void;
-  setReplyOptions: (options: unknown) => void;
+  setReplyOptions: (options: unknown) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   setToneCheckResult: (result: null) => void;
   handleGenerateDraft: () => void;
 }
@@ -106,7 +105,7 @@ export const useEmailDetailDraftSync = ({
     }
   }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
 
-  useAutoSaveDraft({ showReplyComposer, threadId: email?.threadId, draft, replyMode, replyRecipients, saveDraft });
+  useAutoSaveDraft({ showReplyComposer, threadId: email?.threadId, draft: draft ?? '', replyMode, replyRecipients, saveDraft });
 
   // Scroll to reply composer when it opens
   useEffect(() => {
@@ -134,9 +133,9 @@ interface UseAutoSaveDraftParams {
   showReplyComposer: boolean;
   threadId: string | undefined;
   draft: string;
-  replyMode: string;
+  replyMode: 'reply' | 'replyAll';
   replyRecipients: string;
-  saveDraft: (draft: string, mode: string, recipients: string) => void;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll', recipients: string) => void | Promise<void>;
 }
 
 function useAutoSaveDraft({

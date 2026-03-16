@@ -13,7 +13,7 @@ function isValidMode(value: string | undefined): value is InboxMode {
 interface UrlSyncParams {
   isFocusedMode: boolean;
   mode: InboxMode;
-  splitViewSelectedEmailId: string | undefined;
+  splitViewSelectedEmailId: string | null | undefined;
   urlMode: string | undefined;
   urlThreadId: string | undefined;
   openEmail: (id: string) => void;

@@ -140,7 +140,7 @@ export const TimezoneAutocomplete: React.FC<TimezoneAutocompleteProps> = ({ valu
 };
 
 const TimezoneDropdown: React.FC<{
-  dropdownRef: React.RefObject<HTMLDivElement>;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
   options: string[];
   highlightedIndex: number;
   onSelect: (tz: string) => void;

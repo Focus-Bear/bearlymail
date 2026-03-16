@@ -19,9 +19,9 @@ import { useUrgentNotification } from 'hooks/useUrgentNotification';
 interface UIStateParams {
   user: any;
   authLoading: boolean;
-  refreshUser: () => void;
+  refreshUser: () => Promise<void>;
   fetchEmails: () => void;
-  refreshInPlace: () => void;
+  refreshInPlace: () => Promise<void>;
   mode: InboxMode;
   emails: any[];
   loading: boolean;

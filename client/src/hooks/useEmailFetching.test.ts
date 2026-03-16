@@ -13,6 +13,14 @@ import { useEmailFetching } from './useEmailFetching';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+// Legacy mock variables referenced in skipped tests
+const mockSetEmails = jest.fn();
+const mockSetDecrypting = jest.fn();
+const mockSetFetchError = jest.fn();
+const mockSetLoading = jest.fn();
+const mockSetRefreshing = jest.fn();
+const mockSetLoadingModeSwitch = jest.fn();
+
 // Create a test store
 const createTestStore = () =>
   configureStore({
@@ -24,7 +32,7 @@ const createTestStore = () =>
 // Wrapper component for tests - returns the wrapper function directly
 const createWrapper = () => {
   const store = createTestStore();
-  const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store }, children);
+  const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store, children });
   return Wrapper;
 };
 

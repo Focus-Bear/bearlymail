@@ -39,9 +39,9 @@ export const PrintableThread: React.FC<PrintableThreadProps> = ({ email, threadE
       {emails.map(msg => (
         <div key={msg.id} className="print-message">
           <div className="print-message-header">
-            <strong>{t('printableThread.from')}</strong> {msg.sender}
-            {msg.recipients && msg.recipients.length > 0 && (
-              <>&nbsp;&nbsp;<strong>{t('printableThread.to')}</strong> {msg.recipients.join(', ')}</>
+            <strong>{t('printableThread.from')}</strong> {msg.from}
+            {msg.to && (
+              <>&nbsp;&nbsp;<strong>{t('printableThread.to')}</strong> {msg.to}</>
             )}
             &nbsp;&nbsp;
             <strong>{t('printableThread.date')}</strong> {msg.receivedAt ? humanizeTimestamp(msg.receivedAt) : ''}

@@ -15,6 +15,7 @@ export const GitHubTokenInput: React.FC<GitHubTokenInputProps> = ({
   onGithubTokenChange,
   onShowGithubTokenChange,
 }) => {
+  const { t } = useTranslation();
   return (
     <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
       <input

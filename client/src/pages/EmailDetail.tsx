@@ -215,7 +215,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       ref,
       () => ({
         openReplyComposer: (mode: 'reply' | 'replyAll' | 'forward' = 'reply') => {
-          ops.handleOpenReplyComposer(mode);
+          ops.handleOpenReplyComposer(mode === 'forward' ? 'reply' : mode);
           setTimeout(() => {
             replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             replyTextareaRef.current?.focus();
@@ -264,7 +264,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       setReplyRecipients: state.setReplyRecipients,
       setReplyMode: state.setReplyMode,
       setShowReplyComposer: state.setShowReplyComposer,
-      setReplyOptions: state.setReplyOptions,
+      setReplyOptions: (options: unknown) => state.setReplyOptions(options as any),
       setToneCheckResult: state.setToneCheckResult,
       handleGenerateDraft: ops.handleGenerateDraft,
     });

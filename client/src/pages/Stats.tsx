@@ -281,7 +281,7 @@ interface StatsBodyContentProps {
   days: number;
   setDays: (days: number) => void;
   maxEmails: number;
-  t: (key: string, options?: object) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 const StatsBodyContent: React.FC<StatsBodyContentProps> = ({

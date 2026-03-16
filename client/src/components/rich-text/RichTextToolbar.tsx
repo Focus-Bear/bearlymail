@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Editor } from '@tiptap/react';
+import { Editor, useEditor } from '@tiptap/react';
 import { theme } from 'theme/theme';
 
 import { EmojiPickerPortal } from 'components/rich-text/EmojiPickerPortal';

@@ -38,7 +38,7 @@ export const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onNavigate }) => {
           style={{
             color: theme.colors.text.primary,
             fontWeight: thread.isRead
-              ? theme.typography.fontWeight.regular
+              ? theme.typography.fontWeight.normal
               : theme.typography.fontWeight.semibold,
             whiteSpace: 'nowrap',
             overflow: 'hidden',

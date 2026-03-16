@@ -115,9 +115,9 @@ function parseImportFile(text: string, tFunc: (tKey: string) => string): unknown
   }
   if (
     !importData ||
-    typeof importData !== TYPEOF_OBJECT ||
-    !('version' in importData) ||
-    !('exportedAt' in importData)
+    typeof importData !== 'object' ||
+    !('version' in (importData as Record<string, unknown>)) ||
+    !('exportedAt' in (importData as Record<string, unknown>))
   ) {
     throw new Error(tFunc('settings.dataExport.invalidFile'));
   }

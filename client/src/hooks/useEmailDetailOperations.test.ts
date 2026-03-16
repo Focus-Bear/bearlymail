@@ -64,17 +64,22 @@ const createTestStore = (emails: Email[] = []) =>
     preloadedState: {
       email: {
         emails,
-        optimisticallyArchived: [],
-        optimisticallySnoozed: [],
-        animatingOut: [],
+        optimisticallyArchived: [] as string[],
+        optimisticallySnoozed: [] as string[],
+        animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
         loading: false,
         decrypting: false,
         refreshing: false,
         loadingModeSwitch: false,
-        fetchError: null,
+        fetchError: null as string | null,
         hasMore: false,
         totalCount: 0,
         currentOffset: 0,
+        categorySummary: null,
+        summaryLoading: false,
+        loadedCategoryNames: [] as string[],
+        loadingCategoryNames: [] as string[],
+        lastFetchedAt: null as number | null,
       },
     },
   });
@@ -174,7 +179,7 @@ const createMockState = () => ({
 const createWrapper =
   (store: ReturnType<typeof createTestStore>) =>
   ({ children }: { children: React.ReactNode }) =>
-    React.createElement(Provider, { store }, children);
+    React.createElement(Provider, { store, children });
 
 describe('useEmailDetailOperations', () => {
   beforeEach(() => {

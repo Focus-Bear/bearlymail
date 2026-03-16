@@ -1,8 +1,8 @@
 import { createSelector } from '@reduxjs/toolkit';
 import { Email } from 'types/email';
 
-import { RootState } from 'store';
 import { AnimatingOutItem, CategorySummaryItem } from 'store/slices/emailSlice';
+import { RootState } from 'store/store';
 
 // Basic selectors
 export const selectEmails = (state: RootState): Email[] => state.email.emails;

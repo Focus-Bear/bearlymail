@@ -5,7 +5,7 @@ import { ReplyComposerFooter } from './ReplyComposerFooter';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key, params) => {
+    t: (key: string, params?: Record<string, unknown>) => {
       if (params) {
 return `${key} ${JSON.stringify(params)}`;
 }

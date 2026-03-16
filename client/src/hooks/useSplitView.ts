@@ -31,7 +31,7 @@ export function useSplitView(): UseSplitViewReturn {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [splitPosition, setSplitPositionState] = useState<number>(DEFAULT_SPLIT_POSITION);
   const [isResizing, setIsResizing] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breakpoints = useResponsiveBreakpoints();
 
   // Load saved position from localStorage on mount

@@ -51,7 +51,7 @@ export function humanizeTimestamp(
   options: { showAbsoluteDate?: boolean } = {}
 ): string {
   const now = new Date();
-  const timestamp = typeof date === TYPEOF_STRING ? new Date(date) : date;
+  const timestamp = date instanceof Date ? date : new Date(date);
 
   // Get timezone from browser
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

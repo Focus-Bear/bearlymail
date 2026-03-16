@@ -1,5 +1,5 @@
 import React from 'react';
-import { TFunction } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { FeedbackItem } from 'types/feedback';
 
@@ -19,7 +19,7 @@ interface Props {
   item: FeedbackItem;
   deletingId: string | null;
   onDelete: (id: string) => void | Promise<void>;
-  t: TFunction;
+  t: ReturnType<typeof useTranslation>['t'];
 }
 
 export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t }) => {
@@ -46,9 +46,9 @@ export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t })
           disabled={deletingId === item.id}
           style={{
             background: 'none',
-            border: `1px solid ${theme.colors.status.error}`,
+            border: `1px solid ${theme.colors.error.main}`,
             borderRadius: theme.borderRadius.sm,
-            color: theme.colors.status.error,
+            color: theme.colors.error.main,
             cursor: deletingId === item.id ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.xs,
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,

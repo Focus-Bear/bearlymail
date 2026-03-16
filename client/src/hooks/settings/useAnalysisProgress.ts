@@ -92,7 +92,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   });
 
   // Refs to track polling state across renders (needed because closures capture stale state)
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
   const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
   const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
@@ -167,7 +167,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     let retryCount = 0;
     let errorCount = 0;
 
-    const handleErrorResponse = (errorMessage: string, timeoutId: NodeJS.Timeout | null) => {
+    const handleErrorResponse = (errorMessage: string, timeoutId: ReturnType<typeof setTimeout> | null) => {
       devError('Handling error response:', errorMessage);
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -184,7 +184,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }, LONG_TIMEOUT_MS);
     };
 
-    const handleProgressResponse = async (progressData: any, timeoutId: NodeJS.Timeout | null) => {
+    const handleProgressResponse = async (progressData: any, timeoutId: ReturnType<typeof setTimeout> | null) => {
       // CRITICAL: Check if cancelled before updating state
       if (cancelledRef.current) {
         devDebug('handleProgressResponse skipped - cancelled');
@@ -247,7 +247,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }
     };
 
-    const handleNoProgressResponse = async (timeoutId: NodeJS.Timeout | null) => {
+    const handleNoProgressResponse = async (timeoutId: ReturnType<typeof setTimeout> | null) => {
       retryCount++;
       devDebug(`No progress response - retry count: ${retryCount}`);
       if (retryCount < MAX_RETRIES_POLLING) {
@@ -267,7 +267,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       });
     };
 
-    const handleFetchError = (error: any, timeoutId: NodeJS.Timeout | null) => {
+    const handleFetchError = (error: any, timeoutId: ReturnType<typeof setTimeout> | null) => {
       devError('Error fetching analysis progress:', error);
       devError('Error response:', error.response?.data);
       devError('Error status:', error.response?.status);

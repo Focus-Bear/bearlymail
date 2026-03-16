@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
@@ -31,6 +32,7 @@ export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const [owner, setOwner] = useState(defaultRepo?.owner || '');
   const [repo, setRepo] = useState(defaultRepo?.repo || '');
   const [title, setTitle] = useState(email.subject || '');

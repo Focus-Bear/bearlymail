@@ -223,7 +223,7 @@ export function useEmailDetailOperations(
         summaryAbortControllerRef.current = null;
       }
     }
-    previousIdRef.current = id;
+    previousIdRef.current = id ?? null;
   }, [id]);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ export function useEmailDetailOperations(
         animClass = animations[Math.floor(Math.random() * animations.length)];
       }
       setAnimationClass(animClass);
-      return new Promise(resolve => setTimeout(resolve, TIMEOUT_800_MS));
+      return new Promise<void>(resolve => setTimeout(resolve, TIMEOUT_800_MS));
     },
     [setAnimationClass]
   );

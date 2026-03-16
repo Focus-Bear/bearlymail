@@ -66,7 +66,7 @@ export const JobsSection: React.FC = () => {
     if (bValue === null) {
       bValue = sortDirection === SORT_ASC ? Infinity : -Infinity;
     }
-    if (typeof aValue === TYPEOF_STRING && typeof bValue === TYPEOF_STRING) {
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
       return sortDirection === SORT_ASC ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     }
     return sortDirection === SORT_ASC

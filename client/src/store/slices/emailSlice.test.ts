@@ -5,6 +5,7 @@ import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSe
 import emailReducer, {
   addAnimatingOut,
   addOptimisticArchive,
+  EmailState,
   removeAnimatingOut,
   removeEmail,
   updateCategoryEmails,
@@ -35,7 +36,15 @@ const baseState = {
   decrypting: false,
   refreshing: false,
   loadingModeSwitch: false,
-  fetchError: null,
+  fetchError: null as string | null,
+  hasMore: false,
+  totalCount: 0,
+  currentOffset: 0,
+  categorySummary: null as null,
+  summaryLoading: false,
+  loadedCategoryNames: [] as string[],
+  loadingCategoryNames: [] as string[],
+  lastFetchedAt: null as number | null,
 };
 
 describe('emailSlice – animation reducers', () => {
@@ -110,7 +119,7 @@ describe('selectVisibleEmails – animatingOut integration', () => {
   });
 
   it('removes animating-out email from visible list once removeEmail is dispatched', () => {
-    let emailState = baseState;
+    let emailState: EmailState = baseState as EmailState;
     // Simulate: addOptimisticArchive + addAnimatingOut
     emailState = emailReducer(emailState, addOptimisticArchive('1'));
     emailState = emailReducer(emailState, addAnimatingOut({ id: '1', type: 'archive' }));

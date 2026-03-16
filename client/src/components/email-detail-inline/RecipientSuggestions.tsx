@@ -7,7 +7,7 @@ interface RecipientSuggestionsProps {
   selectedIndex: number;
   onSelect: (contact: Contact) => void;
   onHover: (index: number) => void;
-  dropdownRef: React.RefObject<HTMLDivElement>;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
   field: string; // unused here but kept for parity
 }
 

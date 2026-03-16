@@ -31,7 +31,7 @@ interface UseBatchScheduleReturn {
 export function useBatchSchedule(): UseBatchScheduleReturn {
   const [nextDelivery, setNextDelivery] = useState<Date | null>(null);
   const [lastUrgentCheck, setLastUrgentCheck] = useState<Date | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load lastUrgentCheck from localStorage on mount
   useEffect(() => {

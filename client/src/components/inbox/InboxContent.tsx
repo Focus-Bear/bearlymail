@@ -53,6 +53,7 @@ export interface InboxContentProps {
   categorySummary?: CategorySummaryItem[] | null;
   loadedCategoryNames?: string[];
   loadingCategoryNames?: string[];
+  fetchCategoryEmails?: (categoryName: string) => void;
   /** Current active priority filter for progressive unlock */
   minPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */

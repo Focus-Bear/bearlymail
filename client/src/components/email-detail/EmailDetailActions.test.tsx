@@ -128,7 +128,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     render(
       <EmailDetailActions
         {...baseProps}
-        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule meeting' } as SuggestedAction]}
+        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule meeting' } as unknown as SuggestedAction]}
       />,
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     render(
       <EmailDetailActions
         {...baseProps}
-        schedulingActions={[{ type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as SuggestedAction]}
+        schedulingActions={[{ type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as unknown as SuggestedAction]}
       />,
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
         {...baseProps}
         // upstream partitioned scheduling out — suggestedActions has no scheduling types
         suggestedActions={[]}
-        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as SuggestedAction]}
+        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as unknown as SuggestedAction]}
       />,
     );
     const section = screen.getByTestId('QuickActionsSection');
@@ -175,8 +175,8 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
       <EmailDetailActions
         {...baseProps}
         suggestedActions={[
-          { type: 'send_reply', label: 'Reply' } as SuggestedAction,
-          { type: 'label_email', label: 'Label' } as SuggestedAction,
+          { type: 'send_reply', label: 'Reply' } as unknown as SuggestedAction,
+          { type: 'label_email', label: 'Label' } as unknown as SuggestedAction,
         ]}
         schedulingActions={[]}
       />,
@@ -191,8 +191,8 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
       <EmailDetailActions
         {...baseProps}
         // upstream already partitioned: scheduling is separate, other actions in suggestedActions
-        suggestedActions={[{ type: 'send_reply', label: 'Reply' } as SuggestedAction]}
-        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as SuggestedAction]}
+        suggestedActions={[{ type: 'send_reply', label: 'Reply' } as unknown as SuggestedAction]}
+        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as unknown as SuggestedAction]}
       />,
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();

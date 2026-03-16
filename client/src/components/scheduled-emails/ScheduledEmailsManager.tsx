@@ -31,8 +31,8 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
   return (
     <div
       style={{
-        backgroundColor: theme.colors.surface,
-        border: `1px solid ${theme.colors.border}`,
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.medium}`,
         borderRadius: '8px',
         padding: '16px',
       }}
@@ -46,11 +46,11 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
         }}
       >
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', color: theme.colors.text, marginBottom: '4px' }}>{email.subject}</div>
-          <div style={{ fontSize: '14px', color: theme.colors.textSecondary, marginBottom: '4px' }}>
+          <div style={{ fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: '4px' }}>{email.subject}</div>
+          <div style={{ fontSize: '14px', color: theme.colors.text.secondary, marginBottom: '4px' }}>
             {t('scheduledEmails.to')}: {formatRecipients(email)}
           </div>
-          <div style={{ fontSize: '13px', color: theme.colors.primary, fontWeight: 'bold' }}>
+          <div style={{ fontSize: '13px', color: theme.colors.primary.main, fontWeight: 'bold' }}>
             📅 {formatScheduledTime(email.scheduledSendAt)}
           </div>
         </div>
@@ -58,7 +58,7 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
           onClick={() => onCancel(email.id)}
           style={{
             padding: '6px 12px',
-            backgroundColor: theme.colors.error,
+            backgroundColor: theme.colors.error.main,
             color: COLOR_NAMED_WHITE,
             border: STRING_NONE,
             borderRadius: '4px',
@@ -72,7 +72,7 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
       <div
         style={{
           fontSize: '12px',
-          color: theme.colors.textSecondary,
+          color: theme.colors.text.secondary,
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -81,7 +81,7 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
         <span
           style={{
             backgroundColor:
-              email.emailType === ACTION_TYPE_REPLY ? `${theme.colors.primary}20` : `${theme.colors.secondary}20`,
+              email.emailType === ACTION_TYPE_REPLY ? `${theme.colors.primary.main}20` : `${theme.colors.secondary.main}20`,
             padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '11px',
@@ -106,12 +106,12 @@ export const ScheduledEmailsManager: React.FC = () => {
   };
 
   if (loading) {
-    return <div style={{ padding: '20px', color: theme.colors.text }}>{t('common.loading')}...</div>;
+    return <div style={{ padding: '20px', color: theme.colors.text.primary }}>{t('common.loading')}...</div>;
   }
 
   if (scheduledEmails.length === 0) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: theme.colors.textSecondary }}>
+      <div style={{ padding: '40px 20px', textAlign: 'center', color: theme.colors.text.secondary }}>
         {t('scheduledEmails.noScheduled')}
       </div>
     );
@@ -119,7 +119,7 @@ export const ScheduledEmailsManager: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2 style={{ color: theme.colors.text, marginBottom: '20px' }}>{t('scheduledEmails.title')}</h2>
+      <h2 style={{ color: theme.colors.text.primary, marginBottom: '20px' }}>{t('scheduledEmails.title')}</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {scheduledEmails.map(email => (
           <ScheduledEmailCard key={email.id} email={email} onCancel={handleCancel} />

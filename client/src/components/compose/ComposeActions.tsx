@@ -64,7 +64,7 @@ function SendButtonContent({
 interface ScheduledSendIndicatorProps {
   scheduledSendAt: Date;
   onClearSchedule?: () => void;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 const ScheduledSendIndicator: React.FC<ScheduledSendIndicatorProps> = ({ scheduledSendAt, onClearSchedule, t }) => (
@@ -108,7 +108,7 @@ interface ComposeSendRowProps {
   onDiscard: () => void;
   onSend: () => void;
   onSchedule?: () => void;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 const ComposeSendRow: React.FC<ComposeSendRowProps> = ({

@@ -137,7 +137,7 @@ interface ContactDropdownPanelProps {
   contactId: string;
   contactSearchTerm: string;
   highlightedIndex: number;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   inputStyle: React.CSSProperties;
   searchPlaceholder: string;
   noResultsText: string;
@@ -203,8 +203,8 @@ interface ContactDropdownState {
   highlightedIndex: number;
   filteredContacts: (Contact & { id: string })[];
   selectedContactLabel: string;
-  dropdownRef: React.RefObject<HTMLDivElement>;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   toggle: () => void;
   select: (id: string) => void;
   handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;

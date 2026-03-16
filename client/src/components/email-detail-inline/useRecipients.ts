@@ -181,7 +181,7 @@ function processFieldInputChange(params: {
   ccTags: string[];
   bccTags: string[];
   dispatch: DispatchFns;
-  searchTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
+  searchTimeoutRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
   searchContacts: (q: string) => Promise<void>;
   setInputValues: React.Dispatch<React.SetStateAction<Record<FieldType, string>>>;
   setActiveField: (f: FieldType | null) => void;
@@ -228,7 +228,7 @@ function useRecipientSearch() {
   const [activeField, setActiveField] = useState<FieldType | null>(null);
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const searchContacts = useCallback(async (query: string) => {

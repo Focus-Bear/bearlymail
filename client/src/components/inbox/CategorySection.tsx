@@ -25,11 +25,11 @@ interface CategorySectionProps {
   snoozeInput: any;
   emailActions: any;
   modals: any;
-  onEmailClick: (email: Email, index: number) => void;
-  onEmailSelect: (email: Email, index: number) => void;
+  onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
   handleSendFollowUp: (followUpId: string, draft: string, recipientName?: string) => Promise<void>;
-  onBulkArchive: (emailIds: string[]) => void;
+  onBulkArchive: (emailIds: string[]) => Promise<void>;
   onToggleCategory: (category: string) => void;
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
   protoCategories: any[];
@@ -153,7 +153,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
       isLoadingContent={isExpanded && !isLoaded}
       isExpanded={isExpanded}
       onToggle={() => onToggleCategory(categoryKey)}
-      onArchiveAll={onBulkArchive}
+      onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
       onReanalyseOther={handleReanalyseOther}
       isReanalysingOther={isReanalysingOther}
     >
@@ -172,11 +172,15 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
                       name={grp.name}
                       description={protoCategory?.description}
                       emailCount={grp.emails.length}
-                      onConvertToCategory={() => handleConvertProtoCategory(protoCategory?.id ?? '', grp.name)}
+                      onConvertToCategory={async () => {
+                          handleConvertProtoCategory(protoCategory?.id ?? '', grp.name);
+                        }}
                       isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
                       onArchiveAll={onBulkArchive}
                       emailIds={grp.emails.map(email => email.id)}
-                      onDelete={protoCategory ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id) : undefined}
+                      onDelete={protoCategory ? async () => {
+                          handleDeleteProtoCategoryFromInbox(protoCategory.id);
+                        } : undefined}
                       isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
                     >
                       {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}

@@ -13,6 +13,7 @@ interface SearchIssuesFormProps {
 }
 
 export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({ query, loading, onQueryChange, onSubmit }) => {
+  const { t } = useTranslation();
   return (
     <form onSubmit={onSubmit} style={{ marginBottom: theme.spacing.lg }}>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>

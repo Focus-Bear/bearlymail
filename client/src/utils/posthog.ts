@@ -13,6 +13,7 @@ export const initPostHog = () => {
       // Enable PostHog's native exception autocapture so errors appear in the
       // Error Tracking dashboard with the required $exception_list format.
       // This replaces the manual window.addEventListener('error', ...) handlers.
+      // @ts-expect-error exception_autocapture is a valid PostHog config option not yet in @types
       exception_autocapture: true,
       session_recording: {
         maskAllInputs: true,

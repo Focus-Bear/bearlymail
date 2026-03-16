@@ -67,6 +67,7 @@ export const colors = {
     subtle: '#FCF8F0', // Secondary White Lace for sections
     overlay: 'rgba(255, 252, 246, 0.8)', // Glassmorphism effect
     disabled: '#EFEFEF', // Disabled state background (300 greyscale)
+    hover: '#FCF8F0', // Light White Lace hover background
   },
 
   // Overlay colors - For modals, backdrops, and overlays
@@ -126,11 +127,20 @@ export const colors = {
     light: '#FEE2E2', // Light error background
   },
 
+  // Feedback colors (aliases for error/success/warning)
+  feedback: {
+    error: '#EF4444',
+    success: '#22C55E',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+  },
+
   // Border and divider - Using greyscale
   border: {
     light: '#EFEFEF', // 300
     medium: '#CCCCCC', // 400
     dark: '#999999', // 500
+    default: '#CCCCCC', // alias for medium
   },
 
   // Section-specific accents used by collapsible cards
@@ -254,6 +264,7 @@ export const theme = {
     fontSize: {
       xs: '0.5rem', // 8px - Body XSmall
       sm: '0.625rem', // 10px - Body Small
+      md: '0.75rem', // 12px - Body Medium (alias)
       base: '1rem', // 16px - Body XLarge
       lg: '0.875rem', // 14px - Body Large
       xl: '1.25rem', // 20px - H5

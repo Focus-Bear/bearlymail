@@ -58,11 +58,11 @@ const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
 
 interface GmailApiResult {
   foundInGmailApi: boolean;
-  apiThreadId?: string;
-  apiMessageId?: string;
-  subject?: string;
-  from?: string;
-  receivedAt?: string;
+  apiThreadId?: string | null;
+  apiMessageId?: string | null;
+  subject?: string | null;
+  from?: string | null;
+  receivedAt?: string | null;
 }
 
 const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gmailApiResult }) => {

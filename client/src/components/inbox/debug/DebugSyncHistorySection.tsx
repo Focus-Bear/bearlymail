@@ -111,7 +111,7 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
           onClick={onFetchSyncHistory}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            background: theme.colors.primary,
+            background: theme.colors.primary.main,
             color: COLOR_WHITE,
             border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,

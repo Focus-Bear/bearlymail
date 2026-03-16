@@ -507,7 +507,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
       {/* Priority Filter */}
       <SingleSelectDropdown
         label={t('inbox.filters.priority')}
-        options={PRIORITY_RANGES}
+        options={[...PRIORITY_RANGES]}
         selectedValue={filters.minPriority}
         onChange={handlePriorityChange}
       />

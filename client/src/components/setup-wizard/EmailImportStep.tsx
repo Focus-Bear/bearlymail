@@ -25,7 +25,7 @@ interface ImportStatusCardProps {
   progressPercent: number;
   error: string | null;
   fetchProgress: () => Promise<void>;
-  t: (k: string) => string;
+  t: (k: string, options?: Record<string, unknown>) => string;
 }
 
 const ImportStatusCard: React.FC<ImportStatusCardProps> = ({ progress, progressPercent, error, fetchProgress, t }) => (
@@ -132,7 +132,7 @@ interface EmailImportContentProps {
   fetchProgress: () => Promise<void>;
   isLoading: boolean;
   onComplete: () => void;
-  t: (k: string) => string;
+  t: (k: string, options?: Record<string, unknown>) => string;
 }
 
 const EmailImportContent: React.FC<EmailImportContentProps> = ({
@@ -217,7 +217,7 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
   const { t } = useTranslation();
   const [progress, setProgress] = useState<ImportProgress>({ prioritizedCount: 0, isReady: false });
   const [error, setError] = useState<string | null>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCalledComplete = useRef(false);
 
   const fetchProgress = useCallback(async () => {

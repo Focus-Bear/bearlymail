@@ -280,7 +280,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
               <span>👥</span>
               <div>
                 <strong>{t('emailDetail.icsInvite.attendees')}:</strong>
-                <AttendeesList attendees={info.event.attendees} t={t} />
+                <AttendeesList attendees={info.event.attendees} t={t as (k: string, opts?: object) => string} />
               </div>
             </div>
           )}

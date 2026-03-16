@@ -53,8 +53,9 @@ interface AnalyticsSummarySectionProps {
   escalationRate: number;
 }
 
-const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ totalSent, qaAnswerRate, escalationRate }) => (
-  <div
+const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ totalSent, qaAnswerRate, escalationRate }) => {
+  const { t } = useTranslation();
+  return (<div
     style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
@@ -76,7 +77,8 @@ const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ total
       subtext={t('settings.autoResponder.analytics.escalationSubtext', { defaultValue: 'of senders requested priority bump' })}
     />
   </div>
-);
+  );
+};
 
 interface AnalyticsPrioritySectionProps {
   byPriority: { high: number; medium: number; low: number };

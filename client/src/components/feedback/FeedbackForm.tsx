@@ -1,5 +1,5 @@
 import React from 'react';
-import { TFunction } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { OPACITY_DISABLED } from 'constants/numbers';
@@ -17,7 +17,7 @@ interface Props {
   submitted: boolean;
   onClose: () => void;
   handleSubmit: () => void;
-  t: TFunction;
+  t: ReturnType<typeof useTranslation>['t'];
 }
 
 export const FeedbackForm: React.FC<Props> = ({ message, setMessage, isSubmitting, submitted, onClose, handleSubmit, t }) => {

@@ -18,7 +18,7 @@ export interface CategorySummaryItem {
   threadIds?: string[];
 }
 
-interface EmailState {
+export interface EmailState {
   emails: Email[];
   optimisticallyArchived: string[];
   optimisticallySnoozed: string[];
@@ -219,7 +219,7 @@ const emailSlice = createSlice({
     },
     decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
       const { categoryName, count } =
-        typeof action.payload === TYPEOF_STRING ? { categoryName: action.payload, count: 1 } : action.payload;
+        typeof action.payload === 'string' ? { categoryName: action.payload, count: 1 } : action.payload;
       if (state.categorySummary) {
         const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {
@@ -229,7 +229,7 @@ const emailSlice = createSlice({
     },
     incrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
       const { categoryName, count } =
-        typeof action.payload === TYPEOF_STRING ? { categoryName: action.payload, count: 1 } : action.payload;
+        typeof action.payload === 'string' ? { categoryName: action.payload, count: 1 } : action.payload;
       if (state.categorySummary) {
         const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {

@@ -44,9 +44,9 @@ function buildAllAccounts(
   zohoAccounts: EmailAccountsSectionProps['zohoAccounts']
 ): EmailAccount[] {
   return [
-    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL as const })),
-    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
-    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO as const })),
+    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL })),
+    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 })),
+    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO })),
   ];
 }
 
@@ -63,8 +63,8 @@ function getDisconnectConfirmKey(provider: string): string {
 interface EmailAccountRowProps {
   account: EmailAccount;
   t: (k: string) => string;
-  onSetPrimary: (id: string, provider: string) => void;
-  onDisconnect: (id: string, provider: string) => void;
+  onSetPrimary: (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => Promise<void>;
+  onDisconnect: (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => Promise<void>;
 }
 
 const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrimary, onDisconnect }) => (

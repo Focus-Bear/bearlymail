@@ -3,11 +3,12 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { UserThrottlerGuard } from "./auth/user-throttler.guard";
+
 import { ActionItemsModule } from "./action-items/action-items.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { UserThrottlerGuard } from "./auth/user-throttler.guard";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
@@ -51,7 +52,8 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 const ONE_HOUR_MS = 3_600_000;
 const ONE_MINUTE_MS = 60_000;
 const DEFAULT_FEEDBACK_LIMIT = 10;
-const DEFAULT_GENERAL_LIMIT = 60;
+const DEFAULT_GENERAL_LIMIT = 500;
+const DEFAULT_POLLING_LIMIT = 3000;
 
 @Module({
   imports: [
@@ -84,6 +86,17 @@ const DEFAULT_GENERAL_LIMIT = 60;
           limit: configService.get<number>(
             "DEFAULT_THROTTLE_LIMIT",
             DEFAULT_GENERAL_LIMIT,
+          ),
+        },
+        {
+          name: "polling",
+          ttl: configService.get<number>(
+            "POLLING_THROTTLE_TTL_MS",
+            ONE_MINUTE_MS,
+          ),
+          limit: configService.get<number>(
+            "POLLING_THROTTLE_LIMIT",
+            DEFAULT_POLLING_LIMIT,
           ),
         },
       ],

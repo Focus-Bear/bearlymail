@@ -62,7 +62,7 @@
     "@aws-sdk/client-ses": "^3.947.0",
     "@aws-sdk/s3-request-presigner": "^3.947.0",
     "@google/generative-ai": "^0.2.1",
-    "@nestjs/common": "^10.3.0",
+    "@nestjs/common": "^11.1.16",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.1.16",
     "@nestjs/jwt": "^10.2.0",

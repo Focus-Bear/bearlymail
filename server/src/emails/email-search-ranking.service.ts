@@ -182,8 +182,12 @@ Format: ["alternative query 1", "alternative query 2"]`;
           from: email.fromName || email.from || "",
           subject: email.subject || "",
           snippet:
-            email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
-            "",
+            (email.summary?.trim()
+              ? email.summary
+              : email.body?.substring(
+                  0,
+                  QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH,
+                )) || "",
           daysAgo,
           isRecent: daysAgo <= DAYS.WEEK,
           daysSinceLastEmail,
@@ -322,7 +326,7 @@ Return ONLY a JSON array of objects.`;
         index: idx,
         from: email.fromName || email.from || "",
         subject: email.subject || "",
-        body: email.body || "",
+        body: (email.summary?.trim() || email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)) || "",
         receivedAt: email.receivedAt
           ? email.receivedAt.toISOString()
           : new Date().toISOString(),

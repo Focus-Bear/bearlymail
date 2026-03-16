@@ -10,6 +10,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 
+import { MAX_ADDITIONAL_GUESTS } from "../constants/booking-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
 
@@ -66,10 +67,26 @@ export class PublicCalendarController {
       guestEmail: string;
       guestName: string;
       duration?: number;
+      additionalGuests?: string[];
     },
   ) {
     if (!body.startTime || !body.guestEmail) {
       throw new BadRequestException("Start time and guest email are required");
+    }
+
+    const additionalGuests = body.additionalGuests ?? [];
+
+    if (additionalGuests.length > MAX_ADDITIONAL_GUESTS) {
+      throw new BadRequestException(
+        `Too many additional guests. Maximum is ${MAX_ADDITIONAL_GUESTS}.`,
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const email of additionalGuests) {
+      if (!emailRegex.test(email)) {
+        throw new BadRequestException(`Invalid email address: ${email}`);
+      }
     }
 
     return this.calendarService.createEvent(
@@ -78,6 +95,9 @@ export class PublicCalendarController {
       body.duration || MINUTES.THIRTY,
       body.guestEmail,
       body.guestName,
+      undefined,
+      undefined,
+      additionalGuests,
     );
   }
 

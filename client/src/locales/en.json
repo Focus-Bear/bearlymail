@@ -1691,7 +1691,18 @@
       "alreadyCancelled": "This booking has already been cancelled."
     },
     "meetLink": "Video call link:",
-    "joinMeetingAriaLabel": "Join video call via Google Meet"
+    "joinMeetingAriaLabel": "Join video call via Google Meet",
+    "guests": {
+      "sectionTitle": "Additional Guests (optional)",
+      "inputLabel": "Guest email address",
+      "inputPlaceholder": "colleague@example.com",
+      "addButton": "Add guest",
+      "removeGuest": "Remove {{email}}",
+      "maxReached": "Maximum of {{max}} additional guests reached.",
+      "duplicateEmail": "This email has already been added.",
+      "invalidEmail": "Please enter a valid email address.",
+      "alsoInvited": "Also invited: {{emails}}"
+    }
   },
   "consent": {
     "welcome": "Welcome to BearlyMail",

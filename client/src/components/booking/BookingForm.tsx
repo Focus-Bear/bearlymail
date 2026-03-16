@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -36,6 +36,10 @@ interface BookingFormProps {
   onGuestEmailChange: (email: string) => void;
   onGuestNameChange: (name: string) => void;
   onSubmit: (event: React.FormEvent) => void;
+  additionalGuests: string[];
+  onAddGuest: (email: string) => void;
+  onRemoveGuest: (email: string) => void;
+  maxAdditionalGuests: number;
 }
 
 interface BookingFormFieldProps {
@@ -44,12 +48,14 @@ interface BookingFormFieldProps {
   value: string;
   onChange: (value: string) => void;
   containerStyle?: React.CSSProperties;
+  inputId?: string;
 }
 
-const BookingFormField: React.FC<BookingFormFieldProps> = ({ label, type, value, onChange, containerStyle }) => (
+const BookingFormField: React.FC<BookingFormFieldProps> = ({ label, type, value, onChange, containerStyle, inputId }) => (
   <div style={containerStyle}>
-    <label style={labelStyle}>{label}</label>
+    <label htmlFor={inputId} style={labelStyle}>{label}</label>
     <input
+      id={inputId}
       type={type}
       value={value}
       onChange={event => onChange(event.target.value)}
@@ -59,6 +65,8 @@ const BookingFormField: React.FC<BookingFormFieldProps> = ({ label, type, value,
   </div>
 );
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const BookingForm: React.FC<BookingFormProps> = ({
   selectedSlot,
   guestEmail,
@@ -67,8 +75,41 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   onGuestEmailChange,
   onGuestNameChange,
   onSubmit,
+  additionalGuests,
+  onAddGuest,
+  onRemoveGuest,
+  maxAdditionalGuests,
 }) => {
   const { t } = useTranslation();
+  const [guestInputValue, setGuestInputValue] = useState('');
+  const [guestInputError, setGuestInputError] = useState('');
+
+  const handleAddGuest = () => {
+    const trimmed = guestInputValue.trim();
+
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setGuestInputError(t('booking.guests.invalidEmail'));
+      return;
+    }
+
+    if (additionalGuests.some(guest => guest.toLowerCase() === trimmed.toLowerCase())) {
+      setGuestInputError(t('booking.guests.duplicateEmail'));
+      return;
+    }
+
+    onAddGuest(trimmed);
+    setGuestInputValue('');
+    setGuestInputError('');
+  };
+
+  const handleGuestInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddGuest();
+    }
+  };
+
+  const isAtCap = additionalGuests.length >= maxAdditionalGuests;
 
   return (
     <div style={{ flex: 1, minWidth: '300px' }}>
@@ -97,6 +138,113 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           onChange={onGuestEmailChange}
           containerStyle={{ marginBottom: theme.spacing.lg }}
         />
+
+        <div style={{ marginBottom: theme.spacing.lg }}>
+          <p
+            style={{
+              ...labelStyle,
+              fontWeight: theme.typography.fontWeight.semibold,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {t('booking.guests.sectionTitle')}
+          </p>
+
+          {additionalGuests.map(email => (
+            <div
+              key={email}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                marginBottom: theme.spacing.xs,
+                backgroundColor: theme.colors.background.default,
+                borderRadius: theme.borderRadius.sm,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              <span style={{ color: theme.colors.text.primary }}>• {email}</span>
+              <button
+                type="button"
+                onClick={() => onRemoveGuest(email)}
+                aria-label={t('booking.guests.removeGuest', { email })}
+                style={{
+                  background: STRING_NONE,
+                  border: STRING_NONE,
+                  cursor: 'pointer',
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.base,
+                  lineHeight: 1,
+                  padding: `0 ${theme.spacing.xs}`,
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {isAtCap ? (
+            <p
+              style={{
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                marginTop: theme.spacing.xs,
+              }}
+            >
+              {t('booking.guests.maxReached', { max: maxAdditionalGuests })}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+              <div style={{ flex: 1 }}>
+                <label htmlFor="additional-guest-input" style={labelStyle}>
+                  {t('booking.guests.inputLabel')}
+                </label>
+                <input
+                  id="additional-guest-input"
+                  type="email"
+                  value={guestInputValue}
+                  onChange={event => {
+                    setGuestInputValue(event.target.value);
+                    setGuestInputError('');
+                  }}
+                  onKeyDown={handleGuestInputKeyDown}
+                  placeholder={t('booking.guests.inputPlaceholder')}
+                  style={inputStyle}
+                />
+                {guestInputError && (
+                  <p
+                    style={{
+                      color: theme.colors.accent.error,
+                      fontSize: theme.typography.fontSize.sm,
+                      marginTop: theme.spacing.xs,
+                    }}
+                  >
+                    {guestInputError}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: guestInputError ? '1.5rem' : 0 }}>
+                <button
+                  type="button"
+                  onClick={handleAddGuest}
+                  style={{
+                    padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                    backgroundColor: theme.colors.primary.main,
+                    color: COLOR_NAMED_WHITE,
+                    border: STRING_NONE,
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'pointer',
+                    fontSize: theme.typography.fontSize.sm,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('booking.guests.addButton')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           type="submit"

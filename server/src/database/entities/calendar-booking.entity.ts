@@ -49,6 +49,9 @@ export class CalendarBooking {
   @Column({ type: "text", nullable: true })
   description: string;
 
+  @Column({ type: "simple-array", nullable: true })
+  additionalGuests: string[] | null;
+
   @Column({ default: "active" })
   // active, cancelled, rescheduled
   status: string;

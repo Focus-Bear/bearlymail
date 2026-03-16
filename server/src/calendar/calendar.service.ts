@@ -163,6 +163,7 @@ export class CalendarService {
     guestName?: string,
     title?: string,
     description?: string,
+    additionalGuests: string[] = [],
   ): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -202,6 +203,11 @@ Manage this booking:
       // Google requires this to be idempotent (same requestId = same Meet link).
       const meetRequestId = randomBytes(MEET_REQUEST_ID_BYTES).toString("hex");
 
+      const allAttendees = [
+        { email: guestEmail },
+        ...additionalGuests.map((email) => ({ email })),
+      ];
+
       const event = await calendar.events.insert({
         calendarId: "primary",
         // conferenceDataVersion: 1 is required for Google Meet to be auto-created
@@ -211,7 +217,7 @@ Manage this booking:
           description: enhancedDescription,
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() },
-          attendees: [{ email: guestEmail }],
+          attendees: allAttendees,
           conferenceData: {
             createRequest: {
               requestId: meetRequestId,
@@ -234,6 +240,7 @@ Manage this booking:
           durationMinutes,
           title: title || null,
           description: description || null,
+          additionalGuests: additionalGuests.length ? additionalGuests : null,
           status: "active",
         });
       }
@@ -301,12 +308,19 @@ Manage this booking:
     );
 
     try {
+      const additionalGuests = booking.additionalGuests ?? [];
+      const allAttendees = [
+        { email: booking.guestEmail },
+        ...additionalGuests.map((email) => ({ email })),
+      ];
+
       const event = await calendar.events.patch({
         calendarId: "primary",
         eventId: booking.googleEventId,
         requestBody: {
           start: { dateTime: newStart.toISOString() },
           end: { dateTime: newEnd.toISOString() },
+          attendees: allAttendees,
         },
       });
 

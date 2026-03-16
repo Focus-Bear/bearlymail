@@ -21,6 +21,8 @@ import {
   STRING_WHITE,
 } from 'constants/strings';
 
+const MAX_ADDITIONAL_GUESTS = 10;
+
 interface TimeSlot {
   start: string;
   end: string;
@@ -38,6 +40,7 @@ const BookingPage: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
+  const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [slotOffset, setSlotOffset] = useState(0);
@@ -93,6 +96,14 @@ const BookingPage: React.FC = () => {
     fetchSlots(newOffset, true);
   };
 
+  const handleAddGuest = (email: string) => {
+    setAdditionalGuests(prev => [...prev, email]);
+  };
+
+  const handleRemoveGuest = (email: string) => {
+    setAdditionalGuests(prev => prev.filter(guest => guest !== email));
+  };
+
   const handleBook = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedSlot || !guestEmail || !userId) {
@@ -106,6 +117,7 @@ const BookingPage: React.FC = () => {
         guestEmail,
         guestName,
         duration: selectedSlot.duration,
+        additionalGuests,
       });
       if (bookingResponse.data?.meetLink) {
         setMeetLink(bookingResponse.data.meetLink);
@@ -123,7 +135,7 @@ const BookingPage: React.FC = () => {
   }
 
   if (bookingStatus === BOOKING_STATUS_SUCCESS) {
-    return <BookingSuccessState guestEmail={guestEmail} meetLink={meetLink} />;
+    return <BookingSuccessState guestEmail={guestEmail} meetLink={meetLink} additionalGuests={additionalGuests} />;
   }
 
   return (
@@ -189,6 +201,10 @@ const BookingPage: React.FC = () => {
               onGuestEmailChange={setGuestEmail}
               onGuestNameChange={setGuestName}
               onSubmit={handleBook}
+              additionalGuests={additionalGuests}
+              onAddGuest={handleAddGuest}
+              onRemoveGuest={handleRemoveGuest}
+              maxAdditionalGuests={MAX_ADDITIONAL_GUESTS}
             />
           </div>
         </div>

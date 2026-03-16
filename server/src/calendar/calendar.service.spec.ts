@@ -1149,6 +1149,8 @@ describe("CalendarService", () => {
       bookingToken: "test-token",
       userId: "user-1",
       googleEventId: "event-1",
+      guestEmail: "host@example.com",
+      additionalGuests: ["extra@example.com"],
       durationMinutes: 30,
       startTime: "2024-01-15T10:00:00.000Z",
       endTime: "2024-01-15T10:30:00.000Z",
@@ -1175,6 +1177,10 @@ describe("CalendarService", () => {
         requestBody: {
           start: { dateTime: "2024-01-16T14:00:00.000Z" },
           end: { dateTime: "2024-01-16T14:30:00.000Z" },
+          attendees: [
+            { email: "host@example.com" },
+            { email: "extra@example.com" },
+          ],
         },
       });
       expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(

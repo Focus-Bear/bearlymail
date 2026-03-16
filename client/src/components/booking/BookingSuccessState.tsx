@@ -7,10 +7,12 @@ import { EMOJI_CHECK } from 'constants/emojis';
 interface BookingSuccessStateProps {
   guestEmail: string;
   meetLink?: string;
+  additionalGuests?: string[];
 }
 
-export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestEmail, meetLink }) => {
+export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestEmail, meetLink, additionalGuests }) => {
   const { t } = useTranslation();
+  const hasAdditionalGuests = additionalGuests && additionalGuests.length > 0;
 
   return (
     <div
@@ -51,6 +53,11 @@ export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestE
           {t('booking.confirmed')}
         </h1>
         <p style={{ color: theme.colors.text.secondary }}>{t('booking.invitationSent', { email: guestEmail })}</p>
+        {hasAdditionalGuests && (
+          <p style={{ color: theme.colors.text.secondary, marginTop: theme.spacing.sm }}>
+            {t('booking.guests.alsoInvited', { emails: additionalGuests!.join(', ') })}
+          </p>
+        )}
         {meetLink && (
           <div
             style={{

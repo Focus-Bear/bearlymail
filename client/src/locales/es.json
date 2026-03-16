@@ -282,7 +282,18 @@
       "alreadyCancelled": "Esta reserva ya ha sido cancelada."
     },
     "meetLink": "Enlace de videollamada:",
-    "joinMeetingAriaLabel": "Unirse a la videollamada a través de Google Meet"
+    "joinMeetingAriaLabel": "Unirse a la videollamada a través de Google Meet",
+    "guests": {
+      "sectionTitle": "Invitados adicionales (opcional)",
+      "inputLabel": "Correo electrónico del invitado",
+      "inputPlaceholder": "colega@ejemplo.com",
+      "addButton": "Agregar invitado",
+      "removeGuest": "Eliminar {{email}}",
+      "maxReached": "Se alcanzó el máximo de {{max}} invitados adicionales.",
+      "duplicateEmail": "Este correo ya fue agregado.",
+      "invalidEmail": "Por favor ingresa un correo electrónico válido.",
+      "alsoInvited": "También invitados: {{emails}}"
+    }
   },
   "calendar": {
     "attendeeEmail": "Correo electrónico del asistente",

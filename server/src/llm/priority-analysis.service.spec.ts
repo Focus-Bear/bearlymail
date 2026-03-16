@@ -344,9 +344,6 @@ describe("PriorityAnalysisService", () => {
       priority_results: emailResultItems,
     });
 
-    // Legacy/bare array format — used to test Gemini guard
-    const bareArrayBatchResponse = JSON.stringify(emailResultItems);
-
     it("should parse a valid batch JSON response with priority_results wrapper key", async () => {
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         validBatchResponse,
@@ -462,7 +459,7 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should use fallback when LLM responds with a wrong wrapper key (non-deterministic key name)", async () => {
-      // LLM invented its own key name instead of using priority_results
+      // LLM invented its own key name instead of using priority_results — this is a prompt compliance failure
       const wrongKeyResponse = JSON.stringify({ results: emailResultItems });
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         wrongKeyResponse,
@@ -474,25 +471,98 @@ describe("PriorityAnalysisService", () => {
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
-      // Should warn about the unexpected key name
+      // Should warn about the unexpected shape
       expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Expected top-level key 'priority_results'"),
-      );
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("results"),
+        expect.stringContaining(
+          "Unexpected response shape from LLM. Expected { priority_results: [...] }.",
+        ),
+        expect.objectContaining({ parsed: expect.any(String) }),
       );
 
-      // Should still parse both emails correctly via fallback
+      // Both emails should receive fallback sentinel values (prompt compliance failure)
       expect(results.size).toBe(2);
-      expect(results.get("email-1")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.category).toBe("Customer Support");
-      expect(results.get("email-2")?.urgencyScore).toBe(70);
+      expect(results.get("email-1")?.isFallback).toBe(true);
+      expect(results.get("email-2")?.isFallback).toBe(true);
+      expect(results.get("email-1")?.category).toBe("Other");
+      expect(results.get("email-2")?.category).toBe("Other");
     });
 
-    it("should handle a bare array response (Gemini guard for different API variants)", async () => {
-      // Some API variants (e.g. Gemini via a different endpoint) may return a bare array
+    it("should return empty map for empty email list", async () => {
+      const results = await service.analyzePriorityBatch([]);
+
+      expect(results.size).toBe(0);
+      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
+    });
+
+    // Regression test for issue #980:
+    // LLM returns { "priority_results": [...] } but the parser previously expected a bare array.
+    it("regression #980: correctly parses { priority_results: [...] } response shape", async () => {
+      const wrappedResponse = JSON.stringify({
+        priority_results: [
+          {
+            key: "email-1",
+            urgencyScore: 55,
+            urgencyExplanation: "Needs timely reply",
+            goalAlignmentScore: 65,
+            goalAlignmentExplanation: "Aligned with support goals",
+            category: "Customer Support",
+            categoryExplanation: "Customer reporting an issue",
+            reasoning: "Support ticket requiring response",
+          },
+          {
+            key: "email-2",
+            urgencyScore: 5,
+            urgencyExplanation: "Informational digest",
+            goalAlignmentScore: 10,
+            goalAlignmentExplanation: "Not directly related to goals",
+            category: "Newsletters",
+            categoryExplanation: "Mass-sent newsletter",
+            reasoning: "Weekly newsletter, no action required",
+          },
+        ],
+      });
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        bareArrayBatchResponse,
+        wrappedResponse,
+      );
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      // Both emails should be parsed — not silently dropped
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-1")?.category).toBe("Customer Support");
+      expect(results.get("email-1")?.urgencyScore).toBe(55);
+      expect(results.get("email-2")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.category).toBe("Newsletters");
+      expect(results.get("email-2")?.urgencyScore).toBe(5);
+    });
+
+    it("returns fallback when LLM returns unexpected shape (bare array)", async () => {
+      // A bare array is no longer an accepted response shape — it is a prompt compliance failure
+      const bareArray = JSON.stringify([
+        {
+          key: "email-1",
+          urgencyScore: 30,
+          urgencyExplanation: "Low urgency",
+          goalAlignmentScore: 20,
+          goalAlignmentExplanation: "Slightly aligned",
+          category: "Newsletters",
+          categoryExplanation: "Newsletter content",
+          reasoning: "Mass email",
+        },
+        {
+          key: "email-2",
+          urgencyScore: 70,
+          urgencyExplanation: "High urgency",
+          goalAlignmentScore: 80,
+          goalAlignmentExplanation: "Highly aligned",
+          category: "Customer Support",
+          categoryExplanation: "Support request",
+          reasoning: "Customer issue",
+        },
+      ]);
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        bareArray,
       );
 
       const loggerWarnSpy = jest
@@ -501,25 +571,18 @@ describe("PriorityAnalysisService", () => {
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
-      // Should warn about the bare array, but still process it
+      // Should warn about the unexpected shape
       expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "LLM returned a bare array instead of a wrapped",
+          "Unexpected response shape from LLM. Expected { priority_results: [...] }.",
         ),
+        expect.objectContaining({ parsed: expect.any(String) }),
       );
 
-      // Both emails should be parsed correctly
+      // Both emails must receive isFallback: true — bare array is not accepted
       expect(results.size).toBe(2);
-      expect(results.get("email-1")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.category).toBe("Customer Support");
-      expect(results.get("email-2")?.urgencyScore).toBe(70);
-    });
-
-    it("should return empty map for empty email list", async () => {
-      const results = await service.analyzePriorityBatch([]);
-
-      expect(results.size).toBe(0);
-      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
+      expect(results.get("email-1")?.isFallback).toBe(true);
+      expect(results.get("email-2")?.isFallback).toBe(true);
     });
 
     it("should log a clear error when batch JSON parsing throws", async () => {

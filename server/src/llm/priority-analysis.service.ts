@@ -316,6 +316,43 @@ export class PriorityAnalysisService {
   }
 
   /**
+   * Extract the per-email results array from a parsed LLM batch response.
+   *
+   * Only accepts the canonical shape: `{ "priority_results": [...] }`.
+   * Any other shape (bare array, wrong wrapper key, etc.) is treated as a
+   * prompt compliance failure — logged and returned as null so the caller
+   * falls back to sentinel values. This surfaces LLM non-compliance instead
+   * of silently accepting it.
+   *
+   * Returns `null` when the response does not match the canonical shape.
+   */
+  private extractBatchResultsArray(parsed: unknown): unknown[] | null {
+    // Only accept the canonical shape: { priority_results: [...] }
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      "priority_results" in parsed &&
+      Array.isArray((parsed as Record<string, unknown>)["priority_results"])
+    ) {
+      return (parsed as Record<string, unknown>)[
+        "priority_results"
+      ] as unknown[];
+    }
+    // Any other shape is a prompt compliance failure — log it and return null (triggers fallback)
+    this.logger.warn(
+      `[analyzePriorityBatch] Unexpected response shape from LLM. Expected { priority_results: [...] }.`,
+      {
+        parsed: (JSON.stringify(parsed) ?? "").slice(
+          0,
+          QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH,
+        ),
+      },
+    );
+    return null;
+  }
+
+  /**
    * Analyze priority for a batch of emails in a single LLM call.
    * Returns results keyed by the email identifier passed in.
    */
@@ -552,36 +589,10 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
         }
       }
 
-      let parsedArray: unknown[] | null = null;
-
-      if (Array.isArray(parsed)) {
-        // Gemini guard: some API variants return a bare array instead of a wrapped object
-        this.logger.warn(
-          `analyzePriorityBatch: LLM returned a bare array instead of a wrapped { priority_results: [...] } object. Accepting with warning. Batch size: ${emails.length}`,
-        );
-        parsedArray = parsed;
-      } else if (
-        parsed !== null &&
-        parsed !== undefined &&
-        typeof parsed === "object"
-      ) {
-        const parsedRecord = parsed as Record<string, unknown>;
-        if (Array.isArray(parsedRecord.priority_results)) {
-          // Primary path: correct wrapper key
-          parsedArray = parsedRecord.priority_results;
-        } else {
-          // Fallback: LLM used a different wrapper key — find the first array-valued property
-          const arrayKey = Object.keys(parsedRecord).find((key) =>
-            Array.isArray(parsedRecord[key]),
-          );
-          if (arrayKey) {
-            this.logger.warn(
-              `analyzePriorityBatch: Expected top-level key 'priority_results' but found '${arrayKey}'. Using fallback. Prompt may need updating.`,
-            );
-            parsedArray = parsedRecord[arrayKey] as unknown[];
-          }
-        }
-      }
+      // Extract the results array from the parsed response.
+      // Only accepts the canonical shape: { "priority_results": [...] }.
+      // Any other shape is treated as a prompt compliance failure.
+      const parsedArray = this.extractBatchResultsArray(parsed);
 
       if (parsedArray !== null) {
         // Build a lookup map of emailKey → preComputedSentimentScore for O(1) access

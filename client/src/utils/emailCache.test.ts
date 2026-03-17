@@ -8,6 +8,7 @@ import {
   clearCacheForMode,
   getCachedCategoryEmails,
   getCachedSummary,
+  invalidateSummaryCache,
   removeEmailFromCache,
   setCachedCategoryEmails,
   setCachedSummary,
@@ -193,5 +194,41 @@ describe('clearCacheForMode', () => {
 
   it('is a no-op when no entries exist for the mode', () => {
     expect(() => clearCacheForMode('nonexistent-mode')).not.toThrow();
+  });
+});
+
+// ─── invalidateSummaryCache ────────────────────────────────────────────────────
+
+describe('invalidateSummaryCache', () => {
+  it('removes the summary key for the given mode', () => {
+    setCachedSummary('triage', [makeSummaryItem('Work', 3)]);
+
+    invalidateSummaryCache('triage');
+
+    expect(getCachedSummary('triage')).toBeNull();
+  });
+
+  it('does not affect summary keys for other modes', () => {
+    const actionSummary = [makeSummaryItem('Personal', 2)];
+    setCachedSummary('triage', [makeSummaryItem('Work', 3)]);
+    setCachedSummary('action', actionSummary);
+
+    invalidateSummaryCache('triage');
+
+    expect(getCachedSummary('action')).toEqual(actionSummary);
+  });
+
+  it('does not affect category email caches for the same mode', () => {
+    const emails = [makeEmail('e1'), makeEmail('e2')];
+    setCachedSummary('triage', [makeSummaryItem('Work', 2)]);
+    setCachedCategoryEmails('triage', 'work', emails);
+
+    invalidateSummaryCache('triage');
+
+    expect(getCachedCategoryEmails('triage', 'work')).toEqual(emails);
+  });
+
+  it('does not throw when the key does not exist', () => {
+    expect(() => invalidateSummaryCache('nonexistent-mode')).not.toThrow();
   });
 });

@@ -4,6 +4,10 @@
  * Covers the cache-invalidation fix for issue #1108:
  * removeEmailFromCache must be called when prioritising an email in Triage
  * so the email doesn't reappear after navigation.
+ *
+ * Also covers issue #1113:
+ * invalidateSummaryCache must be called after prioritisation / deprioritisation
+ * so category counts don't stay stale in localStorage.
  */
 import React from 'react';
 import { Provider } from 'react-redux';
@@ -22,10 +26,15 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 jest.mock('utils/emailCache', () => ({
   removeEmailFromCache: jest.fn(),
+  invalidateSummaryCache: jest.fn(),
 }));
 
 const mockedRemoveEmailFromCache = emailCache.removeEmailFromCache as jest.MockedFunction<
   typeof emailCache.removeEmailFromCache
+>;
+
+const mockedInvalidateSummaryCache = emailCache.invalidateSummaryCache as jest.MockedFunction<
+  typeof emailCache.invalidateSummaryCache
 >;
 
 const MODE_TRIAGE = 'triage';
@@ -110,6 +119,28 @@ describe('useEmailActionsBase — handleSetStarCount', () => {
       expect(mockedRemoveEmailFromCache).toHaveBeenCalledWith('email-1');
     });
 
+    it('calls invalidateSummaryCache with mode when prioritising an email in Triage (#1113)', async () => {
+      const email = makeEmail('email-1a');
+      const store = createTestStore([email]);
+
+      const { result } = renderHook(
+        () =>
+          useEmailActionsBase({
+            fetchEmails: mockFetchEmails,
+            onSuggestionRemove: mockOnSuggestionRemove,
+            onTabCountsUpdateOptimistically: mockOnTabCountsUpdateOptimistically,
+            mode: MODE_TRIAGE,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSetStarCount('email-1a', 2);
+      });
+
+      expect(mockedInvalidateSummaryCache).toHaveBeenCalledWith(MODE_TRIAGE);
+    });
+
     it('calls removeEmailFromCache before the animation timeout fires', async () => {
       const email = makeEmail('email-2');
       const store = createTestStore([email]);
@@ -180,6 +211,26 @@ describe('useEmailActionsBase — handleSetStarCount', () => {
       });
 
       expect(mockedRemoveEmailFromCache).not.toHaveBeenCalled();
+    });
+
+    it('calls invalidateSummaryCache with mode when deprioritising in Action mode (#1113)', async () => {
+      const email = makeEmail('email-4a', { starCount: 2 });
+      const store = createTestStore([email]);
+
+      const { result } = renderHook(
+        () =>
+          useEmailActionsBase({
+            fetchEmails: mockFetchEmails,
+            mode: MODE_ACTION,
+          }),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSetStarCount('email-4a', 0);
+      });
+
+      expect(mockedInvalidateSummaryCache).toHaveBeenCalledWith(MODE_ACTION);
     });
   });
 });

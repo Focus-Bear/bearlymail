@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
-import { removeEmailFromCache } from 'utils/emailCache';
+import { invalidateSummaryCache, removeEmailFromCache } from 'utils/emailCache';
 
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
@@ -100,6 +100,7 @@ function useStarCountMutation({
       if (mode === MODE_TRIAGE && starCount > 0) {
         dispatch(addAnimatingOut({ id: emailId, type: 'priority', starCount }));
         removeEmailFromCache(emailId);
+        invalidateSummaryCache(mode);
         onSuggestionRemove?.(emailId);
         onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
         const tid = setTimeout(() => {
@@ -111,6 +112,7 @@ function useStarCountMutation({
         priorityAnimationTimeouts.current.set(emailId, tid);
       } else if (mode === MODE_ACTION && starCount === 0) {
         dispatch(removeEmail(emailId));
+        invalidateSummaryCache(mode);
         onSuggestionRemove?.(emailId);
         onTabCountsUpdateOptimistically?.({ action: -1, triage: 1 });
       } else {

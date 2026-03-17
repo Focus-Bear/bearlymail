@@ -83,6 +83,19 @@ export function setCachedSummary(mode: string, summary: CategorySummaryItem[]): 
   safeSet(summaryKey(mode), summary);
 }
 
+/**
+ * Invalidate the triage/action summary cache for a given mode.
+ * Call this after prioritisation actions that move emails between modes
+ * so that category counts are refetched on next render.
+ */
+export function invalidateSummaryCache(mode: string): void {
+  try {
+    localStorage.removeItem(summaryKey(mode));
+  } catch {
+    // Fail silently
+  }
+}
+
 // ─── Category emails ───────────────────────────────────────────────────────────
 
 export function getCachedCategoryEmails(mode: string, key: string): Email[] | null {

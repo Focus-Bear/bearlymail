@@ -91,6 +91,12 @@ const emailSlice = createSlice({
       const isOther = categoryKey === CATEGORY_OTHER;
       const incomingIds = new Set(emails.map(event => event.id));
 
+      // Shared predicate: an email belongs to this category if either its
+      // category_id or its category name matches the key. Centralised here so
+      // both the equality-guard filter and the removal step stay in sync.
+      const matchesCategory = (email: Email) =>
+        email.category_id === categoryKey || email.category === categoryKey;
+
       // Fix #1114: prefer the server-enriched category_id on each email; only
       // fall back to categoryKey when the server did not supply one.  Previously
       // categoryKey was unconditionally stamped, overriding the server's value.
@@ -98,6 +104,35 @@ const emailSlice = createSlice({
         ...email,
         category_id: email.category_id ?? categoryKey,
       }));
+
+      // Shallow equality guard: skip the array replacement if nothing meaningful changed.
+      // Prevents unnecessary re-renders (and selectVisibleEmails recomputation) when
+      // refreshInPlace returns data identical to what's already in the store.
+      // Checks IDs and all fields that affect visible rendering in the list view.
+      const currentCategoryEmails = state.emails.filter(event =>
+        isOther
+          ? (!event.category || event.category === '' || event.category === CATEGORY_OTHER)
+          : matchesCategory(event)
+      );
+
+      const isUnchanged =
+        currentCategoryEmails.length === stampedEmails.length &&
+        stampedEmails.every((incoming, idx) => {
+          const existing = currentCategoryEmails[idx];
+          return (
+            existing?.id === incoming.id &&
+            existing?.priorityScore === incoming.priorityScore &&
+            existing?.isProcessingPriority === incoming.isProcessingPriority &&
+            existing?.isProcessingSummary === incoming.isProcessingSummary &&
+            existing?.isRead === incoming.isRead &&
+            existing?.category_id === incoming.category_id
+          );
+        });
+
+      if (isUnchanged) {
+        // No state mutation → selectVisibleEmails input unchanged → no re-render
+        return;
+      }
 
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a
@@ -114,7 +149,7 @@ const emailSlice = createSlice({
             event.category !== CATEGORY_OTHER
           );
         }
-        return event.category_id !== categoryKey;
+        return !matchesCategory(event);
       });
       state.emails = [...state.emails, ...stampedEmails];
     },

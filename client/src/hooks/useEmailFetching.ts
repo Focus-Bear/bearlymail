@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { unstable_batchedUpdates } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
+import { devLog } from 'utils/dev-logger';
 import {
   clearCacheForMode,
   getCachedCategoryEmails,
@@ -447,20 +449,34 @@ async function refreshInPlaceImpl({
   // loadedCategoryNamesRef now stores category keys (UUIDs or names).
   // buildCategoryParams handles both: UUID keys → categoryIds=, name keys → categories=
   const loadedCategoryKeys = [...loadedCategoryNamesRef.current];
-  await Promise.all(
+  const categoryResults = await Promise.all(
     loadedCategoryKeys.map(async categoryKey => {
       try {
         const catParams = buildCategoryParams(categoryKey);
         const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
         // Emails now include category_id (UUID) from the server; no normalization needed.
         const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
-        dispatch(updateCategoryEmails({ categoryKey, emails }));
         setCachedCategoryEmails(mode, categoryKey, emails);
+        return { categoryKey, emails };
       } catch (err) {
         console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
+        return null;
       }
     })
   );
+
+  // Dispatch all updateCategoryEmails actions in a single batch → collapses N re-renders into 1.
+  // Without this, each async-resolved dispatch fires its own render cycle (React 18 auto-batching
+  // only covers synchronous dispatches, not resolved Promises).
+  const validResults = categoryResults.filter(
+    (result): result is { categoryKey: string; emails: Email[] } => result !== null
+  );
+  devLog('[refreshInPlace] batching', validResults.length, 'updateCategoryEmails dispatches');
+  unstable_batchedUpdates(() => {
+    validResults.forEach(({ categoryKey, emails }) => {
+      dispatch(updateCategoryEmails({ categoryKey, emails }));
+    });
+  });
 }
 
 export function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {

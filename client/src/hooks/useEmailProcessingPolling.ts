@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { Email } from 'types/email';
+import { devLog } from 'utils/dev-logger';
 
 import { LONG_TIMEOUT_MS } from 'constants/numbers';
 
@@ -13,10 +14,18 @@ interface UseEmailProcessingPollingProps {
 }
 
 export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessingPollingProps) {
-  const onPollRef = useRef(onPoll);
-  onPollRef.current = onPoll;
+  // Ref keeps the latest emails available inside the interval without making emails
+  // a reactive dependency (which would restart the interval on every fetch).
+  const emailsRef = useRef(emails);
+  emailsRef.current = emails;
 
-  const processingCount = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length;
+  // useEffectEvent: captures the latest onPoll without making it a dep.
+  // Prevents stale closure where interval calls an outdated refreshInPlace.
+  const stableOnPoll = useEffectEvent(() => onPoll());
+
+  const processingCount = emails.filter(
+    event => event.isProcessingPriority || event.isProcessingSummary
+  ).length;
 
   useEffect(() => {
     if (processingCount === 0) {
@@ -24,9 +33,13 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
     }
 
     const interval = setInterval(() => {
-      const stillProcessing = emails.some(event => event.isProcessingPriority || event.isProcessingSummary);
+      // Always read from ref to get current emails — avoids stale closure capture
+      const stillProcessing = emailsRef.current.some(
+        event => event.isProcessingPriority || event.isProcessingSummary
+      );
+      devLog('[ProcessingPoll] tick — stillProcessing:', stillProcessing);
       if (stillProcessing) {
-        onPollRef.current();
+        stableOnPoll();
       }
     }, LONG_TIMEOUT_MS);
 

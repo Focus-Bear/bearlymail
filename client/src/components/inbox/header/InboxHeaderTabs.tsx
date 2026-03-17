@@ -23,6 +23,9 @@ interface InboxHeaderTabsProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
+  /** When true, pulses the Action tab to signal an email moved there (mobile only) */
+  actionTabPulsing?: boolean;
+  onActionTabPulseEnd?: () => void;
 }
 
 /**
@@ -37,6 +40,8 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
+  actionTabPulsing,
+  onActionTabPulseEnd,
 }) => {
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
@@ -108,10 +113,11 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
       </button>
       <button
         ref={actionTabRef}
-        className="action-tab"
+        className={`action-tab${actionTabPulsing ? ' animate-tab-pulse' : ''}`}
         onClick={() => handleTabClick('action')}
         disabled={loadingModeSwitch}
         style={getTabStyle('action')}
+        onAnimationEnd={actionTabPulsing ? onActionTabPulseEnd : undefined}
       >
         {getTabLabel('action')}
       </button>

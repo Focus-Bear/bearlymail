@@ -127,6 +127,9 @@ interface InboxHeaderProps {
   onToggleDebug?: () => void;
   onViewBlockedEmails?: () => void;
   onViewAutoRespondedEmails?: () => void;
+  // Mobile Action tab pulse — signals email moved when split-view is hidden
+  actionTabPulsing?: boolean;
+  onActionTabPulseEnd?: () => void;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -148,6 +151,8 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   onToggleDebug,
   onViewBlockedEmails,
   onViewAutoRespondedEmails,
+  actionTabPulsing,
+  onActionTabPulseEnd,
 }) => {
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
@@ -193,6 +198,8 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
+          actionTabPulsing={actionTabPulsing}
+          onActionTabPulseEnd={onActionTabPulseEnd}
         />
 
         <FilterToggleButton

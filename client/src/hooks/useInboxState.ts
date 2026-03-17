@@ -64,9 +64,18 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Stable ref for the splitView.openEmail callback so we can wire it after splitView is created
   // (useEmailManagement is instantiated before useInboxUIState which provides splitView)
   const openEmailRef = useRef<((emailId: string) => void) | null>(null);
+  // Stable ref for isMobile — wired after splitView is created (same pattern as openEmailRef)
+  const isMobileRef = useRef<boolean>(false);
+  // Action tab pulse state — set true when email moves on mobile to signal where it went
+  const [actionTabPulsing, setActionTabPulsing] = useState(false);
   const onEmailMovedInTriage = useCallback(
     (emailId: string) => {
-      openEmailRef.current?.(emailId);
+      if (isMobileRef.current) {
+        // On mobile, skip opening email — pulse the Action tab instead
+        setActionTabPulsing(true);
+      } else {
+        openEmailRef.current?.(emailId);
+      }
     },
     []
   );
@@ -141,6 +150,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Wire openEmailRef to splitView.openEmail so onEmailMovedInTriage can call it.
   // This is safe because splitView.openEmail is a stable callback from useSplitView.
   openEmailRef.current = splitView.openEmail;
+  // Wire isMobileRef so onEmailMovedInTriage can check without it being a dep.
+  isMobileRef.current = splitView.isMobile;
 
   // Initialization hook
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({
@@ -308,6 +319,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setSelectedEmailIds,
     // Triage
     triageSuggestions,
+    actionTabPulsing,
+    setActionTabPulsing,
     // Follow-ups
     followUpDataMap,
     isGeneratingDrafts,

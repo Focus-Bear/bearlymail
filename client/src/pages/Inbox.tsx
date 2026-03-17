@@ -71,7 +71,8 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
   const {
     mode, setMode, user, logout, refreshUser, fetchEmails, fetchCategoryEmails,
     selectedEmailIndex, setSelectedEmailIndex, selectedEmailIds, setSelectedEmailIds,
-    triageSuggestions, followUpDataMap, isGeneratingDrafts, followUpsError, generateDrafts,
+    triageSuggestions, actionTabPulsing, setActionTabPulsing,
+    followUpDataMap, isGeneratingDrafts, followUpsError, generateDrafts,
     updateDraft, bulkSend, fetchThreadsWithDrafts, snoozeInput, onboarding, urgentNotification,
     debugPanel, modals, priorityTooltip, keyboardHint, splitView, emailActions, keyboardShortcuts,
     hasInitiallyLoaded, loadingModeSwitch, loading, decrypting, fetchError,
@@ -122,6 +123,7 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
         <InboxHeader
           mode={mode} setMode={setMode} loadingModeSwitch={loadingModeSwitch}
           triageTabRef={triageTabRef} actionTabRef={actionTabRef} followUpTabRef={followUpTabRef} tabCounts={tabCounts}
+          actionTabPulsing={actionTabPulsing} onActionTabPulseEnd={() => setActionTabPulsing(false)}
           onToggleMobileMenu={openMobileMenu} isFilterBarVisible={isFilterBarVisible}
           hasActiveFilters={hasActiveFilters} activeFilterCount={activeFilterCount} onToggleFilterBar={toggleFilterBar}
           onClearFilters={() => {

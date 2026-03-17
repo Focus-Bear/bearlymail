@@ -204,3 +204,14 @@ button, a, input, select, textarea {
   height: -webkit-fill-available;
   height: 100dvh;
 }
+
+/* Tab pulse animation — signals that an email moved to the Action tab on mobile */
+@keyframes tabPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.7); }
+  50%  { box-shadow: 0 0 0 8px rgba(255, 165, 0, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0); }
+}
+
+.animate-tab-pulse {
+  animation: tabPulse 700ms ease-out forwards;
+}

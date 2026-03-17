@@ -61,11 +61,22 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Inbox filters hook
   const inboxFilters = useInboxFilters();
 
+  // Stable ref for the splitView.openEmail callback so we can wire it after splitView is created
+  // (useEmailManagement is instantiated before useInboxUIState which provides splitView)
+  const openEmailRef = useRef<((emailId: string) => void) | null>(null);
+  const onEmailMovedInTriage = useCallback(
+    (emailId: string) => {
+      openEmailRef.current?.(emailId);
+    },
+    []
+  );
+
   // Email management hook
   const emailManagement = useEmailManagement({
     mode,
     onSuggestionRemove: removeSuggestion,
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
+    onEmailMoved: mode === MODE_TRIAGE ? onEmailMovedInTriage : undefined,
     filters: inboxFilters.filters,
   });
   const {
@@ -126,6 +137,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     splitView,
     tourSteps,
   } = useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
+
+  // Wire openEmailRef to splitView.openEmail so onEmailMovedInTriage can call it.
+  // This is safe because splitView.openEmail is a stable callback from useSplitView.
+  openEmailRef.current = splitView.openEmail;
 
   // Initialization hook
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({

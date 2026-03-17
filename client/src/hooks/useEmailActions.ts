@@ -73,12 +73,13 @@ interface UseEmailActionsProps {
   handleMarkAsRead: (emailId: string) => Promise<void>;
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread?: (emailIds: string[]) => Promise<void>;
-  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
+  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
   onShowPriorityOverride: (
     emailId: string,
     originalPriorityScore: number,
     newPriorityScore: number,
-    context?: 'archive' | 'star' | 'manual'
+    context?: 'archive' | 'star' | 'manual',
+    emailSubject?: string
   ) => void;
   onShowBlockConfirm: (email: Email) => void;
   onHideBlockConfirm: () => void;

@@ -146,6 +146,33 @@ button, a, input, select, textarea {
   content: "🏗️";
 }
 
+/* Destination label that fades in and out during priority-out animation */
+@keyframes fadeInOut {
+  0%   { opacity: 0; transform: translateX(0); }
+  20%  { opacity: 1; transform: translateX(4px); }
+  70%  { opacity: 1; transform: translateX(8px); }
+  100% { opacity: 0; transform: translateX(40px); }
+}
+
+.priority-destination-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: fadeInOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 100;
+}
+
+/* label text is rendered dynamically in JSX (starCount === 2 → Follow-Up, else → Action) */
+
 /* Confetti overlay */
 .confetti-container {
   position: fixed;

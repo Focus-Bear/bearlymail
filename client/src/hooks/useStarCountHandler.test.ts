@@ -144,7 +144,7 @@ describe('useStarCountHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 30, PERCENTAGE_87_5);
+        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 30, PERCENTAGE_87_5, 'star', 'Test 1');
       });
       expect(mockOnShowStarDiscrepancy).not.toHaveBeenCalled();
     });
@@ -172,7 +172,7 @@ describe('useStarCountHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockOnShowStarDiscrepancy).toHaveBeenCalledWith('1', 3, 0);
+        expect(mockOnShowStarDiscrepancy).toHaveBeenCalledWith('1', 3, 0, 'Test 1');
       });
       expect(mockOnShowPriorityOverride).not.toHaveBeenCalled();
     });
@@ -254,7 +254,7 @@ describe('useStarCountHandler', () => {
         await result.current.handleSetStarCount('1', 1);
       });
       await waitFor(() => {
-        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_37_5);
+        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_37_5, 'star', 'Test 1');
       });
 
       // Test star count 2 -> 62.5
@@ -267,7 +267,7 @@ describe('useStarCountHandler', () => {
         await result.current.handleSetStarCount('1', 2);
       });
       await waitFor(() => {
-        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_62_5);
+        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_62_5, 'star', 'Test 1');
       });
 
       // Test star count 3 -> 87.5
@@ -280,7 +280,7 @@ describe('useStarCountHandler', () => {
         await result.current.handleSetStarCount('1', 3);
       });
       await waitFor(() => {
-        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_87_5);
+        expect(mockOnShowPriorityOverride).toHaveBeenCalledWith('1', 10, PERCENTAGE_87_5, 'star', 'Test 1');
       });
     });
   });

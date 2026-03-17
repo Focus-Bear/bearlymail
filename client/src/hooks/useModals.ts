@@ -6,6 +6,7 @@ interface StarDiscrepancyModal {
   emailId: string;
   userStarCount: number;
   predictedStarCount: number;
+  emailSubject?: string;
 }
 
 interface PriorityOverrideModal {
@@ -14,6 +15,7 @@ interface PriorityOverrideModal {
   originalPriorityScore: number;
   newPriorityScore: number;
   context?: 'archive' | 'star' | 'manual';
+  emailSubject?: string;
 }
 
 interface UrgencyOverrideModal {
@@ -39,13 +41,14 @@ interface UseModalsReturn {
   setPriorityFeedbackModal: React.Dispatch<React.SetStateAction<PriorityFeedbackModal | null>>;
   blockConfirmEmail: Email | null;
   setBlockConfirmEmail: React.Dispatch<React.SetStateAction<Email | null>>;
-  showStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
+  showStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
   hideStarDiscrepancy: () => void;
   showPriorityOverride: (
     emailId: string,
     originalPriorityScore: number,
     newPriorityScore: number,
-    context?: 'archive' | 'star' | 'manual'
+    context?: 'archive' | 'star' | 'manual',
+    emailSubject?: string
   ) => void;
   hidePriorityOverride: () => void;
   showUrgencyOverride: (threadId: string, currentUrgencyScore: number) => void;
@@ -63,12 +66,13 @@ export function useModals(): UseModalsReturn {
   const [priorityFeedbackModal, setPriorityFeedbackModal] = useState<PriorityFeedbackModal | null>(null);
   const [blockConfirmEmail, setBlockConfirmEmail] = useState<Email | null>(null);
 
-  const showStarDiscrepancy = useCallback((emailId: string, userStarCount: number, predictedStarCount: number) => {
+  const showStarDiscrepancy = useCallback((emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => {
     setStarDiscrepancyModal({
       show: true,
       emailId,
       userStarCount,
       predictedStarCount,
+      emailSubject,
     });
   }, []);
 
@@ -81,7 +85,8 @@ export function useModals(): UseModalsReturn {
       emailId: string,
       originalPriorityScore: number,
       newPriorityScore: number,
-      context: 'archive' | 'star' | 'manual' = 'manual'
+      context: 'archive' | 'star' | 'manual' = 'manual',
+      emailSubject?: string
     ) => {
       setPriorityOverrideModal({
         show: true,
@@ -89,6 +94,7 @@ export function useModals(): UseModalsReturn {
         originalPriorityScore,
         newPriorityScore,
         context,
+        emailSubject,
       });
     },
     []

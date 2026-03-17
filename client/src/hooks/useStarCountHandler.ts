@@ -19,12 +19,13 @@ interface UseStarCountHandlerProps {
     starCount: number,
     event?: React.MouseEvent
   ) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
-  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
+  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
   onShowPriorityOverride: (
     emailId: string,
     originalPriorityScore: number,
     newPriorityScore: number,
-    context?: 'archive' | 'star' | 'manual'
+    context?: 'archive' | 'star' | 'manual',
+    emailSubject?: string
   ) => void;
 }
 
@@ -65,11 +66,12 @@ export function useStarCountHandler({
       if (result && result.discrepancy >= 2 && starCount > 0) {
         // Show priority override modal for significant discrepancies
         const priorityDifference = Math.abs(newPriorityScore - originalPriorityScore);
+        const emailSubject = email?.subject ?? undefined;
         if (priorityDifference >= STAR_COUNT_THRESHOLD_20) {
-          onShowPriorityOverride(emailId, originalPriorityScore, newPriorityScore);
+          onShowPriorityOverride(emailId, originalPriorityScore, newPriorityScore, 'star', emailSubject);
         } else {
           // Fall back to star discrepancy modal for smaller differences
-          onShowStarDiscrepancy(emailId, starCount, result.predictedStarCount);
+          onShowStarDiscrepancy(emailId, starCount, result.predictedStarCount, emailSubject);
         }
       }
     },

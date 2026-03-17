@@ -16,6 +16,7 @@ interface ModalsState {
     emailId: string;
     userStarCount: number;
     predictedStarCount: number;
+    emailSubject?: string;
   } | null;
   priorityOverrideModal: {
     show: boolean;
@@ -23,6 +24,7 @@ interface ModalsState {
     originalPriorityScore: number;
     newPriorityScore: number;
     context?: typeof ANIMATION_TYPE_ARCHIVE | 'star' | 'manual';
+    emailSubject?: string;
   } | null;
   urgencyOverrideModal: {
     show: boolean;
@@ -80,6 +82,7 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
           emailId={modals.starDiscrepancyModal.emailId}
           userStarCount={modals.starDiscrepancyModal.userStarCount}
           predictedStarCount={modals.starDiscrepancyModal.predictedStarCount}
+          emailSubject={modals.starDiscrepancyModal.emailSubject}
           onClose={onHideStarDiscrepancy}
           onSubmitted={() => {
             onHideStarDiscrepancy();
@@ -94,6 +97,7 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
           originalPriorityScore={modals.priorityOverrideModal.originalPriorityScore}
           newPriorityScore={modals.priorityOverrideModal.newPriorityScore}
           context={modals.priorityOverrideModal.context}
+          emailSubject={modals.priorityOverrideModal.emailSubject}
           onClose={onHidePriorityOverride}
           onSubmitted={async () => {
             // If context is 'archive', actually archive the email after override is submitted

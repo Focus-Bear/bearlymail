@@ -127,6 +127,7 @@ interface UseEmailManagementProps {
   mode: InboxMode;
   onSuggestionRemove?: (emailId: string) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
+  onEmailMoved?: (emailId: string) => void;
   filters?: InboxFilter;
 }
 
@@ -163,7 +164,7 @@ interface UseEmailManagementReturn {
 }
 
 export function useEmailManagement(props: UseEmailManagementProps): UseEmailManagementReturn {
-  const { mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters } = props;
+  const { mode, onSuggestionRemove, onTabCountsUpdateOptimistically, onEmailMoved, filters } = props;
   const dispatch = useDispatch<AppDispatch>();
   const { emails, loading, decrypting, refreshing, loadingModeSwitch, fetchError, hasMore, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames } = useEmailReduxState();
 
@@ -172,6 +173,7 @@ export function useEmailManagement(props: UseEmailManagementProps): UseEmailMana
     fetchEmails,
     onSuggestionRemove,
     onTabCountsUpdateOptimistically,
+    onEmailMoved,
     mode,
   });
 

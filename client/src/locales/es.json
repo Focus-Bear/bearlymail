@@ -1434,7 +1434,10 @@
     "showSplitView": "Mostrar vista dividida",
     "suggested": "Sugerido",
     "title": "Bandeja de entrada",
-    "triage": "Clasificación",
+    "triage": {
+      "movingToFollowUp": "→ Seguimiento",
+      "movingToAction": "→ Acción"
+    },
     "triageCaughtUp": "Estás al día con los nuevos mensajes.",
     "triageTab": "Clasificación",
     "unsubscribe": "Darse de baja",

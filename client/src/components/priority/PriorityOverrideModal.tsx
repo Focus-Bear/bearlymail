@@ -17,6 +17,7 @@ interface PriorityOverrideModalProps {
   onClose: () => void;
   onSubmitted?: () => void;
   context?: typeof CONTEXT_ARCHIVE | 'star' | typeof CONTEXT_MANUAL; // Context for why we're asking
+  emailSubject?: string;
 }
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
@@ -53,6 +54,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   onClose,
   onSubmitted,
   context = CONTEXT_MANUAL,
+  emailSubject,
 }) => {
   const { t } = useTranslation();
   const [selectedReason, setSelectedReason] = useState<OverrideReasonType | ''>('');
@@ -100,6 +102,25 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     <ModalBackdrop onClose={onClose}>
       <ModalContent>
         <ModalHeader title={t('priority.override.title')} />
+
+        {emailSubject && (
+          <p
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.secondary,
+              backgroundColor: theme.colors.background.subtle,
+              borderRadius: theme.borderRadius.sm,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              marginBottom: theme.spacing.sm,
+              fontStyle: 'italic',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {emailSubject}
+          </p>
+        )}
 
         <p
           style={{

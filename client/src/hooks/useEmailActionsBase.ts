@@ -54,9 +54,11 @@ interface UseEmailActionsBaseProps {
     emailId: string,
     originalPriorityScore: number,
     newPriorityScore: number,
-    context?: 'archive' | 'star' | 'manual'
+    context?: 'archive' | 'star' | 'manual',
+    emailSubject?: string
   ) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
+  onEmailMoved?: (emailId: string) => void;
   mode?: string;
 }
 
@@ -65,6 +67,7 @@ interface UseStarCountMutationParams {
   fetchEmails: () => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
+  onEmailMoved?: (emailId: string) => void;
   mode?: string;
   dispatch: AppDispatch;
 }
@@ -79,6 +82,7 @@ function useStarCountMutation({
   fetchEmails,
   onSuggestionRemove,
   onTabCountsUpdateOptimistically,
+  onEmailMoved,
   mode,
   dispatch,
 }: UseStarCountMutationParams) {
@@ -94,7 +98,7 @@ function useStarCountMutation({
         : Math.round((DEFAULT_PRIORITY_SCORE / 100) * 3);
 
       if (mode === MODE_TRIAGE && starCount > 0) {
-        dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
+        dispatch(addAnimatingOut({ id: emailId, type: 'priority', starCount }));
         removeEmailFromCache(emailId);
         onSuggestionRemove?.(emailId);
         onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
@@ -102,6 +106,7 @@ function useStarCountMutation({
           dispatch(removeEmail(emailId));
           dispatch(removeAnimatingOut(emailId));
           priorityAnimationTimeouts.current.delete(emailId);
+          onEmailMoved?.(emailId);
         }, EMAIL_EXIT_ANIMATION_DURATION_MS);
         priorityAnimationTimeouts.current.set(emailId, tid);
       } else if (mode === MODE_ACTION && starCount === 0) {
@@ -139,7 +144,7 @@ function useStarCountMutation({
 
       return result;
     },
-    [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically]
+    [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically, onEmailMoved]
   );
 
   return { handleSetStarCount };
@@ -150,6 +155,7 @@ export function useEmailActionsBase({
   onSuggestionRemove,
   onShowPriorityOverride,
   onTabCountsUpdateOptimistically,
+  onEmailMoved,
   mode,
 }: UseEmailActionsBaseProps) {
   const dispatch = useDispatch<AppDispatch>();
@@ -163,6 +169,7 @@ export function useEmailActionsBase({
     fetchEmails,
     onSuggestionRemove,
     onTabCountsUpdateOptimistically,
+    onEmailMoved,
     mode,
     dispatch,
   });
@@ -177,7 +184,7 @@ export function useEmailActionsBase({
       }
       const score = getEmailPriorityScore(emailToArchive);
       if (!emailToArchive.isRead && score > PRIORITY_MEDIUM_THRESHOLD && onShowPriorityOverride) {
-        onShowPriorityOverride(emailId, score, 0, 'archive');
+        onShowPriorityOverride(emailId, score, 0, 'archive', emailToArchive.subject ?? undefined);
         return;
       }
       const categoryName = emailToArchive.category || CATEGORY_OTHER;

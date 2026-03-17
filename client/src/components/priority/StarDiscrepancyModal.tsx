@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { theme } from 'theme/theme';
 
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
@@ -12,6 +13,7 @@ interface StarDiscrepancyModalProps {
   emailId: string;
   userStarCount: number;
   predictedStarCount: number;
+  emailSubject?: string;
   onClose: () => void;
   onSubmitted?: () => void;
 }
@@ -20,6 +22,7 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
   emailId,
   userStarCount,
   predictedStarCount,
+  emailSubject,
   onClose,
   onSubmitted,
 }) => {
@@ -55,6 +58,24 @@ export const StarDiscrepancyModal: React.FC<StarDiscrepancyModalProps> = ({
   return (
     <ModalBackdrop onClose={onClose} zIndex={2000}>
       <ModalContent maxWidth="500px">
+        {emailSubject && (
+          <p
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.secondary,
+              backgroundColor: theme.colors.background.subtle,
+              borderRadius: theme.borderRadius.sm,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              marginBottom: theme.spacing.sm,
+              fontStyle: 'italic',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {emailSubject}
+          </p>
+        )}
         <StarDiscrepancyHeader predictedStarCount={predictedStarCount} userStarCount={userStarCount} />
         <StarDiscrepancyForm explanation={explanation} onExplanationChange={setExplanation} />
         <StarDiscrepancyActions

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
@@ -83,6 +84,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   onSendFollowUp,
   recipientName,
 }) => {
+  const { t } = useTranslation();
   const animatingOut = useSelector(selectAnimatingOut);
   const animatingOutItem = animatingOut.find(item => item.id === email.id);
 
@@ -114,7 +116,12 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative' }}
     >
       {animatingOutItem?.type === ANIMATION_TYPE_PRIORITY && (
-        <div className="priority-emoji-float" aria-hidden="true" />
+        <>
+          <div className="priority-emoji-float" aria-hidden="true" />
+          <div className="priority-destination-label" aria-hidden="true">
+            {animatingOutItem.starCount === 2 ? t('inbox.triage.movingToFollowUp') : t('inbox.triage.movingToAction')}
+          </div>
+        </>
       )}
       <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
         <EmailCardHeader

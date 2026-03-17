@@ -9,6 +9,8 @@ const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 export interface AnimatingOutItem {
   id: string;
   type: typeof ANIMATION_TYPE_ARCHIVE | typeof ANIMATION_TYPE_PRIORITY;
+  /** Star count set when triggering a priority animation — used to render a destination label */
+  starCount?: number;
 }
 
 export interface CategorySummaryItem {

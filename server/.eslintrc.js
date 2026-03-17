@@ -181,6 +181,23 @@ module.exports = {
         message:
           "Pass a named constant (from SUMMARY_PROMPT_IDS, PRIORITY_PROMPT_IDS, REPLY_PROMPT_IDS, CLASSIFICATION_PROMPT_IDS, CONTEXT_PROMPT_IDS, or UTILITY_PROMPT_IDS) to getPrompt() instead of a magic string prompt ID.",
       },
+      {
+        // Flag string literals used as PostHog/analytics event names.
+        // Use a named constant (e.g. POSTHOG_EVENTS.RATE_LIMIT_EXCEEDED) instead of inline strings.
+        selector: "CallExpression[callee.property.name='captureEvent'] > Literal:first-child",
+        message:
+          "Use a named constant for PostHog event names instead of a magic string.",
+      },
+      {
+        // Flag string literals assigned to 'tier' or 'eventName' object properties.
+        // These are analytics-specific keys where inline strings should be replaced with named constants
+        // (e.g. THROTTLE_TIERS.FEEDBACK, POSTHOG_EVENTS.*).
+        // Note: 'event' is intentionally excluded — it is too generic a property name and causes
+        // false positives in non-analytics contexts (e.g. emoji lookup tables, calendar objects).
+        selector: "Property[key.name=/^(tier|eventName)$/] > Literal",
+        message:
+          "Use a named constant for event/tier identifiers instead of a magic string.",
+      },
     ],
 
     // Require const for variables that are never reassigned

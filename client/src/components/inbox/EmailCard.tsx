@@ -55,6 +55,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardC
         transition: theme.transitions.default,
         position: 'relative',
         overflow: 'hidden',
+        minWidth: 0,
       }}
       onMouseEnter={event => {
         event.currentTarget.style.transform = 'translateY(-2px)';

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { theme } from 'theme/theme';
 
 import { TOUCH_TARGET_MIN_PX } from 'constants/layout';
@@ -23,11 +24,32 @@ interface OverflowMenuProps {
  * Renders a button that toggles a dropdown list; clicking outside or pressing
  * Escape closes the menu. Fully keyboard-accessible with ARIA attributes.
  */
+interface DropdownPosition {
+  top: number;
+  right: number;
+}
+
 export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label': ariaLabel = 'More options' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<DropdownPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setDropdownPos(null);
+  }, []);
+
+  const open = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setIsOpen(true);
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -57,44 +79,16 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, close]);
 
-  return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex' }}>
-      <button
-        type="button"
-        aria-label={ariaLabel}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen(prev => !prev)}
-        style={{
-          minWidth: `${TOUCH_TARGET_MIN_PX}px`,
-          minHeight: `${TOUCH_TARGET_MIN_PX}px`,
-          padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
-          color: theme.colors.text.secondary,
-          border: STRING_NONE,
-          borderRadius: theme.borderRadius.md,
-          cursor: 'pointer',
-          fontSize: theme.typography.fontSize.xl,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          lineHeight: 1,
-          fontWeight: theme.typography.fontWeight.bold,
-          letterSpacing: '0.05em',
-        }}
-      >
-        {OVERFLOW_MENU_ICON}
-      </button>
-
-      {isOpen && (
+  const dropdown = isOpen && dropdownPos
+    ? ReactDOM.createPortal(
         <div
           role="menu"
           aria-label={ariaLabel}
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            zIndex: 1000,
+            position: 'fixed',
+            top: `${dropdownPos.top}px`,
+            right: `${dropdownPos.right}px`,
+            zIndex: 10000,
             backgroundColor: theme.colors.background.paper,
             border: `1px solid ${theme.colors.border.light}`,
             borderRadius: theme.borderRadius.md,
@@ -136,8 +130,42 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
               <span>{item.label}</span>
             </button>
           ))}
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? close() : open())}
+        style={{
+          minWidth: `${TOUCH_TARGET_MIN_PX}px`,
+          minHeight: `${TOUCH_TARGET_MIN_PX}px`,
+          padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
+          backgroundColor: 'transparent',
+          color: theme.colors.text.secondary,
+          border: STRING_NONE,
+          borderRadius: theme.borderRadius.md,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.xl,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          fontWeight: theme.typography.fontWeight.bold,
+          letterSpacing: '0.05em',
+        }}
+      >
+        {OVERFLOW_MENU_ICON}
+      </button>
+
+      {dropdown}
     </div>
   );
 };

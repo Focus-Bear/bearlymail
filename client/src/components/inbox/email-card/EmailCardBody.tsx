@@ -54,7 +54,7 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          maxWidth: '600px',
+          maxWidth: '100%',
           lineHeight: theme.typography.lineHeight.relaxed,
           display: 'flex',
           alignItems: 'center',

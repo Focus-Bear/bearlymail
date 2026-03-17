@@ -95,6 +95,9 @@ export interface Email {
   // Auto-responder metadata (autoresponded inbox mode)
   autoRespondedAt?: string | null;
   autoResponseCount?: number;
+  // Pre-calculated thread-level priority score from the backend (single source of truth).
+  // Use this instead of recalculating from priorityExplanation.breakdown to avoid divergence.
+  priorityScore?: number | null;
 }
 
 export interface TriageSuggestion {
@@ -117,19 +120,21 @@ export interface PriorityExplanation {
 export type InboxMode = 'triage' | 'action' | 'follow-up' | 'blocked' | 'autoresponded' | 'scheduled';
 
 /**
- * Calculate priority score from breakdown array
- * This is the single source of truth for priority scores
- * @param email The email object with optional priorityExplanation
- * @returns The calculated score (can be negative), or 0 if no breakdown exists
+ * Get the priority score for an email.
+ * Uses the pre-calculated backend priorityScore (single source of truth) to avoid
+ * divergence between the badge display and the server-side minPriority filter.
+ * Falls back to recalculating from breakdown if priorityScore is not present.
+ * @param email The email object
+ * @returns The priority score (can be negative), or 0 if unavailable
  */
 export function getEmailPriorityScore(email: Email): number {
+  // Use the denormalized thread-level score from the backend (single source of truth)
+  if (email.priorityScore != null) {
+    return email.priorityScore;
+  }
+  // Fallback: recalculate from breakdown if priorityScore not present
   if (!email.priorityExplanation || !email.priorityExplanation.breakdown) {
     return 0;
   }
-
-  const total = email.priorityExplanation.breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
-
-  // Don't clamp - allow negative scores as breakdown can legitimately be negative
-  // (e.g., low urgency = -12, low goal alignment = -5, etc.)
-  return total;
+  return email.priorityExplanation.breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
 }

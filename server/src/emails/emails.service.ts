@@ -1064,6 +1064,7 @@ export class EmailsService {
       phishingConfidence:
         (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,
       phishingReason: (row.phishingReason as string | null) ?? null,
+      priorityScore: row.priorityScore ?? null,
     } as unknown as Email;
   }
 

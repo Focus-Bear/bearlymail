@@ -8,7 +8,12 @@ import { RootState } from 'store/store';
 export const selectEmails = (state: RootState): Email[] => state.email.emails;
 export const selectOptimisticallyArchived = (state: RootState): string[] => state.email.optimisticallyArchived;
 export const selectOptimisticallySnoozed = (state: RootState): string[] => state.email.optimisticallySnoozed;
-export const selectAnimatingOut = (state: RootState): AnimatingOutItem[] => state.email.animatingOut ?? [];
+// Memoized: `?? []` would create a new array reference every call without createSelector,
+// causing downstream selectors/components to see a "changed" value on every render.
+export const selectAnimatingOut = createSelector(
+  (state: RootState) => state.email.animatingOut,
+  (animatingOut): AnimatingOutItem[] => animatingOut ?? []
+);
 export const selectLoading = (state: RootState): boolean => state.email.loading;
 export const selectDecrypting = (state: RootState): boolean => state.email.decrypting;
 export const selectRefreshing = (state: RootState): boolean => state.email.refreshing;
@@ -52,7 +57,11 @@ export const selectCategorySummary = (state: RootState): CategorySummaryItem[] |
 export const selectSummaryLoading = (state: RootState): boolean => state.email.summaryLoading;
 export const selectLoadedCategoryNames = (state: RootState): string[] => state.email.loadedCategoryNames;
 export const selectLoadingCategoryNames = (state: RootState): string[] => state.email.loadingCategoryNames;
-export const selectExhaustedCategoryNames = (state: RootState): string[] => state.email.exhaustedCategoryNames ?? [];
+// Memoized: `?? []` without createSelector returns a new array reference every call.
+export const selectExhaustedCategoryNames = createSelector(
+  (state: RootState) => state.email.exhaustedCategoryNames,
+  (names): string[] => names ?? []
+);
 
 // Cache selectors
 export const selectLastFetchedAt = (state: RootState): number | null => state.email.lastFetchedAt;

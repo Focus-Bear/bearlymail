@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Email } from 'types/email';
 
 import { LONG_TIMEOUT_MS } from 'constants/numbers';
@@ -13,20 +13,23 @@ interface UseEmailProcessingPollingProps {
 }
 
 export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessingPollingProps) {
-  useEffect(() => {
-    const processingEmails = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary);
+  const onPollRef = useRef(onPoll);
+  onPollRef.current = onPoll;
 
-    if (processingEmails.length === 0) {
+  const processingCount = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length;
+
+  useEffect(() => {
+    if (processingCount === 0) {
       return;
     }
 
     const interval = setInterval(() => {
       const stillProcessing = emails.some(event => event.isProcessingPriority || event.isProcessingSummary);
       if (stillProcessing) {
-        onPoll();
+        onPollRef.current();
       }
     }, LONG_TIMEOUT_MS);
 
     return () => clearInterval(interval);
-  }, [emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length]);
+  }, [processingCount]); // eslint-disable-line react-hooks/exhaustive-deps -- onPollRef.current is stable via ref pattern
 }

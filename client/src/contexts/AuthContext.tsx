@@ -74,13 +74,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [serviceError, setServiceError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
-  };
+  }, []);
 
   const handleRetry = useCallback(() => {
     setServiceError(false);

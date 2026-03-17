@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
 import { API_URL } from 'config/api';
 
@@ -24,12 +25,24 @@ export function useEmailDetailToneCheck() {
   const [toneCheckResult, setToneCheckResult] = useState<ToneCheckResult | null>(null);
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<DisputeResult | null>(null);
+  const timezoneRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/batch-schedule`)
+      .then(res => {
+        timezoneRef.current = res.data?.timezone ?? undefined;
+      })
+      .catch(() => {
+        // timezone remains undefined — getCurrentTimeInTimezone will fall back to UTC
+      });
+  }, []);
 
   const checkTone = useCallback(async (draft: string, scheduledSendAt?: string | null): Promise<boolean> => {
     setCheckingTone(true);
     setDisputeResult(null);
     try {
-      const currentTime = new Date().toISOString();
+      const currentTime = getCurrentTimeInTimezone(timezoneRef.current);
       const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
         text: draft,
         currentTime,

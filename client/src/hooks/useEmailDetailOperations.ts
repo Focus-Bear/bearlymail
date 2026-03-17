@@ -6,6 +6,7 @@ import axios from 'axios';
 import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { captureEvent } from 'utils/posthog';
+import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
@@ -212,6 +213,18 @@ export function useEmailDetailOperations(
   const previousIdRef = useRef<string | null>(null);
   const summaryRef = useRef<string | null>(summary);
   const emailRef = useRef<any>(email);
+  const timezoneRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/batch-schedule`)
+      .then(res => {
+        timezoneRef.current = res.data?.timezone ?? undefined;
+      })
+      .catch(() => {
+        // timezone remains undefined — getCurrentTimeInTimezone will fall back to UTC
+      });
+  }, []);
 
   summaryRef.current = summary;
   emailRef.current = email;
@@ -782,7 +795,7 @@ export function useEmailDetailOperations(
         try {
           const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
             text: draftToSend,
-            currentTime: new Date().toISOString(),
+            currentTime: getCurrentTimeInTimezone(timezoneRef.current),
             // Pass the scheduled send time so the server can suppress timing nags when
             // the user has already queued the email for a specific delivery time.
             scheduledSendAt: scheduledSendAt?.toISOString(),

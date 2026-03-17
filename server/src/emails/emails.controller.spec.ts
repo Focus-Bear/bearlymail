@@ -324,6 +324,37 @@ describe("EmailsController", () => {
 
       expect(result).toEqual({ triage: 0, action: 0, followUp: 0 });
     });
+
+    // Regression test for issue #1088: priority inbox filter returns zero results.
+    // Root cause: getInboxSummary in triage mode combined starCount = 0 with
+    // minPriority >= N. High-priority threads that have been actioned (starCount > 0)
+    // were excluded, so the priority inbox returned zero results even though
+    // getPriorityCounts (which has no starCount filter) showed non-zero counts in the UI.
+    it("fix(#1088): should return non-zero tab counts when high-priority threads exist, regardless of starCount", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      // The service should be able to return high-priority counts for threads
+      // across all triage states (triage/action/follow-up), not just starCount = 0.
+      mockEmailsService.getInboxSummary
+        // triage — high-priority threads that may have starCount > 0 are now included
+        .mockResolvedValueOnce({ total: 7, categories: [] })
+        // action
+        .mockResolvedValueOnce({ total: 3, categories: [] })
+        // follow-up
+        .mockResolvedValueOnce({ total: 1, categories: [] });
+
+      const result = await controller.getTabCounts(mockRequest, "50");
+
+      // Should NOT return { triage: 0, action: 0, followUp: 0 } when high-priority threads exist
+      expect(result.triage).toBeGreaterThan(0);
+      expect(result).toEqual({ triage: 7, action: 3, followUp: 1 });
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "triage",
+        { minPriority: 50 },
+      );
+    });
   });
 
   describe("getPriorityCounts", () => {

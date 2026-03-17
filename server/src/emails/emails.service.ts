@@ -322,14 +322,24 @@ export class EmailsService {
       threadIds?: string[];
     }[];
   }> {
-    let threadFilter =
-      'AND thread."isArchived" = false AND thread."starCount" = 0';
+    // When minPriority is set, the priority inbox shows threads across ALL triage states
+    // (triage/action/follow-up) matching the priority threshold — mirroring getPriorityCounts
+    // which also has no starCount restriction. Applying starCount = 0 here would exclude
+    // already-actioned threads that have high priority scores, producing zero results.
+    const priorityModeActive =
+      filters?.minPriority !== undefined && mode !== INBOX_MODES.BLOCKED;
 
-    if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
-      threadFilter =
-        'AND thread."isArchived" = false AND thread."starCount" > 0';
-    } else if (mode === INBOX_MODES.BLOCKED) {
-      threadFilter = BLOCKED_MODE_THREAD_FILTER;
+    let threadFilter = priorityModeActive
+      ? 'AND thread."isArchived" = false'
+      : 'AND thread."isArchived" = false AND thread."starCount" = 0';
+
+    if (!priorityModeActive) {
+      if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
+        threadFilter =
+          'AND thread."isArchived" = false AND thread."starCount" > 0';
+      } else if (mode === INBOX_MODES.BLOCKED) {
+        threadFilter = BLOCKED_MODE_THREAD_FILTER;
+      }
     }
 
     let additionalFilters = "";
@@ -724,12 +734,24 @@ export class EmailsService {
       minPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
-    let threadFilter =
-      'AND thread."isArchived" = false AND thread."starCount" > 0';
+    // When minPriority is set, drop the starCount mode filter so the priority inbox
+    // shows threads across all triage states — matching getPriorityCounts behaviour.
+    // Without this, combining starCount = 0 with priorityScore >= N returns 0 results
+    // because high-priority threads have typically been actioned (starCount > 0).
+    const priorityModeActive =
+      filters?.minPriority !== undefined && mode !== "blocked";
 
-    if (mode === "triage") {
-      threadFilter =
-        'AND thread."isArchived" = false AND thread."starCount" = 0';
+    let threadFilter = priorityModeActive
+      ? 'AND thread."isArchived" = false'
+      : 'AND thread."isArchived" = false AND thread."starCount" > 0';
+
+    if (!priorityModeActive) {
+      if (mode === "triage") {
+        threadFilter =
+          'AND thread."isArchived" = false AND thread."starCount" = 0';
+      } else if (mode === "blocked") {
+        threadFilter = BLOCKED_MODE_THREAD_FILTER;
+      }
     } else if (mode === "blocked") {
       threadFilter = BLOCKED_MODE_THREAD_FILTER;
     }

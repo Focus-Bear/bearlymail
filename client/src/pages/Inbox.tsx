@@ -95,9 +95,9 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
   const splitViewNavCtx = { emails, splitView, setSelectedEmailIndex };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
+    <div className="h-dvh" style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
       <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={handleCloseMobileMenu} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', minWidth: 0 }}>
         <InboxOverlays
           tourStep={onboarding.tourStep} tourSteps={tourSteps}
           onSkipTour={() => onboarding.handleSkipTour()}

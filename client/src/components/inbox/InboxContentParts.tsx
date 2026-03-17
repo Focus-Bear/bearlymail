@@ -584,6 +584,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           padding: isMobile
             ? `${theme.spacing.sm} ${theme.spacing.xs}`
             : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
+          minWidth: 0,
         }}
       >
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -605,6 +606,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
         transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
         borderRight: computeEmailListBorderRight(splitView, isMobile),
+        minWidth: 0,
       }}
     >
       <div

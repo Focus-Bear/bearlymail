@@ -111,7 +111,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
   };
 
   return (
-    <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+    <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
       <InboxEmailListPanel {...listPanelProps} />
       {!splitView.isMobile && splitView.selectedEmailId && !splitView.panelExpanded && (
         <ResizableDivider

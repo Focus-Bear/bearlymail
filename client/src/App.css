@@ -169,3 +169,11 @@ button, a, input, select, textarea {
 @keyframes fall {
   to { transform: translateY(100vh) rotate(720deg); }
 }
+
+/* Dynamic viewport height utility — fixes inbox cutoff on mobile browsers
+   where 100vh includes the browser chrome (toolbar). 100dvh accounts for it.
+   The -webkit-fill-available fallback covers older iOS Safari (<15.4). */
+.h-dvh {
+  height: -webkit-fill-available;
+  height: 100dvh;
+}

@@ -375,7 +375,11 @@ describe("EmailsController", () => {
       const userId = "user-456";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.getPriorityCounts.mockResolvedValue({ high: 0, medium: 0, low: 0 });
+      mockEmailsService.getPriorityCounts.mockResolvedValue({
+        high: 0,
+        medium: 0,
+        low: 0,
+      });
 
       const result = await controller.getPriorityCounts(mockRequest);
 
@@ -386,7 +390,11 @@ describe("EmailsController", () => {
       const userId = "user-789";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.getPriorityCounts.mockResolvedValue({ high: 1, medium: 0, low: 0 });
+      mockEmailsService.getPriorityCounts.mockResolvedValue({
+        high: 1,
+        medium: 0,
+        low: 0,
+      });
 
       await controller.getPriorityCounts(mockRequest);
 
@@ -611,6 +619,8 @@ describe("EmailsController", () => {
         undefined,
         undefined,
         false,
+        false,
+        false,
       );
     });
 
@@ -640,6 +650,8 @@ describe("EmailsController", () => {
         100,
         undefined,
         undefined,
+        false,
+        false,
         false,
       );
     });
@@ -814,6 +826,8 @@ describe("EmailsController", () => {
         undefined,
         undefined,
         false,
+        false,
+        false,
       );
     });
 
@@ -838,6 +852,8 @@ describe("EmailsController", () => {
         50,
         undefined,
         undefined,
+        true,
+        true,
         true,
       );
     });

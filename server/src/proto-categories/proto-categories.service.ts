@@ -123,7 +123,9 @@ export class ProtoCategoriesService {
     });
 
     if (!protoCategory) {
-      throw new NotFoundException(`Proto category ${protoCategoryId} not found`);
+      throw new NotFoundException(
+        `Proto category ${protoCategoryId} not found`,
+      );
     }
 
     this.logger.log(

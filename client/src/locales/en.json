@@ -2016,7 +2016,8 @@
     "finalScore": "Final Score",
     "finalScoreDescription": "Base relevance + recency adjustment (capped at 0-100)",
     "close": "Close",
-    "searchAccounts": "Search in"
+    "searchAccounts": "Search in",
+    "stillSearching": "Still searching..."
   },
   "priority": {
     "high": "High Priority",

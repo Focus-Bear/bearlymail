@@ -48,6 +48,19 @@ export interface SearchEmailsOptions {
   ) => Promise<number | undefined>;
   accountTypes?: string[];
   skipLlmRanking?: boolean;
+  /**
+   * When true, skip the LLM-driven query expansion fallback in Phase 1.
+   * Used by the initial fast-search path (GET /emails/search?skipLlm=true)
+   * to return results within the 2s performance budget.
+   * LLM expansion is deferred to Phase 3 (POST /emails/search/expand).
+   */
+  skipLlmFallback?: boolean;
+  /**
+   * When true, skip the targeted provider sync step in syncAndFetchMatchedEmails.
+   * Use for Phase 1 (fast path) to avoid extra provider latency.
+   * Missing emails will be synced in the background.
+   */
+  skipSync?: boolean;
 }
 
 /**
@@ -93,6 +106,8 @@ export class EmailSearchService {
       calculateDaysSinceLastEmail,
       accountTypes,
       skipLlmRanking,
+      skipLlmFallback,
+      skipSync,
     } = options;
     const originalQuery = query;
     const searchStartTime = Date.now();
@@ -113,6 +128,7 @@ export class EmailSearchService {
           originalQuery,
           providersToSearch,
           onProgress,
+          skipLlmFallback,
         );
 
       if (rawEmails.length === 0) {
@@ -131,7 +147,12 @@ export class EmailSearchService {
 
       onProgress?.("fetching", "Fetching email details...");
       const { emails: matchedEmails, noResultsReason } =
-        await this.syncAndFetchMatchedEmails(userId, rawEmails, onProgress);
+        await this.syncAndFetchMatchedEmails(
+          userId,
+          rawEmails,
+          onProgress,
+          skipSync,
+        );
 
       if (matchedEmails.length === 0) {
         searchLogger.logSearchComplete(
@@ -316,6 +337,7 @@ export class EmailSearchService {
     originalQuery: string,
     providersToSearch: Array<{ type: string }>,
     onProgress?: SearchEmailsOptions["onProgress"],
+    skipLlmFallback?: boolean,
   ): Promise<{
     rawEmails: RawSearchEmail[];
     successfulQuery: string | null;
@@ -343,6 +365,22 @@ export class EmailSearchService {
       return {
         rawEmails: direct,
         successfulQuery: directSQ,
+        gmailQueries: [originalQuery],
+        queriesTried,
+      };
+    }
+
+    // Phase 1 fast path: skip LLM query expansion and return immediately.
+    // LLM-driven expansion is deferred to Phase 3 (POST /emails/search/expand),
+    // which the frontend calls asynchronously. This keeps Phase 1 within the
+    // 2s performance budget.
+    if (skipLlmFallback) {
+      this.logger.log(
+        `[SEARCH] skipLlmFallback=true — skipping LLM query expansion for Phase 1 (user ${userId})`,
+      );
+      return {
+        rawEmails: [],
+        successfulQuery: null,
         gmailQueries: [originalQuery],
         queriesTried,
       };
@@ -389,9 +427,19 @@ export class EmailSearchService {
     userId: string,
     rawEmails: RawSearchEmail[],
     onProgress?: SearchEmailsOptions["onProgress"],
+    skipSync?: boolean,
   ): Promise<{ emails: Email[]; noResultsReason?: string }> {
     const initial = await this.fetchMatchedDbEmails(userId, rawEmails);
     if (initial.length > 0) return { emails: initial };
+
+    // Phase 1 fast path: skip provider sync to stay within performance budget.
+    // Missing emails will become available after the next background sync.
+    if (skipSync) {
+      this.logger.log(
+        `[SEARCH] skipSync=true — skipping targeted provider sync for Phase 1 (user ${userId})`,
+      );
+      return { emails: [] };
+    }
 
     const messageIds = rawEmails
       .map((emailEntry) => emailEntry.messageId as string | undefined)
@@ -440,12 +488,7 @@ export class EmailSearchService {
     const syncedMap = new Map(
       syncedDbEmails.map((emailItem) => [emailItem.messageId, emailItem]),
     );
-    const synced: Email[] = [];
-    for (const rawEmail of rawEmails) {
-      const messageId = rawEmail.messageId as string | undefined;
-      if (messageId && syncedMap.has(messageId))
-        synced.push(syncedMap.get(messageId)!);
-    }
+    const synced = this.buildOrderedResults(rawEmails, syncedMap);
 
     if (synced.length === 0) {
       return {
@@ -455,6 +498,18 @@ export class EmailSearchService {
       };
     }
     return { emails: synced };
+  }
+
+  private buildOrderedResults(
+    rawEmails: RawSearchEmail[],
+    syncedMap: Map<string | undefined, Email>,
+  ): Email[] {
+    return rawEmails
+      .map((rawEmail) => {
+        const messageId = rawEmail.messageId as string | undefined;
+        return messageId ? syncedMap.get(messageId) : undefined;
+      })
+      .filter((email): email is Email => email != null);
   }
 
   private async getFilteredProviders(
@@ -477,42 +532,21 @@ export class EmailSearchService {
     userId: string,
     query: string,
   ): Promise<string[]> {
-    const naturalVariations = [query];
-    this.logger.log(
-      `[SEARCH] Generated ${naturalVariations.length} variations: ${naturalVariations.join(", ")}`,
-    );
-    searchLogger.logQueryVariations(userId, query, naturalVariations);
-
-    const gmailQueries: string[] = [];
-    for (const naturalVar of naturalVariations) {
-      try {
-        const gmailQuery =
-          await this.emailSearchRankingService.convertQueryToGmailSearch(
-            userId,
-            naturalVar,
-          );
-        if (gmailQuery && !gmailQueries.includes(gmailQuery)) {
-          gmailQueries.push(gmailQuery);
-        }
-      } catch (error) {
-        this.logger.warn(`Failed to convert variation "${naturalVar}"`, error);
-      }
-    }
-
-    if (gmailQueries.length === 0) {
+    searchLogger.logQueryVariations(userId, query, [query]);
+    try {
       const gmailQuery =
         await this.emailSearchRankingService.convertQueryToGmailSearch(
           userId,
           query,
         );
-      gmailQueries.push(gmailQuery);
+      const gmailQueries = gmailQuery ? [gmailQuery] : [query];
+      searchLogger.logGmailQueries(userId, query, gmailQueries);
+      return gmailQueries;
+    } catch (error) {
+      this.logger.warn(`Failed to convert query "${query}"`, error);
+      searchLogger.logGmailQueries(userId, query, [query]);
+      return [query];
     }
-
-    this.logger.log(
-      `[SEARCH] Will try ${gmailQueries.length} Gmail queries: ${gmailQueries.join(", ")}`,
-    );
-    searchLogger.logGmailQueries(userId, query, gmailQueries);
-    return gmailQueries;
   }
 
   private async buildSearchResults(
@@ -618,7 +652,7 @@ export class EmailSearchService {
   ): Promise<Email[]> {
     const messageIds = rawEmails
       .map((emailEntry) => emailEntry.messageId as string | undefined)
-      .filter((id): id is string => id !== null && id !== undefined);
+      .filter((id): id is string => id != null);
 
     if (messageIds.length === 0) {
       return [];

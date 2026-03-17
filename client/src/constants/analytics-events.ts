@@ -72,6 +72,7 @@ export const ANALYTICS_EVENTS = {
   SEARCH_HELP_CLICKED: 'search_help_clicked',
   SEARCH_PERFORMED: 'search_performed',
   SEARCH_RESULT_CLICKED: 'search_result_clicked',
+  SEARCH_SLOW: 'search_slow',
   SEARCH_VIEWED: 'search_viewed',
   SENDER_BLOCKED: 'sender_blocked',
   SENDER_UNBLOCKED: 'sender_unblocked',

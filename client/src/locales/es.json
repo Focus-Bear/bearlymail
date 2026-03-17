@@ -1863,7 +1863,8 @@
     "searching": "Buscando...",
     "aiRefining": "Refinando con IA...",
     "searchingMore": "Buscando con consultas alternativas...",
-    "title": "Buscar correos electrónicos"
+    "title": "Buscar correos electrónicos",
+    "stillSearching": "Aún buscando..."
   },
   "settings": {
     "addContext": {

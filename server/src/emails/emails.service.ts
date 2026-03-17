@@ -3327,6 +3327,8 @@ export class EmailsService implements OnModuleInit {
     onProgress?: (step: string, message: string) => void,
     accountTypes?: string[],
     skipLlmRanking?: boolean,
+    skipLlmFallback?: boolean,
+    skipSync?: boolean,
   ): Promise<
     Array<
       Email & {
@@ -3343,6 +3345,8 @@ export class EmailsService implements OnModuleInit {
         this.calculateDaysSinceLastEmail(uid, email),
       accountTypes,
       skipLlmRanking,
+      skipLlmFallback,
+      skipSync,
     });
   }
 

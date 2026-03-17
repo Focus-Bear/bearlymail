@@ -280,6 +280,10 @@ export class EmailsController {
       ? accountTypes.split(",")
       : undefined;
     const skipLlmRanking = skipLlm === "true";
+    // When skipLlm=true (Phase 1 fast path), also skip LLM fallback query
+    // generation and provider sync to keep response within the 2s budget.
+    const skipLlmFallback = skipLlmRanking;
+    const skipSync = skipLlmRanking;
     try {
       return await this.emailsService.searchEmails(
         req.user.userId,
@@ -288,6 +292,8 @@ export class EmailsController {
         undefined,
         selectedAccountTypes,
         skipLlmRanking,
+        skipLlmFallback,
+        skipSync,
       );
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
@@ -379,14 +385,15 @@ export class EmailsController {
     return this.emailsService.getPriorityExplanation(req.user.userId, id);
   }
 
+  private async getEmailOrThrow(userId: string, id: string): Promise<Email> {
+    const email = await this.emailsService.getEmailById(userId, id);
+    if (!email) throw new Error("Email not found");
+    return email;
+  }
+
   @Get(":id/thread")
   async getThread(@Request() req, @Param("id") id: string) {
-    // Get the email to find its threadId
-    const email = await this.emailsService.getEmailById(req.user.userId, id);
-    if (!email) {
-      throw new Error("Email not found");
-    }
-    // Return all emails in the thread, sorted by most recent first
+    const email = await this.getEmailOrThrow(req.user.userId, id);
     return this.emailsService.getThreadEmails(req.user.userId, email.threadId, {
       order: "DESC",
     });
@@ -394,10 +401,7 @@ export class EmailsController {
 
   @Get(":id")
   async getEmail(@Request() req, @Param("id") id: string) {
-    const email = await this.emailsService.getEmailById(req.user.userId, id);
-    if (!email) {
-      throw new Error("Email not found");
-    }
+    const email = await this.getEmailOrThrow(req.user.userId, id);
 
     // Include thread's githubMetadata if available
     if (email.emailThreadId) {
@@ -558,10 +562,7 @@ export class EmailsController {
     @Param("id") id: string,
     @Body() body?: { reason?: string; blockDomain?: boolean },
   ) {
-    const email = await this.emailsService.getEmailById(req.user.userId, id);
-    if (!email) {
-      throw new Error("Email not found");
-    }
+    const email = await this.getEmailOrThrow(req.user.userId, id);
 
     // Block the sender
     await this.emailAdminService.blockEmailSender(

@@ -215,9 +215,7 @@ describe("FeedbackController (integration)", () => {
     });
 
     it("should propagate UnprocessableEntityException (422) from service on invalid MIME", async () => {
-      const { UnprocessableEntityException } = await import(
-        "@nestjs/common"
-      );
+      const { UnprocessableEntityException } = await import("@nestjs/common");
       mockScreenshotsService.uploadScreenshot.mockRejectedValueOnce(
         new UnprocessableEntityException(
           'Unsupported file type "application/pdf".',
@@ -236,7 +234,10 @@ describe("FeedbackController (integration)", () => {
 
   describe("GET /feedback/admin", () => {
     it("should return paginated feedback list when admin guard passes", async () => {
-      const listResult = { items: [{ id: "fb-5", message: "Hi", screenshotUrl: null }], total: 1 };
+      const listResult = {
+        items: [{ id: "fb-5", message: "Hi", screenshotUrl: null }],
+        total: 1,
+      };
       mockFeedbackService.listFeedback.mockResolvedValueOnce(listResult);
 
       const res = await request(app.getHttpServer())

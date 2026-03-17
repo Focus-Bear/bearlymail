@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { MAX_TEXTAREA_HEIGHT_PX } from 'constants/numbers';
+
+const SLOW_SEARCH_FEEDBACK_DELAY_MS = 2000;
 
 interface SearchProgressProps {
   progressStep: string;
@@ -10,6 +12,16 @@ interface SearchProgressProps {
 
 export const SearchProgress: React.FC<SearchProgressProps> = ({ progressStep }) => {
   const { t } = useTranslation();
+  const [showSlowFeedback, setShowSlowFeedback] = useState(false);
+
+  // Show "still searching…" secondary message after 2s to reassure users
+  useEffect(() => {
+    setShowSlowFeedback(false);
+    const timer = setTimeout(() => {
+      setShowSlowFeedback(true);
+    }, SLOW_SEARCH_FEEDBACK_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [progressStep]);
 
   const getEmoji = () => {
     if (progressStep.includes('Crafting')) {
@@ -53,6 +65,18 @@ export const SearchProgress: React.FC<SearchProgressProps> = ({ progressStep }) 
       >
         {progressStep || t('search.searching')}
       </div>
+      {showSlowFeedback && (
+        <div
+          style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.sm,
+            fontStyle: 'italic',
+          }}
+        >
+          {t('search.stillSearching', 'Still searching…')}
+        </div>
+      )}
       <div
         style={{
           width: `${MAX_TEXTAREA_HEIGHT_PX}px`,

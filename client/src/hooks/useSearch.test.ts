@@ -129,6 +129,7 @@ describe('useSearch', () => {
         result_count: 1,
         selected_accounts: 0,
         phase: 'initial',
+        duration_ms: expect.any(Number),
       });
     });
 
@@ -332,5 +333,118 @@ describe('useSearch', () => {
 
       expect(result.current.query).toBe('new query');
     });
+  });
+});
+
+describe('search performance tracking (#1115)', () => {
+  it('includes duration_ms in SEARCH_PERFORMED event for Phase 1', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await waitFor(() => {
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+    });
+
+    act(() => {
+      result.current.setQuery('meeting notes');
+    });
+
+    const fakeEmail = { id: 'email-1', subject: 'Meeting', from: 'bob@example.com' };
+    mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
+    // Phase 2 ranking returns empty
+    mockedAxios.post.mockResolvedValueOnce({ data: [] });
+
+    const mockEvent = { preventDefault: jest.fn() } as any;
+    await act(async () => {
+      jest.advanceTimersByTime(100);
+      await result.current.handleSearch(mockEvent);
+    });
+
+    await waitFor(() => {
+      const searchPerformedCalls = mockedCaptureEvent.mock.calls.filter(
+        ([eventName]) => eventName === 'search_performed'
+      );
+      expect(searchPerformedCalls.length).toBeGreaterThan(0);
+      const initialCall = searchPerformedCalls.find(([, props]) => props?.phase === 'initial');
+      expect(initialCall).toBeDefined();
+      expect(typeof initialCall?.[1]?.duration_ms).toBe('number');
+    });
+  });
+
+  it('fires SEARCH_SLOW event when Phase 1 takes > 2000ms', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await waitFor(() => {
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+    });
+
+    act(() => {
+      result.current.setQuery('slow search query');
+    });
+
+    const fakeEmail = { id: 'email-slow', subject: 'Slow', from: 'slow@example.com' };
+    // Simulate slow response by manipulating Date.now
+    const realDateNow = Date.now;
+    let callCount = 0;
+    jest.spyOn(Date, 'now').mockImplementation(() => {
+      callCount++;
+      // First call (searchStartMs): return a fixed time
+      // Subsequent calls (phase1DurationMs): return 2500ms later
+      return callCount === 1 ? 1000000 : 1002500;
+    });
+
+    mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
+    mockedAxios.post.mockResolvedValueOnce({ data: [] });
+
+    const mockEvent = { preventDefault: jest.fn() } as any;
+    await act(async () => {
+      await result.current.handleSearch(mockEvent);
+    });
+
+    await waitFor(() => {
+      const slowCalls = mockedCaptureEvent.mock.calls.filter(
+        ([eventName]) => eventName === 'search_slow'
+      );
+      expect(slowCalls.length).toBeGreaterThan(0);
+      expect(slowCalls[0][1]).toMatchObject({
+        duration_ms: expect.any(Number),
+        phase: 'initial',
+      });
+    });
+
+    jest.spyOn(Date, 'now').mockRestore();
+    Date.now = realDateNow;
+  });
+
+  it('does NOT fire SEARCH_SLOW when Phase 1 is fast', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await waitFor(() => {
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+    });
+
+    act(() => {
+      result.current.setQuery('fast query');
+    });
+
+    // Simulate fast response: Date.now returns same value both times
+    jest.spyOn(Date, 'now').mockReturnValue(1000000);
+
+    const fakeEmail = { id: 'email-fast', subject: 'Fast', from: 'fast@example.com' };
+    mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
+    mockedAxios.post.mockResolvedValueOnce({ data: [] });
+
+    const mockEvent = { preventDefault: jest.fn() } as any;
+    await act(async () => {
+      await result.current.handleSearch(mockEvent);
+    });
+
+    await waitFor(() => {
+      const slowCalls = mockedCaptureEvent.mock.calls.filter(
+        ([eventName]) => eventName === 'search_slow'
+      );
+      expect(slowCalls).toHaveLength(0);
+    });
+
+    jest.spyOn(Date, 'now').mockRestore();
   });
 });

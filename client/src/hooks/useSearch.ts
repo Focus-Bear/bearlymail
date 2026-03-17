@@ -59,6 +59,7 @@ async function runPhase2Ranking(
   selectedAccountTypes: string[],
   setters: Pick<SearchStateSetters, 'setSearchResults' | 'setIsRefining'>
 ): Promise<void> {
+  const phase2StartMs = Date.now();
   try {
     const rankResponse = await axios.post(`${API_URL}/emails/search/rank`, { emailIds, query, maxResults: 50 });
     if (currentSession === searchSessionRef.current) {
@@ -66,12 +67,14 @@ async function runPhase2Ranking(
       if (rankedData?.length > 0) {
         setters.setSearchResults(rankedData);
       }
+      const phase2DurationMs = Date.now() - phase2StartMs;
       captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
         query_length: query.trim().length,
         has_query: !!query.trim(),
         result_count: rankedData?.length || 0,
         selected_accounts: selectedAccountTypes.length,
         phase: 'refined',
+        duration_ms: phase2DurationMs,
       });
     }
   } catch (rankError) {
@@ -90,6 +93,7 @@ async function runPhase3Expansion(
   selectedAccountTypes: string[],
   setters: Pick<SearchStateSetters, 'setSearchResultsUpdater' | 'setIsRefining' | 'setProgressStep'>
 ): Promise<void> {
+  const phase3StartMs = Date.now();
   setters.setProgressStep('Searching with alternative queries...');
   try {
     const expandResponse = await axios.post(`${API_URL}/emails/search/expand`, { query, existingEmailIds: [] });
@@ -104,12 +108,14 @@ async function runPhase3Expansion(
             ? [createNoResultsMarker(query, 'No emails found even with alternative queries')]
             : merged;
         });
+        const phase3DurationMs = Date.now() - phase3StartMs;
         captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
           query_length: query.trim().length,
           has_query: !!query.trim(),
           result_count: expandedData.length,
           selected_accounts: selectedAccountTypes.length,
           phase: 'expanded',
+          duration_ms: phase3DurationMs,
         });
       }
     }
@@ -123,26 +129,39 @@ async function runPhase3Expansion(
   }
 }
 
+const SEARCH_SLOW_THRESHOLD_MS = 2000;
+
 async function processSearchResults(
   responseData: any[],
   query: string,
   currentSession: number,
   searchSessionRef: MutableRefObject<number>,
   selectedAccountTypes: string[],
-  setters: SearchStateSetters
+  setters: SearchStateSetters,
+  searchStartMs: number
 ): Promise<void> {
   if (responseData[0]?.debugInfo?.queriesTried) {
     setters.setQueriesTried(responseData[0].debugInfo.queriesTried);
   }
   setters.setSearchResults(responseData);
   setters.setLoading(false);
+  const phase1DurationMs = Date.now() - searchStartMs;
   captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
     query_length: query.trim().length,
     has_query: !!query.trim(),
     result_count: responseData.length,
     selected_accounts: selectedAccountTypes.length,
     phase: 'initial',
+    duration_ms: phase1DurationMs,
   });
+  if (phase1DurationMs > SEARCH_SLOW_THRESHOLD_MS) {
+    captureEvent(ANALYTICS_EVENTS.SEARCH_SLOW, {
+      query_length: query.trim().length,
+      duration_ms: phase1DurationMs,
+      result_count: responseData.length,
+      phase: 'initial',
+    });
+  }
   const isNoResults = responseData.length === 1 && responseData[0]?.id === SEARCH_RESULT_NO_RESULTS;
   if (!isNoResults) {
     const emailIds = responseData
@@ -220,6 +239,7 @@ export const useSearch = () => {
       }
 
       const currentSession = ++searchSessionRef.current;
+      const searchStartMs = Date.now();
       setLoading(true);
       setIsRefining(false);
       setHasSearched(true);
@@ -256,7 +276,8 @@ export const useSearch = () => {
           currentSession,
           searchSessionRef,
           selectedAccountTypes,
-          stateSetters
+          stateSetters,
+          searchStartMs
         );
       } catch (error: any) {
         stopProgress();

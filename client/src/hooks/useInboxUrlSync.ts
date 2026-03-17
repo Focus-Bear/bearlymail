@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useEffectEvent, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
 import { MODE_ACTION, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
@@ -39,7 +39,8 @@ export function useInboxUrlSync({
 }: UrlSyncParams) {
   const basePath = isFocusedMode ? '/focused-inbox' : '/inbox';
   const isInitialMount = useRef(true);
-  const lastUrlRef = useRef<string>('');
+  const { pathname } = useLocation();
+  const lastUrlRef = useRef<string>(pathname);
 
   // Initial mount: restore split view email from URL and set mode if missing from URL.
   useEffect(() => {
@@ -69,8 +70,9 @@ export function useInboxUrlSync({
     }
   }, [mode, splitViewSelectedEmailId, navigate, basePath]);
 
-  // Sync mode/split view from URL params when they change (browser back/forward).
-  useEffect(() => {
+  // useEffectEvent gives this callback always-fresh access to splitViewSelectedEmailId
+  // without adding it to the dependency array, preventing stale-closure spurious closeEmail() calls.
+  const onUrlParamsChanged = useEffectEvent(() => {
     if (isInitialMount.current) {
       return;
     }
@@ -82,5 +84,10 @@ export function useInboxUrlSync({
     } else if (!urlThreadId && splitViewSelectedEmailId) {
       closeEmail();
     }
+  });
+
+  // Sync mode/split view from URL params when they change (browser back/forward).
+  useEffect(() => {
+    onUrlParamsChanged();
   }, [urlMode, urlThreadId]);
 }

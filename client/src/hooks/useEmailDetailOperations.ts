@@ -214,6 +214,7 @@ export function useEmailDetailOperations(
   const summaryRef = useRef<string | null>(summary);
   const emailRef = useRef<any>(email);
   const timezoneRef = useRef<string | undefined>(undefined);
+  const lastAcceleratedRef = useRef<string | null>(null);
 
   useEffect(() => {
     axios
@@ -235,6 +236,8 @@ export function useEmailDetailOperations(
         summaryAbortControllerRef.current.abort();
         summaryAbortControllerRef.current = null;
       }
+      // Reset accelerate dedup guard when switching emails or closing the panel
+      lastAcceleratedRef.current = null;
     }
     previousIdRef.current = id ?? null;
   }, [id]);
@@ -403,9 +406,12 @@ export function useEmailDetailOperations(
       }
 
       axios.put(`${API_URL}/emails/${id}/read`).catch(err => console.error('Error marking as read:', err));
-      axios
-        .post(`${API_URL}/emails/${id}/accelerate`)
-        .catch(err => console.debug('Job acceleration not available:', err.message));
+      if (id && id !== lastAcceleratedRef.current) {
+        lastAcceleratedRef.current = id;
+        axios
+          .post(`${API_URL}/emails/${id}/accelerate`)
+          .catch(err => console.debug('Job acceleration not available:', err.message));
+      }
 
       return emailData;
     } catch (error) {

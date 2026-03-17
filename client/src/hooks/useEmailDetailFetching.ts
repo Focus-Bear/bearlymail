@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import axios from 'axios';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
@@ -50,11 +50,18 @@ function toggleThreadItemInSet(prev: Set<string>, itemId: string): Set<string> {
   return newSet;
 }
 
-function triggerEmailSideEffects(emailId: string, emailThreadId?: string): void {
+function triggerEmailSideEffects(
+  emailId: string,
+  lastAcceleratedRef: React.MutableRefObject<string | null>,
+  emailThreadId?: string
+): void {
   axios.put(`${API_URL}/emails/${emailId}/read`).catch(err => console.error('Error marking as read:', err));
-  axios
-    .post(`${API_URL}/emails/${emailId}/accelerate`)
-    .catch(err => console.debug('Job acceleration not available:', err.message));
+  if (emailId && emailId !== lastAcceleratedRef.current) {
+    lastAcceleratedRef.current = emailId;
+    axios
+      .post(`${API_URL}/emails/${emailId}/accelerate`)
+      .catch(err => console.debug('Job acceleration not available:', err.message));
+  }
   if (emailThreadId) {
     axios
       .post(`${API_URL}/suggested-replies/${emailThreadId}/ensure`)
@@ -69,6 +76,7 @@ export function useEmailDetailFetching(emailId: string) {
   const [loading, setLoading] = useState(true);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastAcceleratedRef = useRef<string | null>(null);
 
   const { githubLinks, setGithubLinks, loadingGithub, hasGithubToken, fetchGithubInfo, refreshGithubInfo } =
     useEmailDetailGithub(emailId);
@@ -94,7 +102,7 @@ export function useEmailDetailFetching(emailId: string) {
           }
         }
 
-        triggerEmailSideEffects(emailId, emailData.emailThreadId);
+        triggerEmailSideEffects(emailId, lastAcceleratedRef, emailData.emailThreadId);
       } catch (error) {
         if (axios.isCancel(error)) {
           return;
@@ -133,6 +141,8 @@ export function useEmailDetailFetching(emailId: string) {
 
     if (emailId) {
       onEmailIdChanged(emailId);
+    } else {
+      lastAcceleratedRef.current = null;
     }
 
     return () => {

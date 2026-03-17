@@ -9,6 +9,8 @@ import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
+import { hasSendTimingSuggestion } from './toneCheckResult.helpers';
+
 interface DisputeResult {
   accepted: boolean;
   rulesToRemove: string[];
@@ -302,27 +304,6 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
       )}
     </div>
   );
-};
-
-/** Returns true if there is an inappropriate timing suggestion (from the dedicated field or legacy keyword scan). */
-const hasSendTimingSuggestion = (suggestions: string[], inappropriateTiming?: string | null): boolean => {
-  if (inappropriateTiming) {
-    return true;
-  }
-  // Fallback: legacy keyword scan for old API responses that may still embed timing in suggestions
-  const timingKeywords = [
-    'late',
-    'night',
-    'weekend',
-    'early',
-    'morning',
-    'timing',
-    'hour',
-    'after hours',
-    'business hours',
-    'off hours',
-  ];
-  return suggestions.some(suggestion => timingKeywords.some(kw => suggestion.toLowerCase().includes(kw)));
 };
 
 interface ToneIssuesListProps {

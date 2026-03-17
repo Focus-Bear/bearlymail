@@ -25,10 +25,6 @@ import {
   usePollingWithBackoff,
 } from './usePollingWithBackoff';
 
-// ---------------------------------------------------------------------------
-// computeBackoffDelay
-// ---------------------------------------------------------------------------
-
 describe('computeBackoffDelay', () => {
   it('should return a positive value for retry 0', () => {
     const delay = computeBackoffDelay(0);
@@ -54,10 +50,6 @@ describe('computeBackoffDelay', () => {
     expect(delay).toBeLessThanOrEqual(BACKOFF_MAX_MS + 500);
   });
 });
-
-// ---------------------------------------------------------------------------
-// parseRetryAfterMs
-// ---------------------------------------------------------------------------
 
 describe('parseRetryAfterMs', () => {
   it('returns null when error has no response', () => {
@@ -106,10 +98,6 @@ describe('parseRetryAfterMs', () => {
     expect(result).toBeNull();
   });
 });
-
-// ---------------------------------------------------------------------------
-// usePollingWithBackoff hook
-// ---------------------------------------------------------------------------
 
 describe('usePollingWithBackoff', () => {
   const KEY = 'test-category';

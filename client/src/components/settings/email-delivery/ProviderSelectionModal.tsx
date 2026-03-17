@@ -2,27 +2,18 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import {
-  COLOR_ERROR_DARK_ALT,
-  COLOR_ERROR_GOOGLE,
-  COLOR_INFO_BLUE,
-  COLOR_NAMED_WHITE,
-  COLOR_TRANSPARENT,
-} from 'constants/colors';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
+
+import { getProviderOptions,type ProviderOption } from './providerSelectionModal.helpers';
+
+export type { ProviderOption } from './providerSelectionModal.helpers';
 
 interface ProviderSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectProvider: (provider: 'gmail' | 'office365' | 'zoho') => void;
-}
-
-interface ProviderOption {
-  id: 'gmail' | 'office365' | 'zoho';
-  name: string;
-  description: string;
-  color: string;
 }
 
 interface ProviderOptionCardProps {
@@ -92,28 +83,7 @@ const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSel
   </button>
 );
 
-function getProviderOptions(tFunc: (key: string) => string): ProviderOption[] {
-  return [
-    {
-      id: 'gmail' as const,
-      name: 'Gmail',
-      description: tFunc('settings.emailAccounts.providers.gmail.description'),
-      color: COLOR_ERROR_GOOGLE,
-    },
-    {
-      id: 'office365' as const,
-      name: 'Office 365',
-      description: tFunc('settings.emailAccounts.providers.office365.description'),
-      color: COLOR_INFO_BLUE,
-    },
-    {
-      id: 'zoho' as const,
-      name: 'Zoho Mail',
-      description: tFunc('settings.emailAccounts.providers.zoho.description'),
-      color: COLOR_ERROR_DARK_ALT,
-    },
-  ];
-}
+
 
 export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   isOpen,

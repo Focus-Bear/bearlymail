@@ -7,12 +7,12 @@ import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers
 import { STRING_NONE } from 'constants/strings';
 import { AnalyzeProgress } from 'hooks/useSettingsData';
 
+import { shouldShowInsights } from './analysisProgressModal.helpers';
+
 interface AnalysisProgressModalProps {
   analyzeProgress: AnalyzeProgress;
   onDismiss: () => void;
 }
-
-const STAGES_WITH_INSIGHTS = ['analyzing', 'summarizing', 'complete'];
 
 interface StatItem {
   label: string;
@@ -118,12 +118,7 @@ const ProgressInsightsPanel: React.FC<ProgressInsightsPanelProps> = ({ insights 
   );
 };
 
-function shouldShowInsights(messageKey: string | undefined): boolean {
-  if (!messageKey) {
-    return false;
-  }
-  return STAGES_WITH_INSIGHTS.some(stage => messageKey.includes(stage));
-}
+
 
 export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({ analyzeProgress, onDismiss }) => {
   const { t } = useTranslation();

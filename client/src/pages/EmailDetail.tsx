@@ -14,7 +14,8 @@ import { EmailDetailAnimationOverlay } from 'components/email-detail/EmailDetail
 import { EmailDetailDebugInfo } from 'components/email-detail/EmailDetailDebugInfo';
 import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
 import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
-import { EmailPhishingWarning, shouldShowPhishingAlert } from 'components/email-detail/EmailPhishingWarning';
+import { EmailPhishingWarning } from 'components/email-detail/EmailPhishingWarning';
+import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { SummarySection } from 'components/email-detail/SummarySection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';

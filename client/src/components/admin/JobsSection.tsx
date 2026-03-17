@@ -8,7 +8,7 @@ import { SORT_ASC, SORT_DESC, TYPEOF_STRING } from 'constants/strings';
 
 import { DateRange, JobStat, JobStatsResponse, SortColumn, SortDirection } from './JobsSection.types';
 import { JobsSectionHeader } from './JobsSectionHeader';
-import { formatDuration, JobsTableBody } from './JobsTableBody';
+import { JobsTableBody } from './JobsTableBody';
 import { JobsTableHeader } from './JobsTableHeader';
 
 const REFRESH_INTERVAL_MS = 10000;
@@ -91,7 +91,7 @@ export const JobsSection: React.FC = () => {
       >
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <JobsTableHeader sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} t={t} />
-          <JobsTableBody sortedStats={sortedStats} t={t} formatDur={ms => formatDuration(ms, t)} />
+          <JobsTableBody sortedStats={sortedStats} t={t} />
         </table>
       </div>
     </div>

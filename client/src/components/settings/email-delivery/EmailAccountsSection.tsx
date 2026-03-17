@@ -7,57 +7,22 @@ import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { PROVIDER_GMAIL, PROVIDER_GOOGLE, PROVIDER_OFFICE365, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 
+import {
+  buildAllAccounts,
+  type EmailAccount,
+  getDisconnectConfirmKey,
+  getProviderColor,
+  getProviderName,
+} from './emailAccounts.helpers';
 import { ProviderSelectionModal } from './ProviderSelectionModal';
 
-interface EmailAccount {
-  id: string;
-  email: string;
-  name?: string;
-  isPrimary?: boolean;
-  provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO;
-  isSSO?: boolean;
-}
+export type { EmailAccount } from './emailAccounts.helpers';
 
 interface EmailAccountsSectionProps {
   googleAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean }>;
   office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   onFetchData: () => Promise<void>;
-}
-
-const PROVIDER_COLORS: Record<string, string> = {
-  [PROVIDER_GMAIL]: '#EA4335',
-  [PROVIDER_OFFICE365]: '#0078D4',
-  [PROVIDER_ZOHO]: '#C8202F',
-};
-const PROVIDER_NAMES: Record<string, string> = {
-  [PROVIDER_GMAIL]: 'Gmail',
-  [PROVIDER_OFFICE365]: 'Office 365',
-  [PROVIDER_ZOHO]: 'Zoho Mail',
-};
-const getProviderColor = (provider: string): string => PROVIDER_COLORS[provider] || theme.colors.primary.main;
-const getProviderName = (provider: string): string => PROVIDER_NAMES[provider] || provider;
-
-function buildAllAccounts(
-  googleAccounts: EmailAccountsSectionProps['googleAccounts'],
-  office365Accounts: EmailAccountsSectionProps['office365Accounts'],
-  zohoAccounts: EmailAccountsSectionProps['zohoAccounts']
-): EmailAccount[] {
-  return [
-    ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL })),
-    ...office365Accounts.map(acc => ({ ...acc, provider: PROVIDER_OFFICE365 })),
-    ...zohoAccounts.map(acc => ({ ...acc, provider: PROVIDER_ZOHO })),
-  ];
-}
-
-function getDisconnectConfirmKey(provider: string): string {
-  if (provider === PROVIDER_GMAIL) {
-    return 'settings.gmail.confirmDisconnect';
-  }
-  if (provider === PROVIDER_OFFICE365) {
-    return 'settings.office365.confirmDisconnect';
-  }
-  return 'settings.zoho.confirmDisconnect';
 }
 
 interface EmailAccountRowProps {

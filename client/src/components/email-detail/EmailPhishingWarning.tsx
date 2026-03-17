@@ -2,21 +2,15 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { CATEGORY_DANGEROUS_PHISHING, PHISHING_CONFIDENCE_HIGH, PHISHING_CONFIDENCE_MEDIUM } from 'constants/strings';
+import { CATEGORY_DANGEROUS_PHISHING } from 'constants/strings';
 
-export type PhishingConfidence = 'low' | 'medium' | 'high';
+import { type PhishingConfidence } from './emailPhishingWarning.helpers';
+
+export type { PhishingConfidence } from './emailPhishingWarning.helpers';
 
 interface EmailPhishingWarningProps {
   confidence: PhishingConfidence;
   reason: string;
-}
-
-/**
- * Determines whether a phishing warning banner should be shown.
- * Exported as a standalone helper so callers can gate rendering cheaply.
- */
-export function shouldShowPhishingAlert(confidence: PhishingConfidence | null | undefined): boolean {
-  return confidence === PHISHING_CONFIDENCE_MEDIUM || confidence === PHISHING_CONFIDENCE_HIGH;
 }
 const CONFIDENCE_COLORS: Record<PhishingConfidence, { bg: string; border: string; text: string }> = {
   low: { bg: '#fff8e1', border: '#ffe082', text: '#7c5a00' },

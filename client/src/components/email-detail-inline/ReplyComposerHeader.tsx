@@ -3,22 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { EMOJI_CLOSE, EMOJI_FORWARD, EMOJI_WRITE } from 'constants/emojis';
-import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
+import { REPLY_MODE_FORWARD } from 'constants/strings';
+
+import { getHeaderTitle } from './replyComposerHeader.helpers';
 
 interface ReplyComposerHeaderProps {
   replyMode: 'reply' | 'replyAll' | 'forward';
   onClose: () => void;
 }
-
-const getHeaderTitle = (replyMode: 'reply' | 'replyAll' | 'forward', tFunc: (key: string) => string): string => {
-  if (replyMode === REPLY_MODE_FORWARD) {
-    return tFunc('emailDetail.forward');
-  }
-  if (replyMode === REPLY_MODE_REPLY_ALL) {
-    return tFunc('emailDetail.replyAll');
-  }
-  return tFunc('emailDetail.reply');
-};
 
 export const ReplyComposerHeader: React.FC<ReplyComposerHeaderProps> = ({ replyMode, onClose }) => {
   const { t } = useTranslation();

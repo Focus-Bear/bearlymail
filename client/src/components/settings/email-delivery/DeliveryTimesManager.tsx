@@ -3,14 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { EMOJI_CLOSE } from 'constants/emojis';
-import { HOURS_12_HOUR_FORMAT, PADDING_START_2 } from 'constants/numbers';
 
-const formatTime12h = (time24: string): string => {
-  const [hours, minutes] = time24.split(':').map(Number);
-  const period = hours >= HOURS_12_HOUR_FORMAT ? 'PM' : 'AM';
-  const hours12 = hours % HOURS_12_HOUR_FORMAT || HOURS_12_HOUR_FORMAT;
-  return `${hours12}:${minutes.toString().padStart(PADDING_START_2, '0')} ${period}`;
-};
+import { formatTime12h } from './deliveryTimesManager.helpers';
 
 interface DeliveryTimesManagerProps {
   deliveryTimes: string[];

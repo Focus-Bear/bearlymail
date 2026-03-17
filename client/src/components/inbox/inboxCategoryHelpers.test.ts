@@ -6,10 +6,6 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 import { buildDisplayCategories, buildEmailCategoryMap, buildOtherProtoGroups } from './inboxCategoryHelpers';
 
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
-
 jest.mock('components/inbox/CategoryAccordion', () => ({
   groupEmailsByCategory: jest.fn(),
 }));
@@ -19,10 +15,6 @@ jest.mock('hooks/useEmailFetching', () => ({
 }));
 
 const mockGroupEmailsByCategory = groupEmailsByCategory as jest.MockedFunction<typeof groupEmailsByCategory>;
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
 
 const MODE: InboxMode = 'action';
 const CATEGORY_OTHER = 'Other';
@@ -55,10 +47,6 @@ function makeEmail(overrides: Partial<Email> = {}): Email {
 function makeGroup(category: string, emails: Email[]): CategoryGroup {
   return { category, emails } as CategoryGroup;
 }
-
-// ---------------------------------------------------------------------------
-// buildEmailCategoryMap
-// ---------------------------------------------------------------------------
 
 describe('buildEmailCategoryMap', () => {
   beforeEach(() => {
@@ -101,10 +89,6 @@ describe('buildEmailCategoryMap', () => {
     expect(result.size).toBe(0);
   });
 });
-
-// ---------------------------------------------------------------------------
-// buildOtherProtoGroups
-// ---------------------------------------------------------------------------
 
 describe('buildOtherProtoGroups', () => {
   it('returns an empty array when there are no Other emails', () => {
@@ -161,10 +145,6 @@ describe('buildOtherProtoGroups', () => {
     expect(result[0].emails).toHaveLength(1);
   });
 });
-
-// ---------------------------------------------------------------------------
-// buildDisplayCategories
-// ---------------------------------------------------------------------------
 
 describe('buildDisplayCategories', () => {
   beforeEach(() => {

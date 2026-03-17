@@ -1,18 +1,10 @@
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup,SIDEBAR_SCROLL_DELAY_MS } from './sidebar.helpers';
 
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
 const translateMock = (key: string): string => key;
 
 function isGroup(item: unknown): item is SettingsSubNavGroup {
   return Array.isArray((item as { items?: unknown } | null)?.items);
 }
-
-// ---------------------------------------------------------------------------
-// getSettingsNavItems
-// ---------------------------------------------------------------------------
 
 describe('getSettingsNavItems', () => {
   it('returns exactly 4 top-level nav groups', () => {
@@ -87,10 +79,6 @@ describe('getSettingsNavItems', () => {
     expect(firstGroup.label).toBe('TRANSLATED:settings.nav.emailDelivery');
   });
 });
-
-// ---------------------------------------------------------------------------
-// makeScrollToSection
-// ---------------------------------------------------------------------------
 
 describe('makeScrollToSection', () => {
   beforeEach(() => {

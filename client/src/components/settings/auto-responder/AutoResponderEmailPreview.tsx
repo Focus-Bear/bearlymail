@@ -6,6 +6,8 @@ import { API_URL } from 'config/api';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { PRIORITY_LEVEL_HIGH, PRIORITY_LEVEL_LOW, STRING_NONE } from 'constants/strings';
 
+import { formatDate } from './autoResponderEmailPreview.helpers';
+
 interface RecentEmail {
   id: string;
   from: string;
@@ -103,10 +105,7 @@ async function loadEmailPreview(emailId: string, token: string): Promise<EmailPr
   return previewJson.preview;
 }
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+
 
 interface PreviewContentProps {
   preview: EmailPreviewResult | null;

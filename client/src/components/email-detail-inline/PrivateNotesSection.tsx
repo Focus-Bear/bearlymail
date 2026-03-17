@@ -7,26 +7,12 @@ import { captureEvent } from 'utils/posthog';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { MINUTES_PER_HOUR, MS_PER_SECOND, NOTES_PREVIEW_MAX_CHARS, SECONDS_PER_MINUTE } from 'constants/numbers';
+import { NOTES_PREVIEW_MAX_CHARS } from 'constants/numbers';
+
+import { humanizeDuration } from './privateNotes.helpers';
 
 const DEBOUNCE_MS = 1000;
 const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;
-
-function humanizeDuration(ms: number): string {
-  const seconds = Math.floor(ms / MS_PER_SECOND);
-  if (seconds < 5) {
-    return 'just now';
-  }
-  if (seconds < SECONDS_PER_MINUTE) {
-    return `${seconds}s ago`;
-  }
-  const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
-  if (minutes < MINUTES_PER_HOUR) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
-  return `${hours}h ago`;
-}
 
 interface PrivateNotesSectionProps {
   noteContent: string;

@@ -29,6 +29,13 @@ import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
+import {
+  computeCanRenderCategories,
+  computeEmailListBorderRight,
+  computeEmailListFlex,
+  computeIsEmailsEmpty,
+} from './inboxContentParts.helpers';
+
 // ---------------------------------------------------------------------------
 // InboxEmailItem
 // ---------------------------------------------------------------------------
@@ -298,70 +305,6 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
     </CategoryAccordion>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Helper functions for InboxEmailListPanel
-// ---------------------------------------------------------------------------
-
-function computeEmailListBorderRight(
-  splitView: {
-    selectedEmailId: string | null | undefined;
-    panelExpanded: boolean;
-  },
-  isMobile: boolean,
-): string {
-  if (!isMobile && splitView.selectedEmailId && !splitView.panelExpanded) {
-    return `1px solid ${theme.colors.border.light}`;
-  }
-  return 'none';
-}
-
-function computeCanRenderCategories(
-  loading: boolean,
-  isRefetchingWithoutData: boolean,
-  hasInitiallyLoaded: boolean,
-  loadingModeSwitch: boolean,
-  fetchError: string | null | undefined,
-  categoriesCount: number
-): boolean {
-  if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) {
-    return false;
-  }
-  if (loadingModeSwitch || fetchError || categoriesCount === 0) {
-    return false;
-  }
-  return true;
-}
-
-function computeIsEmailsEmpty(
-  isRefetchingWithoutData: boolean,
-  categorySummary: CategorySummaryItem[] | null | undefined,
-  loading: boolean,
-  loadingModeSwitch: boolean,
-  emailsCount: number
-): boolean {
-  if (isRefetchingWithoutData) {
-    return false;
-  }
-  if (categorySummary !== null && categorySummary !== undefined) {
-    return categorySummary.length === 0 && !loading && !loadingModeSwitch;
-  }
-  return emailsCount === 0 && !loading && !loadingModeSwitch;
-}
-
-function computeEmailListFlex(splitView: {
-  selectedEmailId: string | null | undefined;
-  panelExpanded: boolean;
-  splitPosition: number;
-}): number | string {
-  if (splitView.panelExpanded && splitView.selectedEmailId) {
-    return 0;
-  }
-  if (splitView.selectedEmailId) {
-    return `0 0 ${splitView.splitPosition}%`;
-  }
-  return 1;
-}
 
 // ---------------------------------------------------------------------------
 // InboxCategoryList — renders the category accordion list

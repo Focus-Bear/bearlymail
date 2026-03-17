@@ -9,23 +9,11 @@ import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { STRING_NONE, TYPEOF_OBJECT } from 'constants/strings';
 
-const BUTTON_VARIANT_PRIMARY = 'primary' as const;
+import { formatImportDetails, type ImportResult, parseImportFile } from './dataExport.helpers';
 
-interface ImportResult {
-  success: boolean;
-  imported: {
-    profile: boolean;
-    batchSchedule: boolean;
-    blockedSenders: number;
-    blockedKeywords: number;
-    contexts: number;
-    toneRules: number;
-    summarizationRules: number;
-    autoResponderSettings: boolean;
-  };
-  skipped: { blockedSenders: number; blockedKeywords: number; contexts: number };
-  errors: string[];
-}
+export type { ImportResult } from './dataExport.helpers';
+
+const BUTTON_VARIANT_PRIMARY = 'primary' as const;
 
 interface ActionButtonProps {
   onClick: () => void;
@@ -106,52 +94,7 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-function parseImportFile(text: string, tFunc: (tKey: string) => string): unknown {
-  let importData: unknown;
-  try {
-    importData = JSON.parse(text);
-  } catch {
-    throw new Error(tFunc('settings.dataExport.invalidFile'));
-  }
-  if (
-    !importData ||
-    typeof importData !== 'object' ||
-    !('version' in (importData as Record<string, unknown>)) ||
-    !('exportedAt' in (importData as Record<string, unknown>))
-  ) {
-    throw new Error(tFunc('settings.dataExport.invalidFile'));
-  }
-  return importData;
-}
 
-function formatImportDetails(result: ImportResult): string {
-  const details: string[] = [];
-  if (result.imported.profile) {
-    details.push('profile');
-  }
-  if (result.imported.batchSchedule) {
-    details.push('batch schedule');
-  }
-  if (result.imported.blockedSenders > 0) {
-    details.push(`${result.imported.blockedSenders} blocked sender(s)`);
-  }
-  if (result.imported.blockedKeywords > 0) {
-    details.push(`${result.imported.blockedKeywords} blocked keyword(s)`);
-  }
-  if (result.imported.contexts > 0) {
-    details.push(`${result.imported.contexts} context(s)`);
-  }
-  if (result.imported.toneRules > 0) {
-    details.push(`${result.imported.toneRules} tone rule(s)`);
-  }
-  if (result.imported.summarizationRules > 0) {
-    details.push(`${result.imported.summarizationRules} summarization rule(s)`);
-  }
-  if (result.imported.autoResponderSettings) {
-    details.push('auto-responder settings');
-  }
-  return details.length > 0 ? details.join(', ') : 'no new data';
-}
 
 async function submitImport(importData: unknown, token: string | null): Promise<ImportResult> {
   const response = await fetch(`${API_URL}/users/me/import`, {

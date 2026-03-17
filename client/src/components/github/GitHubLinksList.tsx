@@ -5,6 +5,8 @@ import { GitHubLink } from 'types/email';
 import { GitHubLinkCard } from 'components/github/GitHubLinkCard';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
+import { getActionKey,getDedupeKey } from './gitHubLinksList.helpers';
+
 interface GitHubLinksListProps {
   links: GitHubLink[];
   /** GitHub-related suggested actions to distribute to matching link cards. */
@@ -14,32 +16,6 @@ interface GitHubLinksListProps {
   /** Email context forwarded to modals inside each card. */
   email?: { subject?: string; body?: string; from?: string; fromName?: string } | null;
 }
-
-// Primary key is owner/repo/number - this is the most reliable way to identify a GitHub issue/PR
-const getDedupeKey = (link: GitHubLink): string => {
-  return `${link.owner}/${link.repo}#${link.number}`.toLowerCase();
-};
-
-/** Build a dedupeKey from suggested-action metadata (issueInfo or defaultRepo). */
-const getActionKey = (action: SuggestedAction): string | null => {
-  const info = action.metadata?.issueInfo as
-    | { owner: string; repo: string; number?: number }
-    | undefined;
-  if (info?.owner && info?.repo && info?.number != null) {
-    return `${info.owner}/${info.repo}#${info.number}`.toLowerCase();
-  }
-  if (info?.owner && info?.repo) {
-    // Create-issue action targets a repo, not a specific issue
-    return `${info.owner}/${info.repo}`.toLowerCase();
-  }
-  const defaultRepo = action.metadata?.defaultRepo as
-    | { owner: string; repo: string }
-    | undefined;
-  if (defaultRepo?.owner && defaultRepo?.repo) {
-    return `${defaultRepo.owner}/${defaultRepo.repo}`.toLowerCase();
-  }
-  return null;
-};
 
 export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({
   links,

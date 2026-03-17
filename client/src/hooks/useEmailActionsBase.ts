@@ -95,6 +95,7 @@ function useStarCountMutation({
 
       if (mode === MODE_TRIAGE && starCount > 0) {
         dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
+        removeEmailFromCache(emailId);
         onSuggestionRemove?.(emailId);
         onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
         const tid = setTimeout(() => {

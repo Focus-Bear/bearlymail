@@ -96,8 +96,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
       setInfo(response.data);
     } catch (err) {
       console.error('[IcsInviteCard] Failed to fetch ICS info:', err);
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      const serverMessage = axiosError?.response?.data?.message;
+      const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
       setError(
         serverMessage
           ? `Could not parse calendar invite: ${serverMessage}`
@@ -127,8 +126,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
       }
     } catch (err) {
       console.error('[IcsInviteCard] Failed to add ICS event to calendar:', err);
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      const serverMessage = axiosError?.response?.data?.message;
+      const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
       setError(
         serverMessage
           ? `Could not add event to calendar: ${serverMessage}`

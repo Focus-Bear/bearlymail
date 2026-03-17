@@ -56,7 +56,7 @@ export function useInboxFilters() {
   const [filters, setFilters] = useState<InboxFilter>(loadInitialFilters);
 
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; label: string }>>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
@@ -82,14 +82,17 @@ export function useInboxFilters() {
     }
   }, []);
 
-  // Fetch available categories
+  // Fetch available categories from inbox-summary (contains id+name with stable UUIDs).
   const fetchCategories = useCallback(async () => {
     setLoadingCategories(true);
     try {
-      const response = await axios.get<string[]>(`${API_URL}/emails/categories`);
-      setAvailableCategories(response.data);
+      const summaryResp = await axios.get(`${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`);
+      const cats = summaryResp.data?.categories ?? [];
+      // Each category must have a UUID id — if id is missing, that's a server-side data bug.
+      setAvailableCategories(cats.map((cat: { id?: string; name?: string }) => ({ id: cat.id ?? cat.name, label: cat.name ?? cat.id })));
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error('Failed to fetch categories from inbox-summary:', error);
+      // Do not fall back to the deprecated /emails/categories endpoint.
     } finally {
       setLoadingCategories(false);
     }

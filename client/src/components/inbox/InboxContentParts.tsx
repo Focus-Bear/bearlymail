@@ -23,7 +23,6 @@ import {
   MODE_FOLLOW_UP,
   MODE_SCHEDULED,
   MODE_TRIAGE,
-  PARAM_CATEGORIES,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
@@ -252,11 +251,8 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
     try {
       const params = new URLSearchParams();
       params.append('mode', mode);
-      if (categoryItem.id) {
-        params.append(PARAM_CATEGORY_IDS, categoryItem.id);
-      } else {
-        params.append(PARAM_CATEGORIES, catName);
-      }
+      // categoryItem.id must be a UUID — missing UUID is a server-side data bug.
+      params.append(PARAM_CATEGORY_IDS, categoryItem.id ?? catName);
       params.append('limit', INBOX_FETCH_LIMIT.toString());
       params.append('offset', '0');
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);

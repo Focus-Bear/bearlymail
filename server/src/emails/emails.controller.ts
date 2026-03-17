@@ -61,7 +61,6 @@ export class EmailsController {
       includeBatched?: string;
       mode?: "triage" | "action" | "follow-up" | "blocked";
       accounts?: string;
-      categories?: string;
       categoryIds?: string;
       minPriority?: string;
       page?: string;
@@ -73,7 +72,6 @@ export class EmailsController {
       includeBatched,
       mode = "triage",
       accounts,
-      categories,
       categoryIds,
       minPriority,
       page: pageParam,
@@ -83,9 +81,6 @@ export class EmailsController {
     // Parse filter parameters
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
-      : undefined;
-    const categoryList = categories
-      ? categories.split(",").filter(Boolean)
       : undefined;
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
@@ -109,7 +104,6 @@ export class EmailsController {
       mode,
       {
         accountIds,
-        categories: categoryList,
         categoryIds: categoryIdList,
         minPriority: minPriorityValue,
       },
@@ -133,7 +127,9 @@ export class EmailsController {
 
   @Get("categories")
   async getCategories(@Request() req) {
-    // Return list of unique categories for filtering
+    // @deprecated — only kept because CategoryOverrideModal still consumes it.
+    // The inbox filter bar no longer falls back to this endpoint; it uses inbox-summary instead.
+    // Remove this endpoint once CategoryOverrideModal is migrated to use inbox-summary.
     return this.emailsService.getCategories(req.user.userId);
   }
 
@@ -147,15 +143,11 @@ export class EmailsController {
     @Request() req,
     @Query("mode")
     mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
-    @Query("categories") categories?: string,
     @Query("categoryIds") categoryIds?: string,
     @Query("minPriority") minPriority?: string,
     @Query("includeThreadIds") includeThreadIds?: string,
     @Query("accounts") accounts?: string,
   ) {
-    const categoryList = categories
-      ? categories.split(",").filter(Boolean)
-      : undefined;
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
@@ -166,7 +158,6 @@ export class EmailsController {
       : undefined;
 
     return this.emailsService.getInboxSummary(req.user.userId, mode, {
-      categories: categoryList,
       categoryIds: categoryIdList,
       minPriority: minPriorityValue,
       includeThreadIds: shouldIncludeThreadIds,

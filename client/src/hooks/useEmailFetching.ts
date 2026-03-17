@@ -26,7 +26,6 @@ import {
   ERROR_NETWORK,
   MODE_AUTORESPONDED,
   MODE_SCHEDULED,
-  PARAM_CATEGORIES,
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
@@ -69,20 +68,12 @@ interface UseEmailFetchingProps {
 
 /**
  * Compute the stable category key used as the canonical identifier throughout the client.
- * When a UUID is available we use it — it's immune to name encoding/whitespace differences.
- * Falls back to the human-readable name for categories without a UUID (e.g. "Other",
- * auto-responded categories).
+ * The UUID from the summary API is always used as the key — it is immune to name
+ * encoding/whitespace differences. A missing UUID is a data bug to fix server-side,
+ * not something to work around here.
  */
 export function getCategoryKey(id: string | null | undefined, name: string): string {
   return id ?? name;
-}
-
-/**
- * Detect whether a category key is a UUID (v4-ish format).
- * Used internally to route API params: UUID keys use `categoryIds=`, name keys use `categories=`.
- */
-function isUuidKey(key: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
 }
 
 async function fetchAutoRespondedEmails(
@@ -439,7 +430,8 @@ function appendFilterParams(params: URLSearchParams, filters: InboxFilter | unde
     return;
   }
   if (filters.categories?.length) {
-    params.append(PARAM_CATEGORIES, filters.categories.join(','));
+    // Only send categoryIds= (UUID). Categories without a UUID are a server-side data bug.
+    params.append(PARAM_CATEGORY_IDS, filters.categories.join(','));
   }
   if (filters.minPriority !== null && filters.minPriority !== undefined) {
     params.append('minPriority', filters.minPriority.toString());
@@ -459,9 +451,7 @@ function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSear
 
 /**
  * Build query params for a category email fetch.
- * When categoryKey is a UUID we use `categoryIds=` so the server resolves to the
- * canonical name — avoiding all URL-encoding and name-format fragility.
- * When categoryKey is a plain name (no UUID available) we fall back to `categories=`.
+ * Always uses `categoryIds=` (UUID). A missing UUID is a server-side data bug.
  */
 function buildCategoryParamsImpl(
   mode: InboxMode,
@@ -470,11 +460,7 @@ function buildCategoryParamsImpl(
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
-  if (isUuidKey(categoryKey)) {
-    params.append(PARAM_CATEGORY_IDS, categoryKey);
-  } else {
-    params.append(PARAM_CATEGORIES, categoryKey);
-  }
+  params.append(PARAM_CATEGORY_IDS, categoryKey);
   params.append('limit', INBOX_FETCH_LIMIT.toString());
   params.append('offset', '0');
   if (filters) {

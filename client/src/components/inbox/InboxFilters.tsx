@@ -14,7 +14,7 @@ interface InboxFiltersProps {
   isFilterBarVisible: boolean;
   filters: InboxFilter;
   connectedAccounts: ConnectedAccount[];
-  availableCategories: string[];
+  availableCategories: Array<{ id: string; label: string }>;
   loadingAccounts: boolean;
   loadingCategories: boolean;
   hasActiveFilters: boolean;
@@ -457,8 +457,8 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   }));
 
   const categoryOptions = availableCategories.map(category => ({
-    id: category,
-    label: category,
+    id: category.id,
+    label: category.label,
   }));
 
   // Hide account filter if only one account

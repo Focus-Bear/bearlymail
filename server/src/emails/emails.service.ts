@@ -307,7 +307,6 @@ export class EmailsService {
     userId: string,
     mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     filters?: {
-      categories?: string[];
       categoryIds?: string[];
       minPriority?: number;
       includeThreadIds?: boolean;
@@ -498,11 +497,10 @@ export class EmailsService {
       }
     }
 
-    // Apply user-selected category filter in-memory (same as getInbox)
-    // Support both category names and category IDs for filtering
+    // Apply user-selected category filter in-memory using UUIDs only.
     let visibleCategories = categoryOrder;
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      // Filter by category IDs - reverse lookup from ID to name
+      // Filter by category IDs — reverse lookup from UUID to name
       const idToName = new Map<string, string>();
       categoryNameToId.forEach((id, name) => idToName.set(id, name));
       const categoryNamesFromIds = filters.categoryIds
@@ -510,10 +508,6 @@ export class EmailsService {
         .filter((name): name is string => name !== undefined);
       visibleCategories = categoryOrder.filter((cat) =>
         categoryNamesFromIds.includes(cat),
-      );
-    } else if (filters?.categories && filters.categories.length > 0) {
-      visibleCategories = categoryOrder.filter((cat) =>
-        filters.categories!.includes(cat),
       );
     }
 
@@ -609,7 +603,6 @@ export class EmailsService {
     mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     filters?: {
       accountIds?: string[];
-      categories?: string[];
       categoryIds?: string[];
       minPriority?: number;
     },
@@ -730,7 +723,6 @@ export class EmailsService {
     mode: string,
     filters?: {
       accountIds?: string[];
-      categories?: string[];
       minPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
@@ -836,7 +828,6 @@ export class EmailsService {
     perf: PerformanceTracker,
     filters?: {
       accountIds?: string[];
-      categories?: string[];
       categoryIds?: string[];
       minPriority?: number;
     },
@@ -868,11 +859,10 @@ export class EmailsService {
       );
     }
 
-    // Apply category filter (by name or by ID)
+    // Apply category filter by UUID only — resolve IDs to names for in-memory filtering.
     let categoryFilterNames: string[] | undefined;
 
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      // Resolve category IDs to names
       const categoryContexts = await this.userContextRepository.find({
         where: {
           userId,
@@ -888,8 +878,6 @@ export class EmailsService {
       categoryFilterNames = filters.categoryIds
         .map((id) => idToName.get(id))
         .filter((name): name is string => name !== undefined);
-    } else if (filters?.categories && filters.categories.length > 0) {
-      categoryFilterNames = filters.categories;
     }
 
     if (categoryFilterNames && categoryFilterNames.length > 0) {

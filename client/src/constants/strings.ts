@@ -403,7 +403,6 @@ export const ERROR_TYPE_NETWORK_ERROR = 'network_error' as const;
 
 // URL / API parameter names
 export const PARAM_CATEGORY_IDS = 'categoryIds' as const;
-export const PARAM_CATEGORIES = 'categories' as const;
 
 // Built-in email category names
 export const CATEGORY_NEWSLETTERS = 'Newsletters' as const;

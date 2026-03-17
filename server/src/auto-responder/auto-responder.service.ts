@@ -782,6 +782,7 @@ export class AutoResponderService {
     filters?: {
       categories?: string[];
       minPriority?: number;
+      maxPriority?: number;
       accountIds?: string[];
       offset?: number;
       limit?: number;

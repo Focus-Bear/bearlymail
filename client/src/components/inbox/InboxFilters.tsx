@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { FILTER_ALL } from 'constants/strings';
 import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
 import { PRIORITY_RANGES } from 'hooks/useInboxFilters';
 
@@ -20,7 +19,7 @@ interface InboxFiltersProps {
   hasActiveFilters: boolean;
   setAccountFilter: (accountIds: string[]) => void;
   setCategoryFilter: (categories: string[]) => void;
-  setPriorityFilter: (value: number | null) => void;
+  setPriorityFilter: (minPriority: number | null, maxPriority?: number | null) => void;
 }
 
 // Multi-select dropdown component with search
@@ -286,21 +285,30 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   );
 };
 
-// Single-select dropdown component
+// Single-select dropdown component for priority ranges (min + max)
+interface PriorityRangeOption {
+  label: string;
+  min: number | null;
+  max: number | null;
+  displayValue?: string;
+}
+
 interface SingleSelectDropdownProps {
   label: string;
-  options: Array<{ value: string | number | null; label: string; displayValue?: string }>;
-  selectedValue: string | number | null;
-  onChange: (value: number | null) => void;
+  options: readonly PriorityRangeOption[];
+  selectedMin: number | null;
+  selectedMax: number | null;
+  onChange: (min: number | null, max: number | null) => void;
 }
 
 interface SingleSelectOptionsListProps {
-  options: Array<{ value: string | number | null; label: string; displayValue?: string }>;
-  selectedValue: string | number | null;
-  onSelect: (value: number | null) => void;
+  options: readonly PriorityRangeOption[];
+  selectedMin: number | null;
+  selectedMax: number | null;
+  onSelect: (min: number | null, max: number | null) => void;
 }
 
-const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ options, selectedValue, onSelect }) => (
+const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ options, selectedMin, selectedMax, onSelect }) => (
   <div
     style={{
       position: 'absolute',
@@ -318,11 +326,14 @@ const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ optio
     }}
   >
     {options.map(option => {
-      const isSelected = option.value === selectedValue;
+      // Compare both min and max to determine selection
+      const minMatch = option.min === selectedMin;
+      const maxMatch = option.max === selectedMax;
+      const isSelected = minMatch && maxMatch;
       return (
         <div
-          key={String(option.value)}
-          onClick={() => onSelect(option.value === FILTER_ALL ? null : Number(option.value))}
+          key={option.label}
+          onClick={() => onSelect(option.min, option.max)}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             cursor: 'pointer',
@@ -354,7 +365,7 @@ const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ optio
   </div>
 );
 
-const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, options, selectedValue, onChange }) => {
+const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, options, selectedMin, selectedMax, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -368,7 +379,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, opti
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedOption = options.find(opt => opt.value === selectedValue);
+  const selectedOption = options.find(opt => opt.min === selectedMin && opt.max === selectedMax);
   const displayText = selectedOption
     ? `${selectedOption.label}${selectedOption.displayValue ? ` (${selectedOption.displayValue})` : ''}`
     : options[0]?.label || 'Select...';
@@ -411,9 +422,10 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, opti
       {isOpen && (
         <SingleSelectOptionsList
           options={options}
-          selectedValue={selectedValue}
-          onSelect={value => {
-            onChange(value);
+          selectedMin={selectedMin}
+          selectedMax={selectedMax}
+          onSelect={(min, max) => {
+            onChange(min, max);
             setIsOpen(false);
           }}
         />
@@ -446,8 +458,8 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
     onFilterChange?.();
   };
 
-  const handlePriorityChange = (value: number | null) => {
-    setPriorityFilter(value);
+  const handlePriorityChange = (min: number | null, max: number | null) => {
+    setPriorityFilter(min, max);
     onFilterChange?.();
   };
 
@@ -507,8 +519,9 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
       {/* Priority Filter */}
       <SingleSelectDropdown
         label={t('inbox.filters.priority')}
-        options={[...PRIORITY_RANGES]}
-        selectedValue={filters.minPriority}
+        options={PRIORITY_RANGES}
+        selectedMin={filters.minPriority}
+        selectedMax={filters.maxPriority}
         onChange={handlePriorityChange}
       />
     </div>

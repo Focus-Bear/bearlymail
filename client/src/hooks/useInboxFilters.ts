@@ -7,6 +7,7 @@ export interface InboxFilter {
   accountIds: string[];
   categories: string[];
   minPriority: number | null;
+  maxPriority: number | null;
 }
 
 export interface ConnectedAccount {
@@ -23,14 +24,16 @@ const FIRST_LOAD_KEY = 'inbox_first_load_seen';
 /** Threshold for the high-priority tier. Shared with EmailListStates. */
 export const HIGH_PRIORITY_THRESHOLD = 50;
 
-// Priority ranges as specified in the issue
+// Priority ranges — each entry carries both min and max to support bounded range filtering.
+// max: null means "no upper bound" (i.e., score >= min with no ceiling).
+// min: null means "no lower bound" (i.e., score <= max with no floor).
 export const PRIORITY_RANGES = [
-  { label: 'All', value: null },
-  { label: 'Very Low', value: -Infinity, displayValue: '< 0' },
-  { label: 'Low', value: 0, displayValue: '0-15' },
-  { label: 'Medium', value: 15, displayValue: '15-30' },
-  { label: 'High', value: 30, displayValue: '30-50' },
-  { label: 'Very High', value: 50, displayValue: '> 50' },
+  { label: 'All', min: null, max: null },
+  { label: 'Very Low', min: null, max: 0, displayValue: '< 0' },
+  { label: 'Low', min: 0, max: 15, displayValue: '0-15' },
+  { label: 'Medium', min: 15, max: 30, displayValue: '15-30' },
+  { label: 'High', min: 30, max: 50, displayValue: '30-50' },
+  { label: 'Very High', min: 50, max: null, displayValue: '> 50' },
 ] as const;
 
 function loadInitialFilters(): InboxFilter {
@@ -48,7 +51,7 @@ function loadInitialFilters(): InboxFilter {
   }
   // First visit (no stored filters) — default to high priority to reduce overwhelm
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD };
+  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
 }
 
 export function useInboxFilters() {
@@ -118,20 +121,20 @@ export function useInboxFilters() {
     setFilters(prev => ({ ...prev, categories }));
   }, []);
 
-  const setPriorityFilter = useCallback((minPriority: number | null) => {
-    setFilters(prev => ({ ...prev, minPriority }));
+  const setPriorityFilter = useCallback((minPriority: number | null, maxPriority: number | null = null) => {
+    setFilters(prev => ({ ...prev, minPriority, maxPriority }));
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({ accountIds: [], categories: [], minPriority: null });
+    setFilters({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
   }, []);
 
   const resetToHighPriority = useCallback(() => {
-    setFilters(prev => ({ ...prev, minPriority: HIGH_PRIORITY_THRESHOLD }));
+    setFilters(prev => ({ ...prev, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null }));
   }, []);
 
   const hasActiveFilters =
-    filters.accountIds.length > 0 || filters.categories.length > 0 || filters.minPriority !== null;
+    filters.accountIds.length > 0 || filters.categories.length > 0 || filters.minPriority !== null || filters.maxPriority !== null;
 
   return {
     isFilterBarVisible,

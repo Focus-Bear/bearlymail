@@ -1,9 +1,25 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, useInboxFilters } from './useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters } from './useInboxFilters';
 
 const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
+
+describe('PRIORITY_RANGES', () => {
+  it('Very Low range uses min: null (no lower bound) instead of -Infinity', () => {
+    const veryLow = PRIORITY_RANGES.find(range => range.label === 'Very Low');
+    expect(veryLow).toBeDefined();
+    expect(veryLow!.min).toBeNull();
+    expect(veryLow!.max).toBe(0);
+  });
+
+  it('Very High range uses max: null (no upper bound)', () => {
+    const veryHigh = PRIORITY_RANGES.find(range => range.label === 'Very High');
+    expect(veryHigh).toBeDefined();
+    expect(veryHigh!.min).toBe(50);
+    expect(veryHigh!.max).toBeNull();
+  });
+});
 
 describe('useInboxFilters', () => {
   beforeEach(() => {

@@ -309,6 +309,7 @@ export class EmailsService {
     filters?: {
       categoryIds?: string[];
       minPriority?: number;
+      maxPriority?: number;
       includeThreadIds?: boolean;
       accountIds?: string[];
     },
@@ -326,7 +327,9 @@ export class EmailsService {
     // which also has no starCount restriction. Applying starCount = 0 here would exclude
     // already-actioned threads that have high priority scores, producing zero results.
     const priorityModeActive =
-      filters?.minPriority !== undefined && mode !== INBOX_MODES.BLOCKED;
+      (filters?.minPriority !== undefined ||
+        filters?.maxPriority !== undefined) &&
+      mode !== INBOX_MODES.BLOCKED;
 
     let threadFilter = priorityModeActive
       ? 'AND thread."isArchived" = false'
@@ -348,6 +351,11 @@ export class EmailsService {
     if (filters?.minPriority !== undefined) {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
       queryParams.push(filters.minPriority);
+    }
+
+    if (filters?.maxPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
+      queryParams.push(filters.maxPriority);
     }
 
     // Filter by account IDs if specified (check if any email in the thread belongs to the accounts)
@@ -616,6 +624,7 @@ export class EmailsService {
       accountIds?: string[];
       categoryIds?: string[];
       minPriority?: number;
+      maxPriority?: number;
     },
     pagination?: { offset?: number; limit?: number },
   ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
@@ -735,6 +744,7 @@ export class EmailsService {
     filters?: {
       accountIds?: string[];
       minPriority?: number;
+      maxPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
     // When minPriority is set, drop the starCount mode filter so the priority inbox
@@ -742,7 +752,9 @@ export class EmailsService {
     // Without this, combining starCount = 0 with priorityScore >= N returns 0 results
     // because high-priority threads have typically been actioned (starCount > 0).
     const priorityModeActive =
-      filters?.minPriority !== undefined && mode !== "blocked";
+      (filters?.minPriority !== undefined ||
+        filters?.maxPriority !== undefined) &&
+      mode !== "blocked";
 
     let threadFilter = priorityModeActive
       ? 'AND thread."isArchived" = false'
@@ -781,6 +793,11 @@ export class EmailsService {
     if (filters?.minPriority !== undefined) {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
       queryParams.push(filters.minPriority);
+    }
+
+    if (filters?.maxPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
+      queryParams.push(filters.maxPriority);
     }
 
     return this.emailRepository.query(
@@ -841,6 +858,7 @@ export class EmailsService {
       accountIds?: string[];
       categoryIds?: string[];
       minPriority?: number;
+      maxPriority?: number;
     },
   ): Promise<{ emails: Email[]; blockedCount: number }> {
     const endBlockedFilter = perf.startSpan(

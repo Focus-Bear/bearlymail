@@ -80,6 +80,7 @@ export class AutoResponderController {
     query: {
       categories?: string;
       minPriority?: string;
+      maxPriority?: string;
       accounts?: string;
       limit?: string;
       offset?: string;
@@ -94,6 +95,13 @@ export class AutoResponderController {
         : undefined;
     const minPriority = Number.isFinite(parsedMinPriority)
       ? parsedMinPriority
+      : undefined;
+    const parsedMaxPriority =
+      query.maxPriority !== undefined
+        ? parseFloat(query.maxPriority)
+        : undefined;
+    const maxPriority = Number.isFinite(parsedMaxPriority)
+      ? parsedMaxPriority
       : undefined;
     const accountIds = query.accounts
       ? query.accounts.split(",").filter(Boolean)
@@ -111,6 +119,7 @@ export class AutoResponderController {
     return this.autoResponderService.getAutoRespondedThreads(req.user.userId, {
       categories: categoryList,
       minPriority,
+      maxPriority,
       accountIds,
       limit,
       offset,

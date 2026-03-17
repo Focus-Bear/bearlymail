@@ -46,6 +46,7 @@ type AutoRespondedThread = {
 type AutoRespondedThreadFilters = {
   categories?: string[];
   minPriority?: number;
+  maxPriority?: number;
   accountIds?: string[];
   offset?: number;
   limit?: number;
@@ -170,6 +171,11 @@ export class AutoResponderAnalyticsService {
     if (filters?.minPriority !== undefined) {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
       queryParams.push(filters.minPriority);
+    }
+
+    if (filters?.maxPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
+      queryParams.push(filters.maxPriority);
     }
 
     if (filters?.accountIds && filters.accountIds.length > 0) {

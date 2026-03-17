@@ -9,7 +9,7 @@ import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
 import emailReducer from 'store/slices/emailSlice';
 
-import { useEmailFetching } from './useEmailFetching';
+import { appendFilterParams, useEmailFetching } from './useEmailFetching';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -456,5 +456,35 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     expect(mockedClearCacheForMode).not.toHaveBeenCalled();
+  });
+});
+
+describe('appendFilterParams', () => {
+  it('Very Low filter (min: null, max: 0) sends only maxPriority param — no minPriority', () => {
+    const params = new URLSearchParams();
+    appendFilterParams(params, { accountIds: [], categories: [], minPriority: null, maxPriority: 0 });
+    expect(params.has('minPriority')).toBe(false);
+    expect(params.get('maxPriority')).toBe('0');
+  });
+
+  it('Very High filter (min: 50, max: null) sends only minPriority param — no maxPriority', () => {
+    const params = new URLSearchParams();
+    appendFilterParams(params, { accountIds: [], categories: [], minPriority: 50, maxPriority: null });
+    expect(params.get('minPriority')).toBe('50');
+    expect(params.has('maxPriority')).toBe(false);
+  });
+
+  it('All filter (min: null, max: null) sends neither minPriority nor maxPriority', () => {
+    const params = new URLSearchParams();
+    appendFilterParams(params, { accountIds: [], categories: [], minPriority: null, maxPriority: null });
+    expect(params.has('minPriority')).toBe(false);
+    expect(params.has('maxPriority')).toBe(false);
+  });
+
+  it('Medium filter (min: 15, max: 30) sends both minPriority and maxPriority', () => {
+    const params = new URLSearchParams();
+    appendFilterParams(params, { accountIds: [], categories: [], minPriority: 15, maxPriority: 30 });
+    expect(params.get('minPriority')).toBe('15');
+    expect(params.get('maxPriority')).toBe('30');
   });
 });

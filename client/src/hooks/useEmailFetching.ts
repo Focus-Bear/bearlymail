@@ -443,7 +443,7 @@ async function refreshInPlaceImpl({
   );
 }
 
-function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {
+export function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {
   if (!filters) {
     return;
   }
@@ -453,6 +453,9 @@ function appendFilterParams(params: URLSearchParams, filters: InboxFilter | unde
   }
   if (filters.minPriority !== null && filters.minPriority !== undefined) {
     params.append('minPriority', filters.minPriority.toString());
+  }
+  if (filters.maxPriority !== null && filters.maxPriority !== undefined) {
+    params.append('maxPriority', filters.maxPriority.toString());
   }
   if (filters.accountIds?.length) {
     params.append('accounts', filters.accountIds.join(','));
@@ -487,6 +490,9 @@ function buildCategoryParamsImpl(
     }
     if (filters.minPriority !== null && filters.minPriority !== undefined) {
       params.append('minPriority', filters.minPriority.toString());
+    }
+    if (filters.maxPriority !== null && filters.maxPriority !== undefined) {
+      params.append('maxPriority', filters.maxPriority.toString());
     }
   }
   return params;

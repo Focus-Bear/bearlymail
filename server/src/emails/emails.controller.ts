@@ -63,6 +63,7 @@ export class EmailsController {
       accounts?: string;
       categoryIds?: string;
       minPriority?: string;
+      maxPriority?: string;
       page?: string;
       limit?: string;
       offset?: string;
@@ -74,6 +75,7 @@ export class EmailsController {
       accounts,
       categoryIds,
       minPriority,
+      maxPriority,
       page: pageParam,
       limit: limitParam,
       offset: offsetParam,
@@ -86,6 +88,7 @@ export class EmailsController {
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
+    const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
 
     // Parse pagination parameters
     const pageSize = limitParam
@@ -106,6 +109,7 @@ export class EmailsController {
         accountIds,
         categoryIds: categoryIdList,
         minPriority: minPriorityValue,
+        maxPriority: maxPriorityValue,
       },
       { offset, limit: pageSize },
     );
@@ -145,6 +149,7 @@ export class EmailsController {
     mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     @Query("categoryIds") categoryIds?: string,
     @Query("minPriority") minPriority?: string,
+    @Query("maxPriority") maxPriority?: string,
     @Query("includeThreadIds") includeThreadIds?: string,
     @Query("accounts") accounts?: string,
   ) {
@@ -152,6 +157,7 @@ export class EmailsController {
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
+    const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
     const shouldIncludeThreadIds = includeThreadIds === "true";
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
@@ -160,6 +166,7 @@ export class EmailsController {
     return this.emailsService.getInboxSummary(req.user.userId, mode, {
       categoryIds: categoryIdList,
       minPriority: minPriorityValue,
+      maxPriority: maxPriorityValue,
       includeThreadIds: shouldIncludeThreadIds,
       accountIds,
     });
@@ -214,24 +221,25 @@ export class EmailsController {
   async getTabCounts(
     @Request() req,
     @Query("minPriority") minPriority?: string,
+    @Query("maxPriority") maxPriority?: string,
     @Query("categories") categories?: string,
     @Query("accountIds") accountIds?: string,
   ) {
     const { userId } = req.user;
-    const categoryIdList = categories
-      ? categories.split(",").filter(Boolean)
-      : undefined;
-    const accountIdList = accountIds
-      ? accountIds.split(",").filter(Boolean)
-      : undefined;
+    const categoryIdList = categories?.split(",").filter(Boolean);
+    const accountIdList = accountIds?.split(",").filter(Boolean);
     const hasFilters =
       minPriority !== undefined ||
+      maxPriority !== undefined ||
       categoryIdList !== undefined ||
       accountIdList !== undefined;
     const filters = hasFilters
       ? {
           ...(minPriority !== undefined
-            ? { minPriority: parseInt(minPriority, 10) }
+            ? { minPriority: parseFloat(minPriority) }
+            : {}),
+          ...(maxPriority !== undefined
+            ? { maxPriority: parseFloat(maxPriority) }
             : {}),
           ...(categoryIdList ? { categoryIds: categoryIdList } : {}),
           ...(accountIdList ? { accountIds: accountIdList } : {}),

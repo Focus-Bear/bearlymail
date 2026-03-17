@@ -976,4 +976,67 @@ export class GitHubApiService {
       return null;
     }
   }
+
+  private readonly updateProjectV2ItemFieldValueMutation = `
+    mutation UpdateProjectV2ItemFieldValue(
+      $projectId: ID!
+      $itemId: ID!
+      $fieldId: ID!
+      $optionId: String!
+    ) {
+      updateProjectV2ItemFieldValue(
+        input: {
+          projectId: $projectId
+          itemId: $itemId
+          fieldId: $fieldId
+          value: { singleSelectOptionId: $optionId }
+        }
+      ) {
+        projectV2Item {
+          id
+        }
+      }
+    }
+  `;
+
+  /**
+   * Update a GitHub Projects v2 item's Status field via the
+   * updateProjectV2ItemFieldValue GraphQL mutation.
+   * Throws on any error so the controller returns a proper HTTP error.
+   */
+  async updateProjectItemStatus(
+    token: string,
+    projectId: string,
+    itemId: string,
+    fieldId: string,
+    singleSelectOptionId: string,
+  ): Promise<void> {
+    try {
+      const octokit = this.createClient(token);
+      await octokit.graphql(this.updateProjectV2ItemFieldValueMutation, {
+        projectId,
+        itemId,
+        fieldId,
+        optionId: singleSelectOptionId,
+      });
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+
+      this.logger.error(
+        `Failed to update project item status (projectId=${projectId}, itemId=${itemId}, fieldId=${fieldId}, optionId=${singleSelectOptionId})`,
+        { message: errorMessage, status: errorStatus },
+      );
+
+      if (
+        errorStatus === HTTP_STATUS.UNAUTHORIZED ||
+        errorStatus === HTTP_STATUS.FORBIDDEN
+      ) {
+        throw new Error("GitHub token is invalid or expired");
+      }
+
+      throw error;
+    }
+  }
 }

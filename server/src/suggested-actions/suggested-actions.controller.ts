@@ -179,4 +179,45 @@ export class SuggestedActionsController {
       body.daysBack,
     );
   }
+
+  @Post("github/update-project-status")
+  async updateProjectItemStatus(
+    @Request() req,
+    @Body()
+    body: {
+      projectId: string;
+      itemId: string;
+      fieldId: string;
+      singleSelectOptionId: string;
+    },
+  ) {
+    const { userId } = req.user;
+
+    if (
+      !body.projectId ||
+      !body.itemId ||
+      !body.fieldId ||
+      !body.singleSelectOptionId
+    ) {
+      throw new BadRequestException(
+        "projectId, itemId, fieldId, and singleSelectOptionId are all required",
+      );
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    await this.githubApiService.updateProjectItemStatus(
+      token,
+      body.projectId,
+      body.itemId,
+      body.fieldId,
+      body.singleSelectOptionId,
+    );
+
+    return { success: true };
+  }
 }

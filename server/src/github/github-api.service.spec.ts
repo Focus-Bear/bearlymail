@@ -203,3 +203,71 @@ describe("GitHubApiService - fetchProjectStatusOptions", () => {
     expect(result).toBeNull();
   });
 });
+
+describe("GitHubApiService - updateProjectItemStatus", () => {
+  let service: GitHubApiService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GitHubApiService],
+    }).compile();
+
+    service = module.get<GitHubApiService>(GitHubApiService);
+  });
+
+  it("calls octokit.graphql with correct variables on success", async () => {
+    mockGraphql.mockResolvedValue({
+      updateProjectV2ItemFieldValue: { projectV2Item: { id: "PVTI_item1" } },
+    });
+
+    await service.updateProjectItemStatus(
+      "fake-token",
+      "PVT_proj1",
+      "PVTI_item1",
+      "PVTSSF_field1",
+      "opt_id_123",
+    );
+
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("updateProjectV2ItemFieldValue"),
+      {
+        projectId: "PVT_proj1",
+        itemId: "PVTI_item1",
+        fieldId: "PVTSSF_field1",
+        optionId: "opt_id_123",
+      },
+    );
+  });
+
+  it("throws a human-readable error for bad credentials (401)", async () => {
+    const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
+    mockGraphql.mockRejectedValue(authError);
+
+    await expect(
+      service.updateProjectItemStatus(
+        "bad-token",
+        "PVT_proj1",
+        "PVTI_item1",
+        "PVTSSF_field1",
+        "opt_id_123",
+      ),
+    ).rejects.toThrow("GitHub token is invalid or expired");
+  });
+
+  it("re-throws generic errors", async () => {
+    const genericError = new Error("GraphQL network error");
+    mockGraphql.mockRejectedValue(genericError);
+
+    await expect(
+      service.updateProjectItemStatus(
+        "fake-token",
+        "PVT_proj1",
+        "PVTI_item1",
+        "PVTSSF_field1",
+        "opt_id_123",
+      ),
+    ).rejects.toThrow("GraphQL network error");
+  });
+});

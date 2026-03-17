@@ -219,19 +219,26 @@ export class ProtoCategoriesService {
     const suggestionWithoutEmoji = normalizedSuggestion
       .replace(/[\p{Emoji}]/gu, "")
       .trim();
+    // Strip parenthetical suffix from suggestion: "Name (description)" → "Name"
+    const suggestionWithoutParens = suggestionWithoutEmoji
+      .replace(/\s*\(.*\)\s*$/, "")
+      .trim();
 
     for (const category of categories) {
       // contextValue can be "Category Name" or "Category Name - Description"
-      const categoryName = category.contextValue.split(" - ")[0];
+      const categoryName = category.contextValue.split(" - ")[0].trim();
       const normalizedName = categoryName.toLowerCase().trim();
       const nameWithoutEmoji = normalizedName
         .replace(/[\p{Emoji}]/gu, "")
         .trim();
 
-      // Check if names match (ignoring emoji and case)
+      // Check if names match (ignoring emoji and case) — also match
+      // parenthetical LLM variants e.g. "Customer feedback (github issues…)"
+      // against stored name "Customer feedback" (fix #1120).
       if (
         suggestionWithoutEmoji === nameWithoutEmoji ||
-        normalizedSuggestion === normalizedName
+        normalizedSuggestion === normalizedName ||
+        suggestionWithoutParens === nameWithoutEmoji
       ) {
         // Return the original category name (with emoji)
         return categoryName;

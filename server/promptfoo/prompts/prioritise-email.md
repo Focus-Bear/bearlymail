@@ -36,6 +36,7 @@ Provide:
    - Evaluate ALL eligible categories before choosing — don't just pick the first one that seems to fit
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
    - STRONGLY prefer an existing category over "Other". When in doubt, pick the closest matching category.
+   - **CRITICAL — return the category name EXACTLY as listed** (same spelling, capitalisation, and punctuation). Do NOT append descriptions, parentheticals, or any other text to the category name. For example, if the list contains `"Customer feedback"`, return `"Customer feedback"` — never `"Customer feedback (github issues or feedback forms)"` or any other variant.
 
    **Special guidance for GitHub notifications:**
    - **Devin PR identification**: When categorizing GitHub PR notifications, check the FULL thread context (not just the latest message). If ANY earlier message in the thread indicates the PR was created or initiated by Devin.AI (e.g., the PR author is Devin, or the thread started with a Devin PR creation notification), categorize the entire thread into the "Devin PRs" category — even if the latest message is a human merging or commenting on it. The PR initiator determines the category, not who performed the last action.

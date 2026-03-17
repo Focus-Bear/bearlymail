@@ -243,6 +243,14 @@ export class EmailThread {
   @JoinColumn({ name: "protoCategoryId" })
   protoCategory: ProtoCategory | null;
 
+  @Column({
+    default: false,
+    comment:
+      "Flag set by migration 1784000000000 — true means category may store a " +
+      "full contextValue string instead of the bare name; cleared by repair job",
+  })
+  needsCategoryRepair: boolean;
+
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;

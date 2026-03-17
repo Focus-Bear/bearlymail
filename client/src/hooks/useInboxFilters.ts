@@ -49,9 +49,11 @@ function loadInitialFilters(): InboxFilter {
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);
   }
-  // First visit (no stored filters) — default to high priority to reduce overwhelm
+  // First visit (no stored filters) — default to no priority filter so triage
+  // shows all unstarred threads (fix #1119: HIGH_PRIORITY_THRESHOLD caused
+  // priorityModeActive=true which silently dropped the starCount=0 guard).
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+  return { accountIds: [], categories: [], minPriority: null, maxPriority: null };
 }
 
 export function useInboxFilters() {

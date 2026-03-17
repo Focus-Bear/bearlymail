@@ -28,10 +28,10 @@ describe('useInboxFilters', () => {
   });
 
   describe('initialization', () => {
-    it('defaults to minPriority 50 when localStorage is empty (first visit)', () => {
+    it('defaults to minPriority null when localStorage is empty (first visit)', () => {
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBeNull();
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
     });
@@ -67,7 +67,7 @@ describe('useInboxFilters', () => {
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBeNull();
     });
   });
 
@@ -146,6 +146,10 @@ describe('useInboxFilters', () => {
   describe('hasActiveFilters', () => {
     it('returns true when minPriority is set', () => {
       const { result } = renderHook(() => useInboxFilters());
+
+      act(() => {
+        result.current.setPriorityFilter(HIGH_PRIORITY_THRESHOLD);
+      });
 
       expect(result.current.hasActiveFilters).toBe(true);
     });

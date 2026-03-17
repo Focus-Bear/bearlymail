@@ -1,4 +1,10 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { In, IsNull, Not, Repository } from "typeorm";
@@ -92,7 +98,7 @@ interface EmailWithMetadata extends Email {
 }
 
 @Injectable()
-export class EmailsService {
+export class EmailsService implements OnModuleInit {
   private readonly logger = new Logger(EmailsService.name);
 
   constructor(
@@ -133,6 +139,17 @@ export class EmailsService {
     private suggestedRepliesService?: SuggestedRepliesService,
     private cloudWatchService?: CloudWatchService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    // Repair threads flagged by migration 1784000000000 — runs once on startup,
+    // no-ops when all flags are already cleared.
+    try {
+      await this.repairEncryptedCategoryNames();
+    } catch (err) {
+      // Non-fatal: log but don't block server startup
+      this.logger.error("repairEncryptedCategoryNames failed on startup", err);
+    }
+  }
 
   // Buffer for collecting email IDs per user for batch priority refinement
   private readonly priorityBatchBuffer = new Map<
@@ -322,14 +339,16 @@ export class EmailsService {
       threadIds?: string[];
     }[];
   }> {
-    // When minPriority is set, the priority inbox shows threads across ALL triage states
-    // (triage/action/follow-up) matching the priority threshold — mirroring getPriorityCounts
-    // which also has no starCount restriction. Applying starCount = 0 here would exclude
-    // already-actioned threads that have high priority scores, producing zero results.
+    // When minPriority is set, the priority inbox shows threads across action/follow-up states
+    // matching the priority threshold — dropping the starCount guard so already-actioned
+    // high-priority threads remain visible.
+    // IMPORTANT: triage mode always enforces starCount = 0 regardless of priorityModeActive
+    // (fix #1119 — starred emails must never appear in triage).
     const priorityModeActive =
       (filters?.minPriority !== undefined ||
         filters?.maxPriority !== undefined) &&
-      mode !== INBOX_MODES.BLOCKED;
+      mode !== INBOX_MODES.BLOCKED &&
+      mode !== INBOX_MODES.TRIAGE;
 
     let threadFilter = priorityModeActive
       ? 'AND thread."isArchived" = false'
@@ -530,8 +549,29 @@ export class EmailsService {
       );
     }
 
+    // Defensive read-path lookup: handles existing threads whose category column
+    // stores LLM-deviated names (e.g. "Customer feedback (github issues…)" instead
+    // of the canonical "Customer feedback").  Exact match is tried first; on miss
+    // we fall back to prefix/parenthetical normalisation against the known keys
+    // (fix #1120 — prevents id: null breaking accordion grouping).
+    const lookupCategoryId = (name: string): string | null => {
+      const exact = categoryNameToId.get(name);
+      if (exact) return exact;
+      const nameLower = name.toLowerCase().trim();
+      // Strip parenthetical: "Name (…)" → "Name"
+      const withoutParens = nameLower.replace(/\s*\(.*\)\s*$/, "").trim();
+      for (const [key, id] of categoryNameToId.entries()) {
+        const keyLower = key.toLowerCase().trim();
+        if (keyLower === withoutParens) return id;
+        // Prefix match: stored key starts with the supplied name or vice-versa
+        if (nameLower.startsWith(keyLower) || keyLower.startsWith(nameLower))
+          return id;
+      }
+      return null;
+    };
+
     const categories = visibleCategories.map((name) => ({
-      id: categoryNameToId.get(name) || null,
+      id: lookupCategoryId(name),
       name,
       count: categoryCounts[name] || 0,
       ...(filters?.includeThreadIds
@@ -541,6 +581,132 @@ export class EmailsService {
 
     const total = categories.reduce((sum, cat) => sum + cat.count, 0);
     return { total, categories };
+  }
+
+  /**
+   * Repair email_threads rows flagged by migration 1784000000000.
+   *
+   * The migration set needsCategoryRepair=true on all threads that have a
+   * non-null category.  This method decrypts each thread's category, checks
+   * whether it is already an exact match for one of the user's known category
+   * names, and if not attempts to canonicalise it via prefix / parenthetical
+   * stripping.  The repaired (or confirmed-clean) category is written back and
+   * the flag is cleared.
+   *
+   * Intended to run once on server startup via onModuleInit (called from
+   * EmailsModule).  Safe to call multiple times — already-repaired rows
+   * (needsCategoryRepair=false) are skipped.
+   */
+  async repairEncryptedCategoryNames(): Promise<void> {
+    // Process in pages to avoid loading all threads into memory at once
+    const PAGE_SIZE = 200;
+    let processed = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const threads = await this.emailThreadRepository.find({
+        where: { needsCategoryRepair: true },
+        select: ["id", "userId", "category", "needsCategoryRepair"],
+        take: PAGE_SIZE,
+      });
+
+      if (threads.length === 0) break;
+
+      // Batch-load all user contexts for this page in ONE query (avoids N+1 on startup).
+      const uniqueUserIds = [
+        ...new Set(threads.map((thread) => thread.userId).filter(Boolean)),
+      ];
+      const pageContexts =
+        uniqueUserIds.length > 0
+          ? await this.userContextRepository.find({
+              where: {
+                userId: In(uniqueUserIds),
+                contextKey: ContextKey.EMAIL_CATEGORY,
+              },
+              select: ["userId", "contextValue"],
+            })
+          : [];
+      const contextsByUser = new Map<string, typeof pageContexts>();
+      for (const ctx of pageContexts) {
+        const list = contextsByUser.get(ctx.userId) ?? [];
+        list.push(ctx);
+        contextsByUser.set(ctx.userId, list);
+      }
+
+      for (const thread of threads) {
+        try {
+          const rawCategory = thread.category
+            ? EncryptionHelper.decrypt(thread.category)
+            : null;
+
+          let canonical = rawCategory;
+
+          if (rawCategory && rawCategory !== "Other") {
+            // Use the pre-fetched contexts map instead of querying per thread.
+            const contexts = contextsByUser.get(thread.userId) ?? [];
+
+            const knownNames = contexts.map((ctx) =>
+              ctx.contextValue.split(" - ")[0].trim(),
+            );
+
+            const rawLower = rawCategory.toLowerCase().trim();
+            // Exact match
+            const exact = knownNames.find(
+              (knownName) => knownName.toLowerCase() === rawLower,
+            );
+            if (exact) {
+              canonical = exact;
+            } else {
+              // Strip parenthetical then try again
+              const withoutParens = rawLower
+                .replace(/\s*\(.*\)\s*$/, "")
+                .trim();
+              const parenMatch = knownNames.find(
+                (knownName) => knownName.toLowerCase() === withoutParens,
+              );
+              if (parenMatch) {
+                canonical = parenMatch;
+              } else {
+                // Prefix match
+                const prefix = knownNames.find(
+                  (knownName) =>
+                    rawLower.startsWith(knownName.toLowerCase()) ||
+                    knownName.toLowerCase().startsWith(rawLower),
+                );
+                if (prefix) canonical = prefix;
+              }
+            }
+          }
+
+          await this.emailThreadRepository.update(
+            { id: thread.id },
+            {
+              // Only re-encrypt if the value actually changed to avoid
+              // creating new IV ciphertexts for clean rows unnecessarily
+              ...(canonical !== rawCategory ? { category: canonical } : {}),
+              needsCategoryRepair: false,
+            },
+          );
+          processed++;
+        } catch (err) {
+          this.logger.warn(
+            `repairEncryptedCategoryNames: failed to repair thread ${thread.id}`,
+            err,
+          );
+          // Clear the flag anyway so we don't retry indefinitely on bad data
+          await this.emailThreadRepository.update(
+            { id: thread.id },
+            { needsCategoryRepair: false },
+          );
+        }
+      }
+    }
+
+    if (processed > 0) {
+      this.logger.log(
+        `repairEncryptedCategoryNames: repaired ${processed} thread(s)`,
+      );
+    }
   }
 
   /**
@@ -747,14 +913,15 @@ export class EmailsService {
       maxPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
-    // When minPriority is set, drop the starCount mode filter so the priority inbox
-    // shows threads across all triage states — matching getPriorityCounts behaviour.
-    // Without this, combining starCount = 0 with priorityScore >= N returns 0 results
-    // because high-priority threads have typically been actioned (starCount > 0).
+    // When minPriority is set, drop the starCount mode filter for action/follow-up
+    // so the priority inbox shows all high-priority threads in those modes.
+    // IMPORTANT: triage mode always enforces starCount = 0 regardless of priorityModeActive
+    // (fix #1119 — starred emails must never appear in triage).
     const priorityModeActive =
       (filters?.minPriority !== undefined ||
         filters?.maxPriority !== undefined) &&
-      mode !== "blocked";
+      mode !== "blocked" &&
+      mode !== "triage";
 
     let threadFilter = priorityModeActive
       ? 'AND thread."isArchived" = false'

@@ -393,11 +393,24 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
   it('calls clearCacheForMode when server returns 0 emails for a UUID-keyed category', async () => {
     // Simulate server returning an empty email array for a category that has a UUID.
     // This indicates the UUID may be stale — the hook must bust the summary cache.
+    // Preload the Redux store so categorySummaryRef sees summaryCount > 0, allowing the guard to fire.
+    const storeWithSummary = configureStore({
+      reducer: { email: emailReducer },
+      preloadedState: {
+        email: {
+          ...emailReducer(undefined, { type: '@@INIT' }),
+          categorySummary: [{ id: 'uuid-stale-1234', name: 'Work', count: 5 }],
+        },
+      },
+    });
+    const WrapperWithSummary = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store: storeWithSummary, children });
+
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
     const { result } = renderHook(
       () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
+      { wrapper: WrapperWithSummary }
     );
 
     await result.current.fetchCategoryEmails('Work', 'uuid-stale-1234');

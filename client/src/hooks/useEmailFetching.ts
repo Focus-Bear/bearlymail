@@ -32,6 +32,7 @@ import {
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { BackoffContext,usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 import {
+  selectCategorySummary,
   selectCurrentOffset,
   selectLoadedCategoryNames,
   selectLoadingCategoryNames,
@@ -124,10 +125,13 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   // in useInboxState every time a category finishes loading.
   const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
   const loadingCategoryNames = useSelector(selectLoadingCategoryNames);
+  const categorySummary = useSelector(selectCategorySummary);
   const loadedCategoryNamesRef = useRef<string[]>(loadedCategoryNames);
   loadedCategoryNamesRef.current = loadedCategoryNames;
   const loadingCategoryNamesRef = useRef<string[]>(loadingCategoryNames);
   loadingCategoryNamesRef.current = loadingCategoryNames;
+  const categorySummaryRef = useRef<CategorySummaryItem[] | null>(categorySummary);
+  categorySummaryRef.current = categorySummary;
   // Prevent concurrent loadMore calls (background prefetch + scroll trigger)
   const isLoadingMoreRef = useRef(false);
   // Incremented each time fetchEmails() is called. fetchCategoryEmails captures the current
@@ -179,6 +183,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
         fetchSessionRef,
         categoryBackoff,
         pendingRetryTimersRef,
+        categorySummaryRef,
       });
       // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
     },
@@ -273,6 +278,8 @@ interface CategoryFetchArgs {
   fetchSessionRef: React.MutableRefObject<number>;
   categoryBackoff: BackoffContext;
   pendingRetryTimersRef: React.MutableRefObject<Set<ReturnType<typeof setTimeout>>>;
+  /** Ref to the latest categorySummary from Redux — used to guard stale-UUID cache busts. */
+  categorySummaryRef: React.MutableRefObject<CategorySummaryItem[] | null>;
 }
 
 /** Handles a failed category fetch: applies backoff state and schedules a retry timer. */
@@ -282,7 +289,7 @@ function handleCategoryFetchError(
   error: any,
   sessionId: number
 ) {
-  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef } = args;
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef, categorySummaryRef } = args;
   console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
   if (fetchSessionRef.current !== sessionId) {
 return;
@@ -305,7 +312,7 @@ return;
 
   const retryTimer = setTimeout(() => {
     pendingRetryTimersRef.current.delete(retryTimer);
-    fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef })
+    fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef, categorySummaryRef })
       .catch(err => console.error('[limbo-recovery] Backoff retry failed:', err));
   }, delayMs + BACKOFF_RETRY_BUFFER_MS);
   pendingRetryTimersRef.current.add(retryTimer);
@@ -324,7 +331,7 @@ function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boole
 
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
-  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff } = args;
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, categorySummaryRef } = args;
   // Compute the stable key: UUID when available, name as fallback
   const catKey = getCategoryKey(categoryId, categoryName);
 
@@ -358,19 +365,32 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
     }
 
     // Fix #1114 — stale UUID self-healing:
-    // If the server returns 0 emails for a category that the summary showed as non-empty,
-    // the UUID may be stale (category was re-created server-side after a schema change).
-    // Bust both the category cache entry and the summary cache so the next fetchEmails()
-    // call will re-fetch fresh UUIDs from the server instead of serving the stale ones.
+    // Only bust the cache when the category summary said count > 0 but the fetch returned 0,
+    // which suggests a stale UUID (category re-created server-side after a schema change).
+    // Skip the bust for legitimately empty categories (summary count === 0) to avoid
+    // unnecessary cache invalidation on every expand of an empty category.
     if (emails.length === 0 && categoryId) {
-      console.warn(
-        '[Accordion] Category returned 0 emails — possible stale UUID, busting summary cache for mode:',
-        mode,
-        '| category:', categoryName, '(key:', catKey, ')'
+      const summaryItem = categorySummaryRef.current?.find(
+        (item) => item.id === categoryId || item.name === categoryName
       );
-      // Clear the summary cache so the next inbox load re-fetches fresh UUIDs.
-      // The category cache entry will be naturally evicted (we just wrote [] below).
-      clearCacheForMode(mode);
+      const summaryCount = summaryItem?.count ?? 0;
+      if (summaryCount > 0) {
+        console.warn(
+          '[Accordion] Category returned 0 emails but summary says', summaryCount,
+          '— possible stale UUID, busting summary cache for mode:',
+          mode,
+          '| category:', categoryName, '(key:', catKey, ')'
+        );
+        // Clear the summary cache so the next inbox load re-fetches fresh UUIDs.
+        // The category cache entry will be naturally evicted (we just wrote [] below).
+        clearCacheForMode(mode);
+      } else {
+        console.log(
+          '[Accordion] Category returned 0 emails and summary also shows 0 — skipping cache bust for mode:',
+          mode,
+          '| category:', categoryName, '(key:', catKey, ')'
+        );
+      }
     }
 
     categoryBackoff.onSuccess(catKey);

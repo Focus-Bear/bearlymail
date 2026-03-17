@@ -503,7 +503,7 @@ For EACH email, provide:
 - urgencyExplanation: Brief explanation
 - goalAlignmentScore (0-100): Alignment with user's goals
 - goalAlignmentExplanation: Brief explanation
-- category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY as a last resort after exhausting all provided categories.
+- category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY as a last resort after exhausting all provided categories. CRITICAL: return the category name EXACTLY as listed — same spelling, capitalisation, and punctuation. Do NOT append descriptions, parentheticals, or any other text (e.g. return "Customer feedback" not "Customer feedback (github issues or feedback forms)").
 - categoryExplanation: Brief explanation
 - protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Be SPECIFIC (e.g. "✅ QA passed issues" not "📂 Issue Comments"). Only suggest when the email truly has no home in any existing category.
 - reasoning: Brief analysis

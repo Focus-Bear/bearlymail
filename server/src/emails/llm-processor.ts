@@ -1056,12 +1056,24 @@ export class LLMProcessor implements OnModuleInit {
             },
           );
 
-          // Store category on the thread (if the summary produced one)
+          // Store category on the thread (if the summary produced one).
+          // Canonicalise against known UserContext category names to prevent
+          // storing LLM deviations (e.g. parenthetical descriptions) that break
+          // the categoryNameToId lookup in getInboxSummary (fix #1120).
           if (category && email.emailThreadId) {
+            let canonicalCategory = category;
+            if (category !== "Other") {
+              const matched =
+                await this.protoCategoriesService.findMatchingFullCategory(
+                  jobEntry.userId,
+                  category,
+                );
+              if (matched) canonicalCategory = matched;
+            }
             await this.emailThreadRepository.update(
               { id: email.emailThreadId },
               {
-                category,
+                category: canonicalCategory,
                 categoryExplanation: categoryExplanation ?? undefined,
               },
             );
@@ -1163,6 +1175,11 @@ export class LLMProcessor implements OnModuleInit {
           ? llmResult.urgencyExplanation
           : thread.urgencyExplanation;
 
+      // Build known category names from UserContext for canonicalisation (fix #1120)
+      const knownCategoryNames = contexts
+        .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
+        .map((ctx) => ctx.contextValue.split(" - ")[0].trim());
+
       const { finalCategory, protoCategoryId } =
         await this.resolveCategoryAndProtoCategory(
           email,
@@ -1170,6 +1187,7 @@ export class LLMProcessor implements OnModuleInit {
           llmResult,
           userId,
           workerId,
+          knownCategoryNames,
         );
 
       // Category is now set during summarization when possible.
@@ -1387,29 +1405,77 @@ export class LLMProcessor implements OnModuleInit {
     };
   }
 
+  /**
+   * Canonicalise a category name returned by the LLM against known UserContext
+   * category names (fix #1120).  The LLM may append parenthetical descriptions
+   * (e.g. "Customer feedback (github issues or feedback forms)") or other
+   * deviations.  We snap to the stored exact name when a prefix match exists.
+   */
+  private canonicaliseCategoryName(
+    rawName: string,
+    knownNames: string[],
+  ): string {
+    if (!rawName || rawName === "Other") return rawName;
+    // Exact match first
+    const exact = knownNames.find(
+      (knownName) => knownName.toLowerCase() === rawName.toLowerCase(),
+    );
+    if (exact) return exact;
+    // Parenthetical variant: "Name (description)" → strip parens and match
+    const withoutParens = rawName
+      .replace(/\s*\(.*\)\s*$/, "")
+      .trim()
+      .toLowerCase();
+    const parenMatch = knownNames.find(
+      (knownName) => knownName.toLowerCase() === withoutParens,
+    );
+    if (parenMatch) return parenMatch;
+    // Prefix match: LLM returned name starts with known name (or vice versa)
+    const prefixMatch = knownNames.find(
+      (knownName) =>
+        rawName.toLowerCase().startsWith(knownName.toLowerCase()) ||
+        knownName.toLowerCase().startsWith(rawName.toLowerCase()),
+    );
+    if (prefixMatch) return prefixMatch;
+    return rawName;
+  }
+
   private async resolveCategoryAndProtoCategory(
     email: Email,
     thread: EmailThread,
     llmResult: PriorityLlmResult,
     userId: string,
     workerId: string,
+    knownCategoryNames: string[] = [],
   ): Promise<{ finalCategory: string | null; protoCategoryId: string | null }> {
-    let finalCategory = llmResult.category || thread.category || null;
+    // Canonicalise LLM category against known names before further processing
+    const resolvedLlmResult =
+      llmResult.category && llmResult.category !== "Other"
+        ? {
+            ...llmResult,
+            category: this.canonicaliseCategoryName(
+              llmResult.category,
+              knownCategoryNames,
+            ),
+          }
+        : llmResult;
+
+    let finalCategory = resolvedLlmResult.category || thread.category || null;
     let protoCategoryId: string | null =
       finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
 
     // Defensive check: LLM may have returned a proto-category name directly.
     // Re-route through proto-category logic so counts stay accurate.
     if (
-      llmResult.category &&
-      llmResult.category !== "Other" &&
+      resolvedLlmResult.category &&
+      resolvedLlmResult.category !== "Other" &&
       email.emailThreadId
     ) {
       try {
         const directProtoMatch =
           await this.protoCategoriesService.findMatchingProtoCategory(
             userId,
-            llmResult.category,
+            resolvedLlmResult.category,
           );
         if (directProtoMatch) {
           const updatedProto =
@@ -1424,24 +1490,24 @@ export class LLMProcessor implements OnModuleInit {
             protoCategoryId = updatedProto.id;
           }
           this.logger.log(
-            `[Worker ${workerId}] Batch: LLM returned proto-category name directly: "${llmResult.category}" — re-routed`,
+            `[Worker ${workerId}] Batch: LLM returned proto-category name directly: "${resolvedLlmResult.category}" — re-routed`,
           );
         }
       } catch (err) {
         this.logger.warn(
-          `[Worker ${workerId}] Batch: Failed defensive proto-category check for "${llmResult.category}":`,
+          `[Worker ${workerId}] Batch: Failed defensive proto-category check for "${resolvedLlmResult.category}":`,
           err,
         );
       }
     }
 
     if (
-      llmResult.category === "Other" &&
-      llmResult.protoCategorySuggestion?.name
+      resolvedLlmResult.category === "Other" &&
+      resolvedLlmResult.protoCategorySuggestion?.name
     ) {
       const resolved = await this.applyProtoSuggestion(
         email,
-        llmResult,
+        resolvedLlmResult,
         userId,
         workerId,
         finalCategory,

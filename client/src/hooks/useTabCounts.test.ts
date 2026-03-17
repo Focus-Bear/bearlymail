@@ -6,7 +6,7 @@ import { useTabCounts } from './useTabCounts';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV2';
+const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3';
 
 describe('useTabCounts', () => {
   beforeEach(() => {

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { InboxFilter } from 'hooks/useInboxFilters';
 
 interface TabCounts {
   triage: number;
@@ -18,11 +19,11 @@ interface TabCountChanges {
 interface UseTabCountsReturn {
   tabCounts: TabCounts | null;
   loading: boolean;
-  fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
+  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null) => Promise<void>;
   updateTabCountsOptimistically: (changes: TabCountChanges) => void;
 }
 
-const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV2'; // Changed key to invalidate old cache
+const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3'; // Bumped to invalidate old cache shape
 const TAB_COUNTS_CACHE_TTL = 30000; // 30 seconds
 
 interface CacheEntry {
@@ -30,16 +31,54 @@ interface CacheEntry {
   timestamp: number;
 }
 
+/**
+ * Build a stable cache key from the full filter object.
+ * All three dimensions (minPriority, categories, accountIds) contribute so that
+ * different filter combinations are cached independently.
+ */
+function buildCacheKey(filters?: Partial<InboxFilter> | null): string {
+  const parts: string[] = [TAB_COUNTS_CACHE_KEY];
+  if (filters?.minPriority !== undefined && filters.minPriority !== null) {
+    parts.push(`p${filters.minPriority}`);
+  }
+  if (filters?.categories && filters.categories.length > 0) {
+    parts.push(`c${[...filters.categories].sort().join('-')}`);
+  }
+  if (filters?.accountIds && filters.accountIds.length > 0) {
+    parts.push(`a${[...filters.accountIds].sort().join('-')}`);
+  }
+  return parts.join('_');
+}
+
+/**
+ * Build the query-string portion of the tab-counts URL.
+ */
+function buildQueryParams(filters?: Partial<InboxFilter> | null): string {
+  const params = new URLSearchParams();
+  if (filters?.minPriority !== undefined && filters.minPriority !== null) {
+    params.set('minPriority', String(filters.minPriority));
+  }
+  if (filters?.categories && filters.categories.length > 0) {
+    params.set('categories', filters.categories.join(','));
+  }
+  if (filters?.accountIds && filters.accountIds.length > 0) {
+    params.set('accountIds', filters.accountIds.join(','));
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export function useTabCounts(): UseTabCountsReturn {
   const [tabCounts, setTabCounts] = useState<TabCounts | null>(null);
   const [loading, setLoading] = useState(false);
+  // Tracks the cache key for the most recently loaded tab counts so that
+  // updateTabCountsOptimistically writes to the correct filtered entry instead
+  // of always falling back to the base key.
+  const currentCacheKeyRef = useRef<string>(TAB_COUNTS_CACHE_KEY);
 
-  const fetchTabCounts = useCallback(async (force = false, minPriority?: number | null) => {
-    // Check localStorage cache first (unless force refresh is requested)
-    // Cache is keyed by minPriority so different filter values are cached independently
-    const cacheKey = minPriority !== undefined && minPriority !== null
-      ? `${TAB_COUNTS_CACHE_KEY}_p${minPriority}`
-      : TAB_COUNTS_CACHE_KEY;
+  const fetchTabCounts = useCallback(async (force = false, filters?: Partial<InboxFilter> | null) => {
+    const cacheKey = buildCacheKey(filters);
+    currentCacheKeyRef.current = cacheKey;
 
     if (!force) {
       try {
@@ -59,10 +98,8 @@ export function useTabCounts(): UseTabCountsReturn {
 
     setLoading(true);
     try {
-      const params = minPriority !== null && minPriority !== undefined
-        ? `?minPriority=${minPriority}`
-        : '';
-      const response = await axios.get(`${API_URL}/emails/tab-counts${params}`);
+      const qs = buildQueryParams(filters);
+      const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`);
       const counts: TabCounts = {
         triage: response.data.triage || 0,
         action: response.data.action || 0,
@@ -100,12 +137,14 @@ export function useTabCounts(): UseTabCountsReturn {
       // Update cache counts but PRESERVE the original timestamp from the last server fetch.
       // This prevents optimistic updates from extending the cache TTL, which could hide
       // server-side changes (e.g. background sync) for longer than the intended TTL.
+      // Use the current filter's cache key so filtered views stay consistent.
       try {
-        const cached = localStorage.getItem(TAB_COUNTS_CACHE_KEY);
+        const activeCacheKey = currentCacheKeyRef.current;
+        const cached = localStorage.getItem(activeCacheKey);
         if (cached) {
           const existingEntry: CacheEntry = JSON.parse(cached);
           localStorage.setItem(
-            TAB_COUNTS_CACHE_KEY,
+            activeCacheKey,
             JSON.stringify({
               counts: newCounts,
               timestamp: existingEntry.timestamp,
@@ -119,7 +158,7 @@ export function useTabCounts(): UseTabCountsReturn {
     });
   }, []);
 
-  // Fetch on mount
+  // Fetch on mount (no filters — will apply defaults via the UI later)
   useEffect(() => {
     fetchTabCounts();
   }, [fetchTabCounts]);

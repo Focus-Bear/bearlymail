@@ -135,7 +135,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,
-    minPriority: inboxFilters.filters.minPriority,
+    filters: inboxFilters.filters,
     refreshInPlace,
   });
 
@@ -152,7 +152,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchEmails,
     fetchBatchStatus,
     fetchTabCounts,
-    minPriority: inboxFilters.filters.minPriority,
+    filters: inboxFilters.filters,
     setEmails,
     setLoadingModeSwitch,
     clearSuggestionsCache,
@@ -161,21 +161,27 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     loadingSuggestions,
   });
 
-  // Re-fetch tab counts when minPriority filter changes so badge counts reflect the active filter
-  const prevMinPriorityRef = useRef<number | null | undefined>(undefined);
+  // Re-fetch tab counts when any filter dimension changes so badge counts reflect the active filter
+  const prevFiltersRef = useRef<typeof inboxFilters.filters | undefined>(undefined);
   useEffect(() => {
+    const currentFilters = inboxFilters.filters;
     // Skip the very first render (initialization handles the initial fetch)
-    if (prevMinPriorityRef.current === undefined) {
-      prevMinPriorityRef.current = inboxFilters.filters.minPriority;
+    if (prevFiltersRef.current === undefined) {
+      prevFiltersRef.current = currentFilters;
       return;
     }
-    if (prevMinPriorityRef.current !== inboxFilters.filters.minPriority) {
-      prevMinPriorityRef.current = inboxFilters.filters.minPriority;
-      fetchTabCounts(true, inboxFilters.filters.minPriority).catch(err =>
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.minPriority !== currentFilters.minPriority ||
+      prev.categories.join(',') !== currentFilters.categories.join(',') ||
+      prev.accountIds.join(',') !== currentFilters.accountIds.join(',');
+    if (filtersChanged) {
+      prevFiltersRef.current = currentFilters;
+      fetchTabCounts(true, currentFilters).catch(err =>
         console.error('Error fetching tab counts on filter change:', err)
       );
     }
-  }, [inboxFilters.filters.minPriority, fetchTabCounts]);
+  }, [inboxFilters.filters, fetchTabCounts]);
 
   // Email action handlers
   const emailActions = useEmailActions({

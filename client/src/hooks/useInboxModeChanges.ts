@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { InboxMode } from 'types/email';
 
 import { MODE_TRIAGE } from 'constants/strings';
+import { InboxFilter } from 'hooks/useInboxFilters';
 
 interface UseInboxModeChangesProps {
   mode: InboxMode;
@@ -10,8 +11,8 @@ interface UseInboxModeChangesProps {
   authLoading: boolean;
   fetchEmails: () => Promise<void>;
   fetchBatchStatus: () => Promise<void>;
-  fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
-  minPriority?: number | null;
+  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null) => Promise<void>;
+  filters?: Partial<InboxFilter> | null;
   setEmails: React.Dispatch<React.SetStateAction<any[]>>;
   setLoadingModeSwitch: (loading: boolean) => void;
   clearSuggestionsCache: () => void;
@@ -28,7 +29,7 @@ export function useInboxModeChanges({
   fetchEmails,
   fetchBatchStatus,
   fetchTabCounts,
-  minPriority,
+  filters,
   setEmails,
   setLoadingModeSwitch,
   clearSuggestionsCache,
@@ -71,7 +72,7 @@ export function useInboxModeChanges({
     Promise.all([
       fetchEmails().catch(err => console.error('Error fetching emails on mode change:', err)),
       fetchBatchStatus().catch(err => console.error('Error fetching batch status on mode change:', err)),
-      fetchTabCounts(true, minPriority).catch(err => console.error('Error fetching tab counts on mode change:', err)),
+      fetchTabCounts(true, filters).catch(err => console.error('Error fetching tab counts on mode change:', err)),
     ]).finally(() => {
       setLoadingModeSwitch(false);
     });

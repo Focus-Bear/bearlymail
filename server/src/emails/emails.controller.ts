@@ -214,12 +214,29 @@ export class EmailsController {
   async getTabCounts(
     @Request() req,
     @Query("minPriority") minPriority?: string,
+    @Query("categories") categories?: string,
+    @Query("accountIds") accountIds?: string,
   ) {
     const { userId } = req.user;
-    const filters =
-      minPriority !== undefined
-        ? { minPriority: parseInt(minPriority, 10) }
-        : undefined;
+    const categoryIdList = categories
+      ? categories.split(",").filter(Boolean)
+      : undefined;
+    const accountIdList = accountIds
+      ? accountIds.split(",").filter(Boolean)
+      : undefined;
+    const hasFilters =
+      minPriority !== undefined ||
+      categoryIdList !== undefined ||
+      accountIdList !== undefined;
+    const filters = hasFilters
+      ? {
+          ...(minPriority !== undefined
+            ? { minPriority: parseInt(minPriority, 10) }
+            : {}),
+          ...(categoryIdList ? { categoryIds: categoryIdList } : {}),
+          ...(accountIdList ? { accountIds: accountIdList } : {}),
+        }
+      : undefined;
 
     // Use getInboxSummary() for all modes - the same lightweight query used by the inbox display.
     // This ensures tab counts are always consistent with what the inbox shows.

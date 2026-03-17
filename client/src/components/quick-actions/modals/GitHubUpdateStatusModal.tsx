@@ -21,9 +21,17 @@ interface GitHubUpdateStatusModalProps {
   onSuccess: () => void;
 }
 
+/** Node IDs returned by the status-options endpoint, needed for the Projects v2 mutation. */
+interface ProjectStatusData {
+  projectId: string;
+  itemId: string;
+  fieldId: string;
+}
+
 export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = ({ issueInfo, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
+  const [projectStatusData, setProjectStatusData] = useState<ProjectStatusData | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -40,7 +48,11 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
             issueNumber: issueInfo.number,
           },
         });
-        setStatusOptions(response.data?.options ?? []);
+        const { options, projectId, itemId, fieldId } = response.data ?? {};
+        setStatusOptions(options ?? []);
+        if (projectId && itemId && fieldId) {
+          setProjectStatusData({ projectId, itemId, fieldId });
+        }
       } catch {
         // If fetching options fails, fall back to free-text entry (empty options list)
         setStatusOptions([]);
@@ -62,16 +74,30 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
     setError('');
 
     try {
-      await axios.post(`${API_URL}/suggested-actions/github/update-status`, {
-        owner: issueInfo.owner,
-        repo: issueInfo.repo,
-        issueNumber: issueInfo.number,
-        projectStatusValue: selectedStatus,
-      });
+      if (projectStatusData) {
+        // Use the Projects v2 GraphQL mutation via the dedicated endpoint
+        const selectedOption = statusOptions.find(opt => opt.name === selectedStatus);
+        await axios.post(`${API_URL}/suggested-actions/github/update-project-status`, {
+          projectId: projectStatusData.projectId,
+          itemId: projectStatusData.itemId,
+          fieldId: projectStatusData.fieldId,
+          singleSelectOptionId: selectedOption?.id ?? selectedStatus,
+        });
+      } else {
+        // Fallback: update issue open/closed state for issues not in a project
+        const state = selectedStatus.toLowerCase() === 'closed' ? 'closed' : 'open';
+        await axios.post(`${API_URL}/suggested-actions/github/update-status`, {
+          owner: issueInfo.owner,
+          repo: issueInfo.repo,
+          issueNumber: issueInfo.number,
+          state,
+        });
+      }
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update issue status');
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      setError(axiosError.response?.data?.message ?? 'Failed to update issue status');
     } finally {
       setLoading(false);
     }

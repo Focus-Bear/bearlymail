@@ -352,6 +352,7 @@ module.exports = {
       files: [
         'src/context/context-batch-analysis.processor.ts',
         'src/emails/emails.service.ts',
+        'src/github/github-api.service.ts',
         'src/llm/llm.service.ts',
         'src/llm/priority-analysis.service.ts',
       ],

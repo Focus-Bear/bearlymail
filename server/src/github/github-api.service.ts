@@ -13,10 +13,13 @@ interface ProjectStatusOptionsGraphQLResponse {
     issue?: {
       projectItems?: {
         nodes?: Array<{
+          id?: string;
           project?: {
+            id?: string;
             title?: string;
             fields?: {
               nodes?: Array<{
+                id?: string;
                 name?: string;
                 options?: Array<{
                   id: string;
@@ -29,6 +32,14 @@ interface ProjectStatusOptionsGraphQLResponse {
       };
     };
   };
+}
+
+/** Node IDs + options returned by fetchProjectStatusOptions for the Projects v2 mutation. */
+export interface ProjectStatusData {
+  projectId: string;
+  itemId: string;
+  fieldId: string;
+  options: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -888,12 +899,15 @@ export class GitHubApiService {
         issue(number: $issueNumber) {
           projectItems(first: 10) {
             nodes {
+              id
               project {
                 ... on ProjectV2 {
+                  id
                   title
                   fields(first: 20) {
                     nodes {
                       ... on ProjectV2SingleSelectField {
+                        id
                         name
                         options {
                           id
@@ -912,15 +926,15 @@ export class GitHubApiService {
   `;
 
   /**
-   * Fetch the available Status field options from GitHub Projects v2 for a given issue.
-   * Returns an array of { id, name } objects representing the project column/status options.
+   * Fetch Status field options + node IDs from GitHub Projects v2 for a given issue.
+   * Returns null when the issue is not linked to a project or has no Status field.
    */
   async fetchProjectStatusOptions(
     token: string,
     owner: string,
     repo: string,
     issueNumber: number,
-  ): Promise<Array<{ id: string; name: string }>> {
+  ): Promise<ProjectStatusData | null> {
     try {
       const octokit = this.createClient(token);
       const response =
@@ -934,23 +948,32 @@ export class GitHubApiService {
 
       // Collect options from the first project's Status field
       for (const item of projectNodes) {
-        if (!item?.project?.fields?.nodes) continue;
+        if (!item?.id || !item?.project?.id || !item?.project?.fields?.nodes)
+          continue;
         for (const field of item.project.fields.nodes) {
-          if (!field) continue;
+          if (!field?.id) continue;
           const fieldName = field.name?.toLowerCase();
           if (fieldName === "status" && field.options?.length) {
-            return field.options.map((opt) => ({ id: opt.id, name: opt.name }));
+            return {
+              projectId: item.project.id,
+              itemId: item.id,
+              fieldId: field.id,
+              options: field.options.map((opt) => ({
+                id: opt.id,
+                name: opt.name,
+              })),
+            };
           }
         }
       }
 
-      return [];
+      return null;
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
       this.logger.warn(
         `Failed to fetch project status options for ${owner}/${repo}#${issueNumber}: ${errorMessage}`,
       );
-      return [];
+      return null;
     }
   }
 }

@@ -28,18 +28,21 @@ describe("GitHubApiService - fetchProjectStatusOptions", () => {
     service = module.get<GitHubApiService>(GitHubApiService);
   });
 
-  it("returns status options from the GitHub Projects v2 GraphQL response", async () => {
+  it("returns status data including node IDs from the GitHub Projects v2 GraphQL response", async () => {
     mockGraphql.mockResolvedValue({
       repository: {
         issue: {
           projectItems: {
             nodes: [
               {
+                id: "PVTI_item1",
                 project: {
+                  id: "PVT_proj1",
                   title: "BearlyMail Board",
                   fields: {
                     nodes: [
                       {
+                        id: "PVTSSF_field1",
                         name: "Status",
                         options: [
                           { id: "abc1", name: "Backlog" },
@@ -57,21 +60,26 @@ describe("GitHubApiService - fetchProjectStatusOptions", () => {
       },
     });
 
-    const options = await service.fetchProjectStatusOptions(
+    const result = await service.fetchProjectStatusOptions(
       "fake-token",
       "Focus-Bear",
       "BearlyMail",
       42,
     );
 
-    expect(options).toEqual([
-      { id: "abc1", name: "Backlog" },
-      { id: "abc2", name: "In Progress" },
-      { id: "abc3", name: "Done" },
-    ]);
+    expect(result).toEqual({
+      projectId: "PVT_proj1",
+      itemId: "PVTI_item1",
+      fieldId: "PVTSSF_field1",
+      options: [
+        { id: "abc1", name: "Backlog" },
+        { id: "abc2", name: "In Progress" },
+        { id: "abc3", name: "Done" },
+      ],
+    });
   });
 
-  it("returns empty array when issue has no project items", async () => {
+  it("returns null when issue has no project items", async () => {
     mockGraphql.mockResolvedValue({
       repository: {
         issue: {
@@ -82,28 +90,31 @@ describe("GitHubApiService - fetchProjectStatusOptions", () => {
       },
     });
 
-    const options = await service.fetchProjectStatusOptions(
+    const result = await service.fetchProjectStatusOptions(
       "fake-token",
       "owner",
       "repo",
       1,
     );
 
-    expect(options).toEqual([]);
+    expect(result).toBeNull();
   });
 
-  it("returns empty array when the project has no Status field", async () => {
+  it("returns null when the project has no Status field", async () => {
     mockGraphql.mockResolvedValue({
       repository: {
         issue: {
           projectItems: {
             nodes: [
               {
+                id: "PVTI_item1",
                 project: {
+                  id: "PVT_proj1",
                   title: "My Board",
                   fields: {
                     nodes: [
                       {
+                        id: "PVTF_field1",
                         name: "Priority",
                         options: [
                           { id: "p1", name: "High" },
@@ -120,39 +131,75 @@ describe("GitHubApiService - fetchProjectStatusOptions", () => {
       },
     });
 
-    const options = await service.fetchProjectStatusOptions(
+    const result = await service.fetchProjectStatusOptions(
       "fake-token",
       "owner",
       "repo",
       1,
     );
 
-    expect(options).toEqual([]);
+    expect(result).toBeNull();
   });
 
-  it("returns empty array and does not throw when GraphQL call fails", async () => {
+  it("returns null and does not throw when GraphQL call fails", async () => {
     mockGraphql.mockRejectedValue(new Error("GraphQL error"));
 
-    const options = await service.fetchProjectStatusOptions(
+    const result = await service.fetchProjectStatusOptions(
       "fake-token",
       "owner",
       "repo",
       1,
     );
 
-    expect(options).toEqual([]);
+    expect(result).toBeNull();
   });
 
-  it("returns empty array when response is undefined", async () => {
+  it("returns null when response is undefined", async () => {
     mockGraphql.mockResolvedValue(undefined);
 
-    const options = await service.fetchProjectStatusOptions(
+    const result = await service.fetchProjectStatusOptions(
       "fake-token",
       "owner",
       "repo",
       1,
     );
 
-    expect(options).toEqual([]);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when item has no id", async () => {
+    mockGraphql.mockResolvedValue({
+      repository: {
+        issue: {
+          projectItems: {
+            nodes: [
+              {
+                project: {
+                  id: "PVT_proj1",
+                  fields: {
+                    nodes: [
+                      {
+                        id: "PVTSSF_field1",
+                        name: "Status",
+                        options: [{ id: "opt1", name: "Todo" }],
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const result = await service.fetchProjectStatusOptions(
+      "fake-token",
+      "owner",
+      "repo",
+      1,
+    );
+
+    expect(result).toBeNull();
   });
 });

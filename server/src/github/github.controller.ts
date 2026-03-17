@@ -75,14 +75,23 @@ export class GitHubController {
       return { options: [] };
     }
 
-    const options = await this.githubApiService.fetchProjectStatusOptions(
+    const statusData = await this.githubApiService.fetchProjectStatusOptions(
       token,
       owner,
       repo,
       issueNumber,
     );
 
-    return { options };
+    if (!statusData) {
+      return { options: [], projectId: null, itemId: null, fieldId: null };
+    }
+
+    return {
+      options: statusData.options,
+      projectId: statusData.projectId,
+      itemId: statusData.itemId,
+      fieldId: statusData.fieldId,
+    };
   }
 
   @Get("emails/:id")

@@ -360,17 +360,12 @@ module.exports = {
       files: [
         '**/hooks/useEmailDetailOperations.ts',
         '**/hooks/useEmailDetailState.ts',
-        '**/hooks/useEmailDetailInitialization.ts',
-        '**/hooks/useEmailDetailFetching.ts',
         '**/hooks/useInboxState.ts',
-        '**/hooks/useInboxCategoryAccordion.ts',
-        '**/hooks/useInboxInitialization.ts',
         '**/hooks/settings/useAnalysisProgress.ts',
         '**/hooks/settings/useContextManagement.ts',
         '**/hooks/settings/useRecategorizeProgress.ts',
         '**/hooks/settings/useSummarizationRules.ts',
         '**/hooks/useInboxKeyboardNavigation.ts',
-        '**/hooks/useReplyDraftGeneration.ts',
       ],
       rules: {
         'max-lines-per-function': 'off',
@@ -380,6 +375,7 @@ module.exports = {
         'react-hooks/exhaustive-deps': 'off', // Intentional dependency exclusions to prevent infinite re-render cycles
       },
     },
+
     {
       // Large components pending decomposition (tracked in issue #778)
       // These components have complex render logic. Decomposition is planned.

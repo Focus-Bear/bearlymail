@@ -329,10 +329,10 @@ module.exports = {
     {
       // Legacy services/providers are actively being decomposed; keep strict lint elsewhere while
       // allowing these modules to pass without inline eslint-disable comments.
+      // Phase 2 note: zoho.provider.ts (771 lines) removed — it is within standard limits and needs no override.
       files: [
         'src/emails/llm-processor.ts',
         'src/emails/providers/gmail.provider.ts',
-        'src/emails/providers/zoho.provider.ts',
         'src/context/context.service.ts',
         'src/context/context-gmail-data.service.ts',
       ],

@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useRef } from 'react';
+import { MutableRefObject, useEffect, useEffectEvent, useRef } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -164,13 +164,10 @@ export const useEmailDetailInitialization = ({
     }
   }, [id, summaryType]);
 
-  useEffect(() => {
-    if (!id || fetchedEmailIdRef.current === id) {
-      return;
-    }
-    fetchedEmailIdRef.current = id;
+  const onEmailFetch = useEffectEvent((emailId: string) => {
+    fetchedEmailIdRef.current = emailId;
     initializeEmailSummary({
-      id,
+      id: emailId,
       isGeneratingSummary,
       summaryType,
       summary,
@@ -185,18 +182,14 @@ export const useEmailDetailInitialization = ({
     });
     fetchGithubInfo();
     fetchSuggestedActions();
-  }, [
-    id,
-    fetchCustomRules,
-    fetchEmail,
-    handleUseCustomRule,
-    handleSummarize,
-    fetchGithubInfo,
-    fetchSuggestedActions,
-    setSummary,
-    setSummaryCollapsed,
-    setSummaryType,
-  ]);
+  });
+
+  useEffect(() => {
+    if (!id || fetchedEmailIdRef.current === id) {
+      return;
+    }
+    onEmailFetch(id);
+  }, [id, onEmailFetch]);
 
   useEmailThreadFetcher({ email, fetchNote, fetchThreadEmails, setActionItems });
 

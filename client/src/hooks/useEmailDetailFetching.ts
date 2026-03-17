@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import axios from 'axios';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
@@ -112,23 +112,27 @@ export function useEmailDetailFetching(emailId: string) {
     [emailId]
   );
 
+  const onEmailIdChanged = useEffectEvent((id: string) => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setEmail(null);
+    setThreadEmails([]);
+
+    fetchEmail(controller.signal).then(() => {
+      if (!controller.signal.aborted) {
+        fetchThreadEmails(controller.signal);
+      }
+    });
+  });
+
   useEffect(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
     if (emailId) {
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      setEmail(null);
-      setThreadEmails([]);
-
-      fetchEmail(controller.signal).then(() => {
-        if (!controller.signal.aborted) {
-          fetchThreadEmails(controller.signal);
-        }
-      });
+      onEmailIdChanged(emailId);
     }
 
     return () => {
@@ -136,9 +140,7 @@ export function useEmailDetailFetching(emailId: string) {
         abortControllerRef.current.abort();
       }
     };
-    // Only re-run when emailId changes - fetchEmail and fetchThreadEmails
-    // are stable for a given emailId since they only depend on emailId
-  }, [emailId]);
+  }, [emailId, onEmailIdChanged]);
 
   const expandedItemsSetRef = useRef<string | null>(null);
   useEffect(() => {

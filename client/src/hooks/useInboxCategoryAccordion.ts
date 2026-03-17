@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { getCategoryKey } from 'hooks/useEmailFetching';
 
@@ -97,6 +97,26 @@ function useCategoryFetchEffects({
   // limboDispatchedRef is a defence-in-depth guard that prevents this effect from
   // dispatching a second fetch for a category that is already in flight (e.g. if
   // React batches cause both effects to evaluate before the first dispatch lands).
+  // useEffectEvent captures the latest expandedCategoriesRef snapshot so the effect can
+  // read it without treating it as a reactive dependency — preventing the double-fetch
+  // race described in the comment above.
+  const getLimboCategories = useEffectEvent(
+    (
+      keyToItem: Map<string, CategorySummaryItem>,
+      loaded: string[],
+      loading: string[],
+      exhausted: string[],
+      dispatched: Set<string>
+    ) =>
+      Array.from(expandedCategoriesRef.current).filter(
+        key =>
+          !loaded.includes(key) &&
+          !loading.includes(key) &&
+          !exhausted.includes(key) &&
+          !dispatched.has(key)
+      )
+  );
+
   const limboDispatchedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!categorySummary) {
@@ -105,13 +125,12 @@ function useCategoryFetchEffects({
 
     const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
 
-    const limboCategories = Array.from(expandedCategoriesRef.current).filter(
-      key =>
-        !loadedCategoryNames.includes(key) &&
-        !loadingCategoryNames.includes(key) &&
-        // Skip categories that have exhausted retries — wait for user to manually retry
-        !exhaustedCategoryNames.includes(key) &&
-        !limboDispatchedRef.current.has(key)
+    const limboCategories = getLimboCategories(
+      keyToItem,
+      loadedCategoryNames,
+      loadingCategoryNames,
+      exhaustedCategoryNames,
+      limboDispatchedRef.current
     );
     if (limboCategories.length === 0) {
       return;
@@ -135,8 +154,7 @@ function useCategoryFetchEffects({
           limboDispatchedRef.current.delete(categoryKey);
         });
     });
-    // expandedCategories intentionally omitted — see comment above.
-  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails]);
+  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails, expandedCategoriesRef, getLimboCategories]);
 }
 
 /**

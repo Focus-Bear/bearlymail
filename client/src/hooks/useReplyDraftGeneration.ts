@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { MutableRefObject, useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import axios from 'axios';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { plainTextToHtml } from 'utils/emailUtils';
@@ -212,8 +212,8 @@ export function useReplyDraftGeneration(
   const abortControllerRef = useRef<AbortController | null>(null);
   const threadIdUsedForFetchRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== emailId) {
+  const onEmailIdReset = useEffectEvent((newEmailId: string) => {
+    if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== newEmailId) {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -222,8 +222,12 @@ export function useReplyDraftGeneration(
       threadIdUsedForFetchRef.current = null;
       resetReplyGenerationState({ setReplyOptions, setSelectedReplyOption, setDraft, setLoadingReplies, setIsGeneratingInBackground, setDebugInfo });
     }
-    previousEmailIdRef.current = emailId;
-  }, [emailId]);
+    previousEmailIdRef.current = newEmailId;
+  });
+
+  useEffect(() => {
+    onEmailIdReset(emailId);
+  }, [emailId, onEmailIdReset]);
 
   const fetchPreGeneratedReplies = useCallback(fetchPreGeneratedRepliesImpl, []);
   const generateRepliesOnDemand = useCallback(generateRepliesOnDemandImpl, []);
@@ -281,7 +285,7 @@ export function useReplyDraftGeneration(
         setIsGeneratingInBackground(false);
       }
     }
-  }, [emailId, email, fetchPreGeneratedReplies, generateRepliesOnDemand]);
+  }, [emailId, email, fetchPreGeneratedReplies, generateRepliesOnDemand, setDebugInfo, setIsGeneratingInBackground, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
 
   useEffect(() => {
     if (autoGenerate && emailId && email && lastGeneratedEmailId.current !== emailId) {

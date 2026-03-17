@@ -199,6 +199,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     const prev = prevFiltersRef.current;
     const filtersChanged =
       prev.minPriority !== currentFilters.minPriority ||
+      prev.maxPriority !== currentFilters.maxPriority ||
       prev.categories.join(',') !== currentFilters.categories.join(',') ||
       prev.accountIds.join(',') !== currentFilters.accountIds.join(',');
     if (filtersChanged) {

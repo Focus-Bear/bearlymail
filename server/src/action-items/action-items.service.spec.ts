@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, UpdateResult } from "typeorm";
 
 import { ActionItem } from "../database/entities/action-item.entity";
 import { ActionItemsService } from "./action-items.service";
@@ -177,7 +177,7 @@ describe("ActionItemsService", () => {
       };
       const updatedItem = { ...mockActionItem, ...updateData };
 
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue({ affected: 1 } as UpdateResult);
       repository.findOne.mockResolvedValue(updatedItem);
 
       const result = await service.update("user-1", "action-1", updateData);
@@ -196,7 +196,7 @@ describe("ActionItemsService", () => {
       const updateData = { description: "New description" };
       const updatedItem = { ...mockActionItem, description: "New description" };
 
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue({ affected: 1 } as UpdateResult);
       repository.findOne.mockResolvedValue(updatedItem);
 
       const result = await service.update("user-1", "action-1", updateData);
@@ -208,7 +208,7 @@ describe("ActionItemsService", () => {
       const updateData = { isCompleted: true };
       const updatedItem = { ...mockActionItem, isCompleted: true };
 
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue({ affected: 1 } as UpdateResult);
       repository.findOne.mockResolvedValue(updatedItem);
 
       const result = await service.update("user-1", "action-1", updateData);
@@ -220,7 +220,7 @@ describe("ActionItemsService", () => {
       const updateData = { emailThreadId: "thread-2" };
       const updatedItem = { ...mockActionItem, emailThreadId: "thread-2" };
 
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue({ affected: 1 } as UpdateResult);
       repository.findOne.mockResolvedValue(updatedItem);
 
       const result = await service.update("user-1", "action-1", updateData);
@@ -229,7 +229,7 @@ describe("ActionItemsService", () => {
     });
 
     it("should return null when action item not found", async () => {
-      repository.update.mockResolvedValue({ affected: 0 } as any);
+      repository.update.mockResolvedValue({ affected: 0 } as UpdateResult);
       repository.findOne.mockResolvedValue(null);
 
       const result = await service.update("user-1", "nonexistent-id", {
@@ -242,7 +242,7 @@ describe("ActionItemsService", () => {
 
   describe("delete", () => {
     it("should delete an action item by id and userId", async () => {
-      repository.delete.mockResolvedValue({ affected: 1 } as any);
+      repository.delete.mockResolvedValue({ affected: 1 } as UpdateResult);
 
       await service.delete("user-1", "action-1");
 
@@ -253,7 +253,7 @@ describe("ActionItemsService", () => {
     });
 
     it("should handle deletion of non-existent item gracefully", async () => {
-      repository.delete.mockResolvedValue({ affected: 0 } as any);
+      repository.delete.mockResolvedValue({ affected: 0 } as UpdateResult);
 
       await expect(
         service.delete("user-1", "nonexistent-id"),
@@ -266,7 +266,7 @@ describe("ActionItemsService", () => {
     });
 
     it("should only delete items belonging to the specified user", async () => {
-      repository.delete.mockResolvedValue({ affected: 1 } as any);
+      repository.delete.mockResolvedValue({ affected: 1 } as UpdateResult);
 
       await service.delete("user-1", "action-1");
 

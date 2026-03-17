@@ -5,6 +5,7 @@ import * as bcrypt from "bcrypt";
 import PgBoss from "pg-boss";
 
 import { User } from "../database/entities/user.entity";
+import { Waitlist } from "../database/entities/waitlist.entity";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
@@ -156,7 +157,7 @@ describe("AuthService", () => {
 
     it("should return null when user has no password", async () => {
       const userWithoutPassword = { ...mockUser, password: null };
-      usersService.findByEmail.mockResolvedValue(userWithoutPassword as any);
+      usersService.findByEmail.mockResolvedValue(userWithoutPassword as User);
 
       const result = await service.validateUser("test@example.com", "password");
 
@@ -303,7 +304,7 @@ describe("AuthService", () => {
       waitlistService.findByEmail.mockResolvedValue({
         email: "test@example.com",
         approved: false,
-      } as any);
+      } as Waitlist);
 
       await expect(
         service.validateGoogleUser(

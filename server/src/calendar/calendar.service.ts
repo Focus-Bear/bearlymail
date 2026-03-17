@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
@@ -16,7 +21,7 @@ import {
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
-import { parseIcsString } from "./calendar-ics-parser";
+import { parseIcsStringSafe } from "./calendar-ics-parser";
 import {
   generateMeetingReply,
   respondToInvitation,
@@ -552,18 +557,43 @@ Manage this booking:
   /**
    * Fetch an ICS attachment via the emails service, parse the first VEVENT,
    * and return a structured IcsEventData object.
+   *
+   * Throws BadRequestException for parse errors (400) so the controller can
+   * propagate meaningful HTTP responses instead of a raw 500.
    */
   async parseIcsAttachment(
     userId: string,
     emailId: string,
     attachmentId: string,
   ): Promise<IcsEventData> {
-    const { attachmentBuffer } = await this.emailsService.getAttachment(
-      userId,
-      emailId,
-      attachmentId,
-    );
-    return parseIcsString(attachmentBuffer.toString("utf-8"));
+    let attachmentBuffer: Buffer;
+    try {
+      ({ attachmentBuffer } = await this.emailsService.getAttachment(
+        userId,
+        emailId,
+        attachmentId,
+      ));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `[ICS] Failed to fetch attachment ${attachmentId} for email ${emailId}: ${message}`,
+      );
+      throw new NotFoundException(
+        `Could not retrieve ICS attachment: ${message}`,
+      );
+    }
+
+    const icsString = attachmentBuffer.toString("utf-8");
+    const result = parseIcsStringSafe(icsString);
+    if (result.ok === false) {
+      this.logger.warn(
+        `[ICS] Parse error for attachment ${attachmentId} on email ${emailId}: ${result.error}`,
+      );
+      throw new BadRequestException(
+        `Could not parse calendar invite: ${result.error}`,
+      );
+    }
+    return result.event;
   }
 
   /**
@@ -621,6 +651,9 @@ Manage this booking:
   /**
    * Add a parsed ICS event to the user's primary Google Calendar.
    * Returns { success, eventLink }.
+   *
+   * Throws BadRequestException / NotFoundException for known error conditions
+   * rather than a generic Error so the controller can return proper HTTP codes.
    */
   async addIcsEventToCalendar(
     userId: string,
@@ -628,7 +661,7 @@ Manage this booking:
   ): Promise<{ success: boolean; eventLink?: string }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new BadRequestException("Google Calendar not connected");
     }
 
     this.oauth2Client.setCredentials({
@@ -664,31 +697,56 @@ Manage this booking:
       })),
     };
 
-    const created = await calendar.events.insert({
-      calendarId: "primary",
-      requestBody: eventBody,
-    });
+    try {
+      const created = await calendar.events.insert({
+        calendarId: "primary",
+        requestBody: eventBody,
+      });
 
-    return {
-      success: true,
-      eventLink: created.data.htmlLink ?? undefined,
-    };
+      return {
+        success: true,
+        eventLink: created.data.htmlLink ?? undefined,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[ICS] Failed to add event to calendar: ${message}`);
+      throw new Error(`Failed to add event to calendar: ${message}`);
+    }
   }
 
   /**
    * Full flow: parse ICS attachment and check if the event already exists in
    * Google Calendar. Returns structured IcsInfoResponse for the frontend.
+   *
+   * Propagates BadRequestException / NotFoundException from parseIcsAttachment
+   * so the controller can return proper HTTP status codes.  Unexpected errors
+   * are logged and re-thrown.
    */
   async getIcsInfo(
     userId: string,
     emailId: string,
     attachmentId: string,
   ): Promise<IcsInfoResponse> {
+    // parseIcsAttachment already throws BadRequestException / NotFoundException
+    // on known failures — let those propagate naturally.
     const event = await this.parseIcsAttachment(userId, emailId, attachmentId);
-    const { exists, calendarEventId } = await this.checkEventExists(
-      userId,
-      event,
-    );
+
+    let exists = false;
+    let calendarEventId: string | undefined;
+    try {
+      ({ exists, calendarEventId } = await this.checkEventExists(
+        userId,
+        event,
+      ));
+    } catch (err) {
+      // checkEventExists failing should not block the user from seeing event
+      // details — log and continue with exists=false.
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `[ICS] checkEventExists failed for user ${userId}: ${message}`,
+      );
+    }
+
     return { event, alreadyInCalendar: exists, calendarEventId };
   }
 

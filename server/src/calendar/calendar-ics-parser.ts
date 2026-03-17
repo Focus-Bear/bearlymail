@@ -25,6 +25,11 @@ interface IcsVEventExtra {
   rrule?: unknown;
 }
 
+/** Structured result type allowing callers to distinguish parse errors from events */
+export type ParseIcsResult =
+  | { ok: true; event: IcsEventData }
+  | { ok: false; error: string };
+
 function parseOrganizer(
   rawOrganizer: ical.VEvent["organizer"],
 ): IcsEventData["organizer"] | undefined {
@@ -67,59 +72,121 @@ function parseAttendees(
 }
 
 /**
- * Parse a raw ICS string and return structured event data.
+ * Parse a raw ICS string and return a structured result object.
  *
- * Throws if the ICS contains no VEVENT or if DTSTART is missing/invalid.
+ * Unlike throwing directly, this returns { ok: false, error } for all
+ * well-understood failure modes (empty string, no VEVENT, missing DTSTART,
+ * malformed dates, ical parse exceptions) so callers can decide how to surface
+ * the error without catching unhandled exceptions.
+ *
+ * Use the throwing wrapper `parseIcsString()` for call-sites that prefer
+ * exception-based control flow (legacy API).
  */
-export function parseIcsString(icsString: string): IcsEventData {
-  const parsed = ical.sync.parseICS(icsString);
+export function parseIcsStringSafe(icsString: string): ParseIcsResult {
+  if (!icsString || !icsString.trim()) {
+    return { ok: false, error: "ICS string is empty" };
+  }
+
+  let parsed: ical.CalendarResponse;
+  try {
+    parsed = ical.sync.parseICS(icsString);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Failed to parse ICS data: ${message}` };
+  }
 
   const eventEntry = Object.values(parsed).find(
     (entry) => entry.type === "VEVENT",
   ) as ical.VEvent | undefined;
 
   if (!eventEntry) {
-    throw new Error("No VEVENT found in ICS attachment");
+    return { ok: false, error: "No VEVENT found in ICS attachment" };
   }
 
-  const startDate: Date | undefined =
-    eventEntry.start instanceof Date ? eventEntry.start : undefined;
-  const endDate: Date | undefined =
-    eventEntry.end instanceof Date ? eventEntry.end : undefined;
+  return buildEventResult(eventEntry, icsString);
+}
 
-  if (!startDate) {
-    throw new Error("ICS VEVENT has no valid DTSTART");
-  }
-
+/**
+ * Build the IcsEventData from a parsed VEvent entry.
+ * Extracted to keep parseIcsStringSafe under the statement limit.
+ */
+function buildEventResult(
+  eventEntry: ical.VEvent,
+  icsString: string,
+): ParseIcsResult {
   const extEntry = eventEntry as ical.VEvent & IcsVEventExtra;
 
-  const allDay = extEntry.datetype === "date";
-  const organizer = parseOrganizer(extEntry.organizer);
-  const attendees = parseAttendees(extEntry.attendee);
-  const isRecurring = Boolean(extEntry.rrule);
+  const startDate = safeDate(eventEntry.start);
+  if (!startDate) {
+    return { ok: false, error: "ICS VEVENT has no valid DTSTART" };
+  }
 
-  // Extract TZID from raw DTSTART property if present
+  const endDate = safeDate(eventEntry.end);
+
+  let organizer: IcsEventData["organizer"] | undefined;
+  try {
+    organizer = parseOrganizer(extEntry.organizer);
+  } catch {
+    organizer = undefined;
+  }
+
+  let attendees: IcsAttendee[] = [];
+  try {
+    attendees = parseAttendees(extEntry.attendee);
+  } catch {
+    attendees = [];
+  }
+
   const tzidMatch = icsString.match(/DTSTART;TZID=([^:]+):/i);
   const timezone = tzidMatch ? tzidMatch[1] : undefined;
-
-  const rawSummary = extEntry.summary;
-  const title = typeof rawSummary === "string" ? rawSummary : "(No title)";
+  const title =
+    typeof extEntry.summary === "string" ? extEntry.summary : "(No title)";
 
   return {
-    uid: extEntry.uid ?? crypto.randomUUID(),
-    title,
-    startAt: startDate.toISOString(),
-    endAt: endDate?.toISOString(),
-    allDay,
-    location:
-      typeof extEntry.location === "string" ? extEntry.location : undefined,
-    description:
-      typeof extEntry.description === "string"
-        ? extEntry.description
-        : undefined,
-    organizer,
-    attendees,
-    timezone,
-    isRecurring,
+    ok: true,
+    event: {
+      uid: extEntry.uid ?? crypto.randomUUID(),
+      title,
+      startAt: startDate.toISOString(),
+      endAt: endDate?.toISOString(),
+      allDay: extEntry.datetype === "date",
+      location:
+        typeof extEntry.location === "string" ? extEntry.location : undefined,
+      description:
+        typeof extEntry.description === "string"
+          ? extEntry.description
+          : undefined,
+      organizer,
+      attendees,
+      timezone,
+      isRecurring: Boolean(extEntry.rrule),
+    },
   };
+}
+
+/** Return a valid Date or undefined — never throws. */
+function safeDate(value: unknown): Date | undefined {
+  try {
+    if (!(value instanceof Date)) return undefined;
+    return isNaN(value.getTime()) ? undefined : value;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Parse a raw ICS string and return structured event data.
+ *
+ * Throws if the ICS is empty, contains no VEVENT, DTSTART is missing/invalid,
+ * or the ICS data cannot be parsed.
+ *
+ * @deprecated Prefer `parseIcsStringSafe()` for new call-sites; it returns a
+ *   structured result instead of throwing so callers can map to HTTP errors.
+ */
+export function parseIcsString(icsString: string): IcsEventData {
+  const result = parseIcsStringSafe(icsString);
+  if (result.ok === false) {
+    throw new Error(result.error);
+  }
+  return result.event;
 }

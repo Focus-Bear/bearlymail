@@ -94,8 +94,15 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
         `${API_URL}/calendar/ics-info/${email.id}/${icsAttachment.attachmentId}`,
       );
       setInfo(response.data);
-    } catch {
-      setError(t('emailDetail.icsInvite.error'));
+    } catch (err) {
+      console.error('[IcsInviteCard] Failed to fetch ICS info:', err);
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      const serverMessage = axiosError?.response?.data?.message;
+      setError(
+        serverMessage
+          ? `Could not parse calendar invite: ${serverMessage}`
+          : t('emailDetail.icsInvite.error'),
+      );
     } finally {
       setLoading(false);
     }
@@ -118,8 +125,15 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
         setAdded(true);
         setEventLink(response.data.eventLink ?? null);
       }
-    } catch {
-      setError(t('emailDetail.icsInvite.error'));
+    } catch (err) {
+      console.error('[IcsInviteCard] Failed to add ICS event to calendar:', err);
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      const serverMessage = axiosError?.response?.data?.message;
+      setError(
+        serverMessage
+          ? `Could not add event to calendar: ${serverMessage}`
+          : t('emailDetail.icsInvite.error'),
+      );
     } finally {
       setAdding(false);
     }

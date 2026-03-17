@@ -52,6 +52,32 @@ describe('getCachedSummary / setCachedSummary', () => {
     localStorage.setItem('bearlymail_v1_summary_inbox', 'not-json{{{');
     expect(getCachedSummary('inbox')).toBeNull();
   });
+
+  // ── TTL enforcement (fix #1114) ───────────────────────────────────────────
+
+  it('returns null when cache is expired (TTL enforcement)', () => {
+    const summary = [makeSummaryItem('Work', 5)];
+    setCachedSummary('inbox', summary);
+
+    // Backdate the stored timestamp by 2 minutes so the 60 s TTL has elapsed
+    const key = 'bearlymail_v2_summary_inbox';
+    const raw = localStorage.getItem(key);
+    expect(raw).not.toBeNull();
+    const entry = JSON.parse(raw!);
+    entry.timestamp = Date.now() - 120_000; // 2 minutes ago
+    localStorage.setItem(key, JSON.stringify(entry));
+
+    // With maxAgeMs = 60 000, the entry should be treated as a cache miss
+    expect(getCachedSummary('inbox', 60_000)).toBeNull();
+  });
+
+  it('returns cached value when cache is still fresh (within TTL)', () => {
+    const summary = [makeSummaryItem('Personal', 3)];
+    setCachedSummary('inbox', summary);
+
+    // Entry was just written — timestamp is ~now, well within 60 s TTL
+    expect(getCachedSummary('inbox', 60_000)).toEqual(summary);
+  });
 });
 
 // ─── Category email cache ─────────────────────────────────────────────────────

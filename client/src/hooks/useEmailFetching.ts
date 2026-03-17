@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
 import {
+  clearCacheForMode,
   getCachedCategoryEmails,
   getCachedSummary,
   setCachedCategoryEmails,
@@ -355,6 +356,23 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
+
+    // Fix #1114 — stale UUID self-healing:
+    // If the server returns 0 emails for a category that the summary showed as non-empty,
+    // the UUID may be stale (category was re-created server-side after a schema change).
+    // Bust both the category cache entry and the summary cache so the next fetchEmails()
+    // call will re-fetch fresh UUIDs from the server instead of serving the stale ones.
+    if (emails.length === 0 && categoryId) {
+      console.warn(
+        '[Accordion] Category returned 0 emails — possible stale UUID, busting summary cache for mode:',
+        mode,
+        '| category:', categoryName, '(key:', catKey, ')'
+      );
+      // Clear the summary cache so the next inbox load re-fetches fresh UUIDs.
+      // The category cache entry will be naturally evicted (we just wrote [] below).
+      clearCacheForMode(mode);
+    }
+
     categoryBackoff.onSuccess(catKey);
     dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
     dispatch(markCategoryLoaded(catKey));
@@ -546,9 +564,11 @@ async function fetchEmailsImpl({
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
 }) {
-  // Stale-while-revalidate: if we have cached summary data, serve it immediately (no spinner),
-  // then refresh in the background. This makes inbox navigation feel instant.
-  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode) : null;
+  // Stale-while-revalidate: if we have cached summary data AND it is within the
+  // TTL window, serve it immediately (no spinner) then refresh in the background.
+  // Fix #1114: enforce INBOX_CACHE_TTL_MS so stale UUIDs do not persist past 60 s
+  // and trigger the backend silent-skip bug.
+  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode, INBOX_CACHE_TTL_MS) : null;
   const hasCachedData = cachedSummary !== null && cachedSummary.length > 0;
 
   if (hasCachedData) {

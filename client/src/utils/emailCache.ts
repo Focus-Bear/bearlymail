@@ -11,7 +11,9 @@ import { Email } from 'types/email';
 
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
-const CACHE_VERSION = 'v1';
+// Bump to v2 to force-invalidate all localStorage caches written before fix #1114.
+// Those caches may contain stale/wrong UUIDs that trigger the silent-skip bug.
+const CACHE_VERSION = 'v2';
 const MAX_EMAILS_PER_CATEGORY = 100;
 
 interface CachedEntry<T> {
@@ -53,8 +55,28 @@ function safeSet<T>(storageKey: string, value: T): void {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
-export function getCachedSummary(mode: string): CategorySummaryItem[] | null {
-  return safeGet<CategorySummaryItem[]>(summaryKey(mode));
+/**
+ * Return the cached summary only if it was stored within the last `maxAgeMs`
+ * milliseconds. Pass `Infinity` (or omit) to skip TTL enforcement.
+ *
+ * Fix #1114: previously this function ignored the stored timestamp and always
+ * returned a cached value, allowing stale UUIDs to persist indefinitely and
+ * trigger the backend's silent-skip bug.
+ */
+export function getCachedSummary(mode: string, maxAgeMs = Infinity): CategorySummaryItem[] | null {
+  try {
+    const raw = localStorage.getItem(summaryKey(mode));
+    if (!raw) {
+      return null;
+    }
+    const entry: CachedEntry<CategorySummaryItem[]> = JSON.parse(raw);
+    if (maxAgeMs !== Infinity && Date.now() - entry.timestamp > maxAgeMs) {
+      return null; // Treat as cache miss — TTL expired
+    }
+    return entry.payload;
+  } catch {
+    return null;
+  }
 }
 
 export function setCachedSummary(mode: string, summary: CategorySummaryItem[]): void {

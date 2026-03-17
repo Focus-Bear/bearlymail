@@ -91,9 +91,13 @@ const emailSlice = createSlice({
       const isOther = categoryKey === CATEGORY_OTHER;
       const incomingIds = new Set(emails.map(event => event.id));
 
-      // Stamp category_id on every incoming email so downstream selectors can
-      // filter by UUID instead of relying on the category name string.
-      const stampedEmails = emails.map(email => ({ ...email, category_id: categoryKey }));
+      // Fix #1114: prefer the server-enriched category_id on each email; only
+      // fall back to categoryKey when the server did not supply one.  Previously
+      // categoryKey was unconditionally stamped, overriding the server's value.
+      const stampedEmails = emails.map(email => ({
+        ...email,
+        category_id: email.category_id ?? categoryKey,
+      }));
 
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a

@@ -506,6 +506,17 @@ export class EmailsService {
       const categoryNamesFromIds = filters.categoryIds
         .map((id) => idToName.get(id))
         .filter((name): name is string => name !== undefined);
+
+      // Fix #1114: if categoryIds were specified but none resolve to a known
+      // category name (e.g. stale / deleted UUIDs), return a zero-count summary
+      // rather than silently skipping the filter and returning ALL categories.
+      if (categoryNamesFromIds.length === 0) {
+        this.logger.warn(
+          `getInboxSummary: none of the requested UUIDs resolved to a known category — returning empty summary (userId=${userId})`,
+        );
+        return { total: 0, categories: [] };
+      }
+
       visibleCategories = categoryOrder.filter((cat) =>
         categoryNamesFromIds.includes(cat),
       );
@@ -878,6 +889,16 @@ export class EmailsService {
       categoryFilterNames = filters.categoryIds
         .map((id) => idToName.get(id))
         .filter((name): name is string => name !== undefined);
+
+      // Fix #1114: if categoryIds were specified but none resolve to a known
+      // category name (e.g. stale / deleted UUIDs), return an empty result
+      // rather than silently skipping the filter and returning ALL emails.
+      if (categoryFilterNames.length === 0) {
+        this.logger.warn(
+          `Category filter: none of the requested UUIDs resolved to a known category — returning empty result (userId=${userId})`,
+        );
+        return { emails: [], blockedCount: 0 };
+      }
     }
 
     if (categoryFilterNames && categoryFilterNames.length > 0) {

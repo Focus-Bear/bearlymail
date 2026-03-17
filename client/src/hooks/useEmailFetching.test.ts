@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import * as emailCache from 'utils/emailCache';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
@@ -12,6 +13,19 @@ import { useEmailFetching } from './useEmailFetching';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+jest.mock('utils/emailCache', () => ({
+  clearCacheForMode: jest.fn(),
+  getCachedCategoryEmails: jest.fn().mockReturnValue(null),
+  getCachedSummary: jest.fn().mockReturnValue(null),
+  setCachedCategoryEmails: jest.fn(),
+  setCachedSummary: jest.fn(),
+  removeEmailFromCache: jest.fn(),
+  clearCache: jest.fn(),
+}));
+const mockedClearCacheForMode = emailCache.clearCacheForMode as jest.MockedFunction<
+  typeof emailCache.clearCacheForMode
+>;
 
 // Legacy mock variables referenced in skipped tests
 const mockSetEmails = jest.fn();
@@ -355,5 +369,92 @@ describe.skip('useEmailFetching', () => {
         expect(mockSetLoadingModeSwitch).toHaveBeenCalledWith(false);
       });
     });
+  });
+});
+
+// ─── Stale UUID self-healing ──────────────────────────────────────────────────
+describe('fetchCategoryEmails – stale UUID self-healing', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+    // Ensure cache always returns null so we don't hit the serve-from-cache path
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+  });
+
+  const createWrapper = () => {
+    const store = configureStore({ reducer: { email: emailReducer } });
+    const Wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store, children });
+    return Wrapper;
+  };
+
+  it('calls clearCacheForMode when server returns 0 emails for a UUID-keyed category', async () => {
+    // Simulate server returning an empty email array for a category that has a UUID.
+    // This indicates the UUID may be stale — the hook must bust the summary cache.
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Work', 'uuid-stale-1234');
+
+    await waitFor(() => {
+      expect(mockedClearCacheForMode).toHaveBeenCalledWith('triage');
+    });
+  });
+
+  it('does NOT call clearCacheForMode when server returns emails for a UUID-keyed category', async () => {
+    // When emails are returned, there is no stale UUID — no cache bust needed.
+    const mockEmail = {
+      id: '1',
+      threadId: 'thread-1',
+      subject: 'Test',
+      from: 'a@b.com',
+      to: 'me@b.com',
+      body: '',
+      isRead: false,
+      isArchived: false,
+      starCount: 0,
+      receivedAt: new Date().toISOString(),
+      category: 'Work',
+      category_id: 'uuid-valid-5678',
+    };
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [mockEmail] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Work', 'uuid-valid-5678');
+
+    await waitFor(() => {
+      // setCachedCategoryEmails is called on success — confirms the happy path ran
+      expect(emailCache.setCachedCategoryEmails).toHaveBeenCalled();
+    });
+    expect(mockedClearCacheForMode).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call clearCacheForMode when 0 emails returned but no categoryId (name-keyed)', async () => {
+    // If there is no UUID (name-keyed category), 0 results may be legitimate.
+    // Self-healing should only trigger when a UUID was provided.
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    // No categoryId passed — name-only category
+    await result.current.fetchCategoryEmails('Work', null);
+
+    // Give the promise time to resolve
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(mockedClearCacheForMode).not.toHaveBeenCalled();
   });
 });

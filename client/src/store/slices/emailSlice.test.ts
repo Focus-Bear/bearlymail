@@ -226,4 +226,63 @@ describe('updateCategoryEmails', () => {
     expect(ids).toContain('5');
     expect(ids).toContain('6');
   });
+
+  it('uses email.category_id when present, not categoryKey', () => {
+    // Fix #1114: the server stamps a UUID on each email as category_id.
+    // updateCategoryEmails must preserve that server-supplied UUID rather than
+    // overwriting it with the categoryKey string.
+    const serverUUID = 'uuid-server-1234';
+    const emailWithCategoryId = {
+      ...makeEmail('20', 'Work'),
+      category_id: serverUUID,
+    } as unknown as Email;
+
+    const state = emailReducer(
+      { ...baseState, emails: [] },
+      updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithCategoryId] })
+    );
+
+    const stored = state.emails.find(email => email.id === '20');
+    expect(stored).toBeDefined();
+    // Server-supplied category_id must be preserved
+    expect(stored!.category_id).toBe(serverUUID);
+    // Must NOT be overwritten with the categoryKey
+    expect(stored!.category_id).not.toBe('Work');
+  });
+
+  it('falls back to categoryKey when email.category_id is null', () => {
+    // When the server does not supply a category_id (null), the reducer must
+    // fall back to stamping the categoryKey so downstream selectors can group correctly.
+    const emailWithNullCategoryId = {
+      ...makeEmail('21', 'Work'),
+      category_id: null,
+    } as unknown as Email;
+
+    const state = emailReducer(
+      { ...baseState, emails: [] },
+      updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithNullCategoryId] })
+    );
+
+    const stored = state.emails.find(email => email.id === '21');
+    expect(stored).toBeDefined();
+    // Falls back to categoryKey when category_id is null
+    expect(stored!.category_id).toBe('Work');
+  });
+
+  it('falls back to categoryKey when email.category_id is undefined', () => {
+    // Same as null — undefined should also trigger the fallback.
+    const emailWithUndefinedCategoryId = {
+      ...makeEmail('22', 'Work'),
+      category_id: undefined,
+    } as unknown as Email;
+
+    const state = emailReducer(
+      { ...baseState, emails: [] },
+      updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithUndefinedCategoryId] })
+    );
+
+    const stored = state.emails.find(email => email.id === '22');
+    expect(stored).toBeDefined();
+    expect(stored!.category_id).toBe('Work');
+  });
 });

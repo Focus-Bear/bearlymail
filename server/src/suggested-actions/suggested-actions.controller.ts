@@ -14,6 +14,7 @@ import { CalendarService } from "../calendar/calendar.service";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { GitHubApiService } from "../github/github-api.service";
+import { GitHubProjectStatusService } from "../github/github-project-status.service";
 import { UsersService } from "../users/users.service";
 import { SuggestedActionsService } from "./suggested-actions.service";
 
@@ -24,6 +25,7 @@ export class SuggestedActionsController {
     private readonly suggestedActionsService: SuggestedActionsService,
     private readonly usersService: UsersService,
     private readonly githubApiService: GitHubApiService,
+    private readonly githubProjectStatusService: GitHubProjectStatusService,
     private readonly calendarService: CalendarService,
     private readonly emailsService: EmailsService,
   ) {}
@@ -61,6 +63,46 @@ export class SuggestedActionsController {
       body.body,
       body.labels,
     );
+  }
+
+  @Post("github/update-project-status")
+  async updateProjectItemStatus(
+    @Request() req,
+    @Body()
+    body: {
+      projectId: string;
+      itemId: string;
+      fieldId: string;
+      optionId: string;
+    },
+  ) {
+    // Validate input first (synchronous, no DB hit needed)
+    if (!body.projectId || !body.itemId || !body.fieldId || !body.optionId) {
+      throw new BadRequestException(
+        "projectId, itemId, fieldId, and optionId are all required",
+      );
+    }
+
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      throw new BadRequestException("GitHub token decryption failed");
+    }
+
+    await this.githubProjectStatusService.updateProjectItemStatus(
+      token,
+      body.projectId,
+      body.itemId,
+      body.fieldId,
+      body.optionId,
+    );
+
+    return { success: true };
   }
 
   @Post("github/update-status")
@@ -178,46 +220,5 @@ export class SuggestedActionsController {
       body.daysAhead,
       body.daysBack,
     );
-  }
-
-  @Post("github/update-project-status")
-  async updateProjectItemStatus(
-    @Request() req,
-    @Body()
-    body: {
-      projectId: string;
-      itemId: string;
-      fieldId: string;
-      singleSelectOptionId: string;
-    },
-  ) {
-    const { userId } = req.user;
-
-    if (
-      !body.projectId ||
-      !body.itemId ||
-      !body.fieldId ||
-      !body.singleSelectOptionId
-    ) {
-      throw new BadRequestException(
-        "projectId, itemId, fieldId, and singleSelectOptionId are all required",
-      );
-    }
-
-    const user = await this.usersService.findOne(userId);
-    if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
-    }
-
-    const token = EncryptionHelper.decrypt(user.githubToken);
-    await this.githubApiService.updateProjectItemStatus(
-      token,
-      body.projectId,
-      body.itemId,
-      body.fieldId,
-      body.singleSelectOptionId,
-    );
-
-    return { success: true };
   }
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -29,6 +30,7 @@ import {
   GitHubEmailInfoService,
   GitHubMetadataLink,
 } from "./github-email-info.service";
+import { GitHubProjectStatusService } from "./github-project-status.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 interface PgBossWithInternals extends PgBoss {
@@ -46,6 +48,7 @@ export class GitHubController {
     private readonly githubEmailInfoService: GitHubEmailInfoService,
     private readonly githubAppService: GitHubAppService,
     private readonly githubApiService: GitHubApiService,
+    private readonly githubProjectStatusService: GitHubProjectStatusService,
     private readonly usersService: UsersService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     private readonly repoMappingService: GitHubRepoMappingService,
@@ -75,23 +78,61 @@ export class GitHubController {
       return { options: [] };
     }
 
-    const statusData = await this.githubApiService.fetchProjectStatusOptions(
-      token,
-      owner,
-      repo,
-      issueNumber,
-    );
+    // This legacy endpoint has been superseded by GET /github/project-status-options
+    // (which requires a projectName to correctly target the Projects v2 Status field).
+    // Return an empty list so callers gracefully degrade to the new endpoint.
+    return { options: [] };
+  }
 
-    if (!statusData) {
-      return { options: [], projectId: null, itemId: null, fieldId: null };
+  @Get("project-status-options")
+  async getProjectStatusOptionsFull(
+    @Request() req,
+    @Query("owner") owner: string,
+    @Query("repo") repo: string,
+    @Query("issueNumber") issueNumberStr: string,
+    @Query("projectName") projectName: string,
+  ) {
+    const { userId } = req.user;
+    const issueNumber = parseInt(issueNumberStr, 10);
+
+    if (
+      !owner ||
+      !repo ||
+      isNaN(issueNumber) ||
+      issueNumber <= 0 ||
+      !projectName
+    ) {
+      throw new BadRequestException(
+        "owner, repo, issueNumber, and projectName are required",
+      );
     }
 
-    return {
-      options: statusData.options,
-      projectId: statusData.projectId,
-      itemId: statusData.itemId,
-      fieldId: statusData.fieldId,
-    };
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      throw new BadRequestException("GitHub token decryption failed");
+    }
+
+    const result =
+      await this.githubProjectStatusService.getProjectStatusOptions(
+        token,
+        owner,
+        repo,
+        issueNumber,
+        projectName,
+      );
+
+    if (!result) {
+      throw new NotFoundException(
+        `Project "${projectName}" or its Status field not found for issue ${owner}/${repo}#${issueNumber}`,
+      );
+    }
+
+    return result;
   }
 
   @Get("emails/:id")

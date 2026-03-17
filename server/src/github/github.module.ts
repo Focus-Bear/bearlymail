@@ -14,6 +14,7 @@ import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubMetadataProcessor } from "./github-metadata.processor";
+import { GitHubProjectStatusService } from "./github-project-status.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 @Module({
@@ -35,6 +36,7 @@ import { GitHubRepoMappingService } from "./github-repo-mapping.service";
   providers: [
     GitHubService,
     GitHubApiService,
+    GitHubProjectStatusService,
     GitHubAppService,
     GitHubMetadataProcessor,
     GitHubEmailInfoService,
@@ -43,6 +45,7 @@ import { GitHubRepoMappingService } from "./github-repo-mapping.service";
   exports: [
     GitHubService,
     GitHubApiService,
+    GitHubProjectStatusService,
     GitHubAppService,
     GitHubEmailInfoService,
     GitHubRepoMappingService,

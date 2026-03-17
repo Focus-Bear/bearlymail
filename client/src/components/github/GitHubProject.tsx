@@ -118,6 +118,7 @@ export const GitHubProject: React.FC<GitHubProjectProps> = ({ projects, issueInf
       {editingProject !== null && issueInfo && (
         <GitHubUpdateStatusModal
           issueInfo={issueInfo}
+          projectName={editingProject ?? undefined}
           onClose={() => setEditingProject(null)}
           onSuccess={() => {
             setEditingProject(null);

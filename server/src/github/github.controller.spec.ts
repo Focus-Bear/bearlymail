@@ -11,6 +11,7 @@ import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
+import { GitHubProjectStatusService } from "./github-project-status.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 describe("GitHubController - getAdminDebugInfo", () => {
@@ -77,6 +78,11 @@ describe("GitHubController - getAdminDebugInfo", () => {
     getThreadMetadataByEmailIds: jest.fn(),
   };
 
+  const mockGitHubProjectStatusService = {
+    getProjectStatusOptions: jest.fn(),
+    updateProjectItemStatus: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -104,6 +110,10 @@ describe("GitHubController - getAdminDebugInfo", () => {
         {
           provide: GitHubEmailInfoService,
           useValue: mockGitHubEmailInfoService,
+        },
+        {
+          provide: GitHubProjectStatusService,
+          useValue: mockGitHubProjectStatusService,
         },
       ],
     }).compile();
@@ -334,6 +344,11 @@ describe("GitHubController - testUserToken", () => {
     getThreadMetadataByEmailIds: jest.fn(),
   };
 
+  const mockGitHubProjectStatusService = {
+    getProjectStatusOptions: jest.fn(),
+    updateProjectItemStatus: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -355,6 +370,10 @@ describe("GitHubController - testUserToken", () => {
         {
           provide: GitHubEmailInfoService,
           useValue: mockGitHubEmailInfoService,
+        },
+        {
+          provide: GitHubProjectStatusService,
+          useValue: mockGitHubProjectStatusService,
         },
       ],
     }).compile();
@@ -496,6 +515,11 @@ describe("GitHubController - getMyConnectionStatus", () => {
     getThreadMetadataByEmailIds: jest.fn(),
   };
 
+  const mockGitHubProjectStatusService = {
+    getProjectStatusOptions: jest.fn(),
+    updateProjectItemStatus: jest.fn(),
+  };
+
   const mockReq = { user: { userId: "user-1" } };
 
   beforeEach(async () => {
@@ -519,6 +543,10 @@ describe("GitHubController - getMyConnectionStatus", () => {
         {
           provide: GitHubEmailInfoService,
           useValue: mockGitHubEmailInfoService,
+        },
+        {
+          provide: GitHubProjectStatusService,
+          useValue: mockGitHubProjectStatusService,
         },
       ],
     }).compile();
@@ -712,6 +740,11 @@ describe("GitHubController - createConnectToken", () => {
     getThreadMetadataByEmailIds: jest.fn(),
   };
 
+  const mockGitHubProjectStatusService = {
+    getProjectStatusOptions: jest.fn(),
+    updateProjectItemStatus: jest.fn(),
+  };
+
   const mockReq = { user: { userId: "user-1" } };
 
   beforeEach(async () => {
@@ -736,6 +769,10 @@ describe("GitHubController - createConnectToken", () => {
         {
           provide: GitHubEmailInfoService,
           useValue: mockGitHubEmailInfoService,
+        },
+        {
+          provide: GitHubProjectStatusService,
+          useValue: mockGitHubProjectStatusService,
         },
       ],
     }).compile();

@@ -6,43 +6,6 @@ import { getErrorMessage, isApiError } from "../types/common";
 import { ParsedGitHubLink } from "./github.service";
 
 /**
- * GraphQL response for fetching project status field options via Projects v2
- */
-interface ProjectStatusOptionsGraphQLResponse {
-  repository?: {
-    issue?: {
-      projectItems?: {
-        nodes?: Array<{
-          id?: string;
-          project?: {
-            id?: string;
-            title?: string;
-            fields?: {
-              nodes?: Array<{
-                id?: string;
-                name?: string;
-                options?: Array<{
-                  id: string;
-                  name: string;
-                }>;
-              } | null>;
-            };
-          };
-        } | null>;
-      };
-    };
-  };
-}
-
-/** Node IDs + options returned by fetchProjectStatusOptions for the Projects v2 mutation. */
-export interface ProjectStatusData {
-  projectId: string;
-  itemId: string;
-  fieldId: string;
-  options: Array<{ id: string; name: string }>;
-}
-
-/**
  * GraphQL response for project items query
  * This is a complex nested structure from GitHub's GraphQL API
  */
@@ -115,6 +78,32 @@ export interface GitHubPRStatus {
     // Status field value (e.g., "In Progress", "Backlog")
     status?: string;
   }>;
+}
+
+/**
+ * GraphQL response for fetching project status field options via Projects v2
+ */
+interface ProjectStatusOptionsGraphQLResponse {
+  repository?: {
+    issue?: {
+      projectItems?: {
+        nodes?: Array<{
+          project?: {
+            title?: string;
+            fields?: {
+              nodes?: Array<{
+                name?: string;
+                options?: Array<{
+                  id: string;
+                  name: string;
+                }>;
+              } | null>;
+            };
+          };
+        } | null>;
+      };
+    };
+  };
 }
 
 @Injectable()
@@ -218,7 +207,7 @@ export class GitHubApiService {
     query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $issueNumber) {
-          projectItems(first: 20) {
+          projectItems(first: 100) {
             nodes {
               project {
                 ... on ProjectV2 {
@@ -897,17 +886,14 @@ export class GitHubApiService {
     query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $issueNumber) {
-          projectItems(first: 10) {
+          projectItems(first: 100) {
             nodes {
-              id
               project {
                 ... on ProjectV2 {
-                  id
                   title
-                  fields(first: 20) {
+                  fields(first: 100) {
                     nodes {
                       ... on ProjectV2SingleSelectField {
-                        id
                         name
                         options {
                           id
@@ -926,15 +912,15 @@ export class GitHubApiService {
   `;
 
   /**
-   * Fetch Status field options + node IDs from GitHub Projects v2 for a given issue.
-   * Returns null when the issue is not linked to a project or has no Status field.
+   * Fetch the available Status field options from GitHub Projects v2 for a given issue.
+   * Returns an array of { id, name } objects representing the project column/status options.
    */
   async fetchProjectStatusOptions(
     token: string,
     owner: string,
     repo: string,
     issueNumber: number,
-  ): Promise<ProjectStatusData | null> {
+  ): Promise<Array<{ id: string; name: string }>> {
     try {
       const octokit = this.createClient(token);
       const response =
@@ -946,97 +932,24 @@ export class GitHubApiService {
       const projectNodes =
         response?.repository?.issue?.projectItems?.nodes ?? [];
 
-      // Collect options from the first project's Status field
       for (const item of projectNodes) {
-        if (!item?.id || !item?.project?.id || !item?.project?.fields?.nodes)
-          continue;
+        if (!item?.project?.fields?.nodes) continue;
         for (const field of item.project.fields.nodes) {
-          if (!field?.id) continue;
+          if (!field) continue;
           const fieldName = field.name?.toLowerCase();
           if (fieldName === "status" && field.options?.length) {
-            return {
-              projectId: item.project.id,
-              itemId: item.id,
-              fieldId: field.id,
-              options: field.options.map((opt) => ({
-                id: opt.id,
-                name: opt.name,
-              })),
-            };
+            return field.options.map((opt) => ({ id: opt.id, name: opt.name }));
           }
         }
       }
 
-      return null;
+      return [];
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
       this.logger.warn(
         `Failed to fetch project status options for ${owner}/${repo}#${issueNumber}: ${errorMessage}`,
       );
-      return null;
-    }
-  }
-
-  private readonly updateProjectV2ItemFieldValueMutation = `
-    mutation UpdateProjectV2ItemFieldValue(
-      $projectId: ID!
-      $itemId: ID!
-      $fieldId: ID!
-      $optionId: String!
-    ) {
-      updateProjectV2ItemFieldValue(
-        input: {
-          projectId: $projectId
-          itemId: $itemId
-          fieldId: $fieldId
-          value: { singleSelectOptionId: $optionId }
-        }
-      ) {
-        projectV2Item {
-          id
-        }
-      }
-    }
-  `;
-
-  /**
-   * Update a GitHub Projects v2 item's Status field via the
-   * updateProjectV2ItemFieldValue GraphQL mutation.
-   * Throws on any error so the controller returns a proper HTTP error.
-   */
-  async updateProjectItemStatus(
-    token: string,
-    projectId: string,
-    itemId: string,
-    fieldId: string,
-    singleSelectOptionId: string,
-  ): Promise<void> {
-    try {
-      const octokit = this.createClient(token);
-      await octokit.graphql(this.updateProjectV2ItemFieldValueMutation, {
-        projectId,
-        itemId,
-        fieldId,
-        optionId: singleSelectOptionId,
-      });
-    } catch (error: unknown) {
-      const errorMessage = getErrorMessage(error);
-      const apiError = isApiError(error) ? error : null;
-      const errorStatus = apiError?.status || apiError?.code;
-
-      this.logger.error(
-        `Failed to update project item status (projectId=${projectId}, itemId=${itemId}, fieldId=${fieldId}, optionId=${singleSelectOptionId})`,
-        { message: errorMessage, status: errorStatus },
-      );
-
-      if (
-        errorStatus === HTTP_STATUS.UNAUTHORIZED ||
-        errorStatus === HTTP_STATUS.FORBIDDEN
-      ) {
-        throw new Error("GitHub token is invalid or expired");
-      }
-
-      throw error;
+      return [];
     }
   }
 }

@@ -1823,7 +1823,10 @@
       "open": "Abierto",
       "searchStatus": "Buscar o escribir un estado…",
       "status": "Estado",
-      "statusRequired": "El estado es obligatorio"
+      "statusRequired": "El estado es obligatorio",
+      "failedToLoadOptions": "Error al cargar las opciones de estado del proyecto.",
+      "failedToUpdateStatus": "Error al actualizar el estado",
+      "noStatusOptions": "No se encontraron opciones de estado para este proyecto."
     },
     "title": "Acciones Rápidas",
     "createIssueTitle": "🐛 Create GitHub Issue",

@@ -32,6 +32,16 @@ function isValidMode(mode: string | undefined): mode is InboxMode {
 
 interface UseInboxStateOptions {
   isFocusedMode?: boolean;
+  /**
+   * External filterState instance to use as the single source of truth.
+   * Pass this from the call-site (e.g. Inbox.tsx) so that the filter UI and
+   * fetchEmails both reference the same React state object.
+   *
+   * When omitted (e.g. FocusedInbox.tsx), useInboxState creates its own
+   * internal instance — the hook call below is always executed to satisfy
+   * React's rules-of-hooks (no conditional hook calls).
+   */
+  inboxFilters?: ReturnType<typeof useInboxFilters>;
 }
 
 export function useInboxState(options: UseInboxStateOptions = {}) {
@@ -62,8 +72,11 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Tab counts hook - must be before useEmailManagement since it's passed to it
   const { tabCounts, fetchTabCounts, updateTabCountsOptimistically } = useTabCounts();
 
-  // Inbox filters hook
-  const inboxFilters = useInboxFilters();
+  // Inbox filters hook — always call to satisfy rules-of-hooks, but use the
+  // caller-supplied instance when provided so the filter UI and fetchEmails
+  // share one source of truth (fixes #1186).
+  const _internalInboxFilters = useInboxFilters();
+  const inboxFilters = options.inboxFilters ?? _internalInboxFilters;
 
   // Stable ref for the splitView.openEmail callback so we can wire it after splitView is created
   // (useEmailManagement is instantiated before useInboxUIState which provides splitView)

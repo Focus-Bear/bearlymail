@@ -226,8 +226,12 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
 };
 
 const Inbox: React.FC = () => {
-  const inboxState = useInboxState();
+  // filterState must be instantiated BEFORE inboxState so we can pass it in as
+  // the single source of truth.  Previously, useInboxState created its own
+  // independent useInboxFilters() instance — filter UI changes never reached
+  // fetchEmails (fixes #1186).
   const filterState = useInboxFilters();
+  const inboxState = useInboxState({ inboxFilters: filterState });
   const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = useSidebarState({ splitViewActive: !!inboxState.splitView.selectedEmailId });
 
   if (inboxState.loading) {

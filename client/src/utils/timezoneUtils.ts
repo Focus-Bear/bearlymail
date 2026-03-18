@@ -10,7 +10,8 @@
  *
  * Falls back to `new Date().toISOString()` if:
  *  - `timezone` is undefined / empty
- *  - the timezone string is not a valid IANA identifier
+ *  - the timezone string is not a valid IANA identifier (e.g. Windows-style
+ *    strings like "Eastern Standard Time" are rejected)
  *  - the runtime does not support `Intl.DateTimeFormat` with `timeZone`
  *
  * Implementation note: uses `Intl.DateTimeFormat.formatToParts()` with explicit
@@ -21,12 +22,33 @@
  * `formatToParts()` with named parts is more reliable across jsdom and real
  * browser/Node runtimes.
  */
+export const FALLBACK_TIMEZONE = 'UTC';
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
 
+/**
+ * Returns true if `tz` is a valid IANA timezone identifier recognised by the
+ * current runtime.  Windows-style timezone strings (e.g. "Eastern Standard
+ * Time") are invalid IANA identifiers and will return false.
+ *
+ * Note: `Intl.supportedValuesOf('timeZone')` is intentionally NOT used here
+ * because its list omits valid special identifiers like "UTC" in some runtimes
+ * (e.g. Node's ICU data).  Constructing an `Intl.DateTimeFormat` is the
+ * definitive check — the spec mandates a RangeError for invalid timezone
+ * values, so this is both correct and reliable across all environments.
+ */
+function isValidIANATimezone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getCurrentTimeInTimezone(timezone?: string): string {
-  if (!timezone) {
-    return new Date().toISOString();
+  if (!timezone || !isValidIANATimezone(timezone)) {
+    return new Date().toISOString(); // fallback for undefined or Windows timezone strings
   }
 
   try {

@@ -76,6 +76,21 @@ describe('getCurrentTimeInTimezone', () => {
     jest.restoreAllMocks();
   });
 
+  describe('Windows-style timezone strings (regression for #1167)', () => {
+    it('returns UTC ISO string for "AUS Eastern Standard Time"', () => {
+      const result = getCurrentTimeInTimezone('AUS Eastern Standard Time');
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+    it('returns UTC ISO string for "Eastern Standard Time"', () => {
+      const result = getCurrentTimeInTimezone('Eastern Standard Time');
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+    it('returns UTC ISO string for timezone string with spaces', () => {
+      const result = getCurrentTimeInTimezone('Mountain Standard Time');
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+  });
+
   it('the returned time is within 5 seconds of now (sanity check)', () => {
     const before = Date.now();
     const result = getCurrentTimeInTimezone('Australia/Melbourne');

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { SchedulingPreference } from "../database/entities/scheduling-preference.entity";
+import { normalizeTimezone, FALLBACK_TIMEZONE } from "../utils/timezone.utils";
 
 export interface SchedulingPreferenceData {
   availabilityStartHour: number;
@@ -21,7 +22,7 @@ const DEFAULT_PREFERENCES: SchedulingPreferenceData = {
   meetingGapMinutes: 30,
   deepWorkHoursPerDay: 2,
   slotDurationMinutes: 30,
-  timezone: "UTC",
+  timezone: FALLBACK_TIMEZONE,
 };
 
 @Injectable()
@@ -43,7 +44,9 @@ export class SchedulingPreferencesService {
       meetingGapMinutes: prefs.meetingGapMinutes,
       deepWorkHoursPerDay: prefs.deepWorkHoursPerDay,
       slotDurationMinutes: prefs.slotDurationMinutes,
-      timezone: prefs.timezone,
+      // Sanitise on read: existing DB rows may contain Windows-style timezone
+      // strings from before this guard was added.
+      timezone: normalizeTimezone(prefs.timezone),
     };
   }
 
@@ -51,15 +54,23 @@ export class SchedulingPreferencesService {
     userId: string,
     preferenceUpdates: Partial<SchedulingPreferenceData>,
   ): Promise<SchedulingPreferenceData> {
+    // Normalise timezone on write so Windows-style strings never reach the DB
+    const normalizedUpdates: Partial<SchedulingPreferenceData> = {
+      ...preferenceUpdates,
+      ...(preferenceUpdates.timezone !== undefined && {
+        timezone: normalizeTimezone(preferenceUpdates.timezone),
+      }),
+    };
+
     let prefs = await this.repository.findOne({ where: { userId } });
     if (!prefs) {
       prefs = this.repository.create({
         userId,
         ...DEFAULT_PREFERENCES,
-        ...preferenceUpdates,
+        ...normalizedUpdates,
       });
     } else {
-      Object.assign(prefs, preferenceUpdates);
+      Object.assign(prefs, normalizedUpdates);
     }
     const saved = await this.repository.save(prefs);
     return {

@@ -7,6 +7,7 @@ import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES, MINUTES_PER_HOUR } from "../constants/time-constants";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { FALLBACK_TIMEZONE, normalizeTimezone } from "../utils/timezone.utils";
 
 @Injectable()
 export class BatchScheduleService {
@@ -20,10 +21,21 @@ export class BatchScheduleService {
   ) {}
 
   /**
-   * Get the batch schedule for a user
+   * Get the batch schedule for a user.
+   * Sanitises the timezone field on read so that existing DB rows containing
+   * Windows-style timezone strings (e.g. "Eastern Standard Time") are
+   * transparently normalised to "UTC" before being returned to callers.
+   * This prevents crashes in downstream code that uses Luxon / Intl with the
+   * timezone value.
    */
   async getSchedule(userId: string): Promise<BatchSchedule | null> {
-    return this.batchScheduleRepository.findOne({ where: { userId } });
+    const schedule = await this.batchScheduleRepository.findOne({
+      where: { userId },
+    });
+    if (schedule) {
+      schedule.timezone = normalizeTimezone(schedule.timezone);
+    }
+    return schedule;
   }
 
   /**
@@ -53,10 +65,12 @@ export class BatchScheduleService {
       ),
     ].sort((itemA, itemB) => itemA - itemB);
 
+    const normalizedTimezone = normalizeTimezone(scheduleData.timezone);
+
     if (schedule) {
       schedule.deliveryDays = normalizedDeliveryDays;
       schedule.deliveryTimes = scheduleData.deliveryTimes;
-      schedule.timezone = scheduleData.timezone;
+      schedule.timezone = normalizedTimezone;
       schedule.isEnabled = scheduleData.isEnabled;
       schedule.urgentBypassSchedule = scheduleData.urgentBypassSchedule;
     } else {
@@ -64,6 +78,7 @@ export class BatchScheduleService {
         userId,
         ...scheduleData,
         deliveryDays: normalizedDeliveryDays,
+        timezone: normalizedTimezone,
       });
     }
 
@@ -198,7 +213,9 @@ export class BatchScheduleService {
       return null;
     }
 
-    const userTimezone = schedule.timezone || "UTC";
+    const userTimezone = normalizeTimezone(
+      schedule.timezone || FALLBACK_TIMEZONE,
+    );
     const now = DateTime.now().setZone(userTimezone);
 
     // Ensure deliveryDays are numbers (they might be stored as strings in DB)
@@ -256,7 +273,9 @@ export class BatchScheduleService {
     if (!schedule.isEnabled) return true;
 
     const now = new Date();
-    const userTimezone = schedule.timezone || "UTC";
+    const userTimezone = normalizeTimezone(
+      schedule.timezone || FALLBACK_TIMEZONE,
+    );
     const nowInUserTz = new Date(
       now.toLocaleString("en-US", { timeZone: userTimezone }),
     );
@@ -302,7 +321,7 @@ export class BatchScheduleService {
       deliveryDays: [1, 2, 3, 4, 5],
       // 11am and 3pm
       deliveryTimes: ["11:00", "15:00"],
-      timezone: "UTC",
+      timezone: FALLBACK_TIMEZONE,
       isEnabled: true,
       urgentBypassSchedule: true,
     };

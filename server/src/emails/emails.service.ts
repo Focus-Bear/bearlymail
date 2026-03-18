@@ -347,28 +347,19 @@ export class EmailsService implements OnModuleInit {
       threadIds?: string[];
     }[];
   }> {
-    // When minPriority is set, the priority inbox shows threads across action/follow-up states
-    // matching the priority threshold — dropping the starCount guard so already-actioned
-    // high-priority threads remain visible.
-    // IMPORTANT: triage mode always enforces starCount = 0 regardless of priorityModeActive
-    // (fix #1119 — starred emails must never appear in triage).
-    const priorityModeActive =
-      (filters?.minPriority !== undefined ||
-        filters?.maxPriority !== undefined) &&
-      mode !== INBOX_MODES.BLOCKED &&
-      mode !== INBOX_MODES.TRIAGE;
-
-    let threadFilter = priorityModeActive
-      ? 'AND thread."isArchived" = false'
-      : 'AND thread."isArchived" = false AND thread."starCount" = 0';
-
-    if (!priorityModeActive) {
-      if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
-        threadFilter =
-          'AND thread."isArchived" = false AND thread."starCount" > 0';
-      } else if (mode === INBOX_MODES.BLOCKED) {
-        threadFilter = BLOCKED_MODE_THREAD_FILTER;
-      }
+    let threadFilter: string;
+    if (mode === INBOX_MODES.TRIAGE) {
+      // triage always enforces starCount = 0 (fix #1119 — starred emails must never appear in triage)
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" = 0';
+    } else if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
+      // action/follow-up always require starCount > 0 (fix #1155 — unstarred emails must never appear in action)
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" > 0';
+    } else if (mode === INBOX_MODES.BLOCKED) {
+      threadFilter = BLOCKED_MODE_THREAD_FILTER;
+    } else {
+      threadFilter = 'AND thread."isArchived" = false';
     }
 
     let additionalFilters = "";
@@ -944,7 +935,7 @@ export class EmailsService implements OnModuleInit {
     }
 
     const threadQueryBudget =
-      mode === "action"
+      mode === INBOX_MODES.ACTION
         ? PERFORMANCE_BUDGETS.THREAD_QUERY_PROCESS
         : PERFORMANCE_BUDGETS.THREAD_QUERY;
     const endCombinedQuery = perf.startSpan(
@@ -1062,29 +1053,19 @@ export class EmailsService implements OnModuleInit {
       maxPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
-    // When minPriority is set, drop the starCount mode filter for action/follow-up
-    // so the priority inbox shows all high-priority threads in those modes.
-    // IMPORTANT: triage mode always enforces starCount = 0 regardless of priorityModeActive
-    // (fix #1119 — starred emails must never appear in triage).
-    const priorityModeActive =
-      (filters?.minPriority !== undefined ||
-        filters?.maxPriority !== undefined) &&
-      mode !== "blocked" &&
-      mode !== "triage";
-
-    let threadFilter = priorityModeActive
-      ? 'AND thread."isArchived" = false'
-      : 'AND thread."isArchived" = false AND thread."starCount" > 0';
-
-    if (!priorityModeActive) {
-      if (mode === "triage") {
-        threadFilter =
-          'AND thread."isArchived" = false AND thread."starCount" = 0';
-      } else if (mode === "blocked") {
-        threadFilter = BLOCKED_MODE_THREAD_FILTER;
-      }
-    } else if (mode === "blocked") {
+    let threadFilter: string;
+    if (mode === INBOX_MODES.TRIAGE) {
+      // triage always enforces starCount = 0 (fix #1119 — starred emails must never appear in triage)
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" = 0';
+    } else if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
+      // action/follow-up always require starCount > 0 (fix #1155 — unstarred emails must never appear in action)
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" > 0';
+    } else if (mode === INBOX_MODES.BLOCKED) {
       threadFilter = BLOCKED_MODE_THREAD_FILTER;
+    } else {
+      threadFilter = 'AND thread."isArchived" = false';
     }
 
     const queryParams: (string | number)[] = [userId];
@@ -1160,7 +1141,7 @@ export class EmailsService implements OnModuleInit {
         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC, thread."threadId" ASC
-      LIMIT ${mode === "action" ? QUERY_LIMITS.INBOX_PROCESS_TOTAL : QUERY_LIMITS.INBOX_TOTAL}`,
+      LIMIT ${mode === INBOX_MODES.ACTION ? QUERY_LIMITS.INBOX_PROCESS_TOTAL : QUERY_LIMITS.INBOX_TOTAL}`,
       queryParams,
     ) as Promise<RawEmailRow[]>;
   }
@@ -1182,7 +1163,7 @@ export class EmailsService implements OnModuleInit {
       QUERY_LIMITS.MAX_RESULTS_DEFAULT,
     );
     const blockedEmailIds =
-      mode === "blocked"
+      mode === INBOX_MODES.BLOCKED
         ? []
         : await this.blockedSendersService.filterBlockedEmails(
             userId,
@@ -1193,7 +1174,7 @@ export class EmailsService implements OnModuleInit {
           );
     const blockedSet = new Set(blockedEmailIds);
     let filteredEmails =
-      mode === "blocked"
+      mode === INBOX_MODES.BLOCKED
         ? emails
         : emails.filter((emailEntry) => !blockedSet.has(emailEntry.id));
     endBlockedFilter();
@@ -1262,7 +1243,7 @@ export class EmailsService implements OnModuleInit {
         );
     }
 
-    if (mode === "action") {
+    if (mode === INBOX_MODES.ACTION) {
       filteredEmails = await this.filterActionModeEmails(
         userId,
         filteredEmails,
@@ -1270,7 +1251,7 @@ export class EmailsService implements OnModuleInit {
       );
     }
 
-    if (mode === "follow-up") {
+    if (mode === INBOX_MODES.FOLLOW_UP) {
       filteredEmails = await this.filterFollowUpModeEmails(
         userId,
         filteredEmails,

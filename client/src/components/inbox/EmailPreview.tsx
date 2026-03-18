@@ -22,9 +22,6 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
         style={{
           color: theme.colors.text.secondary,
           fontSize: theme.typography.fontSize.sm,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
           maxWidth: '100%',
           minWidth: 0,
           lineHeight: theme.typography.lineHeight.relaxed,
@@ -32,6 +29,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
           alignItems: 'center',
           gap: theme.spacing.xs,
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         {(() => {
@@ -41,6 +39,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
                 <span
                   style={{
                     display: 'inline-block',
+                    flexShrink: 0,
                     width: '12px',
                     height: '12px',
                     border: `2px solid ${theme.colors.text.tertiary}`,
@@ -49,12 +48,32 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
                     animation: 'spin 1s linear infinite',
                   }}
                 />
-                ✨ {t('email.generatingSummary')}
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
+                  ✨ {t('email.generatingSummary')}
+                </span>
               </>
             );
           }
           if (email.summary) {
-            return email.summary;
+            return (
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  minWidth: 0,
+                }}
+              >
+                {email.summary}
+              </span>
+            );
           }
           if (email.body) {
             const plainText = stripHtmlTags(email.body)
@@ -62,7 +81,16 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
               .trim();
             if (plainText) {
               return (
-                <span title={plainText.substring(0, TOOLTIP_PREVIEW_MAX_CHARS)} style={{ cursor: 'help' }}>
+                <span
+                  title={plainText.substring(0, TOOLTIP_PREVIEW_MAX_CHARS)}
+                  style={{
+                    cursor: 'help',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
                   {(() => {
                     const firstSentenceMatch = plainText.match(/^[^.!?]+[.!?]/);
                     if (firstSentenceMatch) {

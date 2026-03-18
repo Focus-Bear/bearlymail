@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { plainTextToHtml } from 'utils/emailUtils';
@@ -212,7 +212,10 @@ export function useReplyDraftGeneration(
   const abortControllerRef = useRef<AbortController | null>(null);
   const threadIdUsedForFetchRef = useRef<string | null>(null);
 
-  const onEmailIdReset = useEffectEvent((newEmailId: string) => {
+  // Ref-based callback pattern: gives always-fresh closure access to state setters
+  // without making them reactive deps. (useEffectEvent does not exist in React 19.2 stable.)
+  const onEmailIdResetRef = useRef<(newEmailId: string) => void>(() => {});
+  onEmailIdResetRef.current = (newEmailId: string) => {
     if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== newEmailId) {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -223,11 +226,11 @@ export function useReplyDraftGeneration(
       resetReplyGenerationState({ setReplyOptions, setSelectedReplyOption, setDraft, setLoadingReplies, setIsGeneratingInBackground, setDebugInfo });
     }
     previousEmailIdRef.current = newEmailId;
-  });
+  };
 
   useEffect(() => {
-    onEmailIdReset(emailId);
-  }, [emailId, onEmailIdReset]);
+    onEmailIdResetRef.current(emailId);
+  }, [emailId]);
 
   const fetchPreGeneratedReplies = useCallback(fetchPreGeneratedRepliesImpl, []);
   const generateRepliesOnDemand = useCallback(generateRepliesOnDemandImpl, []);

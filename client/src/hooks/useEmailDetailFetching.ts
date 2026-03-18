@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
@@ -120,7 +120,11 @@ export function useEmailDetailFetching(emailId: string) {
     [emailId]
   );
 
-  const onEmailIdChanged = useEffectEvent((id: string) => {
+  // Ref-based callback pattern: gives always-fresh closure access to fetchEmail/fetchThreadEmails
+  // without making them reactive deps that would re-run the effect on stable-ref changes.
+  // (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const onEmailIdChangedRef = useRef<(id: string) => void>(() => {});
+  onEmailIdChangedRef.current = (id: string) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -132,7 +136,7 @@ export function useEmailDetailFetching(emailId: string) {
         fetchThreadEmails(controller.signal);
       }
     });
-  });
+  };
 
   useEffect(() => {
     if (abortControllerRef.current) {
@@ -140,7 +144,7 @@ export function useEmailDetailFetching(emailId: string) {
     }
 
     if (emailId) {
-      onEmailIdChanged(emailId);
+      onEmailIdChangedRef.current(emailId);
     } else {
       lastAcceleratedRef.current = null;
     }
@@ -150,7 +154,7 @@ export function useEmailDetailFetching(emailId: string) {
         abortControllerRef.current.abort();
       }
     };
-  }, [emailId, onEmailIdChanged]);
+  }, [emailId]);
 
   const expandedItemsSetRef = useRef<string | null>(null);
   useEffect(() => {

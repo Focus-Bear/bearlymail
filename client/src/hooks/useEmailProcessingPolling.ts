@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Email } from 'types/email';
 import { devLog } from 'utils/dev-logger';
 
@@ -19,9 +19,11 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
   const emailsRef = useRef(emails);
   emailsRef.current = emails;
 
-  // useEffectEvent: captures the latest onPoll without making it a dep.
+  // Ref-based callback pattern: captures the latest onPoll without making it a dep.
   // Prevents stale closure where interval calls an outdated refreshInPlace.
-  const stableOnPoll = useEffectEvent(() => onPoll());
+  // (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const stableOnPollRef = useRef<() => void>(() => {});
+  stableOnPollRef.current = () => onPoll();
 
   const processingCount = emails.filter(
     event => event.isProcessingPriority || event.isProcessingSummary
@@ -39,7 +41,7 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
       );
       devLog('[ProcessingPoll] tick — stillProcessing:', stillProcessing);
       if (stillProcessing) {
-        stableOnPoll();
+        stableOnPollRef.current();
       }
     }, LONG_TIMEOUT_MS);
 

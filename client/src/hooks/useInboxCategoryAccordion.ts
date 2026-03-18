@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getCategoryKey } from 'hooks/useEmailFetching';
 
@@ -97,25 +97,32 @@ function useCategoryFetchEffects({
   // limboDispatchedRef is a defence-in-depth guard that prevents this effect from
   // dispatching a second fetch for a category that is already in flight (e.g. if
   // React batches cause both effects to evaluate before the first dispatch lands).
-  // useEffectEvent captures the latest expandedCategoriesRef snapshot so the effect can
-  // read it without treating it as a reactive dependency — preventing the double-fetch
-  // race described in the comment above.
-  const getLimboCategories = useEffectEvent(
+  // Ref-based callback pattern: reads the latest expandedCategoriesRef snapshot without
+  // treating it as a reactive dependency — preventing the double-fetch race described
+  // above. (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const getLimboCategoriesRef = useRef<
     (
       keyToItem: Map<string, CategorySummaryItem>,
       loaded: string[],
       loading: string[],
       exhausted: string[],
       dispatched: Set<string>
-    ) =>
-      Array.from(expandedCategoriesRef.current).filter(
-        key =>
-          !loaded.includes(key) &&
-          !loading.includes(key) &&
-          !exhausted.includes(key) &&
-          !dispatched.has(key)
-      )
-  );
+    ) => string[]
+  >(() => []);
+  getLimboCategoriesRef.current = (
+    keyToItem: Map<string, CategorySummaryItem>,
+    loaded: string[],
+    loading: string[],
+    exhausted: string[],
+    dispatched: Set<string>
+  ) =>
+    Array.from(expandedCategoriesRef.current).filter(
+      key =>
+        !loaded.includes(key) &&
+        !loading.includes(key) &&
+        !exhausted.includes(key) &&
+        !dispatched.has(key)
+    );
 
   const limboDispatchedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -125,7 +132,7 @@ function useCategoryFetchEffects({
 
     const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
 
-    const limboCategories = getLimboCategories(
+    const limboCategories = getLimboCategoriesRef.current(
       keyToItem,
       loadedCategoryNames,
       loadingCategoryNames,
@@ -154,7 +161,7 @@ function useCategoryFetchEffects({
           limboDispatchedRef.current.delete(categoryKey);
         });
     });
-  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails, expandedCategoriesRef, getLimboCategories]);
+  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails, expandedCategoriesRef]);
 }
 
 /**

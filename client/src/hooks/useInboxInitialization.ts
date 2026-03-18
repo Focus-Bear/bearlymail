@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { getCachedSummary } from 'utils/emailCache';
@@ -53,11 +53,13 @@ export function useInboxInitialization({
   const categorySummary = useSelector(selectCategorySummary);
   const hasCachedData = categorySummary !== null && categorySummary.length > 0;
 
-  // useEffectEvent captures the latest values of all inbox initialization dependencies
-  // (dispatch, fetch functions, cache state) so the effect only re-runs when the
-  // gating conditions change (authLoading, user, hasInitiallyLoaded) — not every time
-  // a callback reference or Redux selector value changes.
-  const runInitialization = useEffectEvent(async () => {
+  // Ref-based callback pattern: captures the latest values of all inbox initialization
+  // dependencies (dispatch, fetch functions, cache state) so the effect only re-runs
+  // when the gating conditions change (authLoading, user, hasInitiallyLoaded) — not
+  // every time a callback reference or Redux selector value changes.
+  // (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const runInitializationRef = useRef<() => Promise<void>>(async () => {});
+  runInitializationRef.current = async () => {
     isInitializingRef.current = true;
 
     try {
@@ -127,14 +129,14 @@ export function useInboxInitialization({
     } finally {
       isInitializingRef.current = false;
     }
-  });
+  };
 
   useEffect(() => {
     if (authLoading || !user || hasInitiallyLoaded || isInitializingRef.current) {
       return;
     }
-    runInitialization();
-  }, [authLoading, user, hasInitiallyLoaded, runInitialization]);
+    runInitializationRef.current();
+  }, [authLoading, user, hasInitiallyLoaded]);
 
   return { hasInitiallyLoaded, hasRunAnalysis };
 }

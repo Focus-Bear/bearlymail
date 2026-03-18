@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useEffectEvent, useRef } from 'react';
+import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
@@ -164,7 +164,10 @@ export const useEmailDetailInitialization = ({
     }
   }, [id, summaryType]);
 
-  const onEmailFetch = useEffectEvent((emailId: string) => {
+  // Ref-based callback pattern: gives always-fresh closure access to all deps without
+  // making them reactive. (useEffectEvent does not exist in React 19.2 stable.)
+  const onEmailFetchRef = useRef<(emailId: string) => void>(() => {});
+  onEmailFetchRef.current = (emailId: string) => {
     fetchedEmailIdRef.current = emailId;
     initializeEmailSummary({
       id: emailId,
@@ -182,14 +185,14 @@ export const useEmailDetailInitialization = ({
     });
     fetchGithubInfo();
     fetchSuggestedActions();
-  });
+  };
 
   useEffect(() => {
     if (!id || fetchedEmailIdRef.current === id) {
       return;
     }
-    onEmailFetch(id);
-  }, [id, onEmailFetch]);
+    onEmailFetchRef.current(id);
+  }, [id]);
 
   useEmailThreadFetcher({ email, fetchNote, fetchThreadEmails, setActionItems });
 

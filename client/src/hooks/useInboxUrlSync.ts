@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
@@ -70,9 +70,11 @@ export function useInboxUrlSync({
     }
   }, [mode, splitViewSelectedEmailId, navigate, basePath]);
 
-  // useEffectEvent gives this callback always-fresh access to splitViewSelectedEmailId
-  // without adding it to the dependency array, preventing stale-closure spurious closeEmail() calls.
-  const onUrlParamsChanged = useEffectEvent(() => {
+  // Use a ref-based callback pattern (stable alternative to useEffectEvent which does not exist
+  // in React 19.2 stable) so Effect 3 re-runs only when urlMode/urlThreadId change, but the
+  // callback always reads fresh splitViewSelectedEmailId via closure (ref is reassigned each render).
+  const onUrlParamsChangedRef = useRef<() => void>(() => {});
+  onUrlParamsChangedRef.current = () => {
     if (isInitialMount.current) {
       return;
     }
@@ -84,10 +86,10 @@ export function useInboxUrlSync({
     } else if (!urlThreadId && splitViewSelectedEmailId) {
       closeEmail();
     }
-  });
+  };
 
   // Sync mode/split view from URL params when they change (browser back/forward).
   useEffect(() => {
-    onUrlParamsChanged();
+    onUrlParamsChangedRef.current();
   }, [urlMode, urlThreadId]);
 }

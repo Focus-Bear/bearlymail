@@ -28,6 +28,19 @@ import {
 } from "./calendar-invitation-response.service";
 import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
+/**
+ * Safely extracts an error code from an unknown error value.
+ * Avoids no-explicit-any and no-nested-ternary lint rules.
+ */
+function getErrCode(err: unknown): string | number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  if ('code' in err) return (err as { code?: string | number }).code;
+  if ('status' in err) return (err as { status?: number }).status;
+  return undefined;
+}
+
+
+
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
 
@@ -708,9 +721,13 @@ Manage this booking:
         eventLink: created.data.htmlLink ?? undefined,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`[ICS] Failed to add event to calendar: ${message}`);
-      throw new Error(`Failed to add event to calendar: ${message}`);
+      this.logger.error('[ICS] addIcsEventToCalendar failed', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        errorCode: getErrCode(err),
+        userId,
+      });
+      throw new Error(`Failed to add event to calendar: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

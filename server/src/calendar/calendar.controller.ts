@@ -15,6 +15,19 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DAYS } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
 
+/**
+ * Safely extracts an error code from an unknown error value.
+ * Avoids no-explicit-any and no-nested-ternary lint rules.
+ */
+function getErrCode(err: unknown): string | number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  if ('code' in err) return (err as { code?: string | number }).code;
+  if ('status' in err) return (err as { status?: number }).status;
+  return undefined;
+}
+
+
+
 @Controller("calendar")
 @UseGuards(JwtAuthGuard)
 export class CalendarController {
@@ -119,8 +132,12 @@ export class CalendarController {
       if (err instanceof HttpException) {
         throw err;
       }
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`[ICS] addIcsEvent unexpected error: ${message}`);
+      this.logger.error('addIcsEvent failed', {
+        message: err.message,
+        stack: err.stack,
+        userId: req.user?.userId,
+        errorCode: getErrCode(err),
+      });
       throw new InternalServerErrorException(
         "An unexpected error occurred while adding the calendar event",
       );

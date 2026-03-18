@@ -536,21 +536,30 @@ export class EmailsService implements OnModuleInit {
     // Fallback path: name-based match for pre-backfill threads (backward compat).
     let visibleCategories = categoryOrder;
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      const requestedUuids = new Set(filters.categoryIds);
+      // Fix #1174: "Other" is a synthetic key (threads with no categoryId/category).
+      // It never has a UUID in UserContext, so it must be handled before UUID→name resolution.
+      const OTHER_CATEGORY_KEY = "Other";
+      const requestedOther = filters.categoryIds.includes(OTHER_CATEGORY_KEY);
+      const realCategoryIds = filters.categoryIds.filter(
+        (id) => id !== OTHER_CATEGORY_KEY,
+      );
+
+      const requestedUuids = new Set(realCategoryIds);
 
       // Reverse lookup for fallback (name-based) matching
       const idToName = new Map<string, string>();
       categoryNameToId.forEach((id, name) => idToName.set(id, name));
       const categoryNamesFromIds = new Set(
-        filters.categoryIds
+        realCategoryIds
           .map((id) => idToName.get(id))
           .filter((name): name is string => name !== undefined),
       );
 
-      // Fix #1114: if categoryIds were specified but none resolve to a known
-      // category name (e.g. stale / deleted UUIDs), return a zero-count summary
-      // rather than silently skipping the filter and returning ALL categories.
-      if (categoryNamesFromIds.size === 0) {
+      // Fix #1114: if real (non-Other) categoryIds were specified but none resolve
+      // to a known category name (e.g. stale / deleted UUIDs), return a zero-count
+      // summary rather than silently skipping the filter and returning ALL categories.
+      // Only fire when realCategoryIds is non-empty — "Other"-only requests are valid.
+      if (realCategoryIds.length > 0 && categoryNamesFromIds.size === 0) {
         this.logger.warn(
           `getInboxSummary: none of the requested UUIDs resolved to a known category — returning empty summary (userId=${userId})`,
         );
@@ -558,6 +567,8 @@ export class EmailsService implements OnModuleInit {
       }
 
       visibleCategories = categoryOrder.filter((cat) => {
+        // Fix #1174: include the synthetic "Other" category when explicitly requested
+        if (requestedOther && cat === OTHER_CATEGORY_KEY) return true;
         // Primary: UUID match via per-category UUID tracked during grouping
         const uuid = categoryUuidByName.get(cat);
         if (uuid) return requestedUuids.has(uuid);
@@ -1188,7 +1199,15 @@ export class EmailsService implements OnModuleInit {
     // Apply category filter by UUID directly (fix #1146).
     // thread.categoryId is stored at write time — no name resolution needed.
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      const requestedUuids = new Set(filters.categoryIds);
+      // Fix #1174: "Other" is a synthetic key (threads with null categoryId/category).
+      // It never has a UUID in UserContext, so it must be handled before UUID→name resolution.
+      const OTHER_CATEGORY_KEY = "Other";
+      const requestedOther = filters.categoryIds.includes(OTHER_CATEGORY_KEY);
+      const realCategoryIds = filters.categoryIds.filter(
+        (id) => id !== OTHER_CATEGORY_KEY,
+      );
+
+      const requestedUuids = new Set(realCategoryIds);
 
       // Threads without a categoryId fall back to name-based matching for
       // backward-compat with rows not yet backfilled (needsCategoryIdBackfill=true).
@@ -1207,15 +1226,16 @@ export class EmailsService implements OnModuleInit {
         idToName.set(ctx.contextId, categoryName);
       }
       const requestedNames = new Set(
-        filters.categoryIds
+        realCategoryIds
           .map((id) => idToName.get(id))
           .filter((name): name is string => name !== undefined),
       );
 
-      // Fix #1114: if categoryIds were specified but none resolve to a known
-      // category name (e.g. stale / deleted UUIDs), return an empty result
+      // Fix #1114: if real (non-Other) categoryIds were specified but none resolve
+      // to a known category name (e.g. stale / deleted UUIDs), return an empty result
       // rather than silently skipping the filter and returning ALL emails.
-      if (requestedNames.size === 0) {
+      // Only fire when realCategoryIds is non-empty — "Other"-only requests are valid.
+      if (realCategoryIds.length > 0 && requestedNames.size === 0) {
         this.logger.warn(
           `Category filter: none of the requested UUIDs resolved to a known category — returning empty result (userId=${userId})`,
         );
@@ -1228,12 +1248,21 @@ export class EmailsService implements OnModuleInit {
           categoryId?: string | null;
           category?: string | null;
         };
+        // Fix #1174: include threads in the synthetic "Other" category when requested.
+        // "Other" threads have no categoryId and their category is null or "Other".
+        const effectiveCategory = emailWithMeta.category || OTHER_CATEGORY_KEY;
+        if (
+          requestedOther &&
+          !emailWithMeta.categoryId &&
+          effectiveCategory === OTHER_CATEGORY_KEY
+        ) {
+          return true;
+        }
         // Primary path: UUID equality (set at write time, fix #1146)
         if (emailWithMeta.categoryId) {
           return requestedUuids.has(emailWithMeta.categoryId);
         }
         // Fallback path: name-based match for pre-backfill threads
-        const effectiveCategory = emailWithMeta.category || "Other";
         return requestedNames.has(effectiveCategory);
       });
       const removed = beforeCount - filteredEmails.length;

@@ -4,6 +4,7 @@
  * are only used by InboxContent.
  */
 import React, { useCallback, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
@@ -27,7 +28,8 @@ import {
 } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
-import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 import {
   computeCanRenderCategories,
@@ -223,6 +225,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   renderItem,
   onAfterCollapse,
 }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
 
@@ -271,6 +274,15 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
       const fetchedIds = fetchedEmails.map((email: any) => email.id).filter(Boolean);
       if (fetchedIds.length > 0) {
         await onBulkArchive(fetchedIds);
+        // Mark the category as loaded and decrement the summary count so the ghost accordion
+        // disappears. Without these dispatches the hide guard in InboxCategoryList
+        // (`isLoaded && categoryEmails.length === 0 && categoryItem.count === 0`) is never
+        // satisfied because neither condition is met for a collapsed-then-archived category.
+        // TODO: this only covers the first page (INBOX_FETCH_LIMIT). If a category has more
+        // emails than the fetch limit, the count will be under-decremented. Pagination is a
+        // pre-existing limitation of the fallback fetch and is out of scope for this fix.
+        dispatch(markCategoryLoaded(categoryKey));
+        dispatch(decrementCategorySummaryCount({ categoryName: categoryItem.name, count: fetchedIds.length }));
       }
     } catch (err) {
       console.error('[InboxContent] Failed to load category emails for archive:', err);

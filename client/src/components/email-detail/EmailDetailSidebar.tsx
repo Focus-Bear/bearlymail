@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
@@ -9,14 +9,17 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 export const EmailDetailSidebar: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
+  const fromMode = (location.state as { fromMode?: string } | null)?.fromMode;
+  const backPath = fromMode ? `/inbox/${fromMode}` : '/inbox';
 
   // On mobile, render as floating overlay button
   if (isMobile) {
     return (
       <button
-        onClick={() => navigate('/inbox')}
+        onClick={() => navigate(backPath)}
         style={{
           position: 'fixed',
           top: theme.spacing.md,
@@ -58,7 +61,7 @@ export const EmailDetailSidebar: React.FC = () => {
       }}
     >
       <button
-        onClick={() => navigate('/inbox')}
+        onClick={() => navigate(backPath)}
         style={{
           width: '48px',
           height: '48px',

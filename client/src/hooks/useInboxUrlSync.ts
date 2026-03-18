@@ -42,6 +42,11 @@ export function useInboxUrlSync({
   const { pathname } = useLocation();
   const lastUrlRef = useRef<string>(pathname);
 
+  // Wrap navigate in a ref so Effect 2 always uses the latest navigate function without
+  // including it in the dep array (same pattern as Effect 3 fix in #1177).
+  const navigateRef = useRef<ReturnType<typeof useNavigate>>(navigate);
+  navigateRef.current = navigate;
+
   // Initial mount: restore split view email from URL and set mode if missing from URL.
   useEffect(() => {
     if (!isInitialMount.current) {
@@ -52,11 +57,16 @@ export function useInboxUrlSync({
       openEmail(urlThreadId);
     }
     if (!urlMode) {
-      navigate(`${basePath}/${mode}`, { replace: true });
+      // Pre-sync lastUrlRef so Effect 2 skips a redundant navigate on mount.
+      const initialPath = `${basePath}/${mode}`;
+      lastUrlRef.current = initialPath;
+      navigate(initialPath, { replace: true });
     }
   }, []);
 
   // Sync URL path when mode or split view email changes.
+  // navigate is intentionally omitted from deps — it is accessed via navigateRef to avoid
+  // the unstable navigate reference from useNavigateUnstable (BrowserRouter) causing a loop.
   useEffect(() => {
     if (isInitialMount.current) {
       return;
@@ -66,9 +76,9 @@ export function useInboxUrlSync({
       : `${basePath}/${mode}`;
     if (newPath !== lastUrlRef.current) {
       lastUrlRef.current = newPath;
-      navigate(newPath, { replace: true });
+      navigateRef.current(newPath, { replace: true });
     }
-  }, [mode, splitViewSelectedEmailId, navigate, basePath]);
+  }, [mode, splitViewSelectedEmailId, basePath]); // navigate removed — see navigateRef above
 
   // Use a ref-based callback pattern (stable alternative to useEffectEvent which does not exist
   // in React 19.2 stable) so Effect 3 re-runs only when urlMode/urlThreadId change, but the

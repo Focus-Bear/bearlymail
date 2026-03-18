@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
 import { MODE_ACTION, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
@@ -23,8 +23,24 @@ interface UrlSyncParams {
 }
 
 /**
- * Handles inbox URL synchronization (initial mount redirect + ongoing URL updates + URL→mode sync).
- * Extracted from useInboxState to reduce its statement count.
+ * Handles inbox URL synchronization (initial mount redirect + URL→state sync on browser navigation).
+ *
+ * ## Fix for #1191 — navigate loop
+ *
+ * Effect 2 (state→URL sync via navigate) has been DELETED. The old design was:
+ *
+ *   state changes → Effect 2 → navigate() → URL changes → Effect 3 → state changes → Effect 2 → ...
+ *
+ * This caused Chrome to throttle navigation at 1000+ calls per load.
+ *
+ * Navigation now happens ONLY from event handlers (setMode, openEmail, closeEmail in
+ * useInboxState). Reactive effects in this hook are strictly one-way: URL → state.
+ * There is no path from state back to navigate(), so the cycle cannot form.
+ *
+ * Removed along with Effect 2:
+ *   - navigateRef (was only needed to stabilise Effect 2's dep array)
+ *   - lastUrlRef (was only needed to deduplicate Effect 2's navigate() calls)
+ *   - useLocation import (was only needed to initialise lastUrlRef)
  */
 export function useInboxUrlSync({
   isFocusedMode,
@@ -39,14 +55,9 @@ export function useInboxUrlSync({
 }: UrlSyncParams) {
   const basePath = isFocusedMode ? '/focused-inbox' : '/inbox';
   const isInitialMount = useRef(true);
-  const { pathname } = useLocation();
-  const lastUrlRef = useRef<string>(pathname);
-  // Wrap navigate in a ref so Effect 2 always uses the latest navigate function without
-  // including it in the dep array (same pattern as Effect 3 fix in #1177).
-  const navigateRef = useRef<ReturnType<typeof useNavigate>>(navigate);
-  navigateRef.current = navigate;
 
-  // Initial mount: restore split view email from URL and set mode if missing from URL.
+  // Effect 1 — mount only: restore split view email from URL; redirect if mode is absent from URL.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isInitialMount.current) {
       return;
@@ -56,35 +67,14 @@ export function useInboxUrlSync({
       openEmail(urlThreadId);
     }
     if (!urlMode) {
-      const initialPath = `${basePath}/${mode}`;
-      // Update lastUrlRef BEFORE navigating so Effect 2 (mode/splitView sync) doesn't
-      // see a stale lastUrlRef and trigger a redundant second replaceState on the same path.
-      lastUrlRef.current = initialPath;
-      navigate(initialPath, { replace: true });
+      navigate(`${basePath}/${mode}`, { replace: true });
     }
-  }, []);
+  }, []); // intentionally empty — mount-only
 
-  // Sync URL path when mode or split view email changes.
-  // navigate is read from the ref so it is NOT listed in deps — adding it caused a loop:
-  // navigate identity changes during react-router internal transitions → Effect re-fires →
-  // replaceState fires → URL-change event → fetchEmails increments fetchSessionRef → in-flight
-  // category fetch abandoned → Other accordion shows 0 (issue #1182 / race from #1183).
-  useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
-    const newPath = splitViewSelectedEmailId
-      ? `${basePath}/${mode}/${splitViewSelectedEmailId}`
-      : `${basePath}/${mode}`;
-    if (newPath !== lastUrlRef.current) {
-      lastUrlRef.current = newPath;
-      navigateRef.current(newPath, { replace: true });
-    }
-  }, [mode, splitViewSelectedEmailId, basePath]);
-
-  // Use a ref-based callback pattern (stable alternative to useEffectEvent which does not exist
-  // in React 19.2 stable) so Effect 3 re-runs only when urlMode/urlThreadId change, but the
-  // callback always reads fresh splitViewSelectedEmailId via closure (ref is reassigned each render).
+  // Stable ref for the URL-params-changed callback. Effect 3 re-runs only when
+  // urlMode/urlThreadId change, but the callback always reads fresh state via closure.
+  // (Same pattern as the pre-existing onUrlParamsChangedRef — stable alternative to
+  // useEffectEvent which does not exist in React 19.2 stable.)
   const onUrlParamsChangedRef = useRef<() => void>(() => {});
   onUrlParamsChangedRef.current = () => {
     if (isInitialMount.current) {
@@ -100,7 +90,9 @@ export function useInboxUrlSync({
     }
   };
 
-  // Sync mode/split view from URL params when they change (browser back/forward).
+  // Effect 3 — URL → state sync on browser back/forward navigation.
+  // This effect is strictly ONE-WAY: it reads URL params and updates React state.
+  // It does NOT call navigate(), so it cannot chain back into itself. Loop is broken.
   useEffect(() => {
     onUrlParamsChangedRef.current();
   }, [urlMode, urlThreadId]);

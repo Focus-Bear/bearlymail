@@ -51,6 +51,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   const [mode, setModeState] = useState<InboxMode>(getInitialMode);
 
+  // basePath for constructing navigate targets — must be defined early so it can be used
+  // in setMode, openEmailWithNavigate, and closeEmailWithNavigate below.
+  const basePath = isFocusedMode ? '/focused-inbox' : '/inbox';
+
   // Triage suggestions hook
   const { triageSuggestions, loadingSuggestions, fetchTriageSuggestions, removeSuggestion, clearSuggestionsCache } =
     useTriageSuggestions();
@@ -147,9 +151,42 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     tourSteps,
   } = useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
 
-  // Wire openEmailRef to splitView.openEmail so onEmailMovedInTriage can call it.
-  // This is safe because splitView.openEmail is a stable callback from useSplitView.
-  openEmailRef.current = splitView.openEmail;
+  // Navigate-aware wrappers for openEmail / closeEmail.
+  // Effect 2 in useInboxUrlSync has been DELETED (fix for #1191 navigate loop).
+  // Navigation is now explicit in these event-handler wrappers rather than driven by a
+  // reactive effect. This breaks the state→navigate→URL→state cycle that caused
+  // Chrome to throttle navigation at 1000+ calls per load.
+  //
+  // These wrappers are passed everywhere splitView.openEmail/closeEmail were used so that
+  // ALL call sites (email click, keyboard navigation, email actions, URL sync) produce a
+  // navigate() call as part of the user-action, not as a downstream effect.
+  const openEmailWithNavigate = useCallback(
+    (emailId: string) => {
+      splitView.openEmail(emailId);
+      navigate(`${basePath}/${mode}/${emailId}`, { replace: true });
+    },
+    [splitView, navigate, basePath, mode]
+  );
+
+  const closeEmailWithNavigate = useCallback(
+    () => {
+      splitView.closeEmail();
+      navigate(`${basePath}/${mode}`, { replace: true });
+    },
+    [splitView, navigate, basePath, mode]
+  );
+
+  // Build a splitView proxy that replaces openEmail/closeEmail with navigate-aware versions.
+  // Passed to useEmailActions, useInboxEmailHandlers, and all other consumers so they
+  // automatically navigate when opening/closing emails.
+  const splitViewWithNavigate = {
+    ...splitView,
+    openEmail: openEmailWithNavigate,
+    closeEmail: closeEmailWithNavigate,
+  };
+
+  // Wire openEmailRef to openEmailWithNavigate so onEmailMovedInTriage also navigates.
+  openEmailRef.current = openEmailWithNavigate;
   // Wire isMobileRef so onEmailMovedInTriage can check without it being a dep.
   isMobileRef.current = splitView.isMobile;
 
@@ -233,7 +270,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     emailListRef,
     selectedEmailIndex,
     setSelectedEmailIndex,
-    splitView,
+    splitView: splitViewWithNavigate,
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
 
@@ -247,7 +284,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     handleArchiveBase,
     handleSetStarCountBase,
     handleMarkAsRead,
-    splitView,
+    splitView: splitViewWithNavigate,
     emailListRef,
     emailDetailRef,
     navigate,
@@ -261,10 +298,13 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const setMode = useCallback(
     (newMode: InboxMode) => {
       setModeState(newMode);
+      // Navigate explicitly here instead of relying on a reactive effect.
+      // Effect 2 in useInboxUrlSync has been deleted (fix for #1191 navigate loop).
+      navigate(`${basePath}/${newMode}`, { replace: true });
       dispatch(clearCategoryState());
       resetForModeChange();
     },
-    [dispatch, resetForModeChange]
+    [navigate, basePath, dispatch, resetForModeChange]
   );
 
   // URL-driven mode change (browser back/forward): must also reset accordion state so the
@@ -279,7 +319,11 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     [resetForModeChange]
   );
 
-  // URL synchronization sub-hook (replaces isInitialMount/lastUrlRef refs + getBasePath + 3 useEffects)
+  // URL synchronization sub-hook (replaces isInitialMount/lastUrlRef refs + getBasePath + 3 useEffects).
+  // Effect 3 (URL→state) receives the RAW splitView callbacks (no navigate) because the URL
+  // has already changed when Effect 3 fires — calling navigate() again would be redundant
+  // and could re-enter the loop. Navigation only needs to happen from user-action handlers
+  // (openEmailWithNavigate / closeEmailWithNavigate / setMode).
   useInboxUrlSync({
     isFocusedMode,
     mode,
@@ -338,7 +382,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     modals,
     priorityTooltip,
     keyboardHint,
-    splitView,
+    splitView: splitViewWithNavigate,
     emailActions,
     keyboardShortcuts,
     inboxFilters,

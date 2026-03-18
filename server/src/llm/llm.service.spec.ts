@@ -392,4 +392,56 @@ describe("LLMService", () => {
       expect(extractPlainSummary(input)).toBe("Clean summary");
     });
   });
+
+  describe("parseSummaryWithPhishing success-path sanitisation (issue #1162)", () => {
+    // parseSummaryWithPhishing is private; access via `any` cast for unit testing.
+    let service: LLMService;
+
+    beforeEach(() => {
+      // Create a minimal service stub — we only need the private method.
+      // LLMService takes a single LLMCoreService dependency; null is fine here
+      // because parseSummaryWithPhishing is a pure synchronous method that
+      // does not call through to the core service.
+      service = new LLMService(null as any);
+    });
+
+    it("sanitises a plain-text summary in the success path", () => {
+      const response = JSON.stringify({
+        summary: "This email asks you to review the attached proposal.",
+        phishing: null,
+        sentiment: null,
+        category: null,
+        categoryExplanation: null,
+      });
+      const result = (service as any).parseSummaryWithPhishing(response);
+      expect(result.summary).toBe(
+        "This email asks you to review the attached proposal.",
+      );
+    });
+
+    it("sanitises a JSON-embedded summary string in the success path (fix #1162)", () => {
+      // Simulate the LLM embedding a JSON object inside the summary field
+      // (can happen with custom howToSummarize rules).
+      const response = JSON.stringify({
+        summary: JSON.stringify({ key: "embedded JSON value" }),
+        phishing: null,
+        sentiment: null,
+        category: null,
+        categoryExplanation: null,
+      });
+      const result = (service as any).parseSummaryWithPhishing(response);
+      // extractPlainSummary should extract the value, not return raw JSON
+      expect(result.summary).not.toContain("{");
+      expect(result.summary).not.toContain("}");
+      expect(result.summary).toBe("key: embedded JSON value");
+    });
+
+    it("fallback path sanitises correctly (regression guard)", () => {
+      // Non-JSON input — exercises the fallback path.
+      const result = (service as any).parseSummaryWithPhishing(
+        "  plain fallback summary  ",
+      );
+      expect(result.summary).toBe("plain fallback summary");
+    });
+  });
 });

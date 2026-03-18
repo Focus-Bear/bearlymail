@@ -600,7 +600,10 @@ export class LLMService {
               ? parsed.categoryExplanation
               : null;
           return {
-            summary: parsed.summary.trim(),
+            // fix #1162: sanitise the parsed summary through extractPlainSummary,
+            // same as the fallback path — prevents raw JSON strings (from
+            // custom howToSummarize rules) reaching the DB.
+            summary: extractPlainSummary(parsed.summary),
             phishing: this.validatePhishingLLMResult(parsed.phishing),
             sentiment,
             category,

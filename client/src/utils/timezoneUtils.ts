@@ -1,5 +1,3 @@
-import { MILLISECONDS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
-
 /**
  * Returns the current time formatted as an ISO-8601-like string in the given
  * IANA timezone (e.g. "2026-03-18T09:33:00+11:00").
@@ -14,7 +12,18 @@ import { MILLISECONDS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
  *  - `timezone` is undefined / empty
  *  - the timezone string is not a valid IANA identifier
  *  - the runtime does not support `Intl.DateTimeFormat` with `timeZone`
+ *
+ * Implementation note: uses `Intl.DateTimeFormat.formatToParts()` with explicit
+ * part extraction rather than `toLocaleString()` because jsdom (used by Jest)
+ * does not fully implement `Intl` timezone support — `toLocaleString('en-CA',
+ * {timeZone: ...})` in jsdom returns an unparseable format, causing
+ * `new Date(parsedString + 'Z')` → `Invalid Date` → NaN offsets.
+ * `formatToParts()` with named parts is more reliable across jsdom and real
+ * browser/Node runtimes.
  */
+const MILLISECONDS_PER_MINUTE = 60_000;
+const MINUTES_PER_HOUR = 60;
+
 export function getCurrentTimeInTimezone(timezone?: string): string {
   if (!timezone) {
     return new Date().toISOString();
@@ -23,9 +32,7 @@ export function getCurrentTimeInTimezone(timezone?: string): string {
   try {
     const now = new Date();
 
-    // Build individual date/time parts in the target timezone using a locale
-    // that produces unambiguous numeric output.
-    const fmt = new Intl.DateTimeFormat('en-CA', {
+    const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
@@ -36,23 +43,39 @@ export function getCurrentTimeInTimezone(timezone?: string): string {
       hour12: false,
     });
 
-    const parts = fmt.formatToParts(now);
-    const getPart = (type: string) => parts.find(part => part.type === type)?.value ?? '00';
+    const parts = formatter.formatToParts(now);
+    const get = (type: string) => parts.find(part => part.type === type)?.value ?? '00';
 
-    // Derive the UTC offset by comparing what the target zone says "now" is
-    // versus the actual UTC epoch time.
-    const localStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    const minute = get('minute');
+    const second = get('second');
+    // Clamp hour=24 to 00 (midnight edge case in some ICU builds)
+    const hour = get('hour') === '24' ? '00' : get('hour');
 
-    // Parse the local wall-clock time as UTC to compute the offset.
-    const localAsUtc = Date.parse(`${localStr}Z`);
-    const offsetMinutes = Math.round((localAsUtc - now.getTime()) / MILLISECONDS_PER_MINUTE);
+    // Compute UTC offset: build a UTC date from the local wall-clock values
+    // and compare to now.
+    // localStr has no milliseconds, so localAsUtc may be up to 999 ms behind
+    // now.getTime(); Math.round corrects this sub-minute artefact.
+    const localWallClock = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+    const localAsUtc = new Date(`${localWallClock}Z`);
 
+    if (isNaN(localAsUtc.getTime())) {
+      return new Date().toISOString();
+    }
+
+    const offsetMs = localAsUtc.getTime() - now.getTime();
+    const offsetMinutes = Math.round(offsetMs / MILLISECONDS_PER_MINUTE);
+
+    // offsetMinutes >= 0 covers both +0 and −0 in JS (−0 >= 0 is true),
+    // so UTC will always produce "+00:00" rather than the unexpected "−00:00".
     const sign = offsetMinutes >= 0 ? '+' : '-';
     const absMinutes = Math.abs(offsetMinutes);
     const offsetHH = String(Math.floor(absMinutes / MINUTES_PER_HOUR)).padStart(2, '0');
     const offsetMM = String(absMinutes % MINUTES_PER_HOUR).padStart(2, '0');
 
-    return `${localStr}${sign}${offsetHH}:${offsetMM}`;
+    return `${localWallClock}${sign}${offsetHH}:${offsetMM}`;
   } catch {
     // Invalid timezone or unsupported runtime — fall back to UTC ISO string.
     return new Date().toISOString();

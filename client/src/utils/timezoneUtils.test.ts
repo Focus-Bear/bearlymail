@@ -49,6 +49,33 @@ describe('getCurrentTimeInTimezone', () => {
     expect(result.endsWith('+00:00')).toBe(true);
   });
 
+  it('handles midnight boundary (hour=24 overflow) without producing invalid ISO strings', () => {
+    // Simulate a runtime that returns hour=24 for midnight via formatToParts.
+    // The real bug: "2026-03-18T24:02:12-NaN:NaN" was returned at midnight UTC.
+    const mockParts = [
+      { type: 'year', value: '2026' },
+      { type: 'month', value: '03' },
+      { type: 'day', value: '18' },
+      { type: 'hour', value: '24' }, // edge case: some ICU builds return 24 at midnight
+      { type: 'minute', value: '00' },
+      { type: 'second', value: '00' },
+      { type: 'literal', value: '/' },
+    ] as Intl.DateTimeFormatPart[];
+
+    jest.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValueOnce(mockParts);
+
+    const result = getCurrentTimeInTimezone('UTC');
+    // Must not contain hour=24
+    expect(result).not.toContain('T24:');
+    // Must not contain NaN
+    expect(result).not.toContain('NaN');
+    // Must match valid ISO format (offset or UTC Z)
+    expect(result).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$|^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    jest.restoreAllMocks();
+  });
+
   it('the returned time is within 5 seconds of now (sanity check)', () => {
     const before = Date.now();
     const result = getCurrentTimeInTimezone('Australia/Melbourne');

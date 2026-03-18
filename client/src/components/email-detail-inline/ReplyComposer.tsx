@@ -174,9 +174,12 @@ const useReplyComposerState = (
     setForwardAttachmentIds(prev => prev.filter(id => id !== attachmentId));
   };
 
-  const handleDraftChange = (newDraft: string) => {
-    onDraftChange(newDraft);
-  };
+  const handleDraftChange = useCallback(
+    (newDraft: string) => {
+      onDraftChange(newDraft);
+    },
+    [onDraftChange],
+  );
 
   const handleSend = (
     expectedReplyHours?: number,

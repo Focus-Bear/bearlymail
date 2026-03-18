@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BulletList from '@tiptap/extension-bullet-list';
 import Color from '@tiptap/extension-color';
 import Image from '@tiptap/extension-image';
@@ -120,8 +120,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const linkShortcutCallbackRef = useRef(() => setLinkDialogOpen(true));
 
-  const editor = useEditor({
-    extensions: [
+  // Use refs for paste handler callbacks to avoid stale closures.
+  // The paste handler is created once at editor init; refs let it always call
+  // the latest prop values without being recreated.
+  const onPasteFilesRef = useRef(onPasteFiles);
+  const onInlineImageRef = useRef(onInlineImage);
+  useEffect(() => {
+    onPasteFilesRef.current = onPasteFiles;
+  }, [onPasteFiles]);
+  useEffect(() => {
+    onInlineImageRef.current = onInlineImage;
+  }, [onInlineImage]);
+
+  // Memoize extensions so TipTap doesn't rebuild the editor on every render.
+  // createLinkShortcut is stable because it reads from linkShortcutCallbackRef.
+  // Placeholder is keyed to `placeholder` prop, so it must be in the deps.
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false, orderedList: false, listItem: false, link: false, underline: false }),
       BulletList.extend({
         addInputRules() {
@@ -143,6 +158,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       Image.configure({ inline: true, allowBase64: true }),
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [placeholder],
+  );
+
+  // Stable paste handler that delegates to the latest callback refs.
+  const stablePasteHandler = useCallback(
+    buildPasteHandler(
+      (files) => onPasteFilesRef.current?.(files),
+      (cid, file) => onInlineImageRef.current?.(cid, file),
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const editor = useEditor({
+    extensions,
     content: content || '',
     editable: !disabled,
     onUpdate: ({ editor: ed }) => {
@@ -151,7 +182,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const isEmpty = ed.isEmpty;
       onChange(isEmpty ? '' : html);
     },
-    editorProps: { handlePaste: buildPasteHandler(onPasteFiles, onInlineImage) },
+    editorProps: { handlePaste: stablePasteHandler },
   });
 
   useEffect(() => {

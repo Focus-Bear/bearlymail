@@ -13,7 +13,7 @@ interface ReplyDraftTextareaProps {
   onInlineImage?: (cid: string, file: File) => void;
 }
 
-export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
+const ReplyDraftTextareaInner: React.FC<ReplyDraftTextareaProps> = ({
   draft,
   loadingReplies,
   hasToneError,
@@ -33,3 +33,11 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
     />
   );
 };
+
+/**
+ * Wrapped with React.memo so the TipTap editor doesn't re-mount when the
+ * parent (ReplyComposer) re-renders for unrelated state changes (e.g. tone
+ * check updates, attachment list changes).  Requires stable `onDraftChange`
+ * — ensured by wrapping the handler in useCallback in useReplyComposerState.
+ */
+export const ReplyDraftTextarea = React.memo(ReplyDraftTextareaInner);

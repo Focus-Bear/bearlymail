@@ -1,8 +1,11 @@
 /**
- * Unit tests for IcsInviteCard — Axios error handling (#1116)
+ * Unit tests for IcsInviteCard — Axios error handling (#1116) and
+ * Windows timezone crash (#1193)
  *
  * Verifies that axios.isAxiosError() is used for type-safe error handling
- * in both fetchIcsInfo and handleAddToCalendar catch blocks.
+ * in both fetchIcsInfo and handleAddToCalendar catch blocks, and that
+ * Windows-style timezone strings (e.g. "AUS Eastern Standard Time") do not
+ * throw a RangeError crashing the card.
  */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -90,6 +93,54 @@ describe('IcsInviteCard — error handling (#1116)', () => {
 
       await waitFor(() => {
         expect(screen.getByText('emailDetail.icsInvite.error')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Windows timezone crash (#1193)', () => {
+    it('renders date/time without crashing when timezone is a Windows-style string', async () => {
+      const icsInfo = {
+        event: {
+          uid: 'win-tz-uid',
+          title: 'Windows TZ Meeting',
+          startAt: '2026-03-20T09:00:00Z',
+          endAt: '2026-03-20T09:30:00Z',
+          timezone: 'AUS Eastern Standard Time', // Windows tz — must not throw RangeError
+          allDay: false,
+          attendees: [],
+          isRecurring: false,
+        },
+        alreadyInCalendar: false,
+      };
+      mockedAxios.get.mockResolvedValue({ data: icsInfo });
+
+      expect(() => render(<IcsInviteCard email={makeEmailWithIcs()} />)).not.toThrow();
+
+      await waitFor(() => {
+        expect(screen.getByText('Windows TZ Meeting')).toBeInTheDocument();
+      });
+    });
+
+    it('renders date/time without crashing when timezone is "Eastern Standard Time"', async () => {
+      const icsInfo = {
+        event: {
+          uid: 'est-uid',
+          title: 'Eastern Time Meeting',
+          startAt: '2026-03-20T14:00:00Z',
+          endAt: '2026-03-20T15:00:00Z',
+          timezone: 'Eastern Standard Time',
+          allDay: false,
+          attendees: [],
+          isRecurring: false,
+        },
+        alreadyInCalendar: false,
+      };
+      mockedAxios.get.mockResolvedValue({ data: icsInfo });
+
+      expect(() => render(<IcsInviteCard email={makeEmailWithIcs()} />)).not.toThrow();
+
+      await waitFor(() => {
+        expect(screen.getByText('Eastern Time Meeting')).toBeInTheDocument();
       });
     });
   });

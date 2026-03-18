@@ -37,7 +37,7 @@ const MINUTES_PER_HOUR = 60;
  * definitive check — the spec mandates a RangeError for invalid timezone
  * values, so this is both correct and reliable across all environments.
  */
-function isValidIANATimezone(tz: string): boolean {
+export function isValidIANATimezone(tz: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
     return true;

@@ -168,21 +168,25 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
    * This replaces the old fetchEmails behaviour — accordions are rendered from the
    * summary immediately, then each category's emails are loaded lazily on expand.
    *
-   * @param overrideFilters - Optional filter overrides to apply immediately without
-   *   waiting for React state to propagate. Useful when updating filter state and
-   *   triggering a fetch in the same event handler (stale-closure fix for #1160).
+   * @param overrideFilters - Optional filter overrides to apply immediately, bypassing the
+   *   stale-closure problem where React state updates are async but fetchEmails fires
+   *   synchronously in the same tick as setPriorityFilter/setAccountFilter/setCategoryFilter.
+   *   Pass the new filter values directly so the API call uses them without waiting for
+   *   the next render cycle. Fixes: #1165 (stale closure sends wrong minPriority).
    */
   const fetchEmails = useCallback(async (overrideFilters?: Partial<InboxFilter>) => {
     fetchSessionRef.current += 1;
     isLoadingMoreRef.current = false;
+    const effectiveFilters = overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters;
+    const buildSummaryParamsWithOverride = () => buildSummaryParamsImpl(mode, effectiveFilters);
+    const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);
     await fetchEmailsImpl({
-      mode,
-      dispatch,
-      buildSummaryParams: () => buildSummaryParams(overrideFilters),
-      buildAutoRespondedParams: () => buildAutoRespondedParams(overrideFilters),
+      mode, dispatch,
+      buildSummaryParams: buildSummaryParamsWithOverride,
+      buildAutoRespondedParams: buildAutoRespondedParamsWithOverride,
       buildAutoRespondedSummary,
     });
-  }, [mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
+  }, [mode, dispatch, filters, buildAutoRespondedSummary]);
 
   /**
    * Fetch emails for a single category on accordion expand.

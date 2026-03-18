@@ -40,15 +40,49 @@ export const PRIORITY_RANGES = [
   { label: 'Very High', min: 50, max: null, displayValue: '> 50' },
 ] as const;
 
+/**
+ * Sanitize filters loaded from localStorage.
+ *
+ * Validates the stored `(minPriority, maxPriority)` pair against known PRIORITY_RANGES.
+ * This handles users who stored filters before `maxPriority` was introduced (PR #1103):
+ * their localStorage has `{ minPriority: 50 }` with no `maxPriority` key, which results
+ * in `maxPriority: undefined` after JSON.parse. `undefined !== null` causes:
+ *   - The dropdown to show "All" (no PRIORITY_RANGES entry matches min=50, max=undefined)
+ *   - The badge to show "1 active filter" (minPriority !== null → counts as active)
+ *
+ * Fix: any unrecognised (minPriority, maxPriority) pair is reset to null/null.
+ * Also normalises `undefined` → `null` for both fields.
+ *
+ * Fixes: #1164 (ghost active-filter badge count)
+ */
+function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
+  const minPriority = filters.minPriority ?? null;
+  const maxPriority = filters.maxPriority ?? null;
+
+  if (minPriority === null && maxPriority === null) {
+    return { ...filters, minPriority: null, maxPriority: null };
+  }
+
+  const isValidRange = PRIORITY_RANGES.some(
+    range => range.min === minPriority && range.max === maxPriority
+  );
+
+  if (!isValidRange) {
+    return { ...filters, minPriority: null, maxPriority: null };
+  }
+
+  return { ...filters, minPriority, maxPriority };
+}
+
 function loadInitialFilters(): InboxFilter {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      // User has previously stored preferences — respect them as-is
+      // User has previously stored preferences — sanitize then return
       if (!localStorage.getItem(FIRST_LOAD_KEY)) {
         localStorage.setItem(FIRST_LOAD_KEY, '1');
       }
-      return JSON.parse(stored);
+      return sanitizeStoredFilters(JSON.parse(stored));
     }
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);

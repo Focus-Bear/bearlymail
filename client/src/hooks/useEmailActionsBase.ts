@@ -7,6 +7,7 @@ import { invalidateSummaryCache, removeEmailFromCache } from 'utils/emailCache';
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { InboxFilter } from 'hooks/useInboxFilters';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
   addAnimatingOut,
@@ -48,7 +49,7 @@ interface TabCountChanges {
 }
 
 interface UseEmailActionsBaseProps {
-  fetchEmails: () => Promise<void>;
+  fetchEmails: (overrideFilters?: Partial<InboxFilter>) => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
   onShowPriorityOverride?: (
     emailId: string,
@@ -64,7 +65,7 @@ interface UseEmailActionsBaseProps {
 
 interface UseStarCountMutationParams {
   emails: Email[];
-  fetchEmails: () => Promise<void>;
+  fetchEmails: (overrideFilters?: Partial<InboxFilter>) => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
   onEmailMoved?: (emailId: string) => void;

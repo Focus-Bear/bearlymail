@@ -9,7 +9,7 @@ import { PRIORITY_RANGES } from 'hooks/useInboxFilters';
 import { getMultiSelectDisplayText } from './inboxFilters.helpers';
 
 interface InboxFiltersProps {
-  onFilterChange?: () => void;
+  onFilterChange?: (overrideFilters?: Partial<InboxFilter>) => void;
   isFilterBarVisible: boolean;
   filters: InboxFilter;
   connectedAccounts: ConnectedAccount[];
@@ -450,17 +450,22 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
 
   const handleAccountChange = (ids: string[]) => {
     setAccountFilter(ids);
-    onFilterChange?.();
+    onFilterChange?.({ accountIds: ids });
   };
 
   const handleCategoryChange = (ids: string[]) => {
     setCategoryFilter(ids);
-    onFilterChange?.();
+    onFilterChange?.({ categories: ids });
   };
 
+  // Pass new priority values directly to bypass the stale-closure problem:
+  // setPriorityFilter schedules an async React state update, but onFilterChange fires
+  // synchronously in the same tick. Without the override, fetchEmails would read the
+  // previous render's filters (stale closure) and send the old minPriority to the API.
+  // Fixes: #1165 (selecting "High (30-50)" sends minPriority=0 from stale "Low" selection).
   const handlePriorityChange = (min: number | null, max: number | null) => {
     setPriorityFilter(min, max);
-    onFilterChange?.();
+    onFilterChange?.({ minPriority: min, maxPriority: max });
   };
 
   const accountOptions = connectedAccounts.map(account => ({

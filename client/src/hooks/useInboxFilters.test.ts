@@ -27,6 +27,70 @@ describe('useInboxFilters', () => {
     jest.clearAllMocks();
   });
 
+  describe('sanitizeStoredFilters (localStorage migration, fixes #1164)', () => {
+    it('normalises stale pre-maxPriority localStorage (minPriority=50, no maxPriority) to "Very High" range', () => {
+      // Simulates users whose localStorage was written before maxPriority was added (PR #1103).
+      // JSON.parse('{"minPriority":50}').maxPriority === undefined.
+      // The fix normalises undefined → null, so the pair (50, null) matches the "Very High"
+      // PRIORITY_RANGES entry. Previously undefined !== null caused the dropdown to show "All"
+      // while the badge still counted it as an active filter (ghost active-filter bug #1164).
+      const stale = JSON.stringify({ accountIds: [], categories: [], minPriority: 50 });
+      localStorage.setItem(STORAGE_KEY, stale);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      // After normalisation: (50, null) = "Very High" — valid range, preserved as-is.
+      // The dropdown now correctly shows "Very High" and the badge shows "1 active filter"
+      // (consistent — no ghost). Previously: dropdown showed "All", badge showed "1" (inconsistent).
+      expect(result.current.filters.minPriority).toBe(50);
+      expect(result.current.filters.maxPriority).toBeNull();
+      expect(result.current.hasActiveFilters).toBe(true);
+    });
+
+    it('keeps a valid stored range (minPriority=30, maxPriority=50 = "High") as-is', () => {
+      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 30, maxPriority: 50 });
+      localStorage.setItem(STORAGE_KEY, stored);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(30);
+      expect(result.current.filters.maxPriority).toBe(50);
+      expect(result.current.hasActiveFilters).toBe(true);
+    });
+
+    it('keeps null/null as-is (no-filter default)', () => {
+      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
+      localStorage.setItem(STORAGE_KEY, stored);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
+      expect(result.current.hasActiveFilters).toBe(false);
+    });
+
+    it('resets an invalid range (minPriority=25, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
+      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 25, maxPriority: 99 });
+      localStorage.setItem(STORAGE_KEY, stored);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
+      expect(result.current.hasActiveFilters).toBe(false);
+    });
+
+    it('resets a partially valid stored range (minPriority=0, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
+      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 0, maxPriority: 99 });
+      localStorage.setItem(STORAGE_KEY, stored);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
+    });
+  });
+
   describe('initialization', () => {
     it('defaults to minPriority null when localStorage is empty (first visit)', () => {
       const { result } = renderHook(() => useInboxFilters());

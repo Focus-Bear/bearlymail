@@ -279,7 +279,7 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
   loadingLabel,
   children,
 }) => (
-  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md, minWidth: 0 }}>
     {isLoadingContent ? (
       <div
         style={{

@@ -14,6 +14,7 @@ export const EmailSubject: React.FC<EmailSubjectProps> = ({ email }) => {
         fontSize: theme.typography.fontSize.lg,
         fontWeight: email.isRead ? theme.typography.fontWeight.normal : theme.typography.fontWeight.bold,
         marginBottom: theme.spacing.sm,
+        minWidth: 0,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',

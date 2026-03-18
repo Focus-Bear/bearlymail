@@ -113,7 +113,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       data-email-index={index}
       data-email-id={email.id}
       className={animationClass}
-      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative', minWidth: 0 }}
     >
       {animatingOutItem?.type === ANIMATION_TYPE_PRIORITY && (
         <>

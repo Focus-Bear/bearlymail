@@ -41,7 +41,6 @@ export function useInboxUrlSync({
   const isInitialMount = useRef(true);
   const { pathname } = useLocation();
   const lastUrlRef = useRef<string>(pathname);
-
   // Wrap navigate in a ref so Effect 2 always uses the latest navigate function without
   // including it in the dep array (same pattern as Effect 3 fix in #1177).
   const navigateRef = useRef<ReturnType<typeof useNavigate>>(navigate);
@@ -57,16 +56,19 @@ export function useInboxUrlSync({
       openEmail(urlThreadId);
     }
     if (!urlMode) {
-      // Pre-sync lastUrlRef so Effect 2 skips a redundant navigate on mount.
       const initialPath = `${basePath}/${mode}`;
+      // Update lastUrlRef BEFORE navigating so Effect 2 (mode/splitView sync) doesn't
+      // see a stale lastUrlRef and trigger a redundant second replaceState on the same path.
       lastUrlRef.current = initialPath;
       navigate(initialPath, { replace: true });
     }
   }, []);
 
   // Sync URL path when mode or split view email changes.
-  // navigate is intentionally omitted from deps — it is accessed via navigateRef to avoid
-  // the unstable navigate reference from useNavigateUnstable (BrowserRouter) causing a loop.
+  // navigate is read from the ref so it is NOT listed in deps — adding it caused a loop:
+  // navigate identity changes during react-router internal transitions → Effect re-fires →
+  // replaceState fires → URL-change event → fetchEmails increments fetchSessionRef → in-flight
+  // category fetch abandoned → Other accordion shows 0 (issue #1182 / race from #1183).
   useEffect(() => {
     if (isInitialMount.current) {
       return;
@@ -78,7 +80,7 @@ export function useInboxUrlSync({
       lastUrlRef.current = newPath;
       navigateRef.current(newPath, { replace: true });
     }
-  }, [mode, splitViewSelectedEmailId, basePath]); // navigate removed — see navigateRef above
+  }, [mode, splitViewSelectedEmailId, basePath]);
 
   // Use a ref-based callback pattern (stable alternative to useEffectEvent which does not exist
   // in React 19.2 stable) so Effect 3 re-runs only when urlMode/urlThreadId change, but the

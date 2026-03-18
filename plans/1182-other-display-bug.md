@@ -38,144 +38,141 @@ at the time the fetch is queued. The fetch is then silently abandoned, so the st
 
 **Fixing #1183 (navigate loop) should resolve this race condition.**
 
-### Secondary cause: possible independent key bug (to verify after #1183 fix)
+### Key insight: this is not a key-mismatch bug
 
-After the navigate loop is fixed, if 'Other' still shows 0, there may be an independent
-issue. Investigation path:
+Analysis of the full data pipeline shows keys are consistent:
 
-1. `updateCategoryEmails({ categoryKey: 'Other', emails })` stamps `email.category_id = null ?? 'Other' = 'Other'`
-2. `groupEmailsByCategory` uses `email.category_id ?? email.category ?? 'Other'` as key → `'Other'` ✓
-3. `buildEmailCategoryMap` sets `emailCategoryMap.get('Other')` ✓
-4. `CategorySection` calls `emailCategoryMap.get(getCategoryKey(null, 'Other'))` = `emailCategoryMap.get('Other')` ✓
+| Step | Key used | Value |
+|------|----------|-------|
+| `getCategoryKey(null, 'Other')` | accordion lookup | `'Other'` |
+| `buildCategoryParamsImpl('Other')` | API param | `categoryIds=Other` |
+| `fetchCategoryEmailsImpl` catKey | store key | `'Other'` |
+| `markCategoryLoaded('Other')` | loaded tracking | `'Other'` |
+| `updateCategoryEmails({ categoryKey: 'Other' })` | stamp | `category_id = 'Other'` |
+| `groupEmailsByCategory` | email group key | `email.category_id = 'Other'` |
+| `emailCategoryMap.get('Other')` | display lookup | `'Other'` ✓ |
 
-The data path looks correct. The race condition from #1183 is the most likely explanation.
+No key mismatch. The data path is correct. The race condition is the culprit.
 
-### Why the UI shows 0 (not the summary count)
+### Secondary cause: markCategoryLoaded fires with 0 emails (defense-in-depth fix needed)
 
-In `CategorySection.tsx`:
-```ts
-const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
-const categoryEmails = group?.emails ?? [];
-// count prop passed to accordion:
-count={isLoaded ? categoryEmails.length : categoryItem.count}
-```
+Even after the race condition is resolved, if the server returns 0 emails for 'Other' while
+the summary says count > 0 (due to a different race or cache issue), the current code calls
+`dispatch(markCategoryLoaded(catKey))` unconditionally. This results in:
+- `isLoaded = true`
+- `categoryEmails.length = 0`
+- Accordion shows 0 (not loading spinner, not summary count — just 0)
 
-If `isLoaded = false` → `count = categoryItem.count` (summary count = 2) → accordion **header**
-shows 2.
-
-BUT: `CategorySection` also has this guard:
-```ts
-if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-  return null;
-}
-```
-This only hides when `count === 0`. With `count = 2`, the category still renders.
-
-So if `isLoaded = false`, the category shows with badge "2" and a loading spinner.
-If the user sees "0", it means `isLoaded = true` AND `categoryEmails.length = 0`.
-
-**This confirms the fetch IS completing** (markCategoryLoaded fires) **but with 0 emails.**
-This is the stale-fetch scenario: fetch is abandoned, then a retry succeeds but returns []
-because `clearCategoryState` already wiped the state and a second parallel fetch was started
-which was also abandoned.
+This is the scenario that produces the `loaded: []` → `isLoaded=true, categoryEmails=[]` state.
 
 ## Fix Strategy
 
-### Step 1: Fix #1183 first (navigate loop → fetchSession race)
+### Step 1: Fix #1183 first (navigate loop → prerequisite)
 
-The navigate loop causes `fetchEmails()` to fire mid-category-fetch, which increments
-`fetchSessionRef` and causes the in-flight category fetch to be abandoned. Once #1183 is
-fixed, `fetchEmails()` is only called on genuine mode changes, not continuously.
+**File:** `client/src/hooks/useInboxUrlSync.ts`
 
-### Step 2: Verify 'Other' resolves after #1183 deploy
-
-After deploying #1183's fix, test:
-- Open inbox in triage mode with 'Other' emails
-- Confirm 'Other' accordion shows correct count
-- Confirm `loaded: []` no longer appears in console after fetch
-
-### Step 3: If still broken — fix the `isLoaded && categoryEmails.length === 0` scenario
-
-If the category fetch returns 0 emails (race condition still happening after #1183):
-
-**Option A: Retry on 0 emails**
-
-In `fetchCategoryEmailsImpl`, after receiving 0 emails:
-- If `categorySummaryRef.current` says count > 0, treat as a race condition and retry once.
-- This complements the existing stale-UUID detection (Fix #1114).
-
-**Option B: Don't call markCategoryLoaded when emails = 0 and summary says count > 0**
-
-This prevents the `isLoaded=true, categoryEmails.length=0` state from showing in the UI.
-Instead, keep `isLoaded=false` and let Effect 2 (limbo recovery) retry the fetch.
-
-The current code already has the stale-UUID self-healing logic for this case — it calls
-`clearCacheForMode(mode)`. But it still calls `markCategoryLoaded(catKey)` even when emails
-returned 0 and summary says count > 0. That's the bug: **the category is marked loaded with
-0 emails, showing an empty accordion to the user.**
-
-**Recommended fix:**
-
-In `fetchCategoryEmailsImpl` (around line 315 in `useEmailFetching.ts`), change the
-`markCategoryLoaded` dispatch to only fire if emails > 0 OR summary count = 0:
+Remove `navigate` from Effect 2's dep array using the useRef callback pattern (same as
+#1177 applied to Effect 3):
 
 ```ts
+// Add near top of hook body:
+const navigateRef = useRef<ReturnType<typeof useNavigate>>(navigate);
+navigateRef.current = navigate;
+
+// Effect 2 — remove navigate from deps:
+useEffect(() => {
+  if (isInitialMount.current) return;
+  const newPath = splitViewSelectedEmailId
+    ? `${basePath}/${mode}/${splitViewSelectedEmailId}`
+    : `${basePath}/${mode}`;
+  if (newPath !== lastUrlRef.current) {
+    lastUrlRef.current = newPath;
+    navigateRef.current(newPath, { replace: true }); // read from ref
+  }
+}, [mode, splitViewSelectedEmailId, basePath]); // navigate REMOVED
+```
+
+Also fix double-navigate on mount: in Effect 1, update `lastUrlRef.current` before navigating:
+```ts
+if (!urlMode) {
+  const initialPath = `${basePath}/${mode}`;
+  lastUrlRef.current = initialPath; // prevent Effect 2 from double-navigating
+  navigate(initialPath, { replace: true });
+}
+```
+
+### Step 2: Verify Other resolves after #1183 fix
+
+Test after deploy:
+- Open inbox with Other emails
+- Confirm accordion shows correct count
+- Confirm `loaded: []` no longer appears (or is followed by successful load)
+
+### Step 3: Defense-in-depth fix in useEmailFetching.ts
+
+**File:** `client/src/hooks/useEmailFetching.ts`
+
+In `fetchCategoryEmailsImpl`, after receiving 0 emails when summary says count > 0,
+do NOT call `markCategoryLoaded`. Let limbo recovery retry:
+
+```ts
+// After the existing 0-email / stale-UUID check block:
 const summaryItem = categorySummaryRef.current?.find(
   (item) => item.id === categoryId || item.name === categoryName
 );
 const summaryCount = summaryItem?.count ?? 0;
 
+categoryBackoff.onSuccess(catKey);
+dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
+setCachedCategoryEmails(mode, catKey, emails);
+
 if (emails.length === 0 && summaryCount > 0) {
-  // Don't mark as loaded — limbo recovery (Effect 2) will retry
+  // Don't mark as loaded — accordion would show 0 with no retry possible.
+  // markCategoryLoadFailed keeps it in retry state; limbo recovery (Effect 2) 
+  // will trigger a fresh fetch.
+  dispatch(markCategoryLoadFailed(catKey));
   console.warn(
     '[Accordion] Category returned 0 emails but summary says', summaryCount,
-    '— not marking loaded, limbo recovery will retry:', categoryName
+    '— marking failed for retry:', categoryName, '(key:', catKey, ')'
   );
-  dispatch(markCategoryLoadFailed(catKey)); // keeps it in "retry" state
 } else {
   dispatch(markCategoryLoaded(catKey));
+  console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
 }
 ```
-
-This ensures 'Other' (or any category) is never shown as "loaded with 0 emails" when the
-summary says there should be emails. Effect 2's limbo recovery will pick it up and retry.
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `client/src/hooks/useInboxUrlSync.ts` | Fix #1183 (prerequisite — navigate loop) |
-| `client/src/hooks/useEmailFetching.ts` | `fetchCategoryEmailsImpl`: don't mark loaded if 0 emails but summary > 0 |
+| `client/src/hooks/useInboxUrlSync.ts` | Wrap navigate in ref, remove from Effect 2 deps, fix double-navigate on mount |
+| `client/src/hooks/useEmailFetching.ts` | Don't markCategoryLoaded if 0 emails but summary > 0 |
 
 ## Testing
 
 1. Open inbox with emails in 'Other' category
-2. Confirm 'Other' accordion expands and shows emails (not 0)
-3. Confirm `loaded: []` followed by `markCategoryLoaded` appears in console (fetch succeeds)
-4. Force a race: rapidly switch modes while 'Other' is loading → confirm retry kicks in
-5. Run `npm test -- --watchAll=false` — all tests pass
+2. Expand 'Other' accordion → confirm emails are visible
+3. Rapidly switch modes during 'Other' load → confirm retry kicks in, not stuck at 0
+4. Check Chrome DevTools: no `Throttling navigation` warning
+5. `npm test -- --watchAll=false` → all tests pass
 
 ## Acceptance Criteria
 
 - [ ] 'Other' category accordion shows correct email count after expand
-- [ ] No `Throttling navigation` (from #1183 fix)
-- [ ] `loaded: []` in console log is followed by successful `markCategoryLoaded('Other')`
-- [ ] If API returns 0 emails when summary says > 0, category is NOT marked as loaded (retries)
+- [ ] `loaded: []` in console is eventually followed by `markCategoryLoaded('Other')`
+- [ ] If API returns 0 emails when summary says > 0, category stays in retry state (not shown as 0)
+- [ ] No `Throttling navigation` in console (from #1183 fix)
 - [ ] All tests pass
 
 ## Dependencies
 
-- **Blocks on #1183 (navigate loop fix)** — the race condition is the primary cause
-- Server fix from #1175 is already deployed (server correctly handles `categoryIds=Other`)
+- **Blocks on #1183 (navigate loop fix)** — primary race condition cause
+- Server fix from #1175 already deployed (server correctly returns emails for `categoryIds=Other`)
 
 ## Priority
 
-P1 — 'Other' is the catch-all category for uncategorised emails. All users with uncategorised
-emails see 0 in this accordion.
-
-## Branch
-
-`openclaw/issue-1182/other-display-plan`
+P1 — 'Other' is the catch-all for uncategorised emails. All users with uncategorised threads
+see an empty accordion.
 
 ---
 

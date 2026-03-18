@@ -419,9 +419,33 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
 
     categoryBackoff.onSuccess(catKey);
     dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
-    dispatch(markCategoryLoaded(catKey));
     setCachedCategoryEmails(mode, catKey, emails);
-    console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
+
+    // Defense-in-depth: if the API returned 0 emails but the category summary says count > 0,
+    // don't mark as loaded — that would render the accordion as empty with no retry path.
+    // Instead, mark as failed so the limbo recovery (Effect 2) schedules a fresh fetch.
+    // This catches edge cases where the race fix didn't prevent abandonment (e.g., rapid
+    // mode-switches) or when the server returns a stale empty response.
+    if (emails.length === 0) {
+      const summaryItem = categorySummaryRef.current?.find(
+        (item) => item.id === categoryId || item.name === categoryName
+      );
+      const summaryCount = summaryItem?.count ?? 0;
+      if (summaryCount > 0) {
+        console.warn(
+          '[Accordion] Category returned 0 emails but summary says', summaryCount,
+          '— marking load failed for limbo retry:', categoryName, '(key:', catKey, ')'
+        );
+        dispatch(markCategoryLoadFailed(catKey));
+      } else {
+        // Summary also shows 0 — category is genuinely empty; mark loaded so UI renders it.
+        dispatch(markCategoryLoaded(catKey));
+        console.log('[Accordion] Loaded category (genuinely empty):', categoryName, '(key:', catKey, ')');
+      }
+    } else {
+      dispatch(markCategoryLoaded(catKey));
+      console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
+    }
   } catch (error: any) {
     handleCategoryFetchError(args, catKey, error, sessionId);
   } finally {

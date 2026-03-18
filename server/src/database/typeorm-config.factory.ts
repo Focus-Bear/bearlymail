@@ -20,8 +20,9 @@ export function createTypeOrmConfig(
   const sslDisabled = configService.get<string>("DB_SSL") === "false";
   const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
   const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
+  // Safer default: 4 processes × 5 = 20 TypeORM connections
   const poolSize = parseInt(
-    configService.get<string>("DB_POOL_SIZE") || "10",
+    configService.get<string>("DB_POOL_SIZE") || "5",
     10,
   );
 
@@ -44,8 +45,10 @@ export function createTypeOrmConfig(
     // on your RDS instance's max_connections limit.
     extra: {
       max: poolSize,
-      min: 2,
-      idleTimeoutMillis: 30000,
+      // Release idle connections to free RDS slots; ~2ms reconnect cost is acceptable
+      min: 0,
+      // Reduced: release idle connections after 10s
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 5000,
     },
     ...overrides,

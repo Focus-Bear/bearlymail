@@ -198,7 +198,15 @@ export class ResourceMonitorService implements OnModuleInit {
         );
       }
       if (
-        dbMetrics.totalConnections > RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL
+        dbMetrics.totalConnections >
+        RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_CRITICAL
+      ) {
+        this.logger.error(
+          `🔴 CRITICAL database connections: ${dbMetrics.totalConnections} total (exceeded DB_CONNECTIONS_CRITICAL=${RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_CRITICAL}). Check your RDS max_connections limit and update the constant if the instance type has changed. RDS may reject new connections.`,
+        );
+      } else if (
+        dbMetrics.totalConnections >
+        RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_WARNING
       ) {
         this.logger.warn(
           `⚠️ High database connections: ${dbMetrics.totalConnections} total, ${dbMetrics.activeConnections} active`,

@@ -31,8 +31,9 @@ import { ResourceMonitorService } from "./resource-monitor.service";
         const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
         const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
 
+        // Safer default: 4 processes × 5 = 20 PgBoss connections
         const pgBossPoolSize = parseInt(
-          configService.get<string>("DB_PGBOSS_POOL_SIZE") || "10",
+          configService.get<string>("DB_PGBOSS_POOL_SIZE") || "5",
           10,
         );
 
@@ -47,18 +48,11 @@ import { ResourceMonitorService } from "./resource-monitor.service";
           // Worker settings
           noSupervisor: false,
           // Job defaults - reasonable retry settings
-          // Max 3 retries
           retryLimit: 3,
-          // 10 seconds between retries (not 5000!)
           retryDelay: 10,
-          // Linear backoff, not exponential
           retryBackoff: false,
-          // Jobs expire after 15 minutes if not processed
           expireInMinutes: 15,
-          // Delete completed jobs after 24 hours
           deleteAfterHours: 24,
-          // Archive completed jobs instead of deleting immediately
-          // Archive after 1 hour
           archiveCompletedAfterSeconds: 3600,
         });
 

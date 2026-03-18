@@ -21,6 +21,15 @@ services:
       # - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
       # - FRONTEND_URL
       # - LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY
+      # DB connection pool (tune based on RDS max_connections):
+      # t4g.micro (1GB RAM): max_connections ≈ 112
+      # t4g.small (2GB RAM): max_connections ≈ 225
+      # Budget: (max_web_instances + worker_instances) × (DB_POOL_SIZE + DB_PGBOSS_POOL_SIZE) < 80% of max_connections
+      # With max 3 web + 1 worker: 4 × (5+5) = 40 connections (36% of 112) ← safe
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_PGBOSS_POOL_SIZE
+        value: "5"
     regions:
       - fra
     instance_types:

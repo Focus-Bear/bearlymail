@@ -1,5 +1,15 @@
-import { plainToInstance } from "class-transformer";
-import { IsOptional, IsString, validateSync } from "class-validator";
+import { plainToInstance, Type } from "class-transformer";
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  validateSync,
+} from "class-validator";
+
+/** Maximum allowed DB pool size per process. Above this, connection budget maths break. */
+const DB_POOL_SIZE_MAX = 50;
 
 /**
  * Environment variable validation schema.
@@ -21,6 +31,38 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   FEEDBACK_SCREENSHOTS_BUCKET?: string;
+
+  /**
+   * TypeORM connection pool size per process.
+   * Default 5. Keep (web_instances × DB_POOL_SIZE) + (worker_instances × DB_POOL_SIZE)
+   * well below your RDS max_connections (≈112 for t4g.micro, ≈225 for t4g.small).
+   * With max 3 web + 1 worker: 4 × (5 + 5) = 40 connections (36% of 112) — safe.
+   *
+   * Note: @Min(1) allows a pool of 1, but values < 3 can serialize database work
+   * under concurrent load — all requests queue behind a single connection.
+   * For production, prefer at least 3–5.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(DB_POOL_SIZE_MAX)
+  DB_POOL_SIZE?: number;
+
+  /**
+   * PgBoss pg.Pool size per process (separate from the TypeORM pool).
+   * Default 5. Apply the same connection budget math as DB_POOL_SIZE above.
+   *
+   * Note: @Min(1) allows a pool of 1, but values < 3 can serialize database work
+   * under concurrent load — all requests queue behind a single connection.
+   * For production, prefer at least 3–5.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(DB_POOL_SIZE_MAX)
+  DB_PGBOSS_POOL_SIZE?: number;
 }
 
 export function validate(config: Record<string, unknown>) {

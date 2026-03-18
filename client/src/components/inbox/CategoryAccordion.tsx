@@ -27,6 +27,8 @@ import {
 
 interface CategoryAccordionProps {
   category: string;
+  /** Stable key used as the `data-category-key` DOM attribute for scroll targeting */
+  categoryKey?: string;
   emails: Email[];
   /** Total count from the inbox summary (shown in badge even before emails are loaded) */
   count?: number;
@@ -38,6 +40,8 @@ interface CategoryAccordionProps {
   children: React.ReactNode;
   onReanalyseOther?: () => void;
   isReanalysingOther?: boolean;
+  /** Called after the accordion collapses (either via archive-all or auto-collapse). Used to scroll the next category into view. */
+  onAfterCollapse?: () => void;
 }
 
 
@@ -312,6 +316,7 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
 
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
+  categoryKey,
   emails,
   count,
   isLoadingContent,
@@ -321,6 +326,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   children,
   onReanalyseOther,
   isReanalysingOther,
+  onAfterCollapse,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -339,6 +345,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       wasExpandedWithEmailsRef.current = isExpanded;
     } else if (wasExpandedWithEmailsRef.current && isExpanded) {
       // Category just became empty while expanded — collapse it.
+      // Note: onAfterCollapse is NOT called here because InboxCategoryItem's useEffect
+      // handles the same one-by-one archive path and calls onAfterCollapse there,
+      // preventing a double-fire.
       wasExpandedWithEmailsRef.current = false;
       onToggle();
     }
@@ -363,8 +372,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       // After archiving all emails in this category, collapse it so the user returns to the list
       // without an empty expanded accordion.
       onToggle();
+      onAfterCollapse?.();
     }
-  }, [onArchiveAll, category, emailIds, onToggle]);
+  }, [onArchiveAll, category, emailIds, onToggle, onAfterCollapse]);
 
   const handleCancelArchive = useCallback(() => {
     setShowArchiveConfirmation(false);
@@ -388,6 +398,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
 
   return (
     <div
+      data-category-key={categoryKey ?? category}
       style={{
         marginBottom: theme.spacing.md,
         borderRadius: theme.borderRadius.lg,

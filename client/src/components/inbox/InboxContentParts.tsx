@@ -3,7 +3,7 @@
  * the max-lines-per-function limit. All components are co-located here because they
  * are only used by InboxContent.
  */
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
@@ -198,6 +198,8 @@ export interface InboxCategoryItemProps {
   onDeleteProtoCategoryFromInbox: (protoCategoryId: string) => Promise<void>;
   onReanalyseOther: () => void;
   renderItem: (email: Email, index: number) => React.ReactNode;
+  /** Called after this category auto-collapses, to scroll the next category into view. */
+  onAfterCollapse?: () => void;
 }
 
 export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
@@ -219,6 +221,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   onDeleteProtoCategoryFromInbox,
   onReanalyseOther,
   renderItem,
+  onAfterCollapse,
 }) => {
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
@@ -235,8 +238,9 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   useEffect(() => {
     if (isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0) {
       onToggleCategory(categoryKey);
+      onAfterCollapse?.();
     }
-  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count]);
+  }, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count, onAfterCollapse]);
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
 
@@ -277,6 +281,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
     <CategoryAccordion
       key={categoryKey}
       category={categoryName}
+      categoryKey={categoryKey}
       emails={categoryEmails}
       count={isLoaded ? categoryEmails.length : categoryItem.count}
       isLoadingContent={isExpanded && !isLoaded}
@@ -285,6 +290,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
       onArchiveAll={handleArchiveAll}
       onReanalyseOther={onReanalyseOther}
       isReanalysingOther={isReanalysingOther}
+      onAfterCollapse={onAfterCollapse}
     >
       {hasProtoGroups ? (
         <InboxOtherCategoryContent
@@ -321,6 +327,7 @@ interface InboxCategoryListProps {
   expandedCategories: Set<string>;
   loadedCategoryNames?: string[];
   mode: InboxMode;
+  emailListRef: React.RefObject<HTMLDivElement | null>;
   onToggleCategory: (category: string) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
   onConvertProtoCategory: (protoCategoryId: string, name: string) => Promise<void>;
@@ -328,6 +335,9 @@ interface InboxCategoryListProps {
   onReanalyseOther: () => void;
   renderItem: (email: Email, index: number) => React.ReactNode;
 }
+
+/** How long (ms) to wait after collapse before scrolling — allows the 0.25s CSS grid animation to finish. */
+const COLLAPSE_ANIMATION_MS = 260;
 
 const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   displayCategories,
@@ -340,63 +350,126 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   expandedCategories,
   loadedCategoryNames,
   mode,
+  emailListRef,
   onToggleCategory,
   onBulkArchive,
   onConvertProtoCategory,
   onDeleteProtoCategoryFromInbox,
   onReanalyseOther,
   renderItem,
-}) => (
-  <>
-    {displayCategories.map((categoryItem, catIdx) => {
-      const categoryKey = getCategoryKey(categoryItem.id, categoryItem.name);
-      const isExpanded = expandedCategories.has(categoryKey);
-      const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
-      const group = emailCategoryMap.get(categoryKey);
-      const categoryEmails = group?.emails ?? [];
+}) => {
+  /**
+   * Build a callback that scrolls the email list to the next (or previous) category
+   * after the category at `catIdx` collapses. Delayed by COLLAPSE_ANIMATION_MS to
+   * allow the CSS grid animation to complete before we measure element positions.
+   *
+   * Uses `data-category-key` attributes on `CategoryAccordion` root divs (consistent
+   * with the existing `data-email-index` pattern used by keyboard shortcuts).
+   */
+  const makeAfterCollapseHandler = useCallback(
+    (collapsedKey: string, catIdx: number) => () => {
+      setTimeout(() => {
+        const scrollContainer = emailListRef.current;
+        if (!scrollContainer) {
+          return;
+        }
 
-      // Hide category once loaded with no remaining emails AND the server summary
-      // also reports zero. Without the count guard, a category disappears when a
-      // priority-filtered category fetch returns fewer emails than the cached summary
-      // (e.g. "Other" accordion expands but emails never display because all emails
-      // have priority < minPriority). Requiring categoryItem.count === 0 ensures we
-      // only hide after the server has confirmed the category is truly empty.
-      if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-        return null;
-      }
+        // Find the next visible category (after the collapsed one), falling back
+        // to the previous if the collapsed category was the last in the list.
+        const visibleCategories = displayCategories.filter((cat, idx) => {
+          const key = getCategoryKey(cat.id, cat.name);
+          if (key === collapsedKey) {
+            return false;
+          }
+          const grp = emailCategoryMap.get(key);
+          const loaded = (loadedCategoryNames ?? []).includes(key);
+          // Mirror the hide logic in the render loop: only exclude when loaded+empty
+          return !(loaded && (grp?.emails ?? []).length === 0 && cat.count === 0);
+        });
 
-      let globalIndex = 0;
-      for (let i = 0; i < catIdx; i++) {
-        const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
-        globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
-      }
+        // Determine the sibling to scroll to
+        const collapsedVisibleIdx = displayCategories.slice(0, catIdx).filter((cat) => {
+          const key = getCategoryKey(cat.id, cat.name);
+          const grp = emailCategoryMap.get(key);
+          const loaded = (loadedCategoryNames ?? []).includes(key);
+          return !(loaded && (grp?.emails ?? []).length === 0 && cat.count === 0);
+        }).length;
 
-      return (
-        <InboxCategoryItem
-          key={categoryKey}
-          categoryItem={categoryItem}
-          categoryKey={categoryKey}
-          isExpanded={isExpanded}
-          isLoaded={isLoaded}
-          group={group}
-          globalIndex={globalIndex}
-          otherProtoGroups={otherProtoGroups}
-          protoCategories={protoCategories}
-          isReanalysingOther={isReanalysingOther}
-          convertingProtoCategoryId={convertingProtoCategoryId}
-          deletingProtoCategoryId={deletingProtoCategoryId}
-          mode={mode}
-          onToggleCategory={onToggleCategory}
-          onBulkArchive={onBulkArchive}
-          onConvertProtoCategory={onConvertProtoCategory}
-          onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
-          onReanalyseOther={onReanalyseOther}
-          renderItem={renderItem}
-        />
-      );
-    })}
-  </>
-);
+        const nextCategory = visibleCategories[collapsedVisibleIdx] ?? visibleCategories[collapsedVisibleIdx - 1];
+        if (!nextCategory) {
+          return;
+        }
+
+        const targetKey = getCategoryKey(nextCategory.id, nextCategory.name);
+        const escapedKey = CSS.escape(targetKey);
+        const targetEl = scrollContainer.querySelector<HTMLElement>(`[data-category-key="${escapedKey}"]`);
+        if (!targetEl) {
+          return;
+        }
+
+        const containerTop = scrollContainer.getBoundingClientRect().top;
+        const targetTop = targetEl.getBoundingClientRect().top;
+        const scrollDelta = targetTop - containerTop;
+
+        scrollContainer.scrollBy({ top: scrollDelta, behavior: 'smooth' });
+      }, COLLAPSE_ANIMATION_MS);
+    },
+    [displayCategories, emailCategoryMap, loadedCategoryNames, emailListRef],
+  );
+
+  return (
+    <>
+      {displayCategories.map((categoryItem, catIdx) => {
+        const categoryKey = getCategoryKey(categoryItem.id, categoryItem.name);
+        const isExpanded = expandedCategories.has(categoryKey);
+        const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
+        const group = emailCategoryMap.get(categoryKey);
+        const categoryEmails = group?.emails ?? [];
+
+        // Hide category once loaded with no remaining emails AND the server summary
+        // also reports zero. Without the count guard, a category disappears when a
+        // priority-filtered category fetch returns fewer emails than the cached summary
+        // (e.g. "Other" accordion expands but emails never display because all emails
+        // have priority < minPriority). Requiring categoryItem.count === 0 ensures we
+        // only hide after the server has confirmed the category is truly empty.
+        if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
+          return null;
+        }
+
+        let globalIndex = 0;
+        for (let i = 0; i < catIdx; i++) {
+          const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
+          globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
+        }
+
+        return (
+          <InboxCategoryItem
+            key={categoryKey}
+            categoryItem={categoryItem}
+            categoryKey={categoryKey}
+            isExpanded={isExpanded}
+            isLoaded={isLoaded}
+            group={group}
+            globalIndex={globalIndex}
+            otherProtoGroups={otherProtoGroups}
+            protoCategories={protoCategories}
+            isReanalysingOther={isReanalysingOther}
+            convertingProtoCategoryId={convertingProtoCategoryId}
+            deletingProtoCategoryId={deletingProtoCategoryId}
+            mode={mode}
+            onToggleCategory={onToggleCategory}
+            onBulkArchive={onBulkArchive}
+            onConvertProtoCategory={onConvertProtoCategory}
+            onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
+            onReanalyseOther={onReanalyseOther}
+            renderItem={renderItem}
+            onAfterCollapse={makeAfterCollapseHandler(categoryKey, catIdx)}
+          />
+        );
+      })}
+    </>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // InboxEmailListPanel — the scrollable left panel containing the email list
@@ -507,7 +580,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
   const categoryListProps = {
     displayCategories, emailCategoryMap, otherProtoGroups, protoCategories, isReanalysingOther,
     convertingProtoCategoryId, deletingProtoCategoryId, expandedCategories, loadedCategoryNames,
-    mode, onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox,
+    mode, emailListRef, onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox,
     onReanalyseOther, renderItem,
   };
 

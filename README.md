@@ -125,45 +125,9 @@ This will start:
 - Backend API on `http://localhost:3001`
 - Frontend on `http://localhost:3000`
 
-## Deployment on Koyeb
+## Deployment
 
-### Prerequisites
-
-1. A Koyeb account ([koyeb.com](https://www.koyeb.com))
-2. A GitHub repository with your code
-3. PostgreSQL database (Koyeb provides managed PostgreSQL or use external service)
-
-### Deployment Steps
-
-1. **Push to GitHub**:
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-2. **Deploy on Koyeb**:
-   - Sign in to Koyeb dashboard
-   - Click "Create Web Service"
-   - Select GitHub as deployment source
-   - Choose your repository
-   - Configure the service:
-     - **Builder**: Dockerfile
-     - **Dockerfile Path**: `server/Dockerfile`
-     - **Run Command**: `node dist/main.js`
-     - **Port**: `3001`
-   - Add environment variables (see `.env.example`)
-   - Deploy
-
-3. **Configure Database**:
-   - Use Koyeb's managed PostgreSQL or external service
-   - Update `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` in Koyeb environment variables
-
-4. **Deploy Frontend** (separate service or static hosting):
-   - Build the frontend: `cd client && npm run build`
-   - Deploy the `build` folder to a static hosting service
-   - Update `REACT_APP_API_URL` to point to your backend URL
-
+Deploy using your preferred platform. The server requires Node.js and a PostgreSQL database.
 ## Project Structure
 
 ```
@@ -181,7 +145,7 @@ email-client/
 │   │   ├── snooze/        # Snooze functionality
 │   │   ├── summarization/ # Email summarization
 │   │   └── users/         # User management
-│   ├── Dockerfile         # Docker configuration for Koyeb
+│   ├── Dockerfile         # Docker configuration
 │   └── package.json
 ├── client/                 # React frontend
 │   ├── src/
@@ -190,7 +154,6 @@ email-client/
 │   │   ├── theme/         # Color scheme and theme
 │   │   └── App.tsx
 │   └── package.json
-├── koyeb.yaml             # Koyeb deployment config
 └── README.md
 ```
 

@@ -251,6 +251,24 @@ export class EmailThread {
   })
   needsCategoryRepair: boolean;
 
+  @Column({
+    type: "uuid",
+    nullable: true,
+    name: "categoryId",
+    comment:
+      "UUID of the UserContext (EMAIL_CATEGORY) that owns this thread — set at write time " +
+      "by llm-processor; used for direct UUID-based category filtering (fix #1146)",
+  })
+  categoryId: string | null;
+
+  @Column({
+    default: true,
+    comment:
+      "Flag set by migration 1785100000000 — true means this thread needs its categoryId " +
+      "populated from the decrypted category name via the startup backfill job",
+  })
+  needsCategoryIdBackfill: boolean;
+
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;

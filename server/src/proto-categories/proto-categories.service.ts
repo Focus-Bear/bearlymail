@@ -205,13 +205,15 @@ export class ProtoCategoriesService {
   }
 
   /**
-   * Check if a suggested proto-category name matches an existing full category
-   * Returns the category name if it matches, null otherwise
+   * Check if a suggested proto-category name matches an existing full category.
+   * Returns `{ name, contextId }` if a match is found, or `null` otherwise.
+   * The `contextId` is the UUID of the matching UserContext row — callers can
+   * store it directly as `thread.categoryId` (fix #1146).
    */
   async findMatchingFullCategory(
     userId: string,
     suggestedName: string,
-  ): Promise<string | null> {
+  ): Promise<{ name: string; contextId: string } | null> {
     // Get all existing categories from UserContext
     const categories = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
@@ -242,8 +244,8 @@ export class ProtoCategoriesService {
         normalizedSuggestion === normalizedName ||
         suggestionWithoutParens === nameWithoutEmoji
       ) {
-        // Return the original category name (with emoji)
-        return categoryName;
+        // Return both the canonical name (with emoji) and its UUID
+        return { name: categoryName, contextId: category.contextId };
       }
     }
 

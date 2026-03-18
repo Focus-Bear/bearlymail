@@ -149,6 +149,14 @@ export class EmailsService implements OnModuleInit {
       // Non-fatal: log but don't block server startup
       this.logger.error("repairEncryptedCategoryNames failed on startup", err);
     }
+
+    // Backfill categoryId UUID for threads that pre-date migration 1785000000000
+    // (fix #1146). Runs once on startup; no-ops when all flags are cleared.
+    try {
+      await this.backfillCategoryIds();
+    } catch (err) {
+      this.logger.error("backfillCategoryIds failed on startup", err);
+    }
   }
 
   // Buffer for collecting email IDs per user for batch priority refinement
@@ -402,7 +410,7 @@ export class EmailsService implements OnModuleInit {
     const needsUserSentLastFilter =
       mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP;
 
-    const selectParts: string[] = ["thread.category"];
+    const selectParts: string[] = ["thread.category", 'thread."categoryId"'];
     if (filters?.includeThreadIds) {
       selectParts.push('thread."threadId"');
     }
@@ -471,9 +479,12 @@ export class EmailsService implements OnModuleInit {
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
     const categoryThreadIds: Record<string, string[]> = {};
+    // Tracks first-seen categoryId UUID per category name (fix #1146)
+    const categoryUuidByName = new Map<string, string>();
 
     for (const row of rows as {
       category: string | null;
+      categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
     }[]) {
@@ -522,31 +533,46 @@ export class EmailsService implements OnModuleInit {
       if (row.threadId && filters?.includeThreadIds) {
         categoryThreadIds[category].push(row.threadId);
       }
+      // Track the first-seen categoryId UUID per category name (fix #1146)
+      // Used below for UUID-based filtering without a round-trip to UserContext.
+      if (row.categoryId && !categoryUuidByName.has(category)) {
+        categoryUuidByName.set(category, row.categoryId as string);
+      }
     }
 
-    // Apply user-selected category filter in-memory using UUIDs only.
+    // Apply user-selected category filter in-memory using UUIDs (fix #1146).
+    // Primary path: match thread.categoryId UUID directly.
+    // Fallback path: name-based match for pre-backfill threads (backward compat).
     let visibleCategories = categoryOrder;
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      // Filter by category IDs — reverse lookup from UUID to name
+      const requestedUuids = new Set(filters.categoryIds);
+
+      // Reverse lookup for fallback (name-based) matching
       const idToName = new Map<string, string>();
       categoryNameToId.forEach((id, name) => idToName.set(id, name));
-      const categoryNamesFromIds = filters.categoryIds
-        .map((id) => idToName.get(id))
-        .filter((name): name is string => name !== undefined);
+      const categoryNamesFromIds = new Set(
+        filters.categoryIds
+          .map((id) => idToName.get(id))
+          .filter((name): name is string => name !== undefined),
+      );
 
       // Fix #1114: if categoryIds were specified but none resolve to a known
       // category name (e.g. stale / deleted UUIDs), return a zero-count summary
       // rather than silently skipping the filter and returning ALL categories.
-      if (categoryNamesFromIds.length === 0) {
+      if (categoryNamesFromIds.size === 0) {
         this.logger.warn(
           `getInboxSummary: none of the requested UUIDs resolved to a known category — returning empty summary (userId=${userId})`,
         );
         return { total: 0, categories: [] };
       }
 
-      visibleCategories = categoryOrder.filter((cat) =>
-        categoryNamesFromIds.includes(cat),
-      );
+      visibleCategories = categoryOrder.filter((cat) => {
+        // Primary: UUID match via per-category UUID tracked during grouping
+        const uuid = categoryUuidByName.get(cat);
+        if (uuid) return requestedUuids.has(uuid);
+        // Fallback: name match for threads not yet backfilled
+        return categoryNamesFromIds.has(cat);
+      });
     }
 
     // Defensive read-path lookup: handles existing threads whose category column
@@ -710,6 +736,117 @@ export class EmailsService implements OnModuleInit {
   }
 
   /**
+   * Populate `categoryId` UUID for threads that pre-date migration 1785000000000.
+   * Decrypts each thread's category name and looks it up in the user's UserContext
+   * (EMAIL_CATEGORY) rows to find the matching contextId UUID.
+   *
+   * Runs once on startup via onModuleInit.  Threads where categoryId is already set
+   * (needsCategoryIdBackfill=false) are skipped.  Safe to call multiple times.
+   */
+  async backfillCategoryIds(): Promise<void> {
+    const PAGE_SIZE = 200;
+    let processed = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const threads = await this.emailThreadRepository.find({
+        where: { needsCategoryIdBackfill: true },
+        select: ["id", "userId", "category", "needsCategoryIdBackfill"],
+        take: PAGE_SIZE,
+      });
+
+      if (threads.length === 0) break;
+
+      const uniqueUserIds = [
+        ...new Set(threads.map((thread) => thread.userId).filter(Boolean)),
+      ];
+      const pageContexts =
+        uniqueUserIds.length > 0
+          ? await this.userContextRepository.find({
+              where: {
+                userId: In(uniqueUserIds),
+                contextKey: ContextKey.EMAIL_CATEGORY,
+              },
+              select: ["userId", "contextId", "contextValue"],
+            })
+          : [];
+
+      // Build per-user map: normalised-name → contextId
+      const contextIdByUserAndName = new Map<string, Map<string, string>>();
+      for (const ctx of pageContexts) {
+        const name = ctx.contextValue.split(" - ")[0].trim().toLowerCase();
+        let byName = contextIdByUserAndName.get(ctx.userId);
+        if (!byName) {
+          byName = new Map();
+          contextIdByUserAndName.set(ctx.userId, byName);
+        }
+        byName.set(name, ctx.contextId);
+      }
+
+      for (const thread of threads) {
+        try {
+          let resolvedCategoryId: string | null = null;
+
+          if (thread.category) {
+            const decrypted = EncryptionHelper.decrypt(thread.category);
+            if (decrypted && decrypted !== "Other") {
+              const byName = contextIdByUserAndName.get(thread.userId);
+              if (byName) {
+                const nameLower = decrypted.toLowerCase().trim();
+                // Exact match
+                resolvedCategoryId = byName.get(nameLower) ?? null;
+                if (!resolvedCategoryId) {
+                  // Strip parenthetical: "Name (…)" → "Name"
+                  const withoutParens = nameLower
+                    .replace(/\s*\(.*\)\s*$/, "")
+                    .trim();
+                  resolvedCategoryId = byName.get(withoutParens) ?? null;
+                }
+                if (!resolvedCategoryId) {
+                  // Prefix match
+                  for (const [key, id] of byName.entries()) {
+                    if (
+                      nameLower.startsWith(key) ||
+                      key.startsWith(nameLower)
+                    ) {
+                      resolvedCategoryId = id;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          await this.emailThreadRepository.update(
+            { id: thread.id },
+            {
+              ...(resolvedCategoryId !== null
+                ? { categoryId: resolvedCategoryId }
+                : {}),
+              needsCategoryIdBackfill: false,
+            },
+          );
+          processed++;
+        } catch (err) {
+          this.logger.warn(
+            `backfillCategoryIds: failed for thread ${thread.id}`,
+            err,
+          );
+          await this.emailThreadRepository.update(
+            { id: thread.id },
+            { needsCategoryIdBackfill: false },
+          );
+        }
+      }
+    }
+
+    if (processed > 0) {
+      this.logger.log(`backfillCategoryIds: backfilled ${processed} thread(s)`);
+    }
+  }
+
+  /**
    * Get list of user's connected email accounts
    * Returns account info for filtering inbox by account
    */
@@ -860,16 +997,28 @@ export class EmailsService implements OnModuleInit {
     );
     const hasMore = queryOffset + finalEmails.length < total;
 
-    // Enrich emails with category_id (UUID from UserContext) so the client
-    // can group by a stable UUID rather than doing fragile name-based re-keying.
-    const categoryNameToId = await this.getCategoryNameToIdMap(userId);
+    // Enrich emails with category_id (UUID) for client grouping (fix #1146).
+    // Primary path: use thread.categoryId stored at write time (no name lookup needed).
+    // Fallback path: name→UUID lookup for pre-backfill threads.
+    let categoryNameToId: Map<string, string> | null = null;
     for (const email of finalEmails) {
-      const emailWithMeta = email as Email & { category_id?: string | null };
-      const categoryName = (email as Email & { category?: string | null })
-        .category;
-      emailWithMeta.category_id = categoryName
-        ? (categoryNameToId.get(categoryName) ?? null)
-        : null;
+      const emailWithMeta = email as Email & {
+        category_id?: string | null;
+        categoryId?: string | null;
+        category?: string | null;
+      };
+      if (emailWithMeta.categoryId) {
+        // Direct UUID from thread column — no resolution needed
+        emailWithMeta.category_id = emailWithMeta.categoryId;
+      } else {
+        // Fallback: name-based lookup (pre-backfill threads)
+        if (!categoryNameToId) {
+          categoryNameToId = await this.getCategoryNameToIdMap(userId);
+        }
+        emailWithMeta.category_id = emailWithMeta.category
+          ? (categoryNameToId.get(emailWithMeta.category) ?? null)
+          : null;
+      }
     }
 
     this.logger.log(
@@ -972,7 +1121,7 @@ export class EmailsService implements OnModuleInit {
             thread."starCount", thread."isArchived", thread."urgencyScore",
             thread."priorityExplanation", thread."priorityScore", thread."isProcessingPriority",
             thread."githubMetadata", thread."category", thread."categoryExplanation",
-            thread."protoCategoryId", thread."updatedAt" as "threadUpdatedAt",
+            thread."protoCategoryId", thread."categoryId", thread."updatedAt" as "threadUpdatedAt",
             thread."isBatched", thread."batchReleaseAt", thread."wasDeliveredEarly",
             thread."batchDecisionReason",
             pc."name" as "protoCategoryName", pc."description" as "protoCategoryDescription",
@@ -1055,10 +1204,15 @@ export class EmailsService implements OnModuleInit {
       );
     }
 
-    // Apply category filter by UUID only — resolve IDs to names for in-memory filtering.
-    let categoryFilterNames: string[] | undefined;
-
+    // Apply category filter by UUID directly (fix #1146).
+    // thread.categoryId is stored at write time — no name resolution needed.
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
+      const requestedUuids = new Set(filters.categoryIds);
+
+      // Threads without a categoryId fall back to name-based matching for
+      // backward-compat with rows not yet backfilled (needsCategoryIdBackfill=true).
+      // Once backfill completes, the fallback branch will be exercised by legacy
+      // "Other" threads only (which have no categoryId by design).
       const categoryContexts = await this.userContextRepository.find({
         where: {
           userId,
@@ -1071,35 +1225,40 @@ export class EmailsService implements OnModuleInit {
         const categoryName = ctx.contextValue.split(" - ")[0].trim();
         idToName.set(ctx.contextId, categoryName);
       }
-      categoryFilterNames = filters.categoryIds
-        .map((id) => idToName.get(id))
-        .filter((name): name is string => name !== undefined);
+      const requestedNames = new Set(
+        filters.categoryIds
+          .map((id) => idToName.get(id))
+          .filter((name): name is string => name !== undefined),
+      );
 
       // Fix #1114: if categoryIds were specified but none resolve to a known
       // category name (e.g. stale / deleted UUIDs), return an empty result
       // rather than silently skipping the filter and returning ALL emails.
-      if (categoryFilterNames.length === 0) {
+      if (requestedNames.size === 0) {
         this.logger.warn(
           `Category filter: none of the requested UUIDs resolved to a known category — returning empty result (userId=${userId})`,
         );
         return { emails: [], blockedCount: 0 };
       }
-    }
 
-    if (categoryFilterNames && categoryFilterNames.length > 0) {
       const beforeCount = filteredEmails.length;
       filteredEmails = filteredEmails.filter((emailEntry) => {
-        const emailCategory = (
-          emailEntry as Email & { category?: string | null }
-        ).category;
-        // Treat null/undefined/empty category as "Other" to mirror getInboxSummary behaviour
-        const effectiveCategory = emailCategory || "Other";
-        return categoryFilterNames!.includes(effectiveCategory);
+        const emailWithMeta = emailEntry as Email & {
+          categoryId?: string | null;
+          category?: string | null;
+        };
+        // Primary path: UUID equality (set at write time, fix #1146)
+        if (emailWithMeta.categoryId) {
+          return requestedUuids.has(emailWithMeta.categoryId);
+        }
+        // Fallback path: name-based match for pre-backfill threads
+        const effectiveCategory = emailWithMeta.category || "Other";
+        return requestedNames.has(effectiveCategory);
       });
       const removed = beforeCount - filteredEmails.length;
       if (removed > 0)
         this.logger.debug(
-          `Category filter: Removed ${removed} emails not matching categories: ${categoryFilterNames.join(", ")}`,
+          `Category filter: Removed ${removed} emails not matching category UUIDs: ${filters.categoryIds.join(", ")}`,
         );
     }
 
@@ -1271,6 +1430,8 @@ export class EmailsService implements OnModuleInit {
         (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,
       phishingReason: (row.phishingReason as string | null) ?? null,
       priorityScore: row.priorityScore ?? null,
+      // UUID-based category filter (fix #1146): pass through raw (no encryption)
+      categoryId: (row.categoryId as string | null) ?? null,
     } as unknown as Email;
   }
 

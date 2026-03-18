@@ -25,7 +25,10 @@ import {
 } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ContextKey } from "../database/entities/user-context.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
@@ -1062,19 +1065,30 @@ export class LLMProcessor implements OnModuleInit {
           // the categoryNameToId lookup in getInboxSummary (fix #1120).
           if (category && email.emailThreadId) {
             let canonicalCategory = category;
+            let matchedCategoryId: string | null = null;
             if (category !== "Other") {
               const matched =
                 await this.protoCategoriesService.findMatchingFullCategory(
                   jobEntry.userId,
                   category,
                 );
-              if (matched) canonicalCategory = matched;
+              if (matched) {
+                canonicalCategory = matched.name;
+                matchedCategoryId = matched.contextId;
+              }
             }
             await this.emailThreadRepository.update(
               { id: email.emailThreadId },
               {
                 category: canonicalCategory,
                 categoryExplanation: categoryExplanation ?? undefined,
+                // Store UUID at write time so filters can use direct UUID equality (fix #1146)
+                ...(matchedCategoryId !== null
+                  ? {
+                      categoryId: matchedCategoryId,
+                      needsCategoryIdBackfill: false,
+                    }
+                  : {}),
               },
             );
           }
@@ -1180,7 +1194,7 @@ export class LLMProcessor implements OnModuleInit {
         .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
         .map((ctx) => ctx.contextValue.split(" - ")[0].trim());
 
-      const { finalCategory, protoCategoryId } =
+      const { finalCategory, protoCategoryId, categoryId } =
         await this.resolveCategoryAndProtoCategory(
           email,
           thread,
@@ -1188,6 +1202,7 @@ export class LLMProcessor implements OnModuleInit {
           userId,
           workerId,
           knownCategoryNames,
+          contexts as UserContext[],
         );
 
       // Category is now set during summarization when possible.
@@ -1207,6 +1222,10 @@ export class LLMProcessor implements OnModuleInit {
           category: finalCategory,
           categoryExplanation: resolvedCategoryExplanation,
           protoCategoryId,
+          // Store UUID at write time for direct UUID-based category filtering (fix #1146)
+          ...(categoryId !== null && categoryId !== undefined
+            ? { categoryId, needsCategoryIdBackfill: false }
+            : {}),
           isProcessingPriority: false,
         },
       );
@@ -1447,7 +1466,12 @@ export class LLMProcessor implements OnModuleInit {
     userId: string,
     workerId: string,
     knownCategoryNames: string[] = [],
-  ): Promise<{ finalCategory: string | null; protoCategoryId: string | null }> {
+    contexts: UserContext[] = [],
+  ): Promise<{
+    finalCategory: string | null;
+    protoCategoryId: string | null;
+    categoryId: string | null;
+  }> {
     // Canonicalise LLM category against known names before further processing
     const resolvedLlmResult =
       llmResult.category && llmResult.category !== "Other"
@@ -1463,6 +1487,23 @@ export class LLMProcessor implements OnModuleInit {
     let finalCategory = resolvedLlmResult.category || thread.category || null;
     let protoCategoryId: string | null =
       finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
+
+    // Helper: look up contextId UUID for a resolved category name (fix #1146)
+    const lookupCategoryContextId = (name: string | null): string | null => {
+      if (!name || name === "Other") return null;
+      const nameLower = name.toLowerCase().trim();
+      const ctx = contexts.find((context) => {
+        if (context.contextKey !== ContextKey.EMAIL_CATEGORY) return false;
+        const ctxName = context.contextValue
+          .split(" - ")[0]
+          .trim()
+          .toLowerCase();
+        return ctxName === nameLower;
+      });
+      return ctx?.contextId ?? null;
+    };
+
+    let categoryId: string | null = lookupCategoryContextId(finalCategory);
 
     // Defensive check: LLM may have returned a proto-category name directly.
     // Re-route through proto-category logic so counts stay accurate.
@@ -1485,8 +1526,10 @@ export class LLMProcessor implements OnModuleInit {
             );
           if (updatedProto.isPromoted) {
             finalCategory = updatedProto.name;
+            categoryId = lookupCategoryContextId(finalCategory);
           } else {
             finalCategory = "Other";
+            categoryId = null;
             protoCategoryId = updatedProto.id;
           }
           this.logger.log(
@@ -1512,11 +1555,12 @@ export class LLMProcessor implements OnModuleInit {
         workerId,
         finalCategory,
         protoCategoryId,
+        lookupCategoryContextId,
       );
-      ({ finalCategory, protoCategoryId } = resolved);
+      ({ finalCategory, protoCategoryId, categoryId } = resolved);
     }
 
-    return { finalCategory, protoCategoryId };
+    return { finalCategory, protoCategoryId, categoryId };
   }
 
   private async applyProtoSuggestion(
@@ -1526,7 +1570,13 @@ export class LLMProcessor implements OnModuleInit {
     workerId: string,
     finalCategory: string | null,
     protoCategoryId: string | null,
-  ): Promise<{ finalCategory: string | null; protoCategoryId: string | null }> {
+    lookupCategoryContextId: (name: string | null) => string | null = () =>
+      null,
+  ): Promise<{
+    finalCategory: string | null;
+    protoCategoryId: string | null;
+    categoryId: string | null;
+  }> {
     const suggestionName = llmResult.protoCategorySuggestion!.name;
     try {
       const matchingFullCategory =
@@ -1537,9 +1587,13 @@ export class LLMProcessor implements OnModuleInit {
 
       if (matchingFullCategory) {
         this.logger.log(
-          `[Worker ${workerId}] Proto category suggestion "${suggestionName}" matches existing category "${matchingFullCategory}", assigning directly`,
+          `[Worker ${workerId}] Proto category suggestion "${suggestionName}" matches existing category "${matchingFullCategory.name}", assigning directly`,
         );
-        return { finalCategory: matchingFullCategory, protoCategoryId: null };
+        return {
+          finalCategory: matchingFullCategory.name,
+          protoCategoryId: null,
+          categoryId: matchingFullCategory.contextId,
+        };
       }
 
       const existingProtoCategory =
@@ -1562,12 +1616,17 @@ export class LLMProcessor implements OnModuleInit {
           return {
             finalCategory: updatedProtoCategory.name,
             protoCategoryId: null,
+            categoryId: lookupCategoryContextId(updatedProtoCategory.name),
           };
         }
         this.logger.log(
           `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
         );
-        return { finalCategory, protoCategoryId: updatedProtoCategory.id };
+        return {
+          finalCategory,
+          protoCategoryId: updatedProtoCategory.id,
+          categoryId: lookupCategoryContextId(finalCategory),
+        };
       }
 
       const newProtoCategory =
@@ -1581,13 +1640,21 @@ export class LLMProcessor implements OnModuleInit {
       this.logger.log(
         `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
       );
-      return { finalCategory, protoCategoryId: newProtoCategory.id };
+      return {
+        finalCategory,
+        protoCategoryId: newProtoCategory.id,
+        categoryId: lookupCategoryContextId(finalCategory),
+      };
     } catch (protoCategoryError) {
       this.logger.warn(
         `[Worker ${workerId}] Failed to process proto category for email ${email.id}:`,
         protoCategoryError,
       );
-      return { finalCategory, protoCategoryId };
+      return {
+        finalCategory,
+        protoCategoryId,
+        categoryId: lookupCategoryContextId(finalCategory),
+      };
     }
   }
 

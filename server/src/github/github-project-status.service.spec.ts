@@ -236,7 +236,9 @@ describe("GitHubProjectStatusService", () => {
 
   describe("updateProjectItemStatus", () => {
     it("should call graphql mutation with the correct variables", async () => {
-      mockGraphql.mockResolvedValue({ updateProjectV2ItemFieldValue: { projectV2Item: { id: "PVTI_itemId" } } });
+      mockGraphql.mockResolvedValue({
+        updateProjectV2ItemFieldValue: { projectV2Item: { id: "PVTI_itemId" } },
+      });
 
       await service.updateProjectItemStatus(
         MOCK_TOKEN,
@@ -286,7 +288,9 @@ describe("GitHubProjectStatusService", () => {
     });
 
     it("should rethrow the original error on non-auth failures", async () => {
-      const originalError = new Error("GraphQL mutation failed: field not found");
+      const originalError = new Error(
+        "GraphQL mutation failed: field not found",
+      );
       mockGraphql.mockRejectedValue(originalError);
 
       await expect(

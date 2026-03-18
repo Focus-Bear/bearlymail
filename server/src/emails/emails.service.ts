@@ -1442,6 +1442,10 @@ export class EmailsService implements OnModuleInit {
       priorityScore: row.priorityScore ?? null,
       // UUID-based category filter (fix #1146): pass through raw (no encryption)
       categoryId: (row.categoryId as string | null) ?? null,
+      // fix #1173: cc is an encrypted column; raw SQL does not apply TypeORM
+      // transformers so we must decrypt it explicitly here (same pattern as
+      // `from`, `to`, `subject`, etc.)
+      cc: row.cc ? EncryptionHelper.decrypt(row.cc as string) : null,
     } as unknown as Email;
   }
 

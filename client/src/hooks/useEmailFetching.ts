@@ -147,23 +147,41 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   // Timers used to schedule retry renders after the backoff window elapses
   const pendingRetryTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const buildSummaryParams = useCallback(() => buildSummaryParamsImpl(mode, filters), [mode, filters]);
+  const buildSummaryParams = useCallback(
+    (overrideFilters?: Partial<InboxFilter>) =>
+      buildSummaryParamsImpl(mode, overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters),
+    [mode, filters]
+  );
   const buildCategoryParams = useCallback(
     (categoryKey: string) => buildCategoryParamsImpl(mode, filters, categoryKey),
     [mode, filters]
   );
-  const buildAutoRespondedParams = useCallback(() => buildAutoRespondedParamsImpl(filters), [filters]);
+  const buildAutoRespondedParams = useCallback(
+    (overrideFilters?: Partial<InboxFilter>) =>
+      buildAutoRespondedParamsImpl(overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters),
+    [filters]
+  );
   const buildAutoRespondedSummary = useCallback((emails: Email[]) => buildAutoRespondedSummaryImpl(emails), []);
 
   /**
    * Fetch the inbox summary: category names and counts.
    * This replaces the old fetchEmails behaviour — accordions are rendered from the
    * summary immediately, then each category's emails are loaded lazily on expand.
+   *
+   * @param overrideFilters - Optional filter overrides to apply immediately without
+   *   waiting for React state to propagate. Useful when updating filter state and
+   *   triggering a fetch in the same event handler (stale-closure fix for #1160).
    */
-  const fetchEmails = useCallback(async () => {
+  const fetchEmails = useCallback(async (overrideFilters?: Partial<InboxFilter>) => {
     fetchSessionRef.current += 1;
     isLoadingMoreRef.current = false;
-    await fetchEmailsImpl({ mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary });
+    await fetchEmailsImpl({
+      mode,
+      dispatch,
+      buildSummaryParams: () => buildSummaryParams(overrideFilters),
+      buildAutoRespondedParams: () => buildAutoRespondedParams(overrideFilters),
+      buildAutoRespondedSummary,
+    });
   }, [mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
   /**

@@ -196,9 +196,10 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
           minPriority={filters.minPriority}
           priorityCounts={priorityCounts}
-          onUnlockPriorityTier={(newMinPriority: number) => {
-            setPriorityFilter(newMinPriority);
-            fetchEmails();
+          onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
+            const newFilters = { minPriority, maxPriority };
+            setPriorityFilter(minPriority, maxPriority);
+            fetchEmails(newFilters);
             fetchPriorityCounts();
           }}
           onDismissUnlockPrompt={() => {

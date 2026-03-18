@@ -59,7 +59,7 @@ export interface InboxContentProps {
   /** Counts of threads per priority tier for progressive unlock prompt */
   priorityCounts?: { high: number; medium: number; low: number } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
-  onUnlockPriorityTier?: (newMinPriority: number) => void;
+  onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
 }

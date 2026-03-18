@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+
 import { EmailListStates } from './EmailListStates';
 
 jest.mock('react-i18next', () => ({
@@ -109,7 +111,7 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
-    it('calls onUnlockPriorityTier(20) when user clicks Yes on high-done prompt', () => {
+    it('calls onUnlockPriorityTier(20, 50) when user clicks Yes on high-done prompt', () => {
       const onUnlockPriorityTier = jest.fn();
       render(
         <EmailListStates
@@ -122,7 +124,7 @@ describe('EmailListStates', () => {
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(20);
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD);
     });
 
     it('hides ProgressiveUnlockPrompt and shows EmptyState after dismissal', () => {
@@ -173,7 +175,7 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
-    it('calls onUnlockPriorityTier(0) when user clicks Yes on medium-done prompt', () => {
+    it('calls onUnlockPriorityTier(1, 20) when user clicks Yes on medium-done prompt', () => {
       const onUnlockPriorityTier = jest.fn();
       render(
         <EmailListStates
@@ -186,7 +188,7 @@ describe('EmailListStates', () => {
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(0);
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD);
     });
   });
 

@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
 import { AllCaughtUpState, EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
-import { HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
-
-/** Threshold at which the inbox is considered "medium priority" for progressive unlock */
-const MEDIUM_PRIORITY_THRESHOLD = 20;
+import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
 interface PriorityCounts {
   high: number;
@@ -28,7 +25,7 @@ interface EmailListStatesProps {
   /** Counts of threads in each priority tier — used for progressive unlock prompt */
   priorityCounts?: PriorityCounts | null;
   /** Called when user accepts the progressive unlock offer to a lower tier */
-  onUnlockPriorityTier?: (newMinPriority: number) => void;
+  onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
 }
@@ -90,7 +87,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
           message={t('inbox.progressiveUnlock.highDone')}
           nextTierLabel={t('inbox.progressiveUnlock.mediumLabel')}
           nextTierCount={priorityCounts.medium}
-          onYes={() => onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD)}
+          onYes={() => onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD)}
           onLater={handleDismissPrompt}
         />
       );
@@ -112,7 +109,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
           message={t('inbox.progressiveUnlock.mediumDone')}
           nextTierLabel={t('inbox.progressiveUnlock.lowLabel')}
           nextTierCount={priorityCounts.low}
-          onYes={() => onUnlockPriorityTier(0)}
+          onYes={() => onUnlockPriorityTier(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD)}
           onLater={handleDismissPrompt}
         />
       );

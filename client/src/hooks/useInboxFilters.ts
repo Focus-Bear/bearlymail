@@ -23,6 +23,10 @@ const FIRST_LOAD_KEY = 'inbox_first_load_seen';
 
 /** Threshold for the high-priority tier. Shared with EmailListStates. */
 export const HIGH_PRIORITY_THRESHOLD = 50;
+/** Threshold for the medium-priority tier. Shared with EmailListStates. */
+export const MEDIUM_PRIORITY_THRESHOLD = 20;
+/** Threshold for the low-priority tier. Shared with EmailListStates. */
+export const LOW_PRIORITY_THRESHOLD = 1;
 
 // Priority ranges — each entry carries both min and max to support bounded range filtering.
 // max: null means "no upper bound" (i.e., score >= min with no ceiling).

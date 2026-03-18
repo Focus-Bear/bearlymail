@@ -7,6 +7,52 @@ import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { SUMMARY_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 
+/**
+ * Client-side guard against raw JSON leaking into the summary display (issue #1156).
+ * Mirrors the server-side extractPlainSummary() logic as a belt-and-suspenders defence.
+ */
+function extractPlainSummary(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return trimmed;
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed === null || typeof parsed !== 'object') {
+      return trimmed;
+    }
+    if (Array.isArray(parsed)) {
+      const items = (parsed as unknown[])
+        .map((item) =>
+          typeof item === 'string'
+            ? item
+            : typeof item === 'object' && item !== null
+              ? extractPlainSummary(JSON.stringify(item))
+              : String(item),
+        )
+        .filter(Boolean);
+      return items.join('\n') || trimmed;
+    }
+    const parsedObj = parsed as Record<string, unknown>;
+    for (const fieldName of ['summary', 'title', 'description', 'body']) {
+      if (typeof parsedObj[fieldName] === 'string' && (parsedObj[fieldName] as string).trim()) {
+        return (parsedObj[fieldName] as string).trim();
+      }
+    }
+    const pairs = Object.entries(parsedObj)
+      .filter(([, fieldValue]) => {
+        if (typeof fieldValue === 'string') {
+          return fieldValue.trim().length > 0;
+        }
+        return typeof fieldValue === 'number' || typeof fieldValue === 'boolean';
+      })
+      .map(([fieldKey, fieldValue]) => `${fieldKey}: ${String(fieldValue)}`);
+    return pairs.length > 0 ? pairs.join('\n') : trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
 interface SummarySectionProps {
   summary: string | null;
   summaryType: string;
@@ -34,12 +80,16 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // Defensive guard: ensure any raw JSON that slipped through server-side sanitisation
+  // is converted to readable text before display (issue #1156).
+  const safeSummary = summary ? extractPlainSummary(summary) : summary;
+
   const previewText = (() => {
     if (isGeneratingSummary || emailIsProcessingSummary) {
       return t('emailDetail.generatingSummary');
     }
-    if (summary) {
-      return summary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (summary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '');
+    if (safeSummary) {
+      return safeSummary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (safeSummary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '');
     }
     return t('emailDetail.noSummary');
   })();
@@ -142,7 +192,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
             </div>
           );
         }
-        if (summary) {
+        if (safeSummary) {
           return (
             <div
               style={{
@@ -151,7 +201,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
                 lineHeight: theme.typography.lineHeight.relaxed,
               }}
             >
-              {summary}
+              {safeSummary}
             </div>
           );
         }

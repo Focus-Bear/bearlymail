@@ -65,6 +65,68 @@ import {
 // Re-export LLMProvider for backward compatibility with existing callers
 export { LLMProvider };
 
+/**
+ * Sanitises a summary value that may contain raw JSON.
+ *
+ * When a user's custom summarisation rule instructs the LLM to return structured
+ * JSON, the raw JSON blob can leak into the TL;DR display (issue #1156).
+ * This helper detects that case and extracts a human-readable string instead.
+ *
+ * - If the value is valid JSON, extract known text fields (summary, title,
+ *   description, body) in preference order, or fall back to "key: value" pairs.
+ * - If JSON.parse fails, return the string unchanged.
+ */
+export function extractPlainSummary(value: string): string {
+  const trimmed = value.trim();
+  // Quick bail-out: must start with { or [ to even attempt JSON parse
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    return trimmed;
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed === null || typeof parsed !== "object") {
+      return trimmed;
+    }
+    if (Array.isArray(parsed)) {
+      // Array of strings → join; array of objects → recursively extract each item
+      const items = parsed
+        .map((item: unknown) => {
+          if (typeof item === "string") {
+            return item;
+          }
+          if (typeof item === "object" && item !== null) {
+            return extractPlainSummary(JSON.stringify(item));
+          }
+          return String(item);
+        })
+        .filter(Boolean);
+      return items.join("\n") || trimmed;
+    }
+    const parsedObj = parsed as Record<string, unknown>;
+    // Prefer well-known text fields in priority order
+    for (const fieldName of ["summary", "title", "description", "body"]) {
+      if (
+        typeof parsedObj[fieldName] === "string" &&
+        (parsedObj[fieldName] as string).trim()
+      ) {
+        return (parsedObj[fieldName] as string).trim();
+      }
+    }
+    // Fall back: stringify each key-value pair on its own line (skip blank strings)
+    const pairs = Object.entries(parsedObj)
+      .filter(([, fieldValue]) => {
+        if (typeof fieldValue === "string") return fieldValue.trim().length > 0;
+        return (
+          typeof fieldValue === "number" || typeof fieldValue === "boolean"
+        );
+      })
+      .map(([fieldKey, fieldValue]) => `${fieldKey}: ${String(fieldValue)}`);
+    return pairs.length > 0 ? pairs.join("\n") : trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
 @Injectable()
 export class LLMService {
   private readonly logger = new Logger(LLMService.name);
@@ -550,7 +612,7 @@ export class LLMService {
       // fall through to plain-text fallback
     }
     return {
-      summary: response.trim(),
+      summary: extractPlainSummary(response),
       phishing: null,
       sentiment: null,
       category: null,
@@ -695,18 +757,20 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
           QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
         );
         const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${cleanedBody}\n\n${customInstructions}`;
-        summary = await this.generateText(
-          {
-            prompt,
-            systemPrompt:
-              "You are a helpful assistant that summarizes email threads according to user instructions.",
-            temperature: RATIOS.HALF,
-            maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+        summary = extractPlainSummary(
+          await this.generateText(
+            {
+              prompt,
+              systemPrompt:
+                "You are a helpful assistant that summarizes email threads according to user instructions.",
+              temperature: RATIOS.HALF,
+              maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+              userId,
+            },
+            provider,
             userId,
-          },
-          provider,
-          userId,
-          LLM_OP_SUMMARIZE_EMAIL,
+            LLM_OP_SUMMARIZE_EMAIL,
+          ),
         );
       } else {
         summary = await this.summarizeEmail(

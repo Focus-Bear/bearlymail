@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
-import { LLMService } from "./llm.service";
+import { extractPlainSummary, LLMService } from "./llm.service";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import { getPrompt, loadPrompts } from "./prompts";
@@ -330,6 +330,66 @@ describe("LLMService", () => {
 
       expect(result).toHaveLength(2);
       expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("extractPlainSummary (issue #1156)", () => {
+    it("returns plain text unchanged", () => {
+      expect(extractPlainSummary("This is a normal summary.")).toBe(
+        "This is a normal summary.",
+      );
+    });
+
+    it("extracts summary field from JSON object", () => {
+      const input = JSON.stringify({
+        summary: "3 open PRs need review",
+        pr_count: 3,
+        status: "pending",
+      });
+      expect(extractPlainSummary(input)).toBe("3 open PRs need review");
+    });
+
+    it("falls back to title if summary field is absent", () => {
+      const input = JSON.stringify({ title: "Sprint update", count: 5 });
+      expect(extractPlainSummary(input)).toBe("Sprint update");
+    });
+
+    it("falls back to description if summary and title are absent", () => {
+      const input = JSON.stringify({
+        description: "Weekly digest",
+        count: 5,
+      });
+      expect(extractPlainSummary(input)).toBe("Weekly digest");
+    });
+
+    it("converts unknown keys to key: value pairs when no preferred fields present", () => {
+      const input = JSON.stringify({ pr_count: 3, status: "pending" });
+      expect(extractPlainSummary(input)).toBe("pr_count: 3\nstatus: pending");
+    });
+
+    it("handles JSON array of strings", () => {
+      const input = JSON.stringify(["First item", "Second item"]);
+      expect(extractPlainSummary(input)).toBe("First item\nSecond item");
+    });
+
+    it("returns trimmed string when JSON.parse fails", () => {
+      expect(extractPlainSummary("  not json at all  ")).toBe(
+        "not json at all",
+      );
+    });
+
+    it("returns trimmed string for non-object JSON (number)", () => {
+      expect(extractPlainSummary("42")).toBe("42");
+    });
+
+    it("handles JSON with empty preferred fields and falls back to pairs", () => {
+      const input = JSON.stringify({ summary: "   ", pr_count: 7 });
+      expect(extractPlainSummary(input)).toBe("pr_count: 7");
+    });
+
+    it("trims the input before processing", () => {
+      const input = `  ${JSON.stringify({ summary: "Clean summary" })}  `;
+      expect(extractPlainSummary(input)).toBe("Clean summary");
     });
   });
 });

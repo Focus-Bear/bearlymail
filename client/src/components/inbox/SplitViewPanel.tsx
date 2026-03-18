@@ -463,6 +463,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       )}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <EmailDetail
+          key={selectedEmailId}
           ref={emailDetailComponentRef}
           emailId={selectedEmailId}
           compactMode

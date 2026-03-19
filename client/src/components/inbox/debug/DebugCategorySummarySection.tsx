@@ -26,6 +26,7 @@ interface DebugCategorySummaryProps {
   loadingCategoryNames: string[];
   expandedCategories: Set<string>;
   emails: Email[];
+  categoryStates?: Record<string, { status: string }>;
 }
 
 const getLoadedEmailsForCategory = (categoryKey: string, emails: Email[]): Email[] => {
@@ -62,6 +63,15 @@ interface CategoryTableProps extends DebugCategorySummaryProps {
   t: (tKey: string) => string;
 }
 
+const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  idle:      { bg: '#E0E0E0', text: '#616161' },
+  loading:   { bg: '#FFF9C4', text: '#F57F17' },
+  loaded:    { bg: '#E8F5E9', text: '#2E7D32' },
+  error:     { bg: '#FFEBEE', text: '#C62828' },
+  exhausted: { bg: '#EDE7F6', text: '#4527A0' },
+  stale:     { bg: '#FFF3E0', text: '#E65100' },
+};
+
 const CategorySummaryTable: React.FC<CategoryTableProps> = ({
   categorySummary,
   loadedCategoryNames,
@@ -70,6 +80,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
   emails,
   expandedDetails,
   toggleDetails,
+  categoryStates,
   t,
 }) => {
   if (!categorySummary) {
@@ -121,7 +132,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
       >
         <thead>
           <tr style={{ backgroundColor: COLOR_BG_NEUTRAL }}>
-            {['category', 'summaryCount', 'loadedCount', 'status', 'expanded', 'details'].map(key => (
+            {['category', 'summaryCount', 'loadedCount', 'status', 'sliceStatus', 'expanded', 'details'].map(key => (
               <th
                 key={key}
                 style={{
@@ -130,7 +141,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                   borderBottom: '1px solid #e0e0e0',
                 }}
               >
-                {t(`debug.categorySummary.${key}`)}
+                {key === 'sliceStatus' ? '🗂️ Slice' : t(`debug.categorySummary.${key}`)}
               </th>
             ))}
           </tr>
@@ -177,6 +188,28 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                     {getCategoryStatus(categoryKey, loadingCategoryNames, loadedCategoryNames)}
                   </td>
                   <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                    {(() => {
+                      const sliceStatus = categoryStates?.[categoryKey]?.status;
+                      if (!sliceStatus) {
+                        return <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>—</span>;
+                      }
+                      const colors = STATUS_BADGE_COLORS[sliceStatus] ?? { bg: '#E0E0E0', text: '#616161' };
+                      return (
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: theme.typography.fontSize.xs,
+                          fontWeight: 'bold',
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                        }}>
+                          {sliceStatus}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>
                     {expandedCategories.has(categoryKey) ? '📂 Yes' : '📁 No'}
                   </td>
                   <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>
@@ -199,7 +232,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                 {showDetails && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         padding: theme.spacing.md,
                         backgroundColor: COLOR_BG_NEUTRAL_ALT,
@@ -342,6 +375,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
   loadingCategoryNames,
   expandedCategories,
   emails,
+  categoryStates,
 }) => {
   const { t } = useTranslation();
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
@@ -376,6 +410,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
         loadingCategoryNames={loadingCategoryNames}
         expandedCategories={expandedCategories}
         emails={emails}
+        categoryStates={categoryStates}
         expandedDetails={expandedDetails}
         toggleDetails={toggleDetails}
         t={t}

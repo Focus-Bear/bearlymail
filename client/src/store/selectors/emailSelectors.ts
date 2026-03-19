@@ -65,3 +65,14 @@ export const selectExhaustedCategoryNames = createSelector(
 
 // Cache selectors
 export const selectLastFetchedAt = (state: RootState): number | null => state.email.lastFetchedAt;
+
+// Re-export categorySlice selectors
+export {
+  selectAllCategoryStates,
+  selectCategoryEmails,
+  selectCategoryState,
+  selectCategoryStatus,
+  selectExhaustedCategoryKeys,
+  selectLoadedCategoryKeys,
+  selectLoadingCategoryKeys,
+} from 'store/slices/categorySlice';

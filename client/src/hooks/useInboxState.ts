@@ -7,10 +7,10 @@ import { InboxMode } from 'types/email';
 import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
+import { useCategoryFetch } from 'hooks/useCategoryFetch';
 import { useEmailActions } from 'hooks/useEmailActions';
 import { useEmailManagement } from 'hooks/useEmailManagement';
 import { useEmailSelection } from 'hooks/useEmailSelection';
-import { useInboxCategoryAccordion } from 'hooks/useInboxCategoryAccordion';
 import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxFollowUpData } from 'hooks/useInboxFollowUpData';
@@ -306,7 +306,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
   const { expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, resetForModeChange } =
-    useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames });
+    useCategoryFetch({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames });
 
   const setMode = useCallback(
     (newMode: InboxMode) => {

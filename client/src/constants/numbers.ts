@@ -240,3 +240,5 @@ export const MAX_POLL_RETRIES_429 = 5;          // give up after 5 consecutive 4
 // File size units
 export const BYTES_PER_KB = 1024;
 export const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
+
+export const CATEGORY_FETCH_RETRY_DELAY_MS = 5_000; // default retry delay for category fetch errors

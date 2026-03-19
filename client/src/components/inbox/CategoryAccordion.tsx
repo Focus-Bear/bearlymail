@@ -441,7 +441,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           overflow: 'hidden',
         }}
       >
-        <div style={{ minHeight: 0 }}>
+        <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
           <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')}>
             {children}
           </CategoryAccordionContent>

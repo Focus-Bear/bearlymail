@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -167,9 +167,14 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
 
   const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(handleAnalysisComplete);
 
+  const hasStartedRef = useRef(false);
+
   useEffect(() => {
     if (!analyzing && !analyzeProgress.isComplete) {
-      startAnalysis();
+      if (!hasStartedRef.current) {
+        hasStartedRef.current = true;
+        startAnalysis();
+      }
     }
   }, [analyzing, analyzeProgress.isComplete, startAnalysis]);
 

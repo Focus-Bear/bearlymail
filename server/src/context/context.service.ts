@@ -802,15 +802,20 @@ export class ContextService {
 
       if (totalThreads === 0) {
         this.logger.warn(
-          `[CONTEXT-ANALYSIS] ERROR: No threads found in date range (5-12 days ago) for user ${userId}. Analysis cannot proceed.`,
+          `[CONTEXT-ANALYSIS] No threads found in date range (5-12 days ago) for user ${userId}. Completing with empty data instead of failing.`,
         );
+        // Return a successful empty result so new users (who have no emails 5-12 days ago) can complete signup
+        analysisRecord.status = "completed";
+        analysisRecord.progress = 100;
+        analysisRecord.total = 100;
+        analysisRecord.threadCount = 0;
+        analysisRecord.analyzedCount = 0;
+        await this.contextAnalysisRepository.save(analysisRecord);
         await this.usersService.update(userId, {
-          scanProgress: -1,
+          scanProgress: 100,
           scanTotal: 100,
         });
-        throw new Error(
-          "No threads found in the analysis date range. Please ensure you have emails from 5-12 days ago.",
-        );
+        return;
       }
 
       // Clear findings from stats now that fetching is complete (but preserve existing stats like totalBatches)

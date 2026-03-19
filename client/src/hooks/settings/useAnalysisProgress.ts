@@ -157,9 +157,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         error: error.response?.data?.message || 'Failed to start analysis. Please try again.',
         isComplete: false,
       });
-      setTimeout(() => {
-        setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
-      }, LONG_TIMEOUT_MS);
+      // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
     }
   }, []);
 
@@ -189,9 +187,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         error: errorMessage,
         isComplete: false,
       });
-      setTimeout(() => {
-        setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
-      }, LONG_TIMEOUT_MS);
+      // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
     };
 
     const handleProgressResponse = async (progressData: any, timeoutId: ReturnType<typeof setTimeout> | null) => {

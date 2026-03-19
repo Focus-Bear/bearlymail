@@ -45,9 +45,9 @@ export function createTypeOrmConfig(
     // on your RDS instance's max_connections limit.
     extra: {
       max: poolSize,
-      // Release idle connections to free RDS slots; ~2ms reconnect cost is acceptable
+      // Release idle connections to free up RDS slots
       min: 0,
-      // Reduced: release idle connections after 10s
+      // Reduced: release idle connections faster
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 5000,
     },

@@ -19,13 +19,9 @@ export const RESOURCE_MONITOR_CONSTANTS = {
   P50: 0.5,
   P95: 0.95,
   P99: 0.99,
-  // Database connection thresholds (absolute counts, not percentages)
-  // Tune these to match your RDS instance's actual max_connections limit.
-  // Rule of thumb: warn at ~70%, critical at ~85% of max_connections.
-  // Default targets a t4g.micro (max_connections ≈ 112): warn at 80, critical at 95.
-  // If you change instance type, update these values to match the new limit.
-  // Warn when > 80 connections
-  DB_CONNECTIONS_WARNING: 80,
-  // Critical when > 95 connections
-  DB_CONNECTIONS_CRITICAL: 95,
+  // Database connection thresholds (absolute counts, NOT percentages)
+  // Tune based on RDS instance's max_connections limit.
+  // t4g.micro (1GB RAM): max_connections ≈ 112; warn at ~80%, critical at ~90%
+  DB_CONNECTIONS_WARNING: 90,
+  DB_CONNECTIONS_CRITICAL: 100,
 } as const;

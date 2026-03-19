@@ -202,7 +202,7 @@ export class ResourceMonitorService implements OnModuleInit {
         RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_CRITICAL
       ) {
         this.logger.error(
-          `🔴 CRITICAL database connections: ${dbMetrics.totalConnections} total (exceeded DB_CONNECTIONS_CRITICAL=${RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_CRITICAL}). Check your RDS max_connections limit and update the constant if the instance type has changed. RDS may reject new connections.`,
+          `🔴 CRITICAL database connections: ${dbMetrics.totalConnections} total (limit: ~112 on t4g.micro). RDS may reject new connections.`,
         );
       } else if (
         dbMetrics.totalConnections >

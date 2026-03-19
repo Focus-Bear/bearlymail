@@ -341,7 +341,7 @@ describe("ResourceMonitorService", () => {
         {
           active: "50",
           idle: "50",
-          total: String(RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL + 10),
+          total: String(RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_WARNING + 1),
         },
       ]);
 

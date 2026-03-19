@@ -4,7 +4,8 @@ import { configureStore } from '@reduxjs/toolkit';
 import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
-import emailReducer from 'store/slices/emailSlice';
+import inboxDataReducer from 'store/slices/inboxDataSlice';
+import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import * as useEmailActionsBaseModule from './useEmailActionsBase';
 import * as useEmailFetchingModule from './useEmailFetching';
@@ -19,32 +20,35 @@ const mockedUseEmailFetching = useEmailFetchingModule as jest.Mocked<typeof useE
 const mockedUseEmailActionsBase = useEmailActionsBaseModule as jest.Mocked<typeof useEmailActionsBaseModule>;
 
 // Helper to create a test store
-const createTestStore = (preloadedState = {}) => {
+const createTestStore = (preloadedState: Partial<import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState> = {}) => {
+  const { emails, hasMore, totalCount, currentOffset, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, lastFetchedAt, ...uiState } = preloadedState as any;
   return configureStore({
     reducer: {
-      email: emailReducer,
+      inboxData: inboxDataReducer,
+      inboxUI: inboxUIReducer,
     },
     preloadedState: {
-      email: {
-        emails: [] as import('types/email').Email[],
-        optimisticallyArchived: [] as string[],
-        optimisticallySnoozed: [] as string[],
-        animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
-        loading: true,
-        decrypting: false,
-        refreshing: false,
-        loadingModeSwitch: false,
-        fetchError: null as string | null,
-        hasMore: false,
-        totalCount: 0,
-        currentOffset: 0,
-        categorySummary: null,
-        summaryLoading: false,
-        loadedCategoryNames: [] as string[],
-        loadingCategoryNames: [] as string[],
-        exhaustedCategoryNames: [] as string[],
-        lastFetchedAt: null as number | null,
-        ...preloadedState,
+      inboxData: {
+        emails: emails ?? ([] as import('types/email').Email[]),
+        hasMore: hasMore ?? false,
+        totalCount: totalCount ?? 0,
+        currentOffset: currentOffset ?? 0,
+        categorySummary: categorySummary ?? null,
+        loadedCategoryNames: loadedCategoryNames ?? ([] as string[]),
+        loadingCategoryNames: loadingCategoryNames ?? ([] as string[]),
+        exhaustedCategoryNames: exhaustedCategoryNames ?? ([] as string[]),
+        lastFetchedAt: lastFetchedAt ?? null,
+      },
+      inboxUI: {
+        optimisticallyArchived: uiState.optimisticallyArchived ?? ([] as string[]),
+        optimisticallySnoozed: uiState.optimisticallySnoozed ?? ([] as string[]),
+        animatingOut: uiState.animatingOut ?? ([] as { id: string; type: 'archive' | 'priority' }[]),
+        loading: uiState.loading ?? true,
+        decrypting: uiState.decrypting ?? false,
+        refreshing: uiState.refreshing ?? false,
+        loadingModeSwitch: uiState.loadingModeSwitch ?? false,
+        fetchError: uiState.fetchError ?? (null as string | null),
+        summaryLoading: uiState.summaryLoading ?? false,
       },
     },
   });

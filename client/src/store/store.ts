@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 import categoryReducer from './slices/categorySlice';
-import emailReducer from './slices/emailSlice';
+import inboxDataReducer from './slices/inboxDataSlice';
+import inboxUIReducer from './slices/inboxUISlice';
 
 export const store = configureStore({
   reducer: {
-    email: emailReducer,
+    inboxData: inboxDataReducer,
+    inboxUI: inboxUIReducer,
     category: categoryReducer,
   },
 });

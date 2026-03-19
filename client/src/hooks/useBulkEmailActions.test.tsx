@@ -6,7 +6,8 @@ import axios from 'axios';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
-import emailReducer from 'store/slices/emailSlice';
+import inboxDataReducer from 'store/slices/inboxDataSlice';
+import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useBulkEmailActions } from './useBulkEmailActions';
 
@@ -22,11 +23,22 @@ const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEve
 const createTestStore = (emails: Email[] = []) => {
   return configureStore({
     reducer: {
-      email: emailReducer,
+      inboxData: inboxDataReducer,
+      inboxUI: inboxUIReducer,
     },
     preloadedState: {
-      email: {
+      inboxData: {
         emails,
+        hasMore: false,
+        totalCount: 0,
+        currentOffset: 0,
+        categorySummary: null,
+        loadedCategoryNames: [] as string[],
+        loadingCategoryNames: [] as string[],
+        exhaustedCategoryNames: [] as string[],
+        lastFetchedAt: null as number | null,
+      },
+      inboxUI: {
         optimisticallyArchived: [] as string[],
         optimisticallySnoozed: [] as string[],
         animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
@@ -35,15 +47,7 @@ const createTestStore = (emails: Email[] = []) => {
         refreshing: false,
         loadingModeSwitch: false,
         fetchError: null as string | null,
-        hasMore: false,
-        totalCount: 0,
-        currentOffset: 0,
-        categorySummary: null,
         summaryLoading: false,
-        loadedCategoryNames: [] as string[],
-        loadingCategoryNames: [] as string[],
-        exhaustedCategoryNames: [] as string[],
-        lastFetchedAt: null as number | null,
       },
     },
   });

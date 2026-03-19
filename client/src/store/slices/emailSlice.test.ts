@@ -1,15 +1,23 @@
+/**
+ * Tests for the split inbox slices (inboxDataSlice + inboxUISlice).
+ * This file was previously testing a single emailSlice; it now tests both slices
+ * and the cross-slice selectVisibleEmails selector.
+ */
 import { Email } from 'types/email';
 
 import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
 
-import emailReducer, {
-  addAnimatingOut,
-  addOptimisticArchive,
-  EmailState,
-  removeAnimatingOut,
+import inboxDataReducer, {
+  InboxDataState,
   removeEmail,
   updateCategoryEmails,
-} from './emailSlice';
+} from './inboxDataSlice';
+import inboxUIReducer, {
+  addAnimatingOut,
+  addOptimisticArchive,
+  InboxUIState,
+  removeAnimatingOut,
+} from './inboxUISlice';
 
 const makeEmail = (id: string, category?: string | null): Email =>
   ({
@@ -27,43 +35,52 @@ const makeEmail = (id: string, category?: string | null): Email =>
     category_id: category !== undefined ? category : null,
   }) as unknown as Email;
 
-const baseState = {
+const baseDataState: InboxDataState = {
   emails: [makeEmail('1'), makeEmail('2'), makeEmail('3')],
-  optimisticallyArchived: [] as string[],
-  optimisticallySnoozed: [] as string[],
-  animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
+  hasMore: false,
+  totalCount: 0,
+  currentOffset: 0,
+  categorySummary: null,
+  loadedCategoryNames: [],
+  loadingCategoryNames: [],
+  exhaustedCategoryNames: [],
+  lastFetchedAt: null,
+};
+
+const baseUIState: InboxUIState = {
+  optimisticallyArchived: [],
+  optimisticallySnoozed: [],
+  animatingOut: [],
   loading: false,
   decrypting: false,
   refreshing: false,
   loadingModeSwitch: false,
-  fetchError: null as string | null,
-  hasMore: false,
-  totalCount: 0,
-  currentOffset: 0,
-  categorySummary: null as null,
   summaryLoading: false,
-  loadedCategoryNames: [] as string[],
-  loadingCategoryNames: [] as string[],
-  exhaustedCategoryNames: [] as string[],
-  lastFetchedAt: null as number | null,
+  fetchError: null,
 };
 
-describe('emailSlice – animation reducers', () => {
+/** Build a RootState-like object for use with selectors */
+const makeState = (dataOverrides: Partial<InboxDataState> = {}, uiOverrides: Partial<InboxUIState> = {}) => ({
+  inboxData: { ...baseDataState, ...dataOverrides },
+  inboxUI: { ...baseUIState, ...uiOverrides },
+});
+
+describe('inboxUISlice – animation reducers', () => {
   describe('addAnimatingOut', () => {
     it('adds an item to animatingOut', () => {
-      const state = emailReducer(baseState, addAnimatingOut({ id: '1', type: 'archive' }));
+      const state = inboxUIReducer(baseUIState, addAnimatingOut({ id: '1', type: 'archive' }));
       expect(state.animatingOut).toEqual([{ id: '1', type: 'archive' }]);
     });
 
     it('does not add duplicate entries for the same email id', () => {
-      let state = emailReducer(baseState, addAnimatingOut({ id: '1', type: 'archive' }));
-      state = emailReducer(state, addAnimatingOut({ id: '1', type: 'archive' }));
+      let state = inboxUIReducer(baseUIState, addAnimatingOut({ id: '1', type: 'archive' }));
+      state = inboxUIReducer(state, addAnimatingOut({ id: '1', type: 'archive' }));
       expect(state.animatingOut).toHaveLength(1);
     });
 
     it('supports both archive and priority types', () => {
-      let state = emailReducer(baseState, addAnimatingOut({ id: '1', type: 'archive' }));
-      state = emailReducer(state, addAnimatingOut({ id: '2', type: 'priority' }));
+      let state = inboxUIReducer(baseUIState, addAnimatingOut({ id: '1', type: 'archive' }));
+      state = inboxUIReducer(state, addAnimatingOut({ id: '2', type: 'priority' }));
       expect(state.animatingOut).toHaveLength(2);
       expect(state.animatingOut.find(i => i.id === '1')?.type).toBe('archive');
       expect(state.animatingOut.find(i => i.id === '2')?.type).toBe('priority');
@@ -72,20 +89,20 @@ describe('emailSlice – animation reducers', () => {
 
   describe('removeAnimatingOut', () => {
     it('removes an item from animatingOut by id', () => {
-      const withAnim = emailReducer(baseState, addAnimatingOut({ id: '1', type: 'archive' }));
-      const state = emailReducer(withAnim, removeAnimatingOut('1'));
+      const withAnim = inboxUIReducer(baseUIState, addAnimatingOut({ id: '1', type: 'archive' }));
+      const state = inboxUIReducer(withAnim, removeAnimatingOut('1'));
       expect(state.animatingOut).toEqual([]);
     });
 
     it('is a no-op when the id is not present', () => {
-      const state = emailReducer(baseState, removeAnimatingOut('nonexistent'));
+      const state = inboxUIReducer(baseUIState, removeAnimatingOut('nonexistent'));
       expect(state.animatingOut).toEqual([]);
     });
 
     it('only removes the matching id', () => {
-      let state = emailReducer(baseState, addAnimatingOut({ id: '1', type: 'archive' }));
-      state = emailReducer(state, addAnimatingOut({ id: '2', type: 'priority' }));
-      state = emailReducer(state, removeAnimatingOut('1'));
+      let state = inboxUIReducer(baseUIState, addAnimatingOut({ id: '1', type: 'archive' }));
+      state = inboxUIReducer(state, addAnimatingOut({ id: '2', type: 'priority' }));
+      state = inboxUIReducer(state, removeAnimatingOut('1'));
       expect(state.animatingOut).toEqual([{ id: '2', type: 'priority' }]);
     });
   });
@@ -93,12 +110,7 @@ describe('emailSlice – animation reducers', () => {
 
 describe('selectVisibleEmails – animatingOut integration', () => {
   it('hides emails that are optimistically archived when not animating', () => {
-    const state = {
-      email: {
-        ...baseState,
-        optimisticallyArchived: ['1'],
-      },
-    };
+    const state = makeState({}, { optimisticallyArchived: ['1'] });
     const visible = selectVisibleEmails(state as any);
     expect(visible.map(event => event.id)).not.toContain('1');
     expect(visible.map(event => event.id)).toEqual(expect.arrayContaining(['2', '3']));
@@ -108,51 +120,53 @@ describe('selectVisibleEmails – animatingOut integration', () => {
     // This is the key invariant for the archive animation:
     // the email must remain in the DOM while flying out, even though it's already
     // in the optimisticallyArchived set (to prevent it from re-appearing on fetch).
-    const state = {
-      email: {
-        ...baseState,
+    const state = makeState(
+      {},
+      {
         optimisticallyArchived: ['1'],
         animatingOut: [{ id: '1', type: 'archive' as const }],
-      },
-    };
+      }
+    );
     const visible = selectVisibleEmails(state as any);
     expect(visible.map(event => event.id)).toContain('1');
   });
 
   it('removes animating-out email from visible list once removeEmail is dispatched', () => {
-    let emailState: EmailState = baseState as EmailState;
-    // Simulate: addOptimisticArchive + addAnimatingOut
-    emailState = emailReducer(emailState, addOptimisticArchive('1'));
-    emailState = emailReducer(emailState, addAnimatingOut({ id: '1', type: 'archive' }));
+    let dataState: InboxDataState = baseDataState;
+    let uiState: InboxUIState = baseUIState;
 
-    const duringAnimation = selectVisibleEmails({ email: emailState } as any);
+    // Simulate: addOptimisticArchive + addAnimatingOut
+    uiState = inboxUIReducer(uiState, addOptimisticArchive('1'));
+    uiState = inboxUIReducer(uiState, addAnimatingOut({ id: '1', type: 'archive' }));
+
+    const duringAnimation = selectVisibleEmails(makeState(dataState, uiState) as any);
     expect(duringAnimation.map(event => event.id)).toContain('1');
 
     // Simulate: animation completes → removeEmail + removeAnimatingOut
-    emailState = emailReducer(emailState, removeEmail('1'));
-    emailState = emailReducer(emailState, removeAnimatingOut('1'));
+    dataState = inboxDataReducer(dataState, removeEmail('1'));
+    uiState = inboxUIReducer(uiState, removeAnimatingOut('1'));
 
-    const afterAnimation = selectVisibleEmails({ email: emailState } as any);
+    const afterAnimation = selectVisibleEmails(makeState(dataState, uiState) as any);
     expect(afterAnimation.map(event => event.id)).not.toContain('1');
   });
 });
 
 describe('selectAnimatingOut', () => {
   it('returns empty array when nothing is animating', () => {
-    const state = { email: baseState };
+    const state = makeState();
     expect(selectAnimatingOut(state as any)).toEqual([]);
   });
 
   it('returns the current animating items', () => {
-    const emailState = emailReducer(baseState, addAnimatingOut({ id: '2', type: 'priority' }));
-    const state = { email: emailState };
+    const uiState = inboxUIReducer(baseUIState, addAnimatingOut({ id: '2', type: 'priority' }));
+    const state = makeState({}, uiState);
     expect(selectAnimatingOut(state as any)).toEqual([{ id: '2', type: 'priority' }]);
   });
 });
 
 describe('updateCategoryEmails', () => {
-  const stateWithCategories = {
-    ...baseState,
+  const stateWithCategories: InboxDataState = {
+    ...baseDataState,
     emails: [
       makeEmail('1', 'Work'),
       makeEmail('2', 'Personal'),
@@ -165,7 +179,7 @@ describe('updateCategoryEmails', () => {
 
   it('replaces emails for a named category without affecting other categories', () => {
     const freshWorkEmails = [makeEmail('7', 'Work'), makeEmail('8', 'Work')];
-    const state = emailReducer(
+    const state = inboxDataReducer(
       stateWithCategories,
       updateCategoryEmails({ categoryKey: 'Work', emails: freshWorkEmails })
     );
@@ -185,7 +199,7 @@ describe('updateCategoryEmails', () => {
 
   it('replaces "Other" category including null, empty string, and "Other" emails', () => {
     const freshOtherEmails = [makeEmail('9', null), makeEmail('10', 'Other')];
-    const state = emailReducer(
+    const state = inboxDataReducer(
       stateWithCategories,
       updateCategoryEmails({ categoryKey: 'Other', emails: freshOtherEmails })
     );
@@ -206,7 +220,7 @@ describe('updateCategoryEmails', () => {
   it('deduplicates emails that already exist in other categories', () => {
     // Simulate a race where an email already in the flat list comes back in an update
     const emailAlreadyPresent = makeEmail('2', 'Work'); // id '2' exists as 'Personal'
-    const state = emailReducer(
+    const state = inboxDataReducer(
       stateWithCategories,
       updateCategoryEmails({ categoryKey: 'Work', emails: [emailAlreadyPresent] })
     );
@@ -216,7 +230,7 @@ describe('updateCategoryEmails', () => {
   });
 
   it('handles an empty replacement (all emails in category removed)', () => {
-    const state = emailReducer(stateWithCategories, updateCategoryEmails({ categoryKey: 'Work', emails: [] }));
+    const state = inboxDataReducer(stateWithCategories, updateCategoryEmails({ categoryKey: 'Work', emails: [] }));
     const ids = state.emails.map(event => event.id);
     expect(ids).not.toContain('1');
     expect(ids).not.toContain('3');
@@ -237,8 +251,8 @@ describe('updateCategoryEmails', () => {
       category_id: serverUUID,
     } as unknown as Email;
 
-    const state = emailReducer(
-      { ...baseState, emails: [] },
+    const state = inboxDataReducer(
+      { ...baseDataState, emails: [] },
       updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithCategoryId] })
     );
 
@@ -258,8 +272,8 @@ describe('updateCategoryEmails', () => {
       category_id: null,
     } as unknown as Email;
 
-    const state = emailReducer(
-      { ...baseState, emails: [] },
+    const state = inboxDataReducer(
+      { ...baseDataState, emails: [] },
       updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithNullCategoryId] })
     );
 
@@ -276,8 +290,8 @@ describe('updateCategoryEmails', () => {
       category_id: undefined,
     } as unknown as Email;
 
-    const state = emailReducer(
-      { ...baseState, emails: [] },
+    const state = inboxDataReducer(
+      { ...baseDataState, emails: [] },
       updateCategoryEmails({ categoryKey: 'Work', emails: [emailWithUndefinedCategoryId] })
     );
 

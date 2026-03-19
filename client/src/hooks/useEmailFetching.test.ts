@@ -7,7 +7,8 @@ import * as emailCache from 'utils/emailCache';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_GMAIL, ERROR_GMAIL_REQUIRED } from 'constants/strings';
-import emailReducer from 'store/slices/emailSlice';
+import inboxDataReducer from 'store/slices/inboxDataSlice';
+import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { appendFilterParams, useEmailFetching } from './useEmailFetching';
 
@@ -39,7 +40,8 @@ const mockSetLoadingModeSwitch = jest.fn();
 const createTestStore = () =>
   configureStore({
     reducer: {
-      email: emailReducer,
+      inboxData: inboxDataReducer,
+      inboxUI: inboxUIReducer,
     },
   });
 
@@ -384,7 +386,7 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
   });
 
   const createWrapper = () => {
-    const store = configureStore({ reducer: { email: emailReducer } });
+    const store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
     const Wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(Provider, { store, children });
     return Wrapper;
@@ -395,10 +397,10 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
     // This indicates the UUID may be stale — the hook must bust the summary cache.
     // Preload the Redux store so categorySummaryRef sees summaryCount > 0, allowing the guard to fire.
     const storeWithSummary = configureStore({
-      reducer: { email: emailReducer },
+      reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
       preloadedState: {
-        email: {
-          ...emailReducer(undefined, { type: '@@INIT' }),
+        inboxData: {
+          ...inboxDataReducer(undefined, { type: '@@INIT' }),
           categorySummary: [{ id: 'uuid-stale-1234', name: 'Work', count: 5 }],
         },
       },
@@ -488,7 +490,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     console.log = jest.fn();
     console.warn = jest.fn();
     console.error = jest.fn();
-    store = configureStore({ reducer: { email: emailReducer } });
+    store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
   });
 
   const createWrapper = () => {
@@ -512,8 +514,8 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     await result.current.fetchCategoryEmails('Other', 'uuid-other-0001');
 
     // After the cache path runs (synchronously), the category must NOT be in loadedCategoryNames
-    const state = store.getState() as { email: { loadedCategoryNames: string[] } };
-    expect(state.email.loadedCategoryNames).not.toContain('uuid-other-0001');
+    const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-other-0001');
   });
 
   it('Bug 1: DOES mark category as loaded when cache has emails', async () => {
@@ -545,8 +547,8 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     await result.current.fetchCategoryEmails('Work', 'uuid-work-0002');
 
     await waitFor(() => {
-      const state = store.getState() as { email: { loadedCategoryNames: string[] } };
-      expect(state.email.loadedCategoryNames).toContain('uuid-work-0002');
+      const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+      expect(state.inboxData.loadedCategoryNames).toContain('uuid-work-0002');
     });
   });
 
@@ -579,8 +581,8 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
 
     // The category must NOT be in loadedCategoryNames (markCategoryLoadFailed was dispatched, not markCategoryLoaded)
     await new Promise(resolve => setTimeout(resolve, 50));
-    const state = store.getState() as { email: { loadedCategoryNames: string[] } };
-    expect(state.email.loadedCategoryNames).not.toContain('uuid-other-0003');
+    const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-other-0003');
   });
 });
 

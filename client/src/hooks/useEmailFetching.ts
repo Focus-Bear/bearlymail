@@ -97,6 +97,7 @@ async function fetchAutoRespondedEmails(
 
   dispatch(setEmails(normalizedEmails));
   dispatch(setCategorySummary(categorySummary));
+  dispatch(setSummaryLoading(false));
   dispatch(setTotalCount(total));
   dispatch(setHasMore(hasMore));
   dispatch(setCurrentOffset(normalizedEmails.length));
@@ -114,6 +115,7 @@ async function fetchInboxSummary(
   const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
   const { total, categories } = response.data;
   dispatch(setCategorySummary(categories));
+  dispatch(setSummaryLoading(false));
   dispatch(setTotalCount(total));
   return categories ?? null;
 }
@@ -489,6 +491,7 @@ async function refreshInPlaceImpl({
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
     const freshCategories = summaryResponse.data.categories;
     dispatch(setCategorySummary(freshCategories));
+    dispatch(setSummaryLoading(false));
     dispatch(setTotalCount(summaryResponse.data.total));
     setCachedSummary(mode, freshCategories);
   } catch (err) {
@@ -615,11 +618,13 @@ function serveSummaryFromCacheAndRefresh({
 }): void {
   dispatch(setFetchError(null));
   dispatch(clearCategoryState());
+  dispatch(setSummaryLoading(true));
   dispatch(setEmails([]));
   dispatch(setCurrentOffset(0));
   dispatch(setHasMore(false));
   dispatch(setTotalCount(cachedSummary.reduce((sum, cat) => sum + cat.count, 0)));
   dispatch(setCategorySummary(cachedSummary));
+  dispatch(setSummaryLoading(false));
   dispatch(setLoading(false));
   dispatch(setDecrypting(false));
   dispatch(setLastFetchedAt(Date.now()));
@@ -637,6 +642,7 @@ function dispatchFetchStart(dispatch: AppDispatch) {
   dispatch(setDecrypting(true));
   dispatch(setFetchError(null));
   dispatch(clearCategoryState());
+  dispatch(setSummaryLoading(true));
   dispatch(setEmails([]));
   dispatch(setCurrentOffset(0));
   dispatch(setHasMore(false));

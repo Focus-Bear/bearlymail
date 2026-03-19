@@ -21,7 +21,7 @@ import { useInboxUIState } from 'hooks/useInboxUIState';
 import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
 import { useTabCounts } from 'hooks/useTabCounts';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
-import { clearCategoryState } from 'store/slices/emailSlice';
+import { clearCategoryState, setSummaryLoading } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
 const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED, MODE_AUTORESPONDED, MODE_SCHEDULED];
@@ -327,6 +327,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
       // Effect 2 in useInboxUrlSync has been deleted (fix for #1191 navigate loop).
       navigate(`${basePath}/${newMode}`, { replace: true });
       dispatch(clearCategoryState());
+      dispatch(setSummaryLoading(true));
       resetForModeChange();
     },
     [navigate, basePath, dispatch, resetForModeChange]

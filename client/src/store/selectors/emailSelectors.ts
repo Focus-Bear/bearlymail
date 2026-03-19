@@ -1,24 +1,40 @@
 import { createSelector } from '@reduxjs/toolkit';
 import { Email } from 'types/email';
 
-import { AnimatingOutItem, CategorySummaryItem } from 'store/slices/emailSlice';
+import { CategorySummaryItem } from 'store/slices/inboxDataSlice';
+import { AnimatingOutItem } from 'store/slices/inboxUISlice';
 import { RootState } from 'store/store';
 
-// Basic selectors
-export const selectEmails = (state: RootState): Email[] => state.email.emails;
-export const selectOptimisticallyArchived = (state: RootState): string[] => state.email.optimisticallyArchived;
-export const selectOptimisticallySnoozed = (state: RootState): string[] => state.email.optimisticallySnoozed;
+// Basic selectors — email data (inboxData slice)
+export const selectEmails = (state: RootState): Email[] => state.inboxData.emails;
+export const selectHasMore = (state: RootState): boolean => state.inboxData.hasMore;
+export const selectTotalCount = (state: RootState): number => state.inboxData.totalCount;
+export const selectCurrentOffset = (state: RootState): number => state.inboxData.currentOffset;
+export const selectCategorySummary = (state: RootState): CategorySummaryItem[] | null => state.inboxData.categorySummary;
+export const selectLoadedCategoryNames = (state: RootState): string[] => state.inboxData.loadedCategoryNames;
+export const selectLoadingCategoryNames = (state: RootState): string[] => state.inboxData.loadingCategoryNames;
+// Memoized: `?? []` without createSelector returns a new array reference every call.
+export const selectExhaustedCategoryNames = createSelector(
+  (state: RootState) => state.inboxData.exhaustedCategoryNames,
+  (names): string[] => names ?? []
+);
+export const selectLastFetchedAt = (state: RootState): number | null => state.inboxData.lastFetchedAt;
+
+// Basic selectors — UI state (inboxUI slice)
+export const selectOptimisticallyArchived = (state: RootState): string[] => state.inboxUI.optimisticallyArchived;
+export const selectOptimisticallySnoozed = (state: RootState): string[] => state.inboxUI.optimisticallySnoozed;
 // Memoized: `?? []` would create a new array reference every call without createSelector,
 // causing downstream selectors/components to see a "changed" value on every render.
 export const selectAnimatingOut = createSelector(
-  (state: RootState) => state.email.animatingOut,
+  (state: RootState) => state.inboxUI.animatingOut,
   (animatingOut): AnimatingOutItem[] => animatingOut ?? []
 );
-export const selectLoading = (state: RootState): boolean => state.email.loading;
-export const selectDecrypting = (state: RootState): boolean => state.email.decrypting;
-export const selectRefreshing = (state: RootState): boolean => state.email.refreshing;
-export const selectLoadingModeSwitch = (state: RootState): boolean => state.email.loadingModeSwitch;
-export const selectFetchError = (state: RootState): string | null => state.email.fetchError;
+export const selectLoading = (state: RootState): boolean => state.inboxUI.loading;
+export const selectDecrypting = (state: RootState): boolean => state.inboxUI.decrypting;
+export const selectRefreshing = (state: RootState): boolean => state.inboxUI.refreshing;
+export const selectLoadingModeSwitch = (state: RootState): boolean => state.inboxUI.loadingModeSwitch;
+export const selectSummaryLoading = (state: RootState): boolean => state.inboxUI.summaryLoading;
+export const selectFetchError = (state: RootState): string | null => state.inboxUI.fetchError;
 
 // Memoized selector to filter out optimistically archived and snoozed emails.
 // Emails that are currently animating out stay visible until the animation completes.
@@ -45,26 +61,7 @@ export const selectVisibleEmails = createSelector(
 export const selectIsOptimisticallyArchived =
   (emailId: string) =>
   (state: RootState): boolean =>
-    state.email.optimisticallyArchived.includes(emailId);
-
-// Pagination selectors
-export const selectHasMore = (state: RootState): boolean => state.email.hasMore;
-export const selectTotalCount = (state: RootState): number => state.email.totalCount;
-export const selectCurrentOffset = (state: RootState): number => state.email.currentOffset;
-
-// Category summary selectors
-export const selectCategorySummary = (state: RootState): CategorySummaryItem[] | null => state.email.categorySummary;
-export const selectSummaryLoading = (state: RootState): boolean => state.email.summaryLoading;
-export const selectLoadedCategoryNames = (state: RootState): string[] => state.email.loadedCategoryNames;
-export const selectLoadingCategoryNames = (state: RootState): string[] => state.email.loadingCategoryNames;
-// Memoized: `?? []` without createSelector returns a new array reference every call.
-export const selectExhaustedCategoryNames = createSelector(
-  (state: RootState) => state.email.exhaustedCategoryNames,
-  (names): string[] => names ?? []
-);
-
-// Cache selectors
-export const selectLastFetchedAt = (state: RootState): number | null => state.email.lastFetchedAt;
+    state.inboxUI.optimisticallyArchived.includes(emailId);
 
 // Re-export categorySlice selectors
 export {

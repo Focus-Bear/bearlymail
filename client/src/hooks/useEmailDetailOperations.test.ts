@@ -6,7 +6,8 @@ import axios from 'axios';
 import { Email } from 'types/email';
 
 import { API_URL } from 'config/api';
-import emailReducer from 'store/slices/emailSlice';
+import inboxDataReducer from 'store/slices/inboxDataSlice';
+import inboxUIReducer from 'store/slices/inboxUISlice';
 
 import { useEmailDetailOperations } from './useEmailDetailOperations';
 
@@ -60,10 +61,20 @@ const TEST_EMAIL_ID = 'email-test-1';
 
 const createTestStore = (emails: Email[] = []) =>
   configureStore({
-    reducer: { email: emailReducer },
+    reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
     preloadedState: {
-      email: {
+      inboxData: {
         emails,
+        hasMore: false,
+        totalCount: 0,
+        currentOffset: 0,
+        categorySummary: null,
+        loadedCategoryNames: [] as string[],
+        loadingCategoryNames: [] as string[],
+        exhaustedCategoryNames: [] as string[],
+        lastFetchedAt: null as number | null,
+      },
+      inboxUI: {
         optimisticallyArchived: [] as string[],
         optimisticallySnoozed: [] as string[],
         animatingOut: [] as { id: string; type: 'archive' | 'priority' }[],
@@ -72,15 +83,7 @@ const createTestStore = (emails: Email[] = []) =>
         refreshing: false,
         loadingModeSwitch: false,
         fetchError: null as string | null,
-        hasMore: false,
-        totalCount: 0,
-        currentOffset: 0,
-        categorySummary: null,
         summaryLoading: false,
-        loadedCategoryNames: [] as string[],
-        loadingCategoryNames: [] as string[],
-        exhaustedCategoryNames: [] as string[],
-        lastFetchedAt: null as number | null,
       },
     },
   });
@@ -207,7 +210,7 @@ describe('useEmailDetailOperations', () => {
         await result.current.handleSendReply([], 48, 'Test reply');
       });
 
-      expect(store.getState().email.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
+      expect(store.getState().inboxUI.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
     });
 
     it('dispatches addOptimisticSnooze even when email is NOT in Redux store', async () => {
@@ -222,7 +225,7 @@ describe('useEmailDetailOperations', () => {
         await result.current.handleSendReply([], 48, 'Test reply');
       });
 
-      expect(store.getState().email.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
+      expect(store.getState().inboxUI.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
     });
 
     it('navigates to /inbox after snooze when no onSnoozeComplete callback and no fromMode', async () => {
@@ -308,7 +311,7 @@ describe('useEmailDetailOperations', () => {
 
       // Wait for the background snooze to fail and revert
       await waitFor(() => {
-        expect(store.getState().email.optimisticallySnoozed).not.toContain(TEST_EMAIL_ID);
+        expect(store.getState().inboxUI.optimisticallySnoozed).not.toContain(TEST_EMAIL_ID);
       });
     });
   });
@@ -326,7 +329,7 @@ describe('useEmailDetailOperations', () => {
         await result.current.handleSendReply([], 0, 'Test reply');
       });
 
-      expect(store.getState().email.optimisticallyArchived).toContain(TEST_EMAIL_ID);
+      expect(store.getState().inboxUI.optimisticallyArchived).toContain(TEST_EMAIL_ID);
     });
 
     it('dispatches addOptimisticArchive even when email is NOT in Redux store', async () => {
@@ -340,7 +343,7 @@ describe('useEmailDetailOperations', () => {
         await result.current.handleSendReply([], 0, 'Test reply');
       });
 
-      expect(store.getState().email.optimisticallyArchived).toContain(TEST_EMAIL_ID);
+      expect(store.getState().inboxUI.optimisticallyArchived).toContain(TEST_EMAIL_ID);
     });
 
     it('navigates to /inbox/action after archive when fromMode is action', async () => {

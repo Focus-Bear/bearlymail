@@ -250,7 +250,10 @@ jobs:
         working-directory: server
         run: |
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}"
-          docker build --platform linux/amd64 -t ${IMAGE_URI}:latest .
+          docker build --platform linux/amd64 \
+          --build-arg COMMIT_HASH=${{ github.sha }} \
+          --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+          -t ${IMAGE_URI}:latest .
           docker push ${IMAGE_URI}:latest
 
       # ============================================

@@ -1,6 +1,16 @@
+/**
+ * useSearch / useConnectedAccounts (local)
+ *
+ * Migrated /emails/connected-accounts fetch in useConnectedAccounts() to
+ * useConnectedAccountsQuery (TanStack Query). The effect + local state that
+ * previously fetched independently are replaced by the shared cache.
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
@@ -183,22 +193,17 @@ async function processSearchResults(
  * Extracted from useSearch to keep that hook under the max-lines-per-function limit.
  */
 function useConnectedAccounts() {
+  const { data: fetchedAccounts = [] } = useConnectedAccountsQuery();
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [selectedAccountTypes, setSelectedAccountTypes] = useState<string[]>([]);
 
+  // Sync local state from query cache (query handles dedup and caching)
   useEffect(() => {
-    const fetchConnectedAccounts = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/emails/connected-accounts`);
-        const accounts = response.data || [];
-        setConnectedAccounts(accounts);
-        setSelectedAccountTypes(accounts.map((account: ConnectedAccount) => account.provider));
-      } catch (error) {
-        console.error('Error fetching connected accounts:', error);
-      }
-    };
-    fetchConnectedAccounts();
-  }, []);
+    if (fetchedAccounts.length > 0) {
+      setConnectedAccounts(fetchedAccounts);
+      setSelectedAccountTypes(fetchedAccounts.map((account: ConnectedAccount) => account.provider));
+    }
+  }, [fetchedAccounts]);
 
   const handleAccountToggle = useCallback((accountType: string) => {
     setSelectedAccountTypes(prev => {

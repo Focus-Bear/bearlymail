@@ -2,6 +2,12 @@ import { act, renderHook } from '@testing-library/react';
 
 import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters } from './useInboxFilters';
 
+// useInboxFilters → useConnectedAccountsQuery (TanStack Query).
+// Tests don't wrap in QueryClientProvider, so mock the query hook directly.
+jest.mock('queries/useConnectedAccountsQuery', () => ({
+  useConnectedAccountsQuery: () => ({ data: [], isLoading: false }),
+}));
+
 const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
 

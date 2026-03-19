@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import axios from 'axios';
+import { QueryProvider } from 'providers/QueryProvider';
 import { theme } from 'theme/theme';
 
 import { ConsentModal } from 'components/ConsentModal';
@@ -194,22 +195,24 @@ const AppRoutes: React.FC = () => (
 function App() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <div
-              className="App"
-              style={{
-                backgroundColor: theme.colors.background.default,
-                minHeight: '100vh',
-                fontFamily: theme.typography.fontFamily,
-              }}
-            >
-              <AppRoutes />
-            </div>
-          </Router>
-        </NotificationProvider>
-      </AuthProvider>
+      <QueryProvider>
+        <AuthProvider>
+          <NotificationProvider>
+              <Router>
+              <div
+                className="App"
+                style={{
+                  backgroundColor: theme.colors.background.default,
+                  minHeight: '100vh',
+                  fontFamily: theme.typography.fontFamily,
+                }}
+              >
+                <AppRoutes />
+              </div>
+            </Router>
+          </NotificationProvider>
+        </AuthProvider>
+      </QueryProvider>
     </Provider>
   );
 }

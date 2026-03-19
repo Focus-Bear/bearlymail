@@ -8,6 +8,12 @@ import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 
 import { useSearch } from './useSearch';
 
+// useSearch → useConnectedAccounts → useConnectedAccountsQuery (TanStack Query).
+// Tests don't wrap in QueryClientProvider, so mock the query hook directly.
+jest.mock('queries/useConnectedAccountsQuery', () => ({
+  useConnectedAccountsQuery: () => ({ data: [], isLoading: false }),
+}));
+
 jest.mock('axios');
 jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(),
@@ -56,13 +62,6 @@ describe('useSearch', () => {
     it('should not search when query is empty', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
-
-      // Clear the mock calls from the connected-accounts fetch
-      mockedAxios.get.mockClear();
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -76,13 +75,6 @@ describe('useSearch', () => {
     it('should not search when query is only whitespace', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
-
-      // Clear the mock calls from the connected-accounts fetch
-      mockedAxios.get.mockClear();
 
       act(() => {
         result.current.setQuery('   ');
@@ -99,10 +91,6 @@ describe('useSearch', () => {
     it('should perform search successfully', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       const mockResults = [{ id: '1', subject: 'Test', from: 'test@example.com' }];
 
@@ -136,10 +124,6 @@ describe('useSearch', () => {
     it('should show progress steps during search', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -164,10 +148,6 @@ describe('useSearch', () => {
     it('should handle empty results', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -192,10 +172,6 @@ describe('useSearch', () => {
     it('should handle null response data', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -219,10 +195,6 @@ describe('useSearch', () => {
     it('should handle 401 unauthorized error', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -249,10 +221,6 @@ describe('useSearch', () => {
     it('should handle other errors', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -277,10 +245,6 @@ describe('useSearch', () => {
     it('should clear progress step after search completes', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -301,10 +265,6 @@ describe('useSearch', () => {
     it('should clear progress step on error', async () => {
       const { result } = renderHook(() => useSearch());
 
-      // Wait for connected accounts to load
-      await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-      });
 
       act(() => {
         result.current.setQuery('test');
@@ -340,10 +300,6 @@ describe('search performance tracking (#1115)', () => {
   it('includes duration_ms in SEARCH_PERFORMED event for Phase 1', async () => {
     const { result } = renderHook(() => useSearch());
 
-    await waitFor(() => {
-      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-    });
-
     act(() => {
       result.current.setQuery('meeting notes');
     });
@@ -372,10 +328,6 @@ describe('search performance tracking (#1115)', () => {
 
   it('fires SEARCH_SLOW event when Phase 1 takes > 2000ms', async () => {
     const { result } = renderHook(() => useSearch());
-
-    await waitFor(() => {
-      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-    });
 
     act(() => {
       result.current.setQuery('slow search query');
@@ -417,10 +369,6 @@ describe('search performance tracking (#1115)', () => {
 
   it('does NOT fire SEARCH_SLOW when Phase 1 is fast', async () => {
     const { result } = renderHook(() => useSearch());
-
-    await waitFor(() => {
-      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
-    });
 
     act(() => {
       result.current.setQuery('fast query');

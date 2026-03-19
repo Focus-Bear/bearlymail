@@ -1,64 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+/**
+ * useContactTypeBadges
+ *
+ * Migrated from independent axios.get calls to TanStack Query.
+ *
+ * Previously: fetched /contacts/types with a per-instance ref guard (only
+ * deduped within the same hook instance, not across components). Fetched
+ * /contacts/contact-types-by-emails per unique email set on each change.
+ *
+ * Now: delegates to useContactTypesQuery and useContactTypesByEmailsQuery,
+ * both of which are shared across all callers via the QueryClient cache.
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
+
+import { useCallback, useMemo } from 'react';
+import { useContactTypesByEmailsQuery } from 'queries/useContactTypesByEmailsQuery';
+import { useContactTypesQuery } from 'queries/useContactTypesQuery';
 import { ContactTypeConfig } from 'types/contact';
 import { Email } from 'types/email';
 
-import { API_URL } from 'config/api';
-
 export function useContactTypeBadges(emails: Email[], loading: boolean) {
-  const [contactTypeMap, setContactTypeMap] = useState<Record<string, string>>({});
-  const [contactTypeConfigs, setContactTypeConfigs] = useState<ContactTypeConfig[]>([]);
-  const fetchedEmailsKey = useRef<string>('');
-  const configsFetched = useRef(false);
-
-  const fetchConfigs = useCallback(async () => {
-    if (configsFetched.current) {
-      return;
-    }
-    try {
-      const response = await axios.get(`${API_URL}/contacts/types`);
-      setContactTypeConfigs(response.data);
-      configsFetched.current = true;
-    } catch {
-      // non-critical, ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchConfigs();
-  }, [fetchConfigs]);
-
-  useEffect(() => {
+  // Derive sorted unique sender emails from the email list
+  const senderEmails = useMemo(() => {
     if (loading || emails.length === 0) {
-      return;
+      return [];
     }
-
-    const senderEmails = emails
-      .map(event => event.correspondentEmail || event.from)
+    const raw = emails
+      .map(email => email.correspondentEmail || email.from)
       .filter(Boolean)
-      .map(event => event!.toLowerCase());
-
-    const uniqueEmails = [...new Set(senderEmails)];
-    const key = uniqueEmails.sort().join(',');
-
-    if (key === fetchedEmailsKey.current) {
-      return;
-    }
-    fetchedEmailsKey.current = key;
-
-    const fetchTypes = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/contacts/contact-types-by-emails`, {
-          params: { emails: uniqueEmails.join(',') },
-        });
-        setContactTypeMap(response.data);
-      } catch {
-        // non-critical, ignore
-      }
-    };
-
-    fetchTypes();
+      .map(email => email!.toLowerCase());
+    return [...new Set(raw)];
   }, [emails, loading]);
+
+  const { data: contactTypeConfigs = [] } = useContactTypesQuery();
+  const { data: contactTypeMap = {} } = useContactTypesByEmailsQuery(senderEmails);
 
   const getContactTypeConfig = useCallback(
     (email: string | null | undefined): ContactTypeConfig | undefined => {

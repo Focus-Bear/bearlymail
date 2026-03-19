@@ -1,118 +1,54 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
-import { ContactTypeConfig } from 'types/contact';
+/**
+ * InboxContactTypeBadge
+ *
+ * Migrated from module-level cache + manual batch queue to TanStack Query.
+ *
+ * Previously: loadConfigs() used a module-level `configsCache` variable that
+ * couldn't deduplicate concurrent requests (all instances mounting in the same
+ * tick saw configsCache = null and fired separate requests). scheduleBatch()
+ * fired a new /contact-types-by-emails request per 100ms window, causing
+ * multiple requests when categories expanded simultaneously.
+ *
+ * Now:
+ *  - useContactTypesQuery (staleTime: 5 min) handles /contacts/types — single
+ *    shared request across all badge instances
+ *  - useContactTypesByEmailsQuery (staleTime: 2 min) handles
+ *    /contacts/contact-types-by-emails — keyed by sorted email list, deduplicated
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 
-import { API_URL } from 'config/api';
+import React, { useMemo } from 'react';
+import { useContactTypesByEmailsQuery } from 'queries/useContactTypesByEmailsQuery';
+import { useContactTypesQuery } from 'queries/useContactTypesQuery';
 
 import { ContactTypeBadge } from './ContactTypeBadge';
-
-let configsCache: ContactTypeConfig[] | null = null;
-const typeCache = new Map<string, string | null>();
-const pendingEmails = new Set<string>();
-let batchTimer: ReturnType<typeof setTimeout> | null = null;
-const listeners = new Map<string, Set<(type: string | null) => void>>();
-
-const BATCH_DELAY_MS = 100;
-
-function loadConfigs(): Promise<ContactTypeConfig[]> {
-  if (configsCache) {
-    return Promise.resolve(configsCache);
-  }
-  return axios.get(`${API_URL}/contacts/types`).then(res => {
-    configsCache = res.data;
-    return res.data;
-  });
-}
-
-function scheduleBatch() {
-  if (batchTimer) {
-    return;
-  }
-  batchTimer = setTimeout(async () => {
-    batchTimer = null;
-    const emails = [...pendingEmails];
-    pendingEmails.clear();
-    if (emails.length === 0) {
-      return;
-    }
-
-    try {
-      const response = await axios.get(`${API_URL}/contacts/contact-types-by-emails`, {
-        params: { emails: emails.join(',') },
-      });
-      const contactTypeMap: Record<string, string> = response.data;
-
-      for (const email of emails) {
-        const typeName = contactTypeMap[email] || null;
-        typeCache.set(email, typeName);
-        const callbacks = listeners.get(email);
-        if (callbacks) {
-          callbacks.forEach(callback => callback(typeName));
-        }
-      }
-    } catch {
-      for (const email of emails) {
-        typeCache.set(email, null);
-        const callbacks = listeners.get(email);
-        if (callbacks) {
-          callbacks.forEach(callback => callback(null));
-        }
-      }
-    }
-  }, BATCH_DELAY_MS);
-}
 
 interface InboxContactTypeBadgeProps {
   senderEmail: string | null | undefined;
 }
 
 export const InboxContactTypeBadge: React.FC<InboxContactTypeBadgeProps> = ({ senderEmail }) => {
-  const [config, setConfig] = useState<ContactTypeConfig | null>(null);
-  const mountedRef = useRef(true);
+  const normalizedEmail = senderEmail?.toLowerCase() ?? null;
 
-  const resolveConfig = useCallback(async (typeName: string | null) => {
-    if (!typeName || !mountedRef.current) {
-      setConfig(null);
-      return;
+  const emails = useMemo(
+    () => (normalizedEmail ? [normalizedEmail] : []),
+    [normalizedEmail]
+  );
+
+  const { data: contactTypes } = useContactTypesQuery();
+  const { data: typesByEmails } = useContactTypesByEmailsQuery(emails);
+
+  const config = useMemo(() => {
+    if (!normalizedEmail || !contactTypes || !typesByEmails) {
+      return null;
     }
-    const configs = await loadConfigs();
-    if (mountedRef.current) {
-      setConfig(configs.find(cat => cat.name === typeName) || null);
+    const typeName = typesByEmails[normalizedEmail];
+    if (!typeName) {
+      return null;
     }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!senderEmail) {
-      return;
-    }
-    const email = senderEmail.toLowerCase();
-
-    if (typeCache.has(email)) {
-      resolveConfig(typeCache.get(email) ?? null);
-      return;
-    }
-
-    const callback = (type: string | null) => resolveConfig(type);
-
-    if (!listeners.has(email)) {
-      listeners.set(email, new Set());
-    }
-    listeners.get(email)!.add(callback);
-
-    pendingEmails.add(email);
-    scheduleBatch();
-
-    return () => {
-      listeners.get(email)?.delete(callback);
-    };
-  }, [senderEmail, resolveConfig]);
+    return contactTypes.find(ct => ct.name === typeName) ?? null;
+  }, [normalizedEmail, contactTypes, typesByEmails]);
 
   if (!config) {
     return null;

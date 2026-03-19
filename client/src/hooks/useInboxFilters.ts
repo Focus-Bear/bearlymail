@@ -1,5 +1,15 @@
+/**
+ * useInboxFilters
+ *
+ * Migrated /emails/connected-accounts fetch to useConnectedAccountsQuery
+ * (TanStack Query). The local fetchConnectedAccounts + loadingAccounts state
+ * have been replaced by the shared query cache (staleTime: 5 min).
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 
 import { API_URL } from 'config/api';
 
@@ -98,10 +108,14 @@ export function useInboxFilters() {
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(false);
   const [filters, setFilters] = useState<InboxFilter>(loadInitialFilters);
 
-  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; label: string }>>([]);
-  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
+
+  // Connected accounts served from the shared TanStack Query cache (staleTime: 5 min)
+  const {
+    data: connectedAccounts = [],
+    isFetching: loadingAccounts,
+  } = useConnectedAccountsQuery();
 
   // Persist filters to localStorage whenever they change
   useEffect(() => {
@@ -111,19 +125,6 @@ export function useInboxFilters() {
       console.error('Failed to save filters to localStorage:', error);
     }
   }, [filters]);
-
-  // Fetch connected accounts
-  const fetchConnectedAccounts = useCallback(async () => {
-    setLoadingAccounts(true);
-    try {
-      const response = await axios.get<ConnectedAccount[]>(`${API_URL}/emails/connected-accounts`);
-      setConnectedAccounts(response.data);
-    } catch (error) {
-      console.error('Failed to fetch connected accounts:', error);
-    } finally {
-      setLoadingAccounts(false);
-    }
-  }, []);
 
   // Fetch available categories from inbox-summary (contains id+name with stable UUIDs).
   const fetchCategories = useCallback(async () => {
@@ -141,13 +142,12 @@ export function useInboxFilters() {
     }
   }, []);
 
-  // Load accounts and categories when filter bar becomes visible
+  // Load categories when filter bar becomes visible (accounts load automatically via query)
   useEffect(() => {
     if (isFilterBarVisible) {
-      fetchConnectedAccounts();
       fetchCategories();
     }
-  }, [isFilterBarVisible, fetchConnectedAccounts, fetchCategories]);
+  }, [isFilterBarVisible, fetchCategories]);
 
   const toggleFilterBar = useCallback(() => {
     setIsFilterBarVisible(prev => !prev);

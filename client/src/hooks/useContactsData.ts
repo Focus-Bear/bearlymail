@@ -1,6 +1,16 @@
+/**
+ * useContactsData
+ *
+ * Migrated /contacts/types fetch to useContactTypesQuery (TanStack Query).
+ * The fetchContactTypes() method and local contactTypes state have been removed;
+ * contactTypes now comes from the shared query cache (staleTime: 5 min).
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { useContactTypesQuery } from 'queries/useContactTypesQuery';
 import { Contact, ContactTypeConfig } from 'types/contact';
 import { captureEvent } from 'utils/posthog';
 
@@ -23,10 +33,12 @@ export interface UseContactsDataResult {
 export const useContactsData = (userId: string | undefined): UseContactsDataResult => {
   const { t } = useTranslation();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contactTypes, setContactTypes] = useState<ContactTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Contact types now served from the shared TanStack Query cache (staleTime: 5 min)
+  const { data: contactTypes = [] } = useContactTypesQuery();
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -42,20 +54,10 @@ export const useContactsData = (userId: string | undefined): UseContactsDataResu
     }
   }, [t]);
 
-  const fetchContactTypes = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/contacts/types`);
-      setContactTypes(response.data);
-    } catch (err) {
-      console.error('Failed to fetch contact types:', err);
-    }
-  }, []);
-
   useEffect(() => {
     captureEvent(ANALYTICS_EVENTS.CONTACTS_VIEWED);
     fetchContacts();
-    fetchContactTypes();
-  }, [fetchContacts, fetchContactTypes]);
+  }, [fetchContacts]);
 
   const handleSync = async () => {
     captureEvent(ANALYTICS_EVENTS.CONTACTS_SYNC_CLICKED);

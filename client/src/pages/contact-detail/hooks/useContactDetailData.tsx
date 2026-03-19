@@ -1,14 +1,29 @@
+/**
+ * useContactDetailData (pages/contact-detail/hooks/)
+ *
+ * Migrated /contacts/types fetch to useContactTypesQuery (TanStack Query).
+ * fetchContactTypes() and local contactTypes state removed — data now comes
+ * from the shared query cache (staleTime: 5 min).
+ *
+ * Note: this file is a near-duplicate of hooks/useContactDetailData.ts.
+ * Consolidation is tracked separately; this migration keeps them in sync.
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useContactTypesQuery } from 'queries/useContactTypesQuery';
 import { ContactDetail as ContactDetailType, ContactTypeConfig } from 'types/contact';
 
 import { API_URL } from 'config/api';
 
 export function useContactDetailData(contactId?: string) {
   const [contact, setContact] = useState<ContactDetailType | null>(null);
-  const [contactTypes, setContactTypes] = useState<ContactTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Contact types served from the shared TanStack Query cache (staleTime: 5 min)
+  const { data: contactTypes = [] } = useContactTypesQuery();
 
   const fetchContact = useCallback(async () => {
     if (!contactId) {
@@ -27,22 +42,18 @@ export function useContactDetailData(contactId?: string) {
     }
   }, [contactId]);
 
+  // Kept for API compatibility — callers that spread the return value may use this.
+  // Now a no-op since contact types are fetched by the query hook automatically.
   const fetchContactTypes = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/contacts/types`);
-      setContactTypes(response.data);
-    } catch (err) {
-      console.error('Failed to fetch contact types:', err);
-    }
+    // no-op: data is served from useContactTypesQuery
   }, []);
 
   useEffect(() => {
     fetchContact();
-    fetchContactTypes();
-  }, [fetchContact, fetchContactTypes]);
+  }, [fetchContact]);
 
   const getTypeConfig = useCallback(
-    (typeName?: string | null) => {
+    (typeName?: string | null): ContactTypeConfig | undefined => {
       if (!typeName) {
         return undefined;
       }

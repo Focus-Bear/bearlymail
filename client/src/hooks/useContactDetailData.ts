@@ -1,5 +1,15 @@
+/**
+ * useContactDetailData (hooks/)
+ *
+ * Migrated /contacts/types fetch to useContactTypesQuery (TanStack Query).
+ * fetchContactTypes() and local contactTypes state removed — data now comes
+ * from the shared query cache.
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useContactTypesQuery } from 'queries/useContactTypesQuery';
 import { ContactDetail, ContactTypeConfig } from 'types/contact';
 
 import { API_URL } from 'config/api';
@@ -34,7 +44,6 @@ export interface UseContactDetailDataResult {
 
 export const useContactDetailData = (contactId: string | undefined): UseContactDetailDataResult => {
   const [contact, setContact] = useState<ContactDetail | null>(null);
-  const [contactTypes, setContactTypes] = useState<ContactTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -44,6 +53,9 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
   const [showAddCustomField, setShowAddCustomField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<string>(FIELD_TYPE_TEXT);
+
+  // Contact types served from the shared TanStack Query cache (staleTime: 5 min)
+  const { data: contactTypes = [] } = useContactTypesQuery();
 
   const fetchContact = useCallback(async () => {
     if (!contactId) {
@@ -61,15 +73,6 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
     }
   }, [contactId]);
 
-  const fetchContactTypes = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/contacts/types`);
-      setContactTypes(response.data);
-    } catch (err) {
-      console.error('Failed to fetch contact types:', err);
-    }
-  }, []);
-
   const fetchCustomFieldDefs = useCallback(() => {
     // Intentionally left as stub — real implementation would re-fetch custom field definitions
     console.log('fetchCustomFieldDefs called');
@@ -77,8 +80,7 @@ export const useContactDetailData = (contactId: string | undefined): UseContactD
 
   useEffect(() => {
     fetchContact();
-    fetchContactTypes();
-  }, [fetchContact, fetchContactTypes]);
+  }, [fetchContact]);
 
   const {
     handleUpdateField,

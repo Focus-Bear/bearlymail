@@ -1,6 +1,16 @@
-import { useCallback, useState } from 'react';
+/**
+ * useApiKeys
+ *
+ * Migrated initial /users/me fetch to useUserProfileQuery (TanStack Query).
+ * fetchApiKeys() is kept for explicit refresh after mutations but
+ * the initial data now comes from the shared cache (staleTime: 5 min).
+ *
+ * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ */
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { useUserProfileQuery } from 'queries/useUserProfileQuery';
 
 import { API_URL } from 'config/api';
 import { TOAST_DURATION_MS } from 'constants/numbers';
@@ -34,6 +44,15 @@ export const useApiKeys = () => {
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [anthropicApiKeySaved, setAnthropicApiKeySaved] = useState(false);
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
+
+  // Seed initial API key presence from the shared user profile query (no extra network call)
+  const { data: userProfile } = useUserProfileQuery();
+  useEffect(() => {
+    if (userProfile) {
+      setHasGithubToken(!!userProfile.githubToken);
+      setHasAnthropicKey(!!userProfile.hasAnthropicKey);
+    }
+  }, [userProfile]);
 
   const fetchApiKeys = useCallback(async () => {
     try {

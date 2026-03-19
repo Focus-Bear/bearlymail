@@ -472,6 +472,118 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
   });
 });
 
+describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
+  // These tests verify the two root-cause bugs fixed inside serveCategoryFromCacheAndRefresh:
+  //   Bug 1: markCategoryLoaded must NOT fire when cachedEmails is empty.
+  //   Bug 2: Background refresh abandonment must dispatch markCategoryLoadFailed so Effect 2 can retry.
+
+  let store: ReturnType<typeof configureStore>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // react-scripts sets resetMocks: true, which resets mockReturnValue between tests.
+    // Re-establish the default return values that the module-level mock factory sets.
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+    store = configureStore({ reducer: { email: emailReducer } });
+  });
+
+  const createWrapper = () => {
+    return ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store, children });
+  };
+
+  it('Bug 1: does NOT mark category as loaded when cache is empty', async () => {
+    // Empty cache — serveCategoryFromCacheAndRefresh must NOT call markCategoryLoaded.
+    // The category should remain un-loaded so the background refresh (or a retry) can populate it.
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+
+    // Background refresh returns empty too (deferred — we want to test the pre-resolve state)
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Other', 'uuid-other-0001');
+
+    // After the cache path runs (synchronously), the category must NOT be in loadedCategoryNames
+    const state = store.getState() as { email: { loadedCategoryNames: string[] } };
+    expect(state.email.loadedCategoryNames).not.toContain('uuid-other-0001');
+  });
+
+  it('Bug 1: DOES mark category as loaded when cache has emails', async () => {
+    // Non-empty cache — serveCategoryFromCacheAndRefresh must call markCategoryLoaded.
+    const cachedEmail = {
+      id: 'e1',
+      threadId: 'thread-inbox',
+      subject: 'Hello',
+      from: 'a@b.com',
+      to: 'me@b.com',
+      body: '',
+      isRead: false,
+      isArchived: false,
+      starCount: 0,
+      receivedAt: new Date().toISOString(),
+      category: 'Work',
+      category_id: 'uuid-work-0002',
+    };
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([cachedEmail]);
+
+    // Background refresh (fire and forget)
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [cachedEmail] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Work', 'uuid-work-0002');
+
+    await waitFor(() => {
+      const state = store.getState() as { email: { loadedCategoryNames: string[] } };
+      expect(state.email.loadedCategoryNames).toContain('uuid-work-0002');
+    });
+  });
+
+  it('Bug 2: dispatches markCategoryLoadFailed when background refresh is abandoned (session changed)', async () => {
+    // Scenario: cache is empty, background refresh resolves AFTER the session has advanced.
+    // The old code silently returned, leaving the category in an unrecoverable loaded-but-empty state.
+    // The fix: dispatch markCategoryLoadFailed so Effect 2 can retry.
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+
+    let resolveRefresh!: (value: unknown) => void;
+    const pendingRefresh = new Promise(resolve => {
+      resolveRefresh = resolve;
+    });
+    mockedAxios.get.mockReturnValueOnce(pendingRefresh as ReturnType<typeof mockedAxios.get>);
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    // Start the first fetch — background refresh is now pending
+    await result.current.fetchCategoryEmails('Other', 'uuid-other-0003');
+
+    // Advance the fetch session by calling fetchEmails — this bumps fetchSessionRef
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [], categorySummary: [] } });
+    await result.current.fetchEmails();
+
+    // Now resolve the stale background refresh — session no longer matches
+    resolveRefresh({ data: { emails: [{ id: 'stale' }] } });
+
+    // The category must NOT be in loadedCategoryNames (markCategoryLoadFailed was dispatched, not markCategoryLoaded)
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const state = store.getState() as { email: { loadedCategoryNames: string[] } };
+    expect(state.email.loadedCategoryNames).not.toContain('uuid-other-0003');
+  });
+});
+
 describe('appendFilterParams', () => {
   it('Very Low filter (min: null, max: 0) sends only maxPriority param — no minPriority', () => {
     const params = new URLSearchParams();

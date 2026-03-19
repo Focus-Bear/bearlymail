@@ -273,7 +273,10 @@ function serveCategoryFromCacheAndRefresh({
   fetchSessionRef: React.MutableRefObject<number>;
 }): void {
   dispatch(updateCategoryEmails({ categoryKey: catKey, emails: cachedEmails }));
-  dispatch(markCategoryLoaded(catKey));
+  if (cachedEmails.length > 0) {
+    dispatch(markCategoryLoaded(catKey));
+  }
+  // If cachedEmails is empty, leave the category in its current state — the background refresh will load it
 
   const sessionId = fetchSessionRef.current;
   const params = buildCategoryParams(catKey);
@@ -281,6 +284,7 @@ function serveCategoryFromCacheAndRefresh({
     .get(`${API_URL}/emails/inbox?${params.toString()}`)
     .then(response => {
       if (fetchSessionRef.current !== sessionId) {
+        dispatch(markCategoryLoadFailed(catKey)); // allows Effect 2 to schedule a retry
         return;
       }
       const freshEmails: Email[] = response.data.emails;

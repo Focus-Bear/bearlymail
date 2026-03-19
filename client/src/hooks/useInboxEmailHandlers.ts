@@ -22,6 +22,7 @@ interface EmailHandlerParams {
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
   navigate: ReturnType<typeof useNavigate>;
   mode: InboxMode;
+  basePath: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export function useInboxEmailHandlers({
   emailDetailRef,
   navigate,
   mode,
+  basePath,
 }: EmailHandlerParams) {
   const handleSplitViewArchiveFromKeyboard = useCallback(
     (archivedEmailId: string) => {
@@ -92,7 +94,7 @@ export function useInboxEmailHandlers({
       captureEvent(ANALYTICS_EVENTS.EMAIL_CLICKED, { email_id: emailId, mode });
       if (splitView.isMobile) {
         handleMarkAsRead(emailId);
-        navigate(`/email/${emailId}`, { state: { fromMode: mode } });
+        navigate(`/email/${emailId}`, { state: { fromMode: mode, fromBasePath: basePath } });
       } else {
         handleMarkAsRead(emailId);
         splitView.openEmail(emailId);
@@ -103,7 +105,7 @@ export function useInboxEmailHandlers({
         }
       }
     },
-    [splitView, handleMarkAsRead, navigate, mode, emails, setSelectedEmailIndex]
+    [splitView, handleMarkAsRead, navigate, mode, basePath, emails, setSelectedEmailIndex]
   );
 
   useInboxKeyboardNavigation({

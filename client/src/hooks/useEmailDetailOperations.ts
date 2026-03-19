@@ -203,10 +203,13 @@ export function useEmailDetailOperations(
     setLoading,
   } = state;
 
-  // Returns the inbox path including the mode the user came from (if known)
+  // Returns the inbox path including the mode and base path the user came from (if known).
+  // Falls back to sessionStorage so the correct path is restored after page refreshes.
   const getInboxPath = useCallback(() => {
-    const fromMode = (location.state as { fromMode?: string } | null)?.fromMode;
-    return fromMode ? `/inbox/${fromMode}` : '/inbox';
+    const locState = location.state as { fromMode?: string; fromBasePath?: string } | null;
+    const fromMode = locState?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
+    const fromBasePath = locState?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
+    return fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
   }, [location.state]);
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);

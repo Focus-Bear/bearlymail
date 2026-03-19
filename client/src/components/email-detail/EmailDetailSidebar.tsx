@@ -12,8 +12,10 @@ export const EmailDetailSidebar: React.FC = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
-  const fromMode = (location.state as { fromMode?: string } | null)?.fromMode;
-  const backPath = fromMode ? `/inbox/${fromMode}` : '/inbox';
+  const state = location.state as { fromMode?: string; fromBasePath?: string } | null;
+  const fromMode = state?.fromMode ?? sessionStorage.getItem('bearlymail_lastInboxMode') ?? undefined;
+  const fromBasePath = state?.fromBasePath ?? sessionStorage.getItem('bearlymail_lastBasePath') ?? '/inbox';
+  const backPath = fromMode ? `${fromBasePath}/${fromMode}` : fromBasePath;
 
   // On mobile, render as floating overlay button
   if (isMobile) {

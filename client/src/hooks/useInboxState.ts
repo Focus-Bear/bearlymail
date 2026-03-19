@@ -287,6 +287,17 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
 
+  // Persist the current inbox mode and base path to sessionStorage so that back navigation
+  // survives page refreshes and direct-URL access (see EmailDetailSidebar, getInboxPath).
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('bearlymail_lastInboxMode', mode);
+      sessionStorage.setItem('bearlymail_lastBasePath', basePath);
+    } catch {
+      // sessionStorage unavailable — back navigation falls back to /inbox (no regression)
+    }
+  }, [mode, basePath]);
+
   // Email interaction handlers sub-hook (replaces 3 useCallbacks + useInboxKeyboardNavigation)
   const { keyboardShortcuts, handleEmailClick, handleEmailSelect } = useInboxEmailHandlers({
     emails,
@@ -302,6 +313,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     emailDetailRef,
     navigate,
     mode,
+    basePath,
   });
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)

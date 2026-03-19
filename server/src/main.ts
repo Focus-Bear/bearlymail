@@ -15,6 +15,11 @@ setupGlobalErrorHandlers("Server");
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
+  // Log the deployed commit SHA so support/devs can identify the exact build from server logs.
+  // COMMIT_HASH and BUILD_TIME are injected as Docker build args in the deploy workflow.
+  logger.log(
+    `[BearlyMail] Server version: ${process.env.COMMIT_HASH ?? "dev"} built: ${process.env.BUILD_TIME ?? "unknown"}`,
+  );
   try {
     // Check if running in worker mode
     if (process.env.WORKER_MODE === "true") {

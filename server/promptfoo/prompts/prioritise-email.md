@@ -64,6 +64,7 @@ Provide:
    - Evaluate ALL eligible categories before choosing — don't just pick the first one that seems to fit
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
    - STRONGLY prefer an existing category over "Other". When in doubt, pick the closest matching category.
+   - **ABSOLUTE RULE — you may ONLY use category names that appear verbatim in the provided list.** If a topic (e.g. "Legal", "Finance", "Engineering") is not in the list, you MUST NOT use it as a category — choose "Other" instead and provide a protoCategorySuggestion.
    - **CRITICAL — return the category name EXACTLY as listed** (same spelling, capitalisation, and punctuation). Do NOT append descriptions, parentheticals, or any other text to the category name. For example, if the list contains `"Customer feedback"`, return `"Customer feedback"` — never `"Customer feedback (github issues or feedback forms)"` or any other variant.
 
    **Special guidance for GitHub notifications:**

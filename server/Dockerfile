@@ -36,6 +36,13 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy prompt templates (required for LLM operations)
 COPY --from=builder /app/promptfoo ./promptfoo
 
+# Inject commit metadata as build args so the server can log the deployed version on boot.
+# Pass --build-arg COMMIT_HASH=<sha> --build-arg BUILD_TIME=<iso> when running docker build.
+ARG COMMIT_HASH=dev
+ARG BUILD_TIME=unknown
+ENV COMMIT_HASH=$COMMIT_HASH
+ENV BUILD_TIME=$BUILD_TIME
+
 # Expose port
 EXPOSE 3001
 

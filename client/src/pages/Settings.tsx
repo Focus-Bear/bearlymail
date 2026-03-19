@@ -15,6 +15,7 @@ import { SchedulingPreferencesSection } from 'components/settings/SchedulingPref
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { TroubleshootingSection } from 'components/settings/TroubleshootingSection';
+import { VersionFooter } from 'components/settings/VersionFooter';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
 import { useAuth } from 'contexts/AuthContext';
@@ -275,6 +276,8 @@ const Settings: React.FC = () => {
         <AccountDeletionSection />
 
         <TroubleshootingSection />
+
+        <VersionFooter />
       </div>
     </div>
   );

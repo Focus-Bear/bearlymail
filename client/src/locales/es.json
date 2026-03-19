@@ -2377,7 +2377,10 @@
     "anthropicTitle": "Clave API de Anthropic (opcional)",
     "anthropicDesc": "Utilice su propia clave Anthropic para usar Claude Sonnet 4.6. Compatible con claves de API sk-ant-api03-* y tokens OAuth de corta duración sk-ant-oat-* generados por la CLI de Claude (claude auth token). Las claves se almacenan cifradas y nunca se devuelven al cliente en texto plano.",
     "anthropicKeySaved": "Clave guardada ✓",
-    "anthropicNoKey": "Sin clave configurada"
+    "anthropicNoKey": "Sin clave configurada",
+    "version": "Versión:",
+    "builtAt": "Compilado:",
+    "versionFooterLabel": "Versión de la aplicación"
   },
   "keyboard": {
     "archiveConfirmSingle": "¿Archivar este correo?",

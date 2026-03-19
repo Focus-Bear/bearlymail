@@ -997,7 +997,10 @@
     },
     "troubleshooting": {
       "title": "Troubleshooting"
-    }
+    },
+    "version": "Version:",
+    "builtAt": "Built:",
+    "versionFooterLabel": "Application version"
   },
   "admin": {
     "title": "Admin",

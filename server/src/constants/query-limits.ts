@@ -103,4 +103,6 @@ export const QUERY_LIMITS = {
   // How many of the most-recent emails to scan when building the contact thread list.
   // Covers most active inboxes without a full table scan.
   CONTACT_THREAD_EMAIL_SCAN: 1000,
+  // Max existing action items to include in the prompt context for deduplication.
+  LLM_EXISTING_ACTIONS_CAP: 20,
 } as const;

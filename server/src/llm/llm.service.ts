@@ -505,6 +505,10 @@ export class LLMService {
     phishingSignals: PhishingSignals,
     provider?: LLMProvider,
     userId?: string,
+    isUserSender: boolean = false,
+    from: string = "",
+    fromName: string = "",
+    existingActions: string[] = [],
   ): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
@@ -550,12 +554,24 @@ export class LLMService {
       QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
     );
 
+    const cappedExistingActions = existingActions.slice(
+      0,
+      QUERY_LIMITS.LLM_EXISTING_ACTIONS_CAP,
+    );
     const prompt = renderPrompt(promptConfig.prompt || "", {
       isThread,
       subject: emailSubject,
       contextNote: contextNote || "",
       body: cleanedBody,
       phishingSignals,
+      isUserSender,
+      from,
+      fromName,
+      hasExistingActions: cappedExistingActions.length > 0,
+      existingActions:
+        cappedExistingActions.length > 0
+          ? cappedExistingActions.join("\n")
+          : "",
     });
 
     const PHISHING_JSON_TOKEN_OVERHEAD = 150;
@@ -1047,6 +1063,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     recipientInfo?: { name?: string; email?: string },
     isUserSender: boolean = false,
     existingActions: string[] = [],
+    subject?: string,
   ): Promise<Array<{ description: string; confidence: number }>> {
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(
@@ -1081,6 +1098,8 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       isUserSender,
       // Pass boolean directly for {{#if}} condition
       perspective: isUserSender ? "SENDER" : "RECIPIENT",
+      // Subject line for context (the prompt template uses {{subject}} twice)
+      subject: subject || "",
       // Existing actions context for LLM-level deduplication
       existingActions:
         cappedExistingActions.length > 0

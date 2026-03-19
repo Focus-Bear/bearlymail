@@ -476,13 +476,16 @@ export class SummarizationService {
       llmProvider = rule.provider;
     }
 
+    const isUserSender = this.isEmailFromUser(email.from, userEmail);
+    const from = email.from || "";
+    const fromName = email.fromName || "";
+
     const bodyForLLM =
       messagesToSummarize.length > 1
         ? threadText
         : cleanEmailContent(emailWithHtml.body, emailWithHtml.htmlBody);
 
-    return this.summarizeEmailWithCombinedPhishing(
-      emailWithHtml,
+    return this.summarizeEmailWithCombinedPhishing(emailWithHtml, {
       subject,
       threadText,
       bodyForLLM,
@@ -495,7 +498,10 @@ export class SummarizationService {
       llmProvider,
       userId,
       emailId,
-    );
+      isUserSender,
+      from,
+      fromName,
+    });
   }
 
   /**
@@ -510,18 +516,24 @@ export class SummarizationService {
    */
   private async summarizeEmailWithCombinedPhishing(
     emailWithHtml: EmailWithHtmlBody,
-    subject: string,
-    threadText: string,
-    bodyForLLM: string,
-    messagesToSummarize: Array<unknown>,
-    allThreadEmails: Array<unknown>,
-    phishingSignals: PhishingSignals,
-    keywordFallbackSignal: PhishingSignal | null,
-    cacheKey: string,
-    rule: SummarizationRule,
-    llmProvider: LLMProvider | undefined,
-    userId: string,
-    emailId: string,
+    options: {
+      subject: string;
+      threadText: string;
+      bodyForLLM: string;
+      messagesToSummarize: Array<unknown>;
+      allThreadEmails: Array<unknown>;
+      phishingSignals: PhishingSignals;
+      keywordFallbackSignal: PhishingSignal | null;
+      cacheKey: string;
+      rule: SummarizationRule;
+      llmProvider: LLMProvider | undefined;
+      userId: string;
+      emailId: string;
+      isUserSender?: boolean;
+      from?: string;
+      fromName?: string;
+      existingActions?: string[];
+    },
   ): Promise<{
     summary: string;
     phishingSignal: PhishingSignal | null;
@@ -531,48 +543,39 @@ export class SummarizationService {
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
+    const {
+      subject,
+      threadText,
+      bodyForLLM,
+      messagesToSummarize,
+      allThreadEmails,
+      phishingSignals,
+      keywordFallbackSignal,
+      cacheKey,
+      rule,
+      llmProvider,
+      userId,
+      emailId,
+      isUserSender = false,
+      from = "",
+      fromName = "",
+      existingActions = [],
+    } = options;
     try {
-      let result: {
-        summary: string;
-        phishing:
-          | import("./phishing-detection.service").PhishingLLMResult
-          | null;
-        sentiment: { score: number; explanation: string } | null;
-        category: string | null;
-        categoryExplanation: string | null;
-        actionItems: Array<{ description: string; confidence: number }> | null;
-      };
-
-      if (rule.type === SUMMARY_TYPES.CUSTOM) {
-        if (!rule.customPrompt) {
-          throw new Error(
-            `Summarization rule is type "custom" but has no customPrompt — cannot summarize`,
-          );
-        }
-        result = await this.llmService.summarizeCustomPromptWithPhishing(
-          bodyForLLM,
-          subject,
-          rule.customPrompt,
-          phishingSignals,
-          messagesToSummarize.length > 1,
-          allThreadEmails.length,
-          llmProvider,
-          userId,
-        );
-      } else {
-        const summaryType =
-          rule.type === SUMMARY_TYPES.SENDER_REQUEST
-            ? SUMMARY_TYPES.TLDR
-            : rule.type;
-        result = await this.llmService.summarizeEmailWithPhishingCheck(
-          bodyForLLM,
-          subject,
-          summaryType,
-          phishingSignals,
-          llmProvider,
-          userId,
-        );
-      }
+      const result = await this.runLLMSummarize({
+        rule,
+        bodyForLLM,
+        subject,
+        phishingSignals,
+        messagesToSummarize,
+        allThreadEmails,
+        llmProvider,
+        userId,
+        isUserSender,
+        from,
+        fromName,
+        existingActions,
+      });
 
       const phishingSignal = this.resolvePhishingSignalFromLLM(
         result.phishing,
@@ -610,6 +613,56 @@ export class SummarizationService {
         keywordFallbackSignal,
       );
     }
+  }
+
+  /** Dispatch to the appropriate LLM summarization path based on rule type. */
+  private async runLLMSummarize(params: {
+    rule: SummarizationRule;
+    bodyForLLM: string;
+    subject: string;
+    phishingSignals: PhishingSignals;
+    messagesToSummarize: Array<unknown>;
+    allThreadEmails: Array<unknown>;
+    llmProvider: LLMProvider | undefined;
+    userId: string;
+    isUserSender: boolean;
+    from: string;
+    fromName: string;
+    existingActions: string[];
+  }) {
+    if (params.rule.type === SUMMARY_TYPES.CUSTOM) {
+      if (!params.rule.customPrompt) {
+        throw new Error(
+          `Summarization rule is type "custom" but has no customPrompt — cannot summarize`,
+        );
+      }
+      return this.llmService.summarizeCustomPromptWithPhishing(
+        params.bodyForLLM,
+        params.subject,
+        params.rule.customPrompt,
+        params.phishingSignals,
+        params.messagesToSummarize.length > 1,
+        params.allThreadEmails.length,
+        params.llmProvider,
+        params.userId,
+      );
+    }
+    const summaryType =
+      params.rule.type === SUMMARY_TYPES.SENDER_REQUEST
+        ? SUMMARY_TYPES.TLDR
+        : params.rule.type;
+    return this.llmService.summarizeEmailWithPhishingCheck(
+      params.bodyForLLM,
+      params.subject,
+      summaryType,
+      params.phishingSignals,
+      params.llmProvider,
+      params.userId,
+      params.isUserSender,
+      params.from,
+      params.fromName,
+      params.existingActions,
+    );
   }
 
   /**

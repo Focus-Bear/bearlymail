@@ -20,6 +20,40 @@ Body:
 
 ---
 
+## ACTION ITEMS GUIDELINES
+
+Only extract action items that the USER needs to do. Apply these rules strictly:
+
+{% if isUserSender %}
+This email was SENT BY the user. Extract only tasks the USER personally committed to:
+- Look for first-person commitments: "I will...", "I'll...", "I need to...", "I should...", "Let me..."
+- DO NOT extract tasks the user assigned or requested from others ("please do X", "can you do Y") — those are the OTHER party's tasks
+- DO NOT extract feedback or instructions the user gave to others
+{% else %}
+This email was RECEIVED by the user. Extract only tasks directed at the USER:
+- Look for direct requests to the recipient: "please do X", "can you do Y", "you should do Z"
+- Ignore ALL tasks the SENDER mentions they will do ("I will...", "I'll...", "I'm going to...")
+- Ignore statements about what the sender has already done ("I've sent...", "I've completed...")
+{% endif %}
+
+Rules that always apply:
+- Ignore generic pleasantries: "let me know if you have questions", "let me know what you think" — NOT action items
+- Ignore quoted reply chains (lines starting with ">" or sections after "On ... wrote:" / "From: ...") — only consider the current message
+- Only extract real work tasks (review a document, schedule a meeting, test code) — not social niceties
+{% if hasExistingActions %}
+
+DEDUPLICATION — these actions are already saved for this thread. Do NOT include items that are semantically equivalent (even if phrased differently):
+{{existingActions}}
+{% endif %}
+
+Context:
+{% if isUserSender %}- From: You (the user sent this email)
+- To: {{fromName}} ({{from}})
+{% else %}- From: {{fromName}} ({{from}}) — ignore their own stated tasks
+{% endif %}- Subject: {{subject}}
+
+---
+
 Return a JSON object (no markdown fences) with exactly these fields:
 {
   "summary": "<your action items here>",

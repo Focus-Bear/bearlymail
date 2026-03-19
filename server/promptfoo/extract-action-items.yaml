@@ -166,3 +166,32 @@ tests:
             - "please make"
             - "you should reduce"
 
+
+  # Test 9: Quoted reply chain — user sent email quoting the other party's requests
+  - vars:
+      from: "producer@videostudio.com"
+      fromName: "Alex Producer"
+      subject: "Re: Marketing video feedback"
+      body: |
+        Hi Alex,
+
+        I'll review the final cut by Friday.
+
+        > From: Alex Producer
+        > Please simplify the runsheet.
+        > Can you do a pre-studio briefing?
+        > Clarify the target audience.
+      isUserSender: true
+      hasExistingActions: false
+      existingActions: ""
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 1
+          maxCount: 3
+          shouldContain: ["review", "final cut"]
+          shouldNotContain:
+            - "simplify the runsheet"
+            - "pre-studio briefing"
+            - "target audience"

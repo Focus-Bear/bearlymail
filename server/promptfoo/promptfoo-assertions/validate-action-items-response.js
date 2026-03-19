@@ -44,8 +44,11 @@ module.exports = (output, context) => {
     if (!item.description || typeof item.description !== 'string') {
       throw new Error(`Action item ${i + 1} must have a "description" string`);
     }
-    if (typeof item.confidence !== 'number' || item.confidence < 0 || item.confidence > 1) {
-      throw new Error(`Action item ${i + 1} must have a "confidence" number between 0 and 1`);
+    // confidence is optional — some models omit it; default to 1 if missing
+    if (item.confidence !== undefined) {
+      if (typeof item.confidence !== 'number' || item.confidence < 0 || item.confidence > 1) {
+        throw new Error(`Action item ${i + 1} "confidence" must be a number between 0 and 1`);
+      }
     }
     allDescriptions.push(item.description.toLowerCase());
   }

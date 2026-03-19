@@ -240,16 +240,19 @@ function useThreadEmailsInit({
 
     if (isLatestEmail && email?.body && actionItems.length === 0 && autoExtractedRef.current !== email.id) {
       autoExtractedRef.current = email.id;
-      autoExtractActions(email, setActionItems);
+      autoExtractActions(email, setActionItems, actionItems);
     }
   }, [threadEmails, setExpandedThreadItems, email, actionItems, setActionItems, expandedItemsSetRef, autoExtractedRef]);
 }
 
-async function autoExtractActions(email: any, setActionItems: (items: any[]) => void) {
+async function autoExtractActions(email: any, setActionItems: (items: any[]) => void, existingActions: any[] = []) {
   try {
     const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
       emailBody: email.body,
+      subject: email.subject,
       senderInfo: { from: email.from, fromName: email.fromName },
+      existingActions: existingActions.map((item: any) => item.description).filter(Boolean),
+      isSentEmail: email.labelIds?.includes('SENT') ?? false,
     });
     if (extractResponse.data && extractResponse.data.length > 0) {
       const newItems = extractResponse.data.map((item: any) => ({

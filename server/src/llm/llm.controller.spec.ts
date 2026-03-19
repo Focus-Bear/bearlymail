@@ -446,6 +446,7 @@ describe("LLMController (Integration)", () => {
         },
         false,
         [],
+        undefined,
       );
     });
 
@@ -476,6 +477,7 @@ describe("LLMController (Integration)", () => {
         // isUserSender should be true
         true,
         [],
+        undefined,
       );
     });
 
@@ -500,6 +502,39 @@ describe("LLMController (Integration)", () => {
         },
         false,
         existingActions,
+        undefined,
+      );
+    });
+
+    it("should treat email as user-sent when isSentEmail flag is true", async () => {
+      await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "I will complete this task.",
+          senderInfo: {
+            from: "alias@otherdomain.com",
+            fromName: "Test User",
+          },
+          isSentEmail: true,
+        })
+        .expect(201);
+
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
+        "I will complete this task.",
+        undefined,
+        "test-user-id",
+        {
+          from: "alias@otherdomain.com",
+          fromName: "Test User",
+        },
+        {
+          name: "Test User",
+          email: "test@example.com",
+        },
+        // isUserSender should be true because isSentEmail=true, even though emails don't match
+        true,
+        [],
+        undefined,
       );
     });
 
@@ -561,6 +596,39 @@ describe("LLMController (Integration)", () => {
       // Repository should not be queried when no emailId
       expect(mockEmailRepository.findOne).not.toHaveBeenCalled();
     });
+    it("should treat email as user-sent when isSentEmail hint is true (alias mismatch)", async () => {
+      // Sender email does NOT match user email (alias scenario)
+      await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "I will follow up with the team tomorrow.",
+          senderInfo: {
+            from: "alias@otherdomain.com",
+            fromName: "Test User Alias",
+          },
+          isSentEmail: true,
+        })
+        .expect(201);
+
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
+        "I will follow up with the team tomorrow.",
+        undefined,
+        "test-user-id",
+        {
+          from: "alias@otherdomain.com",
+          fromName: "Test User Alias",
+        },
+        {
+          name: "Test User",
+          email: "test@example.com",
+        },
+        // isUserSender should be true because isSentEmail hint overrides alias mismatch
+        true,
+        [],
+        undefined,
+      );
+    });
+
   });
 
   describe("POST /llm/suggest-replies", () => {
@@ -683,3 +751,6 @@ describe("LLMController (Integration)", () => {
     });
   });
 });
+
+  // Additional test added to cover isSentEmail hint path (alias mismatch scenario)
+  // This was missing coverage for the `body.isSentEmail === true` branch

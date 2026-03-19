@@ -95,9 +95,11 @@ export class LLMController {
     body: {
       emailBody: string;
       emailId?: string;
+      subject?: string;
       senderInfo?: { from: string; fromName?: string };
       recipientInfo?: { name?: string; email?: string };
       existingActions?: string[];
+      isSentEmail?: boolean;
     },
   ) {
     // Change 3: If emailId is provided, check for cached action items from the summary pass.
@@ -127,11 +129,14 @@ export class LLMController {
       const match = email.match(/<(.+)>/);
       return (match ? match[1] : email).toLowerCase().trim();
     };
-    const isUserSender = Boolean(
+    const emailMatchesSender = Boolean(
       senderEmail &&
       userEmail &&
       normalizeEmail(senderEmail) === normalizeEmail(userEmail),
     );
+    // Accept isSentEmail hint from client (e.g. derived from Gmail SENT label) as
+    // a secondary signal in case normalizeEmail comparison fails due to alias mismatch.
+    const isUserSender = emailMatchesSender || (body.isSentEmail === true);
 
     return this.llmService.extractActionItems(
       body.emailBody,
@@ -141,6 +146,7 @@ export class LLMController {
       recipientInfo,
       isUserSender,
       body.existingActions ?? [],
+      body.subject,
     );
   }
 

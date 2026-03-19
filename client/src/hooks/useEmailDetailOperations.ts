@@ -618,10 +618,13 @@ export function useEmailDetailOperations(
     try {
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
+        subject: email.subject,
         senderInfo: {
           from: email.from,
           fromName: email.fromName,
         },
+        existingActions: actionItems.map((item: any) => item.description).filter(Boolean),
+        isSentEmail: email.labelIds?.includes('SENT') ?? false,
       });
       const newItems = response.data.map((item: any) => ({
         description: item.description,
@@ -697,10 +700,12 @@ export function useEmailDetailOperations(
 
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
+        subject: email.subject,
         senderInfo: {
           from: email.from,
           fromName: email.fromName,
         },
+        isSentEmail: email.labelIds?.includes('SENT') ?? false,
       });
       const newItems = response.data.map((item: any) => ({
         description: item.description,

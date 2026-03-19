@@ -240,14 +240,14 @@ export async function respondToInvitation(
     throw new Error("Email is not a calendar invitation");
   }
 
-  service.oauth2Client.setCredentials({
-    access_token: user.googleCalendarAccessToken,
-    refresh_token: user.googleCalendarRefreshToken,
+  const oauth2Client = service.createOAuth2Client({
+    googleCalendarAccessToken: user.googleCalendarAccessToken,
+    googleCalendarRefreshToken: user.googleCalendarRefreshToken,
   });
 
   const calendar = google.calendar({
     version: "v3",
-    auth: service.oauth2Client,
+    auth: oauth2Client,
   });
 
   const userEmail = EncryptionHelper.decrypt(user.email);

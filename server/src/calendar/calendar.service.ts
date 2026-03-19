@@ -59,7 +59,6 @@ export interface TimeSlotsWithTimezone {
 @Injectable()
 export class CalendarService {
   public readonly logger = new Logger(CalendarService.name);
-  public oauth2Client: OAuth2Client;
 
   constructor(
     public usersService: UsersService,
@@ -68,12 +67,42 @@ export class CalendarService {
     public schedulingPreferencesService: SchedulingPreferencesService,
     @InjectRepository(CalendarBooking)
     public calendarBookingRepository: Repository<CalendarBooking>,
-  ) {
-    this.oauth2Client = new google.auth.OAuth2(
+  ) {}
+
+  /**
+   * Create a fresh per-request OAuth2Client for a given user's credentials.
+   * This avoids the shared-singleton race where concurrent requests overwrite
+   * each other's tokens on a single shared client.
+   */
+  createOAuth2Client(user: {
+    googleCalendarAccessToken: string;
+    googleCalendarRefreshToken?: string | null;
+  }): OAuth2Client {
+    const client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI ||
         "http://localhost:3001/auth/google/callback",
+    );
+    client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+    return client;
+  }
+
+  /**
+   * Determine whether an error from the Google API represents an expired /
+   * revoked token so we can surface a user-friendly message instead of a
+   * generic 500.
+   */
+  private isTokenExpiredError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes("invalid_grant") ||
+      msg.includes("Token has been expired") ||
+      msg.includes("Token has been revoked") ||
+      (msg.includes("401") && msg.includes("Unauthorized"))
     );
   }
 
@@ -88,14 +117,10 @@ export class CalendarService {
       throw new Error("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
     // Start from afterDate if provided (for "load more" pagination), otherwise now
     const startDate = options?.afterDate
@@ -188,14 +213,10 @@ export class CalendarService {
       throw new Error("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
     const start = new Date(startTime);
     const end = new Date(
@@ -310,14 +331,10 @@ Manage this booking:
       throw new Error("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
 
     const newStart = new Date(newStartTime);
@@ -372,14 +389,10 @@ Manage this booking:
       throw new Error("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
 
     try {
@@ -431,14 +444,10 @@ Manage this booking:
       throw new Error("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
 
     const now = new Date();
@@ -623,14 +632,10 @@ Manage this booking:
       return { exists: false };
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
     const startMs = new Date(eventData.startAt).getTime();
     const FIVE_MINUTES_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
@@ -677,15 +682,23 @@ Manage this booking:
       throw new BadRequestException("Google Calendar not connected");
     }
 
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
+    const oauth2Client = this.createOAuth2Client(user);
     const calendar = google.calendar({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: oauth2Client,
     });
+
+    // Google Calendar requires all-day event end date to be the day AFTER
+    // the last day (exclusive end). Compute this by adding 1 day to the last
+    // all-day date so a single-day event (startAt == endAt) has end = start+1.
+    let allDayEndDate: string | undefined;
+    if (eventData.allDay) {
+      const lastDay = new Date(
+        (eventData.endAt ?? eventData.startAt).slice(0, 10) + "T00:00:00Z",
+      );
+      lastDay.setUTCDate(lastDay.getUTCDate() + 1);
+      allDayEndDate = lastDay.toISOString().slice(0, 10);
+    }
 
     const eventBody: calendar_v3.Schema$Event = {
       summary: eventData.title,
@@ -698,7 +711,7 @@ Manage this booking:
             timeZone: eventData.timezone ?? "UTC",
           },
       end: eventData.allDay
-        ? { date: (eventData.endAt ?? eventData.startAt).slice(0, 10) }
+        ? { date: allDayEndDate! }
         : {
             dateTime: eventData.endAt ?? eventData.startAt,
             timeZone: eventData.timezone ?? "UTC",
@@ -721,13 +734,19 @@ Manage this booking:
         eventLink: created.data.htmlLink ?? undefined,
       };
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       this.logger.error('[ICS] addIcsEventToCalendar failed', {
-        message: err instanceof Error ? err.message : String(err),
+        message,
         stack: err instanceof Error ? err.stack : undefined,
         errorCode: getErrCode(err),
         userId,
       });
-      throw new Error(`Failed to add event to calendar: ${err instanceof Error ? err.message : String(err)}`);
+      if (this.isTokenExpiredError(err)) {
+        throw new BadRequestException(
+          "Your Google Calendar access has expired. Please reconnect your Google account.",
+        );
+      }
+      throw new BadRequestException(`Failed to add event to calendar: ${message}`);
     }
   }
 

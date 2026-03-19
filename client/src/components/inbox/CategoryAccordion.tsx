@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
@@ -335,23 +335,11 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const emailIds = emails.map(event => event.id);
   const isOtherCategory = category === CATEGORY_OTHER;
 
-  // Auto-collapse when all emails in this category have been archived individually.
-  // We only trigger the collapse once per transition to empty (tracked via ref) to
-  // avoid calling onToggle() in a loop if the parent re-renders with emails=[] while
-  // already collapsed.
-  const wasExpandedWithEmailsRef = useRef(false);
-  useEffect(() => {
-    if (emails.length > 0) {
-      wasExpandedWithEmailsRef.current = isExpanded;
-    } else if (wasExpandedWithEmailsRef.current && isExpanded) {
-      // Category just became empty while expanded — collapse it.
-      // Note: onAfterCollapse is NOT called here because InboxCategoryItem's useEffect
-      // handles the same one-by-one archive path and calls onAfterCollapse there,
-      // preventing a double-fire.
-      wasExpandedWithEmailsRef.current = false;
-      onToggle();
-    }
-  }, [emails.length, isExpanded, onToggle]);
+  // Auto-collapse is handled entirely by the parent (InboxCategoryItem) which has
+  // better context: it checks both isLoaded and categoryItem.count before collapsing,
+  // preventing a race condition where this effect and the parent both call onToggle()
+  // in the same render cycle, leaving the accordion stuck in an unexpected state.
+  // See fix #1245.
 
   const handleEditCategoryClick = (event: React.MouseEvent) => {
     event.stopPropagation();

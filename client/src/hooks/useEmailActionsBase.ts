@@ -191,9 +191,12 @@ export function useEmailActionsBase({
         return;
       }
       const categoryName = emailToArchive.category || CATEGORY_OTHER;
+      const categoryKey = emailToArchive.category_id ?? undefined;
       dispatch(addOptimisticArchive(emailId));
       dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
-      dispatch(decrementCategorySummaryCount(categoryName));
+      // Fix #1246: pass categoryKey (UUID) so the reducer can match by UUID first,
+      // avoiding mismatches caused by LLM-deviated category name strings.
+      dispatch(decrementCategorySummaryCount({ categoryKey, categoryName, count: 1 }));
       removeEmailFromCache(emailId);
       onSuggestionRemove?.(emailId);
       const tid = setTimeout(() => {

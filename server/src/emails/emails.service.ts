@@ -599,7 +599,12 @@ export class EmailsService implements OnModuleInit {
     };
 
     const categories = visibleCategories.map((name) => ({
-      id: lookupCategoryId(name),
+      // Use categoryUuidByName (populated from thread.categoryId column) as primary source.
+      // This is the actual UUID stored on the thread — far more reliable than the
+      // UserContext name-matching fallback (lookupCategoryId) which can return null when
+      // LLM-deviated names don't match the stored canonical form.
+      // lookupCategoryId is only used as a fallback for pre-backfill threads with no UUID.
+      id: categoryUuidByName.get(name) ?? lookupCategoryId(name),
       name,
       count: categoryCounts[name] || 0,
       ...(filters?.includeThreadIds

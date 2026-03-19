@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { InboxMode } from 'types/email';
+import { clearCacheForMode } from 'utils/emailCache';
 
 import { MODE_TRIAGE } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
@@ -63,11 +64,14 @@ export function useInboxModeChanges({
     // Update the previous mode before fetching (so we don't refetch if effect runs again)
     prevModeForFetchRef.current = mode;
 
+    // Clear localStorage cache for the new mode so stale data from a previous visit
+    // is not served by stale-while-revalidate logic. Mode switches always need fresh data.
+    clearCacheForMode(mode);
+
     setEmails([]);
     setLoadingModeSwitch(true);
     clearSuggestionsCache();
 
-    // fetchEmails uses mode from its closure, so it will use the current mode value
     // Force refresh tab counts to ensure they're in sync with the inbox data
     Promise.all([
       fetchEmails().catch(err => console.error('Error fetching emails on mode change:', err)),
@@ -76,9 +80,7 @@ export function useInboxModeChanges({
     ]).finally(() => {
       setLoadingModeSwitch(false);
     });
-    // Note: fetchEmails is intentionally not in dependencies - we track mode changes directly
-    // fetchEmails uses mode from its closure, so it will use the current mode when called
-  }, [mode, hasInitiallyLoaded, user, authLoading]);
+  }, [mode, hasInitiallyLoaded, user, authLoading, fetchEmails]);
 
   // Fetch triage suggestions when in triage mode with emails
   useEffect(() => {

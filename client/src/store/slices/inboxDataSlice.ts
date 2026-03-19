@@ -129,7 +129,31 @@ const inboxDataSlice = createSlice({
       state.emails = [...state.emails, ...stampedEmails];
     },
     removeEmail: (state, action: PayloadAction<string>) => {
+      const emailToRemove = state.emails.find(email => email.id === action.payload);
       state.emails = state.emails.filter(email => email.id !== action.payload);
+
+      // Fix #1246: after removing the email, clean up the category summary if
+      // this was the last email in its category. Keying by UUID (category_id) when
+      // available; falling back to name for pre-backfill emails. This fixes the
+      // data model so empty categories naturally disappear from the render list
+      // instead of requiring guards wrapping broken state.
+      if (emailToRemove && state.categorySummary) {
+        const catId = emailToRemove.category_id;
+        const catName = emailToRemove.category;
+        const summaryItem = state.categorySummary.find(cat =>
+          (catId && cat.id === catId) || (catName && cat.name === catName)
+        );
+        if (summaryItem) {
+          const remainingInCategory = state.emails.filter(email =>
+            (catId && email.category_id === catId) ||
+            (!catId && catName && email.category === catName)
+          );
+          if (remainingInCategory.length === 0) {
+            summaryItem.count = 0;
+            state.categorySummary = state.categorySummary.filter(cat => cat !== summaryItem);
+          }
+        }
+      }
     },
     updateEmail: (state, action: PayloadAction<{ id: string; updates: Partial<Email> }>) => {
       const index = state.emails.findIndex(email => email.id === action.payload.id);
@@ -210,13 +234,36 @@ const inboxDataSlice = createSlice({
       state.loadingCategoryNames = [];
       state.exhaustedCategoryNames = [];
     },
-    decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } =
-        typeof action.payload === 'string' ? { categoryName: action.payload, count: 1 } : action.payload;
+    decrementCategorySummaryCount: (
+      state,
+      action: PayloadAction<string | { categoryKey?: string; categoryName: string; count: number }>
+    ) => {
+      const { categoryKey, categoryName, count } =
+        typeof action.payload === 'string'
+          ? { categoryKey: undefined, categoryName: action.payload, count: 1 }
+          : action.payload;
       if (state.categorySummary) {
-        const category = state.categorySummary.find(cat => cat.name === categoryName);
+        // Fix #1246: match by UUID first (when available), fall back to name.
+        // Name-only matching breaks when LLM output drifts produce case/whitespace
+        // differences between the email's category field and the summary item name.
+        const category = state.categorySummary.find(
+          cat => (categoryKey && cat.id === categoryKey) || cat.name === categoryName
+        );
         if (category) {
           category.count = Math.max(0, category.count - count);
+          // Fix #1246: remove the category from the summary once its count hits zero
+          // and no emails remain. This fixes the data model so the render list
+          // naturally excludes empty categories without needing per-render guards.
+          if (category.count === 0) {
+            const hasRemainingEmails = state.emails.some(
+              email =>
+                (categoryKey && email.category_id === categoryKey) ||
+                email.category === categoryName
+            );
+            if (!hasRemainingEmails) {
+              state.categorySummary = state.categorySummary.filter(cat => cat !== category);
+            }
+          }
         }
       }
     },

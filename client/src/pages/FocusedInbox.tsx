@@ -7,52 +7,60 @@ import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
 import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
-import { useInboxState } from 'hooks/useInboxState';
+import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
+import { InboxProvider } from 'contexts/InboxProvider';
 
-const FocusedInbox: React.FC = () => {
+const FocusedInboxView: React.FC = () => {
   const {
-    mode,
+    emails,
     loading,
+    decrypting,
+    loadingModeSwitch,
     fetchError,
-    fetchEmails,
-    selectedEmailIndex,
-    setSelectedEmailIndex,
-    selectedEmailIds,
+    hasMore,
+    hasInitiallyLoaded,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
     triageSuggestions,
     followUpDataMap,
     isGeneratingDrafts,
     followUpsError,
+    nextDelivery,
+    lastUrgentCheck,
+    selectedEmailIndex,
+    selectedEmailIds,
+    expandedCategories,
+    stableCategoryOrder,
+  } = useInboxData();
+
+  const {
+    splitView,
+    modals,
+    snoozeInput,
+    priorityTooltip,
+    keyboardHint,
+    keyboardShortcuts,
+    emailListRef,
+    emailDetailRef,
+  } = useInboxUI();
+
+  const {
+    emailActions,
+    fetchEmails,
+    loadMore,
+    handleEmailClick,
+    handleEmailSelect,
     generateDrafts,
     updateDraft,
     bulkSend,
     fetchThreadsWithDrafts,
-    snoozeInput,
-    modals,
-    priorityTooltip,
-    keyboardHint,
-    splitView,
-    emailActions,
-    keyboardShortcuts,
-    hasInitiallyLoaded,
-    loadingModeSwitch,
-    decrypting,
-    nextDelivery,
-    lastUrgentCheck,
-    emailListRef,
-    emailDetailRef,
-    handleEmailClick,
-    handleEmailSelect,
-    emails,
-    loadMore,
-    hasMore,
-    expandedCategories,
-    stableCategoryOrder,
     toggleCategory,
     updateStableCategoryOrder,
-    categorySummary,
-    loadedCategoryNames,
-    loadingCategoryNames,
-  } = useInboxState({ isFocusedMode: true });
+    setSelectedEmailIndex,
+  } = useInboxActions();
+
+  const { mode } = useInboxFiltersCtx();
 
   if (loading) {
     return <InboxLoadingState />;
@@ -72,7 +80,6 @@ const FocusedInbox: React.FC = () => {
       }}
     >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-        {/* Archive Confirmation Toast */}
         {keyboardShortcuts.pendingArchive && (
           <ArchiveConfirmationToast
             emailCount={keyboardShortcuts.pendingArchive.emailIds.length}
@@ -148,11 +155,9 @@ const FocusedInbox: React.FC = () => {
             }
           }}
           onSplitViewPrioritySet={(prioritizedEmailId, starCount) => {
-            // Trigger the exit animation on the triage list item
             const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
             emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
 
-            // Navigate to next email
             const visibleEmails = emails.filter(event => !event.isArchived && event.id !== prioritizedEmailId);
 
             if (visibleEmails.length === 0) {
@@ -192,6 +197,14 @@ const FocusedInbox: React.FC = () => {
         onRefreshEmails={() => fetchEmails()}
       />
     </div>
+  );
+};
+
+const FocusedInbox: React.FC = () => {
+  return (
+    <InboxProvider isFocusedMode>
+      <FocusedInboxView />
+    </InboxProvider>
   );
 };
 

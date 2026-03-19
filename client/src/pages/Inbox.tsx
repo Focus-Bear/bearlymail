@@ -16,20 +16,18 @@ import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
+import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
+import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
-import { useInboxFilters } from 'hooks/useInboxFilters';
-import { useInboxState } from 'hooks/useInboxState';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 
-interface SplitViewNavContext {
-  emails: any[];
-  splitView: { openEmail: (id: string) => void; closeEmail: () => void };
-  setSelectedEmailIndex: (index: number) => void;
-}
-
-function navigateToNextEmailAfterAction(removedEmailId: string, context: SplitViewNavContext): void {
-  const { emails, splitView, setSelectedEmailIndex } = context;
+function navigateToNextEmailAfterAction(
+  removedEmailId: string,
+  emails: any[],
+  splitView: { openEmail: (id: string) => void; closeEmail: () => void },
+  setSelectedEmailIndex: (index: number) => void,
+): void {
   const removedEmail = emails.find(event => event.id === removedEmailId);
   const removedCategory = removedEmail?.category || CATEGORY_OTHER;
   const visibleEmails = emails.filter(event => !event.isArchived && event.id !== removedEmailId);
@@ -54,46 +52,108 @@ function navigateToNextEmailAfterAction(removedEmailId: string, context: SplitVi
   }
 }
 
-
-interface InboxViewProps {
-  inboxState: ReturnType<typeof useInboxState>;
-  filterState: ReturnType<typeof useInboxFilters>;
-  sidebarState: {
-    isSidebarCollapsed: boolean;
-    isMobileMenuOpen: boolean;
-    handleToggleSidebarCollapse: () => void;
-    openMobileMenu: () => void;
-    handleCloseMobileMenu: () => void;
-  };
-}
-
-const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarState }) => {
+const InboxView: React.FC = () => {
   const {
-    mode, setMode, user, logout, refreshUser, fetchEmails, fetchCategoryEmails,
-    selectedEmailIndex, setSelectedEmailIndex, selectedEmailIds, setSelectedEmailIds,
-    triageSuggestions, actionTabPulsing, setActionTabPulsing,
-    followUpDataMap, isGeneratingDrafts, followUpsError, generateDrafts,
-    updateDraft, bulkSend, fetchThreadsWithDrafts, snoozeInput, onboarding, urgentNotification,
-    debugPanel, modals, priorityTooltip, keyboardHint, splitView, emailActions, keyboardShortcuts,
-    hasInitiallyLoaded, loadingModeSwitch, loading, decrypting, fetchError,
-    nextDelivery, lastUrgentCheck, tabCounts, triageTabRef, actionTabRef, followUpTabRef,
-    deliverBtnRef, emailListRef, emailDetailRef, handleEmailClick, handleEmailSelect, tourSteps,
-    emails, loadMore, hasMore, expandedCategories, stableCategoryOrder, toggleCategory,
-    updateStableCategoryOrder, categorySummary, loadedCategoryNames, loadingCategoryNames,
-  } = inboxState;
+    emails,
+    loading,
+    decrypting,
+    loadingModeSwitch,
+    fetchError,
+    hasMore,
+    hasInitiallyLoaded,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    triageSuggestions,
+    followUpDataMap,
+    isGeneratingDrafts,
+    followUpsError,
+    tabCounts,
+    nextDelivery,
+    lastUrgentCheck,
+    selectedEmailIndex,
+    selectedEmailIds,
+    actionTabPulsing,
+    expandedCategories,
+    stableCategoryOrder,
+    user,
+  } = useInboxData();
+
   const {
-    isFilterBarVisible, filters, connectedAccounts, availableCategories, loadingAccounts,
-    loadingCategories, hasActiveFilters, toggleFilterBar, setAccountFilter, setCategoryFilter,
-    setPriorityFilter, clearFilters,
-  } = filterState;
-  const { isSidebarCollapsed, isMobileMenuOpen, handleToggleSidebarCollapse, openMobileMenu, handleCloseMobileMenu } = sidebarState;
+    splitView,
+    modals,
+    snoozeInput,
+    priorityTooltip,
+    keyboardHint,
+    debugPanel,
+    onboarding,
+    urgentNotification,
+    keyboardShortcuts,
+    tourSteps,
+    triageTabRef,
+    actionTabRef,
+    followUpTabRef,
+    deliverBtnRef,
+    emailListRef,
+    emailDetailRef,
+  } = useInboxUI();
+
+  const {
+    emailActions,
+    fetchEmails,
+    loadMore,
+    fetchCategoryEmails,
+    handleEmailClick,
+    handleEmailSelect,
+    generateDrafts,
+    updateDraft,
+    bulkSend,
+    fetchThreadsWithDrafts,
+    toggleCategory,
+    updateStableCategoryOrder,
+    setSelectedEmailIndex,
+    setSelectedEmailIds,
+    setActionTabPulsing,
+    logout,
+    refreshUser,
+    setMode,
+  } = useInboxActions();
+
+  const {
+    mode,
+    inboxFilters: {
+      isFilterBarVisible,
+      filters,
+      connectedAccounts,
+      availableCategories,
+      loadingAccounts,
+      loadingCategories,
+      hasActiveFilters,
+      toggleFilterBar,
+      setAccountFilter,
+      setCategoryFilter,
+      setPriorityFilter,
+      clearFilters,
+    },
+  } = useInboxFiltersCtx();
+
+  const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
+
   const { isDebugModeEnabled } = useDebugMode();
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts();
+
   const activeFilterCount =
     (filters.accountIds.length > 0 ? 1 : 0) +
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.minPriority !== null ? 1 : 0);
-  const splitViewNavCtx = { emails, splitView, setSelectedEmailIndex };
+
+  if (loading) {
+    return <InboxLoadingState />;
+  }
+
+  if (fetchError === ERROR_CODE_GMAIL_REQUIRED) {
+    return <GmailConnectionScreen />;
+  }
 
   return (
     <div className="h-dvh" style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
@@ -205,12 +265,12 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
           onDismissUnlockPrompt={() => {
             // Keep current priority tier — do not change minPriority
           }}
-          onSplitViewArchive={id => navigateToNextEmailAfterAction(id, splitViewNavCtx)}
-          onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, splitViewNavCtx)}
+          onSplitViewArchive={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
+          onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
           onSplitViewPrioritySet={(id, count) => {
             const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
             emailActions.handleSetStarCount(id, count, fakeEvent);
-            navigateToNextEmailAfterAction(id, splitViewNavCtx);
+            navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex);
           }}
         />
       </div>
@@ -226,28 +286,10 @@ const InboxView: React.FC<InboxViewProps> = ({ inboxState, filterState, sidebarS
 };
 
 const Inbox: React.FC = () => {
-  // filterState must be instantiated BEFORE inboxState so we can pass it in as
-  // the single source of truth.  Previously, useInboxState created its own
-  // independent useInboxFilters() instance — filter UI changes never reached
-  // fetchEmails (fixes #1186).
-  const filterState = useInboxFilters();
-  const inboxState = useInboxState({ inboxFilters: filterState });
-  const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = useSidebarState({ splitViewActive: !!inboxState.splitView.selectedEmailId });
-
-  if (inboxState.loading) {
-    return <InboxLoadingState />;
-  }
-
-  if (inboxState.fetchError === ERROR_CODE_GMAIL_REQUIRED) {
-    return <GmailConnectionScreen />;
-  }
-
   return (
-    <InboxView
-      inboxState={inboxState}
-      filterState={filterState}
-      sidebarState={{ isSidebarCollapsed, isMobileMenuOpen, handleToggleSidebarCollapse, openMobileMenu, handleCloseMobileMenu }}
-    />
+    <InboxProvider isFocusedMode={false}>
+      <InboxView />
+    </InboxProvider>
   );
 };
 

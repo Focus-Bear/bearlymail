@@ -56,6 +56,7 @@ type SummaryLlmCallResult = {
   sentimentExplanation: string | null;
   category: string | null;
   categoryExplanation: string | null;
+  actionItems: Array<{ description: string; confidence: number }> | null;
   error: unknown;
 };
 
@@ -983,6 +984,7 @@ export class LLMProcessor implements OnModuleInit {
             sentimentExplanation: result.sentimentExplanation,
             category: result.category,
             categoryExplanation: result.categoryExplanation,
+            actionItems: result.actionItems ?? null,
             error: null,
           };
         } catch (error) {
@@ -1000,6 +1002,7 @@ export class LLMProcessor implements OnModuleInit {
             sentimentExplanation: null,
             category: null,
             categoryExplanation: null,
+            actionItems: null,
             error,
           };
         }
@@ -1030,6 +1033,7 @@ export class LLMProcessor implements OnModuleInit {
       sentimentScore,
       category,
       categoryExplanation,
+      actionItems,
       error,
     } of results) {
       if (summary && !error) {
@@ -1056,6 +1060,8 @@ export class LLMProcessor implements OnModuleInit {
               ...(phishingConfidence !== null
                 ? { phishingConfidence, phishingReason }
                 : {}),
+              // Store structured action items extracted during summary pass
+              ...(actionItems !== null ? { actionItemsJson: actionItems } : {}),
             },
           );
 

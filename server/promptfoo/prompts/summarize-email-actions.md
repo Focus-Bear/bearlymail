@@ -26,7 +26,8 @@ Return a JSON object (no markdown fences) with exactly these fields:
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
   "category": "<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>",
-  "categoryExplanation": "<one sentence explaining why this category was chosen>"
+  "categoryExplanation": "<one sentence explaining why this category was chosen>",
+  "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
 }
 
 PHISHING ANALYSIS — when evaluating phishing, consider:

@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AuthModule } from "../auth/auth.module";
+import { Email } from "../database/entities/email.entity";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { UsersModule } from "../users/users.module";
@@ -17,7 +18,7 @@ import { TokenUsageService } from "./token-usage.service";
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity]),
+    TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity, Email]),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],

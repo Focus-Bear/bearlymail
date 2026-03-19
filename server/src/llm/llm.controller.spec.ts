@@ -1,7 +1,9 @@
 import { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";
+import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { Email } from "../database/entities/email.entity";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
 import { LLMController } from "./llm.controller";
@@ -59,14 +61,20 @@ describe("LLMController (Integration)", () => {
     update: jest.fn().mockResolvedValue({ ...mockUser }),
   };
 
+  const mockEmailRepository = {
+    findOne: jest.fn().mockResolvedValue(null),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockEmailRepository.findOne.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LLMController],
       providers: [
         { provide: LLMService, useValue: mockLLMService },
         { provide: UsersService, useValue: mockUsersService },
+        { provide: getRepositoryToken(Email), useValue: mockEmailRepository },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -493,6 +501,65 @@ describe("LLMController (Integration)", () => {
         false,
         existingActions,
       );
+    });
+
+    it("should return cached actionItemsJson when emailId is provided and cache is populated", async () => {
+      const cachedItems = [
+        { description: "Review the document", isCompleted: false, source: "llm" },
+      ];
+      mockEmailRepository.findOne.mockResolvedValueOnce({
+        id: "email-1",
+        actionItemsJson: cachedItems,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "Please review the document.",
+          emailId: "email-1",
+        })
+        .expect(201);
+
+      expect(response.body).toEqual(cachedItems);
+      // LLM should NOT be called when cache hit
+      expect(mockLLMService.extractActionItems).not.toHaveBeenCalled();
+      expect(mockEmailRepository.findOne).toHaveBeenCalledWith({
+        where: { id: "email-1", userId: "test-user-id" },
+        select: ["id", "actionItemsJson"],
+      });
+    });
+
+    it("should fall through to LLM when emailId provided but actionItemsJson is null", async () => {
+      mockEmailRepository.findOne.mockResolvedValueOnce({
+        id: "email-2",
+        actionItemsJson: null,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "Please complete the task.",
+          emailId: "email-2",
+        })
+        .expect(201);
+
+      expect(response.body).toBeDefined();
+      // Cache miss — LLM should be called
+      expect(mockLLMService.extractActionItems).toHaveBeenCalled();
+    });
+
+    it("should fall through to LLM when no emailId is provided", async () => {
+      const response = await request(app.getHttpServer())
+        .post("/llm/extract-actions")
+        .send({
+          emailBody: "Please schedule a meeting.",
+        })
+        .expect(201);
+
+      expect(response.body).toBeDefined();
+      expect(mockLLMService.extractActionItems).toHaveBeenCalled();
+      // Repository should not be queried when no emailId
+      expect(mockEmailRepository.findOne).not.toHaveBeenCalled();
     });
   });
 

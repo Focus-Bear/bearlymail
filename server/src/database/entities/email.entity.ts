@@ -183,6 +183,15 @@ export class Email {
     type: "text",
     nullable: true,
     transformer: encryptedJsonTransformer,
+    comment:
+      "Structured action items extracted during summary pass: Array<{ description: string; confidence: number }>",
+  })
+  actionItemsJson: Array<{ description: string; confidence: number }> | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
     comment: "JSON stringified list of labels",
   })
   labels: string[];

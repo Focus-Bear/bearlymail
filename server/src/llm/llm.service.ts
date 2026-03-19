@@ -511,6 +511,7 @@ export class LLMService {
     sentiment: { score: number; explanation: string } | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
@@ -577,7 +578,7 @@ export class LLMService {
   }
 
   /**
-   * Parse a `{ summary, phishing, sentiment, category, categoryExplanation }` JSON response from the LLM.
+   * Parse a `{ summary, phishing, sentiment, category, categoryExplanation, actionItems }` JSON response from the LLM.
    * Falls back gracefully: if JSON parse fails, treats the whole response as the summary.
    */
   private parseSummaryWithPhishing(response: string): {
@@ -586,6 +587,7 @@ export class LLMService {
     sentiment: { score: number; explanation: string } | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   } {
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -599,6 +601,7 @@ export class LLMService {
             typeof parsed.categoryExplanation === "string"
               ? parsed.categoryExplanation
               : null;
+          const actionItems = this.validateActionItems(parsed.actionItems);
           return {
             // fix #1162: sanitise the parsed summary through extractPlainSummary,
             // same as the fallback path — prevents raw JSON strings (from
@@ -608,6 +611,7 @@ export class LLMService {
             sentiment,
             category,
             categoryExplanation,
+            actionItems,
           };
         }
       }
@@ -620,7 +624,35 @@ export class LLMService {
       sentiment: null,
       category: null,
       categoryExplanation: null,
+      actionItems: null,
     };
+  }
+
+  /**
+   * Validate and narrow the raw actionItems value from LLM JSON.
+   */
+  private validateActionItems(
+    value: unknown,
+  ): Array<{ description: string; confidence: number }> | null {
+    if (!Array.isArray(value)) return null;
+    const items: Array<{ description: string; confidence: number }> = [];
+    for (const item of value) {
+      if (
+        item &&
+        typeof item === "object" &&
+        typeof (item as Record<string, unknown>).description === "string" &&
+        typeof (item as Record<string, unknown>).confidence === "number"
+      ) {
+        items.push({
+          description: (item as { description: string }).description,
+          confidence: Math.max(
+            0,
+            Math.min(1, (item as { confidence: number }).confidence),
+          ),
+        });
+      }
+    }
+    return items.length > 0 ? items : [];
   }
 
   /**
@@ -669,6 +701,7 @@ export class LLMService {
     sentiment: { score: number; explanation: string } | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     const PHISHING_JSON_TOKEN_OVERHEAD = 300;
 
@@ -684,7 +717,8 @@ Return a JSON object (no markdown fences) with exactly these fields:
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
   "category": "<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>",
-  "categoryExplanation": "<one sentence explaining why this category was chosen>"
+  "categoryExplanation": "<one sentence explaining why this category was chosen>",
+  "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
 }
 
 PHISHING: Is the email pressuring urgent account action, harvesting credentials, or using a mismatched sender domain to deceive? If uncertain, set is_phishing to false.

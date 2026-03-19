@@ -8,8 +8,11 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
 import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
@@ -20,6 +23,8 @@ export class LLMController {
   constructor(
     private readonly llmService: LLMService,
     private readonly usersService: UsersService,
+    @InjectRepository(Email)
+    private readonly emailRepository: Repository<Email>,
   ) {}
 
   @Get("providers")
@@ -89,11 +94,24 @@ export class LLMController {
     @Body()
     body: {
       emailBody: string;
+      emailId?: string;
       senderInfo?: { from: string; fromName?: string };
       recipientInfo?: { name?: string; email?: string };
       existingActions?: string[];
     },
   ) {
+    // Change 3: If emailId is provided, check for cached action items from the summary pass.
+    // This avoids a separate LLM call when the summary step already extracted action items.
+    if (body.emailId) {
+      const email = await this.emailRepository.findOne({
+        where: { id: body.emailId, userId: req.user.userId },
+        select: ["id", "actionItemsJson"],
+      });
+      if (email?.actionItemsJson && email.actionItemsJson.length > 0) {
+        return email.actionItemsJson;
+      }
+    }
+
     // Get user info for recipient if not provided
     const user = await this.usersService.findOne(req.user.userId);
     const recipientInfo = body.recipientInfo || {

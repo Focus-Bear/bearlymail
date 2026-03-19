@@ -144,7 +144,9 @@ export class RepliesService {
           from: email.from,
           fromName: email.fromName,
           subject: email.subject,
-          body: email.body,
+          // Use compact summary to reduce token usage on downstream prompts.
+          // Falls back to raw body if summary is not yet available.
+          body: email.summary ?? email.body,
         },
         {
           tone,

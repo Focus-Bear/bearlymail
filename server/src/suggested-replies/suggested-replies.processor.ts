@@ -316,7 +316,9 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         from: latestEmail.from || "",
         fromName: latestEmail.fromName || undefined,
         subject: latestEmail.subject || "",
-        body: latestEmail.body || "",
+        // Use compact summary to reduce token usage on downstream prompts.
+        // Falls back to raw body if summary is not yet available.
+        body: latestEmail.summary ?? latestEmail.body ?? "",
       },
       userContext,
       undefined,

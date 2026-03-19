@@ -411,6 +411,7 @@ export class SummarizationService {
     sentimentExplanation: string | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     const email =
       prefetchedEmail ||
@@ -466,6 +467,7 @@ export class SummarizationService {
         sentimentExplanation: null,
         category: null,
         categoryExplanation: null,
+        actionItems: null,
       };
     }
 
@@ -527,6 +529,7 @@ export class SummarizationService {
     sentimentExplanation: string | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     try {
       let result: {
@@ -537,6 +540,7 @@ export class SummarizationService {
         sentiment: { score: number; explanation: string } | null;
         category: string | null;
         categoryExplanation: string | null;
+        actionItems: Array<{ description: string; confidence: number }> | null;
       };
 
       if (rule.type === SUMMARY_TYPES.CUSTOM) {
@@ -587,6 +591,7 @@ export class SummarizationService {
         sentimentExplanation: result.sentiment?.explanation ?? null,
         category: result.category,
         categoryExplanation: result.categoryExplanation,
+        actionItems: result.actionItems ?? null,
       };
     } catch (error) {
       logError(
@@ -628,6 +633,7 @@ export class SummarizationService {
     sentimentExplanation: string | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     try {
       const summary = await this.generateLLMSummary(
@@ -647,6 +653,7 @@ export class SummarizationService {
         sentimentExplanation: null,
         category: null,
         categoryExplanation: null,
+        actionItems: null,
       };
     } catch (fallbackError) {
       const err =
@@ -816,6 +823,7 @@ export class SummarizationService {
     sentimentExplanation: string | null;
     category: string | null;
     categoryExplanation: string | null;
+    actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
     const email =
       prefetchedEmail ||

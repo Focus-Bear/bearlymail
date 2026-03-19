@@ -193,7 +193,9 @@ export class SuggestedActionsService {
       const actions = await this.llmService.detectSuggestedActions(
         {
           subject: email.subject,
-          body: email.body || "",
+          // Use compact summary to avoid sending full raw thread to downstream prompts.
+          // Falls back to raw body if summary is not yet available (e.g. first email in a thread).
+          body: email.summary ?? email.body ?? "",
           htmlBody: email.htmlBody || undefined,
           from: email.from,
           fromName: email.fromName || undefined,

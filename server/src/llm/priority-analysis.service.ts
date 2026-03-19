@@ -356,51 +356,6 @@ export class PriorityAnalysisService {
    * Analyze priority for a batch of emails in a single LLM call.
    * Returns results keyed by the email identifier passed in.
    */
-  private buildBatchContextSummary(userContext?: {
-    urgentItems?: Array<{ value: string; explanation?: string }>;
-    notUrgentItems?: Array<{ value: string; explanation?: string }>;
-    goals?: Array<{ value: string; priority?: number }>;
-    workingOn?: Array<{ value: string; priority?: number }>;
-    dontCare?: Array<{ value: string }>;
-    emailCategories?: Array<{ name: string; description?: string }>;
-  }): { contextParts: string[]; emailCategoriesText: string } {
-    const contextParts: string[] = [];
-    if (userContext?.urgentItems?.length) {
-      contextParts.push(
-        `Urgent items: ${userContext.urgentItems.map((i) => i.value).join(", ")}`,
-      );
-    }
-    if (userContext?.notUrgentItems?.length) {
-      contextParts.push(
-        `Not urgent: ${userContext.notUrgentItems.map((i) => i.value).join(", ")}`,
-      );
-    }
-    if (userContext?.goals?.length) {
-      contextParts.push(
-        `Goals: ${userContext.goals.map((goal) => goal.value).join(", ")}`,
-      );
-    }
-    if (userContext?.workingOn?.length) {
-      contextParts.push(
-        `Working on: ${userContext.workingOn.map((word) => word.value).join(", ")}`,
-      );
-    }
-    if (userContext?.dontCare?.length) {
-      contextParts.push(
-        `Don't care: ${userContext.dontCare.map((item) => item.value).join(", ")}`,
-      );
-    }
-    const emailCategoriesText = userContext?.emailCategories?.length
-      ? userContext.emailCategories
-          .map(
-            (cat) =>
-              `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-          )
-          .join(", ")
-      : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
-    return { contextParts, emailCategoriesText };
-  }
-
   async analyzePriorityBatch(
     emails: Array<{
       emailKey: string;
@@ -484,8 +439,30 @@ Subject: ${email.subject}
 Summary: ${cleanedBody}`;
     });
 
-    const { contextParts, emailCategoriesText } =
-      this.buildBatchContextSummary(userContext);
+    // Load and render the same promptfoo template used by the single-email path (parity fix #1144).
+    // Using the shared template ensures batch categorisation always inherits prompt improvements:
+    // Step 1/2/3 sender-type logic, GitHub-specific guidance, exclusion qualifier reasoning.
+    const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
+    if (!promptConfig) {
+      const error = new StructuralError(
+        "Prompt template not found: analyze_priority. Expected file: prioritise-email.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
+      );
+      this.logger.error("analyze_priority prompt not found (batch path)", error);
+      this.errorTrackingService.captureException(error, userId, {
+        operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
+        promptId: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
+      });
+      throw error;
+    }
+
+    const {
+      urgentContextText,
+      notUrgentContextText,
+      goalsContextText,
+      workingOnContextText,
+      dontCareContextText,
+      emailCategoriesText,
+    } = this.buildUserContextTexts(userContext);
 
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
@@ -494,57 +471,17 @@ Summary: ${cleanedBody}`;
       day: "numeric",
     });
 
-    const batchPrompt = `You are an email prioritization assistant. Analyze each email below and return a JSON object wrapping an array of results.
-
-Note: Each email is provided as a compact summary (not the full thread). Sentiment has already been computed from the full thread — do NOT include sentimentScore in your output.
-
-For EACH email, provide:
-- urgencyScore (0-100): How urgently it requires attention
-- urgencyExplanation: Brief explanation
-- goalAlignmentScore (0-100): Alignment with user's goals
-- goalAlignmentExplanation: Brief explanation
-- category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY as a last resort after exhausting all provided categories. CRITICAL: return the category name EXACTLY as listed — same spelling, capitalisation, and punctuation. Do NOT append descriptions, parentheticals, or any other text (e.g. return "Customer feedback" not "Customer feedback (github issues or feedback forms)").
-- categoryExplanation: Brief explanation
-- protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Be SPECIFIC (e.g. "✅ QA passed issues" not "📂 Issue Comments"). Only suggest when the email truly has no home in any existing category.
-- reasoning: Brief analysis
-
-IMPORTANT: Newsletters, digests, mailing list emails, and promotional content should ALWAYS receive an urgency score of 0 and LOW goal alignment scores (0-20). Even if a newsletter's topic overlaps with the user's goals, it is informational background reading and does not require action or a reply. Only score higher if the newsletter contains a specific, time-bound call to action directly relevant to the user. This does NOT apply to calendar invitations, meeting requests, account alerts, or transactional emails — those are automated but actionable and should be scored normally.
-
-User context:
-${contextParts.length > 0 ? contextParts.join("\n") : "No specific user context."}
-
-Today's date: ${currentDateStr}
-
-${emailDescriptions.join("\n\n")}
-
-Respond with a JSON object with exactly one key \`priority_results\` containing the array of per-email result objects. The top-level key MUST be exactly \`priority_results\`. Each object must include the email's "key" field matching the emailKey.
-Example (2-item):
-{
-  "priority_results": [
-    {
-      "key": "email-1",
-      "urgencyScore": 30,
-      "urgencyExplanation": "Low urgency, informational content",
-      "goalAlignmentScore": 10,
-      "goalAlignmentExplanation": "Newsletter unrelated to active goals",
-      "category": "Newsletters",
-      "categoryExplanation": "Mass-sent digest email",
-      "reasoning": "Weekly digest with no call to action"
-    },
-    {
-      "key": "email-2",
-      "urgencyScore": 75,
-      "urgencyExplanation": "Customer blocked, needs immediate response",
-      "goalAlignmentScore": 85,
-      "goalAlignmentExplanation": "Directly related to active support goal",
-      "category": "Customer Support",
-      "categoryExplanation": "Customer reporting a blocker",
-      "reasoning": "High-priority support request requiring prompt reply"
-    }
-  ]
-}
-
-IMPORTANT: The top-level response MUST be a JSON object with key \`priority_results\`, NOT a bare array.`;
+    const batchPrompt = renderPrompt(promptConfig.prompt, {
+      batchMode: true,
+      emailBatch: emailDescriptions.join("\n\n"),
+      currentDate: currentDateStr,
+      urgentContext: urgentContextText,
+      notUrgentContext: notUrgentContextText,
+      goalsContext: goalsContextText,
+      workingOnContext: workingOnContextText,
+      dontCareContext: dontCareContextText,
+      emailCategories: emailCategoriesText,
+    });
 
     try {
       const response = await this.llmCoreService.generateText(

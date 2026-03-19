@@ -1455,13 +1455,18 @@ export class LLMProcessor implements OnModuleInit {
       (knownName) => knownName.toLowerCase() === withoutParens,
     );
     if (parenMatch) return parenMatch;
-    // Prefix match: LLM returned name starts with known name (or vice versa)
-    const prefixMatch = knownNames.find(
+    // Prefix match: collect ALL candidates, then pick the LONGEST (most specific) match.
+    // Using find() would return the first match, which can misassign "Build/deployment errors
+    // (other repos)" to "Build" when both categories exist (fix for issue #1144).
+    const prefixCandidates = knownNames.filter(
       (knownName) =>
         rawName.toLowerCase().startsWith(knownName.toLowerCase()) ||
         knownName.toLowerCase().startsWith(rawName.toLowerCase()),
     );
-    if (prefixMatch) return prefixMatch;
+    if (prefixCandidates.length > 0) {
+      // Prefer the candidate with the longest name — it is the most specific match
+      return prefixCandidates.reduce((longest, candidate) => (candidate.length > longest.length ? candidate : longest));
+    }
     return rawName;
   }
 

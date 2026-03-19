@@ -1,0 +1,127 @@
+description: "Email categorisation accuracy — batch vs single-email parity (fix #1144)"
+
+providers:
+  - id: openai:gpt-5-mini
+    config:
+      reasoning_effort: low
+      temperature: 0
+
+prompts:
+  - file://prompts/prioritise-email.md
+
+tests:
+  # Test 1: GitHub bot PR must NOT land in a "from humans" category
+  - description: "GitHub bot PR — must go to a GitHub bot/automation category, not human category"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "bot-pr-1") ---
+        From: github-actions[bot]
+        Subject: PR opened: Add new feature
+        Summary: Automated PR opened by github-actions[bot] to add a new feature to the codebase.
+      emailCategories: |
+           - "Code reviews by human developers": Pull requests opened or reviewed by human developers — NOT bots
+           - "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           - "Devin PRs": Pull requests created by Devin AI
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const results = parsed?.priority_results;
+          if (!Array.isArray(results) || results.length === 0) {
+            throw new Error("Expected priority_results array, got: " + JSON.stringify(parsed));
+          }
+          const item = results[0];
+          if (item.category === "Code reviews by human developers") {
+            throw new Error(`Bot PR misassigned to human-only category. categoryExplanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 2: Devin PR must be categorised as "Devin PRs" even when latest message is from a human
+  - description: "Devin PR thread — category determined by PR initiator, not latest message author"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "devin-pr-1") ---
+        From: Jeremy (via GitHub)
+        Subject: Re: PR merged — Add new feature (Devin)
+        Summary: PR created by Devin AI was merged by Jeremy. Thread started with Devin opening the PR.
+      emailCategories: |
+           - "Code reviews by human developers": PRs opened or reviewed by humans
+           - "Devin PRs": Pull requests created by Devin AI
+           - "GitHub bot notifications": Automated GitHub system notifications
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const results = parsed?.priority_results;
+          if (!Array.isArray(results) || results.length === 0) {
+            throw new Error("Expected priority_results array, got: " + JSON.stringify(parsed));
+          }
+          const item = results[0];
+          if (item.category !== "Devin PRs") {
+            throw new Error(`Devin PR thread miscategorised as "${item.category}". Expected "Devin PRs". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 3: Batch returns correct key mapping
+  - description: "Batch response includes correct emailKey for each result"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "newsletter-abc") ---
+        From: Weekly Digest <digest@techblog.com>
+        Subject: This week in tech — top stories
+        Summary: Weekly newsletter with tech news digest. No action required.
+
+        --- EMAIL 2 (key: "support-xyz") ---
+        From: Jane Smith <jane@customer.com>
+        Subject: URGENT: My account is locked
+        Summary: Customer reports account lockout, cannot log in. Needs immediate help.
+      emailCategories: |
+           - "Newsletters": Marketing emails, digests, promotional content
+           - "Customer Support": Support requests, customer issues, help requests
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Wednesday, March 18, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const results = parsed?.priority_results;
+          if (!Array.isArray(results) || results.length !== 2) {
+            throw new Error("Expected 2 results, got: " + JSON.stringify(parsed));
+          }
+          const keys = results.map(r => r.key);
+          if (!keys.includes("newsletter-abc")) {
+            throw new Error("Missing key 'newsletter-abc'. Keys found: " + keys.join(", "));
+          }
+          if (!keys.includes("support-xyz")) {
+            throw new Error("Missing key 'support-xyz'. Keys found: " + keys.join(", "));
+          }
+          const newsletter = results.find(r => r.key === "newsletter-abc");
+          if (newsletter.urgencyScore > 10) {
+            throw new Error(`Newsletter should have urgencyScore <= 10, got ${newsletter.urgencyScore}`);
+          }
+          return true;

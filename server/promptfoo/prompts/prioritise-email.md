@@ -108,7 +108,11 @@ IMPORTANT RULES:
 7. **Subject line urgency signals are critical**: When the subject line contains words like "Urgent", "ASAP", "Emergency", "Critical", "Immediate", or "Time-sensitive", this is a deliberate signal from the sender that the email requires prompt attention. These subject line signals should result in a MINIMUM urgencyScore of 70, regardless of how mundane the email body may seem. The sender explicitly chose to mark it as urgent — respect that intent.
 8. **Newsletters and mass-sent emails deserve LOW scores**: Newsletters, digests, mailing list emails, and promotional content should ALWAYS receive an urgency score of 0 and LOW goal alignment scores (0-20). Even if a newsletter's topic overlaps with the user's goals or interests, it is NOT the same as a personal email that requires action. Newsletters are informational background reading — they do not require the user to DO anything, they have no deadlines directed at the user, and no one is waiting for a reply. The only exception is if a newsletter contains a specific, time-bound call to action directly relevant to the user (e.g., "register by Friday for this conference"). Simply discussing topics the user cares about is NOT sufficient for a high goal alignment score — the email must require the user's direct engagement or action to score above 20 for goal alignment. NOTE: This rule does NOT apply to calendar invitations, meeting requests, account alerts, or transactional emails — those are automated but actionable and should be scored normally based on their content.
 
-{% if not batchMode %}Return a JSON object with a top-level "result" key: { "result": { "urgencyScore": number (0-100), "urgencyExplanation": string, "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string, "categoryExplanation": string, "protoCategorySuggestion": { "name": string, "description": string } (ONLY include if category is "Other"), "reasoning": string } }{% endif %}
+{% if batchMode %}
+Return a JSON object with exactly one key `priority_results` containing an array of per-email result objects. Each object must include: key (matching emailKey), urgencyScore (0-100), urgencyExplanation, goalAlignmentScore (0-100), goalAlignmentExplanation, category, categoryExplanation, reasoning, and optionally protoCategorySuggestion (ONLY if category is "Other").
+{% else %}
+Return a JSON object with a top-level "result" key: { "result": { "urgencyScore": number (0-100), "urgencyExplanation": string, "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string, "categoryExplanation": string, "protoCategorySuggestion": { "name": string, "description": string } (ONLY include if category is "Other"), "reasoning": string } }
+{% endif %}
 
 ---
 DYNAMIC CONTEXT (varies per request):
@@ -154,7 +158,9 @@ EMAILS TO ANALYZE (BATCH):
 
 {{emailBatch}}
 
-CRITICAL: Analyze ALL emails listed above. Return a single JSON object with key `priority_results` containing one entry per email in the same order as given. Do NOT include sentimentScore — it is pre-computed from the summary step.
+CRITICAL: Analyze ALL emails listed above. Return a single JSON object with key `priority_results` containing one entry per email in the same order as given. Each result object must include the `key` field matching the email's emailKey. Do NOT include sentimentScore — it is pre-computed from the summary step.
+
+IMPORTANT: The top-level response MUST be a JSON object with key `priority_results`, NOT a bare array.
 {% else %}
 ---
 EMAIL TO ANALYZE:

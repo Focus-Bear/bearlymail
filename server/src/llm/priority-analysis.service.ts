@@ -356,6 +356,7 @@ export class PriorityAnalysisService {
    * Analyze priority for a batch of emails in a single LLM call.
    * Returns results keyed by the email identifier passed in.
    */
+
   async analyzePriorityBatch(
     emails: Array<{
       emailKey: string;
@@ -464,6 +465,7 @@ Summary: ${cleanedBody}`;
       emailCategoriesText,
     } = this.buildUserContextTexts(userContext);
 
+
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -474,13 +476,21 @@ Summary: ${cleanedBody}`;
     const batchPrompt = renderPrompt(promptConfig.prompt, {
       batchMode: true,
       emailBatch: emailDescriptions.join("\n\n"),
-      currentDate: currentDateStr,
+      emailCategories: emailCategoriesText,
       urgentContext: urgentContextText,
       notUrgentContext: notUrgentContextText,
       goalsContext: goalsContextText,
       workingOnContext: workingOnContextText,
       dontCareContext: dontCareContextText,
-      emailCategories: emailCategoriesText,
+      currentDate: currentDateStr,
+      // Single-email-only vars — not used in batch mode but must be present
+      // to avoid template rendering leaving unreplaced placeholders
+      fromName: "",
+      senderJobTitle: "",
+      subject: "",
+      body: "",
+      threadInfo: "",
+      averageTimeToReply: undefined,
     });
 
     try {

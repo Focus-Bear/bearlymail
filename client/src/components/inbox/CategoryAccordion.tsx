@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
 
@@ -42,6 +41,8 @@ interface CategoryAccordionProps {
   isReanalysingOther?: boolean;
   /** Called after the accordion collapses (either via archive-all or auto-collapse). Used to scroll the next category into view. */
   onAfterCollapse?: () => void;
+  /** Override the default navigation to /settings#email-categories. When omitted, the component renders without router dependency (Storybook safe). When provided in production by the container, pass `() => navigate('/settings#email-categories')`. */
+  onNavigateToSettings?: () => void;
 }
 
 
@@ -327,9 +328,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   onReanalyseOther,
   isReanalysingOther,
   onAfterCollapse,
+  onNavigateToSettings,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   const emailCount = count !== undefined ? count : emails.length;
   const emailIds = emails.map(event => event.id);
@@ -343,7 +344,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
 
   const handleEditCategoryClick = (event: React.MouseEvent) => {
     event.stopPropagation();
-    navigate('/settings#email-categories');
+    onNavigateToSettings?.();
   };
 
   const handleArchiveAllClick = (event: React.MouseEvent) => {

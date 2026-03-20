@@ -502,5 +502,22 @@ module.exports = {
         // practice even in stories. Storybook resolves the same path aliases as the app.
       },
     },
+    {
+      // Relax rules for Storybook helper files (storyHelpers/ directory).
+      // These are developer-only fixtures and wrappers used exclusively by stories;
+      // they are never shipped to users and follow the same relaxed conventions as
+      // *.stories.tsx files (no i18n requirements, magic numbers permitted, etc.).
+      files: ['**/stories/storyHelpers/**/*.tsx', '**/stories/storyHelpers/**/*.ts'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+        'no-magic-numbers': 'off',
+        'max-lines-per-function': 'off',
+        'max-lines': 'off',
+        'no-restricted-syntax': 'off',
+        'prefer-template': 'off',
+        'id-denylist': 'off',
+        'no-nested-ternary': 'off',
+      },
+    },
   ],
 };

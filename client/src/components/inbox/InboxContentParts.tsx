@@ -5,6 +5,7 @@
  */
 import React, { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
@@ -226,6 +227,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   onAfterCollapse,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
 
@@ -303,6 +305,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
       onReanalyseOther={onReanalyseOther}
       isReanalysingOther={isReanalysingOther}
       onAfterCollapse={onAfterCollapse}
+      onNavigateToSettings={() => navigate('/settings#email-categories')}
     >
       {hasProtoGroups ? (
         <InboxOtherCategoryContent

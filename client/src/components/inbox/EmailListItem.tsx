@@ -1,20 +1,11 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
-import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
 
-import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
-import { EmailActionsRow } from 'components/inbox/EmailActionsRow';
-import { EmailCard } from 'components/inbox/EmailCard';
-import { EmailCardHeader } from 'components/inbox/EmailCardHeader';
-import { EmailPreview } from 'components/inbox/EmailPreview';
-import { EmailSubject } from 'components/inbox/EmailSubject';
-import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
-import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
-import { MetadataIndicators } from 'components/inbox/MetadataIndicators';
-import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, MODE_FOLLOW_UP } from 'constants/strings';
+import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY } from 'constants/strings';
 import { selectAnimatingOut } from 'store/selectors/emailSelectors';
+
+import { EmailListItemView } from './EmailListItemView';
 
 interface EmailListItemProps {
   email: Email;
@@ -62,96 +53,28 @@ interface EmailListItemProps {
   recipientName?: string;
 }
 
-export const EmailListItem: React.FC<EmailListItemProps> = ({
-  email,
-  index,
-  mode,
-  isSelected,
-  suggestion,
-  priorityTooltip,
-  keyboardHint,
-  snoozeInput,
-  onEmailClick,
-  onEmailSelect,
-  onSetStarCount,
-  onArchive,
-  onBlockSender,
-  onSnooze,
-  onOverrideUrgency,
-  onProvideFeedback,
-  followUpData,
-  onUpdateDraft,
-  onSendFollowUp,
-  recipientName,
-}) => {
-  const { t } = useTranslation();
+/**
+ * Container component: reads animation state from Redux store and passes it
+ * to the presentational EmailListItemView.
+ *
+ * To render in Storybook, use EmailListItemView directly with animatingOutType prop.
+ */
+export const EmailListItem: React.FC<EmailListItemProps> = (props) => {
   const animatingOut = useSelector(selectAnimatingOut);
-  const animatingOutItem = animatingOut.find(item => item.id === email.id);
+  const animatingOutItem = animatingOut.find(item => item.id === props.email.id);
 
-  let animationClass = '';
-  if (animatingOutItem?.type === ANIMATION_TYPE_ARCHIVE) {
-    animationClass = 'animate-fly-out-right';
-  } else if (animatingOutItem?.type === ANIMATION_TYPE_PRIORITY) {
-    animationClass = 'animate-priority-out';
-  }
-
-  const handleCardClick = (event: React.MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (target.closest('[data-priority-badge]') || target.closest('[data-priority-tooltip]')) {
-      return;
-    }
-
-    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-      onEmailClick(email.id, index, event);
-    } else {
-      onEmailSelect(email.id, event);
-    }
-  };
+  const animatingOutType =
+    animatingOutItem?.type === ANIMATION_TYPE_ARCHIVE
+      ? ANIMATION_TYPE_ARCHIVE
+      : animatingOutItem?.type === ANIMATION_TYPE_PRIORITY
+        ? ANIMATION_TYPE_PRIORITY
+        : null;
 
   return (
-    <div
-      data-email-index={index}
-      data-email-id={email.id}
-      className={animationClass}
-      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative', minWidth: 0 }}
-    >
-      {animatingOutItem?.type === ANIMATION_TYPE_PRIORITY && (
-        <>
-          <div className="priority-emoji-float" aria-hidden="true" />
-          <div className="priority-destination-label" aria-hidden="true">
-            {animatingOutItem.starCount === 2 ? t('inbox.triage.movingToFollowUp') : t('inbox.triage.movingToAction')}
-          </div>
-        </>
-      )}
-      <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
-        <EmailCardHeader
-          email={email}
-          priorityTooltip={priorityTooltip}
-          onOverrideUrgency={onOverrideUrgency}
-          onProvideFeedback={onProvideFeedback}
-        />
-        <EmailSubject email={email} />
-        <EmailPreview email={email} />
-        <MetadataIndicators email={email} />
-        {mode === MODE_FOLLOW_UP && <FollowUpMetadata email={email as any} />}
-        {mode === MODE_FOLLOW_UP && followUpData && (
-          <FollowUpDraft followUpData={followUpData} onUpdateDraft={onUpdateDraft} onSendFollowUp={onSendFollowUp} />
-        )}
-        <EmailActionsRow
-          email={email}
-          mode={mode}
-          suggestion={suggestion}
-          keyboardHint={keyboardHint}
-          snoozeInput={snoozeInput}
-          onSetStarCount={onSetStarCount}
-          onArchive={onArchive}
-          onBlockSender={onBlockSender}
-          onSnooze={onSnooze}
-        />
-        {email.githubMetadata?.links && email.githubMetadata.links.length > 0 && (
-          <GitHubProjectBadges emailId={email.id} initialLinks={email.githubMetadata.links} skipFetch />
-        )}
-      </EmailCard>
-    </div>
+    <EmailListItemView
+      {...props}
+      animatingOutType={animatingOutType}
+      animatingOutStarCount={animatingOutItem?.starCount}
+    />
   );
 };

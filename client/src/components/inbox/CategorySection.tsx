@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
 
 import { CategoryAccordion } from 'components/inbox/CategoryAccordion';
@@ -73,6 +74,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   handleConvertProtoCategory,
   handleDeleteProtoCategoryFromInbox,
 }) => {
+  const navigate = useNavigate();
   const categoryName = categoryItem.name;
   // Use the UUID key when available so all lookups are immune to name-encoding issues
   const categoryKey = getCategoryKey(categoryItem.id, categoryName);
@@ -156,6 +158,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
       onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
       onReanalyseOther={handleReanalyseOther}
       isReanalysingOther={isReanalysingOther}
+      onNavigateToSettings={() => navigate('/settings#email-categories')}
     >
       {hasProtoGroups
         ? (() => {

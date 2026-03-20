@@ -896,7 +896,7 @@ export class LLMProcessor implements OnModuleInit {
             emailThreadId: email.emailThreadId,
             summary: Not(IsNull()),
           },
-          select: ["id", "summary"],
+          select: ["id", "summary", "phishingConfidence", "phishingReason"],
         });
         if (
           emailWithSummary?.summary &&
@@ -905,7 +905,13 @@ export class LLMProcessor implements OnModuleInit {
           if (!email.summary || email.summary.trim() === "") {
             await this.emailRepository.update(
               { id: emailId },
-              { summary: emailWithSummary.summary, isProcessingSummary: false },
+              {
+                summary: emailWithSummary.summary,
+                isProcessingSummary: false,
+                // Copy phishing verdict from sibling to ensure stale flags are cleared (#744)
+                phishingConfidence: emailWithSummary.phishingConfidence ?? null,
+                phishingReason: emailWithSummary.phishingReason ?? null,
+              },
             );
           }
           skipCount.alreadyHasSummary++;
@@ -1057,9 +1063,8 @@ export class LLMProcessor implements OnModuleInit {
               isProcessingSummary: false,
               // Store sentiment score from summary (token-efficient: only summary sees full thread)
               ...(sentimentScore !== null ? { sentimentScore } : {}),
-              ...(phishingConfidence !== null
-                ? { phishingConfidence, phishingReason }
-                : {}),
+              phishingConfidence: phishingConfidence ?? null,
+              phishingReason: phishingReason ?? null,
               // Store structured action items extracted during summary pass
               ...(actionItems !== null ? { actionItemsJson: actionItems } : {}),
             },

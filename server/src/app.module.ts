@@ -42,6 +42,7 @@ import { RepliesModule } from "./replies/replies.module";
 import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
 import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling-preferences.module";
 import { SnoozeModule } from "./snooze/snooze.module";
+import { OrganizationsModule } from "./organizations/organizations.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
 import { SummarizationModule } from "./summarization/summarization.module";
@@ -132,6 +133,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     OnboardingModule,
     WaitlistModule,
     EncryptionModule,
+    OrganizationsModule,
     SubscriptionsModule,
     ActionItemsModule,
     BatchScheduleModule,

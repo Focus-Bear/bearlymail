@@ -73,6 +73,28 @@ SUMMARY:New York Meeting
 END:VEVENT
 END:VCALENDAR`;
 
+const WINDOWS_TZ_AUS_ICS = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Microsoft Corporation//Outlook 16.0 MIMEDIR//EN
+BEGIN:VEVENT
+UID:windows-tz-aus@example.com
+DTSTART;TZID=AUS Eastern Standard Time:20240315T100000
+DTEND;TZID=AUS Eastern Standard Time:20240315T110000
+SUMMARY:Sydney Meeting
+END:VEVENT
+END:VCALENDAR`;
+
+const WINDOWS_TZ_EASTERN_ICS = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Microsoft Corporation//Outlook 16.0 MIMEDIR//EN
+BEGIN:VEVENT
+UID:windows-tz-eastern@example.com
+DTSTART;TZID=Eastern Standard Time:20240315T100000
+DTEND;TZID=Eastern Standard Time:20240315T110000
+SUMMARY:New York Meeting (Outlook)
+END:VEVENT
+END:VCALENDAR`;
+
 // ---------------------------------------------------------------------------
 // parseIcsStringSafe
 // ---------------------------------------------------------------------------
@@ -108,8 +130,24 @@ describe("parseIcsStringSafe", () => {
       expect(result.event.isRecurring).toBe(true);
     });
 
-    it("extracts TZID from DTSTART", () => {
+    it("extracts TZID from DTSTART (valid IANA passthrough)", () => {
       const result = parseIcsStringSafe(TZID_ICS);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.event.timezone).toBe("America/New_York");
+    });
+
+    it("maps Windows TZID 'AUS Eastern Standard Time' → 'Australia/Sydney'", () => {
+      const result = parseIcsStringSafe(WINDOWS_TZ_AUS_ICS);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.event.timezone).toBe("Australia/Sydney");
+    });
+
+    it("maps Windows TZID 'Eastern Standard Time' → 'America/New_York'", () => {
+      const result = parseIcsStringSafe(WINDOWS_TZ_EASTERN_ICS);
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;

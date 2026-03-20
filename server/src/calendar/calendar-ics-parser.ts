@@ -9,6 +9,7 @@
 
 import * as ical from "node-ical";
 
+import { mapToIANATimezone } from "../utils/timezone.utils";
 import { IcsAttendee, IcsEventData } from "./ics-event.types";
 
 /**
@@ -138,7 +139,8 @@ function buildEventResult(
   }
 
   const tzidMatch = icsString.match(/DTSTART;TZID=([^:]+):/i);
-  const timezone = tzidMatch ? tzidMatch[1] : undefined;
+  const rawTimezone = tzidMatch ? tzidMatch[1] : undefined;
+  const timezone = rawTimezone ? mapToIANATimezone(rawTimezone) : undefined;
   const title =
     typeof extEntry.summary === "string" ? extEntry.summary : "(No title)";
 

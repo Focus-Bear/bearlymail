@@ -20,6 +20,7 @@ import {
 } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
+import { normalizeTimezone } from "../utils/timezone.utils";
 import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
 import { parseIcsStringSafe } from "./calendar-ics-parser";
 import {
@@ -700,6 +701,15 @@ Manage this booking:
       allDayEndDate = lastDay.toISOString().slice(0, 10);
     }
 
+    // Belt-and-suspenders: normalizeTimezone ensures we never pass a non-IANA
+    // string to Google Calendar even if the parser didn't catch it.
+    const safeTimezone = normalizeTimezone(eventData.timezone ?? "UTC");
+    if (safeTimezone !== eventData.timezone) {
+      this.logger.warn(
+        `[ICS] Non-IANA timezone "${eventData.timezone}" normalised to "${safeTimezone}" before Google Calendar API call`,
+      );
+    }
+
     const eventBody: calendar_v3.Schema$Event = {
       summary: eventData.title,
       location: eventData.location,
@@ -708,13 +718,13 @@ Manage this booking:
         ? { date: eventData.startAt.slice(0, 10) }
         : {
             dateTime: eventData.startAt,
-            timeZone: eventData.timezone ?? "UTC",
+            timeZone: safeTimezone,
           },
       end: eventData.allDay
         ? { date: allDayEndDate! }
         : {
             dateTime: eventData.endAt ?? eventData.startAt,
-            timeZone: eventData.timezone ?? "UTC",
+            timeZone: safeTimezone,
           },
       attendees: eventData.attendees.map((att) => ({
         email: att.email,

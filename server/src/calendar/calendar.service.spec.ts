@@ -1115,6 +1115,74 @@ describe("CalendarService", () => {
     });
   });
 
+  describe("addIcsEventToCalendar — timezone normalization", () => {
+    const baseEventData = {
+      uid: "test-uid@example.com",
+      title: "Test Meeting",
+      startAt: "2024-03-15T10:00:00.000Z",
+      endAt: "2024-03-15T11:00:00.000Z",
+      allDay: false,
+      attendees: [],
+      isRecurring: false,
+    };
+
+    it("passes a valid IANA timezone directly to Google API", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: { id: "evt-1", htmlLink: "https://calendar.google.com/event" },
+      });
+
+      await service.addIcsEventToCalendar("user-1", {
+        ...baseEventData,
+        timezone: "Australia/Sydney",
+      });
+
+      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
+      expect(insertCall.requestBody.start.timeZone).toBe("Australia/Sydney");
+      expect(insertCall.requestBody.end.timeZone).toBe("Australia/Sydney");
+    });
+
+    it("falls back to UTC when timezone is undefined", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: { id: "evt-2", htmlLink: "https://calendar.google.com/event" },
+      });
+
+      await service.addIcsEventToCalendar("user-1", {
+        ...baseEventData,
+        timezone: undefined,
+      });
+
+      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
+      expect(insertCall.requestBody.start.timeZone).toBe("UTC");
+      expect(insertCall.requestBody.end.timeZone).toBe("UTC");
+    });
+
+    it("normalises an invalid timezone to UTC and logs a warning (belt-and-suspenders)", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({
+        data: { id: "evt-3", htmlLink: "https://calendar.google.com/event" },
+      });
+      const warnSpy = jest
+        .spyOn(service.logger, "warn")
+        .mockImplementation(() => undefined);
+
+      // Simulate a non-IANA string slipping through the parser
+      await service.addIcsEventToCalendar("user-1", {
+        ...baseEventData,
+        timezone: "Not A Real Zone",
+      });
+
+      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
+      expect(insertCall.requestBody.start.timeZone).toBe("UTC");
+      expect(insertCall.requestBody.end.timeZone).toBe("UTC");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Non-IANA timezone"),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
   describe("getBookingByToken", () => {
     it("should return booking when found", async () => {
       const mockBooking = {

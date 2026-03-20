@@ -123,6 +123,5 @@ export const useAuthInitialization = (
     } else {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setUser, setLoading, retryCount]);
 };

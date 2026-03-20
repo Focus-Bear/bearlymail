@@ -36,8 +36,7 @@ function guessNameFromEmail(email: string): string {
   return nameParts.join(" ");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface UserWithoutPassword extends Omit<User, "password"> {}
+type UserWithoutPassword = Omit<User, "password">;
 
 interface UserUpdateData {
   googleId?: string;

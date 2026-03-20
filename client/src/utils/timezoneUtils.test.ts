@@ -101,7 +101,7 @@ describe('getCurrentTimeInTimezone', () => {
     const offsetPart = result.slice(19);   // "+HH:MM" or "-HH:MM"
     const sign = offsetPart[0] === '+' ? 1 : -1;
     const [oh, om] = offsetPart.slice(1).split(':').map(Number);
-    const offsetMs = sign * (oh * 60 + om) * 60 * 1000; // eslint-disable-line no-magic-numbers
+    const offsetMs = sign * (oh * 60 + om) * 60 * 1000;
     const parsedMs = Date.parse(`${localPart}Z`) - offsetMs;
 
     expect(parsedMs).toBeGreaterThanOrEqual(before - 1000);

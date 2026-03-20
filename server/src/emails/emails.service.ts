@@ -635,15 +635,18 @@ export class EmailsService implements OnModuleInit {
     const PAGE_SIZE = 200;
     let processed = 0;
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    let hasMoreRepairThreads = true;
+    while (hasMoreRepairThreads) {
       const threads = await this.emailThreadRepository.find({
         where: { needsCategoryRepair: true },
         select: ["id", "userId", "category", "needsCategoryRepair"],
         take: PAGE_SIZE,
       });
 
-      if (threads.length === 0) break;
+      if (threads.length === 0) {
+        hasMoreRepairThreads = false;
+        break;
+      }
 
       // Batch-load all user contexts for this page in ONE query (avoids N+1 on startup).
       const uniqueUserIds = [
@@ -754,15 +757,18 @@ export class EmailsService implements OnModuleInit {
     const PAGE_SIZE = 200;
     let processed = 0;
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    let hasMoreBackfillThreads = true;
+    while (hasMoreBackfillThreads) {
       const threads = await this.emailThreadRepository.find({
         where: { needsCategoryIdBackfill: true },
         select: ["id", "userId", "category", "needsCategoryIdBackfill"],
         take: PAGE_SIZE,
       });
 
-      if (threads.length === 0) break;
+      if (threads.length === 0) {
+        hasMoreBackfillThreads = false;
+        break;
+      }
 
       const uniqueUserIds = [
         ...new Set(threads.map((thread) => thread.userId).filter(Boolean)),

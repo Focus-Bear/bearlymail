@@ -46,5 +46,5 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
     }, LONG_TIMEOUT_MS);
 
     return () => clearInterval(interval);
-  }, [processingCount]); // eslint-disable-line react-hooks/exhaustive-deps -- onPollRef.current is stable via ref pattern
+  }, [processingCount, stableOnPollRef]); // stableOnPollRef is a ref object (stable across renders)
 }

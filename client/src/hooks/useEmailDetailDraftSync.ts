@@ -18,7 +18,7 @@ interface UseEmailDetailDraftSyncParams {
   setReplyRecipients: (recipients: string) => void;
   setReplyMode: (mode: 'reply' | 'replyAll') => void;
   setShowReplyComposer: (show: boolean) => void;
-  setReplyOptions: (options: unknown) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  setReplyOptions: (options: unknown) => void;
   setToneCheckResult: (result: null) => void;
   handleGenerateDraft: () => void;
 }

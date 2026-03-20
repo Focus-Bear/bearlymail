@@ -158,18 +158,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       Image.configure({ inline: true, allowBase64: true }),
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [placeholder],
+    [placeholder], // eslint deps: createLinkShortcut is module-level (stable); linkShortcutCallbackRef is a ref (stable)
   );
 
   // Stable paste handler that delegates to the latest callback refs.
+  // Deps are intentionally [] — both refs are stable objects; no reactive values accessed.
   const stablePasteHandler = useCallback(
     buildPasteHandler(
       (files) => onPasteFilesRef.current?.(files),
       (cid, file) => onInlineImageRef.current?.(cid, file),
     ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [], // onPasteFilesRef and onInlineImageRef are refs (stable across renders)
   );
 
   const editor = useEditor({

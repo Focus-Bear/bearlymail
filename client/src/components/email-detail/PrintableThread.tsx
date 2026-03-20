@@ -2,9 +2,10 @@ import './email-thread-print.css';
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import DOMPurify from 'dompurify';
 import { Email } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
+
+import { SanitizedHTML } from 'components/common/SanitizedHTML';
 
 interface PrintableThreadProps {
   email: Email;
@@ -19,6 +20,7 @@ interface PrintableThreadProps {
  *
  * HTML sanitization: email bodies are sanitized with DOMPurify before rendering
  * to prevent XSS from malicious email content, even in this print-only context.
+ * Sanitization is handled by the SanitizedHTML wrapper component.
  */
 export const PrintableThread: React.FC<PrintableThreadProps> = ({ email, threadEmails }) => {
   const { t } = useTranslation();
@@ -46,12 +48,9 @@ export const PrintableThread: React.FC<PrintableThreadProps> = ({ email, threadE
             &nbsp;&nbsp;
             <strong>{t('printableThread.date')}</strong> {msg.receivedAt ? humanizeTimestamp(msg.receivedAt) : ''}
           </div>
-          <div
+          <SanitizedHTML
+            html={msg.htmlBody || msg.body || ''}
             className="print-message-body"
-            /* eslint-disable-next-line react/no-danger */
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(msg.htmlBody || msg.body || ''),
-            }}
           />
         </div>
       ))}

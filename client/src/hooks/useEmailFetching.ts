@@ -213,9 +213,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       });
       // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
     },
-    // categoryBackoff is from usePollingWithBackoff — its functions are stable (useCallback with []).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, dispatch, buildCategoryParams]
+    // categoryBackoff functions are stable (useCallback with []); including them satisfies the rule without causing re-renders.
+    [mode, dispatch, buildCategoryParams, categoryBackoff]
   );
 
   // Cleanup: cancel all pending retry timers on unmount
@@ -226,8 +225,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       pendingTimers.clear();
       categoryBackoff.cancelAll();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [categoryBackoff]); // categoryBackoff.cancelAll is stable (useCallback with []); including it satisfies the rule
 
   const loadMore = useCallback(async () => {
     if (isLoadingMoreRef.current) {

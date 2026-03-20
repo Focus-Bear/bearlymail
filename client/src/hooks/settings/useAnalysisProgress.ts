@@ -405,9 +405,8 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }
       backoff.cancelAll();
     };
-    // backoff functions are stable (from usePollingWithBackoff with useCallback([]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyzing, analysisId, onComplete]);
+    // backoff functions are stable (useCallback with []); including backoff satisfies the rule without causing re-renders
+  }, [analyzing, analysisId, onComplete, backoff]);
 
   const dismissProgress = useCallback(() => {
     // Stop polling when user dismisses - use ref to ensure closure sees the cancellation

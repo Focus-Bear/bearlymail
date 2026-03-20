@@ -57,7 +57,9 @@ export function useInboxUrlSync({
   const isInitialMount = useRef(true);
 
   // Effect 1 — mount only: restore split view email from URL; redirect if mode is absent from URL.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // The isInitialMount ref guard ensures the body runs exactly once; listing all reactive deps
+  // satisfies the exhaustive-deps rule without causing the effect to trigger on subsequent renders
+  // (the guard returns early after the first execution).
   useEffect(() => {
     if (!isInitialMount.current) {
       return;
@@ -69,7 +71,7 @@ export function useInboxUrlSync({
     if (!urlMode) {
       navigate(`${basePath}/${mode}`, { replace: true });
     }
-  }, []); // intentionally empty — mount-only
+  }, [urlThreadId, splitViewSelectedEmailId, urlMode, openEmail, navigate, basePath, mode]);
 
   // Stable ref for the URL-params-changed callback. Effect 3 re-runs only when
   // urlMode/urlThreadId change, but the callback always reads fresh state via closure.

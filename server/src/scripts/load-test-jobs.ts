@@ -16,10 +16,9 @@
  *   - all: Run all scenarios
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-import PgBoss = require("pg-boss");
 import * as dotenv from "dotenv";
 import * as path from "path";
+import PgBoss from "pg-boss";
 
 import { MS_PER_SECOND } from "../constants/time-constants";
 

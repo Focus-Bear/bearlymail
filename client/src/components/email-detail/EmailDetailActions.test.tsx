@@ -17,6 +17,7 @@ import {
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
   ACTION_TYPE_SCHEDULING_REQUEST,
 } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { EmailDetailActions } from './EmailDetailActions';
 
@@ -82,8 +83,7 @@ jest.mock('hooks/useResponsiveBreakpoints', () => ({
   useResponsiveBreakpoints: jest.fn(() => ({ isMobile: false, isTablet: false, isDesktop: true })),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const mockUseResponsiveBreakpoints = require('hooks/useResponsiveBreakpoints').useResponsiveBreakpoints as jest.MockedFunction<() => { isMobile: boolean; isTablet: boolean; isDesktop: boolean }>;
+const mockUseResponsiveBreakpoints = jest.mocked(useResponsiveBreakpoints);
 
 jest.mock('components/common/OverflowMenu', () => ({
   OverflowMenu: () => <div data-testid="OverflowMenu" />,

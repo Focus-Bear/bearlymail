@@ -30,6 +30,7 @@ import {
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
 
 import {
@@ -284,7 +285,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         // emails than the fetch limit, the count will be under-decremented. Pagination is a
         // pre-existing limitation of the fallback fetch and is out of scope for this fix.
         dispatch(markCategoryLoaded(categoryKey));
-        dispatch(decrementCategorySummaryCount({ categoryName: categoryItem.name, count: fetchedIds.length }));
+        dispatch(decrementCategorySummaryCount({ categoryKey: categoryItem.id ?? CATEGORY_KEY_UNCATEGORIZED, count: fetchedIds.length }));
       }
     } catch (err) {
       console.error('[InboxContent] Failed to load category emails for archive:', err);

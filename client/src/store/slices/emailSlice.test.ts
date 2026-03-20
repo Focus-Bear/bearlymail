@@ -197,18 +197,21 @@ describe('updateCategoryEmails', () => {
     expect(ids).toContain('6'); // "" → Other
   });
 
-  it('replaces "Other" category including null, empty string, and "Other" emails', () => {
-    const freshOtherEmails = [makeEmail('9', null), makeEmail('10', 'Other')];
+  it('replaces uncategorized bucket (null/empty category_id) using "uncategorized" key', () => {
+    // UUID-only: the "uncategorized" bucket is keyed by CATEGORY_KEY_UNCATEGORIZED,
+    // never by the name string "Other". Only emails with null/empty category_id match.
+    const freshUncategorizedEmails = [makeEmail('9', null), makeEmail('10', null)];
     const state = inboxDataReducer(
       stateWithCategories,
-      updateCategoryEmails({ categoryKey: 'Other', emails: freshOtherEmails })
+      updateCategoryEmails({ categoryKey: 'uncategorized', emails: freshUncategorizedEmails })
     );
     const ids = state.emails.map(event => event.id);
-    // Old Other-like emails (4, 5, 6) should be gone
-    expect(ids).not.toContain('4');
-    expect(ids).not.toContain('5');
-    expect(ids).not.toContain('6');
-    // New Other emails should be present
+    // Old null/empty-category_id emails (4, 6) should be gone
+    expect(ids).not.toContain('4'); // category_id: null
+    expect(ids).not.toContain('6'); // category_id: '' (empty string → falsy)
+    // Email 5 has category_id: 'Other' (a string UUID) — NOT uncategorized under UUID-only rules
+    expect(ids).toContain('5');
+    // New uncategorized emails should be present
     expect(ids).toContain('9');
     expect(ids).toContain('10');
     // Named categories untouched

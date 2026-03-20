@@ -6,7 +6,7 @@ import { invalidateSummaryCache, removeEmailFromCache } from 'utils/emailCache';
 
 import { API_URL } from 'config/api';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
-import { CATEGORY_OTHER, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
@@ -22,6 +22,7 @@ import {
   restoreEmail,
   updateEmail,
 } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
 
 /** Duration (ms) of email exit animations — must match CSS animation durations in App.css */
@@ -190,13 +191,11 @@ export function useEmailActionsBase({
         onShowPriorityOverride(emailId, score, 0, 'archive', emailToArchive.subject ?? undefined);
         return;
       }
-      const categoryName = emailToArchive.category || CATEGORY_OTHER;
       const categoryKey = emailToArchive.category_id ?? undefined;
       dispatch(addOptimisticArchive(emailId));
       dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
-      // Fix #1246: pass categoryKey (UUID) so the reducer can match by UUID first,
-      // avoiding mismatches caused by LLM-deviated category name strings.
-      dispatch(decrementCategorySummaryCount({ categoryKey, categoryName, count: 1 }));
+      // UUID-only: match category by UUID (categoryKey). Never use name as a fallback.
+      dispatch(decrementCategorySummaryCount({ categoryKey: categoryKey ?? CATEGORY_KEY_UNCATEGORIZED, count: 1 }));
       removeEmailFromCache(emailId);
       onSuggestionRemove?.(emailId);
       const tid = setTimeout(() => {
@@ -217,7 +216,7 @@ export function useEmailActionsBase({
           dispatch(restoreEmail(emailToArchive));
         }
         dispatch(removeOptimisticArchive(emailId));
-        dispatch(incrementCategorySummaryCount(categoryName));
+        dispatch(incrementCategorySummaryCount({ categoryKey: categoryKey ?? CATEGORY_KEY_UNCATEGORIZED, count: 1 }));
         adjustTabCount(onTabCountsUpdateOptimistically, mode, 1);
         fetchEmails().catch(err => console.error('Error refreshing after archive error:', err));
       });

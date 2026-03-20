@@ -12,6 +12,7 @@ import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 
 import { API_URL } from 'config/api';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 export interface InboxFilter {
   accountIds: string[];
@@ -133,7 +134,9 @@ export function useInboxFilters() {
       const summaryResp = await axios.get(`${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`);
       const cats = summaryResp.data?.categories ?? [];
       // Each category must have a UUID id — if id is missing, that's a server-side data bug.
-      setAvailableCategories(cats.map((cat: { id?: string; name?: string }) => ({ id: cat.id ?? cat.name, label: cat.name ?? cat.id })));
+      // UUID-only: use category id as the filter key; "uncategorized" for items with no UUID.
+      // Never use name as a key — name strings are for display only.
+      setAvailableCategories(cats.map((cat: { id?: string; name?: string }) => ({ id: cat.id ?? CATEGORY_KEY_UNCATEGORIZED, label: cat.name ?? cat.id ?? 'Uncategorized' })));
     } catch (error) {
       console.error('Failed to fetch categories from inbox-summary:', error);
       // Do not fall back to the deprecated /emails/categories endpoint.

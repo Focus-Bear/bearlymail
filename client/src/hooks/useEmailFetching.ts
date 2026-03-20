@@ -72,12 +72,11 @@ interface UseEmailFetchingProps {
 
 /**
  * Compute the stable category key used as the canonical identifier throughout the client.
- * The UUID from the summary API is always used as the key — it is immune to name
- * encoding/whitespace differences. A missing UUID is a data bug to fix server-side,
- * not something to work around here.
+ * Always returns the UUID when present, or the constant "uncategorized" string.
+ * NEVER falls back to the name — name-based keys are gone.
  */
-export function getCategoryKey(id: string | null | undefined, name: string): string {
-  return id ?? name;
+export function getCategoryKey(id: string | null | undefined, _name?: string): string {
+  return id ?? "uncategorized";
 }
 
 async function fetchAutoRespondedEmails(

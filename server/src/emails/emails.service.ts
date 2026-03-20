@@ -456,52 +456,20 @@ export class EmailsService implements OnModuleInit {
       }
     }
 
-    // Fetch category contexts to map category names to UUIDs
-    const categoryContexts = await this.userContextRepository.find({
-      where: {
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-      },
-      select: ["contextId", "contextValue", "createdAt"],
-    });
-
-    // Build a map from category name to context ID (UUID).
-    // Fix #1258: deduplicate categories with the same display name — keep the
-    // oldest (first-created) UUID as canonical and log a warning when dupes exist.
-    const categoryContextsByName = new Map<string, UserContext[]>();
-    for (const ctx of categoryContexts) {
-      // contextValue format: "Category Name - Description" or just "Category Name"
-      const categoryName = ctx.contextValue.split(" - ")[0].trim();
-      const existing = categoryContextsByName.get(categoryName) ?? [];
-      existing.push(ctx);
-      categoryContextsByName.set(categoryName, existing);
-    }
-
-    const categoryNameToId = new Map<string, string>();
-    for (const [name, contexts] of categoryContextsByName.entries()) {
-      if (contexts.length > 1) {
-        // Sort ascending by createdAt so index 0 is the oldest (canonical)
-        contexts.sort(
-          (ctxA, ctxB) => ctxA.createdAt.getTime() - ctxB.createdAt.getTime(),
-        );
-        this.logger.warn(
-          `[getInboxSummary] Duplicate category name "${name}" for user ${userId}: ` +
-            `${contexts.length} entries (${contexts.map((ctx) => ctx.contextId).join(", ")}). Using oldest UUID.`,
-        );
-      }
-      categoryNameToId.set(name, contexts[0].contextId);
-    }
 
     // Pre-warm the blocked senders cache before the loop.
     // This ensures all subsequent isSenderBlocked calls use in-memory lookups.
     await this.blockedSendersService.getBlockedEmailHashes(userId);
 
-    // Decrypt categories in-memory (AES-GCM random IVs prevent SQL DISTINCT)
+    // Group threads by categoryId UUID directly — no name-based resolution.
+    // Threads with null categoryId are grouped under the constant "uncategorized" key.
+    const UNCATEGORIZED_KEY = "uncategorized";
+    // Ordered list of categoryId keys
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
     const categoryThreadIds: Record<string, string[]> = {};
-    // Tracks first-seen categoryId UUID per category name (fix #1146)
-    const categoryUuidByName = new Map<string, string>();
+    // Maps categoryId key → decrypted display name (for the response payload)
+    const categoryNameById = new Map<string, string>();
 
     for (const row of rows as {
       category: string | null;
@@ -543,102 +511,41 @@ export class EmailsService implements OnModuleInit {
         }
       }
 
-      const category =
-        (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
-        "Other";
-      if (!categoryOrder.includes(category)) {
-        categoryOrder.push(category);
-        categoryThreadIds[category] = [];
+      // Group by categoryId UUID directly. Null categoryId → "uncategorized".
+      const catKey = row.categoryId ?? UNCATEGORIZED_KEY;
+      if (!categoryOrder.includes(catKey)) {
+        categoryOrder.push(catKey);
+        categoryThreadIds[catKey] = [];
+        // Store display name once per key (decrypt on first encounter)
+        const displayName =
+          catKey === UNCATEGORIZED_KEY
+            ? "Other"
+            : (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
+              "Other";
+        categoryNameById.set(catKey, displayName);
       }
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      categoryCounts[catKey] = (categoryCounts[catKey] || 0) + 1;
       if (row.threadId && filters?.includeThreadIds) {
-        categoryThreadIds[category].push(row.threadId);
-      }
-      // Track the first-seen categoryId UUID per category name (fix #1146)
-      // Used below for UUID-based filtering without a round-trip to UserContext.
-      if (row.categoryId && !categoryUuidByName.has(category)) {
-        categoryUuidByName.set(category, row.categoryId as string);
+        categoryThreadIds[catKey].push(row.threadId);
       }
     }
 
-    // Apply user-selected category filter in-memory using UUIDs (fix #1146).
-    // Primary path: match thread.categoryId UUID directly.
-    // Fallback path: name-based match for pre-backfill threads (backward compat).
-    let visibleCategories = categoryOrder;
+    // UUID-only category filter: match exclusively by thread.categoryId UUID.
+    // No name-based fallback — threads with no categoryId go to "uncategorized".
+    let visibleCategoryKeys = categoryOrder;
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      // Fix #1174: "Other" is a synthetic key (threads with no categoryId/category).
-      // It never has a UUID in UserContext, so it must be handled before UUID→name resolution.
-      const OTHER_CATEGORY_KEY = "Other";
-      const requestedOther = filters.categoryIds.includes(OTHER_CATEGORY_KEY);
-      const realCategoryIds = filters.categoryIds.filter(
-        (id) => id !== OTHER_CATEGORY_KEY,
+      const requestedUuids = new Set(filters.categoryIds);
+      visibleCategoryKeys = categoryOrder.filter((key) =>
+        requestedUuids.has(key),
       );
-
-      const requestedUuids = new Set(realCategoryIds);
-
-      // Reverse lookup for fallback (name-based) matching
-      const idToName = new Map<string, string>();
-      categoryNameToId.forEach((id, name) => idToName.set(id, name));
-      const categoryNamesFromIds = new Set(
-        realCategoryIds
-          .map((id) => idToName.get(id))
-          .filter((name): name is string => name !== undefined),
-      );
-
-      // Fix #1114: if real (non-Other) categoryIds were specified but none resolve
-      // to a known category name (e.g. stale / deleted UUIDs), return a zero-count
-      // summary rather than silently skipping the filter and returning ALL categories.
-      // Only fire when realCategoryIds is non-empty — "Other"-only requests are valid.
-      if (realCategoryIds.length > 0 && categoryNamesFromIds.size === 0) {
-        this.logger.warn(
-          `getInboxSummary: none of the requested UUIDs resolved to a known category — returning empty summary (userId=${userId})`,
-        );
-        return { total: 0, categories: [] };
-      }
-
-      visibleCategories = categoryOrder.filter((cat) => {
-        // Fix #1174: include the synthetic "Other" category when explicitly requested
-        if (requestedOther && cat === OTHER_CATEGORY_KEY) return true;
-        // Primary: UUID match via per-category UUID tracked during grouping
-        const uuid = categoryUuidByName.get(cat);
-        if (uuid) return requestedUuids.has(uuid);
-        // Fallback: name match for threads not yet backfilled
-        return categoryNamesFromIds.has(cat);
-      });
     }
 
-    // Defensive read-path lookup: handles existing threads whose category column
-    // stores LLM-deviated names (e.g. "Customer feedback (github issues…)" instead
-    // of the canonical "Customer feedback").  Exact match is tried first; on miss
-    // we fall back to prefix/parenthetical normalisation against the known keys
-    // (fix #1120 — prevents id: null breaking accordion grouping).
-    const lookupCategoryId = (name: string): string | null => {
-      const exact = categoryNameToId.get(name);
-      if (exact) return exact;
-      const nameLower = name.toLowerCase().trim();
-      // Strip parenthetical: "Name (…)" → "Name"
-      const withoutParens = nameLower.replace(/\s*\(.*\)\s*$/, "").trim();
-      for (const [key, id] of categoryNameToId.entries()) {
-        const keyLower = key.toLowerCase().trim();
-        if (keyLower === withoutParens) return id;
-        // Prefix match: stored key starts with the supplied name or vice-versa
-        if (nameLower.startsWith(keyLower) || keyLower.startsWith(nameLower))
-          return id;
-      }
-      return null;
-    };
-
-    const categories = visibleCategories.map((name) => ({
-      // Use categoryUuidByName (populated from thread.categoryId column) as primary source.
-      // This is the actual UUID stored on the thread — far more reliable than the
-      // UserContext name-matching fallback (lookupCategoryId) which can return null when
-      // LLM-deviated names don't match the stored canonical form.
-      // lookupCategoryId is only used as a fallback for pre-backfill threads with no UUID.
-      id: categoryUuidByName.get(name) ?? lookupCategoryId(name),
-      name,
-      count: categoryCounts[name] || 0,
+    const categories = visibleCategoryKeys.map((catKey) => ({
+      id: catKey === UNCATEGORIZED_KEY ? null : catKey,
+      name: categoryNameById.get(catKey) ?? "Other",
+      count: categoryCounts[catKey] || 0,
       ...(filters?.includeThreadIds
-        ? { threadIds: categoryThreadIds[name] || [] }
+        ? { threadIds: categoryThreadIds[catKey] || [] }
         : {}),
     }));
 
@@ -1040,28 +947,16 @@ export class EmailsService implements OnModuleInit {
     );
     const hasMore = queryOffset + finalEmails.length < total;
 
-    // Enrich emails with category_id (UUID) for client grouping (fix #1146).
-    // Primary path: use thread.categoryId stored at write time (no name lookup needed).
-    // Fallback path: name→UUID lookup for pre-backfill threads.
-    let categoryNameToId: Map<string, string> | null = null;
+    // Enrich emails with category_id (UUID) for client grouping.
+    // UUID-only: use thread.categoryId directly. No name-based fallback.
+    // Threads with no categoryId get category_id=null (Uncategorized).
     for (const email of finalEmails) {
       const emailWithMeta = email as Email & {
         category_id?: string | null;
         categoryId?: string | null;
         category?: string | null;
       };
-      if (emailWithMeta.categoryId) {
-        // Direct UUID from thread column — no resolution needed
-        emailWithMeta.category_id = emailWithMeta.categoryId;
-      } else {
-        // Fallback: name-based lookup (pre-backfill threads)
-        if (!categoryNameToId) {
-          categoryNameToId = await this.getCategoryNameToIdMap(userId);
-        }
-        emailWithMeta.category_id = emailWithMeta.category
-          ? (categoryNameToId.get(emailWithMeta.category) ?? null)
-          : null;
-      }
+      emailWithMeta.category_id = emailWithMeta.categoryId ?? null;
     }
 
     this.logger.log(
@@ -1070,30 +965,6 @@ export class EmailsService implements OnModuleInit {
 
     perf.finish(mode);
     return { emails: finalEmails, total, hasMore };
-  }
-
-  /**
-   * Build a map from category name → context UUID for the given user.
-   * Categories are stored as UserContext entries with key EMAIL_CATEGORY;
-   * the contextValue format is "Category Name - Description" or "Category Name".
-   * Re-uses the same lookup pattern as getInboxSummary.
-   */
-  private async getCategoryNameToIdMap(
-    userId: string,
-  ): Promise<Map<string, string>> {
-    const categoryContexts = await this.userContextRepository.find({
-      where: {
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-      },
-      select: ["contextId", "contextValue"],
-    });
-    const map = new Map<string, string>();
-    for (const ctx of categoryContexts) {
-      const categoryName = ctx.contextValue.split(" - ")[0].trim();
-      map.set(categoryName, ctx.contextId);
-    }
-    return map;
   }
 
   private async runInboxQuery(
@@ -1237,51 +1108,17 @@ export class EmailsService implements OnModuleInit {
       );
     }
 
-    // Apply category filter by UUID directly (fix #1146).
+    // UUID-only category filter (fix #1146).
     // thread.categoryId is stored at write time — no name resolution needed.
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      // Fix #1174: "Other" is a synthetic key (threads with null categoryId/category).
-      // It never has a UUID in UserContext, so it must be handled before UUID→name resolution.
-      const OTHER_CATEGORY_KEY = "Other";
-      const requestedOther = filters.categoryIds.includes(OTHER_CATEGORY_KEY);
+      // "uncategorized" is a synthetic key for threads with null categoryId.
+      // Aligns with getInboxSummary and the frontend's getCategoryKey(null) → "uncategorized".
+      const UNCATEGORIZED_KEY = "uncategorized";
+      const requestedOther = filters.categoryIds.includes(UNCATEGORIZED_KEY);
       const realCategoryIds = filters.categoryIds.filter(
-        (id) => id !== OTHER_CATEGORY_KEY,
+        (id) => id !== UNCATEGORIZED_KEY,
       );
-
       const requestedUuids = new Set(realCategoryIds);
-
-      // Threads without a categoryId fall back to name-based matching for
-      // backward-compat with rows not yet backfilled (needsCategoryIdBackfill=true).
-      // Once backfill completes, the fallback branch will be exercised by legacy
-      // "Other" threads only (which have no categoryId by design).
-      const categoryContexts = await this.userContextRepository.find({
-        where: {
-          userId,
-          contextKey: ContextKey.EMAIL_CATEGORY,
-        },
-        select: ["contextId", "contextValue"],
-      });
-      const idToName = new Map<string, string>();
-      for (const ctx of categoryContexts) {
-        const categoryName = ctx.contextValue.split(" - ")[0].trim();
-        idToName.set(ctx.contextId, categoryName);
-      }
-      const requestedNames = new Set(
-        realCategoryIds
-          .map((id) => idToName.get(id))
-          .filter((name): name is string => name !== undefined),
-      );
-
-      // Fix #1114: if real (non-Other) categoryIds were specified but none resolve
-      // to a known category name (e.g. stale / deleted UUIDs), return an empty result
-      // rather than silently skipping the filter and returning ALL emails.
-      // Only fire when realCategoryIds is non-empty — "Other"-only requests are valid.
-      if (realCategoryIds.length > 0 && requestedNames.size === 0) {
-        this.logger.warn(
-          `Category filter: none of the requested UUIDs resolved to a known category — returning empty result (userId=${userId})`,
-        );
-        return { emails: [], blockedCount: 0 };
-      }
 
       const beforeCount = filteredEmails.length;
       filteredEmails = filteredEmails.filter((emailEntry) => {
@@ -1289,22 +1126,20 @@ export class EmailsService implements OnModuleInit {
           categoryId?: string | null;
           category?: string | null;
         };
-        // Fix #1174: include threads in the synthetic "Other" category when requested.
-        // "Other" threads have no categoryId and their category is null or "Other".
-        const effectiveCategory = emailWithMeta.category || OTHER_CATEGORY_KEY;
+        // Include threads in the synthetic uncategorized bucket when requested.
+        // These threads have no categoryId (null/undefined).
         if (
           requestedOther &&
-          !emailWithMeta.categoryId &&
-          effectiveCategory === OTHER_CATEGORY_KEY
+          !emailWithMeta.categoryId
         ) {
           return true;
         }
-        // Primary path: UUID equality (set at write time, fix #1146)
-        if (emailWithMeta.categoryId) {
-          return requestedUuids.has(emailWithMeta.categoryId);
-        }
-        // Fallback path: name-based match for pre-backfill threads
-        return requestedNames.has(effectiveCategory);
+        // UUID-only: match by thread.categoryId, no name fallback.
+        return (
+          emailWithMeta.categoryId !== undefined &&
+          emailWithMeta.categoryId !== null &&
+          requestedUuids.has(emailWithMeta.categoryId)
+        );
       });
       const removed = beforeCount - filteredEmails.length;
       if (removed > 0)

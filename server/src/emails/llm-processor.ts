@@ -1066,9 +1066,8 @@ export class LLMProcessor implements OnModuleInit {
           );
 
           // Store category on the thread (if the summary produced one).
-          // Canonicalise against known UserContext category names to prevent
-          // storing LLM deviations (e.g. parenthetical descriptions) that break
-          // the categoryNameToId lookup in getInboxSummary (fix #1120).
+          // Canonicalise against known UserContext category names (exact match only)
+          // to prevent storing LLM name deviations. UUID-only resolution — no fuzzy fallback.
           if (category && email.emailThreadId) {
             let canonicalCategory = category;
             let matchedCategoryId: string | null = null;
@@ -1210,6 +1209,15 @@ export class LLMProcessor implements OnModuleInit {
           knownCategoryNames,
           contexts as UserContext[],
         );
+
+      // NOTE: this warning fires at summary-LLM time, before the priority-LLM has had a chance
+      // to override the category. If the priority LLM later resolves a valid UUID, this warn
+      // is a false positive — it reflects a miss at the summary stage, not the final write.
+      if (categoryId === null && finalCategory && finalCategory !== "Other") {
+        this.logger.warn(
+          `[Worker ${workerId}] Thread ${email.emailThreadId}: resolved category "${finalCategory}" but no matching UUID found — categoryId will be null`,
+        );
+      }
 
       // Category is now set during summarization when possible.
       // Prioritisation LLM may still return a category (backward compat / refinement).
@@ -1432,42 +1440,22 @@ export class LLMProcessor implements OnModuleInit {
 
   /**
    * Canonicalise a category name returned by the LLM against known UserContext
-   * category names (fix #1120).  The LLM may append parenthetical descriptions
-   * (e.g. "Customer feedback (github issues or feedback forms)") or other
-   * deviations.  We snap to the stored exact name when a prefix match exists.
+   * category names. Exact case-insensitive match only — no fuzzy/prefix fallback.
+   * If the LLM returns a name that doesn't match, it passes through unchanged
+   * and the thread will go to Uncategorized (no categoryId).
    */
   private canonicaliseCategoryName(
     rawName: string,
     knownNames: string[],
   ): string {
     if (!rawName || rawName === "Other") return rawName;
-    // Exact match first
+    // UUID-only resolution: exact case-insensitive match only.
+    // No fuzzy/prefix/parenthetical fallback — if the LLM name doesn't match,
+    // the thread goes to Uncategorized for manual recategorisation.
     const exact = knownNames.find(
       (knownName) => knownName.toLowerCase() === rawName.toLowerCase(),
     );
-    if (exact) return exact;
-    // Parenthetical variant: "Name (description)" → strip parens and match
-    const withoutParens = rawName
-      .replace(/\s*\(.*\)\s*$/, "")
-      .trim()
-      .toLowerCase();
-    const parenMatch = knownNames.find(
-      (knownName) => knownName.toLowerCase() === withoutParens,
-    );
-    if (parenMatch) return parenMatch;
-    // Prefix match: collect ALL candidates, then pick the LONGEST (most specific) match.
-    // Using find() would return the first match, which can misassign "Build/deployment errors
-    // (other repos)" to "Build" when both categories exist (fix for issue #1144).
-    const prefixCandidates = knownNames.filter(
-      (knownName) =>
-        rawName.toLowerCase().startsWith(knownName.toLowerCase()) ||
-        knownName.toLowerCase().startsWith(rawName.toLowerCase()),
-    );
-    if (prefixCandidates.length > 0) {
-      // Prefer the candidate with the longest name — it is the most specific match
-      return prefixCandidates.reduce((longest, candidate) => (candidate.length > longest.length ? candidate : longest));
-    }
-    return rawName;
+    return exact ?? rawName;
   }
 
   private async resolveCategoryAndProtoCategory(
@@ -1499,11 +1487,14 @@ export class LLMProcessor implements OnModuleInit {
     let protoCategoryId: string | null =
       finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
 
-    // Helper: look up contextId UUID for a resolved category name (fix #1146)
+    // UUID-only category resolution: find the UserContext entry whose display name
+    // exactly matches the resolved category name, and return its contextId (UUID).
+    // No fuzzy/name-based fallback — if the name doesn't match exactly, return null.
+    // Threads with no categoryId go to "Uncategorized"; Jeremy will recategorise manually.
     const lookupCategoryContextId = (name: string | null): string | null => {
       if (!name || name === "Other") return null;
       const nameLower = name.toLowerCase().trim();
-      const ctx = contexts.find((context) => {
+      const exact = contexts.find((context) => {
         if (context.contextKey !== ContextKey.EMAIL_CATEGORY) return false;
         const ctxName = context.contextValue
           .split(" - ")[0]
@@ -1511,7 +1502,7 @@ export class LLMProcessor implements OnModuleInit {
           .toLowerCase();
         return ctxName === nameLower;
       });
-      return ctx?.contextId ?? null;
+      return exact?.contextId ?? null;
     };
 
     let categoryId: string | null = lookupCategoryContextId(finalCategory);

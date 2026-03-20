@@ -11,7 +11,7 @@ jest.mock('components/inbox/CategoryAccordion', () => ({
 }));
 
 jest.mock('hooks/useEmailFetching', () => ({
-  getCategoryKey: (id: string | null | undefined, name: string): string => id ?? name,
+  getCategoryKey: (id: string | null | undefined) => id ?? "uncategorized",
 }));
 
 const mockGroupEmailsByCategory = groupEmailsByCategory as jest.MockedFunction<typeof groupEmailsByCategory>;
@@ -190,7 +190,7 @@ describe('buildDisplayCategories', () => {
       { id: 'b', name: 'Beta', count: 1 },
       { id: 'a', name: 'Alpha', count: 2 },
     ];
-    // stableCategoryOrder uses getCategoryKey which returns id ?? name
+    // stableCategoryOrder uses getCategoryKey which returns id ?? "uncategorized"
     const result = buildDisplayCategories(summary, [], ['a', 'b'], MODE);
     expect(result.map(cat => cat.name)).toEqual(['Alpha', 'Beta']);
   });
@@ -205,13 +205,13 @@ describe('buildDisplayCategories', () => {
     expect(result[result.length - 1].name).toBe('Zeta');
   });
 
-  it('falls back to name as the key for categories with null id', () => {
+  it('uses "uncategorized" as the key for categories with null id', () => {
     const summary: CategorySummaryItem[] = [
       { id: null, name: 'Other', count: 2 },
       { id: 'uuid-action', name: 'Action', count: 1 },
     ];
-    // getCategoryKey(null, 'Other') → 'Other'; getCategoryKey('uuid-action', 'Action') → 'uuid-action'
-    const result = buildDisplayCategories(summary, [], ['uuid-action', 'Other'], MODE);
+    // getCategoryKey(null, 'Other') → 'uncategorized'; getCategoryKey('uuid-action', 'Action') → 'uuid-action'
+    const result = buildDisplayCategories(summary, [], ['uuid-action', 'uncategorized'], MODE);
     expect(result[0].name).toBe('Action');
     expect(result[1].name).toBe('Other');
   });

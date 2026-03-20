@@ -1,10 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Email, getEmailPriorityScore } from 'types/email';
 
-import { CATEGORY_OTHER } from 'constants/strings';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
+
+/** Sentinel key used for threads with no categoryId (UUID-only grouping). */
+export const CATEGORY_KEY_UNCATEGORIZED = 'uncategorized' as const;
 
 export interface CategorySummaryItem {
   id: string | null;
@@ -61,34 +63,31 @@ const inboxDataSlice = createSlice({
      */
     updateCategoryEmails: (state, action: PayloadAction<{ categoryKey: string; emails: Email[] }>) => {
       const { categoryKey, emails } = action.payload;
-      // categoryKey is a UUID when the category has an ID, otherwise falls back to the
-      // category name. "Other" is always keyed by name since it has no UUID.
-      const isOther = categoryKey === CATEGORY_OTHER;
+      // categoryKey is a UUID or "uncategorized" (for threads with no categoryId).
+      // NEVER a category name string.
+      const isUncategorized = categoryKey === CATEGORY_KEY_UNCATEGORIZED;
       const incomingIds = new Set(emails.map(event => event.id));
 
-      // Shared predicate: an email belongs to this category if either its
-      // category_id or its category name matches the key. Centralised here so
-      // both the equality-guard filter and the removal step stay in sync.
+      // UUID-only predicate: an email belongs to this category if its category_id matches the UUID key.
+      // For uncategorized, match emails with no category_id.
       const matchesCategory = (email: Email) =>
-        email.category_id === categoryKey || email.category === categoryKey;
+        isUncategorized
+          ? (!email.category_id || email.category_id === null)
+          : email.category_id === categoryKey;
 
       // Fix #1114: prefer the server-enriched category_id on each email; only
-      // fall back to categoryKey when the server did not supply one.  Previously
-      // categoryKey was unconditionally stamped, overriding the server's value.
+      // fall back to categoryKey when the server did not supply one and this is not
+      // the uncategorized bucket (avoid stamping "uncategorized" as a category_id).
       const stampedEmails = emails.map(email => ({
         ...email,
-        category_id: email.category_id ?? categoryKey,
+        category_id: email.category_id ?? (isUncategorized ? null : categoryKey),
       }));
 
       // Shallow equality guard: skip the array replacement if nothing meaningful changed.
       // Prevents unnecessary re-renders (and selectVisibleEmails recomputation) when
       // refreshInPlace returns data identical to what's already in the store.
       // Checks IDs and all fields that affect visible rendering in the list view.
-      const currentCategoryEmails = state.emails.filter(event =>
-        isOther
-          ? (!event.category || event.category === '' || event.category === CATEGORY_OTHER)
-          : matchesCategory(event)
-      );
+      const currentCategoryEmails = state.emails.filter(event => matchesCategory(event));
 
       const isUnchanged =
         currentCategoryEmails.length === stampedEmails.length &&
@@ -116,14 +115,6 @@ const inboxDataSlice = createSlice({
         if (incomingIds.has(event.id)) {
           return false;
         }
-        if (isOther) {
-          return (
-            event.category !== null &&
-            event.category !== undefined &&
-            event.category !== '' &&
-            event.category !== CATEGORY_OTHER
-          );
-        }
         return !matchesCategory(event);
       });
       state.emails = [...state.emails, ...stampedEmails];
@@ -132,21 +123,17 @@ const inboxDataSlice = createSlice({
       const emailToRemove = state.emails.find(email => email.id === action.payload);
       state.emails = state.emails.filter(email => email.id !== action.payload);
 
-      // Fix #1246: after removing the email, clean up the category summary if
-      // this was the last email in its category. Keying by UUID (category_id) when
-      // available; falling back to name for pre-backfill emails. This fixes the
-      // data model so empty categories naturally disappear from the render list
-      // instead of requiring guards wrapping broken state.
+      // UUID-only: after removing the email, clean up the category summary if
+      // this was the last email in its category. Match exclusively by category_id UUID.
+      // Threads with no category_id are "uncategorized" (summary items with id === null).
       if (emailToRemove && state.categorySummary) {
-        const catId = emailToRemove.category_id;
-        const catName = emailToRemove.category;
+        const catId = emailToRemove.category_id ?? null;
         const summaryItem = state.categorySummary.find(cat =>
-          (catId && cat.id === catId) || (catName && cat.name === catName)
+          catId ? cat.id === catId : cat.id === null
         );
         if (summaryItem) {
           const remainingInCategory = state.emails.filter(email =>
-            (catId && email.category_id === catId) ||
-            (!catId && catName && email.category === catName)
+            catId ? email.category_id === catId : (!email.category_id)
           );
           if (remainingInCategory.length === 0) {
             summaryItem.count = 0;
@@ -236,29 +223,22 @@ const inboxDataSlice = createSlice({
     },
     decrementCategorySummaryCount: (
       state,
-      action: PayloadAction<string | { categoryKey?: string; categoryName: string; count: number }>
+      action: PayloadAction<{ categoryKey: string; count: number }>
     ) => {
-      const { categoryKey, categoryName, count } =
-        typeof action.payload === 'string'
-          ? { categoryKey: undefined, categoryName: action.payload, count: 1 }
-          : action.payload;
+      const { categoryKey, count } = action.payload;
       if (state.categorySummary) {
-        // Fix #1246: match by UUID first (when available), fall back to name.
-        // Name-only matching breaks when LLM output drifts produce case/whitespace
-        // differences between the email's category field and the summary item name.
+        // UUID-only: match by category UUID (id). "uncategorized" maps to items with id === null.
         const category = state.categorySummary.find(
-          cat => (categoryKey && cat.id === categoryKey) || cat.name === categoryName
+          cat => categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
         );
         if (category) {
           category.count = Math.max(0, category.count - count);
-          // Fix #1246: remove the category from the summary once its count hits zero
-          // and no emails remain. This fixes the data model so the render list
-          // naturally excludes empty categories without needing per-render guards.
+          // Remove the category from the summary once its count hits zero and no emails remain.
           if (category.count === 0) {
             const hasRemainingEmails = state.emails.some(
-              email =>
-                (categoryKey && email.category_id === categoryKey) ||
-                email.category === categoryName
+              email => categoryKey === CATEGORY_KEY_UNCATEGORIZED
+                ? (!email.category_id || email.category_id === null)
+                : email.category_id === categoryKey
             );
             if (!hasRemainingEmails) {
               state.categorySummary = state.categorySummary.filter(cat => cat !== category);
@@ -267,11 +247,13 @@ const inboxDataSlice = createSlice({
         }
       }
     },
-    incrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } =
-        typeof action.payload === 'string' ? { categoryName: action.payload, count: 1 } : action.payload;
+    incrementCategorySummaryCount: (state, action: PayloadAction<{ categoryKey: string; count: number }>) => {
+      const { categoryKey, count } = action.payload;
       if (state.categorySummary) {
-        const category = state.categorySummary.find(cat => cat.name === categoryName);
+        // UUID-only: match by category UUID (id). "uncategorized" maps to items with id === null.
+        const category = state.categorySummary.find(
+          cat => categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
+        );
         if (category) {
           category.count += count;
         }

@@ -6,7 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { CATEGORY_OTHER, MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import {
   addOptimisticArchive,
@@ -16,6 +16,7 @@ import {
   removeOptimisticArchive,
   restoreEmail,
 } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
 
 interface TabCountChanges {
@@ -55,8 +56,10 @@ function collectArchiveTargets(
     const email = emailsById.get(id);
     if (email) {
       emailsToArchive.push(email);
-      const categoryName = email.category || CATEGORY_OTHER;
-      categoryCountChanges.set(categoryName, (categoryCountChanges.get(categoryName) || 0) + 1);
+      // UUID-only keying: use category_id when available, "uncategorized" otherwise.
+      // Never use the category name string as a key.
+      const categoryKey = email.category_id ?? CATEGORY_KEY_UNCATEGORIZED;
+      categoryCountChanges.set(categoryKey, (categoryCountChanges.get(categoryKey) || 0) + 1);
     }
   });
 
@@ -74,8 +77,8 @@ function applyOptimisticArchiveUpdates(
     dispatch(removeEmail(id));
     dispatch(addOptimisticArchive(id));
   });
-  categoryCountChanges.forEach((count, categoryName) => {
-    dispatch(decrementCategorySummaryCount({ categoryName, count }));
+  categoryCountChanges.forEach((count, categoryKey) => {
+    dispatch(decrementCategorySummaryCount({ categoryKey, count }));
   });
   if (onTabCountsUpdateOptimistically) {
     if (mode === MODE_TRIAGE) {
@@ -99,8 +102,8 @@ function revertOptimisticArchiveUpdates(
     dispatch(restoreEmail(email));
     dispatch(removeOptimisticArchive(email.id));
   });
-  categoryCountChanges.forEach((count, categoryName) => {
-    dispatch(incrementCategorySummaryCount({ categoryName, count }));
+  categoryCountChanges.forEach((count, categoryKey) => {
+    dispatch(incrementCategorySummaryCount({ categoryKey, count }));
   });
   if (onTabCountsUpdateOptimistically) {
     if (mode === MODE_TRIAGE) {

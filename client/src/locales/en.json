@@ -2197,7 +2197,8 @@
       "progressCount": "Prioritised {{count}} emails",
       "enterInbox": "Enter My Inbox",
       "backgroundNote": "This may take a few minutes. We'll continue importing in the background once you enter your inbox.",
-      "error": "Failed to check import progress. Please try again."
+      "error": "Failed to check import progress. Please try again.",
+      "timeoutMessage": "Taking longer than expected. You can enter your inbox now — we'll keep processing in the background."
     }
   },
   "calendar": {

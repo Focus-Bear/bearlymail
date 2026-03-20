@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
@@ -16,6 +17,8 @@ export class OnboardingService {
     private readonly usersService: UsersService,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(ContextAnalysis)
+    private readonly contextAnalysisRepository: Repository<ContextAnalysis>,
   ) {}
 
   async startHistoricalScan(userId: string): Promise<{ message: string }> {
@@ -83,9 +86,26 @@ export class OnboardingService {
       },
     });
 
+    // Check if the context analysis has completed or failed.
+    // Don't block the user if analysis failed — that's not their fault.
+    const latestAnalysis = await this.contextAnalysisRepository.findOne({
+      where: { userId },
+      order: { createdAt: "DESC" },
+    });
+
+    const analysisFinished =
+      latestAnalysis != null &&
+      (latestAnalysis.status === "completed" ||
+        latestAnalysis.status === "failed");
+
+    // isReady when:
+    // 1. The analysis job has finished (completed or failed), OR
+    // 2. There are >= 100 emails imported (large accounts — don't wait for full analysis)
+    const isReady = analysisFinished || count >= 100;
+
     return {
       prioritizedCount: count,
-      isReady: count >= 100,
+      isReady,
     };
   }
 }

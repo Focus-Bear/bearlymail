@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { ContextModule } from "../context/context.module";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { EmailsModule } from "../emails/emails.module";
@@ -15,7 +16,7 @@ import { ScanAnalysisService } from "./scan-analysis.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ScanEmail, EmailThread]),
+    TypeOrmModule.forFeature([ScanEmail, EmailThread, ContextAnalysis]),
     UsersModule,
     QueueModule,
     EmailsModule,

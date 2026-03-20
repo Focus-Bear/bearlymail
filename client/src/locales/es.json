@@ -1693,7 +1693,8 @@
       "progressCount": "{{count}} correos electrónicos priorizados",
       "enterInbox": "Entrar a mi bandeja de entrada",
       "backgroundNote": "Esto puede tardar unos minutos. Continuaremos importando en segundo plano una vez que entres a tu bandeja de entrada.",
-      "error": "Error al verificar el progreso de importación. Por favor, inténtalo de nuevo."
+      "error": "Error al verificar el progreso de importación. Por favor, inténtalo de nuevo.",
+      "timeoutMessage": "Está tardando más de lo esperado. Puedes entrar a tu bandeja de entrada ahora — seguiremos procesando en segundo plano."
     }
   },
   "priority": {

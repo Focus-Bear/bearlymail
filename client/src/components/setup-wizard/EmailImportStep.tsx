@@ -19,16 +19,33 @@ interface ImportProgress {
 }
 
 const TARGET_EMAILS = 100;
+// Separate constant for the 0–100 progress percentage scale.
+// TARGET_EMAILS happens to equal 100 too, but they mean different things:
+// TARGET_EMAILS = the email count goal; PROGRESS_COMPLETE_PERCENT = the 100% bar value.
+const PROGRESS_COMPLETE_PERCENT = 100;
+const IMPORT_TIMEOUT_MINUTES = 5;
+const SECONDS_PER_MINUTE = 60;
+const MS_PER_SECOND = 1000;
+const IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND;
+// Cap progress at 99% until isReady — prevents the bar hitting 100% before the backend confirms
+const PROGRESS_MAX_BEFORE_READY = 99;
+
+const TimeoutMessage: React.FC<{ t: (k: string) => string }> = ({ t }) => (
+  <p style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, textAlign: 'center', marginTop: theme.spacing.sm }}>
+    {t('setupWizard.emailImport.timeoutMessage')}
+  </p>
+);
 
 interface ImportStatusCardProps {
   progress: ImportProgress;
   progressPercent: number;
   error: string | null;
   fetchProgress: () => Promise<void>;
+  timedOut: boolean;
   t: (k: string, options?: Record<string, unknown>) => string;
 }
 
-const ImportStatusCard: React.FC<ImportStatusCardProps> = ({ progress, progressPercent, error, fetchProgress, t }) => (
+const ImportStatusCard: React.FC<ImportStatusCardProps> = ({ progress, progressPercent, error, fetchProgress, timedOut, t }) => (
   <div
     style={{
       backgroundColor: theme.colors.background.subtle,
@@ -120,6 +137,8 @@ const ImportStatusCard: React.FC<ImportStatusCardProps> = ({ progress, progressP
         >
           {t('setupWizard.emailImport.progressCount', { count: progress.prioritizedCount })}
         </p>
+
+        {timedOut && !progress.isReady && <TimeoutMessage t={t} />}
       </>
     )}
   </div>
@@ -132,6 +151,7 @@ interface EmailImportContentProps {
   fetchProgress: () => Promise<void>;
   isLoading: boolean;
   onComplete: () => void;
+  timedOut: boolean;
   t: (k: string, options?: Record<string, unknown>) => string;
 }
 
@@ -142,6 +162,7 @@ const EmailImportContent: React.FC<EmailImportContentProps> = ({
   fetchProgress,
   isLoading,
   onComplete,
+  timedOut,
   t,
 }) => (
   <div>
@@ -174,29 +195,30 @@ const EmailImportContent: React.FC<EmailImportContentProps> = ({
       progressPercent={progressPercent}
       error={error}
       fetchProgress={fetchProgress}
+      timedOut={timedOut}
       t={t}
     />
 
     <button
       onClick={onComplete}
-      disabled={!progress.isReady || isLoading}
+      disabled={(!progress.isReady && !timedOut) || isLoading}
       style={{
         width: '100%',
         padding: theme.spacing.lg,
-        backgroundColor: progress.isReady ? theme.colors.primary.main : theme.colors.border.light,
-        color: progress.isReady ? 'white' : theme.colors.text.disabled,
+        backgroundColor: (progress.isReady || timedOut) ? theme.colors.primary.main : theme.colors.border.light,
+        color: (progress.isReady || timedOut) ? 'white' : theme.colors.text.disabled,
         border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         fontSize: theme.typography.fontSize.base,
         fontWeight: theme.typography.fontWeight.semibold,
-        cursor: progress.isReady ? 'pointer' : 'not-allowed',
+        cursor: (progress.isReady || timedOut) ? 'pointer' : 'not-allowed',
         transition: theme.transitions.default,
       }}
     >
       {isLoading ? t('common.loading') : t('setupWizard.emailImport.enterInbox')}
     </button>
 
-    {!progress.isReady && (
+    {!progress.isReady && !timedOut && (
       <p
         style={{
           color: theme.colors.text.tertiary,
@@ -217,6 +239,7 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
   const { t } = useTranslation();
   const [progress, setProgress] = useState<ImportProgress>({ prioritizedCount: 0, isReady: false });
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCalledComplete = useRef(false);
 
@@ -254,7 +277,16 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
     poll();
   }, [fetchProgress]);
 
-  const progressPercent = Math.min(100, Math.round((progress.prioritizedCount / TARGET_EMAILS) * 100));
+  // Safety valve: if isReady hasn't flipped after 5 minutes, unblock the user anyway
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setTimedOut(true), IMPORT_TIMEOUT_MS);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Show 100% when ready; otherwise cap at PROGRESS_MAX_BEFORE_READY so it doesn't look complete prematurely
+  const progressPercent = progress.isReady
+    ? PROGRESS_COMPLETE_PERCENT
+    : Math.min(PROGRESS_MAX_BEFORE_READY, Math.round((progress.prioritizedCount / TARGET_EMAILS) * PROGRESS_COMPLETE_PERCENT));
 
   return (
     <EmailImportContent
@@ -264,6 +296,7 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
       fetchProgress={fetchProgress}
       isLoading={isLoading}
       onComplete={onComplete}
+      timedOut={timedOut}
       t={t}
     />
   );

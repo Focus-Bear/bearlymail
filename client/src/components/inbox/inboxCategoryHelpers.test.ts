@@ -215,4 +215,58 @@ describe('buildDisplayCategories', () => {
     expect(result[0].name).toBe('Action');
     expect(result[1].name).toBe('Other');
   });
+
+  // Fix #1258 — duplicate category name merging
+  it('merges duplicate category names, combining counts and keeping first UUID', () => {
+    const summary: CategorySummaryItem[] = [
+      { id: 'uuid-a', name: 'Build errors', count: 1 },
+      { id: 'uuid-b', name: 'Build errors', count: 2 },
+    ];
+    const result = buildDisplayCategories(summary, [], [], MODE);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Build errors');
+    expect(result[0].count).toBe(3);
+    // First-seen UUID is kept as canonical
+    expect(result[0].id).toBe('uuid-a');
+  });
+
+  it('merges three entries with the same name into one', () => {
+    const summary: CategorySummaryItem[] = [
+      { id: 'uuid-1', name: 'Newsletters', count: 1 },
+      { id: 'uuid-2', name: 'Newsletters', count: 3 },
+      { id: 'uuid-3', name: 'Newsletters', count: 2 },
+    ];
+    const result = buildDisplayCategories(summary, [], [], MODE);
+    expect(result).toHaveLength(1);
+    expect(result[0].count).toBe(6);
+    expect(result[0].id).toBe('uuid-1');
+  });
+
+  it('does not merge entries with different names', () => {
+    const summary: CategorySummaryItem[] = [
+      { id: 'uuid-a', name: 'Alpha', count: 2 },
+      { id: 'uuid-b', name: 'Beta', count: 3 },
+    ];
+    const result = buildDisplayCategories(summary, [], [], MODE);
+    expect(result).toHaveLength(2);
+  });
+
+  it('filters zero-count merged entries (both had count 0)', () => {
+    const summary: CategorySummaryItem[] = [
+      { id: 'uuid-a', name: 'Ghost', count: 0 },
+      { id: 'uuid-b', name: 'Ghost', count: 0 },
+    ];
+    const result = buildDisplayCategories(summary, [], [], MODE);
+    expect(result).toHaveLength(0);
+  });
+
+  it('keeps merged entry when at least one duplicate has a non-zero count', () => {
+    const summary: CategorySummaryItem[] = [
+      { id: 'uuid-a', name: 'Partially empty', count: 0 },
+      { id: 'uuid-b', name: 'Partially empty', count: 5 },
+    ];
+    const result = buildDisplayCategories(summary, [], [], MODE);
+    expect(result).toHaveLength(1);
+    expect(result[0].count).toBe(5);
+  });
 });

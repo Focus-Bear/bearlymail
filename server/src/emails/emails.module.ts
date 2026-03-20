@@ -31,6 +31,7 @@ import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { ArchiveEmailProcessor } from "./archive-email.processor";
+import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugService } from "./email-debug.service";
@@ -90,6 +91,7 @@ import { SyncHistoryService } from "./sync-history.service";
   controllers: [EmailsController],
   providers: [
     SyncHistoryService,
+    CategoryDedupService,
     EmailProviderManager,
     // Put EmailProviderManager before EmailsService to avoid circular dependency
     EmailThreadService,

@@ -58,7 +58,22 @@ export function buildDisplayCategories(
       count: grp.emails.length,
     }));
 
-  const nonEmptySource = source.filter(cat => cat.count > 0);
+  // Fix #1258: merge entries with duplicate display names (server-side dedup is
+  // the primary fix; this is a defensive frontend layer that prevents duplicate
+  // accordions if stale cached data slips through).
+  const mergedByName = new Map<string, { id: string | null; name: string; count: number }>();
+  for (const cat of source) {
+    const existing = mergedByName.get(cat.name);
+    if (existing) {
+      // Combine counts; keep the first-seen UUID as canonical
+      existing.count += cat.count;
+    } else {
+      mergedByName.set(cat.name, { ...cat });
+    }
+  }
+  const mergedSource = Array.from(mergedByName.values());
+
+  const nonEmptySource = mergedSource.filter(cat => cat.count > 0);
   if (stableCategoryOrder.length === 0) {
     return nonEmptySource;
   }

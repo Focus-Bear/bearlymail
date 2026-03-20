@@ -49,6 +49,7 @@ import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
+import { CategoryDedupService } from "./category-dedup.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailGmailService } from "./email-gmail.service";
@@ -138,6 +139,7 @@ export class EmailsService implements OnModuleInit {
     @Inject(forwardRef(() => SuggestedRepliesService))
     private suggestedRepliesService?: SuggestedRepliesService,
     private cloudWatchService?: CloudWatchService,
+    private categoryDedupService?: CategoryDedupService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -156,6 +158,15 @@ export class EmailsService implements OnModuleInit {
       await this.backfillCategoryIds();
     } catch (err) {
       this.logger.error("backfillCategoryIds failed on startup", err);
+    }
+
+    // Deduplicate EMAIL_CATEGORY rows flagged by migration 1786000000000
+    // (fix #1258). Runs once on startup; no-ops when all flags are cleared.
+    // Logic lives in CategoryDedupService (extracted to keep emails.service.ts < 800 lines).
+    try {
+      await this.categoryDedupService?.deduplicateCategoryNames();
+    } catch (err) {
+      this.logger.error("deduplicateCategoryNames failed on startup", err);
     }
   }
 
@@ -451,15 +462,34 @@ export class EmailsService implements OnModuleInit {
         userId,
         contextKey: ContextKey.EMAIL_CATEGORY,
       },
-      select: ["contextId", "contextValue"],
+      select: ["contextId", "contextValue", "createdAt"],
     });
 
-    // Build a map from category name to context ID (UUID)
-    const categoryNameToId = new Map<string, string>();
+    // Build a map from category name to context ID (UUID).
+    // Fix #1258: deduplicate categories with the same display name — keep the
+    // oldest (first-created) UUID as canonical and log a warning when dupes exist.
+    const categoryContextsByName = new Map<string, UserContext[]>();
     for (const ctx of categoryContexts) {
       // contextValue format: "Category Name - Description" or just "Category Name"
       const categoryName = ctx.contextValue.split(" - ")[0].trim();
-      categoryNameToId.set(categoryName, ctx.contextId);
+      const existing = categoryContextsByName.get(categoryName) ?? [];
+      existing.push(ctx);
+      categoryContextsByName.set(categoryName, existing);
+    }
+
+    const categoryNameToId = new Map<string, string>();
+    for (const [name, contexts] of categoryContextsByName.entries()) {
+      if (contexts.length > 1) {
+        // Sort ascending by createdAt so index 0 is the oldest (canonical)
+        contexts.sort(
+          (ctxA, ctxB) => ctxA.createdAt.getTime() - ctxB.createdAt.getTime(),
+        );
+        this.logger.warn(
+          `[getInboxSummary] Duplicate category name "${name}" for user ${userId}: ` +
+            `${contexts.length} entries (${contexts.map((ctx) => ctx.contextId).join(", ")}). Using oldest UUID.`,
+        );
+      }
+      categoryNameToId.set(name, contexts[0].contextId);
     }
 
     // Pre-warm the blocked senders cache before the loop.

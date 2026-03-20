@@ -106,6 +106,15 @@ export class UserContext {
   @UpdateDateColumn()
   lastModified: Date;
 
+  @Column({
+    type: "boolean",
+    default: false,
+    comment:
+      "Flag set by migration 1786000000000 — true means this EMAIL_CATEGORY row " +
+      "needs dedup processing (decrypt, merge duplicates, keep oldest UUID).",
+  })
+  needsCategoryDedup: boolean;
+
   @ManyToOne(() => User, (user) => user.contexts, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;

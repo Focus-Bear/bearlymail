@@ -3708,7 +3708,35 @@ export class ContextService {
       await this.contextRepository.delete({ contextId: In(existingIds) });
     }
 
-    const entities = toSave.map((item) =>
+    // Fix #1258: after deleting auto-generated entries, check against any
+    // surviving user-edited EMAIL_CATEGORY rows to prevent name collisions.
+    const userEditedCategories = await this.contextRepository.find({
+      where: {
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+        source: Source.USER_EDITED,
+      },
+      select: ["contextValue"],
+    });
+    const userEditedNames = new Set(
+      userEditedCategories.map((ctx) =>
+        ctx.contextValue.split(" - ")[0].trim().toLowerCase(),
+      ),
+    );
+
+    const filteredToSave = toSave.filter((item) => {
+      if ((item.key as ContextKey) !== ContextKey.EMAIL_CATEGORY) return true;
+      const name = item.value.split(" - ")[0].trim().toLowerCase();
+      if (userEditedNames.has(name)) {
+        this.logger.warn(
+          `[compressContextItems] Skipping EMAIL_CATEGORY "${item.value.split(" - ")[0].trim()}" for user ${userId} — name collision with user-edited entry`,
+        );
+        return false;
+      }
+      return true;
+    });
+
+    const entities = filteredToSave.map((item) =>
       this.contextRepository.create({
         userId,
         contextKey: item.key as ContextKey,
@@ -3722,8 +3750,8 @@ export class ContextService {
 
     return {
       originalCount: existing.length,
-      compressedCount: toSave.length,
-      changed: toSave.length !== existing.length,
+      compressedCount: filteredToSave.length,
+      changed: filteredToSave.length !== existing.length,
       notes: compressed.notes,
     };
   }

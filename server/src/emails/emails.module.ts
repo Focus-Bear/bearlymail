@@ -33,10 +33,16 @@ import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { ArchiveEmailProcessor } from "./archive-email.processor";
 import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
+import { EmailArchiveService } from "./email-archive.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
+import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
+import { EmailInboxService } from "./email-inbox.service";
+import { EmailLifecycleService } from "./email-lifecycle.service";
+import { EmailMigrationService } from "./email-migration.service";
+import { EmailPriorityExplanationService } from "./email-priority-explanation.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
 import { EmailSearchService } from "./email-search.service";
@@ -102,6 +108,13 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailCrudService,
     EmailGmailService,
     EmailStatusService,
+    // New focused services — registered before facade
+    EmailFollowUpService,
+    EmailInboxService,
+    EmailPriorityExplanationService,
+    EmailLifecycleService,
+    EmailArchiveService,
+    EmailMigrationService,
     EmailsService,
     ScanEmailService,
     GmailProvider,

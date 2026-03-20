@@ -6,6 +6,7 @@ import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 
 @Injectable()
@@ -123,5 +124,108 @@ export class EmailStatusService {
       urgentCount: urgentEmails.length,
       urgentEmails,
     };
+  }
+
+  // ── Categories & accounts ─────────────────────────────────────────────────
+
+  async getCategories(userId: string): Promise<string[]> {
+    const categories = await this.emailThreadRepository.query(
+      `SELECT DISTINCT category FROM email_threads WHERE "userId" = $1 AND category IS NOT NULL`,
+      [userId],
+    );
+    const decrypted = categories
+      .map((row: { category: string }) =>
+        row.category ? EncryptionHelper.decrypt(row.category) : null,
+      )
+      .filter(
+        (cat: string | null): cat is string => cat !== null && cat !== "",
+      );
+    return Array.from(new Set<string>(decrypted)).sort();
+  }
+
+  async getPriorityCounts(
+    userId: string,
+  ): Promise<{ high: number; medium: number; low: number }> {
+    const rows = await this.emailThreadRepository.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 50) AS high,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 20 AND COALESCE("priorityScore", 0) < 50) AS medium,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 20) AS low
+       FROM email_threads
+       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
+      [userId],
+    );
+    const row = rows[0] ?? { high: 0, medium: 0, low: 0 };
+    return {
+      high: parseInt(row.high, 10) || 0,
+      medium: parseInt(row.medium, 10) || 0,
+      low: parseInt(row.low, 10) || 0,
+    };
+  }
+
+  async getConnectedAccounts(userId: string): Promise<
+    Array<{
+      id: string;
+      email: string;
+      provider: "gmail" | "office365" | "zoho";
+      isPrimary: boolean;
+      isActive: boolean;
+    }>
+  > {
+    const accounts: Array<{
+      id: string;
+      email: string;
+      provider: "gmail" | "office365" | "zoho";
+      isPrimary: boolean;
+      isActive: boolean;
+    }> = [];
+    const decrypt = (enc: string) => EncryptionHelper.decrypt(enc);
+
+    const googleAccounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM google_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of googleAccounts) {
+      accounts.push({
+        id: acc.id,
+        email: decrypt(acc.email),
+        provider: "gmail",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    const office365Accounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM office365_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of office365Accounts) {
+      accounts.push({
+        id: acc.id,
+        email: decrypt(acc.email),
+        provider: "office365",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    const zohoAccounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM zoho_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of zohoAccounts) {
+      accounts.push({
+        id: acc.id,
+        email: decrypt(acc.email),
+        provider: "zoho",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    return accounts.sort((accA, accB) => {
+      if (accA.isPrimary !== accB.isPrimary) return accA.isPrimary ? -1 : 1;
+      return accA.provider.localeCompare(accB.provider);
+    });
   }
 }

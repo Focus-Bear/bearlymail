@@ -99,9 +99,12 @@ const EmailPasswordForm: React.FC<EmailPasswordFormProps> = ({
 }) => (
   <form onSubmit={onSubmit}>
     <div style={{ marginBottom: theme.spacing.md }}>
-      <label style={fieldLabelStyle}>{t('auth.email')}</label>
+      <label htmlFor="login-email" style={fieldLabelStyle}>{t('auth.email')}</label>
       <input
+        id="login-email"
+        name="email"
         type="email"
+        autoComplete="email"
         value={email}
         onChange={event => onEmailChange(event.target.value)}
         required
@@ -110,9 +113,12 @@ const EmailPasswordForm: React.FC<EmailPasswordFormProps> = ({
     </div>
 
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <label style={fieldLabelStyle}>{t('auth.password')}</label>
+      <label htmlFor="login-password" style={fieldLabelStyle}>{t('auth.password')}</label>
       <input
+        id="login-password"
+        name="password"
         type="password"
+        autoComplete="current-password"
         value={password}
         onChange={event => onPasswordChange(event.target.value)}
         required
@@ -181,6 +187,8 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
 
       {error && (
         <div
+          role="alert"
+          aria-live="polite"
           style={{
             backgroundColor: `${theme.colors.accent.error}20`,
             color: theme.colors.accent.error,

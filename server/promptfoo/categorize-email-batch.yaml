@@ -125,3 +125,200 @@ tests:
             throw new Error(`Newsletter should have urgencyScore <= 10, got ${newsletter.urgencyScore}`);
           }
           return true;
+
+  # Test 4: QA bot pass email → ✅ QA passed issues (content-based role override)
+  - description: "QA bot pass result — content-based role override routes to QA passed category"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "qa-bot-pass-1") ---
+        From: professor-reproducible[bot]
+        Subject: Re: Bug #456 — Login button broken
+        Summary: QA bot tested the fix for Bug #456. Test PASSED — the login button now works correctly. Issue verified as fixed.
+      emailCategories: |
+           - "✅ QA passed issues": Issues where QA has verified the fix works
+           - "QA failed issues": Issues where QA testing found the fix doesn't work
+           - "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+           - "Code reviews by human developers": PRs opened or reviewed by humans — NOT bots
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category !== '✅ QA passed issues') {
+            throw new Error(`QA bot pass misclassified as "${item.category}". Expected "✅ QA passed issues". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 5: QA bot fail email → QA failed issues (uses DIFFERENT bot name to prove generality)
+  - description: "QA bot fail result — content-based role override routes to QA failed category (proves generality with different bot name)"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "qa-bot-fail-1") ---
+        From: some-future-qa-bot[bot]
+        Subject: Re: Bug #789 — Crash on settings page
+        Summary: Automated QA testing of Bug #789 fix. Test FAILED — the crash still occurs when opening settings on iOS 18.
+      emailCategories: |
+           - "✅ QA passed issues": Issues where QA has verified the fix works
+           - "QA failed issues": Issues where QA testing found the fix doesn't work
+           - "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category !== 'QA failed issues') {
+            throw new Error(`QA bot fail misclassified as "${item.category}". Expected "QA failed issues". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 6: CI bot notification → NOT a QA category (regression guard)
+  - description: "CI bot notification — still routes to bot/notification category, not QA (regression guard)"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "ci-bot-1") ---
+        From: github-actions[bot]
+        Subject: CI run completed — Build #1234
+        Summary: CI pipeline completed. All checks passed. Build artifacts uploaded.
+      emailCategories: |
+           - "✅ QA passed issues": Issues where QA has verified the fix works
+           - "QA failed issues": Issues where QA testing found the fix doesn't work
+           - "🐛 New GitHub issues (bot-created)": Issues automatically created by bots
+           - "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === '✅ QA passed issues' || item.category === 'QA failed issues') {
+            throw new Error(`CI bot notification misclassified as QA category "${item.category}". CI notifications should route to a bot/notification category, not QA. Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 7: Spanish email with "datos" → NOT "Build/deployment errors" (#1287)
+  - description: "Spanish email with 'datos' — must NOT be miscategorised as Build/deployment errors"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "spanish-datos-1") ---
+        From: Andrea López <andrea@focusbear.io>
+        Subject: Pregunta sobre exportación de datos
+        Summary: Hola equipo, tengo una pregunta sobre la exportación de datos de usuario. ¿Es posible descargar los datos en formato CSV? Necesito los datos de actividad de los últimos 3 meses para un informe. También quiero saber si la conexión con la API permite extraer datos automáticamente. Gracias.
+      emailCategories: |
+           - "Customer Support": Support requests, customer issues, help requests
+           - "Build/deployment errors": Build failures, deployment issues, CI/CD errors
+           - "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           - "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'Build/deployment errors') {
+            throw new Error(`Spanish email with "datos" misclassified as "${item.category}". "datos" is Spanish for "data", not a build error. Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 8: Email with GDPR footer → NOT "Security & Compliance" (#1288)
+  - description: "Product question with GDPR footer — must NOT be miscategorised as Security & Compliance"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "gdpr-footer-1") ---
+        From: Andrea López <andrea@focusbear.io>
+        Subject: Question about Focus Bear pricing plans
+        Summary: Hi team, I wanted to ask about upgrading our team plan from 5 to 15 seats. Can you send me the pricing details? We're also interested in the annual billing option. Thanks! Andrea
+
+        ---
+        This email and any attachments are confidential. If you received this in error, please delete it. We process personal data in accordance with our Privacy Policy (https://example.com/privacy). To unsubscribe from these communications, click here: https://example.com/unsubscribe. For information about how we handle your data under GDPR, visit https://example.com/gdpr.
+      emailCategories: |
+           - "Customer Support": Support requests, customer issues, help requests
+           - "Sales": Sales discussions, pricing requests, demos
+           - "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           - "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'Security & Compliance') {
+            throw new Error(`Email with GDPR footer misclassified as "${item.category}". The GDPR footer is boilerplate — the actual email is a pricing question. Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 9: Actual security email with footer → SHOULD be "Security & Compliance" (regression guard)
+  - description: "Genuine security email with GDPR footer — must still be categorised as Security & Compliance"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "real-security-1") ---
+        From: Security Team <security@example.com>
+        Subject: URGENT: Potential data breach detected in production
+        Summary: We detected unauthorized access to the production database at 03:42 UTC today. Approximately 2,300 user records may have been exposed including email addresses and hashed passwords. We have rotated all credentials and blocked the source IP. Please review the incident report and confirm whether we need to notify affected users under GDPR Article 33 obligations. Immediate action required.
+
+        ---
+        This email and any attachments are confidential. If you received this in error, please delete it. We process personal data in accordance with our Privacy Policy (https://example.com/privacy). To unsubscribe from these communications, click here: https://example.com/unsubscribe. For information about how we handle your data under GDPR, visit https://example.com/gdpr.
+      emailCategories: |
+           - "Customer Support": Support requests, customer issues, help requests
+           - "Sales": Sales discussions, pricing requests, demos
+           - "Security & Compliance": Security alerts, compliance issues, privacy concerns
+           - "Newsletters": Marketing emails, digests, promotional content
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Friday, March 20, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category !== 'Security & Compliance') {
+            throw new Error(`Genuine security email misclassified as "${item.category}". A real data breach report should be "Security & Compliance" even with a GDPR footer. Explanation: ${item.categoryExplanation}`);
+          }
+          return true;

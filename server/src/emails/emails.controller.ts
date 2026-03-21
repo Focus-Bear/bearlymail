@@ -6,6 +6,7 @@ import {
   Get,
   Inject,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -22,6 +23,7 @@ import { AdminGuard } from "../auth/admin.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { isUuid } from "../common/uuid.utils";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
@@ -386,8 +388,12 @@ export class EmailsController {
   }
 
   private async getEmailOrThrow(userId: string, id: string): Promise<Email> {
+    // Fix #1296: reject non-UUID ids immediately to prevent PostgreSQL cast errors.
+    // Gmail thread IDs are hex strings without dashes (e.g. "19d03cdabc72da73");
+    // internal email IDs are UUIDs (e.g. "04547756-9d11-42b4-beae-227d52377fcd").
+    if (!isUuid(id)) throw new NotFoundException(`Email not found`);
     const email = await this.emailsService.getEmailById(userId, id);
-    if (!email) throw new Error("Email not found");
+    if (!email) throw new NotFoundException("Email not found");
     return email;
   }
 
@@ -836,9 +842,7 @@ export class EmailsController {
     const { userId } = req.user;
 
     const email = await this.emailsService.getEmailById(userId, id);
-    if (!email) {
-      return { message: "Email not found" };
-    }
+    if (!email) return { message: "Email not found" };
 
     const queued: string[] = [];
     const cancelled: string[] = [];

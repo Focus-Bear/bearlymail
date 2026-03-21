@@ -406,7 +406,7 @@ describe("EmailsController", () => {
   describe("getEmail", () => {
     it("should return email by id", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
       const mockRequest = { user: { userId } };
       const mockEmail = {
         id: emailId,
@@ -424,8 +424,8 @@ describe("EmailsController", () => {
 
     it("should include githubMetadata when available", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
-      const threadId = "thread-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
+      const threadId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
       const mockRequest = { user: { userId } };
       const mockEmail = {
         id: emailId,
@@ -473,7 +473,7 @@ describe("EmailsController", () => {
 
     it("should throw error when email not found", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
       const mockRequest = { user: { userId } };
 
       mockEmailsService.getEmailById.mockResolvedValue(null);
@@ -481,6 +481,33 @@ describe("EmailsController", () => {
       await expect(controller.getEmail(mockRequest, emailId)).rejects.toThrow(
         "Email not found",
       );
+    });
+
+    it("should return 404 for a Gmail hex thread ID (non-UUID) without hitting the DB (#1296)", async () => {
+      // Gmail thread IDs look like "19d03cdabc72da73" — hex, no dashes.
+      // Passing these to PostgreSQL as UUIDs causes a QueryFailedError (500).
+      // The UUID guard in getEmailOrThrow must reject them before DB access.
+      const userId = "user-123";
+      const gmailThreadId = "19d03cdabc72da73";
+      const mockRequest = { user: { userId } };
+
+      await expect(
+        controller.getEmail(mockRequest, gmailThreadId),
+      ).rejects.toThrow("Email not found");
+
+      // The DB must NOT have been called — the UUID guard should have short-circuited.
+      expect(mockEmailsService.getEmailById).not.toHaveBeenCalled();
+    });
+
+    it("should return 404 for a plainly invalid id without hitting the DB (#1296)", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      await expect(
+        controller.getEmail(mockRequest, "not-a-uuid"),
+      ).rejects.toThrow("Email not found");
+
+      expect(mockEmailsService.getEmailById).not.toHaveBeenCalled();
     });
   });
 
@@ -687,8 +714,8 @@ describe("EmailsController", () => {
   describe("getThread", () => {
     it("should return thread emails", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
-      const threadId = "thread-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
+      const threadId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
       const mockRequest = { user: { userId } };
       const mockEmail = { id: emailId, threadId };
       const mockThreadEmails = [{ id: "1" }, { id: "2" }];
@@ -708,7 +735,7 @@ describe("EmailsController", () => {
 
     it("should throw error when email not found", async () => {
       const userId = "user-123";
-      const emailId = "email-123";
+      const emailId = "04547756-9d11-42b4-beae-227d52377fcd";
       const mockRequest = { user: { userId } };
 
       mockEmailsService.getEmailById.mockResolvedValue(null);

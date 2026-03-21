@@ -21,6 +21,7 @@ import PgBoss from "pg-boss";
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
+import { isUuid } from "../common/uuid.utils";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
@@ -138,6 +139,12 @@ export class GitHubController {
   @Get("emails/:id")
   async getEmailGitHubInfo(@Request() req, @Param("id") emailId: string) {
     const { userId } = req.user;
+    // Fix #1296: reject non-UUID ids immediately to prevent PostgreSQL cast errors.
+    // Gmail thread IDs are hex strings without dashes (e.g. "19d03cdabc72da73");
+    // internal email IDs are UUIDs (e.g. "04547756-9d11-42b4-beae-227d52377fcd").
+    if (!isUuid(emailId)) {
+      throw new NotFoundException(`Email not found`);
+    }
     try {
       return await this.githubEmailInfoService.getEmailGitHubInfo(
         userId,

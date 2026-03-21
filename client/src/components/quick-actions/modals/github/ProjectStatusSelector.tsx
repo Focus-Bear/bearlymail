@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -32,6 +32,9 @@ const COLOR_MAP: Record<string, string> = {
   GREY: '#6b7280',
 };
 
+/** Dropdown listbox element id used to link the combobox input to its popup via aria-controls. */
+const LISTBOX_ID = 'project-status-listbox';
+
 function resolveColor(color: string): string {
   if (!color) {
     return theme.colors.border.medium;
@@ -40,9 +43,121 @@ function resolveColor(color: string): string {
   return COLOR_MAP[upper] ?? theme.colors.border.medium;
 }
 
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+interface ColorDotProps {
+  color: string;
+  style?: React.CSSProperties;
+}
+
+function ColorDot({ color, style }: ColorDotProps) {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="color-dot"
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: '50%',
+        backgroundColor: resolveColor(color),
+        flexShrink: 0,
+        ...style,
+      }}
+    />
+  );
+}
+
+interface StatusOptionItemProps {
+  option: ProjectStatusOption;
+  isSelected: boolean;
+  onMouseDown: () => void;
+}
+
+function StatusOptionItem({ option, isSelected, onMouseDown }: StatusOptionItemProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  let backgroundColor = 'transparent';
+  if (isHovered) {
+    backgroundColor = theme.colors.background.subtle;
+  } else if (isSelected) {
+    backgroundColor = theme.colors.primary.subtle;
+  }
+
+  return (
+    <li
+      key={option.id}
+      role="option"
+      aria-selected={isSelected}
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        cursor: 'pointer',
+        fontSize: theme.typography.fontSize.sm,
+        color: isSelected ? theme.colors.primary.main : theme.colors.text.primary,
+        backgroundColor,
+      }}
+    >
+      <ColorDot color={option.color} />
+      <span>{option.name}</span>
+    </li>
+  );
+}
+
+interface StatusDropdownProps {
+  options: ProjectStatusOption[];
+  selectedId: string;
+  onSelect: (option: ProjectStatusOption) => void;
+}
+
+function StatusDropdown({ options, selectedId, onSelect }: StatusDropdownProps) {
+  return (
+    <ul
+      id={LISTBOX_ID}
+      role="listbox"
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        listStyle: 'none',
+        margin: 0,
+        padding: 0,
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        maxHeight: '180px',
+        overflowY: 'auto',
+      }}
+    >
+      {options.map(option => (
+        <StatusOptionItem
+          key={option.id}
+          option={option}
+          isSelected={option.id === selectedId}
+          onMouseDown={() => onSelect(option)}
+        />
+      ))}
+    </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 /**
- * Radio-button list that renders dynamic GitHub Projects v2 status options.
- * Replaces the hardcoded Open/Closed StatusSelector when a projectName is set.
+ * Typeahead combobox that renders a filtered list of GitHub Projects v2 status
+ * options as the user types, with color-coded dots for each option.
+ * Uses ID-based selection to ensure accurate field updates.
  */
 export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
   options,
@@ -51,6 +166,57 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
   loading = false,
 }) => {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Tracks when user is in the middle of selecting an option (mousedown→blur window).
+  // This avoids the race condition of closing the dropdown before the click registers.
+  const isSelectingRef = useRef(false);
+
+  const selectedOption = options.find(opt => opt.id === selectedId) ?? null;
+  const [inputValue, setInputValue] = useState(selectedOption?.name ?? '');
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Sync input text when selectedId changes externally
+  useEffect(() => {
+    const matchedOption = options.find(opt => opt.id === selectedId);
+    setInputValue(matchedOption?.name ?? '');
+  }, [selectedId, options]);
+
+  const filtered = inputValue.trim()
+    ? options.filter(opt => opt.name.toLowerCase().includes(inputValue.toLowerCase()))
+    : options;
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(event.target.value);
+    setIsOpen(true);
+    // Do NOT call onSelect here — only fire onSelect on an actual option selection,
+    // not on every keystroke during typing.
+  };
+
+  const handleSelect = (option: ProjectStatusOption) => {
+    setInputValue(option.name);
+    onSelect(option.id);
+    setIsOpen(false);
+    isSelectingRef.current = false;
+  };
+
+  const handleFocus = () => {
+    if (options.length > 0) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleBlur = () => {
+    // If the user is in the middle of clicking an option, defer the close
+    // until the mousedown handler fires. This avoids closing before the click lands.
+    if (!isSelectingRef.current) {
+      setIsOpen(false);
+    }
+  };
+
+  const handleOptionMouseDown = (option: ProjectStatusOption) => {
+    isSelectingRef.current = true;
+    handleSelect(option);
+  };
 
   if (loading) {
     return (
@@ -72,7 +238,7 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
     );
   }
 
-  if (options.length === 0) {
+  if (!loading && options.length === 0) {
     return (
       <div style={{ marginBottom: theme.spacing.lg }}>
         <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
@@ -83,7 +249,7 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
   }
 
   return (
-    <div style={{ marginBottom: theme.spacing.lg }}>
+    <div ref={containerRef} style={{ marginBottom: theme.spacing.lg, position: 'relative' }}>
       <label
         style={{
           display: 'block',
@@ -94,54 +260,53 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
       >
         {t('quickActions.github.status')}
       </label>
-      <div
-        role="radiogroup"
-        aria-label={t('quickActions.github.status')}
-        style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}
-      >
-        {options.map(option => {
-          const isSelected = option.id === selectedId;
-          return (
-            <label
-              key={option.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.light}`,
-                backgroundColor: isSelected ? theme.colors.primary.subtle : theme.colors.background.paper,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.primary,
-                transition: 'border-color 0.15s, background-color 0.15s',
-              }}
-            >
-              <input
-                type="radio"
-                name="project-status"
-                value={option.id}
-                checked={isSelected}
-                onChange={() => onSelect(option.id)}
-                style={{ margin: 0, accentColor: theme.colors.primary.main }}
-              />
-              {/* Color dot — decorative only */}
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  backgroundColor: resolveColor(option.color),
-                  flexShrink: 0,
-                }}
-              />
-              <span>{option.name}</span>
-            </label>
-          );
-        })}
+
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {/* Color dot for the currently selected option */}
+        {selectedOption && (
+          <ColorDot
+            color={selectedOption.color}
+            style={{
+              position: 'absolute',
+              left: theme.spacing.sm,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          aria-controls={LISTBOX_ID}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={t('quickActions.github.searchStatus', { defaultValue: 'Search or type a status…' })}
+          autoComplete="off"
+          style={{
+            width: '100%',
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            paddingLeft: selectedOption ? '28px' : theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            outline: 'none',
+            boxSizing: 'border-box',
+            color: theme.colors.text.primary,
+            backgroundColor: theme.colors.background.paper,
+          }}
+        />
       </div>
+
+      {isOpen && filtered.length > 0 && (
+        <StatusDropdown
+          options={filtered}
+          selectedId={selectedId}
+          onSelect={handleOptionMouseDown}
+        />
+      )}
     </div>
   );
 };

@@ -2177,7 +2177,9 @@
       "statusRequired": "Status is required",
       "failedToLoadOptions": "Failed to load project status options.",
       "failedToUpdateStatus": "Failed to update status",
-      "noStatusOptions": "No status options found for this project."
+      "noStatusOptions": "No status options found for this project.",
+      "statusOpen": "Open",
+      "statusClosed": "Closed"
     },
     "createIssueTitle": "🐛 Create GitHub Issue",
     "createIssue": "Create Issue",

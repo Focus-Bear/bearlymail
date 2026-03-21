@@ -92,7 +92,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
       <>
         <GitHubLinkCardNoStatus link={link} />
         {actionButtons}
-        {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess)}
+        {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess, undefined)}
       </>
     );
   }
@@ -100,6 +100,13 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
   const isIssue = link.type === LINK_TYPE_ISSUE;
   const isOpen = status.state === GITHUB_STATE_OPEN;
   const isMerged = status.merged || status.state === GITHUB_STATUS_MERGED;
+
+  // If this issue is linked to a GitHub Project, pass the project name so the
+  // status modal uses the project-column path (typeahead with real statuses)
+  // rather than the generic open/closed path.
+  const linkedProjectName = status.projects && status.projects.length > 0
+    ? status.projects[0].name
+    : undefined;
 
   return (
     <>
@@ -125,7 +132,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         {actionButtons}
       </div>
 
-      {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess)}
+      {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess, linkedProjectName)}
     </>
   );
 };
@@ -135,7 +142,9 @@ function renderModal(
   issueInfo: { owner: string; repo: string; number: number },
   email: { subject?: string; body?: string; from?: string; fromName?: string } | null | undefined,
   onClose: (_value: null) => void,
-  onSuccess: () => void
+  onSuccess: () => void,
+  /** Project name to forward to GitHubUpdateStatusModal when the issue is linked to a project. */
+  projectName: string | undefined,
 ): React.ReactNode {
   const actionIssueInfo = (action.metadata?.issueInfo as typeof issueInfo | undefined) ?? issueInfo;
 
@@ -143,6 +152,7 @@ function renderModal(
     return (
       <GitHubUpdateStatusModal
         issueInfo={actionIssueInfo}
+        projectName={projectName}
         onClose={() => onClose(null)}
         onSuccess={onSuccess}
       />

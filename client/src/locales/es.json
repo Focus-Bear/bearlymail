@@ -1851,7 +1851,9 @@
       "statusRequired": "El estado es obligatorio",
       "failedToLoadOptions": "Error al cargar las opciones de estado del proyecto.",
       "failedToUpdateStatus": "Error al actualizar el estado",
-      "noStatusOptions": "No se encontraron opciones de estado para este proyecto."
+      "noStatusOptions": "No se encontraron opciones de estado para este proyecto.",
+      "statusOpen": "Abierto",
+      "statusClosed": "Cerrado"
     },
     "title": "Acciones Rápidas",
     "createIssueTitle": "🐛 Create GitHub Issue",

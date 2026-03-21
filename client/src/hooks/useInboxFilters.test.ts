@@ -10,6 +10,7 @@ jest.mock('queries/useConnectedAccountsQuery', () => ({
 
 const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
+const PRIORITY_MIGRATION_KEY = 'inbox_priority_migration_v2_done';
 
 describe('PRIORITY_RANGES', () => {
   it('Very Low range uses min: null (no lower bound) instead of -Infinity', () => {
@@ -64,9 +65,12 @@ describe('useInboxFilters', () => {
       expect(result.current.hasActiveFilters).toBe(true);
     });
 
-    it('keeps null/null as-is (no-filter default)', () => {
+    it('keeps null/null as-is when migration already ran', () => {
+      // After the one-time migration has run (PRIORITY_MIGRATION_KEY set), a user who
+      // explicitly clears all filters to null/null should stay at null/null.
       const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
       localStorage.setItem(STORAGE_KEY, stored);
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
@@ -78,6 +82,8 @@ describe('useInboxFilters', () => {
     it('resets an invalid range (minPriority=25, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
       const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 25, maxPriority: 99 });
       localStorage.setItem(STORAGE_KEY, stored);
+      // Set migration key so the result stays null/null (not further migrated to HIGH_PRIORITY_THRESHOLD)
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
@@ -89,6 +95,8 @@ describe('useInboxFilters', () => {
     it('resets a partially valid stored range (minPriority=0, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
       const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 0, maxPriority: 99 });
       localStorage.setItem(STORAGE_KEY, stored);
+      // Set migration key so the result stays null/null (not further migrated to HIGH_PRIORITY_THRESHOLD)
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
@@ -98,10 +106,10 @@ describe('useInboxFilters', () => {
   });
 
   describe('initialization', () => {
-    it('defaults to minPriority null when localStorage is empty (first visit)', () => {
+    it('defaults to HIGH_PRIORITY_THRESHOLD when localStorage is empty (first visit)', () => {
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
     });
@@ -113,31 +121,24 @@ describe('useInboxFilters', () => {
     });
 
     it('restores stored filters from localStorage on subsequent visits', () => {
-      const storedFilters = { accountIds: [], categories: [], minPriority: null };
+      const storedFilters = { accountIds: [], categories: [], minPriority: 30, maxPriority: 50 };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
       localStorage.setItem(FIRST_LOAD_KEY, '1');
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.minPriority).toBe(30);
+      expect(result.current.filters.maxPriority).toBe(50);
     });
 
-    it('does not override stored minPriority: null with the default', () => {
-      const storedFilters = { accountIds: [], categories: [], minPriority: null };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
-
-      const { result } = renderHook(() => useInboxFilters());
-
-      expect(result.current.filters.minPriority).toBeNull();
-    });
-
-    it('falls back to default when localStorage JSON is malformed', () => {
+    it('falls back to HIGH_PRIORITY_THRESHOLD when localStorage JSON is malformed', () => {
       localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
       console.error = jest.fn();
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
     });
   });
 
@@ -183,8 +184,10 @@ describe('useInboxFilters', () => {
 
   describe('resetToHighPriority', () => {
     it('resets minPriority to HIGH_PRIORITY_THRESHOLD', () => {
-      const storedFilters = { accountIds: [], categories: [], minPriority: null };
+      // Pre-set migration key so the migration guard doesn't interfere with the initial null
+      const storedFilters = { accountIds: [], categories: [], minPriority: null, maxPriority: null };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
@@ -198,8 +201,9 @@ describe('useInboxFilters', () => {
     });
 
     it('does not change accountIds or categories when resetting priority', () => {
-      const storedFilters = { accountIds: ['acc-1'], categories: ['work'], minPriority: null };
+      const storedFilters = { accountIds: ['acc-1'], categories: ['work'], minPriority: null, maxPriority: null };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
@@ -210,6 +214,77 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.accountIds).toEqual(['acc-1']);
       expect(result.current.filters.categories).toEqual(['work']);
       expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+    });
+  });
+
+  describe('one-time migration guard (fix #1271)', () => {
+    // The migration runs once per browser (PRIORITY_MIGRATION_KEY flag).
+    // It resets null/null defaults to HIGH_PRIORITY_THRESHOLD for users who got the
+    // broken default from PR #1121. Users with any customisation are unaffected.
+    // Trade-off: users who deliberately cleared all filters are indistinguishable from
+    // broken-default users and will also be reset — intentional one-time disruption.
+
+    it('first visit: applies HIGH_PRIORITY_THRESHOLD default (no stored filters)', () => {
+      // No STORAGE_KEY, no PRIORITY_MIGRATION_KEY — completely fresh browser.
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.maxPriority).toBeNull();
+      // Migration key is not needed for first visit (takes the else branch)
+      // but FIRST_LOAD_KEY should be set
+      expect(localStorage.getItem(FIRST_LOAD_KEY)).toBe('1');
+    });
+
+    it('stale null/null user: migrated to HIGH_PRIORITY_THRESHOLD on first post-fix load', () => {
+      // Simulates a returning user with all-default filters (broken PR #1121 default).
+      // PRIORITY_MIGRATION_KEY not yet set → migration runs.
+      const stale = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
+      localStorage.setItem(STORAGE_KEY, stale);
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.maxPriority).toBeNull();
+      // Migration flag should now be set to prevent recurrence
+      expect(localStorage.getItem(PRIORITY_MIGRATION_KEY)).toBe('1');
+    });
+
+    it('idempotency: stale null/null user is NOT re-migrated on second call', () => {
+      // After the first migration, user clears their filters back to null/null.
+      // PRIORITY_MIGRATION_KEY is already set → migration must NOT run again.
+      const cleared = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
+      localStorage.setItem(STORAGE_KEY, cleared);
+      localStorage.setItem(PRIORITY_MIGRATION_KEY, '1'); // already migrated
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      // Should stay null/null — user deliberately cleared, no re-migration
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
+    });
+
+    it('custom minPriority preserved: user with minPriority=30 is not touched by migration', () => {
+      // User customised their min priority — migration condition not met, skipped entirely.
+      const custom = JSON.stringify({ accountIds: [], categories: [], minPriority: 30, maxPriority: 50 });
+      localStorage.setItem(STORAGE_KEY, custom);
+      // PRIORITY_MIGRATION_KEY not set yet (migration hasn't run)
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.minPriority).toBe(30);
+      expect(result.current.filters.maxPriority).toBe(50);
+    });
+
+    it('custom accountIds preserved: user with non-empty accountIds is not touched by migration', () => {
+      // User has filtered to specific accounts — migration condition not met (accountIds.length > 0).
+      const custom = JSON.stringify({ accountIds: ['acc-abc'], categories: [], minPriority: null, maxPriority: null });
+      localStorage.setItem(STORAGE_KEY, custom);
+      // PRIORITY_MIGRATION_KEY not set yet
+
+      const { result } = renderHook(() => useInboxFilters());
+
+      expect(result.current.filters.accountIds).toEqual(['acc-abc']);
+      expect(result.current.filters.minPriority).toBeNull();
     });
   });
 

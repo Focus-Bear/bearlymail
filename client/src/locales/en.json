@@ -94,6 +94,28 @@
       "generic": {
         "title": "Authentication Error"
       }
+    },
+    "oauthOnlyError": {
+      "title": "This account uses social login",
+      "description": "Please use \"Continue with Google\" above, or set a password via",
+      "forgotPasswordLink": "Forgot Password"
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "description": "Enter your email address and we will send you a link to reset your password.",
+      "submit": "Send Reset Link",
+      "sending": "Sending...",
+      "checkEmail": "Check your email! If that address is registered, you will receive a password reset link shortly."
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "description": "Enter your new password below.",
+      "submit": "Set New Password",
+      "resetting": "Setting password...",
+      "success": "Password set successfully! Redirecting...",
+      "error": "Failed to reset password. The link may have expired.",
+      "invalidLink": "This reset link is invalid or missing a token.",
+      "requestNewLink": "Request a new password reset link"
     }
   },
   "email": {

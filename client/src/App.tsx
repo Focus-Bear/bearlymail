@@ -24,6 +24,7 @@ import Contacts from 'pages/Contacts';
 import Deals from 'pages/Deals';
 import EmailDetail from 'pages/EmailDetail';
 import FocusedInbox from 'pages/FocusedInbox';
+import ForgotPassword from 'pages/ForgotPassword';
 import Help from 'pages/Help';
 import HelpArticle from 'pages/HelpArticle';
 import Inbox from 'pages/Inbox';
@@ -31,6 +32,7 @@ import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import NotFound from 'pages/NotFound';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import ResetPassword from 'pages/ResetPassword';
 import Search from 'pages/Search';
 import Settings from 'pages/Settings';
 import SetupPassword from 'pages/SetupPassword';
@@ -167,6 +169,8 @@ const AppRoutes: React.FC = () => (
     <Route path="/login" element={<Login />} />
     <Route path="/auth-error" element={<AuthError />} />
     <Route path="/setup-password" element={<SetupPassword />} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/privacy" element={<PrivacyPolicy />} />
     <Route path="/terms" element={<TermsOfUse />} />
     <Route path="/inbox" element={<PrivateRoute><Inbox /></PrivateRoute>} />

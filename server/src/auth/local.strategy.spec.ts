@@ -2,6 +2,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { AuthService } from "./auth.service";
+import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
 import { LocalStrategy } from "./local.strategy";
 
 describe("LocalStrategy", () => {
@@ -131,6 +132,22 @@ describe("LocalStrategy", () => {
       await expect(strategy.validate(email, password)).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+
+    it("should propagate OAuthOnlyAccountException with OAUTH_ONLY_ACCOUNT error code", async () => {
+      const email = "oauth-user@example.com";
+      const password = "any-password";
+      const error = new OAuthOnlyAccountException(email);
+
+      mockAuthService.validateUser.mockRejectedValue(error);
+
+      await expect(strategy.validate(email, password)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      // The exception should propagate with its structured response intact
+      await expect(strategy.validate(email, password)).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "OAUTH_ONLY_ACCOUNT" }),
+      });
     });
 
     it("should return user without password field", async () => {

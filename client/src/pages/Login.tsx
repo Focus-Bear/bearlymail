@@ -10,7 +10,7 @@ import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { useAuth } from 'contexts/AuthContext';
+import { OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
@@ -19,6 +19,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -48,12 +49,19 @@ const Login: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    setIsOAuthOnlyError(false);
 
     try {
       await login(email, password);
       navigate('/inbox');
     } catch (err: any) {
-      setError(err.response?.data?.message || t('auth.authenticationFailed'));
+      if (err instanceof OAuthOnlyAccountError) {
+        setIsOAuthOnlyError(true);
+        // Set a non-empty error string so the error block renders (handled by isOAuthOnlyError flag)
+        setError('OAUTH_ONLY_ACCOUNT');
+      } else {
+        setError(err.response?.data?.message || t('auth.authenticationFailed'));
+      }
     }
   };
 
@@ -99,6 +107,7 @@ const Login: React.FC = () => {
           email={email}
           password={password}
           error={error}
+          isOAuthOnlyError={isOAuthOnlyError}
           onEmailChange={setEmail}
           onPasswordChange={setPassword}
           onSubmit={handleSubmit}

@@ -155,13 +155,27 @@ describe("AuthService", () => {
       ).rejects.toThrow("Your account is pending approval");
     });
 
-    it("should return null when user has no password", async () => {
-      const userWithoutPassword = { ...mockUser, password: null };
-      usersService.findByEmail.mockResolvedValue(userWithoutPassword as User);
+    it("should throw OAuthOnlyAccountException when user has null password", async () => {
+      const userWithNullPassword = { ...mockUser, password: null };
+      usersService.findByEmail.mockResolvedValue(userWithNullPassword as User);
 
-      const result = await service.validateUser("test@example.com", "password");
+      await expect(
+        service.validateUser("test@example.com", "password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "OAUTH_ONLY_ACCOUNT" }),
+      });
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
 
-      expect(result).toBeNull();
+    it("should throw OAuthOnlyAccountException when user has empty string password (OAuth-only account)", async () => {
+      const oauthOnlyUser = { ...mockUser, password: "" };
+      usersService.findByEmail.mockResolvedValue(oauthOnlyUser as User);
+
+      await expect(
+        service.validateUser("test@example.com", "any-password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "OAUTH_ONLY_ACCOUNT" }),
+      });
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });
   });
@@ -491,6 +505,65 @@ describe("AuthService", () => {
       await expect(
         service.setupPassword(mockToken, "password"),
       ).rejects.toThrow("Invalid or expired setup token");
+    });
+  });
+
+  describe("forgotPassword", () => {
+    it("should silently return when email does not exist", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.forgotPassword("unknown@example.com"),
+      ).resolves.toBeUndefined();
+      expect(usersService.update).not.toHaveBeenCalled();
+      expect(boss.send).not.toHaveBeenCalled();
+    });
+
+    it("should update user with reset token and queue email job when email exists", async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      usersService.update.mockResolvedValue(mockUser);
+      boss.send.mockResolvedValue(undefined);
+
+      await service.forgotPassword(mockUser.email);
+
+      expect(usersService.update).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.objectContaining({
+          passwordSetupToken: expect.any(String),
+          passwordSetupTokenExpiresAt: expect.any(Date),
+        }),
+      );
+      expect(boss.send).toHaveBeenCalledWith(
+        "send-password-reset-email",
+        expect.objectContaining({
+          userId: mockUser.id,
+          email: mockUser.email,
+          token: expect.any(String),
+          resetUrl: expect.stringContaining("/reset-password?token="),
+        }),
+      );
+    });
+  });
+
+  describe("resetPassword", () => {
+    const mockToken = "valid-token-123";
+
+    it("should delegate to setupPassword and return login response", async () => {
+      const futureDate = new Date();
+      futureDate.setHours(futureDate.getHours() + 1);
+      const userWithToken = {
+        ...mockUser,
+        passwordSetupToken: mockToken,
+        passwordSetupTokenExpiresAt: futureDate,
+      };
+      usersService.findAll.mockResolvedValue([userWithToken]);
+      usersService.update.mockResolvedValue(userWithToken);
+      usersService.findOne.mockResolvedValue(mockUser);
+      jwtService.sign.mockReturnValue("jwt-token");
+
+      const result = await service.resetPassword(mockToken, "new-password");
+
+      expect(result.access_token).toBe("jwt-token");
     });
   });
 });

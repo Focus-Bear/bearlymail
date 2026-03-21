@@ -23,6 +23,18 @@ interface User {
   privacyVersion?: string;
 }
 
+/**
+ * Thrown by login() when the server returns OAUTH_ONLY_ACCOUNT.
+ * The caller (Login page) should check `error instanceof OAuthOnlyAccountError`
+ * to render a specific, actionable message instead of the generic auth error.
+ */
+export class OAuthOnlyAccountError extends Error {
+  constructor() {
+    super('OAUTH_ONLY_ACCOUNT');
+    this.name = 'OAuthOnlyAccountError';
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -95,7 +107,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const login = async (email: string, password: string) => {
-    const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    let response;
+    try {
+      response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    } catch (err: any) {
+      // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
+      // render a specific, actionable message.
+      if (err?.response?.data?.error === 'OAUTH_ONLY_ACCOUNT') {
+        throw new OAuthOnlyAccountError();
+      }
+      throw err;
+    }
     const { access_token, user } = response.data;
 
     // Store token in localStorage

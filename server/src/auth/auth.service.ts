@@ -7,9 +7,14 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
 import PgBoss from "pg-boss";
 
-import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import {
+  AUTH_CONSTANTS,
+  TOKEN_BYTES,
+  TOKEN_EXPIRY_MS,
+} from "../constants/auth-constants";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -17,6 +22,7 @@ import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthLogger, writeDebugLog } from "./auth-logger";
+import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
 
 const INITIAL_SYNC_DELAY_MS = 2000;
 
@@ -64,21 +70,28 @@ export class AuthService {
     password: string,
   ): Promise<UserWithoutPassword | null> {
     const user = await this.usersService.findByEmail(email);
-    if (
-      user &&
-      user.password &&
-      (await bcrypt.compare(password, user.password))
-    ) {
-      // Check if user is approved
-      if (!user.isApproved) {
-        throw new Error(
-          "Your account is pending approval. Please wait for admin approval.",
-        );
-      }
-      const { password: _password, ...result } = user;
-      return result;
+    // unknown email
+    if (!user) return null;
+
+    // OAuth-only account — no password hash set
+    if (!user.password || user.password.length === 0) {
+      throw new OAuthOnlyAccountException(email);
     }
-    return null;
+
+    // wrong password
+    if (!(await bcrypt.compare(password, user.password))) {
+      return null;
+    }
+
+    // Check if user is approved
+    if (!user.isApproved) {
+      throw new Error(
+        "Your account is pending approval. Please wait for admin approval.",
+      );
+    }
+
+    const { password: _password, ...result } = user;
+    return result;
   }
 
   async validateGoogleUser(
@@ -498,6 +511,49 @@ export class AuthService {
 
     const { password: _password, ...result } = user;
     return result;
+  }
+
+  /**
+   * Initiates the forgot-password flow for a given email address.
+   * Generates a time-limited reset token, stores it on the user record, and
+   * queues a password-reset email via PgBoss. Always returns silently — we
+   * never reveal whether the email is registered.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    // silent — don't reveal whether the email exists
+    if (!user) return;
+
+    const token = crypto.randomBytes(TOKEN_BYTES).toString("hex");
+    // 1 hour from now
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
+
+    await this.usersService.update(user.id, {
+      passwordSetupToken: token,
+      passwordSetupTokenExpiresAt: expiresAt,
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    await this.boss.send("send-password-reset-email", {
+      userId: user.id,
+      email: user.email,
+      token,
+      resetUrl: `${frontendUrl}/reset-password?token=${token}`,
+    });
+
+    this.logger.log(
+      `[FORGOT_PASSWORD] Password reset email queued for user ${user.id}`,
+    );
+  }
+
+  /**
+   * Completes the password-reset flow using the token from the reset email.
+   * Delegates to the existing setupPassword() logic, which validates the token,
+   * hashes the new password, approves the user if not already approved, and
+   * returns a valid login response.
+   */
+  async resetPassword(token: string, password: string) {
+    return this.setupPassword(token, password);
   }
 
   async login(user: UserWithoutPassword) {

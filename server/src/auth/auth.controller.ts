@@ -11,6 +11,7 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
@@ -50,6 +51,46 @@ export class AuthController {
   @Post("setup-password")
   async setupPassword(@Body() body: { token: string; password: string }) {
     return this.authService.setupPassword(body.token, body.password);
+  }
+
+  /**
+   * Initiate the forgot-password flow.
+   * Rate-limited to 3 requests per 5 minutes per IP to prevent abuse.
+   * Always returns success — we never reveal whether the email is registered.
+   */
+  @Post("forgot-password")
+  @Throttle({ default: { limit: 3, ttl: 300 } })
+  async forgotPassword(@Body() body: { email: string }) {
+    if (!body.email) {
+      throw new BadRequestException("Email is required");
+    }
+    await this.authService.forgotPassword(body.email);
+    return {
+      success: true,
+      message:
+        "If that email is registered, a reset link has been sent.",
+    };
+  }
+
+  /**
+   * Complete the password-reset flow using the token from the reset email.
+   * Validates the token, sets the new password, and returns a login response
+   * (access token + user object) so the frontend can auto-log the user in.
+   */
+  @Post("reset-password")
+  async resetPassword(
+    @Body() body: { token: string; password: string },
+  ) {
+    if (!body.token || !body.password) {
+      throw new BadRequestException("Token and password are required");
+    }
+    try {
+      return await this.authService.resetPassword(body.token, body.password);
+    } catch (error) {
+      throw new BadRequestException(
+        error.message || "Failed to reset password",
+      );
+    }
   }
 
   /**

@@ -233,6 +233,28 @@
       "generic": {
         "title": "Error de autenticación"
       }
+    },
+    "oauthOnlyError": {
+      "title": "Esta cuenta usa inicio de sesión social",
+      "description": "Por favor usa \"Continuar con Google\" arriba, o establece una contraseña mediante",
+      "forgotPasswordLink": "Contraseña olvidada"
+    },
+    "forgotPassword": {
+      "title": "Contraseña olvidada",
+      "description": "Ingresa tu dirección de correo y te enviaremos un enlace para restablecer tu contraseña.",
+      "submit": "Enviar enlace",
+      "sending": "Enviando...",
+      "checkEmail": "¡Revisa tu correo! Si esa dirección está registrada, recibirás un enlace para restablecer tu contraseña en breve."
+    },
+    "resetPassword": {
+      "title": "Restablecer contraseña",
+      "description": "Ingresa tu nueva contraseña a continuación.",
+      "submit": "Establecer nueva contraseña",
+      "resetting": "Estableciendo contraseña...",
+      "success": "¡Contraseña establecida con éxito! Redirigiendo...",
+      "error": "No se pudo restablecer la contraseña. El enlace puede haber expirado.",
+      "invalidLink": "Este enlace de restablecimiento no es válido o le falta un token.",
+      "requestNewLink": "Solicitar un nuevo enlace de restablecimiento de contraseña"
     }
   },
   "booking": {

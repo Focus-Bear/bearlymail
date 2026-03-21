@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
@@ -9,6 +10,8 @@ interface LoginFormSectionProps {
   email: string;
   password: string;
   error: string;
+  /** When true, the error is an OAUTH_ONLY_ACCOUNT error and a specific message is shown. */
+  isOAuthOnlyError?: boolean;
   onEmailChange: (email: string) => void;
   onPasswordChange: (password: string) => void;
   onSubmit: (event: React.FormEvent) => void;
@@ -156,6 +159,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
   email,
   password,
   error,
+  isOAuthOnlyError,
   onEmailChange,
   onPasswordChange,
   onSubmit,
@@ -185,7 +189,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
         {t('auth.loginTitle')}
       </h1>
 
-      {error && (
+      {error && !isOAuthOnlyError && (
         <div
           role="alert"
           aria-live="polite"
@@ -198,6 +202,31 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
           }}
         >
           {error}
+        </div>
+      )}
+
+      {isOAuthOnlyError && (
+        <div
+          style={{
+            backgroundColor: `${theme.colors.accent.warning ?? theme.colors.accent.error}20`,
+            color: theme.colors.text.primary,
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.md,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: '1.5',
+          }}
+        >
+          <strong>{t('auth.oauthOnlyError.title')}</strong>
+          <br />
+          {t('auth.oauthOnlyError.description')}{' '}
+          <Link
+            to="/forgot-password"
+            style={{ color: theme.colors.primary.main, textDecoration: 'underline' }}
+          >
+            {t('auth.oauthOnlyError.forgotPasswordLink')}
+          </Link>
+          {'.'}
         </div>
       )}
 

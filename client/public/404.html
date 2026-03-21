@@ -3,14 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <title>Page Not Found</title>
-  <script>
-    // SPA client-side routing: if this is a navigation request (not an asset),
-    // save the path and redirect to root so React Router can handle it.
-    if (!/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|map|ico|json)(\?|$)/i.test(window.location.pathname)) {
-      sessionStorage.setItem('spa-redirect', window.location.pathname + window.location.search);
-      window.location.replace('/');
-    }
-  </script>
 </head>
 <body>
   <p>Not found</p>

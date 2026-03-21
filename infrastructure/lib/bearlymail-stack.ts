@@ -625,23 +625,20 @@ export class BearlyMailStack extends cdk.Stack {
         certificate: certificate,
         priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL, // Include all regions for custom domain
         comment: 'BearlyMail frontend distribution',
-        // SPA routing via static 404 page:
-        //   - /inbox → S3 404 → CloudFront serves /404.html with 404 status
-        //     → JS in 404.html detects it's a route, saves path, redirects to /
-        //     → index.html loads → React Router restores original path ✅
-        //   - /assets/missing.js → S3 404 → CloudFront serves /404.html with 404 status
-        //     → browser sees real 404 + text/html, won't execute as JS module ✅
+        // SPA routing: serve index.html with 200 for all routes.
+        // React Router handles client-side routing.
+        // Actual 404s for missing assets are handled by the app.
         errorResponses: [
           {
             httpStatus: 403,
-            responseHttpStatus: 404,
-            responsePagePath: '/404.html',
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
             ttl: cdk.Duration.seconds(0),
           },
           {
             httpStatus: 404,
-            responseHttpStatus: 404,
-            responsePagePath: '/404.html',
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
             ttl: cdk.Duration.seconds(0),
           },
         ],
@@ -680,18 +677,20 @@ export class BearlyMailStack extends cdk.Stack {
         },
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
         comment: 'BearlyMail frontend distribution',
-        // SPA routing via static 404 page (see domain branch above for full explanation)
+        // SPA routing: serve index.html with 200 for all routes.
+        // React Router handles client-side routing.
+        // Actual 404s for missing assets are handled by the app.
         errorResponses: [
           {
             httpStatus: 403,
-            responseHttpStatus: 404,
-            responsePagePath: '/404.html',
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
             ttl: cdk.Duration.seconds(0),
           },
           {
             httpStatus: 404,
-            responseHttpStatus: 404,
-            responsePagePath: '/404.html',
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
             ttl: cdk.Duration.seconds(0),
           },
         ],

@@ -29,6 +29,7 @@ import HelpArticle from 'pages/HelpArticle';
 import Inbox from 'pages/Inbox';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
+import NotFound from 'pages/NotFound';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
 import Search from 'pages/Search';
 import Settings from 'pages/Settings';
@@ -189,6 +190,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/book/:userId" element={<BookingPage />} />
     <Route path="/booking/:token/reschedule" element={<BookingReschedulePage />} />
     <Route path="/booking/:token/cancel" element={<BookingCancelPage />} />
+    <Route path="*" element={<NotFound />} />
   </Routes>
 );
 

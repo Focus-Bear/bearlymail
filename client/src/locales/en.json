@@ -27,7 +27,9 @@
     "saved": "✓ Saved",
     "search": "Search",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "pageNotFound": "Page not found",
+    "goHome": "Go home"
   },
   "auth": {
     "loginTitle": "Welcome Back",

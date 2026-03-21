@@ -337,7 +337,9 @@
     "showMore": "Mostrar más",
     "search": "Buscar",
     "hide": "Ocultar",
-    "show": "Mostrar"
+    "show": "Mostrar",
+    "pageNotFound": "Página no encontrada",
+    "goHome": "Ir al inicio"
   },
   "compose": {
     "addBcc": "Agregar CCO",

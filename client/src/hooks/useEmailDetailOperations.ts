@@ -480,6 +480,11 @@ export function useEmailDetailOperations(
       return;
     }
 
+    // Belt-and-suspenders: ensure loading spinner is visible before any async work (#1347).
+    // useEmailDetailState already initialises loadingGithub=true, but this guards
+    // against any future state reset between mount and fetchGithubInfo being called.
+    setLoadingGithub(true);
+
     // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
     const currentEmail = emailRef.current;
     if (currentEmail && !emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody)) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { useUserProfileQuery } from 'queries/useUserProfileQuery';
 
 import { API_URL } from 'config/api';
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
@@ -37,11 +38,21 @@ function useEmailChangeReset(
 }
 
 export function useEmailDetailGithub(emailId: string) {
+  const { data: userProfile } = useUserProfileQuery();
   const [githubLinks, setGithubLinks] = useState<any[]>([]);
-  const [loadingGithub, setLoadingGithub] = useState(false);
-  const [hasGithubToken, setHasGithubToken] = useState(false);
+  const [loadingGithub, setLoadingGithub] = useState(true);
+  const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
   const fetchedRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Sync hasGithubToken when the cached user profile arrives or changes.
+  // This ensures the token state updates even if the hook mounts before the
+  // profile query resolves (same pattern as useApiKeys.ts lines 49-54).
+  useEffect(() => {
+    if (userProfile) {
+      setHasGithubToken(!!userProfile.githubToken);
+    }
+  }, [userProfile]);
 
   const resetGithubState = useCallback(() => {
     setGithubLinks([]);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useUserProfileQuery } from 'queries/useUserProfileQuery';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
@@ -23,6 +24,9 @@ interface EmailDetailEmail {
 }
 
 export function useEmailDetailState() {
+  // Seed GitHub token presence from TanStack Query cache (populated by auth/settings)
+  const { data: userProfile } = useUserProfileQuery();
+
   // Email data state
   const [email, setEmail] = useState<EmailDetailEmail | null>(null);
   const [threadEmails, setThreadEmails] = useState<EmailDetailEmail[]>([]);
@@ -98,9 +102,13 @@ export function useEmailDetailState() {
   const [showPriorityExplanation, setShowPriorityExplanation] = useState(false);
 
   // GitHub state
+  // loadingGithub starts true so the spinner shows immediately before the first
+  // async fetch completes — prevents the false "no links" flash.
+  // hasGithubToken is seeded from the TanStack Query cache so the UI never shows
+  // the "Connect to GitHub" prompt during the ~200ms–1s fetch window (#1347).
   const [githubLinks, setGithubLinks] = useState<any[]>([]);
-  const [loadingGithub, setLoadingGithub] = useState(false);
-  const [hasGithubToken, setHasGithubToken] = useState(false);
+  const [loadingGithub, setLoadingGithub] = useState(true);
+  const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
 
   // Quick actions state
   const [suggestedActions, setSuggestedActions] = useState<SuggestedAction[]>([]);

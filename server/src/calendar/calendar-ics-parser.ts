@@ -31,6 +31,25 @@ export type ParseIcsResult =
   | { ok: true; event: IcsEventData }
   | { ok: false; error: string };
 
+/**
+ * Extract a plain string from a node-ical field that may be either a raw
+ * string or a parameterised object `{ val: string, params: {...} }`.
+ *
+ * node-ical parses `SUMMARY;LANGUAGE=en-US:Focus Bear x RMIT` as
+ * `{ val: "Focus Bear x RMIT", params: { LANGUAGE: "en-US" } }` instead of
+ * a plain string.  This helper normalises both shapes.
+ *
+ * Returns `undefined` for empty strings so callers can use `?? fallback`.
+ */
+export function extractStringValue(value: unknown): string | undefined {
+  if (typeof value === "string") return value || undefined;
+  if (value !== null && typeof value === "object" && "val" in value) {
+    const rawVal = (value as Record<string, unknown>)["val"];
+    return typeof rawVal === "string" ? rawVal || undefined : undefined;
+  }
+  return undefined;
+}
+
 function parseOrganizer(
   rawOrganizer: ical.VEvent["organizer"],
 ): IcsEventData["organizer"] | undefined {
@@ -141,8 +160,9 @@ function buildEventResult(
   const tzidMatch = icsString.match(/DTSTART;TZID=([^:]+):/i);
   const rawTimezone = tzidMatch ? tzidMatch[1] : undefined;
   const timezone = rawTimezone ? mapToIANATimezone(rawTimezone) : undefined;
-  const title =
-    typeof extEntry.summary === "string" ? extEntry.summary : "(No title)";
+  // Use extractStringValue() so SUMMARY;LANGUAGE=en-US:... (parsed as
+  // { val, params }) is handled correctly alongside plain string values.
+  const title = extractStringValue(extEntry.summary) ?? "(No title)";
 
   return {
     ok: true,
@@ -152,12 +172,8 @@ function buildEventResult(
       startAt: startDate.toISOString(),
       endAt: endDate?.toISOString(),
       allDay: extEntry.datetype === "date",
-      location:
-        typeof extEntry.location === "string" ? extEntry.location : undefined,
-      description:
-        typeof extEntry.description === "string"
-          ? extEntry.description
-          : undefined,
+      location: extractStringValue(extEntry.location),
+      description: extractStringValue(extEntry.description),
       organizer,
       attendees,
       timezone,

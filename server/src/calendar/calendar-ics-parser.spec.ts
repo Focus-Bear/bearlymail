@@ -3,7 +3,11 @@
  * introduced in issue #1100 (ICS crash fix).
  */
 
-import { parseIcsString, parseIcsStringSafe } from "./calendar-ics-parser";
+import {
+  extractStringValue,
+  parseIcsString,
+  parseIcsStringSafe,
+} from "./calendar-ics-parser";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -263,5 +267,41 @@ describe("parseIcsString", () => {
 
   it("throws when DTSTART is missing", () => {
     expect(() => parseIcsString(NO_DTSTART_ICS)).toThrow(/DTSTART/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractStringValue
+// ---------------------------------------------------------------------------
+
+describe("extractStringValue", () => {
+  it("returns a plain string as-is", () => {
+    expect(extractStringValue("hello")).toBe("hello");
+  });
+
+  it("returns the val property from a {val, params} object", () => {
+    expect(
+      extractStringValue({ val: "text", params: { LANGUAGE: "en-US" } }),
+    ).toBe("text");
+  });
+
+  it("returns undefined for null", () => {
+    expect(extractStringValue(null)).toBeUndefined();
+  });
+
+  it("returns undefined for an empty string", () => {
+    expect(extractStringValue("")).toBeUndefined();
+  });
+
+  it("returns undefined when val is an empty string", () => {
+    expect(extractStringValue({ val: "" })).toBeUndefined();
+  });
+
+  it("returns undefined for a number", () => {
+    expect(extractStringValue(42)).toBeUndefined();
+  });
+
+  it("returns undefined when val is a number", () => {
+    expect(extractStringValue({ val: 99 })).toBeUndefined();
   });
 });

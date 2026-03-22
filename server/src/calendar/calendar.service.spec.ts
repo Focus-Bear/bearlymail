@@ -1344,4 +1344,88 @@ describe("CalendarService", () => {
       );
     });
   });
+
+  describe("checkEventExists", () => {
+    const baseEventData = {
+      uid: "test-uid@example.com",
+      title: "Team Standup",
+      startAt: "2024-03-15T10:00:00.000Z",
+      endAt: "2024-03-15T11:00:00.000Z",
+      allDay: false,
+      attendees: [],
+      isRecurring: false,
+    };
+
+    it("returns exists=false when Google Calendar is not connected", async () => {
+      usersService.findOne.mockResolvedValue({
+        ...mockUser,
+        googleCalendarAccessToken: null,
+      } as any);
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+      expect(result).toEqual({ exists: false });
+    });
+
+    it("uses iCalUID query (no timeMin/timeMax) when uid is present", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [{ id: "gcal-event-123", summary: "Team Standup" }],
+        },
+      });
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+
+      expect(result).toEqual({ exists: true, calendarEventId: "gcal-event-123" });
+      expect(mockCalendar.events.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          iCalUID: "test-uid@example.com",
+          singleEvents: true,
+        }),
+      );
+      // Must NOT include time constraints in the iCalUID branch
+      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
+        expect.objectContaining({ timeMin: expect.anything() }),
+      );
+      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
+        expect.objectContaining({ timeMax: expect.anything() }),
+      );
+    });
+
+    it("falls back to time-window query when uid is absent", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [{ id: "gcal-event-456", summary: "Team Standup", start: { dateTime: "2024-03-15T10:00:00.000Z" } }],
+        },
+      });
+
+      const eventDataNoUid = {
+        ...baseEventData,
+        uid: "",
+      };
+
+      const result = await service.checkEventExists("user-1", eventDataNoUid);
+
+      expect(mockCalendar.events.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeMin: expect.any(String),
+          timeMax: expect.any(String),
+          singleEvents: true,
+        }),
+      );
+      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
+        expect.objectContaining({ iCalUID: expect.anything() }),
+      );
+      expect(result.exists).toBe(true);
+    });
+
+    it("returns exists=false when no matching event is found via iCalUID", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({ data: { items: [] } });
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+      expect(result).toEqual({ exists: false });
+    });
+  });
 });

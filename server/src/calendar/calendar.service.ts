@@ -620,7 +620,15 @@ Manage this booking:
 
   /**
    * Check whether a user's Google Calendar already contains an event matching
-   * the given ICS event (by title + start time proximity ±5 minutes).
+   * the given ICS event.
+   *
+   * Matching strategy (in priority order):
+   *  1. If the ICS event carries a UID, use Google Calendar's `iCalUID` filter
+   *     for an exact, authoritative match — no false positives.
+   *  2. Otherwise, fall back to a time-window query and require BOTH an exact
+   *     title match AND start-time proximity (±5 min) to reduce false positives
+   *     from the previous `q:` full-text search approach.
+   *
    * Returns { exists: false } if the user hasn't connected Google Calendar.
    */
   async checkEventExists(
@@ -641,19 +649,42 @@ Manage this booking:
     const FIVE_MINUTES_MS = MINUTES.FIVE * MILLISECONDS.MINUTE;
 
     try {
-      const response = await calendar.events.list({
-        calendarId: "primary",
-        timeMin: new Date(startMs - FIVE_MINUTES_MS).toISOString(),
-        timeMax: new Date(startMs + FIVE_MINUTES_MS).toISOString(),
-        q: eventData.title,
-        singleEvents: true,
-      });
+      // Use iCalUID for exact matching when the ICS provides a UID.
+      // This is far more reliable than full-text q: search which can produce
+      // false positives / false negatives (e.g. when title is "(No title)").
+      const usingUid = !!eventData.uid;
+
+      const listParams = usingUid
+        ? {
+            calendarId: "primary",
+            iCalUID: eventData.uid,
+            // iCalUID is a direct key lookup — no time constraint needed.
+            // Time constraints would cause false negatives for rescheduled events.
+            singleEvents: true,
+          }
+        : {
+            calendarId: "primary",
+            timeMin: new Date(startMs - FIVE_MINUTES_MS).toISOString(),
+            timeMax: new Date(startMs + FIVE_MINUTES_MS).toISOString(),
+            // Deliberately omit `q:` — full-text search risks false negatives
+            // when title is "(No title)" and false positives on common titles.
+            // We verify both title and time in the find() below instead.
+            singleEvents: true,
+          };
+
+      const response = await calendar.events.list(listParams);
 
       const match = (response.data.items ?? []).find((ev) => {
+        if (usingUid) {
+          // iCalUID match is authoritative — any returned event is the same event.
+          return true;
+        }
+        // Fallback: require BOTH exact summary AND start-time proximity to
+        // avoid false positives from same-named events near the same time.
         const evStart = ev.start?.dateTime ?? ev.start?.date;
         if (!evStart) return false;
         const diff = Math.abs(new Date(evStart).getTime() - startMs);
-        return diff <= FIVE_MINUTES_MS;
+        return diff <= FIVE_MINUTES_MS && ev.summary === eventData.title;
       });
 
       if (match) {

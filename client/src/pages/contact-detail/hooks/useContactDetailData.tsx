@@ -29,6 +29,14 @@ export function useContactDetailData(contactId?: string) {
     if (!contactId) {
       return;
     }
+    // Defensive: Google People API resource names (e.g. "people/c12345") are not
+    // valid DB UUIDs. If the contactId contains a slash it was never a local record —
+    // show a friendly error instead of making a doomed API call or rendering blank.
+    if (contactId.includes('/')) {
+      setError('This contact is not yet synced locally. Open the CRM to sync contacts.');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/contacts/${contactId}`);

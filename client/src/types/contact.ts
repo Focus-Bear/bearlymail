@@ -12,6 +12,10 @@ export interface Contact {
   contactFrequency?: number;
   contactType?: string | null;
   followUpDate?: string | null;
+  /** True when the contact has a local DB record (safe to navigate to /crm/contacts/:id).
+   *  False for Gmail-only search results whose id is a Google People API resource name.
+   *  Undefined means old server response — treat as navigable (isLocal !== false). */
+  isLocal?: boolean;
 }
 
 export interface ContactDetail extends Contact {

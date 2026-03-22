@@ -45,6 +45,8 @@ export interface ContactSearchResult {
   contactType?: string | null;
   followUpDate?: string | null;
   phone?: string | null;
+  /** True when the contact has a local DB record (UUID id). False for Gmail-only results whose id is a Google People API resource name (e.g. "people/c12345"). */
+  isLocal: boolean;
 }
 
 export interface ContactDetailResult extends ContactSearchResult {
@@ -287,7 +289,10 @@ export class ContactsService {
       }
     }
 
-    // Add Gmail results that aren't already in local
+    // Add Gmail results that aren't already in local.
+    // These contacts have no local DB record; their id is a Google People API
+    // resource name (e.g. "people/c12345") — not a UUID. Mark them as isLocal: false
+    // so the client can suppress navigation to /crm/contacts/:contactId.
     for (const raw of filteredGmailResults) {
       const key = raw.email.toLowerCase();
       if (!results.has(key)) {
@@ -302,6 +307,7 @@ export class ContactsService {
           photoUrl: raw.photoUrl,
           isFavorite: false,
           contactFrequency: 0,
+          isLocal: false,
         });
       }
     }
@@ -843,6 +849,7 @@ export class ContactsService {
         ? contact.followUpDate.toISOString()
         : null,
       phone: contact.phone || null,
+      isLocal: true,
     };
   }
 }

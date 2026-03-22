@@ -15,6 +15,7 @@ import {
   PHISHING_CONFIDENCE_MEDIUM,
   STRING_NONE,
 } from 'constants/strings';
+import { getCategoryKey } from 'hooks/useEmailFetching';
 
 import {
   DEFAULT_CATEGORY_TRANSLATIONS,
@@ -458,13 +459,14 @@ export const groupEmailsByCategory = (emails: Email[], mode?: InboxMode): Catego
     // cases we should NOT override the category. Only route to the phishing bucket when
     // the email has no server-assigned category (or is already in "Other").
     const hasServerCategory = Boolean(email.category_id) && email.category_id !== CATEGORY_OTHER;
-    // Use category_id (UUID) as the stable group key when provided by the server.
-    // This avoids encoding/whitespace mismatches with the summary's UUID-based keys.
+    // Use getCategoryKey() to compute the stable group key — same logic used by
+    // useEmailFetching's summary path. When category_id is null (Other/uncategorized
+    // emails), getCategoryKey returns "uncategorized", matching the summary lookup key.
     // Falls back to the category name string for auto-responded and legacy emails.
     const categoryKey =
       isPhishing && !hasServerCategory
         ? CATEGORY_DANGEROUS_PHISHING
-        : email.category_id ?? email.category ?? CATEGORY_OTHER;
+        : getCategoryKey(email.category_id, email.category ?? CATEGORY_OTHER);
     if (!categoryMap.has(categoryKey)) {
       categoryMap.set(categoryKey, []);
     }

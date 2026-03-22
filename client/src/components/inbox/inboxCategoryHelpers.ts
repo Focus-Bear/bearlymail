@@ -9,6 +9,7 @@ import { CategoryGroup, groupEmailsByCategory } from 'components/inbox/CategoryA
 import { CATEGORY_OTHER } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 /**
  * Groups filtered emails by category and returns them as a keyed map.
@@ -30,7 +31,10 @@ export function buildEmailCategoryMap(
 export function buildOtherProtoGroups(
   emailCategoryMap: Map<string, CategoryGroup>
 ): Array<{ name: string; emails: Email[] }> {
-  const otherEmails = emailCategoryMap.get(CATEGORY_OTHER)?.emails ?? [];
+  // After fix #1294: groupEmailsByCategory() now uses getCategoryKey(), so
+  // emails with no category_id are keyed as CATEGORY_KEY_UNCATEGORIZED ("uncategorized")
+  // instead of CATEGORY_OTHER ("Other"). Use the constant to keep keys in sync.
+  const otherEmails = emailCategoryMap.get(CATEGORY_KEY_UNCATEGORIZED)?.emails ?? [];
   const groups = new Map<string, Email[]>();
   otherEmails.forEach(email => {
     const protoName = email.protoCategoryName;

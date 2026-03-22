@@ -124,18 +124,27 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeCon
           return (
             <div
               key={contact.id || contact.email}
-              onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
+              onClick={() => {
+                // Only navigate for contacts with a local DB record (UUID id).
+                // Gmail-only results (isLocal: false) have a Google People API resource
+                // name as their id (e.g. "people/c12345") — navigating would produce
+                // a 4-segment path that doesn't match the route, causing a blank screen.
+                const canNavigate = contact.id && contact.isLocal !== false;
+                if (canNavigate) {
+                  navigate(`/crm/contacts/${contact.id}`);
+                }
+              }}
               style={{
                 display: STRING_FLEX,
                 alignItems: STRING_CENTER,
                 padding: theme.spacing.md,
                 borderBottom: index < contacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE,
                 gap: theme.spacing.md,
-                cursor: contact.id ? STRING_POINTER : STRING_DEFAULT,
+                cursor: contact.id && contact.isLocal !== false ? STRING_POINTER : STRING_DEFAULT,
                 transition: theme.transitions.fast,
               }}
               onMouseEnter={event => {
-                if (contact.id) {
+                if (contact.id && contact.isLocal !== false) {
                   event.currentTarget.style.backgroundColor = theme.colors.background.default;
                 }
               }}

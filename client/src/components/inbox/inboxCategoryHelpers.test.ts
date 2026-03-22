@@ -3,6 +3,7 @@ import { Email, InboxMode } from 'types/email';
 import { groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
 import { CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 import { buildDisplayCategories, buildEmailCategoryMap, buildOtherProtoGroups } from './inboxCategoryHelpers';
 
@@ -90,25 +91,30 @@ describe('buildEmailCategoryMap', () => {
   });
 });
 
+// After fix #1294: groupEmailsByCategory() now uses getCategoryKey(), so
+// "Other" emails (category_id === null) are stored under key "uncategorized"
+// not "Other". buildOtherProtoGroups() reads from that same key.
+// CATEGORY_KEY_UNCATEGORIZED is imported from inboxDataSlice above.
+
 describe('buildOtherProtoGroups', () => {
   it('returns an empty array when there are no Other emails', () => {
     const map = new Map<string, CategoryGroup>();
     expect(buildOtherProtoGroups(map)).toEqual([]);
   });
 
-  it('returns an empty array when Other bucket exists but has no protoCategory emails', () => {
+  it('returns an empty array when uncategorized bucket exists but has no protoCategory emails', () => {
     const emailWithoutProto = makeEmail({ protoCategoryName: null });
     const map = new Map<string, CategoryGroup>([
-      [CATEGORY_OTHER, makeGroup(CATEGORY_OTHER, [emailWithoutProto])],
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailWithoutProto])],
     ]);
     expect(buildOtherProtoGroups(map)).toEqual([]);
   });
 
-  it('groups Other emails by protoCategoryName', () => {
+  it('groups uncategorized emails by protoCategoryName', () => {
     const emailA = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS });
     const emailB = makeEmail({ id: 'b', protoCategoryName: PROTO_RECEIPTS });
     const map = new Map<string, CategoryGroup>([
-      [CATEGORY_OTHER, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
     ]);
 
     const result = buildOtherProtoGroups(map);
@@ -125,7 +131,7 @@ describe('buildOtherProtoGroups', () => {
     const emailA = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS });
     const emailB = makeEmail({ id: 'b', protoCategoryName: PROTO_NEWSLETTERS });
     const map = new Map<string, CategoryGroup>([
-      [CATEGORY_OTHER, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailA, emailB])],
     ]);
 
     const result = buildOtherProtoGroups(map);
@@ -137,7 +143,7 @@ describe('buildOtherProtoGroups', () => {
     const emailWithProto = makeEmail({ id: 'a', protoCategoryName: PROTO_NEWSLETTERS });
     const emailWithoutProto = makeEmail({ id: 'b', protoCategoryName: null });
     const map = new Map<string, CategoryGroup>([
-      [CATEGORY_OTHER, makeGroup(CATEGORY_OTHER, [emailWithProto, emailWithoutProto])],
+      [CATEGORY_KEY_UNCATEGORIZED, makeGroup(CATEGORY_OTHER, [emailWithProto, emailWithoutProto])],
     ]);
 
     const result = buildOtherProtoGroups(map);

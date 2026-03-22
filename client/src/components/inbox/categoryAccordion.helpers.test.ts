@@ -143,25 +143,28 @@ describe('groupEmailsByCategory', () => {
   });
 
   it('groups emails into a single category', () => {
+    // After fix #1294: emails with category_id === null are all bucketed as "uncategorized"
+    // regardless of their category name string, so they share a single group.
     const emails = [
       makeEmail({ id: '1', category: 'Newsletters', category_id: null }),
       makeEmail({ id: '2', category: 'Newsletters', category_id: null }),
     ];
     const groups = groupEmailsByCategory(emails);
     expect(groups).toHaveLength(1);
-    expect(groups[0].category).toBe('Newsletters');
+    expect(groups[0].category).toBe('uncategorized');
     expect(groups[0].emails).toHaveLength(2);
   });
 
   it('groups emails into multiple categories', () => {
+    // After fix #1294: category_id is the grouping key. Use distinct UUIDs for distinct groups.
     const emails = [
-      makeEmail({ id: '1', category: 'Newsletters', category_id: null }),
-      makeEmail({ id: '2', category: 'Sales', category_id: null }),
+      makeEmail({ id: '1', category: 'Newsletters', category_id: 'uuid-newsletters' }),
+      makeEmail({ id: '2', category: 'Sales', category_id: 'uuid-sales' }),
     ];
     const groups = groupEmailsByCategory(emails);
     expect(groups).toHaveLength(2);
     const cats = groups.map(grp => grp.category).sort();
-    expect(cats).toEqual(['Newsletters', 'Sales']);
+    expect(cats).toEqual(['uuid-newsletters', 'uuid-sales']);
   });
 
   it('routes medium-confidence phishing email (no server category) to phishing bucket', () => {

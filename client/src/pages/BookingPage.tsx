@@ -29,8 +29,10 @@ interface TimeSlot {
   duration: number;
 }
 
-const SLOTS_PER_PAGE = 50;
-const DAYS_AHEAD_FIXED = 90;
+const INITIAL_SLOTS = 5;
+const LOAD_MORE_SLOTS = 15;
+const DAYS_AHEAD_INITIAL = 14;
+const DAYS_AHEAD_LOAD_MORE = 90;
 
 const BookingPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -52,6 +54,8 @@ const BookingPage: React.FC = () => {
   const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
   const fetchSlots = useCallback(async (currentOffset: number, append = false) => {
+    const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
+    const currentDaysAhead = append ? DAYS_AHEAD_LOAD_MORE : DAYS_AHEAD_INITIAL;
     try {
       if (append) {
         setLoadingMore(true);
@@ -60,7 +64,7 @@ const BookingPage: React.FC = () => {
       }
 
       const response = await axios.get(
-        `${API_URL}/public/calendar/${userId}/slots?daysAhead=${DAYS_AHEAD_FIXED}&offset=${currentOffset}&limit=${SLOTS_PER_PAGE}`,
+        `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`,
       );
 
       if (append) {
@@ -75,6 +79,7 @@ const BookingPage: React.FC = () => {
       }
       setTimezone(response.data.timezone);
       setHasMore(response.data.hasMore);
+      setSlotOffset(currentOffset + currentLimit);
     } catch (error) {
       console.error('Error fetching slots:', error);
       setError(t('booking.failedToLoad'));
@@ -91,9 +96,7 @@ const BookingPage: React.FC = () => {
   }, [userId, fetchSlots]);
 
   const handleLoadMore = () => {
-    const newOffset = slotOffset + SLOTS_PER_PAGE;
-    setSlotOffset(newOffset);
-    fetchSlots(newOffset, true);
+    fetchSlots(slotOffset, true);
   };
 
   const handleAddGuest = (email: string) => {

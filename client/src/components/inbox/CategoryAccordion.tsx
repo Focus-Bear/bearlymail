@@ -41,13 +41,13 @@ interface CategoryAccordionProps {
   isReanalysingOther?: boolean;
   /** Called after the accordion collapses (either via archive-all or auto-collapse). Used to scroll the next category into view. */
   onAfterCollapse?: () => void;
-  /** Override the default navigation to /settings#email-categories. When omitted, the component renders without router dependency (Storybook safe). When provided in production by the container, pass `() => navigate('/settings#email-categories')`. */
+  /** Called when the user clicks the ⚙️ settings button for this category. */
   onNavigateToSettings?: () => void;
 }
 
 
 
-const EDIT_ICON = '✏️';
+const EDIT_ICON = '⚙️';
 
 const REANALYSE_ICON = '🔄';
 
@@ -165,26 +165,26 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
         {emailCount}
       </span>
       <button
-        onClick={onEditCategoryClick}
-        onMouseEnter={() => setIsPencilHovered(true)}
-        onMouseLeave={() => setIsPencilHovered(false)}
-        style={{
-          padding: theme.spacing.xs,
-          borderRadius: theme.borderRadius.sm,
-          border: STRING_NONE,
-          backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          cursor: 'pointer',
-          transition: theme.transitions.fast,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        title={t('inbox.category.editCategories')}
-      >
-        {EDIT_ICON}
-      </button>
+          onClick={onEditCategoryClick}
+          onMouseEnter={() => setIsPencilHovered(true)}
+          onMouseLeave={() => setIsPencilHovered(false)}
+          style={{
+            padding: theme.spacing.xs,
+            borderRadius: theme.borderRadius.sm,
+            border: STRING_NONE,
+            backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            cursor: 'pointer',
+            transition: theme.transitions.fast,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title={t('inbox.category.editCategories')}
+        >
+          {EDIT_ICON}
+        </button>
       {isOtherCategory && onReanalyseOther && (
         <ReanalyseButton
           onClick={onReanalyseClick}

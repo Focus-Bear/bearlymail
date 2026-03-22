@@ -292,39 +292,45 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
     }
   };
 
+  const handleNavigateToSettings = useCallback(() => {
+    navigate('/settings#email-categories');
+  }, [navigate]);
+
   return (
-    <CategoryAccordion
-      key={categoryKey}
-      category={categoryName}
-      categoryKey={categoryKey}
-      emails={categoryEmails}
-      count={isLoaded ? categoryEmails.length : categoryItem.count}
-      isLoadingContent={isExpanded && !isLoaded}
-      isExpanded={isExpanded}
-      onToggle={() => onToggleCategory(categoryKey)}
-      onArchiveAll={handleArchiveAll}
-      onReanalyseOther={onReanalyseOther}
-      isReanalysingOther={isReanalysingOther}
-      onAfterCollapse={onAfterCollapse}
-      onNavigateToSettings={() => navigate('/settings#email-categories')}
-    >
-      {hasProtoGroups ? (
-        <InboxOtherCategoryContent
-          otherProtoGroups={otherProtoGroups}
-          protoCategories={protoCategories}
-          uncategorizedOtherEmails={uncategorizedOtherEmails}
-          globalIndex={globalIndex}
-          convertingProtoCategoryId={convertingProtoCategoryId}
-          deletingProtoCategoryId={deletingProtoCategoryId}
-          onBulkArchive={onBulkArchive}
-          onConvertProtoCategory={onConvertProtoCategory}
-          onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
-          renderItem={renderItem}
-        />
-      ) : (
-        categoryEmails.map((email, indexInCategory) => renderItem(email, globalIndex + indexInCategory))
-      )}
-    </CategoryAccordion>
+    <>
+      <CategoryAccordion
+        key={categoryKey}
+        category={categoryName}
+        categoryKey={categoryKey}
+        emails={categoryEmails}
+        count={isLoaded ? categoryEmails.length : categoryItem.count}
+        isLoadingContent={isExpanded && !isLoaded}
+        isExpanded={isExpanded}
+        onToggle={() => onToggleCategory(categoryKey)}
+        onArchiveAll={handleArchiveAll}
+        onReanalyseOther={onReanalyseOther}
+        isReanalysingOther={isReanalysingOther}
+        onAfterCollapse={onAfterCollapse}
+        onNavigateToSettings={handleNavigateToSettings}
+      >
+        {hasProtoGroups ? (
+          <InboxOtherCategoryContent
+            otherProtoGroups={otherProtoGroups}
+            protoCategories={protoCategories}
+            uncategorizedOtherEmails={uncategorizedOtherEmails}
+            globalIndex={globalIndex}
+            convertingProtoCategoryId={convertingProtoCategoryId}
+            deletingProtoCategoryId={deletingProtoCategoryId}
+            onBulkArchive={onBulkArchive}
+            onConvertProtoCategory={onConvertProtoCategory}
+            onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
+            renderItem={renderItem}
+          />
+        ) : (
+          categoryEmails.map((email, indexInCategory) => renderItem(email, globalIndex + indexInCategory))
+        )}
+      </CategoryAccordion>
+    </>
   );
 };
 

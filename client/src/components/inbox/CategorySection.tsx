@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
 
@@ -83,6 +83,11 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   const group = emailCategoryMap.get(categoryKey);
   const categoryEmails = group?.emails ?? [];
 
+  // Hooks must be called before any early return (Rules of Hooks).
+  const handleNavigateToSettings = useCallback(() => {
+    navigate('/settings#email-categories');
+  }, [navigate]);
+
   // Only hide if we've successfully loaded AND both local emails and server count are zero.
   // Without the count check, a fetch error (isLoaded=true, emails=[]) would silently hide
   // a category that actually has emails according to the summary.
@@ -147,6 +152,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
     : [];
 
   return (
+    <>
     <CategoryAccordion
       key={categoryKey}
       category={categoryName}
@@ -158,7 +164,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
       onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
       onReanalyseOther={handleReanalyseOther}
       isReanalysingOther={isReanalysingOther}
-      onNavigateToSettings={() => navigate('/settings#email-categories')}
+      onNavigateToSettings={handleNavigateToSettings}
     >
       {hasProtoGroups
         ? (() => {
@@ -196,5 +202,6 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
           })()
         : categoryEmails.map((email, idx) => renderEmailItem(email, globalIndex + idx))}
     </CategoryAccordion>
+    </>
   );
 };

@@ -34,6 +34,12 @@ import { PerformanceTracker } from "./performance-tracker";
 
 export { BLOCKED_MODE_THREAD_FILTER, RawEmailRow } from "./email-inbox.types";
 
+/** Key the client sends for the null-category (uncategorized) bucket. */
+const UNCATEGORIZED_CATEGORY_KEY = 'uncategorized';
+
+/** Display name used for the null-category (uncategorized) bucket. */
+const OTHER_CATEGORY_NAME = 'Other';
+
 /**
  * Handles inbox queries, filtering, summary, and decryption of raw query results.
  * Extracted from EmailsService (Phase 1 — lowest risk, read-only methods).
@@ -268,7 +274,6 @@ export class EmailInboxService {
     categoryThreadIds: Record<string, string[]>;
     categoryUuidByName: Map<string, string>;
   }> {
-    const CATEGORY_OTHER = "Other";
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
     const categoryThreadIds: Record<string, string[]> = {};
@@ -286,11 +291,17 @@ export class EmailInboxService {
       )
         continue;
 
-      // categoryName comes from user_contexts JOIN — already plain text, no decryption needed.
-      // NULL categoryId → "Other" bucket.
+      // categoryName comes from a raw SQL query — TypeORM's encryptedColumnTransformer does NOT
+      // run for raw .query() results, so contextValue is returned as encrypted ciphertext.
+      // Decrypt it here before use. NULL categoryId → "Other" bucket.
+      // EncryptionHelper.decrypt() has internal error handling and returns the original string
+      // on failure — it never throws, so no try/catch is needed.
+      const decryptedCategoryName = row.categoryName
+        ? EncryptionHelper.decrypt(row.categoryName)
+        : null;
       const category = row.categoryId
-        ? (row.categoryName?.split(" - ")[0].trim() ?? CATEGORY_OTHER)
-        : CATEGORY_OTHER;
+        ? (decryptedCategoryName?.split(" - ")[0].trim() ?? OTHER_CATEGORY_NAME)
+        : OTHER_CATEGORY_NAME;
       if (!categoryOrder.includes(category)) {
         categoryOrder.push(category);
         categoryThreadIds[category] = [];
@@ -319,9 +330,12 @@ export class EmailInboxService {
   ): Promise<string[] | null> {
     if (!categoryIds || categoryIds.length === 0) return categoryOrder;
 
-    const OTHER = "Other";
-    const requestedOther = categoryIds.includes(OTHER);
-    const realIds = categoryIds.filter((id) => id !== OTHER);
+    // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
+    const requestedOther =
+      categoryIds.includes(OTHER_CATEGORY_NAME) || categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
+    const realIds = categoryIds.filter(
+      (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
+    );
     const requestedUuids = new Set(realIds);
     const idToName = new Map<string, string>();
     categoryNameToId.forEach((id, name) => idToName.set(id, name));
@@ -339,7 +353,7 @@ export class EmailInboxService {
     }
 
     return categoryOrder.filter((cat) => {
-      if (requestedOther && cat === OTHER) return true;
+      if (requestedOther && cat === OTHER_CATEGORY_NAME) return true;
       const uuid = categoryUuidByName.get(cat);
       if (uuid) return requestedUuids.has(uuid);
       return namesFromIds.has(cat);
@@ -605,9 +619,13 @@ export class EmailInboxService {
       );
 
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
-      const OTHER = "Other";
-      const requestedOther = filters.categoryIds.includes(OTHER);
-      const realIds = filters.categoryIds.filter((id) => id !== OTHER);
+      // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
+      const requestedOther =
+        filters.categoryIds.includes(OTHER_CATEGORY_NAME) ||
+        filters.categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
+      const realIds = filters.categoryIds.filter(
+        (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
+      );
       const requestedUuids = new Set(realIds);
       const ctxs = await this.userContextRepository.find({
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
@@ -704,8 +722,10 @@ export class EmailInboxService {
       urgencyScore: row.urgencyScore,
       githubMetadata,
       threadUpdatedAt: row.threadUpdatedAt,
+      // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
+      // EncryptionHelper.decrypt() has internal error handling; it never throws.
       category: row.categoryName
-        ? row.categoryName.split(" - ")[0].trim()
+        ? (EncryptionHelper.decrypt(row.categoryName)?.split(" - ")[0].trim() ?? null)
         : null,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.decrypt(row.categoryExplanation)

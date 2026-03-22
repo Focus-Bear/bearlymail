@@ -52,10 +52,15 @@ describe('getCurrentTimeInTimezone', () => {
   it('handles midnight boundary (hour=24 overflow) without producing invalid ISO strings', () => {
     // Simulate a runtime that returns hour=24 for midnight via formatToParts.
     // The real bug: "2026-03-18T24:02:12-NaN:NaN" was returned at midnight UTC.
+    // Use today's date so the computed offset stays within ±24h (2-digit HH).
+    const today = new Date();
+    const yyyy = String(today.getUTCFullYear());
+    const mm = String(today.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(today.getUTCDate()).padStart(2, '0');
     const mockParts = [
-      { type: 'year', value: '2026' },
-      { type: 'month', value: '03' },
-      { type: 'day', value: '18' },
+      { type: 'year', value: yyyy },
+      { type: 'month', value: mm },
+      { type: 'day', value: dd },
       { type: 'hour', value: '24' }, // edge case: some ICU builds return 24 at midnight
       { type: 'minute', value: '00' },
       { type: 'second', value: '00' },
@@ -92,8 +97,11 @@ describe('getCurrentTimeInTimezone', () => {
   });
 
   it('the returned time is within 5 seconds of now (sanity check)', () => {
+    // Use UTC — it is always a valid IANA timezone and always produces "+00:00",
+    // making the offset arithmetic predictable across all runtime environments
+    // (including jsdom, which may not support regional IANA zones like Australia/Melbourne).
     const before = Date.now();
-    const result = getCurrentTimeInTimezone('Australia/Melbourne');
+    const result = getCurrentTimeInTimezone('UTC');
     const after = Date.now();
 
     // Strip offset, parse as local UTC for comparison

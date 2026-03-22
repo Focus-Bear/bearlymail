@@ -11,33 +11,27 @@ import { STRING_NONE } from 'constants/strings';
 const ForgotPassword: React.FC = () => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
       await axios.post(`${API_URL}/auth/forgot-password`, { email });
-      setSubmitted(true);
-    } catch (_err) {
-      // We intentionally don't reveal whether the email was found.
-      // Treat network/server errors as success to keep the UX consistent.
-      setSubmitted(true);
+    } catch (err) {
+      // Intentionally do not reveal whether the email was found or the request failed.
+      // Treat network/server errors as success to prevent timing/error-based enumeration.
+      if (!import.meta.env.PROD) {
+        console.error('[ForgotPassword] Request failed (hidden from user):', err);
+      }
     } finally {
       setLoading(false);
+      // Always show the "check your email" state, regardless of success or failure.
+      // This prevents callers from distinguishing between "email exists" and "network error".
+      setSubmitted(true);
     }
-  };
-
-  const fieldLabelStyle: React.CSSProperties = {
-    display: 'block',
-    marginBottom: theme.spacing.sm,
-    color: theme.colors.text.primary,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
   };
 
   return (
@@ -64,15 +58,42 @@ const ForgotPassword: React.FC = () => {
         <h1
           style={{
             color: theme.colors.text.primary,
-            marginBottom: theme.spacing.sm,
+            marginBottom: theme.spacing.lg,
             fontSize: theme.typography.fontSize['2xl'],
             fontWeight: theme.typography.fontWeight.bold,
           }}
         >
-          {t('auth.forgotPassword.title')}
+          {t('auth.forgotPasswordTitle')}
         </h1>
 
-        {!submitted ? (
+        {submitted ? (
+          <>
+            <div
+              style={{
+                backgroundColor: `${theme.colors.accent.success ?? theme.colors.primary.main}20`,
+                color: theme.colors.accent.success ?? theme.colors.primary.main,
+                padding: theme.spacing.md,
+                borderRadius: theme.borderRadius.md,
+                marginBottom: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('auth.forgotPasswordSuccess')}
+            </div>
+            <Link
+              to="/login"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                color: theme.colors.primary.main,
+                fontSize: theme.typography.fontSize.sm,
+                textDecoration: 'none',
+              }}
+            >
+              {t('auth.backToLogin')}
+            </Link>
+          </>
+        ) : (
           <>
             <p
               style={{
@@ -81,27 +102,25 @@ const ForgotPassword: React.FC = () => {
                 fontSize: theme.typography.fontSize.base,
               }}
             >
-              {t('auth.forgotPassword.description')}
+              {t('auth.forgotPasswordDescription')}
             </p>
-
-            {error && (
-              <div
-                style={{
-                  backgroundColor: `${theme.colors.accent.error}20`,
-                  color: theme.colors.accent.error,
-                  padding: theme.spacing.md,
-                  borderRadius: theme.borderRadius.md,
-                  marginBottom: theme.spacing.md,
-                }}
-              >
-                {error}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: theme.spacing.lg }}>
-                <label style={fieldLabelStyle}>{t('auth.email')}</label>
+                <label
+                  htmlFor="forgot-password-email"
+                  style={{
+                    display: 'block',
+                    marginBottom: theme.spacing.sm,
+                    color: theme.colors.text.primary,
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}
+                >
+                  {t('auth.email')}
+                </label>
                 <input
+                  id="forgot-password-email"
                   type="email"
                   value={email}
                   onChange={event => setEmail(event.target.value)}
@@ -123,7 +142,9 @@ const ForgotPassword: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: theme.spacing.md,
-                  backgroundColor: loading ? theme.colors.primary.light : theme.colors.primary.main,
+                  backgroundColor: loading
+                    ? theme.colors.border.medium
+                    : theme.colors.primary.main,
                   color: COLOR_NAMED_WHITE,
                   border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
@@ -132,37 +153,37 @@ const ForgotPassword: React.FC = () => {
                   cursor: loading ? 'not-allowed' : 'pointer',
                   marginBottom: theme.spacing.md,
                 }}
+                onMouseOver={event => {
+                  if (!loading) {
+                    event.currentTarget.style.backgroundColor =
+                      theme.colors.primary.dark;
+                  }
+                }}
+                onMouseOut={event => {
+                  if (!loading) {
+                    event.currentTarget.style.backgroundColor =
+                      theme.colors.primary.main;
+                  }
+                }}
               >
-                {loading
-                  ? t('auth.forgotPassword.sending')
-                  : t('auth.forgotPassword.submit')}
+                {loading ? t('auth.sendingResetLink') : t('auth.sendResetLink')}
               </button>
             </form>
-          </>
-        ) : (
-          <div>
-            <p
+
+            <Link
+              to="/login"
               style={{
-                color: theme.colors.text.secondary,
-                marginBottom: theme.spacing.lg,
-                fontSize: theme.typography.fontSize.base,
+                display: 'block',
+                textAlign: 'center',
+                color: theme.colors.primary.main,
+                fontSize: theme.typography.fontSize.sm,
+                textDecoration: 'none',
               }}
             >
-              {t('auth.forgotPassword.checkEmail')}
-            </p>
-          </div>
+              {t('auth.backToLogin')}
+            </Link>
+          </>
         )}
-
-        <Link
-          to="/login"
-          style={{
-            color: theme.colors.primary.main,
-            textDecoration: STRING_NONE,
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('auth.backToLogin')}
-        </Link>
       </div>
     </div>
   );

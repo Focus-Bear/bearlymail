@@ -3,53 +3,38 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { devLog } from 'utils/dev-logger';
 
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { TOAST_DURATION_MS } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
-import { useAuth } from 'contexts/AuthContext';
-
-const REDIRECT_DELAY_MS = 1500;
 
 const ResetPassword: React.FC = () => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-
-  const token = searchParams.get('token') ?? '';
-
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const token = searchParams.get('token');
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/inbox');
+    if (!token) {
+      setError(t('auth.invalidResetLink'));
     }
-  }, [authLoading, user, navigate]);
-
-  if (!token) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div style={{ textAlign: 'center', padding: theme.spacing['2xl'] }}>
-          <p style={{ color: theme.colors.accent.error, marginBottom: theme.spacing.lg }}>
-            {t('auth.resetPassword.invalidLink')}
-          </p>
-          <Link to="/forgot-password" style={{ color: theme.colors.primary.main }}>
-            {t('auth.resetPassword.requestNewLink')}
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  }, [token, t]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+
+    if (!token) {
+      setError(t('auth.invalidResetLink'));
+      return;
+    }
 
     if (password.length < 8) {
       setError(t('auth.passwordTooShort'));
@@ -63,49 +48,24 @@ const ResetPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/auth/reset-password`, {
-        token,
-        password,
-      });
-
-      const { access_token } = response.data;
-      if (access_token) {
-        // Auto-log in on success
-        localStorage.setItem('token', access_token);
-        devLog('Reset-password token saved:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-        axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        setSuccess(true);
-        setTimeout(() => {
-          window.location.href = '/inbox';
-        }, REDIRECT_DELAY_MS);
-      } else {
-        setSuccess(true);
+      await axios.post(`${API_URL}/auth/reset-password`, { token, password });
+      setSuccess(true);
+      // Redirect to login after a short delay
+      setTimeout(() => {
         navigate('/login');
+      }, TOAST_DURATION_MS);
+    } catch (err: unknown) {
+      if (import.meta.env.MODE !== 'production') {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[ResetPassword] Backend error:',
+          err instanceof Error ? err.message : String(err),
+        );
       }
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message || t('auth.resetPassword.error'),
-      );
+      setError(t('auth.resetPasswordError'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const fieldLabelStyle: React.CSSProperties = {
-    display: 'block',
-    marginBottom: theme.spacing.sm,
-    color: theme.colors.text.primary,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-  };
-
-  const fieldInputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: theme.spacing.md,
-    border: `1px solid ${theme.colors.border.medium}`,
-    borderRadius: theme.borderRadius.md,
-    fontSize: theme.typography.fontSize.base,
-    fontFamily: theme.typography.fontFamily,
   };
 
   return (
@@ -137,21 +97,51 @@ const ResetPassword: React.FC = () => {
             fontWeight: theme.typography.fontWeight.bold,
           }}
         >
-          {t('auth.resetPassword.title')}
+          {t('auth.resetPasswordTitle')}
         </h1>
 
         {success ? (
-          <p style={{ color: theme.colors.text.secondary }}>
-            {t('auth.resetPassword.success')}
-          </p>
+          <>
+            <div
+              style={{
+                backgroundColor: `${theme.colors.accent.success ?? theme.colors.primary.main}20`,
+                color: theme.colors.accent.success ?? theme.colors.primary.main,
+                padding: theme.spacing.md,
+                borderRadius: theme.borderRadius.md,
+                marginBottom: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('auth.resetPasswordSuccess')}
+            </div>
+            <Link
+              to="/login"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                color: theme.colors.primary.main,
+                fontSize: theme.typography.fontSize.sm,
+                textDecoration: 'none',
+              }}
+            >
+              {t('auth.backToLogin')}
+            </Link>
+          </>
         ) : (
           <>
-            <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
-              {t('auth.resetPassword.description')}
+            <p
+              style={{
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.base,
+              }}
+            >
+              {t('auth.resetPasswordDescription')}
             </p>
 
             {error && (
               <div
+                role="alert"
                 style={{
                   backgroundColor: `${theme.colors.accent.error}20`,
                   color: theme.colors.accent.error,
@@ -166,55 +156,124 @@ const ResetPassword: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: theme.spacing.md }}>
-                <label style={fieldLabelStyle}>{t('auth.password')}</label>
+                <label
+                  htmlFor="reset-password-new"
+                  style={{
+                    display: 'block',
+                    marginBottom: theme.spacing.sm,
+                    color: theme.colors.text.primary,
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}
+                >
+                  {t('auth.password')}
+                </label>
                 <input
+                  id="reset-password-new"
                   type="password"
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   required
                   minLength={8}
-                  style={fieldInputStyle}
+                  disabled={!token}
+                  style={{
+                    width: '100%',
+                    padding: theme.spacing.md,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.md,
+                    fontSize: theme.typography.fontSize.base,
+                    fontFamily: theme.typography.fontFamily,
+                  }}
                 />
-                <p style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>
+                <p
+                  style={{
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                    marginTop: theme.spacing.xs,
+                  }}
+                >
                   {t('auth.passwordMinLength')}
                 </p>
               </div>
 
               <div style={{ marginBottom: theme.spacing.lg }}>
-                <label style={fieldLabelStyle}>{t('auth.confirmPassword')}</label>
+                <label
+                  htmlFor="reset-password-confirm"
+                  style={{
+                    display: 'block',
+                    marginBottom: theme.spacing.sm,
+                    color: theme.colors.text.primary,
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}
+                >
+                  {t('auth.confirmPassword')}
+                </label>
                 <input
+                  id="reset-password-confirm"
                   type="password"
                   value={confirmPassword}
                   onChange={event => setConfirmPassword(event.target.value)}
                   required
                   minLength={8}
-                  style={fieldInputStyle}
+                  disabled={!token}
+                  style={{
+                    width: '100%',
+                    padding: theme.spacing.md,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.md,
+                    fontSize: theme.typography.fontSize.base,
+                    fontFamily: theme.typography.fontFamily,
+                  }}
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !token}
                 style={{
                   width: '100%',
                   padding: theme.spacing.md,
-                  backgroundColor: loading ? theme.colors.primary.light : theme.colors.primary.main,
+                  backgroundColor:
+                    loading || !token
+                      ? theme.colors.border.medium
+                      : theme.colors.primary.main,
                   color: COLOR_NAMED_WHITE,
                   border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontSize: theme.typography.fontSize.base,
                   fontWeight: theme.typography.fontWeight.semibold,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: loading || !token ? 'not-allowed' : 'pointer',
                   marginBottom: theme.spacing.md,
                 }}
+                onMouseOver={event => {
+                  if (!loading && token) {
+                    event.currentTarget.style.backgroundColor =
+                      theme.colors.primary.dark;
+                  }
+                }}
+                onMouseOut={event => {
+                  if (!loading && token) {
+                    event.currentTarget.style.backgroundColor =
+                      theme.colors.primary.main;
+                  }
+                }}
               >
-                {loading ? t('auth.resetPassword.resetting') : t('auth.resetPassword.submit')}
+                {loading
+                  ? t('auth.resettingPassword')
+                  : t('auth.resetPassword.submit')}
               </button>
             </form>
 
             <Link
               to="/login"
-              style={{ color: theme.colors.primary.main, textDecoration: STRING_NONE, fontSize: theme.typography.fontSize.sm }}
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                color: theme.colors.primary.main,
+                fontSize: theme.typography.fontSize.sm,
+                textDecoration: 'none',
+              }}
             >
               {t('auth.backToLogin')}
             </Link>

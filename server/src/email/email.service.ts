@@ -86,6 +86,70 @@ ${token("footer", { year })}
     await this.sendEmail(toEmail, subject, html, textBody);
   }
 
+  async sendPasswordResetEmail(
+    toEmail: string,
+    firstName: string,
+    resetToken: string,
+    language: string = "en",
+  ): Promise<void> {
+    const frontendUrl =
+      this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000";
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    // Get translations
+    const translate = (key: string, params: Record<string, string> = {}) =>
+      translateEmail(`passwordReset.${key}`, language, params);
+
+    const subject = translate("subject");
+    const year = new Date().getFullYear().toString();
+
+    // Load MJML template
+    const templatePath = path.join(
+      __dirname,
+      "templates",
+      "password-reset.mjml",
+    );
+    let mjmlTemplate = fs.readFileSync(templatePath, "utf-8");
+
+    // Replace template variables
+    mjmlTemplate = mjmlTemplate
+      .replace(/\{\{previewText\}\}/g, translate("message", { firstName }))
+      .replace(/\{\{greeting\}\}/g, translate("greeting", { firstName }))
+      .replace(/\{\{message\}\}/g, translate("message", { firstName }))
+      .replace(/\{\{cta\}\}/g, translate("cta"))
+      .replace(/\{\{button\}\}/g, translate("button"))
+      .replace(/\{\{linkText\}\}/g, translate("linkText"))
+      .replace(/\{\{resetUrl\}\}/g, resetUrl)
+      .replace(/\{\{expiry\}\}/g, translate("expiry"))
+      .replace(/\{\{footer\}\}/g, translate("footer", { year }));
+
+    // Convert MJML to HTML
+    const { html, errors } = mjml(mjmlTemplate, {
+      validationLevel: "soft",
+    });
+
+    if (errors && errors.length > 0) {
+      this.logger.warn("MJML conversion warnings:", errors);
+    }
+
+    // Generate plain text version
+    const textBody = `
+${translate("greeting", { firstName })}
+
+${translate("message", { firstName })}
+
+${translate("cta")}
+
+${resetUrl}
+
+${translate("expiry")}
+
+${translate("footer", { year })}
+    `;
+
+    await this.sendEmail(toEmail, subject, html, textBody);
+  }
+
   private async sendEmail(
     toEmail: string,
     subject: string,

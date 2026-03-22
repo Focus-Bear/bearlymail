@@ -13,6 +13,18 @@ export const emailTranslations = {
         "This link will expire in 7 days. If you didn't request this, please ignore this email.",
       footer: "© {{year}} BearlyMail. All rights reserved.",
     },
+    passwordReset: {
+      subject: "Reset Your BearlyMail Password",
+      greeting: "Hi {{firstName}},",
+      message:
+        "We received a request to reset the password for your BearlyMail account. Click the button below to choose a new password.",
+      cta: "This link will expire in 1 hour.",
+      button: "Reset Password",
+      linkText: "Or copy and paste this link into your browser:",
+      expiry:
+        "If you didn't request a password reset, you can safely ignore this email. Your password will not change.",
+      footer: "© {{year}} BearlyMail. All rights reserved.",
+    },
   },
   es: {
     waitlistApproval: {
@@ -25,6 +37,18 @@ export const emailTranslations = {
       linkText: "O copia y pega este enlace en tu navegador:",
       expiry:
         "Este enlace expirará en 7 días. Si no solicitaste esto, por favor ignora este correo electrónico.",
+      footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
+    },
+    passwordReset: {
+      subject: "Restablecer tu contraseña de BearlyMail",
+      greeting: "Hola {{firstName}},",
+      message:
+        "Recibimos una solicitud para restablecer la contraseña de tu cuenta de BearlyMail. Haz clic en el botón de abajo para elegir una nueva contraseña.",
+      cta: "Este enlace expirará en 1 hora.",
+      button: "Restablecer contraseña",
+      linkText: "O copia y pega este enlace en tu navegador:",
+      expiry:
+        "Si no solicitaste un restablecimiento de contraseña, puedes ignorar este correo electrónico con seguridad. Tu contraseña no cambiará.",
       footer: "© {{year}} BearlyMail. Todos los derechos reservados.",
     },
   },

@@ -130,6 +130,16 @@ export class UsersService {
     return this.userRepository.findOne({ where: { emailHash } });
   }
 
+  /**
+   * Find a user by their hashed password reset token.
+   * Used in the reset-password flow to avoid a full table scan.
+   */
+  async findByPasswordResetToken(hashedToken: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { passwordResetToken: hashedToken },
+    });
+  }
+
   async findAll(): Promise<User[]> {
     return this.userRepository.find();
   }

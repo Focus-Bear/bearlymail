@@ -56,6 +56,18 @@ export class User {
   })
   passwordSetupTokenExpiresAt: Date;
 
+  @Column({
+    nullable: true,
+    comment: "Hashed token for password reset (1 hour expiry)",
+  })
+  passwordResetToken: string;
+
+  @Column({
+    nullable: true,
+    comment: "Password reset token expiration (1 hour)",
+  })
+  passwordResetExpires: Date;
+
   @Column({ nullable: true })
   googleId: string;
 

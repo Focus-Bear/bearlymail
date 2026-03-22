@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 
+import { EmailModule } from "../email/email.module";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
@@ -22,6 +23,7 @@ import { ZohoStrategy } from "./zoho.strategy";
 @Module({
   imports: [
     UsersModule,
+    EmailModule,
     forwardRef(() => EmailsModule),
     forwardRef(() => GoogleAccountsModule),
     forwardRef(() => Office365AccountsModule),

@@ -1,3 +1,4 @@
+import { ERROR_MESSAGES } from "../../../constants/error-messages";
 import {
   EmailAttachmentData,
   EmailRecipient,
@@ -51,7 +52,7 @@ export async function sendReply(
       );
       return sendReply(provider, userId, threadId, to, subject, body, options);
     }
-    throw new Error("Failed to send reply");
+    throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
   }
 }
 
@@ -82,7 +83,7 @@ export async function sendEmail(
       );
       return sendEmail(provider, userId, to, subject, body, cc, bcc);
     }
-    throw new Error("Failed to send email");
+    throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
   }
 }
 

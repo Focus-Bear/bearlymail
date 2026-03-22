@@ -12,6 +12,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
@@ -74,7 +75,7 @@ export class PriorityController {
       emailId,
     );
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const contexts = await this.priorityService.getUserContexts(
@@ -165,7 +166,7 @@ export class PriorityController {
     });
 
     if (!thread) {
-      throw new Error("Thread not found");
+      throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
     }
 
     // Update thread with new urgency score and override reason
@@ -207,7 +208,7 @@ export class PriorityController {
       emailId,
     );
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Use priority learning service to process feedback and update context

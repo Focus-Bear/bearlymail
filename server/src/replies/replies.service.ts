@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { HOURS_PER_DAY } from "../constants/time-constants";
 import { ContextService } from "../context/context.service";
@@ -75,7 +76,7 @@ export class RepliesService {
   ): Promise<string> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Get user context from UserContext entities
@@ -279,7 +280,7 @@ ${closing}`;
     // Analyze the modification to create a new rule
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Simple rule generation based on email characteristics
@@ -624,10 +625,10 @@ ${closing}`;
     const { expectedReplyHours, cc, bcc, isForward = false } = options;
 
     const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) throw new Error("Email not found");
+    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
 
     const user = await this.usersService.findOne(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
 
     const userEmail = EncryptionHelper.decrypt(user.email);
 

@@ -1,5 +1,6 @@
 import { calendar_v3, google } from "googleapis";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMProvider } from "../llm/llm.types";
@@ -228,12 +229,12 @@ export async function respondToInvitation(
 ): Promise<void> {
   const user = await service.usersService.findOne(userId);
   if (!user?.googleCalendarAccessToken) {
-    throw new Error("Google Calendar not connected");
+    throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
   }
 
   const email = await service.emailsService.getEmailById(userId, emailId);
   if (!email) {
-    throw new Error("Email not found");
+    throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
   }
 
   if (!service.isCalendarInvitation(email)) {
@@ -320,7 +321,7 @@ export async function generateMeetingReply(
   const email = await service.emailsService.getEmailById(userId, emailId);
 
   if (!email) {
-    throw new Error("Email not found");
+    throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
   }
 
   const schedulingLinkUrl = await resolveSchedulingLinkUrl(service, userId);

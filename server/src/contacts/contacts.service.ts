@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
@@ -387,7 +388,7 @@ export class ContactsService {
     });
 
     if (!contact) {
-      throw new Error("Contact not found");
+      throw new Error(ERROR_MESSAGES.CONTACT_NOT_FOUND);
     }
 
     contact.isFavorite = !contact.isFavorite;
@@ -507,7 +508,7 @@ export class ContactsService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const notes = await this.contactCrmService.getContactNotes(contactId);
     const customFields = await this.contactCrmService.getContactCustomFields(
@@ -563,7 +564,7 @@ export class ContactsService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const contactEmail = contact.email.toLowerCase();
     const senderHmac = computeEmailHmac(contactEmail);
@@ -657,7 +658,7 @@ export class ContactsService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const partial: Partial<Contact> = {};
     if (updates.name !== undefined) partial.name = updates.name;

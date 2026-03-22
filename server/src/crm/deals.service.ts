@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Contact } from "../database/entities/contact.entity";
 import { Deal } from "../database/entities/deal.entity";
 import {
@@ -239,7 +240,7 @@ export class DealsService {
       where: { id: dealId, userId },
       relations: ["stage", "contact"],
     });
-    if (!deal) throw new NotFoundException("Deal not found");
+    if (!deal) throw new NotFoundException(ERROR_MESSAGES.DEAL_NOT_FOUND);
     return this.toDealResponse(deal);
   }
 
@@ -305,7 +306,7 @@ export class DealsService {
     const deal = await this.dealRepository.findOne({
       where: { id: dealId, userId },
     });
-    if (!deal) throw new NotFoundException("Deal not found");
+    if (!deal) throw new NotFoundException(ERROR_MESSAGES.DEAL_NOT_FOUND);
 
     if (input.contactId) {
       await this.verifyContactOwnership(userId, input.contactId);
@@ -335,7 +336,7 @@ export class DealsService {
     const deal = await this.dealRepository.findOne({
       where: { id: dealId, userId },
     });
-    if (!deal) throw new NotFoundException("Deal not found");
+    if (!deal) throw new NotFoundException(ERROR_MESSAGES.DEAL_NOT_FOUND);
     await this.dealRepository.remove(deal);
   }
 

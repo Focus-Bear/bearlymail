@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { In } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
@@ -164,7 +165,7 @@ export class EmailsService {
     size: number;
   }> {
     const email = await this.getEmailById(userId, emailId);
-    if (!email) throw new Error("Email not found");
+    if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     if (!email.attachments || email.attachments.length === 0)
       throw new Error("Email has no attachments");
     const attachment = email.attachments.find(
@@ -175,7 +176,7 @@ export class EmailsService {
       await this.emailServiceDeps.emailProviderManager.getPrimaryProvider(
         userId,
       );
-    if (!provider) throw new Error("No email provider connected");
+    if (!provider) throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     return provider.getAttachment(userId, email.messageId, attachmentId, {
       filename: attachment.filename,
       mimeType: attachment.mimeType,

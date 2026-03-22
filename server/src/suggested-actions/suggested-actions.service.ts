@@ -4,6 +4,7 @@ import { IsNull, Not, Repository } from "typeorm";
 
 import { ActionItemsService } from "../action-items/action-items.service";
 import { CalendarService } from "../calendar/calendar.service";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -178,7 +179,7 @@ export class SuggestedActionsService {
     try {
       const email = await this.emailsService.getEmailById(userId, emailId);
       if (!email) {
-        throw new Error("Email not found");
+        throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
       }
       const threadId = email.emailThreadId;
       if (!threadId) {

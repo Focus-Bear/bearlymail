@@ -347,11 +347,9 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       },
     };
 
-    const result = await (gmailSyncService as any).fetchAllThreadsWithPagination(
-      fakeGmail,
-      "is:starred",
-      100,
-    );
+    const result = await (
+      gmailSyncService as any
+    ).fetchAllThreadsWithPagination(fakeGmail, "is:starred", 100);
 
     expect(result).toEqual(["t1"]);
     // Should have retried (called more than once)

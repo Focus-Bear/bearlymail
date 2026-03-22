@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
@@ -228,7 +229,7 @@ export class UsersService {
   }> {
     const user = await this.findOne(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
@@ -256,7 +257,7 @@ export class UsersService {
   }> {
     const user = await this.findOne(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
@@ -286,7 +287,7 @@ export class UsersService {
   async deleteAccount(userId: string): Promise<void> {
     const user = await this.findOne(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId}`;

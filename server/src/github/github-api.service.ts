@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { HTTP_STATUS } from "../constants/http-status";
 import { getErrorMessage, isApiError } from "../types/common";
 import { ParsedGitHubLink } from "./github.service";
@@ -446,7 +447,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
 
       // Log additional context for 404 errors
@@ -651,7 +652,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
 
       if (errorStatus === HTTP_STATUS.NOT_FOUND) {
@@ -740,7 +741,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
       throw error;
     }
@@ -781,7 +782,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
       throw error;
     }
@@ -822,7 +823,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
       throw error;
     }
@@ -872,7 +873,7 @@ export class GitHubApiService {
         errorStatus === HTTP_STATUS.UNAUTHORIZED ||
         errorStatus === HTTP_STATUS.FORBIDDEN
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
       throw error;
     }

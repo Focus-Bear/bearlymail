@@ -10,6 +10,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import * as crypto from "crypto";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Organization } from "../database/entities/organization.entity";
 import {
   OrganizationMember,
@@ -50,7 +51,7 @@ export class OrganizationsService {
     dto: CreateOrganizationDto,
   ): Promise<Organization> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
 
     // One org per user (owner): prevent duplicates
     const existingOwned = await this.orgRepo.findOne({
@@ -277,7 +278,7 @@ export class OrganizationsService {
     const user = await this.userRepo.findOne({
       where: { id: acceptingUserId },
     });
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
 
     // Validate email matches invite
     const userEmailHash = EncryptionHelper.hashEmail(user.email);

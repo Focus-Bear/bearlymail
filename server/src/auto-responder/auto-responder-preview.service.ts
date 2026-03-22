@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { User } from "../database/entities/user.entity";
@@ -134,7 +135,7 @@ export class AutoResponderPreviewService {
     });
 
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Get the thread to determine priority

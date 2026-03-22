@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import * as chrono from "chrono-node";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -32,7 +33,7 @@ export class SnoozeService {
     });
 
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const snoozeUntil = this.parseDuration(duration);
@@ -181,7 +182,7 @@ export class SnoozeService {
     });
 
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Unsnooze at the thread level - use emailThreadId (UUID FK) for reliable lookup

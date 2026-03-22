@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { getErrorMessage } from "../types/common";
 
 /**
@@ -213,7 +214,7 @@ export class GitHubProjectStatusService {
         errorMessage.toLowerCase().includes("bad credentials") ||
         errorMessage.toLowerCase().includes("unauthorized")
       ) {
-        throw new Error("GitHub token is invalid or expired");
+        throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_INVALID);
       }
       throw error;
     }

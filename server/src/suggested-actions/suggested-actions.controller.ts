@@ -11,6 +11,7 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CalendarService } from "../calendar/calendar.service";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { GitHubApiService } from "../github/github-api.service";
@@ -51,7 +52,7 @@ export class SuggestedActionsController {
     const { userId } = req.user;
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
@@ -86,7 +87,7 @@ export class SuggestedActionsController {
     const { userId } = req.user;
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
@@ -119,7 +120,7 @@ export class SuggestedActionsController {
     const { userId } = req.user;
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
@@ -146,7 +147,7 @@ export class SuggestedActionsController {
     const { userId } = req.user;
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
@@ -170,7 +171,7 @@ export class SuggestedActionsController {
     const { userId } = req.user;
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);

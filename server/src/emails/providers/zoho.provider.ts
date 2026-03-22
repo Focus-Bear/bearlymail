@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { AxiosInstance } from "axios";
 import PgBoss from "pg-boss";
 
+import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
@@ -153,13 +154,13 @@ export class ZohoProvider implements EmailProvider {
         primaryAccount.accessToken,
         undefined,
       );
-      throw new Error("Refresh token missing - please log in again");
+      throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
     } else if (isRecentLogin) {
       throw new Error(
         "Refresh token missing (within grace period - will retry)",
       );
     }
-    throw new Error("Refresh token missing - please log in again");
+    throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
   private async handleTokenValidationError(

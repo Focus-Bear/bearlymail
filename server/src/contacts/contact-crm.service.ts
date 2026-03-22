@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Contact } from "../database/entities/contact.entity";
 import {
   ContactCustomField,
@@ -115,7 +116,7 @@ export class ContactCrmService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const note = await this.contactNoteRepository.save({
       contactId,
@@ -139,7 +140,7 @@ export class ContactCrmService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const note = await this.contactNoteRepository.findOne({
       where: { id: noteId, contactId },
@@ -164,7 +165,7 @@ export class ContactCrmService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     await this.contactNoteRepository.delete({ id: noteId, contactId });
   }
@@ -344,7 +345,8 @@ export class ContactCrmService {
     const field = await this.customFieldRepository.findOne({
       where: { id: fieldId, userId },
     });
-    if (!field) throw new NotFoundException("Custom field not found");
+    if (!field)
+      throw new NotFoundException(ERROR_MESSAGES.CUSTOM_FIELD_NOT_FOUND);
 
     if (input.fieldName !== undefined) field.fieldName = input.fieldName;
     if (input.fieldType !== undefined)
@@ -359,7 +361,8 @@ export class ContactCrmService {
     const field = await this.customFieldRepository.findOne({
       where: { id: fieldId, userId },
     });
-    if (!field) throw new NotFoundException("Custom field not found");
+    if (!field)
+      throw new NotFoundException(ERROR_MESSAGES.CUSTOM_FIELD_NOT_FOUND);
     await this.customFieldRepository.remove(field);
   }
 
@@ -372,12 +375,13 @@ export class ContactCrmService {
     const contact = await this.contactRepository.findOne({
       where: { id: contactId, userId },
     });
-    if (!contact) throw new NotFoundException("Contact not found");
+    if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 
     const field = await this.customFieldRepository.findOne({
       where: { id: fieldId, userId },
     });
-    if (!field) throw new NotFoundException("Custom field not found");
+    if (!field)
+      throw new NotFoundException(ERROR_MESSAGES.CUSTOM_FIELD_NOT_FOUND);
 
     const existing = await this.customFieldValueRepository.findOne({
       where: { contactId, fieldId },

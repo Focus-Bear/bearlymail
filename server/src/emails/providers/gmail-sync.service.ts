@@ -3,6 +3,7 @@ import { gmail_v1, google } from "googleapis";
 import PgBoss from "pg-boss";
 
 import { authLogger } from "../../auth/auth-logger";
+import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import {
@@ -85,7 +86,7 @@ export class GmailSyncService {
     if (!isRecentLogin && user && !user.needsRelogin) {
       await this.usersService.update(userId, { needsRelogin: true });
     }
-    throw new Error("Refresh token missing - please log in again");
+    throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
 
   private isInvalidTokenError(error: unknown): boolean {

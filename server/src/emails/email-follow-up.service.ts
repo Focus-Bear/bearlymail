@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
@@ -100,7 +101,7 @@ export class EmailFollowUpService {
     lastMyReplyAt: Date | null;
   }> {
     const user = await this.usersService.findOne(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     const userEmail = EncryptionHelper.decrypt(user.email);
 
     try {

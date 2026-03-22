@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -215,7 +216,7 @@ export class EmailSearchService {
     }
     const message = accountTypes?.length
       ? `No matching email accounts found for the selected filters: ${accountTypes.join(", ")}`
-      : "No email provider connected";
+      : ERROR_MESSAGES.NO_EMAIL_PROVIDER;
     this.logger.warn(
       accountTypes?.length
         ? `No matching email providers for user ${userId} with filter ${accountTypes.join(", ")}`

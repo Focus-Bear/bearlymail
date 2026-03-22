@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { google } from "googleapis";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
@@ -60,7 +61,7 @@ export class EmailGmailService {
 
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      result.error = "User not connected to Gmail";
+      result.error = ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL;
       return result;
     }
 
@@ -153,7 +154,7 @@ export class EmailGmailService {
         gmailLabelIds: [],
         gmailLabelNames: [],
         labelMapping: [],
-        gmailError: "User not connected to Gmail",
+        gmailError: ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL,
       };
     }
 
@@ -245,7 +246,7 @@ export class EmailGmailService {
   }> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Get thread info from DB
@@ -323,7 +324,7 @@ export class EmailGmailService {
   }> {
     const email = await getEmailById(userId, emailId);
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const dbLabelsRaw = await this.getDbEmailLabels(email);

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
 
+import { ERROR_MESSAGES } from "../../../constants/error-messages";
 import { Office365AccountsService } from "../../../office365-accounts/office365-accounts.service";
 
 @Injectable()
@@ -39,7 +40,7 @@ export class Office365Client {
       userId,
     );
     if (!account) {
-      throw new Error("Office 365 account not found");
+      throw new Error(ERROR_MESSAGES.OFFICE365_ACCOUNT_NOT_FOUND);
     }
 
     try {

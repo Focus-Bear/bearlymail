@@ -35,6 +35,7 @@ import { GmailSyncService } from "./gmail-sync.service";
 
 // Canonical implementation lives in email-address.utils.ts; re-exported for backward compatibility.
 export { parseRecipientsFromString } from "../../utils/email-address.utils";
+import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
@@ -302,7 +303,7 @@ export class GmailProvider implements EmailProvider {
     } catch (error) {
       if (isGmailAuthError(error))
         await this.usersService.update(userId, { needsRelogin: true });
-      throw new Error("Failed to send reply");
+      throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
     }
   }
 
@@ -339,7 +340,7 @@ export class GmailProvider implements EmailProvider {
     } catch (error) {
       if (isGmailAuthError(error))
         await this.usersService.update(userId, { needsRelogin: true });
-      throw new Error("Failed to send email");
+      throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
     }
   }
 
@@ -429,7 +430,7 @@ export class GmailProvider implements EmailProvider {
     labelName: string,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     const labelId = await ensureLabelExists(
       gmail,
       labelName,
@@ -451,19 +452,19 @@ export class GmailProvider implements EmailProvider {
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     await archiveThreadInGmail(userId, threadId, gmail);
   }
 
   async unarchiveThread(userId: string, threadId: string): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     await unarchiveThreadInGmail(userId, threadId, gmail);
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     await trashThreadInGmail(userId, threadId, gmail);
   }
 
@@ -473,7 +474,7 @@ export class GmailProvider implements EmailProvider {
     starCount: number,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     await syncStarToGmail(userId, threadId, starCount, gmail);
   }
 
@@ -483,7 +484,7 @@ export class GmailProvider implements EmailProvider {
     isRead: boolean,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     await syncReadToGmail(userId, messageId, isRead, gmail);
   }
 
@@ -493,7 +494,7 @@ export class GmailProvider implements EmailProvider {
     _snoozeUntil: Date,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     const snoozeLabelId = await ensureLabelExists(
       gmail,
       "SnoozedBearlyMail",
@@ -506,7 +507,7 @@ export class GmailProvider implements EmailProvider {
 
   async unsnoozeThread(userId: string, threadId: string): Promise<void> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     const snoozeLabelId = await ensureLabelExists(
       gmail,
       "SnoozedBearlyMail",
@@ -529,7 +530,7 @@ export class GmailProvider implements EmailProvider {
     size: number;
   }> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) throw new Error("User not connected to Gmail");
+    if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
 
     const response = await gmail.users.messages.attachments.get({
       userId: "me",

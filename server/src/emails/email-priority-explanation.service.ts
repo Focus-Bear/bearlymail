@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { RATIOS } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import {
@@ -79,7 +80,7 @@ export class EmailPriorityExplanationService {
       const email = await getEmailById(userId, emailId);
       endEmailQuery();
 
-      if (!email) throw new Error("Email not found");
+      if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
 
       let thread: EmailThread | null = null;
       if (email.emailThreadId) {

@@ -14,6 +14,7 @@ import { Inject } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { FollowUpsService } from "./follow-ups.service";
@@ -238,7 +239,7 @@ export class FollowUpsController {
       req.user.userId,
     );
     if (!followUp) {
-      throw new BadRequestException("Follow-up not found");
+      throw new BadRequestException(ERROR_MESSAGES.FOLLOW_UP_NOT_FOUND);
     }
     return {
       generationStatus: followUp.generationStatus,

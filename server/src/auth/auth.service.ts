@@ -15,6 +15,7 @@ import {
   TOKEN_BYTES,
   TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -650,7 +651,7 @@ export class AuthService {
   async setPasswordForSsoUser(userId: string, password: string): Promise<void> {
     const user = await this.usersService.findOne(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     // Validate password length
@@ -685,7 +686,7 @@ export class AuthService {
   async hasPassword(userId: string): Promise<boolean> {
     const user = await this.usersService.findOne(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
     return !!user.password && user.password.length > 0;
   }

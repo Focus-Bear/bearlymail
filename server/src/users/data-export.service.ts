@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { AutoResponderConfig } from "../auto-responder/types/auto-responder.types";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
 import { BlockedSender } from "../database/entities/blocked-sender.entity";
@@ -102,7 +103,7 @@ export class DataExportService {
     ]);
 
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     return {

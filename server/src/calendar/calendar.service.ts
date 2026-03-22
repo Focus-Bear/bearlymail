@@ -10,6 +10,7 @@ import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsService } from "../emails/emails.service";
@@ -113,7 +114,7 @@ export class CalendarService {
   ): Promise<TimeSlot[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
     const oauth2Client = this.createOAuth2Client(user);
@@ -209,7 +210,7 @@ export class CalendarService {
   ): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
     const oauth2Client = this.createOAuth2Client(user);
@@ -327,7 +328,7 @@ Manage this booking:
 
     const user = await this.usersService.findOne(booking.userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
     const oauth2Client = this.createOAuth2Client(user);
@@ -385,7 +386,7 @@ Manage this booking:
 
     const user = await this.usersService.findOne(booking.userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
     const oauth2Client = this.createOAuth2Client(user);
@@ -440,7 +441,7 @@ Manage this booking:
   > {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
+      throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
     const oauth2Client = this.createOAuth2Client(user);
@@ -678,7 +679,9 @@ Manage this booking:
   ): Promise<{ success: boolean; eventLink?: string }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new BadRequestException("Google Calendar not connected");
+      throw new BadRequestException(
+        ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED,
+      );
     }
 
     const oauth2Client = this.createOAuth2Client(user);

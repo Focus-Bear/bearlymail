@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { LessThanOrEqual, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextService } from "../context/context.service";
 import { Email } from "../database/entities/email.entity";
@@ -229,7 +230,7 @@ export class FollowUpsService {
     });
 
     if (!followUp) {
-      throw new Error("Follow-up not found");
+      throw new Error(ERROR_MESSAGES.FOLLOW_UP_NOT_FOUND);
     }
 
     followUp.draftFollowUp = draft;
@@ -295,7 +296,7 @@ export class FollowUpsService {
   ): Promise<string> {
     const followUp = await this.getFollowUp(followUpId, userId);
     if (!followUp) {
-      throw new Error("Follow-up not found");
+      throw new Error(ERROR_MESSAGES.FOLLOW_UP_NOT_FOUND);
     }
 
     // Get user's communication style
@@ -423,7 +424,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
   ): Promise<number> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error("User not connected to Gmail");
+      throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
     }
 
     // Get thread emails

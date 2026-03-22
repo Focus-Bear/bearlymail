@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import * as natural from "natural";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import {
   JOB_TITLE_SCORES,
   PRIORITY_BOOSTS,
@@ -661,7 +662,7 @@ export class PriorityService {
     });
 
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Get priority explanation from thread

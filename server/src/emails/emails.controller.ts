@@ -24,6 +24,7 @@ import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
@@ -160,7 +161,6 @@ export class EmailsController {
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
     const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
-    const shouldIncludeThreadIds = includeThreadIds === "true";
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
       : undefined;
@@ -169,7 +169,7 @@ export class EmailsController {
       categoryIds: categoryIdList,
       minPriority: minPriorityValue,
       maxPriority: maxPriorityValue,
-      includeThreadIds: shouldIncludeThreadIds,
+      includeThreadIds: includeThreadIds === "true",
       accountIds,
     });
   }
@@ -391,9 +391,10 @@ export class EmailsController {
     // Fix #1296: reject non-UUID ids immediately to prevent PostgreSQL cast errors.
     // Gmail thread IDs are hex strings without dashes (e.g. "19d03cdabc72da73");
     // internal email IDs are UUIDs (e.g. "04547756-9d11-42b4-beae-227d52377fcd").
-    if (!isUuid(id)) throw new NotFoundException(`Email not found`);
+    if (!isUuid(id))
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     const email = await this.emailsService.getEmailById(userId, id);
-    if (!email) throw new NotFoundException("Email not found");
+    if (!email) throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     return email;
   }
 
@@ -842,7 +843,7 @@ export class EmailsController {
     const { userId } = req.user;
 
     const email = await this.emailsService.getEmailById(userId, id);
-    if (!email) return { message: "Email not found" };
+    if (!email) return { message: ERROR_MESSAGES.EMAIL_NOT_FOUND };
 
     const queued: string[] = [];
     const cancelled: string[] = [];

@@ -35,10 +35,10 @@ import { PerformanceTracker } from "./performance-tracker";
 export { BLOCKED_MODE_THREAD_FILTER, RawEmailRow } from "./email-inbox.types";
 
 /** Key the client sends for the null-category (uncategorized) bucket. */
-const UNCATEGORIZED_CATEGORY_KEY = 'uncategorized';
+const UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
 
 /** Display name used for the null-category (uncategorized) bucket. */
-const OTHER_CATEGORY_NAME = 'Other';
+const OTHER_CATEGORY_NAME = "Other";
 
 /**
  * Handles inbox queries, filtering, summary, and decryption of raw query results.
@@ -332,7 +332,8 @@ export class EmailInboxService {
 
     // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
     const requestedOther =
-      categoryIds.includes(OTHER_CATEGORY_NAME) || categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
+      categoryIds.includes(OTHER_CATEGORY_NAME) ||
+      categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
     const realIds = categoryIds.filter(
       (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
     );
@@ -725,7 +726,8 @@ export class EmailInboxService {
       // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
       // EncryptionHelper.decrypt() has internal error handling; it never throws.
       category: row.categoryName
-        ? (EncryptionHelper.decrypt(row.categoryName)?.split(" - ")[0].trim() ?? null)
+        ? (EncryptionHelper.decrypt(row.categoryName)?.split(" - ")[0].trim() ??
+          null)
         : null,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.decrypt(row.categoryExplanation)

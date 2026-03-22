@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -53,7 +54,7 @@ export class EmailArchiveService {
       this.logger.warn(
         `[Archive] Email not found: userId=${userId}, emailId=${emailId}`,
       );
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
     if (!email.threadId) {
       this.logger.warn(
@@ -253,7 +254,7 @@ export class EmailArchiveService {
     const thread = await this.emailThreadRepository.findOne({
       where: { id: email.emailThreadId, userId },
     });
-    if (!thread) throw new Error("Thread not found");
+    if (!thread) throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
 
     // Fetch all email category contexts once — used for both new and original name resolution.
     const allCtxs = await this.userContextRepository.find({

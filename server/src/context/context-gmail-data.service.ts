@@ -13,6 +13,7 @@ const EMAIL_FETCH_LIMIT = 400;
 import { gmail_v1, google } from "googleapis";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { GmailProvider } from "../emails/providers/gmail.provider";
 import {
   formatGaxiosError,
@@ -79,7 +80,7 @@ export class ContextEmailDataService {
   private async createGmailClient(userId: string): Promise<gmail_v1.Gmail> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken || !user?.googleCalendarRefreshToken) {
-      throw new Error("Gmail access token missing - please log in again");
+      throw new Error(ERROR_MESSAGES.GMAIL_ACCESS_TOKEN_MISSING);
     }
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -415,7 +416,6 @@ export class ContextEmailDataService {
     pageSize: number,
     callerLabel: string,
   ): Promise<string[]> {
-    const MAX_PAGES = 10;
     const allIds: string[] = [];
     let pageToken: string | undefined;
     let pageCount = 0;
@@ -431,7 +431,7 @@ export class ContextEmailDataService {
         allIds.push(...threads.map((thread: { id: string }) => thread.id));
         pageToken = res.data.nextPageToken || undefined;
         pageCount++;
-        if (allIds.length >= limit || pageCount >= MAX_PAGES) break;
+        if (allIds.length >= limit || pageCount >= 10) break;
       } while (pageToken && allIds.length < limit);
     } catch (error) {
       const formattedError = formatGaxiosError(error);

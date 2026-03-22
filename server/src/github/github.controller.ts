@@ -22,6 +22,7 @@ import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
 import { isUuid } from "../common/uuid.utils";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
@@ -110,7 +111,7 @@ export class GitHubController {
 
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
-      throw new BadRequestException("GitHub token not configured");
+      throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
@@ -143,7 +144,7 @@ export class GitHubController {
     // Gmail thread IDs are hex strings without dashes (e.g. "19d03cdabc72da73");
     // internal email IDs are UUIDs (e.g. "04547756-9d11-42b4-beae-227d52377fcd").
     if (!isUuid(emailId)) {
-      throw new NotFoundException(`Email not found`);
+      throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
     try {
       return await this.githubEmailInfoService.getEmailGitHubInfo(
@@ -491,7 +492,7 @@ export class GitHubController {
 
     const user = await this.usersService.findOne(userId);
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     if (!user.githubToken) {

@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ZohoAccount } from "../database/entities/zoho-account.entity";
 import { UsersService } from "../users/users.service";
 
@@ -86,7 +87,7 @@ export class ZohoAccountsService {
   ): Promise<ZohoAccount> {
     const account = await this.findById(id, userId);
     if (!account) {
-      throw new NotFoundException("Zoho account not found");
+      throw new NotFoundException(ERROR_MESSAGES.ZOHO_ACCOUNT_NOT_FOUND);
     }
 
     account.accessToken = accessToken;
@@ -101,7 +102,7 @@ export class ZohoAccountsService {
   async setPrimary(id: string, userId: string): Promise<ZohoAccount> {
     const account = await this.findById(id, userId);
     if (!account) {
-      throw new NotFoundException("Zoho account not found");
+      throw new NotFoundException(ERROR_MESSAGES.ZOHO_ACCOUNT_NOT_FOUND);
     }
 
     // Unset other primary accounts
@@ -117,7 +118,7 @@ export class ZohoAccountsService {
   async deactivate(id: string, userId: string): Promise<void> {
     const account = await this.findById(id, userId);
     if (!account) {
-      throw new NotFoundException("Zoho account not found");
+      throw new NotFoundException(ERROR_MESSAGES.ZOHO_ACCOUNT_NOT_FOUND);
     }
 
     account.isActive = false;

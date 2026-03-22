@@ -4,6 +4,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 import { User } from "../database/entities/user.entity";
 import { ApiError } from "../types/common";
@@ -90,7 +91,7 @@ export class SubscriptionsService {
   ): Promise<{ success: boolean; expiresAt?: Date }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     // Check if user already has an active subscription
@@ -128,7 +129,7 @@ export class SubscriptionsService {
   }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     // Check if subscription has expired
@@ -316,7 +317,7 @@ export class SubscriptionsService {
   ): Promise<{ success: boolean; newExpiresAt?: Date }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     // Calculate new expiration date

@@ -9,6 +9,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { THREAD_LIMITS } from "../constants/llm-constants";
 import { HTTP_STATUS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
@@ -87,7 +88,7 @@ export class FollowUpsProcessor implements OnModuleInit {
     threadId: string,
   ): Promise<FollowUpContext> {
     const user = await this.usersService.findOne(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     const userEmail = EncryptionHelper.decrypt(user.email);
 
     const threadEmails = await this.emailRepository.find({
@@ -290,7 +291,7 @@ export class FollowUpsProcessor implements OnModuleInit {
     subject: string,
   ): Promise<void> {
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (!provider) throw new Error("No email provider connected");
+    if (!provider) throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
 
     const maxRetries = 3;
     let retries = 0;
@@ -350,7 +351,11 @@ export class FollowUpsProcessor implements OnModuleInit {
       });
 
       if (!followUp) {
-        return { followUpId, success: false, error: "Follow-up not found" };
+        return {
+          followUpId,
+          success: false,
+          error: ERROR_MESSAGES.FOLLOW_UP_NOT_FOUND,
+        };
       }
       if (!followUp.draftFollowUp) {
         return { followUpId, success: false, error: "No draft available" };
@@ -366,7 +371,8 @@ export class FollowUpsProcessor implements OnModuleInit {
         take: 1,
       });
 
-      if (threadEmails.length === 0) throw new Error("Thread not found");
+      if (threadEmails.length === 0)
+        throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
 
       const lastEmail = threadEmails[0];
       const recipient = EncryptionHelper.decrypt(lastEmail.from);

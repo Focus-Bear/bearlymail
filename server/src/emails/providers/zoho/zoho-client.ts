@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
 
+import { ERROR_MESSAGES } from "../../../constants/error-messages";
 import { ZohoAccountsService } from "../../../zoho-accounts/zoho-accounts.service";
 
 @Injectable()
@@ -36,7 +37,7 @@ export class ZohoClient {
   ): Promise<string> {
     const account = await this.zohoAccountsService.findById(accountId, userId);
     if (!account) {
-      throw new Error("Zoho account not found");
+      throw new Error(ERROR_MESSAGES.ZOHO_ACCOUNT_NOT_FOUND);
     }
 
     try {

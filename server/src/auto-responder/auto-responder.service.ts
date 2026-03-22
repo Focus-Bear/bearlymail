@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -82,7 +83,7 @@ export class AutoResponderService {
   ): Promise<AutoResponderConfig> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error("User not found");
+      throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
     const currentConfig =
@@ -206,7 +207,7 @@ export class AutoResponderService {
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      const reason = "User not found";
+      const reason = ERROR_MESSAGES.USER_NOT_FOUND;
       autoresponderLogger.logDecision(logContext, { decision: "SKIP", reason });
       return { sent: false, reason };
     }
@@ -664,7 +665,7 @@ export class AutoResponderService {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
       if (!provider) {
-        const reason = "No email provider connected";
+        const reason = ERROR_MESSAGES.NO_EMAIL_PROVIDER;
         autoresponderLogger.logSendError(
           logContext,
           new Error(reason),

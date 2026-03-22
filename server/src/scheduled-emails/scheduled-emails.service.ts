@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DateTime } from "luxon";
 import { LessThanOrEqual, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ContactsService } from "../contacts/contacts.service";
 import {
   EmailAttachment,
@@ -307,7 +308,7 @@ export class ScheduledEmailsService {
     const allAttachments = [...(attachments || []), ...forwardAttachments];
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {
-      throw new Error("No email provider connected");
+      throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
     const recipientEmail = scheduledEmail.to[0]?.email;
@@ -350,7 +351,7 @@ export class ScheduledEmailsService {
 
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {
-      throw new Error("No email provider connected");
+      throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
     // Re-fetch forward attachments if any were stored
@@ -430,7 +431,7 @@ export class ScheduledEmailsService {
   ): Promise<void> {
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {
-      throw new Error("No email provider connected");
+      throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
     await provider.sendEmail(

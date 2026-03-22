@@ -22,6 +22,7 @@ import { GmailProvider } from "./providers/gmail.provider";
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { getJobPriority } from "../queue/job-priorities";
 import {
   type CategoryDebugData,
@@ -116,7 +117,7 @@ export class EmailDebugService {
       if (gmailStarredThreadIds.length === 0) {
         const provider =
           await this.emailProviderManager.getPrimaryProvider(userId);
-        if (!provider) gmailError = "No email provider connected";
+        if (!provider) gmailError = ERROR_MESSAGES.NO_EMAIL_PROVIDER;
       }
       this.logger.debug(
         `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads, ${gmailInboxSet.size} inbox threads`,

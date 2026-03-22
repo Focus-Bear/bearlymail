@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -189,14 +190,14 @@ export class GitHubEmailInfoService {
   ): Promise<GitHubEmailInfoResult> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email || !email.emailThreadId) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const thread = await this.emailThreadRepository.findOne({
       where: { id: email.emailThreadId, userId },
     });
     if (!thread) {
-      throw new Error("Thread not found");
+      throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
     }
 
     const user = await this.usersService.findOne(userId);
@@ -238,19 +239,19 @@ export class GitHubEmailInfoService {
   ): Promise<{ links: GitHubMetadataLink[]; message: string }> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email || !email.emailThreadId) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const thread = await this.emailThreadRepository.findOne({
       where: { id: email.emailThreadId, userId },
     });
     if (!thread) {
-      throw new Error("Thread not found");
+      throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
     }
 
     const user = await this.usersService.findOne(userId);
     if (!user || !user.githubToken) {
-      throw new Error("GitHub token not configured");
+      throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);

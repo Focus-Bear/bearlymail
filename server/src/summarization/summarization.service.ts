@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
@@ -312,7 +313,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const userEmail = await this.getUserEmail(userId);
@@ -417,7 +418,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     const userEmail = await this.getUserEmail(userId);
@@ -882,7 +883,7 @@ export class SummarizationService {
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
-      throw new Error("Email not found");
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
 
     // Fetch user's summarization rules (or use prefetched)

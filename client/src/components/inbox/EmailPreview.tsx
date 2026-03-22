@@ -13,7 +13,8 @@ interface EmailPreviewProps {
 
 export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
   const { t } = useTranslation();
-  const isOtherCategory = email.category === CATEGORY_OTHER;
+  // NULL categoryId means "Other" — source of truth after denorm removal (fixes #1293).
+  const isOtherCategory = !email.category_id || email.category === CATEGORY_OTHER;
   const hasCategoryExplanation = isOtherCategory && email.categoryExplanation;
 
   return (

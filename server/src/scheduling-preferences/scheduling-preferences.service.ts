@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { SchedulingPreference } from "../database/entities/scheduling-preference.entity";
-import { normalizeTimezone, FALLBACK_TIMEZONE } from "../utils/timezone.utils";
+import { FALLBACK_TIMEZONE, normalizeTimezone } from "../utils/timezone.utils";
 
 export interface SchedulingPreferenceData {
   availabilityStartHour: number;

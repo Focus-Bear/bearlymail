@@ -6,6 +6,10 @@ import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { User } from "../database/entities/user.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import {
@@ -48,6 +52,8 @@ export class AutoResponderService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
+    @InjectRepository(UserContext)
+    private userContextRepository: Repository<UserContext>,
     private contextService: AutoResponderContextService,
     private templateService: AutoResponderTemplateService,
     private analyticsService: AutoResponderAnalyticsService,
@@ -470,9 +476,23 @@ export class AutoResponderService {
     const { priorityLevel, classification } = priorityAndClassification;
     const senderEmailHash = this.contextService.hashEmail(latestEmail.from);
     const queueStats = await this.contextService.getQueueStats(user.id);
+    // Resolve category display name from categoryId for accurate response-time lookup.
+    let categoryName: string | null = null;
+    if (thread.categoryId) {
+      const categoryCtx = await this.userContextRepository.findOne({
+        where: {
+          contextId: thread.categoryId,
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+        select: ["contextValue"],
+      });
+      categoryName = categoryCtx
+        ? categoryCtx.contextValue.split(" - ")[0].trim()
+        : null;
+    }
     const categoryResponseTime = this.contextService.getResponseTimeForCategory(
       queueStats,
-      thread.category,
+      categoryName,
     );
 
     let qaResult = null;

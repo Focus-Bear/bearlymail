@@ -5,6 +5,10 @@ import { In, Repository } from "typeorm";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
@@ -49,6 +53,8 @@ export class GitHubEmailInfoService {
     private readonly emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    @InjectRepository(UserContext)
+    private readonly userContextRepository: Repository<UserContext>,
     private readonly githubService: GitHubService,
     private readonly githubApiService: GitHubApiService,
     private readonly usersService: UsersService,
@@ -306,7 +312,21 @@ export class GitHubEmailInfoService {
       where: { id: threadId, userId },
     });
 
-    return { links, category: thread?.category ?? undefined };
+    // Resolve category display name from categoryId — downstream consumers do name-based matching.
+    let categoryName: string | undefined;
+    if (thread?.categoryId) {
+      const categoryCtx = await this.userContextRepository.findOne({
+        where: {
+          contextId: thread.categoryId,
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+        select: ["contextValue"],
+      });
+      categoryName = categoryCtx
+        ? categoryCtx.contextValue.split(" - ")[0].trim()
+        : undefined;
+    }
+    return { links, category: categoryName };
   }
 
   /**

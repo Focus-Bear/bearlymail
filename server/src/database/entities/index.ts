@@ -1,7 +1,5 @@
 // Export all entities to ensure they're loaded in the correct order
 export { ActionItem } from "./action-item.entity";
-export { Organization } from "./organization.entity";
-export { OrganizationMember } from "./organization-member.entity";
 export { AutoResponseLog } from "./auto-response-log.entity";
 export { AutoResponseSuppression } from "./auto-response-suppression.entity";
 export { BatchSchedule } from "./batch-schedule.entity";
@@ -17,6 +15,8 @@ export { FollowUp } from "./follow-up.entity";
 export { GitHubRepoMapping } from "./github-repo-mapping.entity";
 export { GoogleAccount } from "./google-account.entity";
 export { Office365Account } from "./office365-account.entity";
+export { Organization } from "./organization.entity";
+export { OrganizationMember } from "./organization-member.entity";
 export { PriorityOverride } from "./priority-override.entity";
 export { PrivateNote } from "./private-note.entity";
 export { PromptExampleEntity } from "./prompt-example.entity";

@@ -20,7 +20,8 @@ export interface CategoryDebugData {
     bodyPreview: string;
   };
   thread: {
-    category: string | null;
+    // source of truth after denorm removal (fixes #1293)
+    categoryId: string | null;
     categoryExplanation: string | null;
   };
   emailCategories: Array<{ name: string; description?: string }>;
@@ -97,7 +98,8 @@ export class EmailDebugCategoryService {
         bodyPreview,
       },
       thread: {
-        category: thread?.category || null,
+        // source of truth (fixes #1293)
+        categoryId: thread?.categoryId || null,
         categoryExplanation: thread?.categoryExplanation || null,
       },
       emailCategories,

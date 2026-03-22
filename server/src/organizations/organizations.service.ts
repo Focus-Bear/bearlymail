@@ -243,8 +243,7 @@ export class OrganizationsService {
     if (member.inviteExpires && member.inviteExpires < new Date()) return null;
 
     const inviter = member.invitedByUser;
-    const inviterName =
-      inviter.displayName ?? inviter.name ?? "A teammate";
+    const inviterName = inviter.displayName ?? inviter.name ?? "A teammate";
 
     return {
       orgName: member.organization.name,

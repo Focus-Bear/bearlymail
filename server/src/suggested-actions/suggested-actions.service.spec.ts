@@ -6,6 +6,7 @@ import { CalendarService } from "../calendar/calendar.service";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
@@ -62,6 +63,10 @@ describe("SuggestedActionsService", () => {
     findOne: jest.fn(),
   };
 
+  const mockUserContextRepository = {
+    findOne: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -109,6 +114,10 @@ describe("SuggestedActionsService", () => {
         {
           provide: getRepositoryToken(EmailThread),
           useValue: mockEmailThreadRepository,
+        },
+        {
+          provide: getRepositoryToken(UserContext),
+          useValue: mockUserContextRepository,
         },
       ],
     }).compile();

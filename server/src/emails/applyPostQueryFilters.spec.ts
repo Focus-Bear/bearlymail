@@ -1,11 +1,10 @@
 /**
- * Unit tests for the category-filter logic in applyPostQueryFilters (fix #1114).
+ * Unit tests for the category-filter logic in applyPostQueryFilters (fix #1114, #1293).
  *
- * Root cause that was fixed: when `categoryIds` were provided but none resolved
- * to a known category name (e.g. stale/deleted UUIDs), the filter was silently
- * skipped and ALL emails were returned instead of an empty result.
+ * After the denormalized category column removal (fixes #1293), filtering uses
+ * categoryId (UUID) directly on the InboxEmail object. No name resolution needed.
  *
- * Fix: if categoryIds is non-empty but resolves to zero names → return [] immediately.
+ * "Other" == categoryId IS NULL.
  *
  * Tests here use a pure-function mirror of the relevant logic so we avoid the full
  * NestJS DI bootstrap overhead (same pattern as emails-priority-inbox.service.spec.ts).
@@ -13,60 +12,41 @@
 
 // ─── Pure-function mirror of applyPostQueryFilters category logic ─────────────
 //
-// Keep in sync with the implementation in emails.service.ts
+// Keep in sync with the implementation in email-inbox.service.ts
 // (private applyPostQueryFilters → categoryIds branch).
+
+const CATEGORY_OTHER = "Other";
 
 interface Email {
   id: string;
   from: string;
-  category?: string | null;
+  categoryId?: string | null;
   [key: string]: unknown;
 }
 
-interface CategoryContext {
-  contextId: string;
-  contextValue: string;
-}
-
 /**
- * Mirror the UUID→name resolution + category filtering from applyPostQueryFilters.
+ * Mirror the UUID-based category filtering from applyPostQueryFilters (post #1293).
  *
- * @param emails         Raw email list
- * @param categoryIds    Requested category UUIDs (undefined / empty = no filter)
- * @param categoryContexts Known category contexts for the user
- * @returns Filtered email list (or [] when no UUIDs resolve)
+ * @param emails         Raw email list (categoryId is the single source of truth)
+ * @param categoryIds    Requested category UUIDs ("Other" = null categoryId)
+ * @returns Filtered email list
  */
 function applyCategoryFilter(
   emails: Email[],
   categoryIds: string[] | undefined,
-  categoryContexts: CategoryContext[],
 ): { emails: Email[]; earlyReturn: boolean } {
   if (!categoryIds || categoryIds.length === 0) {
-    // No filter requested — return all emails as-is
     return { emails, earlyReturn: false };
   }
 
-  // Build UUID → category-name map (mirrors: ctx.contextValue.split(" - ")[0].trim())
-  const idToName = new Map<string, string>();
-  for (const ctx of categoryContexts) {
-    const categoryName = ctx.contextValue.split(" - ")[0].trim();
-    idToName.set(ctx.contextId, categoryName);
-  }
+  const requestedOther = categoryIds.includes(CATEGORY_OTHER);
+  const realIds = categoryIds.filter((id) => id !== CATEGORY_OTHER);
+  const requestedUuids = new Set(realIds);
 
-  // Resolve requested UUIDs to names
-  const resolvedNames = categoryIds
-    .map((id) => idToName.get(id))
-    .filter((name): name is string => name !== undefined);
-
-  // Fix #1114: none resolved → return empty, NOT all emails
-  if (resolvedNames.length === 0) {
-    return { emails: [], earlyReturn: true };
-  }
-
-  // Apply the name filter (null/undefined category = "Other")
   const filtered = emails.filter((email) => {
-    const effective = email.category || "Other";
-    return resolvedNames.includes(effective);
+    if (requestedOther && !email.categoryId) return true;
+    if (email.categoryId) return requestedUuids.has(email.categoryId);
+    return false;
   });
 
   return { emails: filtered, earlyReturn: false };
@@ -74,101 +54,79 @@ function applyCategoryFilter(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeEmail(id: string, category?: string | null): Email {
-  return { id, from: `sender-${id}@example.com`, category };
-}
-
-function makeContext(contextId: string, contextValue: string): CategoryContext {
-  return { contextId, contextValue };
+function makeEmail(id: string, categoryId?: string | null): Email {
+  return { id, from: `sender-${id}@example.com`, categoryId };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("applyPostQueryFilters — category UUID resolution (fix #1114)", () => {
-  const knownContexts = [
-    makeContext("uuid-work", "Work - description"),
-    makeContext("uuid-personal", "Personal - description"),
-    makeContext("uuid-other", "Other - description"),
-  ];
-
+describe("applyPostQueryFilters — category UUID filtering (fix #1114, #1293)", () => {
   const emails = [
-    makeEmail("e1", "Work"),
-    makeEmail("e2", "Personal"),
-    makeEmail("e3", "Other"),
-    // null category → treated as "Other" in effectiveCategory logic
+    makeEmail("e1", "uuid-work"),
+    makeEmail("e2", "uuid-personal"),
+    // null categoryId = "Other"
+    makeEmail("e3", null),
+    // null categoryId = "Other"
     makeEmail("e4", null),
-    makeEmail("e5", "Work"),
+    makeEmail("e5", "uuid-work"),
   ];
-
-  it("returns empty array when categoryIds are provided but none resolve to a known category (stale UUIDs)", () => {
-    const { emails: result, earlyReturn } = applyCategoryFilter(
-      emails,
-      ["stale-uuid-1", "stale-uuid-2"],
-      knownContexts,
-    );
-
-    expect(earlyReturn).toBe(true);
-    expect(result).toEqual([]);
-    // Must NOT return the full email list — that was the bug
-    expect(result.length).toBe(0);
-  });
 
   it("returns all emails when categoryIds is empty (no regression)", () => {
-    const { emails: result, earlyReturn } = applyCategoryFilter(
-      emails,
-      [],
-      knownContexts,
-    );
+    const { emails: result, earlyReturn } = applyCategoryFilter(emails, []);
 
     expect(earlyReturn).toBe(false);
     expect(result).toHaveLength(emails.length);
     expect(result).toEqual(emails);
   });
 
-  it("filters correctly when all categoryIds resolve to known category names", () => {
-    const { emails: result, earlyReturn } = applyCategoryFilter(
-      emails,
-      ["uuid-work"],
-      knownContexts,
-    );
+  it("filters by UUID — returns only matching categoryId emails", () => {
+    const { emails: result, earlyReturn } = applyCategoryFilter(emails, [
+      "uuid-work",
+    ]);
 
     expect(earlyReturn).toBe(false);
-    // Should include only Work emails
     expect(result.map((email) => email.id)).toEqual(["e1", "e5"]);
-    // Personal and Other should be excluded
-    expect(result.every((email) => email.category === "Work")).toBe(true);
+    expect(result.every((email) => email.categoryId === "uuid-work")).toBe(
+      true,
+    );
   });
 
-  it("treats null/undefined email category as 'Other' when filtering", () => {
-    const { emails: result } = applyCategoryFilter(
-      emails,
-      ["uuid-other"],
-      knownContexts,
-    );
+  it("treats null categoryId as 'Other' when filtering by Other", () => {
+    const { emails: result } = applyCategoryFilter(emails, [CATEGORY_OTHER]);
 
-    // e3 (explicit "Other") and e4 (null category treated as "Other") should both match
+    // e3 and e4 have null categoryId → "Other"
     expect(result.map((email) => email.id)).toEqual(["e3", "e4"]);
   });
 
-  it("handles multiple resolved UUIDs — returns union of matching emails", () => {
-    const { emails: result, earlyReturn } = applyCategoryFilter(
-      emails,
-      ["uuid-work", "uuid-personal"],
-      knownContexts,
-    );
+  it("handles multiple UUIDs — returns union of matching emails", () => {
+    const { emails: result, earlyReturn } = applyCategoryFilter(emails, [
+      "uuid-work",
+      "uuid-personal",
+    ]);
 
     expect(earlyReturn).toBe(false);
     expect(result.map((email) => email.id)).toEqual(["e1", "e2", "e5"]);
   });
 
   it("returns empty array when categoryIds is undefined (no filter)", () => {
-    const { emails: result } = applyCategoryFilter(
-      emails,
-      undefined,
-      knownContexts,
-    );
+    const { emails: result } = applyCategoryFilter(emails, undefined);
 
-    // undefined means no filter — return all
     expect(result).toHaveLength(emails.length);
+  });
+
+  it("returns empty when no emails match the requested UUID", () => {
+    const { emails: result } = applyCategoryFilter(emails, ["stale-uuid"]);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("Other + UUID filter returns both null-categoryId and matching UUID emails", () => {
+    const { emails: result } = applyCategoryFilter(emails, [
+      CATEGORY_OTHER,
+      "uuid-personal",
+    ]);
+
+    // e2 (personal), e3 (null), e4 (null)
+    expect(result.map((email) => email.id)).toEqual(["e2", "e3", "e4"]);
   });
 });

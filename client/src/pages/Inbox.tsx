@@ -29,7 +29,8 @@ function navigateToNextEmailAfterAction(
   setSelectedEmailIndex: (index: number) => void,
 ): void {
   const removedEmail = emails.find(event => event.id === removedEmailId);
-  const removedCategory = removedEmail?.category || CATEGORY_OTHER;
+  // Prefer category_id (UUID) as stable group key (fixes #1293 — display name is fallback).
+  const removedCategory = removedEmail?.category_id ?? removedEmail?.category ?? CATEGORY_OTHER;
   const visibleEmails = emails.filter(event => !event.isArchived && event.id !== removedEmailId);
 
   if (visibleEmails.length === 0) {
@@ -38,7 +39,7 @@ function navigateToNextEmailAfterAction(
   }
 
   const sameCategoryEmails = visibleEmails.filter(
-    event => (event.category || CATEGORY_OTHER) === removedCategory
+    event => (event.category_id ?? event.category ?? CATEGORY_OTHER) === removedCategory
   );
 
   if (sameCategoryEmails.length > 0) {

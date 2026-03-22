@@ -181,13 +181,12 @@ export class ProtoCategoriesService {
       },
     );
 
-    // Update all threads with this proto category to use the new real category
+    // Update all threads with this proto category to use the promoted category UUID.
     await this.emailThreadRepository.update(
       { protoCategoryId: protoCategory.id },
       {
-        category: protoCategory.name,
+        categoryId: savedContext.contextId,
         categoryExplanation: `Promoted from proto category: ${protoCategory.description || "No description"}`,
-        // Clear proto category reference
         protoCategoryId: null,
       },
     );

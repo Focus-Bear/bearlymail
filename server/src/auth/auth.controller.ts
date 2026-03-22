@@ -67,8 +67,7 @@ export class AuthController {
     await this.authService.forgotPassword(body.email);
     return {
       success: true,
-      message:
-        "If that email is registered, a reset link has been sent.",
+      message: "If that email is registered, a reset link has been sent.",
     };
   }
 
@@ -78,9 +77,7 @@ export class AuthController {
    * (access token + user object) so the frontend can auto-log the user in.
    */
   @Post("reset-password")
-  async resetPassword(
-    @Body() body: { token: string; password: string },
-  ) {
+  async resetPassword(@Body() body: { token: string; password: string }) {
     if (!body.token || !body.password) {
       throw new BadRequestException("Token and password are required");
     }

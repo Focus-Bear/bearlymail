@@ -233,6 +233,10 @@ export class EmailArchiveService {
 
   /**
    * Override the category for an email thread.
+   *
+   * Fixes #1293, #1327: sets categoryId (UUID) only — the denormalized
+   * category name column has been removed. The categoryId is resolved by
+   * looking up the newCategory name in user_contexts (EMAIL_CATEGORY).
    */
   async overrideCategory(
     userId: string,
@@ -251,48 +255,58 @@ export class EmailArchiveService {
     });
     if (!thread) throw new Error("Thread not found");
 
-    const originalCategory = thread.category;
+    // Fetch all email category contexts once — used for both new and original name resolution.
+    const allCtxs = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: ["contextId", "contextValue"],
+    });
+
+    const resolveCategoryName = (categoryId: string | null): string | null => {
+      if (!categoryId) return null;
+      const found = allCtxs.find((ctx) => ctx.contextId === categoryId);
+      return found ? found.contextValue.split(" - ")[0].trim() : null;
+    };
+
+    // Resolve the category name to a UUID via user_contexts.
+    // "Other" → null categoryId (uncategorized).
+    let newCategoryId: string | null = null;
+    if (newCategory && newCategory !== "Other") {
+      const matched = allCtxs.find(
+        (ctx) =>
+          ctx.contextValue.split(" - ")[0].trim().toLowerCase() ===
+          newCategory.toLowerCase().trim(),
+      );
+      newCategoryId = matched?.contextId ?? null;
+      if (!newCategoryId) {
+        this.logger.warn(
+          `overrideCategory: no user_contexts entry found for category "${newCategory}" (userId=${userId}) — setting categoryId=null`,
+        );
+      }
+    }
+
+    const originalCategoryId = thread.categoryId;
+    // Resolve human-readable name for audit log — category_overrides.originalCategory is a text field.
+    const originalCategoryName = resolveCategoryName(originalCategoryId);
 
     const categoryOverride = this.categoryOverrideRepository.create({
       emailThreadId: thread.id,
       userId,
-      originalCategory: originalCategory || null,
+      originalCategory: originalCategoryName,
       userCategory: newCategory,
       reasonText: reasonText || null,
     });
     await this.categoryOverrideRepository.save(categoryOverride);
 
-    // Look up the UserContext EMAIL_CATEGORY entry matching newCategory name
-    // so we can set the UUID FK (categoryId) used for inbox filtering.
-    const matchedContext = await this.userContextRepository.findOne({
-      where: {
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-        contextValue: newCategory,
+    await this.emailThreadRepository.update(
+      { id: thread.id },
+      {
+        categoryId: newCategoryId,
+        categoryExplanation: `User override: ${reasonText || "No reason provided"}. Original categoryId: ${originalCategoryId || "None"}`,
       },
-    });
-
-    const updatePayload: Partial<EmailThread> = {
-      category: newCategory,
-      categoryExplanation: `User override: ${reasonText || "No reason provided"}. Original category: ${originalCategory || "None"}`,
-    };
-
-    if (matchedContext) {
-      // Set UUID FK so inbox filtering (which queries by categoryId) resolves correctly.
-      updatePayload.categoryId = matchedContext.contextId;
-    } else {
-      // No matching context found (e.g. brand-new category name not yet persisted as
-      // a UserContext row). Leave categoryId unchanged — the backfill job will reconcile
-      // it once the context row is created.
-      this.logger.warn(
-        `[CategoryOverride] No EMAIL_CATEGORY context found for name "${newCategory}" (userId=${userId}). categoryId not updated.`,
-      );
-    }
-
-    await this.emailThreadRepository.update({ id: thread.id }, updatePayload);
+    );
 
     this.logger.log(
-      `Category override for thread ${thread.id}: ${originalCategory} -> ${newCategory} (categoryId=${matchedContext?.contextId ?? "unchanged"})`,
+      `Category override for thread ${thread.id}: categoryId ${originalCategoryId} -> ${newCategoryId} (name: ${newCategory})`,
     );
     return { success: true, category: newCategory };
   }

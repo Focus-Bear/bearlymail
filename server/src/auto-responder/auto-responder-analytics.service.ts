@@ -69,7 +69,9 @@ interface AutoRespondedThreadQueryRow {
   priorityExplanation: string | null;
   isProcessingPriority: boolean;
   urgencyScore: number | null;
-  category: string | null;
+  // resolved from user_contexts JOIN
+  categoryName: string | null;
+  categoryId: string | null;
   categoryExplanation: string | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;
@@ -154,6 +156,40 @@ export class AutoResponderAnalyticsService {
   }
 
   /**
+   * Build SQL filter clause and query params for auto-responded thread query.
+   */
+  private buildAutoRespondedFilters(
+    filters: AutoRespondedThreadFilters | undefined,
+    queryParams: unknown[],
+  ): string {
+    let additionalFilters = "";
+    let paramIndex = queryParams.length + 1;
+
+    if (filters?.minPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
+      queryParams.push(filters.minPriority);
+    }
+    if (filters?.maxPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
+      queryParams.push(filters.maxPriority);
+    }
+    if (filters?.accountIds && filters.accountIds.length > 0) {
+      const placeholders = filters.accountIds
+        .map(() => `$${paramIndex++}`)
+        .join(", ");
+      additionalFilters += ` AND EXISTS (
+        SELECT 1 FROM emails e
+        WHERE e."emailThreadId" = thread.id
+          AND (e."googleAccountId" IN (${placeholders})
+               OR e."office365AccountId" IN (${placeholders})
+               OR e."zohoAccountId" IN (${placeholders}))
+      )`;
+      queryParams.push(...filters.accountIds);
+    }
+    return additionalFilters;
+  }
+
+  /**
    * Get auto-responded threads for the autoresponded inbox mode.
    */
   async getAutoRespondedThreads(
@@ -165,39 +201,19 @@ export class AutoResponderAnalyticsService {
     hasMore: boolean;
   }> {
     const queryParams: unknown[] = [userId];
-    let paramIndex = 2;
-    let additionalFilters = "";
-
-    if (filters?.minPriority !== undefined) {
-      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
-      queryParams.push(filters.minPriority);
-    }
-
-    if (filters?.maxPriority !== undefined) {
-      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
-      queryParams.push(filters.maxPriority);
-    }
-
-    if (filters?.accountIds && filters.accountIds.length > 0) {
-      const accountPlaceholders = filters.accountIds
-        .map(() => `$${paramIndex++}`)
-        .join(", ");
-      additionalFilters += ` AND EXISTS (
-        SELECT 1 FROM emails e
-        WHERE e."emailThreadId" = thread.id
-          AND (e."googleAccountId" IN (${accountPlaceholders})
-               OR e."office365AccountId" IN (${accountPlaceholders})
-               OR e."zohoAccountId" IN (${accountPlaceholders}))
-      )`;
-      queryParams.push(...filters.accountIds);
-    }
+    const additionalFilters = this.buildAutoRespondedFilters(
+      filters,
+      queryParams,
+    );
 
     const rows = (await this.autoResponseLogRepository.query(
       `SELECT
           thread."starCount", thread."isArchived", thread."urgencyScore",
           thread."priorityExplanation", thread."priorityScore", thread."isProcessingPriority",
-          thread."githubMetadata", thread."category", thread."categoryExplanation",
-          thread."protoCategoryId", thread."updatedAt" as "threadUpdatedAt",
+          thread."githubMetadata", thread."categoryExplanation",
+          thread."protoCategoryId", thread."categoryId",
+          uc."contextValue" AS "categoryName",
+          thread."updatedAt" as "threadUpdatedAt",
           pc."name" as "protoCategoryName", pc."description" as "protoCategoryDescription",
           e.id, e."threadId", e."emailThreadId", e."from", e."fromName", e.subject,
           e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
@@ -237,6 +253,7 @@ export class AutoResponderAnalyticsService {
          LIMIT 1
        ) correspondent ON true
        LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
+       LEFT JOIN user_contexts uc ON uc."contextId" = thread."categoryId"
        WHERE thread."userId" = $1
          AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
          ${additionalFilters}
@@ -245,9 +262,9 @@ export class AutoResponderAnalyticsService {
     )) as AutoRespondedThreadQueryRow[];
 
     const mappedRows = rows.map((row) => this.mapAutoRespondedRow(row));
-
     let filteredRows = mappedRows;
     if (filters?.categories && filters.categories.length > 0) {
+      // Note: filters.categories uses display names for backward compatibility.
       filteredRows = mappedRows.filter((row) =>
         filters.categories!.includes(row.category || "Other"),
       );
@@ -256,12 +273,11 @@ export class AutoResponderAnalyticsService {
     const offset = Math.max(0, filters?.offset ?? 0);
     const limit = Math.max(1, filters?.limit ?? QUERY_LIMITS.INBOX_PAGE_SIZE);
     const total = filteredRows.length;
-    filteredRows = filteredRows.slice(offset, offset + limit);
-
+    const pageRows = filteredRows.slice(offset, offset + limit);
     return {
-      emails: filteredRows,
+      emails: pageRows,
       total,
-      hasMore: offset + filteredRows.length < total,
+      hasMore: offset + pageRows.length < total,
     };
   }
 
@@ -374,8 +390,9 @@ export class AutoResponderAnalyticsService {
   private mapAutoRespondedRow(
     row: AutoRespondedThreadQueryRow,
   ): AutoRespondedThread {
-    const category = row.category
-      ? EncryptionHelper.decrypt(row.category)
+    // categoryName comes from user_contexts JOIN — plain text, no decryption needed.
+    const category = row.categoryName
+      ? row.categoryName.split(" - ")[0].trim()
       : null;
     const categoryExplanation = row.categoryExplanation
       ? EncryptionHelper.decrypt(row.categoryExplanation)

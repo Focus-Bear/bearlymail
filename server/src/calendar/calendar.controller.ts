@@ -20,13 +20,11 @@ import { CalendarService } from "./calendar.service";
  * Avoids no-explicit-any and no-nested-ternary lint rules.
  */
 function getErrCode(err: unknown): string | number | undefined {
-  if (typeof err !== 'object' || err === null) return undefined;
-  if ('code' in err) return (err as { code?: string | number }).code;
-  if ('status' in err) return (err as { status?: number }).status;
+  if (typeof err !== "object" || err === null) return undefined;
+  if ("code" in err) return (err as { code?: string | number }).code;
+  if ("status" in err) return (err as { status?: number }).status;
   return undefined;
 }
-
-
 
 @Controller("calendar")
 @UseGuards(JwtAuthGuard)
@@ -132,7 +130,7 @@ export class CalendarController {
       if (err instanceof HttpException) {
         throw err;
       }
-      this.logger.error('addIcsEvent failed', {
+      this.logger.error("addIcsEvent failed", {
         message: err.message,
         stack: err.stack,
         userId: req.user?.userId,

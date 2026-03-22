@@ -219,14 +219,6 @@ export class EmailThread {
     nullable: true,
     transformer: encryptedColumnTransformer,
     comment:
-      "Email category for grouping (e.g., Newsletters, Customer Support)",
-  })
-  category: string | null;
-
-  @Column("text", {
-    nullable: true,
-    transformer: encryptedColumnTransformer,
-    comment:
       "Explanation of why this category was chosen (especially useful for Other)",
   })
   categoryExplanation: string | null;
@@ -244,30 +236,15 @@ export class EmailThread {
   protoCategory: ProtoCategory | null;
 
   @Column({
-    default: false,
-    comment:
-      "Flag set by migration 1784000000000 — true means category may store a " +
-      "full contextValue string instead of the bare name; cleared by repair job",
-  })
-  needsCategoryRepair: boolean;
-
-  @Column({
     type: "uuid",
     nullable: true,
     name: "categoryId",
     comment:
-      "UUID of the UserContext (EMAIL_CATEGORY) that owns this thread — set at write time " +
-      "by llm-processor; used for direct UUID-based category filtering (fix #1146)",
+      "UUID of the UserContext (EMAIL_CATEGORY) that owns this thread. " +
+      "Single source of truth for thread categorization (fixes #1293). " +
+      "NULL means 'Other' (uncategorized).",
   })
   categoryId: string | null;
-
-  @Column({
-    default: true,
-    comment:
-      "Flag set by migration 1785100000000 — true means this thread needs its categoryId " +
-      "populated from the decrypted category name via the startup backfill job",
-  })
-  needsCategoryIdBackfill: boolean;
 
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })

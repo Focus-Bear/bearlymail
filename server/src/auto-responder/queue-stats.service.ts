@@ -172,21 +172,27 @@ export class QueueStatsService {
         thirtyDaysAgo.getDate() - STATS_CONFIG.LOOKBACK_DAYS,
       );
 
+      // JOIN user_contexts for category name — denorm column removed (fixes #1293).
       const categoryStats = await this.emailRepository
         .createQueryBuilder("email")
         .innerJoin("email.thread", "thread")
-        .select("thread.category", "category")
+        .leftJoin("user_contexts", "uc", 'uc."contextId" = thread."categoryId"')
+        .select('uc."contextValue"', "category")
+        .addSelect('thread."categoryId"', "categoryId")
         .addSelect("AVG(email.timeToReply)", "avgReplyTimeMinutes")
         .addSelect("COUNT(email.id)", "repliedCount")
         .where("email.userId = :userId", { userId })
         .andWhere("email.timeToReply IS NOT NULL")
         .andWhere("email.timeToReply > 0")
         .andWhere("email.receivedAt > :thirtyDaysAgo", { thirtyDaysAgo })
-        .groupBy("thread.category")
+        .groupBy('thread."categoryId"')
+        .addGroupBy('uc."contextValue"')
         .getRawMany();
 
       return categoryStats.map((stat) => ({
-        category: stat.category || "Other",
+        category: stat.category
+          ? stat.category.split(" - ")[0].trim()
+          : "Other",
         avgReplyTimeMinutes: parseFloat(stat.avgReplyTimeMinutes),
         repliedCount: parseInt(stat.repliedCount, 10),
       }));

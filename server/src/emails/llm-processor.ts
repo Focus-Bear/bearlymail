@@ -1074,7 +1074,6 @@ export class LLMProcessor implements OnModuleInit {
           // Canonicalise against known UserContext category names (exact match only)
           // to prevent storing LLM name deviations. UUID-only resolution — no fuzzy fallback.
           if (category && email.emailThreadId) {
-            let canonicalCategory = category;
             let matchedCategoryId: string | null = null;
             if (category !== "Other") {
               const matched =
@@ -1083,22 +1082,18 @@ export class LLMProcessor implements OnModuleInit {
                   category,
                 );
               if (matched) {
-                canonicalCategory = matched.name;
                 matchedCategoryId = matched.contextId;
               }
             }
             await this.emailThreadRepository.update(
               { id: email.emailThreadId },
               {
-                category: canonicalCategory,
-                categoryExplanation: categoryExplanation ?? undefined,
-                // Store UUID at write time so filters can use direct UUID equality (fix #1146)
+                // categoryId is now the sole category identifier on email_threads (fixes #1293).
+                // The denormalized category name column has been removed.
                 ...(matchedCategoryId !== null
-                  ? {
-                      categoryId: matchedCategoryId,
-                      needsCategoryIdBackfill: false,
-                    }
+                  ? { categoryId: matchedCategoryId }
                   : {}),
+                categoryExplanation: categoryExplanation ?? undefined,
               },
             );
           }
@@ -1238,13 +1233,12 @@ export class LLMProcessor implements OnModuleInit {
             newUrgencyExplanation || thread.urgencyExplanation,
           priorityExplanation,
           priorityScore: finalScore,
-          category: finalCategory,
+          // categoryId is the sole category identifier (fixes #1293 — denorm column removed).
+          ...(categoryId !== null && categoryId !== undefined
+            ? { categoryId }
+            : {}),
           categoryExplanation: resolvedCategoryExplanation,
           protoCategoryId,
-          // Store UUID at write time for direct UUID-based category filtering (fix #1146)
-          ...(categoryId !== null && categoryId !== undefined
-            ? { categoryId, needsCategoryIdBackfill: false }
-            : {}),
           isProcessingPriority: false,
         },
       );
@@ -1512,7 +1506,9 @@ export class LLMProcessor implements OnModuleInit {
           }
         : llmResult;
 
-    let finalCategory = resolvedLlmResult.category || thread.category || null;
+    // thread.category no longer exists (denorm column removed — fixes #1293).
+    // Use LLM result only; no stale-name fallback.
+    let finalCategory = resolvedLlmResult.category || null;
     let protoCategoryId: string | null =
       finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
 
@@ -1745,11 +1741,12 @@ export class LLMProcessor implements OnModuleInit {
         item.description?.includes("Calculating..."),
     );
 
+    // Non-null categoryId means the thread has been categorized (fixes #1293 tautology).
     const canUseIncremental =
       hasValidBreakdown &&
       !hasOldStructure &&
       !hasCalculatingItems &&
-      thread.category &&
+      thread.categoryId !== null &&
       threadPriorityExplanation?.score !== undefined;
 
     if (!canUseIncremental) {
@@ -1761,10 +1758,20 @@ export class LLMProcessor implements OnModuleInit {
       return { handled: false };
     }
 
+    // Resolve category display name from categoryId via user_contexts cache.
+    const userContexts =
+      await this.priorityCacheService.getUserContexts(userId);
+    const categoryCtx = thread.categoryId
+      ? userContexts.find((ctx) => ctx.contextId === thread.categoryId)
+      : null;
+    const resolvedCategory = categoryCtx
+      ? categoryCtx.contextValue.split(" - ")[0].trim()
+      : null;
+
     const existingState = {
       priorityScore: threadPriorityExplanation?.score || 0,
       urgencyScore: thread.urgencyScore || 0,
-      category: thread.category || null,
+      category: resolvedCategory,
       summary: existingSummary,
     };
 

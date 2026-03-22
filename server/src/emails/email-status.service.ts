@@ -6,6 +6,10 @@ import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 
@@ -18,6 +22,8 @@ export class EmailStatusService {
     private emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(UserContext)
+    private userContextRepository: Repository<UserContext>,
     private usersService: UsersService,
   ) {}
 
@@ -129,18 +135,15 @@ export class EmailStatusService {
   // ── Categories & accounts ─────────────────────────────────────────────────
 
   async getCategories(userId: string): Promise<string[]> {
-    const categories = await this.emailThreadRepository.query(
-      `SELECT DISTINCT category FROM email_threads WHERE "userId" = $1 AND category IS NOT NULL`,
-      [userId],
-    );
-    const decrypted = categories
-      .map((row: { category: string }) =>
-        row.category ? EncryptionHelper.decrypt(row.category) : null,
-      )
-      .filter(
-        (cat: string | null): cat is string => cat !== null && cat !== "",
-      );
-    return Array.from(new Set<string>(decrypted)).sort();
+    // Query user_contexts directly — source of truth for category names (fixes #1293).
+    const ctxs = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: ["contextValue"],
+    });
+    const names = ctxs
+      .map((ctx) => ctx.contextValue.split(" - ")[0].trim())
+      .filter((name) => name !== "");
+    return Array.from(new Set<string>(names)).sort();
   }
 
   async getPriorityCounts(

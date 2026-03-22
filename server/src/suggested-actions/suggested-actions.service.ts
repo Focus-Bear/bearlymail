@@ -7,6 +7,10 @@ import { CalendarService } from "../calendar/calendar.service";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
@@ -46,6 +50,8 @@ export class SuggestedActionsService {
     private readonly actionItemRepository: Repository<ActionItem>,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(UserContext)
+    private readonly userContextRepository: Repository<UserContext>,
   ) {}
 
   private mapActionItemToSuggestedAction(
@@ -219,7 +225,20 @@ export class SuggestedActionsService {
             where: { id: threadId, userId },
           })
         : null;
-      const emailCategory = thread?.category || undefined;
+      // Resolve category display name from categoryId — getRepoForEmail does name-based matching.
+      let emailCategory: string | undefined;
+      if (thread?.categoryId) {
+        const categoryCtx = await this.userContextRepository.findOne({
+          where: {
+            contextId: thread.categoryId,
+            contextKey: ContextKey.EMAIL_CATEGORY,
+          },
+          select: ["contextValue"],
+        });
+        emailCategory = categoryCtx
+          ? categoryCtx.contextValue.split(" - ")[0].trim()
+          : undefined;
+      }
       const defaultRepo = hasGithubToken
         ? await this.repoMappingService.getRepoForEmail(userId, emailCategory)
         : null;

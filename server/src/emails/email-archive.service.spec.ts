@@ -32,7 +32,7 @@ const mockCategoryOverrideRepository = {
 };
 
 const mockUserContextRepository = {
-  findOne: jest.fn(),
+  find: jest.fn(),
 };
 
 const mockEmailCrudService = {
@@ -115,21 +115,29 @@ describe("EmailArchiveService", () => {
     const threadId = "thread-uuid-1";
     const newCategory = "Newsletters";
     const contextId = "context-uuid-1";
+    const oldContextId = "old-context-uuid";
 
     const mockEmail = { id: emailId, userId, emailThreadId: threadId };
     const mockThread = {
       id: threadId,
       userId,
-      category: "Customer Support",
-      categoryId: "old-context-uuid",
+      categoryId: oldContextId,
     };
     const mockOverride = { id: "override-uuid-1" };
-    const mockContext: Partial<UserContext> = {
-      contextId,
-      userId,
-      contextKey: ContextKey.EMAIL_CATEGORY,
-      contextValue: newCategory,
-    };
+    const mockContexts: Partial<UserContext>[] = [
+      {
+        contextId,
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+        contextValue: newCategory,
+      },
+      {
+        contextId: oldContextId,
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+        contextValue: "Customer Support",
+      },
+    ];
 
     beforeEach(() => {
       mockEmailRepository.findOne.mockResolvedValue(mockEmail);
@@ -137,11 +145,10 @@ describe("EmailArchiveService", () => {
       mockCategoryOverrideRepository.create.mockReturnValue(mockOverride);
       mockCategoryOverrideRepository.save.mockResolvedValue(mockOverride);
       mockEmailThreadRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserContextRepository.find.mockResolvedValue(mockContexts);
     });
 
     it("sets categoryId when a matching UserContext EMAIL_CATEGORY row exists", async () => {
-      mockUserContextRepository.findOne.mockResolvedValue(mockContext);
-
       const result = await service.overrideCategory(
         userId,
         emailId,
@@ -151,27 +158,21 @@ describe("EmailArchiveService", () => {
 
       expect(result).toEqual({ success: true, category: newCategory });
 
-      // Verify context lookup used correct params
-      expect(mockUserContextRepository.findOne).toHaveBeenCalledWith({
-        where: {
-          userId,
-          contextKey: ContextKey.EMAIL_CATEGORY,
-          contextValue: newCategory,
-        },
+      expect(mockUserContextRepository.find).toHaveBeenCalledWith({
+        where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+        select: ["contextId", "contextValue"],
       });
 
-      // Verify thread update includes categoryId from matched context
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
         { id: threadId },
         expect.objectContaining({
-          category: newCategory,
           categoryId: contextId,
         }),
       );
     });
 
     it("does NOT update categoryId when no matching UserContext row exists", async () => {
-      mockUserContextRepository.findOne.mockResolvedValue(null);
+      mockUserContextRepository.find.mockResolvedValue([]);
 
       const result = await service.overrideCategory(
         userId,
@@ -181,17 +182,12 @@ describe("EmailArchiveService", () => {
 
       expect(result).toEqual({ success: true, category: newCategory });
 
-      // Verify thread update does NOT include categoryId
       const updateCall = mockEmailThreadRepository.update.mock.calls[0];
       const updatePayload = updateCall[1];
-      expect(updatePayload).not.toHaveProperty("categoryId");
-
-      // But category name is still updated
-      expect(updatePayload).toMatchObject({ category: newCategory });
+      expect(updatePayload).toMatchObject({ categoryId: null });
     });
 
-    it("still updates category name and explanation regardless of context lookup result", async () => {
-      mockUserContextRepository.findOne.mockResolvedValue(mockContext);
+    it("updates categoryExplanation regardless of context lookup result", async () => {
       const reason = "Reorganising inbox";
 
       await service.overrideCategory(userId, emailId, newCategory, reason);
@@ -199,26 +195,38 @@ describe("EmailArchiveService", () => {
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
         { id: threadId },
         expect.objectContaining({
-          category: newCategory,
           categoryExplanation: expect.stringContaining(reason),
         }),
       );
     });
 
-    it("saves a CategoryOverride record with original category", async () => {
-      mockUserContextRepository.findOne.mockResolvedValue(mockContext);
-
+    it("saves a CategoryOverride record with resolved original category name", async () => {
       await service.overrideCategory(userId, emailId, newCategory);
 
       expect(mockCategoryOverrideRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           emailThreadId: threadId,
           userId,
-          originalCategory: mockThread.category,
+          originalCategory: "Customer Support",
           userCategory: newCategory,
         }),
       );
       expect(mockCategoryOverrideRepository.save).toHaveBeenCalled();
+    });
+
+    it("stores null as originalCategory when thread has no categoryId", async () => {
+      mockEmailThreadRepository.findOne.mockResolvedValue({
+        ...mockThread,
+        categoryId: null,
+      });
+
+      await service.overrideCategory(userId, emailId, newCategory);
+
+      expect(mockCategoryOverrideRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          originalCategory: null,
+        }),
+      );
     });
 
     it("throws when email is not found", async () => {

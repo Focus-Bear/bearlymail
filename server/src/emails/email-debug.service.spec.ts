@@ -264,7 +264,8 @@ describe("EmailDebugService", () => {
       const mockThread = {
         id: "thread-uuid-1",
         userId,
-        category: "PR Bot Comments",
+        // UUID reference — category column removed (fixes #1293)
+        categoryId: "ctx-1",
         categoryExplanation: "Automated PR comment from a bot",
       } as EmailThread;
 
@@ -315,7 +316,7 @@ describe("EmailDebugService", () => {
       expect(result.email.subject).toBe("Test email subject");
       expect(result.email.bodyPreview).toBeTruthy();
 
-      expect(result.thread.category).toBe("PR Bot Comments");
+      expect(result.thread.categoryId).toBe("ctx-1");
       expect(result.thread.categoryExplanation).toBe(
         "Automated PR comment from a bot",
       );
@@ -366,7 +367,7 @@ describe("EmailDebugService", () => {
 
       const result = await service.getCategoryDebugData(userId, emailId);
 
-      expect(result.thread.category).toBeNull();
+      expect(result.thread.categoryId).toBeNull();
       expect(result.thread.categoryExplanation).toBeNull();
       expect(result.emailCategories).toHaveLength(0);
       expect(result.protoCategories).toHaveLength(0);

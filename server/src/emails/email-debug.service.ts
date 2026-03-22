@@ -140,7 +140,8 @@ export class EmailDebugService {
               "threadId",
               "starCount",
               "isArchived",
-              "category",
+              // source of truth (fixes #1293 — category column removed)
+              "categoryId",
               "syncStatus",
               "syncStatusUpdatedAt",
               "isBatched",

@@ -34,13 +34,11 @@ import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
  * Avoids no-explicit-any and no-nested-ternary lint rules.
  */
 function getErrCode(err: unknown): string | number | undefined {
-  if (typeof err !== 'object' || err === null) return undefined;
-  if ('code' in err) return (err as { code?: string | number }).code;
-  if ('status' in err) return (err as { status?: number }).status;
+  if (typeof err !== "object" || err === null) return undefined;
+  if ("code" in err) return (err as { code?: string | number }).code;
+  if ("status" in err) return (err as { status?: number }).status;
   return undefined;
 }
-
-
 
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
@@ -695,7 +693,7 @@ Manage this booking:
     let allDayEndDate: string | undefined;
     if (eventData.allDay) {
       const lastDay = new Date(
-        (eventData.endAt ?? eventData.startAt).slice(0, 10) + "T00:00:00Z",
+        `${(eventData.endAt ?? eventData.startAt).slice(0, 10)}T00:00:00Z`,
       );
       lastDay.setUTCDate(lastDay.getUTCDate() + 1);
       allDayEndDate = lastDay.toISOString().slice(0, 10);
@@ -745,7 +743,7 @@ Manage this booking:
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error('[ICS] addIcsEventToCalendar failed', {
+      this.logger.error("[ICS] addIcsEventToCalendar failed", {
         message,
         stack: err instanceof Error ? err.stack : undefined,
         errorCode: getErrCode(err),
@@ -756,7 +754,9 @@ Manage this booking:
           "Your Google Calendar access has expired. Please reconnect your Google account.",
         );
       }
-      throw new BadRequestException(`Failed to add event to calendar: ${message}`);
+      throw new BadRequestException(
+        `Failed to add event to calendar: ${message}`,
+      );
     }
   }
 

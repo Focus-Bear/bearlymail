@@ -6,6 +6,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { GitHubRepoMapping } from "../database/entities/github-repo-mapping.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { UsersModule } from "../users/users.module";
 import { GitHubController } from "./github.controller";
@@ -19,7 +20,12 @@ import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailThread, Email, GitHubRepoMapping]),
+    TypeOrmModule.forFeature([
+      EmailThread,
+      Email,
+      GitHubRepoMapping,
+      UserContext,
+    ]),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

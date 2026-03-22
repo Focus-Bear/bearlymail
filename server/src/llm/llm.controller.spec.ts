@@ -1,10 +1,10 @@
 import { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import request from "supertest";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import request from "supertest";
 
-import { Email } from "../database/entities/email.entity";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
@@ -540,7 +540,11 @@ describe("LLMController (Integration)", () => {
 
     it("should return cached actionItemsJson when emailId is provided and cache is populated", async () => {
       const cachedItems = [
-        { description: "Review the document", isCompleted: false, source: "llm" },
+        {
+          description: "Review the document",
+          isCompleted: false,
+          source: "llm",
+        },
       ];
       mockEmailRepository.findOne.mockResolvedValueOnce({
         id: "email-1",
@@ -628,7 +632,6 @@ describe("LLMController (Integration)", () => {
         undefined,
       );
     });
-
   });
 
   describe("POST /llm/suggest-replies", () => {
@@ -752,5 +755,5 @@ describe("LLMController (Integration)", () => {
   });
 });
 
-  // Additional test added to cover isSentEmail hint path (alias mismatch scenario)
-  // This was missing coverage for the `body.isSentEmail === true` branch
+// Additional test added to cover isSentEmail hint path (alias mismatch scenario)
+// This was missing coverage for the `body.isSentEmail === true` branch

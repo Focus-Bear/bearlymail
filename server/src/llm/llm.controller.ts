@@ -136,7 +136,7 @@ export class LLMController {
     );
     // Accept isSentEmail hint from client (e.g. derived from Gmail SENT label) as
     // a secondary signal in case normalizeEmail comparison fails due to alias mismatch.
-    const isUserSender = emailMatchesSender || (body.isSentEmail === true);
+    const isUserSender = emailMatchesSender || body.isSentEmail === true;
 
     return this.llmService.extractActionItems(
       body.emailBody,

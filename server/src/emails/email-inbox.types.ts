@@ -41,7 +41,8 @@ export interface RawEmailRow {
   isArchived: boolean;
   urgencyScore: number | null;
   threadUpdatedAt: Date;
-  category: string | null;
+  // resolved from user_contexts JOIN — not stored on thread
+  categoryName: string | null;
   categoryExplanation: string | null;
   categoryId: string | null;
   protoCategoryName: string | null;

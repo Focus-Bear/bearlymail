@@ -448,7 +448,10 @@ Summary: ${cleanedBody}`;
       const error = new StructuralError(
         "Prompt template not found: analyze_priority. Expected file: prioritise-email.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
       );
-      this.logger.error("analyze_priority prompt not found (batch path)", error);
+      this.logger.error(
+        "analyze_priority prompt not found (batch path)",
+        error,
+      );
       this.errorTrackingService.captureException(error, userId, {
         operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
         promptId: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY,
@@ -464,7 +467,6 @@ Summary: ${cleanedBody}`;
       dontCareContextText,
       emailCategoriesText,
     } = this.buildUserContextTexts(userContext);
-
 
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",

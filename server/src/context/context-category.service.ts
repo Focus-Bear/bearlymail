@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -320,13 +320,12 @@ export class ContextCategoryService {
   private async fetchOtherCategoryEmails(
     userId: string,
   ): Promise<Email[] | null> {
+    // categoryId IS NULL means "Other" (fixes #1293 — denorm column removed).
     const threads = await this.emailThreadRepository.find({
-      where: { userId, isArchived: false },
-      select: ["id", "category"],
+      where: { userId, isArchived: false, categoryId: IsNull() },
+      select: ["id"],
     });
-    const otherThreadIds = threads
-      .filter((thread) => thread.category === "Other" || !thread.category)
-      .map((thread) => thread.id);
+    const otherThreadIds = threads.map((thread) => thread.id);
 
     if (otherThreadIds.length === 0) {
       return null;

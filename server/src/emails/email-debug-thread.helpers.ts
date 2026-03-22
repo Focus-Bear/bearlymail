@@ -339,7 +339,8 @@ export async function analyzeStarredThread(
       ) ?? null,
     inDb: true,
     isStarredInDb: thread.starCount > 0,
-    category: thread.category ?? null,
+    // categoryId is the source of truth (fixes #1293)
+    category: thread.categoryId ?? null,
     appearsInActionOrFollowUp: visibility.wouldShowInAction,
     reason,
     isArchivedInDb: thread.isArchived,

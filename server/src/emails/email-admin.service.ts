@@ -38,23 +38,29 @@ export class EmailAdminService {
   ) {}
 
   async getEmailStats(userId: string, since: Date) {
+    // JOIN user_contexts for category display name (fixes #1293 — no denorm column).
     const emailsPerDay = await this.emailThreadRepository
       .createQueryBuilder("thread")
       .innerJoin("thread.emails", "email")
+      .leftJoin("user_contexts", "uc", 'uc."contextId" = thread."categoryId"')
       .select("DATE(email.receivedAt)", "date")
       .addSelect("COUNT(DISTINCT email.id)", "count")
-      .addSelect("thread.category", "category")
+      .addSelect('uc."contextValue"', "category")
+      .addSelect('thread."categoryId"', "categoryId")
       .where("thread.userId = :userId", { userId })
       .andWhere("email.receivedAt >= :since", { since })
       .groupBy("DATE(email.receivedAt)")
-      .addGroupBy("thread.category")
+      .addGroupBy('thread."categoryId"')
+      .addGroupBy('uc."contextValue"')
       .orderBy("DATE(email.receivedAt)", "ASC")
       .getRawMany();
 
     const replyTimesByCategory = await this.emailThreadRepository
       .createQueryBuilder("thread")
       .innerJoin("thread.emails", "email")
-      .select("thread.category", "category")
+      .leftJoin("user_contexts", "uc", 'uc."contextId" = thread."categoryId"')
+      .select('uc."contextValue"', "category")
+      .addSelect('thread."categoryId"', "categoryId")
       .addSelect("AVG(email.timeToReply)", "avgReplyTimeMinutes")
       .addSelect("MIN(email.timeToReply)", "minReplyTimeMinutes")
       .addSelect("MAX(email.timeToReply)", "maxReplyTimeMinutes")
@@ -63,17 +69,21 @@ export class EmailAdminService {
       .andWhere("email.timeToReply IS NOT NULL")
       .andWhere("email.timeToReply > 0")
       .andWhere("email.receivedAt >= :since", { since })
-      .groupBy("thread.category")
+      .groupBy('thread."categoryId"')
+      .addGroupBy('uc."contextValue"')
       .getRawMany();
 
     const totalByCategory = await this.emailThreadRepository
       .createQueryBuilder("thread")
       .innerJoin("thread.emails", "email")
-      .select("thread.category", "category")
+      .leftJoin("user_contexts", "uc", 'uc."contextId" = thread."categoryId"')
+      .select('uc."contextValue"', "category")
+      .addSelect('thread."categoryId"', "categoryId")
       .addSelect("COUNT(DISTINCT email.id)", "total")
       .where("thread.userId = :userId", { userId })
       .andWhere("email.receivedAt >= :since", { since })
-      .groupBy("thread.category")
+      .groupBy('thread."categoryId"')
+      .addGroupBy('uc."contextValue"')
       .getRawMany();
 
     return { emailsPerDay, replyTimesByCategory, totalByCategory };

@@ -84,16 +84,16 @@ export class EmailInboxService {
     const needsUserSentLastFilter =
       mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP;
 
-    const selectParts = [
-      "thread.category",
-      'thread."categoryId"',
-      'latest_email."latestFrom"',
-    ];
-    if (filters?.includeThreadIds) selectParts.push('thread."threadId"');
+    const threadIdSelect = filters?.includeThreadIds
+      ? ', thread."threadId"'
+      : "";
 
     const rows = (await this.emailThreadRepository.query(
-      `SELECT ${selectParts.join(", ")}
+      `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
+              latest_email."latestFrom"${threadIdSelect}
        FROM email_threads thread
+       LEFT JOIN user_contexts uc
+         ON uc."contextId" = thread."categoryId"
        LEFT JOIN LATERAL (
          SELECT em."from" AS "latestFrom" FROM emails em
          WHERE em."emailThreadId" = thread.id ORDER BY em."receivedAt" DESC LIMIT 1
@@ -104,7 +104,7 @@ export class EmailInboxService {
        ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC`,
       queryParams,
     )) as {
-      category: string | null;
+      categoryName: string | null;
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
@@ -254,7 +254,7 @@ export class EmailInboxService {
     userId: string,
     mode: string,
     rows: {
-      category: string | null;
+      categoryName: string | null;
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
@@ -268,6 +268,7 @@ export class EmailInboxService {
     categoryThreadIds: Record<string, string[]>;
     categoryUuidByName: Map<string, string>;
   }> {
+    const CATEGORY_OTHER = "Other";
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
     const categoryThreadIds: Record<string, string[]> = {};
@@ -285,9 +286,11 @@ export class EmailInboxService {
       )
         continue;
 
-      const category =
-        (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
-        "Other";
+      // categoryName comes from user_contexts JOIN — already plain text, no decryption needed.
+      // NULL categoryId → "Other" bucket.
+      const category = row.categoryId
+        ? (row.categoryName?.split(" - ")[0].trim() ?? CATEGORY_OTHER)
+        : CATEGORY_OTHER;
       if (!categoryOrder.includes(category)) {
         categoryOrder.push(category);
         categoryThreadIds[category] = [];
@@ -418,7 +421,7 @@ export class EmailInboxService {
     const finalEmails = allFiltered.slice(qOffset, qOffset + qLimit);
     const hasMore = qOffset + finalEmails.length < total;
 
-    await this.assignCategoryIds(userId, finalEmails);
+    this.assignCategoryIds(finalEmails);
 
     this.logger.log(
       `getInbox(${mode}): Returning ${finalEmails.length}/${total} threads (from ${rawEmails.length} matching, ${blockedCount} blocked)`,
@@ -427,22 +430,12 @@ export class EmailInboxService {
     return { emails: finalEmails, total, hasMore };
   }
 
-  private async assignCategoryIds(
-    userId: string,
-    emails: InboxEmail[],
-  ): Promise<void> {
-    let categoryNameToId: Map<string, string> | null = null;
+  private assignCategoryIds(emails: InboxEmail[]): void {
+    // categoryId is already the UUID from the JOIN in runInboxQuery.
+    // Propagate it to category_id for client compatibility.
     for (const email of emails) {
       const em = email as InboxEmail & { category_id?: string | null };
-      if (em.categoryId) {
-        em.category_id = em.categoryId;
-      } else {
-        if (!categoryNameToId)
-          categoryNameToId = await this.getCategoryNameToIdMap(userId);
-        em.category_id = em.category
-          ? (categoryNameToId.get(em.category) ?? null)
-          : null;
-      }
+      em.category_id = em.categoryId ?? null;
     }
   }
 
@@ -528,8 +521,10 @@ export class EmailInboxService {
       `SELECT
             thread."starCount", thread."isArchived", thread."urgencyScore",
             thread."priorityExplanation", thread."priorityScore", thread."isProcessingPriority",
-            thread."githubMetadata", thread."category", thread."categoryExplanation",
-            thread."protoCategoryId", thread."categoryId", thread."updatedAt" as "threadUpdatedAt",
+            thread."githubMetadata", thread."categoryExplanation",
+            thread."protoCategoryId", thread."categoryId",
+            uc."contextValue" AS "categoryName",
+            thread."updatedAt" as "threadUpdatedAt",
             thread."isBatched", thread."batchReleaseAt", thread."wasDeliveredEarly",
             thread."batchDecisionReason",
             pc."name" as "protoCategoryName", pc."description" as "protoCategoryDescription",
@@ -561,6 +556,7 @@ export class EmailInboxService {
         ORDER BY cor."receivedAt" ASC LIMIT 1
       ) correspondent ON true
       LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
+      LEFT JOIN user_contexts uc ON uc."contextId" = thread."categoryId"
       WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
@@ -635,12 +631,12 @@ export class EmailInboxService {
 
       const before = filteredEmails.length;
       filteredEmails = filteredEmails.filter((emailEntry) => {
-        const effective = emailEntry.category || OTHER;
-        if (requestedOther && !emailEntry.categoryId && effective === OTHER)
-          return true;
+        // categoryId is the single source of truth (fixes #1293).
+        // NULL categoryId → "Other" bucket.
+        if (requestedOther && !emailEntry.categoryId) return true;
         if (emailEntry.categoryId)
           return requestedUuids.has(emailEntry.categoryId);
-        return requestedNames.has(effective);
+        return false;
       });
       const removed = before - filteredEmails.length;
       if (removed > 0)
@@ -708,7 +704,9 @@ export class EmailInboxService {
       urgencyScore: row.urgencyScore,
       githubMetadata,
       threadUpdatedAt: row.threadUpdatedAt,
-      category: EncryptionHelper.decrypt(row.category) || null,
+      category: row.categoryName
+        ? row.categoryName.split(" - ")[0].trim()
+        : null,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.decrypt(row.categoryExplanation)
         : null,

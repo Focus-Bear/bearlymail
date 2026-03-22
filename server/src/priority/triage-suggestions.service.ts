@@ -530,13 +530,23 @@ Respond with ONLY a JSON object:
       "context_query",
       TRIAGE_PERF_BUDGETS.CONTEXT_QUERY,
     );
-    const contexts = (await this.userContextRepository.query(
+    const rawContexts = (await this.userContextRepository.query(
       `SELECT "contextId", "userId", "contextKey", "contextValue", priority, explanation
        FROM user_contexts WHERE "userId" = $1`,
       [userId],
     )) as UserContext[];
     endContextQuery();
-    return contexts;
+
+    // Decrypt contextValue — raw SQL bypasses the TypeORM encryptedColumnTransformer.
+    // Also decrypt explanation so callers get readable values.
+    return rawContexts.map((ctx) => ({
+      ...ctx,
+      contextValue:
+        EncryptionHelper.decrypt(ctx.contextValue) ?? ctx.contextValue,
+      explanation: ctx.explanation
+        ? (EncryptionHelper.decrypt(ctx.explanation) ?? ctx.explanation)
+        : ctx.explanation,
+    }));
   }
 
   /**

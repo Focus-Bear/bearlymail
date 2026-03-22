@@ -159,4 +159,26 @@ export const encryptedJsonTransformer = {
   },
 };
 
+/**
+ * Shared helper: decrypt an encrypted contextValue and extract the display name.
+ *
+ * EMAIL_CATEGORY contextValue is stored as "Category Name - optional description"
+ * (encrypted at rest). This helper decrypts and returns only the name part.
+ *
+ * Usage:
+ *   decryptContextValue(row.category)       // → "Newsletters" | null
+ *   decryptContextValue(ctx.contextValue)   // → "Customer Support" | null
+ *
+ * @param raw  Encrypted (or plaintext) contextValue string from a raw query result
+ * @returns    The category display name (before " - "), or null if input is null/empty
+ */
+export function decryptContextValue(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  const decrypted = EncryptionHelper.decrypt(raw);
+  if (!decrypted) return null;
+  return decrypted.split(" - ")[0].trim();
+}
+
 export { EncryptionHelper };

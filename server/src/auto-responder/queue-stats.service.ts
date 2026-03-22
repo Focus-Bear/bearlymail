@@ -12,6 +12,7 @@ import {
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { decryptContextValue } from "../encryption/encryption.helper";
 import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
 import { CategoryReplyTime, QueueStats } from "./types/auto-responder.types";
 
@@ -189,10 +190,9 @@ export class QueueStatsService {
         .addGroupBy('uc."contextValue"')
         .getRawMany();
 
+      // Decrypt before extracting the display name — raw queries bypass TypeORM transformers.
       return categoryStats.map((stat) => ({
-        category: stat.category
-          ? stat.category.split(" - ")[0].trim()
-          : "Other",
+        category: decryptContextValue(stat.category) ?? "Other",
         avgReplyTimeMinutes: parseFloat(stat.avgReplyTimeMinutes),
         repliedCount: parseInt(stat.repliedCount, 10),
       }));

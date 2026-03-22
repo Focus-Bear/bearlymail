@@ -9,6 +9,7 @@ import { INBOX_MODES } from "../constants/query-limits";
 import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
 import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { decryptContextValue } from "../encryption/encryption.helper";
 import { getJobPriority } from "../queue/job-priorities";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
@@ -86,7 +87,25 @@ export class EmailAdminService {
       .addGroupBy('uc."contextValue"')
       .getRawMany();
 
-    return { emailsPerDay, replyTimesByCategory, totalByCategory };
+    // Decrypt the encrypted contextValue — raw queries bypass TypeORM transformers.
+    const decryptedEmailsPerDay = emailsPerDay.map((row) => ({
+      ...row,
+      category: decryptContextValue(row.category),
+    }));
+    const decryptedReplyTimesByCategory = replyTimesByCategory.map((row) => ({
+      ...row,
+      category: decryptContextValue(row.category),
+    }));
+    const decryptedTotalByCategory = totalByCategory.map((row) => ({
+      ...row,
+      category: decryptContextValue(row.category),
+    }));
+
+    return {
+      emailsPerDay: decryptedEmailsPerDay,
+      replyTimesByCategory: decryptedReplyTimesByCategory,
+      totalByCategory: decryptedTotalByCategory,
+    };
   }
 
   async getEmailThreadById(

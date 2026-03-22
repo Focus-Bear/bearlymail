@@ -19,6 +19,7 @@ jest.mock('utils/emailCache', () => ({
   clearCacheForMode: jest.fn(),
   getCachedCategoryEmails: jest.fn().mockReturnValue(null),
   getCachedSummary: jest.fn().mockReturnValue(null),
+  invalidateSummaryCache: jest.fn(),
   setCachedCategoryEmails: jest.fn(),
   setCachedSummary: jest.fn(),
   removeEmailFromCache: jest.fn(),
@@ -653,5 +654,87 @@ describe('appendFilterParams', () => {
     appendFilterParams(params, { accountIds: [], categories: [], minPriority: 15, maxPriority: 30 });
     expect(params.get('minPriority')).toBe('15');
     expect(params.get('maxPriority')).toBe('30');
+  });
+});
+
+// ─── Fix #846: cache invalidation on filter change ────────────────────────────
+
+describe('fetchEmails — cache invalidation on filter change (fix #846)', () => {
+  // Helper: create a minimal Redux store and wrapper for these tests
+  const makeStore = () => configureStore({
+    reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
+  });
+
+  const makeWrapper = (testStore: ReturnType<typeof makeStore>) => {
+    const Wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store: testStore, children });
+    return Wrapper;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: no cached summary so fetchEmailsImpl doesn't short-circuit
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    mockedAxios.get.mockResolvedValue({ data: { categories: [] } });
+  });
+
+  it('clears mode cache when overrideFilters are provided', async () => {
+    const testStore = makeStore();
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: makeWrapper(testStore) }
+    );
+
+    await result.current.fetchEmails({ minPriority: 50, maxPriority: null });
+
+    await waitFor(() => {
+      expect(mockedClearCacheForMode).toHaveBeenCalledWith('triage');
+    });
+  });
+
+  it('does NOT clear cache when no overrideFilters are provided', async () => {
+    const testStore = makeStore();
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: makeWrapper(testStore) }
+    );
+
+    await result.current.fetchEmails();
+
+    await waitFor(() => {
+      // fetchEmailsImpl runs (axios gets called or cache is checked)
+      expect(emailCache.getCachedSummary).toHaveBeenCalled();
+    });
+    expect(mockedClearCacheForMode).not.toHaveBeenCalled();
+  });
+
+  it('clears cache before fetching so fresh data is retrieved', async () => {
+    // Ensure clearCacheForMode is called before any axios call
+    const callOrder: string[] = [];
+
+    mockedClearCacheForMode.mockImplementation(() => {
+      callOrder.push('clearMode');
+    });
+    mockedAxios.get.mockImplementation(async () => {
+      callOrder.push('axiosGet');
+      return { data: { categories: [] } };
+    });
+
+    const testStore = makeStore();
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: makeWrapper(testStore) }
+    );
+
+    await result.current.fetchEmails({ minPriority: 50 });
+
+    await waitFor(() => {
+      expect(callOrder).toContain('clearMode');
+      expect(callOrder).toContain('axiosGet');
+    });
+
+    const clearModeIdx = callOrder.indexOf('clearMode');
+    const axiosIdx = callOrder.indexOf('axiosGet');
+    expect(clearModeIdx).toBeLessThan(axiosIdx);
   });
 });

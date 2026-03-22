@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PriorityLearningService } from "./priority-learning.service";
 
@@ -40,7 +41,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
       `Starting learn-from-star worker with concurrency: ${this.learnConcurrency}`,
     );
     await this.boss.work(
-      "learn-from-star",
+      JOB_NAMES.LEARN_FROM_STAR,
       // teamSize is a valid pg-boss work option for parallel job processing
       { teamSize: this.learnConcurrency } as PgBoss.WorkOptions,
       async (job) => {
@@ -51,7 +52,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
-          "learn-from-star",
+          JOB_NAMES.LEARN_FROM_STAR,
           workerId,
           this.cloudWatchService,
         );

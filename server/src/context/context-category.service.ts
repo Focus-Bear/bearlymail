@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { IsNull, Repository } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
@@ -365,10 +366,13 @@ export class ContextCategoryService {
     for (const email of emails) {
       try {
         await this.boss.send(
-          "refine-priority",
+          JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId: email.id, forceRecalculate: true },
           {
-            priority: getJobPriority("refine-priority-background", false),
+            priority: getJobPriority(
+              JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
+              false,
+            ),
             singletonKey: `refine-priority-reclassify-${email.id}`,
           },
         );

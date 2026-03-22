@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 import { In, MoreThan, Repository } from "typeorm";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
   CONTEXT_ANALYSIS,
@@ -1167,7 +1168,7 @@ export class ContextService {
           const jobPromise = (async () => {
             try {
               const jobId = await this.boss.send(
-                "analyze-context-batch",
+                JOB_NAMES.ANALYZE_CONTEXT_BATCH,
                 {
                   userId,
                   batchIndex: batchNum,
@@ -1186,7 +1187,10 @@ export class ContextService {
                   before: fiveDaysAgo.toISOString(),
                 },
                 {
-                  priority: getJobPriority("analyze-context-batch", false),
+                  priority: getJobPriority(
+                    JOB_NAMES.ANALYZE_CONTEXT_BATCH,
+                    false,
+                  ),
                   singletonKey,
                   singletonMinutes: MINUTES.HOUR,
                 },
@@ -1313,7 +1317,9 @@ export class ContextService {
       await new Promise((resolve) => setTimeout(resolve, MS_PER_SECOND));
 
       // Verify jobs are in queue
-      const queuedCount = await this.boss.getQueueSize("analyze-context-batch");
+      const queuedCount = await this.boss.getQueueSize(
+        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
+      );
 
       this.logger.log(
         `[CONTEXT-ANALYSIS] Queue verification: ${queuedCount} jobs currently queued for analyze-context-batch`,
@@ -1529,7 +1535,7 @@ export class ContextService {
       // CRITICAL: Only enqueue finalization job if we actually have successfully enqueued batches to process
       if (totalBatches > 0 && successfulEnqueues > 0) {
         await this.boss.send(
-          "finalize-context-analysis",
+          JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
           {
             userId,
             analysisRecordId: analysisRecord.id,
@@ -1540,7 +1546,10 @@ export class ContextService {
             userEmail: userEmail || undefined,
           },
           {
-            priority: getJobPriority("finalize-context-analysis", false),
+            priority: getJobPriority(
+              JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
+              false,
+            ),
             singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
             singletonMinutes: MINUTES.HOUR,
             startAfter: new Date(
@@ -1938,7 +1947,7 @@ export class ContextService {
 
     try {
       queuedJobsInPgBoss = await this.boss.getQueueSize(
-        "analyze-context-batch",
+        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
       );
       // PgBoss getQueueSize returns the number of jobs in the queue (pending + active)
       // This is the most reliable metric we can get without querying the database directly
@@ -2035,7 +2044,7 @@ export class ContextService {
             const singletonKey = `analyze-context-batch-${analysis.id}-${batchIndex}-retry-${retryTimestamp}`;
 
             const retryJobId = await this.boss.send(
-              "analyze-context-batch",
+              JOB_NAMES.ANALYZE_CONTEXT_BATCH,
               {
                 userId,
                 batchIndex,
@@ -2050,7 +2059,10 @@ export class ContextService {
                 totalBatches,
               },
               {
-                priority: getJobPriority("analyze-context-batch", false),
+                priority: getJobPriority(
+                  JOB_NAMES.ANALYZE_CONTEXT_BATCH,
+                  false,
+                ),
                 singletonKey,
                 singletonMinutes: MINUTES.HOUR,
               },
@@ -2293,7 +2305,7 @@ export class ContextService {
                   const singletonKey = `analyze-context-batch-${analysisRecordId}-${batchIndex}`;
 
                   const retryJobId = await this.boss.send(
-                    "analyze-context-batch",
+                    JOB_NAMES.ANALYZE_CONTEXT_BATCH,
                     {
                       userId,
                       batchIndex,
@@ -2306,7 +2318,10 @@ export class ContextService {
                       totalBatches: totalBatchesForRetry,
                     },
                     {
-                      priority: getJobPriority("analyze-context-batch", false),
+                      priority: getJobPriority(
+                        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
+                        false,
+                      ),
                       singletonKey,
                       singletonMinutes: MINUTES.HOUR,
                     },
@@ -3622,9 +3637,9 @@ export class ContextService {
     if (!tooManyItems && !tooManyPerKey) return false;
 
     await this.boss.send(
-      "compress-context",
+      JOB_NAMES.COMPRESS_CONTEXT,
       { userId, force: false },
-      { priority: getJobPriority("analyze-context", false) },
+      { priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT, false) },
     );
     return true;
   }

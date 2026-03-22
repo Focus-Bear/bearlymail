@@ -23,6 +23,7 @@ const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { getJobPriority } from "../queue/job-priorities";
 import {
   type CategoryDebugData,
@@ -520,10 +521,13 @@ export class EmailDebugService {
 
         // Re-queue priority calculation job
         await this.boss.send(
-          "refine-priority",
+          JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId: email.id },
           {
-            priority: getJobPriority("refine-priority-background", false),
+            priority: getJobPriority(
+              JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
+              false,
+            ),
             singletonKey: `refine-priority-thread-${thread.id}`,
             singletonMinutes: 1,
           },

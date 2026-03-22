@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { SuggestedReply } from "../database/entities/suggested-reply.entity";
@@ -100,10 +101,10 @@ export class SuggestedRepliesService {
     );
 
     await this.boss.send(
-      "generate-suggested-replies",
+      JOB_NAMES.GENERATE_SUGGESTED_REPLIES,
       { userId, threadId, emailId },
       {
-        priority: getJobPriority("generate-suggested-replies", false),
+        priority: getJobPriority(JOB_NAMES.GENERATE_SUGGESTED_REPLIES, false),
         singletonKey: `generate-suggested-replies-${userId}-${threadId}`,
         singletonMinutes: 5,
       },

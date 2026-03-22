@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -31,11 +32,11 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
   async onModuleInit() {
     // Schedule periodic check for writing style learning
     await this.boss.schedule(
-      "check-writing-style-learning",
+      JOB_NAMES.CHECK_WRITING_STYLE_LEARNING,
       LEARNING_CHECK_CRON,
     );
 
-    await this.boss.work("check-writing-style-learning", (job) =>
+    await this.boss.work(JOB_NAMES.CHECK_WRITING_STYLE_LEARNING, (job) =>
       this.runWritingStyleLearningCheck(job.id || "unknown"),
     );
 
@@ -44,7 +45,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
 
   private async runWritingStyleLearningCheck(workerId: string): Promise<void> {
     const tracker = new JobPerformanceTracker(
-      "check-writing-style-learning",
+      JOB_NAMES.CHECK_WRITING_STYLE_LEARNING,
       workerId,
       this.cloudWatchService,
     );

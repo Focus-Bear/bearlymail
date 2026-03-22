@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { ScanAnalysisService } from "./scan-analysis.service";
 
 @Injectable()
@@ -37,7 +38,7 @@ export class ScanAnalysisProcessor implements OnModuleInit {
       `Registering analyze-scan-results worker with concurrency: ${this.analysisConcurrency}`,
     );
     await this.boss.work(
-      "analyze-scan-results",
+      JOB_NAMES.ANALYZE_SCAN_RESULTS,
       // teamSize is a valid pg-boss work option for parallel job processing
       { teamSize: this.analysisConcurrency } as PgBoss.WorkOptions,
       async (job) => {

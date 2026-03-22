@@ -23,6 +23,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
 import { isUuid } from "../common/uuid.utils";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
@@ -208,7 +209,7 @@ export class GitHubController {
         result[item.emailId] = { links: [], pending: true };
         this.boss
           .send(
-            "fetch-github-metadata",
+            JOB_NAMES.FETCH_GITHUB_METADATA,
             { userId, emailId: item.emailId, threadId: item.threadId },
             {
               singletonKey: `github-metadata-${item.threadId}`,
@@ -344,7 +345,7 @@ export class GitHubController {
     const result = await db.executeSql(`
       SELECT state, COUNT(*) as count
       FROM pgboss.job
-      WHERE name = 'fetch-github-metadata'
+      WHERE name = '${JOB_NAMES.FETCH_GITHUB_METADATA}'
         AND createdon >= NOW() - INTERVAL '7 days'
       GROUP BY state
     `);
@@ -371,7 +372,7 @@ export class GitHubController {
         retrylimit,
         retrycount
       FROM pgboss.job
-      WHERE name = 'fetch-github-metadata'
+      WHERE name = '${JOB_NAMES.FETCH_GITHUB_METADATA}'
         AND state = 'failed'
         AND createdon >= NOW() - INTERVAL '7 days'
       ORDER BY createdon DESC
@@ -405,7 +406,7 @@ export class GitHubController {
     const result = await db.executeSql(`
       SELECT COUNT(*) as "completedCount"
       FROM pgboss.archive
-      WHERE name = 'fetch-github-metadata'
+      WHERE name = '${JOB_NAMES.FETCH_GITHUB_METADATA}'
         AND createdon >= NOW() - INTERVAL '7 days'
     `);
     return parseInt(

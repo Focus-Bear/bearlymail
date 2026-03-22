@@ -13,6 +13,7 @@ import * as path from "path";
 import PgBoss from "pg-boss";
 import { DataSource } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -96,10 +97,13 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
 
         // Queue the job
         await boss.send(
-          "refine-priority",
+          JOB_NAMES.REFINE_PRIORITY,
           { userId: email.userId, emailId: email.id },
           {
-            priority: getJobPriority("refine-priority-background", false),
+            priority: getJobPriority(
+              JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
+              false,
+            ),
             singletonKey: `refine-priority-${email.id}`,
             singletonMinutes: 5,
           },

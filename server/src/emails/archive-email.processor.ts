@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { logErrorToFile } from "../utils/error-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailsService } from "./emails.service";
@@ -28,10 +29,10 @@ export class ArchiveEmailProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.work("archive-email", async (job) =>
+    await this.boss.work(JOB_NAMES.ARCHIVE_EMAIL, async (job) =>
       this.handleArchiveEmail(job.data as ArchiveEmailJobData),
     );
-    await this.boss.work("archive-email-provider-sync", async (job) =>
+    await this.boss.work(JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC, async (job) =>
       this.handleArchiveProviderSync(job.data as ArchiveProviderSyncJobData),
     );
     this.logger.log(

@@ -14,6 +14,7 @@ import {
 import PgBoss from "pg-boss";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContactSearchResult, ContactsService } from "./contacts.service";
 
@@ -220,7 +221,7 @@ export class ContactsController {
   @Post("sync")
   async syncContacts(@Request() req): Promise<{ message: string }> {
     await this.boss.send(
-      "sync-contacts",
+      JOB_NAMES.SYNC_CONTACTS,
       { userId: req.user.userId },
       {
         singletonKey: `sync-contacts-${req.user.userId}`,

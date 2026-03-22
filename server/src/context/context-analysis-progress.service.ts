@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { MoreThan, Repository } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -219,7 +220,7 @@ export class ContextAnalysisProgressService {
    */
   private async getQueuedJobCount(): Promise<number | null> {
     try {
-      return await this.boss.getQueueSize("analyze-context-batch");
+      return await this.boss.getQueueSize(JOB_NAMES.ANALYZE_CONTEXT_BATCH);
     } catch (error) {
       this.logger.error(
         `[PROGRESS-CHECK] Failed to get PgBoss queue size: ${getErrorMessage(error)}`,
@@ -348,7 +349,7 @@ export class ContextAnalysisProgressService {
       if (batchPayload && batchPayload.length > 0) {
         try {
           const jobId = await this.boss.send(
-            "analyze-context-batch",
+            JOB_NAMES.ANALYZE_CONTEXT_BATCH,
             {
               userId,
               batchIndex,
@@ -356,7 +357,7 @@ export class ContextAnalysisProgressService {
               analysisId,
             },
             {
-              priority: getJobPriority("analyze-context-batch"),
+              priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH),
               singletonKey: `context-batch-${analysisId}-${batchIndex}`,
             },
           );

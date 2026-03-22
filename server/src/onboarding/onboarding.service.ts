@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -35,10 +36,10 @@ export class OnboardingService {
 
     this.logger.log(`Queueing historical email scan for user ${userId}`);
     await this.boss.send(
-      "scan-history",
+      JOB_NAMES.SCAN_HISTORY,
       { userId },
       {
-        priority: getJobPriority("scan-history", false),
+        priority: getJobPriority(JOB_NAMES.SCAN_HISTORY, false),
       },
     );
     return { message: "Historical email scan initiated in the background." };

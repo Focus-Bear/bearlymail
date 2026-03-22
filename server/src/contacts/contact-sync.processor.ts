@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { PusherService } from "../pusher/pusher.service";
 import { UsersService } from "../users/users.service";
 import { ContactsService } from "./contacts.service";
@@ -17,9 +18,9 @@ export class ContactSyncProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.schedule("schedule-contact-sync-jobs", "0 3 * * *");
+    await this.boss.schedule(JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS, "0 3 * * *");
 
-    await this.boss.work("schedule-contact-sync-jobs", async () => {
+    await this.boss.work(JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS, async () => {
       this.logger.log("Starting daily contact sync scheduling");
       try {
         const users = await this.usersService.findAll();
@@ -29,7 +30,7 @@ export class ContactSyncProcessor implements OnModuleInit {
           try {
             if (user.googleCalendarAccessToken) {
               await this.boss.send(
-                "sync-contacts",
+                JOB_NAMES.SYNC_CONTACTS,
                 { userId: user.id },
                 {
                   singletonKey: `sync-contacts-${user.id}`,
@@ -56,7 +57,7 @@ export class ContactSyncProcessor implements OnModuleInit {
     });
 
     await this.boss.work(
-      "sync-contacts",
+      JOB_NAMES.SYNC_CONTACTS,
       { teamSize: 3 } as PgBoss.WorkOptions,
       async (job) => {
         const { userId } = job.data as { userId: string };

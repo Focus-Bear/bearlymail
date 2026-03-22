@@ -7,6 +7,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { PERCENTAGES } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { MS_PER_SECOND } from "../constants/time-constants";
@@ -100,7 +101,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
       "log",
     );
     await this.boss.work(
-      "analyze-context-batch",
+      JOB_NAMES.ANALYZE_CONTEXT_BATCH,
       { teamSize: this.batchConcurrency },
       (job) => this.handleBatchAnalysisJob(job as PgBoss.Job<BatchAnalysisJob>),
     );
@@ -717,7 +718,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     const legacyBatch = jobData.batch;
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(
-      "analyze-context-batch",
+      JOB_NAMES.ANALYZE_CONTEXT_BATCH,
       workerId,
       this.cloudWatchService,
     );

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
@@ -22,7 +23,7 @@ export class GitHubMetadataProcessor implements OnModuleInit {
 
   async onModuleInit() {
     await this.boss.work<FetchGitHubMetadataJob>(
-      "fetch-github-metadata",
+      JOB_NAMES.FETCH_GITHUB_METADATA,
       { teamConcurrency: 5 },
       async (job) => {
         const { userId, emailId, threadId } = job.data;

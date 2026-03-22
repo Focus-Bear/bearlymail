@@ -6,6 +6,7 @@ import { IsNull, Not, Repository } from "typeorm";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { MINUTES, MS_PER_SECOND } from "../constants/time-constants";
 import { ActionItem } from "../database/entities/action-item.entity";
@@ -387,10 +388,10 @@ export class EmailLifecycleService {
 
     const summaryJobId = await this.boss
       .send(
-        "generate-summary",
+        JOB_NAMES.GENERATE_SUMMARY,
         { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
         {
-          priority: getJobPriority("generate-summary-background", false),
+          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY_BACKGROUND, false),
           singletonKey: `generate-summary-thread-${savedEmail.emailThreadId || savedEmail.id}`,
           singletonMinutes: 5,
         },
@@ -429,10 +430,10 @@ export class EmailLifecycleService {
   private queueThreadLevelJobs(userId: string, savedEmail: Email): void {
     this.boss
       .send(
-        "fetch-github-metadata",
+        JOB_NAMES.FETCH_GITHUB_METADATA,
         { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
         {
-          priority: getJobPriority("generate-summary-background", false),
+          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY_BACKGROUND, false),
           singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
           singletonMinutes: MINUTES.HOUR,
         },
@@ -446,10 +447,10 @@ export class EmailLifecycleService {
 
     this.boss
       .send(
-        "auto-responder",
+        JOB_NAMES.AUTO_RESPONDER,
         { userId, emailThreadId: savedEmail.emailThreadId },
         {
-          priority: getJobPriority("auto-responder"),
+          priority: getJobPriority(JOB_NAMES.AUTO_RESPONDER),
           retryLimit: 2,
           retryDelay: 30,
           expireInMinutes: MINUTES.HOUR,
@@ -493,10 +494,10 @@ export class EmailLifecycleService {
     const savedEmail = await this.emailRepository.save(email);
     this.boss
       .send(
-        "archive-email",
+        JOB_NAMES.ARCHIVE_EMAIL,
         { userId, emailId: savedEmail.id, isBlocked: true },
         {
-          priority: getJobPriority("archive-email", false),
+          priority: getJobPriority(JOB_NAMES.ARCHIVE_EMAIL, false),
           singletonKey: `archive-blocked-${savedEmail.threadId}`,
           singletonMinutes: 5,
         },
@@ -588,10 +589,10 @@ export class EmailLifecycleService {
     if (emailIds.length === 1) {
       await this.boss
         .send(
-          "refine-priority",
+          JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId: emailIds[0] },
           {
-            priority: getJobPriority("refine-priority-background", false),
+            priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
             singletonKey: `refine-priority-${emailIds[0]}`,
             singletonMinutes: 1,
           },
@@ -607,10 +608,10 @@ export class EmailLifecycleService {
 
     const batchJobId = await this.boss
       .send(
-        "refine-priority-batch",
+        JOB_NAMES.REFINE_PRIORITY_BATCH,
         { userId, emailIds },
         {
-          priority: getJobPriority("refine-priority-batch", false),
+          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BATCH, false),
           singletonKey: `refine-priority-batch-${userId}-${Date.now()}`,
         },
       )

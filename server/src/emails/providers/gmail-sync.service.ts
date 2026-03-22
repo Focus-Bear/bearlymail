@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 import { authLogger } from "../../auth/auth-logger";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
+import { JOB_NAMES } from "../../constants/job-names";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import {
   DAYS,
@@ -732,9 +733,9 @@ export class GmailSyncService {
             .slice(i, i + QUERY_LIMITS.GMAIL_BATCH_SIZE)
             .map((messageId) =>
               this.boss.send(
-                "scan-history-email",
+                JOB_NAMES.SCAN_HISTORY_EMAIL,
                 { userId, messageId },
-                { priority: getJobPriority("scan-history-email", false) },
+                { priority: getJobPriority(JOB_NAMES.SCAN_HISTORY_EMAIL, false) },
               ),
             ),
         );
@@ -806,9 +807,9 @@ export class GmailSyncService {
       if (result.isComplete) {
         this.progressUpdateCounters.delete(userId);
         await this.boss.send(
-          "analyze-scan-results",
+          JOB_NAMES.ANALYZE_SCAN_RESULTS,
           { userId },
-          { priority: getJobPriority("analyze-scan-results", false) },
+          { priority: getJobPriority(JOB_NAMES.ANALYZE_SCAN_RESULTS, false) },
         );
       }
     }

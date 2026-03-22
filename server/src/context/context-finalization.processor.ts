@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { RETRY_CONSTANTS } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
@@ -76,7 +77,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     );
 
     await this.boss.work(
-      "finalize-context-analysis",
+      JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
       { teamSize: this.finalizationConcurrency } as { teamSize: number },
       async (job) => {
         const pgBossJob = job as unknown as PgBossJob;
@@ -161,10 +162,10 @@ export class ContextFinalizationProcessor implements OnModuleInit {
 
     // Use a unique key with timestamp to avoid singleton conflict with current job
     const retryJobId = await this.boss.send(
-      "finalize-context-analysis",
+      JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
       updatedJobData,
       {
-        priority: getJobPriority("finalize-context-analysis", false),
+        priority: getJobPriority(JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS, false),
         singletonKey: `finalize-context-analysis-${analysisRecordId}-retry-${Date.now()}`,
         // Short duration for retry jobs
         singletonMinutes: 1,
@@ -267,7 +268,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     const { userId, analysisRecordId, totalBatches } = jobData;
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(
-      "finalize-context-analysis",
+      JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
       workerId,
       this.cloudWatchService,
     );

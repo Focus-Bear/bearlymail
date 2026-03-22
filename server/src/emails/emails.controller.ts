@@ -25,6 +25,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
@@ -33,7 +34,9 @@ import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.ser
 import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
 import {
+  appendSignature,
   BatchStatusPerformanceTracker,
+  EMAIL_CONTROLLER_DEFAULTS,
   PgBossWithInternals,
 } from "./email-controller.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -276,17 +279,16 @@ export class EmailsController {
     if (!query) {
       return [];
     }
-    const DEFAULT_MAX_RESULTS = 50;
-    const max = maxResults ? parseInt(maxResults, 10) : DEFAULT_MAX_RESULTS;
+    const max = maxResults
+      ? parseInt(maxResults, 10)
+      : EMAIL_CONTROLLER_DEFAULTS.MAX_RESULTS;
     const selectedAccountTypes = accountTypes
       ? accountTypes.split(",")
       : undefined;
     const skipLlmRanking = skipLlm === "true";
-    // When skipLlm=true (Phase 1 fast path), also skip LLM fallback query
-    // generation and provider sync to keep response within the 2s budget.
-    const skipLlmFallback = skipLlmRanking;
-    const skipSync = skipLlmRanking;
     try {
+      // When skipLlm=true (Phase 1 fast path), also skip LLM fallback query
+      // generation and provider sync to keep response within the 2s budget.
       return await this.emailsService.searchEmails(
         req.user.userId,
         query,
@@ -294,8 +296,8 @@ export class EmailsController {
         undefined,
         selectedAccountTypes,
         skipLlmRanking,
-        skipLlmFallback,
-        skipSync,
+        skipLlmRanking,
+        skipLlmRanking,
       );
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
@@ -327,13 +329,12 @@ export class EmailsController {
     if (!query || !emailIds || emailIds.length === 0) {
       return [];
     }
-    const DEFAULT_MAX_RESULTS = 50;
     try {
       return await this.emailsService.rankSearchResults(
         req.user.userId,
         query,
         emailIds,
-        maxResults ?? DEFAULT_MAX_RESULTS,
+        maxResults ?? EMAIL_CONTROLLER_DEFAULTS.MAX_RESULTS,
       );
     } catch (error) {
       this.logger.error(`Error in rankSearchResults:`, error);
@@ -364,11 +365,9 @@ export class EmailsController {
 
   @Get("stats")
   async getEmailStats(@Request() req, @Query("days") daysParam?: string) {
-    const DEFAULT_DAYS = 30;
-    const MAX_DAYS = 90;
     const days = Math.min(
-      daysParam ? parseInt(daysParam, 10) : DEFAULT_DAYS,
-      MAX_DAYS,
+      daysParam ? parseInt(daysParam, 10) : EMAIL_CONTROLLER_DEFAULTS.DAYS,
+      EMAIL_CONTROLLER_DEFAULTS.MAX_DAYS,
     );
     const { userId } = req.user;
     const since = new Date();
@@ -609,10 +608,10 @@ export class EmailsController {
     // Add sync job to queue with singletonKey to prevent duplicates
     // Only one sync job per user can be queued at a time
     await this.boss.send(
-      "fetch-user-emails",
+      JOB_NAMES.FETCH_USER_EMAILS,
       { userId: req.user.userId },
       {
-        priority: getJobPriority("fetch-user-emails", true),
+        priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
         // User-triggered = high priority
         singletonKey: `fetch-user-emails-${req.user.userId}`,
         // Don't allow another fetch for same user within 5 minutes
@@ -671,9 +670,13 @@ export class EmailsController {
     // Reset jobs that are stuck in retry state with future startafter times
     // Cast to extended interface to access internal pg-boss methods
     const bossInternal = this.boss as unknown as PgBossWithInternals;
-    const stuckJobs = await bossInternal.getQueueSize("refine-priority");
-    const stuckSummary = await bossInternal.getQueueSize("generate-summary");
-    const stuckSync = await bossInternal.getQueueSize("sync-emails");
+    const stuckJobs = await bossInternal.getQueueSize(
+      JOB_NAMES.REFINE_PRIORITY,
+    );
+    const stuckSummary = await bossInternal.getQueueSize(
+      JOB_NAMES.GENERATE_SUMMARY,
+    );
+    const stuckSync = await bossInternal.getQueueSize(JOB_NAMES.SYNC_EMAILS);
 
     // Use raw SQL to reset startafter for stuck jobs
     const result = await bossInternal.db.executeSql(`
@@ -687,9 +690,9 @@ export class EmailsController {
     return {
       message: "Reset stuck jobs",
       queueSizes: {
-        "refine-priority": stuckJobs,
-        "generate-summary": stuckSummary,
-        "sync-emails": stuckSync,
+        [JOB_NAMES.REFINE_PRIORITY]: stuckJobs,
+        [JOB_NAMES.GENERATE_SUMMARY]: stuckSummary,
+        [JOB_NAMES.SYNC_EMAILS]: stuckSync,
       },
       resetCount: result?.rowCount || 0,
     };
@@ -743,8 +746,7 @@ export class EmailsController {
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(
     @Request() req,
-    @Body()
-    body: {
+    @Body() body: {
       to: EmailRecipient[];
       subject: string;
       body: string;
@@ -809,10 +811,7 @@ export class EmailsController {
 
     // Get user to append signature
     const user = await this.usersService.findOne(userId);
-    const signature =
-      user?.emailSignature ||
-      "Sent from BearlyMail (anti inbox overwhelm system)";
-    const bodyWithSignature = `${body.body}\n\n${signature}`;
+    const bodyWithSignature = appendSignature(body.body, user?.emailSignature);
 
     // Send the email
     const result = await provider.sendEmail(
@@ -884,20 +883,19 @@ export class EmailsController {
     // If summary is processing or missing, queue with highest priority
     if (email.isProcessingSummary || !email.summary) {
       await this.boss.send(
-        "generate-summary",
+        JOB_NAMES.GENERATE_SUMMARY,
         { userId, emailId: id },
         {
-          priority: getJobPriority("generate-summary", true),
+          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY, true),
           // User-triggered = high priority
           singletonKey: `summary-${id}`,
         },
       );
-      queued.push("generate-summary");
+      queued.push(JOB_NAMES.GENERATE_SUMMARY);
     }
 
     // If priority is default, queue refinement with highest priority
     const priorityScore = email.getPriorityScore();
-    const DEFAULT_PRIORITY_SCORE = 50;
 
     // Get thread to check isProcessingPriority (priority is thread-level)
     let thread = null;
@@ -909,19 +907,19 @@ export class EmailsController {
     }
 
     if (
-      priorityScore === DEFAULT_PRIORITY_SCORE ||
+      priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE ||
       thread?.isProcessingPriority
     ) {
       await this.boss.send(
-        "refine-priority",
+        JOB_NAMES.REFINE_PRIORITY,
         { userId, emailId: id },
         {
-          priority: getJobPriority("refine-priority", true),
+          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
           // User-triggered = high priority
           singletonKey: `priority-${id}`,
         },
       );
-      queued.push("refine-priority");
+      queued.push(JOB_NAMES.REFINE_PRIORITY);
     }
 
     return {

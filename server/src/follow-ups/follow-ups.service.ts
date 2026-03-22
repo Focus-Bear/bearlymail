@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { LessThanOrEqual, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextService } from "../context/context.service";
 import { Email } from "../database/entities/email.entity";
@@ -507,7 +508,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
       // Queue background job
       await this.followUpRepository.save(followUp);
       await this.boss.send(
-        "generate-follow-up-draft",
+        JOB_NAMES.GENERATE_FOLLOW_UP_DRAFT,
         {
           userId,
           followUpId: followUp.id,

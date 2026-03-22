@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -94,10 +95,10 @@ export class EmailStarService {
       // Queue learning job asynchronously (don't block the response)
       this.boss
         .send(
-          "learn-from-star",
+          JOB_NAMES.LEARN_FROM_STAR,
           { userId, emailId, starCount: newStarCount },
           {
-            priority: getJobPriority("learn-from-star", false),
+            priority: getJobPriority(JOB_NAMES.LEARN_FROM_STAR, false),
           },
         )
         .catch((err) => this.logger.error("Failed to queue learning job", err));

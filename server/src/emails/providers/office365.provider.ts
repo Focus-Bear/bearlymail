@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
+import { JOB_NAMES } from "../../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { DAYS } from "../../constants/time-constants";
@@ -607,10 +608,10 @@ export class Office365Provider implements EmailProvider {
       if (result.isComplete) {
         this.progressUpdateCounters.delete(userId);
         await this.boss.send(
-          "analyze-scan-results",
+          JOB_NAMES.ANALYZE_SCAN_RESULTS,
           { userId },
           {
-            priority: getJobPriority("analyze-scan-results", false),
+            priority: getJobPriority(JOB_NAMES.ANALYZE_SCAN_RESULTS, false),
           },
         );
       }
@@ -678,9 +679,9 @@ export class Office365Provider implements EmailProvider {
 
       if (finalProgress.isComplete) {
         await this.boss.send(
-          "analyze-scan-results",
+          JOB_NAMES.ANALYZE_SCAN_RESULTS,
           { userId },
-          { priority: getJobPriority("analyze-scan-results", false) },
+          { priority: getJobPriority(JOB_NAMES.ANALYZE_SCAN_RESULTS, false) },
         );
       }
       await this.usersService.update(userId, { hasScannedHistory: true });

@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "./context.service";
@@ -47,7 +48,7 @@ export class ContextAnalysisProcessor implements OnModuleInit {
       "log",
     );
     await this.boss.work(
-      "analyze-context",
+      JOB_NAMES.ANALYZE_CONTEXT,
       { teamSize: this.contextConcurrency } as { teamSize: number },
       async (job) => {
         const { userId, analysisId } = job.data as {
@@ -56,7 +57,7 @@ export class ContextAnalysisProcessor implements OnModuleInit {
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
-          "analyze-context",
+          JOB_NAMES.ANALYZE_CONTEXT,
           workerId,
           this.cloudWatchService,
         );

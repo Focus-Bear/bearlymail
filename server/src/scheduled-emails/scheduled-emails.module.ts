@@ -8,6 +8,7 @@ import {
 import { TypeOrmModule } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailsModule } from "../emails/emails.module";
@@ -40,7 +41,7 @@ export class ScheduledEmailsModule implements OnModuleInit {
   async onModuleInit() {
     // Register cron job to check for scheduled emails every 5 minutes
     await this.boss.schedule(
-      "send-scheduled-emails",
+      JOB_NAMES.SEND_SCHEDULED_EMAILS,
       // Every 5 minutes
       "*/5 * * * *",
       {},
@@ -50,7 +51,7 @@ export class ScheduledEmailsModule implements OnModuleInit {
     );
 
     // Register job processor
-    await this.boss.work("send-scheduled-emails", async () => {
+    await this.boss.work(JOB_NAMES.SEND_SCHEDULED_EMAILS, async () => {
       await this.sendScheduledEmailsProcessor.process();
     });
 

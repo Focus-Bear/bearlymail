@@ -4,6 +4,7 @@ import * as path from "path";
 import PgBoss from "pg-boss";
 import { DataSource } from "typeorm";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
@@ -145,18 +146,18 @@ export class QueueMonitorService implements OnModuleInit {
   async collectMetrics(): Promise<void> {
     try {
       const monitoredQueues = [
-        "fetch-user-emails",
+        JOB_NAMES.FETCH_USER_EMAILS,
         // Legacy
-        "sync-emails",
-        "schedule-email-fetch-jobs",
-        "sync-gmail",
-        "scan-history",
-        "scan-history-email",
-        "refine-priority",
-        "generate-summary",
-        "learn-from-star",
-        "analyze-scan-results",
-        "analyze-context",
+        JOB_NAMES.SYNC_EMAILS,
+        JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS,
+        JOB_NAMES.SYNC_GMAIL,
+        JOB_NAMES.SCAN_HISTORY,
+        JOB_NAMES.SCAN_HISTORY_EMAIL,
+        JOB_NAMES.REFINE_PRIORITY,
+        JOB_NAMES.GENERATE_SUMMARY,
+        JOB_NAMES.LEARN_FROM_STAR,
+        JOB_NAMES.ANALYZE_SCAN_RESULTS,
+        JOB_NAMES.ANALYZE_CONTEXT,
       ];
 
       const queueMetrics = await this.queryAllQueueMetrics(monitoredQueues);
@@ -275,18 +276,18 @@ export class QueueMonitorService implements OnModuleInit {
    */
   async getQueueHealth(): Promise<QueueHealthMetrics> {
     const queueNames = [
-      "fetch-user-emails",
+      JOB_NAMES.FETCH_USER_EMAILS,
       // Legacy
-      "sync-emails",
-      "schedule-email-fetch-jobs",
-      "sync-gmail",
-      "scan-history",
-      "scan-history-email",
-      "refine-priority",
-      "generate-summary",
-      "learn-from-star",
-      "analyze-scan-results",
-      "analyze-context",
+      JOB_NAMES.SYNC_EMAILS,
+      JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS,
+      JOB_NAMES.SYNC_GMAIL,
+      JOB_NAMES.SCAN_HISTORY,
+      JOB_NAMES.SCAN_HISTORY_EMAIL,
+      JOB_NAMES.REFINE_PRIORITY,
+      JOB_NAMES.GENERATE_SUMMARY,
+      JOB_NAMES.LEARN_FROM_STAR,
+      JOB_NAMES.ANALYZE_SCAN_RESULTS,
+      JOB_NAMES.ANALYZE_CONTEXT,
     ];
 
     const queueMetrics: JobMetrics[] = [];

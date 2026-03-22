@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { INBOX_MODES } from "../constants/query-limits";
 import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
 import { ContactsService } from "../contacts/contacts.service";
@@ -333,7 +334,7 @@ export class EmailAdminService {
     let queued = 0;
     for (const email of allEmails) {
       await this.boss.send(
-        "refine-priority",
+        JOB_NAMES.REFINE_PRIORITY,
         {
           userId,
           emailId: email.id,
@@ -341,7 +342,7 @@ export class EmailAdminService {
           recategorizeBatchId: batchId,
         },
         {
-          priority: getJobPriority("refine-priority", true),
+          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
           singletonKey: `recategorize-${email.id}`,
           singletonMinutes: 1,
         },

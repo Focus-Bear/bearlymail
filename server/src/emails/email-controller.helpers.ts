@@ -6,6 +6,25 @@ import PgBoss from "pg-boss";
 // Performance budget for batch-status endpoint (ms)
 export const BATCH_STATUS_BUDGET = 500;
 
+// Default and limit values for email controller endpoints
+export const EMAIL_CONTROLLER_DEFAULTS = {
+  MAX_RESULTS: 50,
+  DAYS: 30,
+  MAX_DAYS: 90,
+  PRIORITY_SCORE: 50,
+  DEFAULT_SIGNATURE: "Sent from BearlyMail (anti inbox overwhelm system)",
+} as const;
+
+/**
+ * Appends the user's email signature (or the default BearlyMail signature) to
+ * an outgoing email body, separated by two newlines.
+ */
+export const appendSignature = (
+  emailBody: string,
+  userSignature?: string | null,
+): string =>
+  `${emailBody}\n\n${userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE}`;
+
 /**
  * Extended pg-boss interface to access internal methods not exposed in types.
  * These are used for advanced job queue operations (resetting stuck jobs, etc.).

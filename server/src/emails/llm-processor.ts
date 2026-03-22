@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 import { In, IsNull, Not, Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
   EMAIL_CLASSIFICATION,
@@ -161,7 +162,7 @@ export class LLMProcessor implements OnModuleInit {
       `Starting priority refinement worker with concurrency: ${this.priorityConcurrency}`,
     );
     await this.boss.work(
-      "refine-priority",
+      JOB_NAMES.REFINE_PRIORITY,
       { teamSize: this.priorityConcurrency },
       async (job) => this.handleRefinePriorityJob(job as PgBoss.Job),
     );
@@ -177,7 +178,7 @@ export class LLMProcessor implements OnModuleInit {
       `Starting summary generation worker with ${parallelCalls} parallel LLM calls per batch`,
     );
     await this.boss.work(
-      "generate-summary",
+      JOB_NAMES.GENERATE_SUMMARY,
       {
         // Fetch multiple jobs at once for parallel LLM calls
         batchSize: parallelCalls,
@@ -186,7 +187,7 @@ export class LLMProcessor implements OnModuleInit {
         const jobArray = Array.isArray(jobs) ? jobs : [jobs];
         const batchId = `batch-${Date.now()}`;
         const tracker = new JobPerformanceTracker(
-          "generate-summary",
+          JOB_NAMES.GENERATE_SUMMARY,
           batchId,
           this.cloudWatchService,
         );
@@ -204,7 +205,7 @@ export class LLMProcessor implements OnModuleInit {
     // This is much faster than individual calls: ~2-4s for a batch vs ~2min per email
     this.logger.log("Starting batch priority refinement worker");
     await this.boss.work(
-      "refine-priority-batch",
+      JOB_NAMES.REFINE_PRIORITY_BATCH,
       { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 2)) },
       async (job) => this.handleRefinePriorityBatchJob(job as PgBoss.Job),
     );
@@ -335,7 +336,7 @@ export class LLMProcessor implements OnModuleInit {
     };
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(
-      "refine-priority",
+      JOB_NAMES.REFINE_PRIORITY,
       workerId,
       this.cloudWatchService,
     );
@@ -654,7 +655,7 @@ export class LLMProcessor implements OnModuleInit {
     };
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(
-      "refine-priority-batch",
+      JOB_NAMES.REFINE_PRIORITY_BATCH,
       workerId,
       this.cloudWatchService,
     );

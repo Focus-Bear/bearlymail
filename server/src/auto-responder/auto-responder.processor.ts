@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import PgBoss from "pg-boss";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import PgBoss = require("pg-boss");
+import { JOB_NAMES } from "../constants/job-names";
 
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";
@@ -25,7 +27,7 @@ export class AutoResponderProcessor implements OnModuleInit {
   async onModuleInit() {
     // Register worker for auto-responder jobs
     await this.boss.work(
-      "auto-responder",
+      JOB_NAMES.AUTO_RESPONDER,
       {
         // Process up to 5 jobs concurrently
         teamConcurrency: 5,
@@ -93,14 +95,14 @@ export class AutoResponderProcessor implements OnModuleInit {
 
     try {
       const jobId = await this.boss.send(
-        "auto-responder",
+        JOB_NAMES.AUTO_RESPONDER,
         {
           userId,
           emailThreadId,
           headers,
         } as AutoResponderJobData,
         {
-          priority: getJobPriority("auto-responder"),
+          priority: getJobPriority(JOB_NAMES.AUTO_RESPONDER),
           retryLimit: 2,
           retryDelay: QUEUE_CONFIG.RETRY_DELAY_SECONDS,
           // Expire after 1 hour

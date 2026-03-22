@@ -19,6 +19,7 @@ import { In, Repository } from "typeorm";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { JOB_NAMES } from "../constants/job-names";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { PERCENTAGES } from "../constants/percentages";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
@@ -421,7 +422,7 @@ export class ContextController {
       "log",
     );
 
-    const priority = getJobPriority("analyze-context");
+    const priority = getJobPriority(JOB_NAMES.ANALYZE_CONTEXT);
     this.logger.log(
       `[CONTEXT-CONTROLLER] Sending job to queue with priority ${priority}`,
     );
@@ -432,7 +433,7 @@ export class ContextController {
 
     // Send job to queue with analysis ID
     await this.boss.send(
-      "analyze-context",
+      JOB_NAMES.ANALYZE_CONTEXT,
       { userId, analysisId: analysisRecord.id },
       { priority },
     );

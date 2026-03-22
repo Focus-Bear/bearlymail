@@ -20,6 +20,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import PgBoss from "pg-boss";
 
+import { JOB_NAMES } from "../constants/job-names";
 import { MS_PER_SECOND } from "../constants/time-constants";
 
 // Load environment variables
@@ -105,7 +106,7 @@ async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
     const promises = TEST_USER_IDS.map(async (userId) => {
       try {
         await boss.send(
-          "sync-emails",
+          JOB_NAMES.SYNC_EMAILS,
           { userId },
           {
             priority: 80,
@@ -159,7 +160,7 @@ async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
     const promises = TEST_EMAIL_IDS.map(async (emailId) => {
       try {
         await boss.send(
-          "refine-priority",
+          JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId },
           {
             priority: 80,
@@ -218,7 +219,7 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       jobs.push(
         boss
           .send(
-            "sync-emails",
+            JOB_NAMES.SYNC_EMAILS,
             { userId },
             {
               priority: 80,
@@ -242,7 +243,7 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       jobs.push(
         boss
           .send(
-            "refine-priority",
+            JOB_NAMES.REFINE_PRIORITY,
             { userId: TEST_USER_IDS[0], emailId },
             {
               priority: 80,
@@ -266,7 +267,7 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       jobs.push(
         boss
           .send(
-            "generate-summary",
+            JOB_NAMES.GENERATE_SUMMARY,
             { userId: TEST_USER_IDS[0], emailId },
             {
               priority: 80,
@@ -291,7 +292,7 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       jobs.push(
         boss
           .send(
-            "learn-from-star",
+            JOB_NAMES.LEARN_FROM_STAR,
             { userId: TEST_USER_IDS[0], emailId, starCount: 3 },
             {
               priority: 10,
@@ -336,12 +337,12 @@ async function getQueueStats(boss: PgBoss): Promise<void> {
   console.log("\n=== Current Queue Statistics ===");
 
   const queueNames = [
-    "sync-emails",
-    "refine-priority",
-    "generate-summary",
-    "learn-from-star",
-    "analyze-scan-results",
-    "analyze-context",
+    JOB_NAMES.SYNC_EMAILS,
+    JOB_NAMES.REFINE_PRIORITY,
+    JOB_NAMES.GENERATE_SUMMARY,
+    JOB_NAMES.LEARN_FROM_STAR,
+    JOB_NAMES.ANALYZE_SCAN_RESULTS,
+    JOB_NAMES.ANALYZE_CONTEXT,
   ];
 
   for (const queueName of queueNames) {

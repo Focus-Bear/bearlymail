@@ -1,3 +1,5 @@
+import { JOB_NAMES, JobName } from "../constants/job-names";
+
 /**
  * Job Priority Constants
  *
@@ -25,70 +27,29 @@ export enum JobPriority {
 /**
  * Priority assignments for different job types
  */
-export const JobTypePriority = {
-  // User-triggered email fetches (manual sync from UI)
-  "fetch-user-emails": JobPriority.HIGH,
-
-  // Scheduled email fetch job coordinator (cron job)
-  "schedule-email-fetch-jobs": JobPriority.MEDIUM,
-
-  // Legacy: keep for backwards compatibility
-  "sync-emails": JobPriority.HIGH,
-
-  // User-triggered priority refinement (for visible emails)
-  "refine-priority": JobPriority.HIGH,
-
-  // Background priority refinement (for new emails)
-  "refine-priority-background": JobPriority.MEDIUM,
-
-  // Batch priority refinement (multiple emails in single LLM call)
-  "refine-priority-batch": JobPriority.MEDIUM_HIGH,
-
-  // User-triggered summary generation
-  "generate-summary": JobPriority.HIGH,
-
-  // Background summary generation
-  "generate-summary-background": JobPriority.MEDIUM,
-
-  // Historical scan (onboarding)
-  "scan-history": JobPriority.MEDIUM,
-
-  // Individual email scan processing
-  "scan-history-email": JobPriority.MEDIUM,
-
-  // Scan analysis
-  "analyze-scan-results": JobPriority.LOW,
-
-  // Context analysis
-  "analyze-context": JobPriority.LOW,
-
-  // Batch email analysis (part of context analysis)
-  "analyze-context-batch": JobPriority.LOW,
-
-  // Finalize context analysis (post-processing after batches complete)
-  "finalize-context-analysis": JobPriority.LOW,
-
-  // Learning from user actions
-  "learn-from-star": JobPriority.VERY_LOW,
-
-  // Legacy sync job
-  "sync-gmail": JobPriority.MEDIUM,
-
-  // Auto-responder (after triage completion)
-  "auto-responder": JobPriority.LOW,
-
-  // Background suggested reply generation
-  "generate-suggested-replies": JobPriority.LOW,
-
-  // Archive provider sync (DB already updated, sync to Gmail/Office365/Zoho)
-  "archive-email-provider-sync": JobPriority.HIGH,
-
-  // Contact sync (background sync from Google Contacts)
-  "sync-contacts": JobPriority.LOW,
-
-  // Daily contact sync scheduler
-  "schedule-contact-sync-jobs": JobPriority.LOW,
-} as const;
+export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
+  [JOB_NAMES.FETCH_USER_EMAILS]: JobPriority.HIGH,
+  [JOB_NAMES.SCHEDULE_EMAIL_FETCH_JOBS]: JobPriority.MEDIUM,
+  [JOB_NAMES.SYNC_EMAILS]: JobPriority.HIGH,
+  [JOB_NAMES.REFINE_PRIORITY]: JobPriority.HIGH,
+  [JOB_NAMES.REFINE_PRIORITY_BACKGROUND]: JobPriority.MEDIUM,
+  [JOB_NAMES.REFINE_PRIORITY_BATCH]: JobPriority.MEDIUM_HIGH,
+  [JOB_NAMES.GENERATE_SUMMARY]: JobPriority.HIGH,
+  [JOB_NAMES.GENERATE_SUMMARY_BACKGROUND]: JobPriority.MEDIUM,
+  [JOB_NAMES.SCAN_HISTORY]: JobPriority.MEDIUM,
+  [JOB_NAMES.SCAN_HISTORY_EMAIL]: JobPriority.MEDIUM,
+  [JOB_NAMES.ANALYZE_SCAN_RESULTS]: JobPriority.LOW,
+  [JOB_NAMES.ANALYZE_CONTEXT]: JobPriority.LOW,
+  [JOB_NAMES.ANALYZE_CONTEXT_BATCH]: JobPriority.LOW,
+  [JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS]: JobPriority.LOW,
+  [JOB_NAMES.LEARN_FROM_STAR]: JobPriority.VERY_LOW,
+  [JOB_NAMES.SYNC_GMAIL]: JobPriority.MEDIUM,
+  [JOB_NAMES.AUTO_RESPONDER]: JobPriority.LOW,
+  [JOB_NAMES.GENERATE_SUGGESTED_REPLIES]: JobPriority.LOW,
+  [JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC]: JobPriority.HIGH,
+  [JOB_NAMES.SYNC_CONTACTS]: JobPriority.LOW,
+  [JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS]: JobPriority.LOW,
+};
 
 /**
  * Get priority for a job type
@@ -97,28 +58,31 @@ export const JobTypePriority = {
  * @returns Priority value (1-100)
  */
 export function getJobPriority(
-  jobType: string,
+  jobType: JobName | string,
   isUserTriggered: boolean = false,
 ): number {
-  // User-triggered jobs get higher priority
   if (isUserTriggered) {
-    if (jobType === "refine-priority" || jobType === "generate-summary") {
+    if (
+      jobType === JOB_NAMES.REFINE_PRIORITY ||
+      jobType === JOB_NAMES.GENERATE_SUMMARY
+    ) {
       return JobPriority.HIGH;
     }
-    if (jobType === "fetch-user-emails" || jobType === "sync-emails") {
+    if (
+      jobType === JOB_NAMES.FETCH_USER_EMAILS ||
+      jobType === JOB_NAMES.SYNC_EMAILS
+    ) {
       return JobPriority.HIGH;
     }
-    if (jobType === "analyze-context") {
+    if (jobType === JOB_NAMES.ANALYZE_CONTEXT) {
       return JobPriority.MEDIUM_HIGH;
     }
   }
 
-  // Check if we have a specific priority for this job type
-  const priority = JobTypePriority[jobType as keyof typeof JobTypePriority];
+  const priority = JobTypePriority[jobType as JobName];
   if (priority !== undefined) {
     return priority;
   }
 
-  // Default to medium priority
   return JobPriority.MEDIUM;
 }

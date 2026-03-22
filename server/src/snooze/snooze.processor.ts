@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { LessThanOrEqual, Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -25,17 +26,17 @@ export class SnoozeProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.boss.schedule("check-expired-snoozes", "* * * * *");
+    await this.boss.schedule(JOB_NAMES.CHECK_EXPIRED_SNOOZES, "* * * * *");
     await this.registerSnoozeCheckWorker();
     await this.registerUnsnoozeThreadWorker();
     this.logger.log("Snooze processor initialized - checking every minute");
   }
 
   private async registerSnoozeCheckWorker() {
-    await this.boss.work("check-expired-snoozes", async (job) => {
+    await this.boss.work(JOB_NAMES.CHECK_EXPIRED_SNOOZES, async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
-        "check-expired-snoozes",
+        JOB_NAMES.CHECK_EXPIRED_SNOOZES,
         workerId,
         this.cloudWatchService,
       );
@@ -63,10 +64,10 @@ export class SnoozeProcessor implements OnModuleInit {
         for (const thread of expiredThreads) {
           try {
             await this.boss.send(
-              "unsnooze-thread",
+              JOB_NAMES.UNSNOOZE_THREAD,
               { userId: thread.userId, threadId: thread.threadId },
               {
-                priority: getJobPriority("fetch-user-emails", false),
+                priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
                 singletonKey: `unsnooze-thread-${thread.threadId}`,
                 singletonMinutes: 5,
               },
@@ -95,66 +96,70 @@ export class SnoozeProcessor implements OnModuleInit {
   }
 
   private async registerUnsnoozeThreadWorker() {
-    await this.boss.work("unsnooze-thread", { teamSize: 3 }, async (job) => {
-      const { userId, threadId } = job.data as {
-        userId: string;
-        threadId: string;
-      };
-      const workerId = job.id || "unknown";
-      const tracker = new JobPerformanceTracker(
-        "unsnooze-thread",
-        workerId,
-        this.cloudWatchService,
-      );
-      tracker.setMetadata({ userId, threadId });
-
-      this.logger.log(
-        `[Worker ${workerId}] Starting unsnooze for thread ${threadId}`,
-      );
-
-      try {
-        tracker.startPhase("unsnoozeInProvider");
-
-        const provider =
-          await this.emailProviderManager.getPrimaryProvider(userId);
-        if (provider) {
-          await provider.unsnoozeThread(userId, threadId);
-          this.logger.log(
-            `[Worker ${workerId}] Successfully unsnoozed thread ${threadId} in provider`,
-          );
-        } else {
-          this.logger.warn(
-            `[Worker ${workerId}] No email provider connected for user ${userId}`,
-          );
-        }
-
-        tracker.endPhase("unsnoozeInProvider");
-        tracker.startPhase("updateDatabase");
-
-        await this.emailThreadRepository.update(
-          { userId, threadId },
-          { isSnoozed: false, snoozeUntil: null },
+    await this.boss.work(
+      JOB_NAMES.UNSNOOZE_THREAD,
+      { teamSize: 3 },
+      async (job) => {
+        const { userId, threadId } = job.data as {
+          userId: string;
+          threadId: string;
+        };
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          JOB_NAMES.UNSNOOZE_THREAD,
+          workerId,
+          this.cloudWatchService,
         );
-
-        await this.emailRepository.update(
-          { userId, threadId },
-          { isSnoozed: false, snoozeUntil: null },
-        );
-
-        tracker.endPhase("updateDatabase");
-        tracker.finish();
+        tracker.setMetadata({ userId, threadId });
 
         this.logger.log(
-          `[Worker ${workerId}] Completed unsnooze for thread ${threadId}`,
+          `[Worker ${workerId}] Starting unsnooze for thread ${threadId}`,
         );
-      } catch (error) {
-        this.logger.error(
-          `[Worker ${workerId}] Failed to unsnooze thread ${threadId}:`,
-          error,
-        );
-        tracker.finish(error as Error);
-        throw error;
-      }
-    });
+
+        try {
+          tracker.startPhase("unsnoozeInProvider");
+
+          const provider =
+            await this.emailProviderManager.getPrimaryProvider(userId);
+          if (provider) {
+            await provider.unsnoozeThread(userId, threadId);
+            this.logger.log(
+              `[Worker ${workerId}] Successfully unsnoozed thread ${threadId} in provider`,
+            );
+          } else {
+            this.logger.warn(
+              `[Worker ${workerId}] No email provider connected for user ${userId}`,
+            );
+          }
+
+          tracker.endPhase("unsnoozeInProvider");
+          tracker.startPhase("updateDatabase");
+
+          await this.emailThreadRepository.update(
+            { userId, threadId },
+            { isSnoozed: false, snoozeUntil: null },
+          );
+
+          await this.emailRepository.update(
+            { userId, threadId },
+            { isSnoozed: false, snoozeUntil: null },
+          );
+
+          tracker.endPhase("updateDatabase");
+          tracker.finish();
+
+          this.logger.log(
+            `[Worker ${workerId}] Completed unsnooze for thread ${threadId}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `[Worker ${workerId}] Failed to unsnooze thread ${threadId}:`,
+            error,
+          );
+          tracker.finish(error as Error);
+          throw error;
+        }
+      },
+    );
   }
 }

@@ -15,6 +15,7 @@ import PgBoss from "pg-boss";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { FollowUpsService } from "./follow-ups.service";
@@ -165,7 +166,7 @@ export class FollowUpsController {
     }
 
     // Queue background job
-    const job = await this.boss.send("bulk-send-follow-ups", {
+    const job = await this.boss.send(JOB_NAMES.BULK_SEND_FOLLOW_UPS, {
       userId: req.user.userId,
       followUpIds: body.followUpIds,
     });

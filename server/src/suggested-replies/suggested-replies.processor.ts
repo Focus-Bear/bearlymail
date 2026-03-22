@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -59,7 +60,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     this.logger.log("Registering generate-suggested-replies worker");
 
     await this.boss.work(
-      "generate-suggested-replies",
+      JOB_NAMES.GENERATE_SUGGESTED_REPLIES,
       { teamSize: 4 },
       (job: PgBoss.Job<object>) => this.handleGenerateSuggestedRepliesJob(job),
     );
@@ -79,7 +80,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     };
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(
-      "generate-suggested-replies",
+      JOB_NAMES.GENERATE_SUGGESTED_REPLIES,
       workerId,
       this.cloudWatchService,
     );

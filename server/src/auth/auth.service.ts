@@ -16,6 +16,7 @@ import {
   TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
 import { getJobPriority } from "../queue/job-priorities";
@@ -333,10 +334,10 @@ export class AuthService {
     setTimeout(() => {
       this.boss
         .send(
-          "fetch-user-emails",
+          JOB_NAMES.FETCH_USER_EMAILS,
           { userId },
           {
-            priority: getJobPriority("fetch-user-emails", false),
+            priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, false),
             singletonKey: `fetch-user-emails-${userId}`,
             singletonMinutes: 5,
           },
@@ -349,7 +350,7 @@ export class AuthService {
         );
       this.boss
         .send(
-          "sync-contacts",
+          JOB_NAMES.SYNC_CONTACTS,
           { userId },
           {
             singletonKey: `sync-contacts-${userId}`,

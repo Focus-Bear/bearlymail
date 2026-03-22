@@ -10,6 +10,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { JOB_NAMES } from "../constants/job-names";
 import { THREAD_LIMITS } from "../constants/llm-constants";
 import { HTTP_STATUS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
@@ -67,12 +68,12 @@ export class FollowUpsProcessor implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log("Registering generate-follow-up-draft worker");
-    await this.boss.work("generate-follow-up-draft", async (job) => {
+    await this.boss.work(JOB_NAMES.GENERATE_FOLLOW_UP_DRAFT, async (job) => {
       await this.handleGenerateFollowUpDraftJob(job as PgBoss.Job);
     });
 
     this.logger.log("Registering bulk-send-follow-ups worker");
-    await this.boss.work("bulk-send-follow-ups", async (job) =>
+    await this.boss.work(JOB_NAMES.BULK_SEND_FOLLOW_UPS, async (job) =>
       this.handleBulkSendFollowUpsJob(job as PgBoss.Job),
     );
 

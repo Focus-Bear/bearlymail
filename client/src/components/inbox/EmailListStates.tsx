@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
 import { AllCaughtUpState, EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
-import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
 interface PriorityCounts {
+  veryHigh: number;
   high: number;
   medium: number;
   low: number;
+  veryLow: number;
 }
 
 interface EmailListStatesProps {
@@ -72,11 +74,36 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
 
   if (emailsEmpty) {
     // Progressive unlock: offer to drop to the next lower priority tier
+
+    // Step 1: Very High → High
+    if (
+      !isUnlockPromptDismissed &&
+      minPriority !== null &&
+      minPriority !== undefined &&
+      minPriority >= VERY_HIGH_PRIORITY_THRESHOLD &&
+      priorityCounts &&
+      priorityCounts.high > 0 &&
+      onUnlockPriorityTier &&
+      onDismissUnlockPrompt
+    ) {
+      return (
+        <ProgressiveUnlockPrompt
+          message={t('inbox.progressiveUnlock.veryHighDone')}
+          nextTierLabel={t('inbox.progressiveUnlock.highLabel')}
+          nextTierCount={priorityCounts.high}
+          onYes={() => onUnlockPriorityTier(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD)}
+          onLater={handleDismissPrompt}
+        />
+      );
+    }
+
+    // Step 2: High → Medium
     if (
       !isUnlockPromptDismissed &&
       minPriority !== null &&
       minPriority !== undefined &&
       minPriority >= HIGH_PRIORITY_THRESHOLD &&
+      minPriority < VERY_HIGH_PRIORITY_THRESHOLD &&
       priorityCounts &&
       priorityCounts.medium > 0 &&
       onUnlockPriorityTier &&
@@ -93,6 +120,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
       );
     }
 
+    // Step 3: Medium → Low
     if (
       !isUnlockPromptDismissed &&
       minPriority !== null &&

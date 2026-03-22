@@ -46,9 +46,11 @@ export const URGENCY_CRITICAL = 95;
 export const URGENCY_HIGH = 85;
 export const URGENCY_HIGH_THRESHOLD = 60;
 export const URGENCY_MODERATE = 75;
-// New priority calibration: < 0 = very low, 0-20 = low, 20-40 = medium, > 40 = high
-export const PRIORITY_HIGH_THRESHOLD = 40;
-export const PRIORITY_MEDIUM_THRESHOLD = 20;
+// Priority tier thresholds — aligned with PRIORITY_RANGES in useInboxFilters.ts
+// < 0 = very low, 0–15 = low, 15–30 = medium, 30–50 = high, > 50 = very high
+export const PRIORITY_VERY_HIGH_THRESHOLD = 50;
+export const PRIORITY_HIGH_THRESHOLD = 30;
+export const PRIORITY_MEDIUM_THRESHOLD = 15;
 export const PRIORITY_LOW_THRESHOLD = 0;
 export const URGENCY_MEDIUM = 40;
 export const URGENCY_LOW = 30;

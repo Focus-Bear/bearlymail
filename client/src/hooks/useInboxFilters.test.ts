@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters } from './useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters, VERY_HIGH_PRIORITY_THRESHOLD } from './useInboxFilters';
 
 // useInboxFilters → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
@@ -82,7 +82,7 @@ describe('useInboxFilters', () => {
     it('resets an invalid range (minPriority=25, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
       const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 25, maxPriority: 99 });
       localStorage.setItem(STORAGE_KEY, stored);
-      // Set migration key so the result stays null/null (not further migrated to HIGH_PRIORITY_THRESHOLD)
+      // Set migration key so the result stays null/null (not further migrated to VERY_HIGH_PRIORITY_THRESHOLD)
       localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
@@ -95,7 +95,7 @@ describe('useInboxFilters', () => {
     it('resets a partially valid stored range (minPriority=0, maxPriority=99) not in PRIORITY_RANGES to null/null', () => {
       const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 0, maxPriority: 99 });
       localStorage.setItem(STORAGE_KEY, stored);
-      // Set migration key so the result stays null/null (not further migrated to HIGH_PRIORITY_THRESHOLD)
+      // Set migration key so the result stays null/null (not further migrated to VERY_HIGH_PRIORITY_THRESHOLD)
       localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
@@ -106,10 +106,10 @@ describe('useInboxFilters', () => {
   });
 
   describe('initialization', () => {
-    it('defaults to HIGH_PRIORITY_THRESHOLD when localStorage is empty (first visit)', () => {
+    it('defaults to VERY_HIGH_PRIORITY_THRESHOLD when localStorage is empty (first visit)', () => {
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
     });
@@ -132,13 +132,13 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.maxPriority).toBe(50);
     });
 
-    it('falls back to HIGH_PRIORITY_THRESHOLD when localStorage JSON is malformed', () => {
+    it('falls back to VERY_HIGH_PRIORITY_THRESHOLD when localStorage JSON is malformed', () => {
       localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
       console.error = jest.fn();
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
     });
   });
 
@@ -219,23 +219,23 @@ describe('useInboxFilters', () => {
 
   describe('one-time migration guard (fix #1271)', () => {
     // The migration runs once per browser (PRIORITY_MIGRATION_KEY flag).
-    // It resets null/null defaults to HIGH_PRIORITY_THRESHOLD for users who got the
+    // It resets null/null defaults to VERY_HIGH_PRIORITY_THRESHOLD for users who got the
     // broken default from PR #1121. Users with any customisation are unaffected.
     // Trade-off: users who deliberately cleared all filters are indistinguishable from
     // broken-default users and will also be reset — intentional one-time disruption.
 
-    it('first visit: applies HIGH_PRIORITY_THRESHOLD default (no stored filters)', () => {
+    it('first visit: applies VERY_HIGH_PRIORITY_THRESHOLD default (no stored filters)', () => {
       // No STORAGE_KEY, no PRIORITY_MIGRATION_KEY — completely fresh browser.
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
       // Migration key is not needed for first visit (takes the else branch)
       // but FIRST_LOAD_KEY should be set
       expect(localStorage.getItem(FIRST_LOAD_KEY)).toBe('1');
     });
 
-    it('stale null/null user: migrated to HIGH_PRIORITY_THRESHOLD on first post-fix load', () => {
+    it('stale null/null user: migrated to VERY_HIGH_PRIORITY_THRESHOLD on first post-fix load', () => {
       // Simulates a returning user with all-default filters (broken PR #1121 default).
       // PRIORITY_MIGRATION_KEY not yet set → migration runs.
       const stale = JSON.stringify({ accountIds: [], categories: [], minPriority: null, maxPriority: null });
@@ -243,7 +243,7 @@ describe('useInboxFilters', () => {
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
       expect(result.current.filters.maxPriority).toBeNull();
       // Migration flag should now be set to prevent recurrence
       expect(localStorage.getItem(PRIORITY_MIGRATION_KEY)).toBe('1');

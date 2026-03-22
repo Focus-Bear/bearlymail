@@ -16,7 +16,7 @@ describe('usePriorityCounts', () => {
   });
 
   it('fetches priority counts from the correct endpoint on mount', async () => {
-    const mockCounts = { high: 5, medium: 10, low: 3 };
+    const mockCounts = { veryHigh: 2, high: 5, medium: 10, low: 3, veryLow: 1 };
     mockedAxios.get.mockResolvedValue({ data: mockCounts });
 
     const { result } = renderHook(() => usePriorityCounts());
@@ -50,7 +50,7 @@ describe('usePriorityCounts', () => {
   });
 
   it('sets isLoading to false after successful fetch', async () => {
-    mockedAxios.get.mockResolvedValue({ data: { high: 1, medium: 2, low: 0 } });
+    mockedAxios.get.mockResolvedValue({ data: { veryHigh: 0, high: 1, medium: 2, low: 0, veryLow: 0 } });
 
     const { result } = renderHook(() => usePriorityCounts());
 
@@ -61,8 +61,8 @@ describe('usePriorityCounts', () => {
 
   it('fetchCounts re-fetches and updates counts', async () => {
     mockedAxios.get
-      .mockResolvedValueOnce({ data: { high: 5, medium: 10, low: 3 } })
-      .mockResolvedValueOnce({ data: { high: 0, medium: 8, low: 3 } });
+      .mockResolvedValueOnce({ data: { veryHigh: 2, high: 5, medium: 10, low: 3, veryLow: 1 } })
+      .mockResolvedValueOnce({ data: { veryHigh: 0, high: 0, medium: 8, low: 3, veryLow: 0 } });
 
     const { result } = renderHook(() => usePriorityCounts());
 
@@ -74,6 +74,6 @@ describe('usePriorityCounts', () => {
       await result.current.fetchCounts();
     });
 
-    expect(result.current.counts).toEqual({ high: 0, medium: 8, low: 3 });
+    expect(result.current.counts).toEqual({ veryHigh: 0, high: 0, medium: 8, low: 3, veryLow: 0 });
   });
 });

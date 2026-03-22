@@ -10,7 +10,7 @@ import { SearchProgress } from 'components/search/SearchProgress';
 import { SearchResults } from 'components/search/SearchResults';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD, PRIORITY_VERY_HIGH_THRESHOLD } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 import { useSearch } from 'hooks/useSearch';
 
@@ -28,13 +28,16 @@ interface SearchEmail extends Email {
 }
 
 const getPriorityBadge = (score?: number) => {
-  if (!score) {
+  if (score === undefined || score === null) {
     return { label: 'N/A', color: theme.colors.text.tertiary, bg: theme.colors.background.subtle };
+  }
+  if (score > PRIORITY_VERY_HIGH_THRESHOLD) {
+    return { label: 'Very High', color: theme.colors.accent.error, bg: theme.colors.sunray.light4 };
   }
   if (score > PRIORITY_HIGH_THRESHOLD) {
     return { label: 'High', color: theme.colors.accent.error, bg: theme.colors.sunray.light4 };
   }
-  if (score >= PRIORITY_MEDIUM_THRESHOLD) {
+  if (score > PRIORITY_MEDIUM_THRESHOLD) {
     return { label: 'Medium', color: theme.colors.accent.warning, bg: theme.colors.sunray.light3 };
   }
   if (score >= 0) {

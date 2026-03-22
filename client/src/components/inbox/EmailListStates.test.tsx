@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
 import { EmailListStates } from './EmailListStates';
 
@@ -96,14 +96,14 @@ describe('EmailListStates', () => {
     });
   });
 
-  describe('progressive unlock — high to medium', () => {
-    it('renders ProgressiveUnlockPrompt when high-priority inbox empty and medium count > 0', () => {
+  describe('progressive unlock — very high to high', () => {
+    it('renders ProgressiveUnlockPrompt when very-high inbox empty and high count > 0', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={50}
-          priorityCounts={{ high: 0, medium: 7, low: 2 }}
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -111,20 +111,20 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
-    it('calls onUnlockPriorityTier(20, 50) when user clicks Yes on high-done prompt', () => {
+    it('calls onUnlockPriorityTier(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD) on Yes', () => {
       const onUnlockPriorityTier = jest.fn();
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={50}
-          priorityCounts={{ high: 0, medium: 7, low: 2 }}
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
           onDismissUnlockPrompt={jest.fn()}
         />
       );
       fireEvent.click(screen.getByTestId('yes-btn'));
-      expect(onUnlockPriorityTier).toHaveBeenCalledWith(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD);
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD);
     });
 
     it('hides ProgressiveUnlockPrompt and shows EmptyState after dismissal', () => {
@@ -133,8 +133,8 @@ describe('EmailListStates', () => {
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={50}
-          priorityCounts={{ high: 0, medium: 7, low: 2 }}
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={onDismissUnlockPrompt}
         />
@@ -145,13 +145,59 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('empty-state')).toBeTruthy();
     });
 
+    it('does NOT render ProgressiveUnlockPrompt when high count is 0', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
+    });
+  });
+
+  describe('progressive unlock — high to medium', () => {
+    it('renders ProgressiveUnlockPrompt when high-priority inbox empty and medium count > 0', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
+    });
+
+    it('calls onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD) when user clicks Yes on high-done prompt', () => {
+      const onUnlockPriorityTier = jest.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 7, low: 2, veryLow: 0 }}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      fireEvent.click(screen.getByTestId('yes-btn'));
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(MEDIUM_PRIORITY_THRESHOLD, HIGH_PRIORITY_THRESHOLD);
+    });
+
     it('does NOT render ProgressiveUnlockPrompt when medium count is 0', () => {
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={50}
-          priorityCounts={{ high: 0, medium: 0, low: 0 }}
+          minPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -166,8 +212,8 @@ describe('EmailListStates', () => {
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={20}
-          priorityCounts={{ high: 0, medium: 0, low: 5 }}
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -175,14 +221,14 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
     });
 
-    it('calls onUnlockPriorityTier(1, 20) when user clicks Yes on medium-done prompt', () => {
+    it('calls onUnlockPriorityTier(LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD) when user clicks Yes on medium-done prompt', () => {
       const onUnlockPriorityTier = jest.fn();
       render(
         <EmailListStates
           {...baseProps}
           emailsEmpty
-          minPriority={20}
-          priorityCounts={{ high: 0, medium: 0, low: 5 }}
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 5, veryLow: 0 }}
           onUnlockPriorityTier={onUnlockPriorityTier}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -199,7 +245,7 @@ describe('EmailListStates', () => {
           {...baseProps}
           emailsEmpty
           minPriority={0}
-          priorityCounts={{ high: 0, medium: 0, low: 0 }}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -213,7 +259,7 @@ describe('EmailListStates', () => {
           {...baseProps}
           emailsEmpty
           minPriority={0}
-          priorityCounts={{ high: 0, medium: 0, low: 3 }}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />
@@ -229,7 +275,7 @@ describe('EmailListStates', () => {
           {...baseProps}
           emailsEmpty
           minPriority={null}
-          priorityCounts={{ high: 0, medium: 5, low: 2 }}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
           onUnlockPriorityTier={jest.fn()}
           onDismissUnlockPrompt={jest.fn()}
         />

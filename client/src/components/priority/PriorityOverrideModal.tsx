@@ -7,7 +7,7 @@ import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'component
 import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
 import { OverrideReasonType } from 'components/priority/types';
 import { API_URL } from 'config/api';
-import { PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { PRIORITY_MEDIUM_THRESHOLD, PRIORITY_VERY_HIGH_THRESHOLD } from 'constants/numbers';
 import { CONTEXT_ARCHIVE, CONTEXT_MANUAL } from 'constants/strings';
 
 interface PriorityOverrideModalProps {
@@ -23,6 +23,9 @@ interface PriorityOverrideModalProps {
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
 function getPriorityLabel(tFunc: TFunction, isHighPriority: boolean, score: number): string {
+  if (isHighPriority && score > PRIORITY_VERY_HIGH_THRESHOLD) {
+    return tFunc('priority.veryHigh');
+  }
   if (isHighPriority) {
     return tFunc('priority.high');
   }

@@ -548,7 +548,7 @@ export interface InboxEmailListPanelProps {
   /** Current active priority filter for progressive unlock */
   minPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
-  priorityCounts?: { high: number; medium: number; low: number } | null;
+  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */

@@ -4,12 +4,16 @@ import axios from 'axios';
 import { API_URL } from 'config/api';
 
 export interface PriorityCounts {
-  /** Threads with priorityScore >= 50 */
+  /** Threads with priorityScore > 50 */
+  veryHigh: number;
+  /** Threads with priorityScore > 30 and <= 50 */
   high: number;
-  /** Threads with priorityScore >= 20 and < 50 */
+  /** Threads with priorityScore > 15 and <= 30 */
   medium: number;
-  /** Threads with priorityScore < 20 */
+  /** Threads with priorityScore >= 0 and <= 15 */
   low: number;
+  /** Threads with priorityScore < 0 */
+  veryLow: number;
 }
 
 /**

@@ -352,8 +352,11 @@
     },
     "scheduled": "Scheduled",
     "progressiveUnlock": {
+      "veryHighDone": "🔥 Outstanding — you've cleared all the very high priority emails!",
       "highDone": "Nice work — you've cleared all the high priority emails!",
       "mediumDone": "⭐ Amazing — medium priority done too!",
+      "veryHighLabel": "very high priority",
+      "highLabel": "high priority",
       "mediumLabel": "medium priority",
       "lowLabel": "low priority",
       "nextTierQuestion": "There are {{count}} {{tier}} emails waiting. Want to tackle them next?",
@@ -2059,6 +2062,7 @@
     "stillSearching": "Still searching..."
   },
   "priority": {
+    "veryHigh": "Very High",
     "high": "High Priority",
     "medium": "Medium",
     "low": "Low",

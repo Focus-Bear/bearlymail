@@ -148,21 +148,25 @@ export class EmailStatusService {
 
   async getPriorityCounts(
     userId: string,
-  ): Promise<{ high: number; medium: number; low: number }> {
+  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number }> {
     const rows = await this.emailThreadRepository.query(
       `SELECT
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 50) AS high,
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 20 AND COALESCE("priorityScore", 0) < 50) AS medium,
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 20) AS low
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 50) AS "veryHigh",
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 30 AND COALESCE("priorityScore", 0) <= 50) AS high,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 15 AND COALESCE("priorityScore", 0) <= 30) AS medium,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 0 AND COALESCE("priorityScore", 0) <= 15) AS low,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 0) AS "veryLow"
        FROM email_threads
        WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
       [userId],
     );
-    const row = rows[0] ?? { high: 0, medium: 0, low: 0 };
+    const row = rows[0] ?? { veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 };
     return {
+      veryHigh: parseInt(row.veryHigh, 10) || 0,
       high: parseInt(row.high, 10) || 0,
       medium: parseInt(row.medium, 10) || 0,
       low: parseInt(row.low, 10) || 0,
+      veryLow: parseInt(row.veryLow, 10) || 0,
     };
   }
 

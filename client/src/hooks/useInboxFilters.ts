@@ -33,10 +33,12 @@ const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
 const PRIORITY_DEFAULT_FIX_KEY = 'inbox_priority_migration_v2_done';
 
+/** Threshold for the very high-priority tier. Shared with EmailListStates. */
+export const VERY_HIGH_PRIORITY_THRESHOLD = 50;
 /** Threshold for the high-priority tier. Shared with EmailListStates. */
-export const HIGH_PRIORITY_THRESHOLD = 50;
+export const HIGH_PRIORITY_THRESHOLD = 30;
 /** Threshold for the medium-priority tier. Shared with EmailListStates. */
-export const MEDIUM_PRIORITY_THRESHOLD = 20;
+export const MEDIUM_PRIORITY_THRESHOLD = 15;
 /** Threshold for the low-priority tier. Shared with EmailListStates. */
 export const LOW_PRIORITY_THRESHOLD = 1;
 
@@ -97,7 +99,7 @@ function loadInitialFilters(): InboxFilter {
       const parsed = sanitizeStoredFilters(JSON.parse(stored));
 
       // One-time migration: users who got the broken null/null default from PR #1121
-      // (fix #1119) should be reset to HIGH_PRIORITY_THRESHOLD. The #1119 workaround
+      // (fix #1119) should be reset to VERY_HIGH_PRIORITY_THRESHOLD. The #1119 workaround
       // is no longer needed because PR #1159 (fix #1155) properly fixed priorityModeActive.
       // Only resets users whose filters are still all-default (never manually changed).
       //
@@ -105,7 +107,7 @@ function loadInitialFilters(): InboxFilter {
       //   a) a user who got the broken null/null default and never touched their filters
       //      (the intended migration target), and
       //   b) a user who *deliberately* cleared all filters to see their full inbox.
-      // Both groups are treated identically — their filters are reset to HIGH_PRIORITY_THRESHOLD
+      // Both groups are treated identically — their filters are reset to VERY_HIGH_PRIORITY_THRESHOLD
       // on next visit. This is an intentional one-time disruption: group (b) will see fewer
       // emails until they manually clear the filter again. The PRIORITY_DEFAULT_FIX_KEY flag
       // prevents this from ever recurring. Future devs: do not change this condition without
@@ -119,7 +121,7 @@ function loadInitialFilters(): InboxFilter {
           parsed.accountIds.length === 0 &&
           parsed.categories.length === 0
         ) {
-          return { ...parsed, minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+          return { ...parsed, minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
         }
       }
 
@@ -128,12 +130,13 @@ function loadInitialFilters(): InboxFilter {
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);
   }
-  // First visit (no stored filters) — default to HIGH_PRIORITY_THRESHOLD.
+  // First visit (no stored filters) — default to VERY_HIGH_PRIORITY_THRESHOLD (score > 50).
+  // New users start with the most focused view (very high priority only).
   // The null workaround from PR #1121 (fix #1119) is no longer needed:
   // PR #1159 (fix #1155) properly fixed priorityModeActive, making it safe
   // to restore the original high-priority default from PR #846.
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+  return { accountIds: [], categories: [], minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
 }
 
 export function useInboxFilters() {

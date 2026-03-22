@@ -1492,8 +1492,11 @@
     },
     "scheduled": "Programados",
     "progressiveUnlock": {
+      "veryHighDone": "🔥 ¡Sobresaliente — has limpiado todos los correos de prioridad muy alta!",
       "highDone": "¡Buen trabajo — has limpiado todos los correos de alta prioridad!",
       "mediumDone": "⭐ ¡Increíble — también terminaste la prioridad media!",
+      "veryHighLabel": "prioridad muy alta",
+      "highLabel": "prioridad alta",
       "mediumLabel": "prioridad media",
       "lowLabel": "prioridad baja",
       "nextTierQuestion": "Hay {{count}} correos de {{tier}} esperando. ¿Quieres abordarlos ahora?",
@@ -1745,6 +1748,7 @@
       "submitting": "Sumisión...",
       "title": "Comentarios prioritarios"
     },
+    "veryHigh": "Muy alta",
     "high": "alta prioridad",
     "low": "Bajo",
     "medium": "Medio",

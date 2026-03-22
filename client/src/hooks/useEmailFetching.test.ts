@@ -586,6 +586,46 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
   });
 });
 
+// ─── fetchEmails cache invalidation on filter change (fix #846) ───────────────
+
+describe('fetchEmails — cache invalidation on overrideFilters', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+  });
+
+  it('calls clearCacheForMode when fetchEmails is called with overrideFilters', async () => {
+    mockedAxios.get.mockResolvedValue({
+      data: { total: 0, categories: [] },
+    });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchEmails({ minPriority: 50, maxPriority: null });
+
+    expect(mockedClearCacheForMode).toHaveBeenCalledWith('triage');
+  });
+
+  it('does NOT call clearCacheForMode when fetchEmails is called without overrideFilters', async () => {
+    mockedAxios.get.mockResolvedValue({
+      data: { total: 0, categories: [] },
+    });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchEmails();
+
+    expect(mockedClearCacheForMode).not.toHaveBeenCalled();
+  });
+});
+
 describe('appendFilterParams', () => {
   it('Very Low filter (min: null, max: 0) sends only maxPriority param — no minPriority', () => {
     const params = new URLSearchParams();

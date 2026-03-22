@@ -178,6 +178,13 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   const fetchEmails = useCallback(async (overrideFilters?: Partial<InboxFilter>) => {
     fetchSessionRef.current += 1;
     isLoadingMoreRef.current = false;
+    // Fix #846: when filters change, the cached summary and per-category emails are stale
+    // by definition (they were fetched with different filter params). Invalidate all cached
+    // data for this mode so fetchEmailsImpl always hits the network with the new filter
+    // values instead of serving wrong data from the stale-while-revalidate cache.
+    if (overrideFilters) {
+      clearCacheForMode(mode);
+    }
     const effectiveFilters = overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters;
     const buildSummaryParamsWithOverride = () => buildSummaryParamsImpl(mode, effectiveFilters);
     const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);

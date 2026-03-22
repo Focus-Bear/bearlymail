@@ -232,3 +232,32 @@ describe('invalidateSummaryCache', () => {
     expect(() => invalidateSummaryCache('nonexistent-mode')).not.toThrow();
   });
 });
+
+// ─── Filter-change cache invalidation (fix #846) ──────────────────────────────
+
+describe('clearCacheForMode — filter change invalidation', () => {
+  it('clears all summary and category caches for the mode when filters change', () => {
+    setCachedSummary('triage', [makeSummaryItem('Work', 5)]);
+    setCachedCategoryEmails('triage', 'uuid-work-0001', [makeEmail('e1')]);
+    setCachedCategoryEmails('triage', 'uuid-personal-0002', [makeEmail('e2')]);
+
+    clearCacheForMode('triage');
+
+    expect(getCachedSummary('triage')).toBeNull();
+    expect(getCachedCategoryEmails('triage', 'uuid-work-0001')).toBeNull();
+    expect(getCachedCategoryEmails('triage', 'uuid-personal-0002')).toBeNull();
+  });
+
+  it('preserves caches for other modes when a specific mode is invalidated', () => {
+    const actionSummary = [makeSummaryItem('Newsletters', 3)];
+    const actionEmails = [makeEmail('action-e1')];
+    setCachedSummary('triage', [makeSummaryItem('Work', 2)]);
+    setCachedSummary('action', actionSummary);
+    setCachedCategoryEmails('action', 'uuid-nl-0003', actionEmails);
+
+    clearCacheForMode('triage');
+
+    expect(getCachedSummary('action')).toEqual(actionSummary);
+    expect(getCachedCategoryEmails('action', 'uuid-nl-0003')).toEqual(actionEmails);
+  });
+});

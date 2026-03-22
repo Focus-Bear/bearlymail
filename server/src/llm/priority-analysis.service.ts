@@ -48,7 +48,7 @@ type PriorityResult = {
   protoCategorySuggestion?: { name: string; description: string };
 };
 
-type BatchPriorityResult = PriorityResult & { isFallback: boolean };
+export type BatchPriorityResult = PriorityResult & { isFallback: boolean };
 
 type BatchEmailInput = {
   emailKey: string;

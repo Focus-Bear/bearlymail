@@ -30,7 +30,10 @@ import {
 } from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
-import { PriorityAnalysisService } from "../llm/priority-analysis.service";
+import {
+  BatchPriorityResult,
+  PriorityAnalysisService,
+} from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
@@ -619,25 +622,13 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- batch result type from priority-analysis.service
-    const batchResults =
-      (await this.priorityAnalysisService.analyzePriorityBatch(
+    const batchResults: Map<string, BatchPriorityResult> =
+      await this.priorityAnalysisService.analyzePriorityBatch(
         batchEmails,
         userContext,
         undefined,
         userId,
-      )) as Map<
-        string,
-        {
-          isFallback: boolean;
-          urgencyScore: number;
-          goalAlignmentScore: number;
-          category: string;
-          categoryExplanation: string;
-          reasoning: string;
-          sentimentScore: number | undefined;
-        }
-      >;
+      );
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
 

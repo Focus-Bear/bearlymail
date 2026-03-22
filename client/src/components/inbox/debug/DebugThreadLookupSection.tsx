@@ -54,7 +54,6 @@ const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
     </div>
   );
 };
-/* eslint-enable i18next/no-literal-string */
 
 interface GmailApiResult {
   foundInGmailApi: boolean;
@@ -119,7 +118,6 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
     </div>
   );
 };
-/* eslint-enable i18next/no-literal-string */
 export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> = ({
   threadLookupResult,
   loadingThreadLookup,

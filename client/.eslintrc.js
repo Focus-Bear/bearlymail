@@ -364,10 +364,11 @@ module.exports = {
       },
     },
     {
-      // Disable i18n for booking/public pages - these may be intentionally in English
+      // Booking pages use t() for all user-facing strings (audit confirmed: all 4 files
+      // use useTranslation). Override restored to 'error'. See issue #939 Phase 5A.
       files: ['**/booking/**/*.tsx', '**/booking/**/*.ts'],
       rules: {
-        'i18next/no-literal-string': 'warn', // Still warn, but don't block
+        'i18next/no-literal-string': 'error',
       },
     },
     {

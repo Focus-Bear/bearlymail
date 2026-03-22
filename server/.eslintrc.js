@@ -334,8 +334,26 @@ module.exports = {
       //   - context.service.ts: 3757 lines, multiple large functions. Split into 5 services
       //     tracked for Phase 5g.
       // gmail.provider.ts, context-gmail-data.service.ts removed — both now fully compliant.
+      //
+      // Phase 5B (issue #939): max-params tightened to actual constructor param counts.
+      //   - llm-processor.ts constructor: 16 params (was overriding to 30 — wrong)
+      //   - context.service.ts constructor: 17 params (was overriding to 30 — wrong)
+      // ESLint v8 lacks ignoreConstructors; remove these overrides once constructors are decomposed.
       files: [
         'src/emails/llm-processor.ts',
+      ],
+      rules: {
+        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
+        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
+        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
+        complexity: ['error', 250],
+        'id-denylist': 'off',
+        'max-params': ['error', 16],
+      },
+    },
+
+    {
+      files: [
         'src/context/context.service.ts',
       ],
       rules: {
@@ -344,13 +362,15 @@ module.exports = {
         'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
         complexity: ['error', 250],
         'id-denylist': 'off',
-        'max-params': ['error', 30],
+        'max-params': ['error', 17],
       },
     },
 
     {
       // llm.service.ts: function violations cleared in Phase 5f; only max-lines (2811) remains.
       // Split into 8 domain-specific LLM services tracked for Phase 5g. See issue #939.
+      // Phase 5A (issue #939): removed max-params override — constructor has only 1 param,
+      // so the previous max-params: 30 was a copy-paste error with no justification.
       files: [
         'src/llm/llm.service.ts',
       ],
@@ -359,7 +379,6 @@ module.exports = {
         'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
         'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
         complexity: ['error', 250],
-        'max-params': ['error', 30],
       },
     },
   ],

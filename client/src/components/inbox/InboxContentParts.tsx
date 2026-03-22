@@ -3,12 +3,14 @@
  * the max-lines-per-function limit. All components are co-located here because they
  * are only used by InboxContent.
  */
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
+import { devLog, devWarn } from 'utils/dev-logger';
+import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { CategoryAccordion, CategoryGroup } from 'components/inbox/CategoryAccordion';
@@ -29,6 +31,7 @@ import {
 } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
+import { usePerformanceBudget } from 'hooks/usePerformanceBudget';
 import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
@@ -232,6 +235,60 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
 
+  // --- Performance budget instrumentation ---
+  const perf = usePerformanceBudget();
+  const renderStartRef = useRef<number | null>(null);
+
+  // Wrapped toggle that marks the start of a total click-to-visible span (only when expanding).
+  const handleToggleWithTiming = useCallback((key: string) => {
+    if (!isExpanded) {
+      perf.markStart(`category-total:${categoryName}`);
+    }
+    onToggleCategory(key);
+  }, [isExpanded, categoryName, onToggleCategory, perf]);
+
+  // Mark end of total click-to-visible span when category finishes loading.
+  useEffect(() => {
+    if (isExpanded && isLoaded) {
+      perf.markEnd(`category-total:${categoryName}`, ACCORDION_BUDGETS.CATEGORY_TOTAL);
+    }
+  }, [isExpanded, isLoaded, categoryName, perf]);
+
+  // Measure paint time from data-ready to painted using requestAnimationFrame.
+  // RAF fires after the next paint, so this measures commit-to-paint latency (not React render time).
+  useEffect(() => {
+    let rafId: number | null = null;
+
+    if (isLoaded && isExpanded && renderStartRef.current === null) {
+      renderStartRef.current = performance.now();
+      rafId = requestAnimationFrame(() => {
+        if (renderStartRef.current !== null) {
+          const durationMs = Math.round(performance.now() - renderStartRef.current);
+          const budget = ACCORDION_BUDGETS.CATEGORY_PAINT;
+          if (durationMs > budget) {
+            devWarn(
+              `[PerfBudget] category-paint:${categoryName} exceeded budget: ${durationMs}ms > ${budget}ms (overage: ${durationMs - budget}ms)`
+            );
+          } else {
+            devLog(
+              `[PerfBudget] category-paint:${categoryName} within budget: ${durationMs}ms / ${budget}ms`
+            );
+          }
+          renderStartRef.current = null;
+        }
+      });
+    }
+    if (!isExpanded) {
+      renderStartRef.current = null;
+    }
+
+    return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [isLoaded, isExpanded, categoryName]);
+
   // Auto-collapse when all emails in this category have been archived one-by-one.
   // We guard with isLoaded so we don't collapse during the initial load (when the
   // email list is empty before the first fetch completes). The isExpanded guard
@@ -306,7 +363,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         count={isLoaded ? categoryEmails.length : categoryItem.count}
         isLoadingContent={isExpanded && !isLoaded}
         isExpanded={isExpanded}
-        onToggle={() => onToggleCategory(categoryKey)}
+        onToggle={() => handleToggleWithTiming(categoryKey)}
         onArchiveAll={handleArchiveAll}
         onReanalyseOther={onReanalyseOther}
         isReanalysingOther={isReanalysingOther}

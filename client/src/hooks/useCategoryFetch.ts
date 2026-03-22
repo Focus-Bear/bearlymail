@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { ACCORDION_BUDGETS, measurePerformance } from 'utils/performanceBudget';
 
 import { CATEGORY_FETCH_RETRY_DELAY_MS } from 'constants/numbers';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -116,7 +117,10 @@ export function useCategoryFetch({
       // Phase 2 dual-write: notify categorySlice of fetch start
       dispatch(categoryFetchStart(key));
 
-      fetchCategoryEmails(item.name, item.id ?? undefined)
+      measurePerformance(
+        { label: `category-fetch:${item.name}`, budgetMs: ACCORDION_BUDGETS.CATEGORY_FETCH },
+        () => fetchCategoryEmails(item.name, item.id ?? undefined)
+      )
         .then(() => {
           // Phase 2 dual-write: emails: [] is intentional — categorySlice tracks fetch status only;
           // actual emails remain in emailSlice (populated by fetchCategoryEmails above).

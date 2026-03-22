@@ -7,6 +7,7 @@ import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import { GmailProvider } from "./gmail.provider";
+import { GmailSyncService } from "./gmail-sync.service";
 
 // Capture a mutable reference to getAccessToken so individual tests can
 // configure the mock return value.
@@ -81,6 +82,7 @@ describe("GmailProvider — validateToken", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GmailProvider,
+        GmailSyncService,
         { provide: UsersService, useValue: usersService },
         { provide: EmailsService, useValue: emailsService },
         { provide: ScanEmailService, useValue: scanEmailService },
@@ -212,6 +214,7 @@ describe("GmailProvider — validateToken", () => {
 
 describe("GmailProvider — pagination retry & auth failures", () => {
   let provider: GmailProvider;
+  let gmailSyncService: GmailSyncService;
   let usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
@@ -249,6 +252,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GmailProvider,
+        GmailSyncService,
         { provide: UsersService, useValue: usersService },
         { provide: EmailsService, useValue: emailsService },
         { provide: ScanEmailService, useValue: scanEmailService },
@@ -258,6 +262,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     }).compile();
 
     provider = module.get<GmailProvider>(GmailProvider);
+    gmailSyncService = module.get<GmailSyncService>(GmailSyncService);
   });
 
   afterEach(() => {
@@ -278,7 +283,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     };
 
     await expect(
-      (provider as any).fetchAllThreadsWithPagination(
+      (gmailSyncService as any).fetchAllThreadsWithPagination(
         fakeGmail,
         "is:starred",
         100,
@@ -290,7 +295,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       1,
     );
     expect(Logger.prototype.warn).toHaveBeenCalledWith(
-      expect.stringContaining("rate limit (429)"),
+      expect.stringContaining("Rate limit (429)"),
     );
   });
 
@@ -309,7 +314,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
 
     let thrown: GmailRateLimitError | undefined;
     try {
-      await (provider as any).fetchAllThreadsWithPagination(
+      await (gmailSyncService as any).fetchAllThreadsWithPagination(
         fakeGmail,
         "is:starred",
         100,
@@ -342,7 +347,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       },
     };
 
-    const result = await (provider as any).fetchAllThreadsWithPagination(
+    const result = await (gmailSyncService as any).fetchAllThreadsWithPagination(
       fakeGmail,
       "is:starred",
       100,
@@ -354,7 +359,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       (fakeGmail.users.threads.list as jest.Mock).mock.calls.length,
     ).toBeGreaterThanOrEqual(3);
     expect(Logger.prototype.warn).toHaveBeenCalledWith(
-      expect.stringContaining("transient"),
+      expect.stringContaining("threads.list returned"),
     );
   });
 
@@ -380,7 +385,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     try {
       let thrown: unknown;
       try {
-        await (provider as any).fetchAllThreadsWithPagination(
+        await (gmailSyncService as any).fetchAllThreadsWithPagination(
           fakeGmail,
           "is:starred",
           100,

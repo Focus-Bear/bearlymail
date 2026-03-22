@@ -1,25 +1,12 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { Injectable } from "@nestjs/common";
+import { In } from "typeorm";
 
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { EmailArchiveService } from "./email-archive.service";
-import { EmailCrudService } from "./email-crud.service";
-import { EmailDebugService } from "./email-debug.service";
-import { EmailGmailService } from "./email-gmail.service";
-import { EmailInboxService } from "./email-inbox.service";
-import { EmailLifecycleService } from "./email-lifecycle.service";
-import { EmailPriorityExplanationService } from "./email-priority-explanation.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { EmailReadService } from "./email-read.service";
-import { EmailSearchService } from "./email-search.service";
-import { EmailStarService } from "./email-star.service";
-import { EmailStatusService } from "./email-status.service";
-import { EmailThreadService } from "./email-thread.service";
+import { EmailServiceDeps } from "./email-service-dependencies.provider";
 import { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
 
 export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
@@ -41,29 +28,13 @@ export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interf
  *   - EmailPriorityExplanationService — priority score explanations
  *   - EmailMigrationService   — startup repair/backfill (OnModuleInit)
  *   - EmailDebugService       — debug helpers
+ *
+ * Dependencies are grouped via EmailServiceDeps to stay within max-params limits.
+ * See issue #939 for details.
  */
 @Injectable()
 export class EmailsService {
-  constructor(
-    @InjectRepository(Email)
-    private emailRepository: Repository<Email>,
-    @InjectRepository(EmailThread)
-    private emailThreadRepository: Repository<EmailThread>,
-    @Inject(forwardRef(() => EmailProviderManager))
-    private emailProviderManager: EmailProviderManager,
-    private emailThreadService: EmailThreadService,
-    private emailSearchService: EmailSearchService,
-    private emailStarService: EmailStarService,
-    private emailDebugService: EmailDebugService,
-    private emailReadService: EmailReadService,
-    private emailCrudService: EmailCrudService,
-    private emailGmailService: EmailGmailService,
-    private emailStatusService: EmailStatusService,
-    private emailInboxService: EmailInboxService,
-    private emailPriorityExplanationService: EmailPriorityExplanationService,
-    private emailLifecycleService: EmailLifecycleService,
-    private emailArchiveService: EmailArchiveService,
-  ) {}
+  constructor(private readonly emailServiceDeps: EmailServiceDeps) {}
 
   // ── Priority batch buffer ─────────────────────────────────────────────────
 
@@ -71,7 +42,7 @@ export class EmailsService {
     userId: string,
     emailId: string,
   ): Promise<void> {
-    return this.emailLifecycleService.queueBatchPriorityRefinement(
+    return this.emailServiceDeps.emailLifecycleService.queueBatchPriorityRefinement(
       userId,
       emailId,
     );
@@ -80,13 +51,13 @@ export class EmailsService {
   // ── Categories & accounts ──────────────────────────────────────────────────
 
   async getCategories(userId: string): Promise<string[]> {
-    return this.emailStatusService.getCategories(userId);
+    return this.emailServiceDeps.emailStatusService.getCategories(userId);
   }
 
   async getPriorityCounts(
     userId: string,
   ): Promise<{ high: number; medium: number; low: number }> {
-    return this.emailStatusService.getPriorityCounts(userId);
+    return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId);
   }
 
   async getConnectedAccounts(userId: string): Promise<
@@ -98,7 +69,9 @@ export class EmailsService {
       isActive: boolean;
     }>
   > {
-    return this.emailStatusService.getConnectedAccounts(userId);
+    return this.emailServiceDeps.emailStatusService.getConnectedAccounts(
+      userId,
+    );
   }
 
   // ── Inbox ──────────────────────────────────────────────────────────────────
@@ -122,7 +95,11 @@ export class EmailsService {
       threadIds?: string[];
     }[];
   }> {
-    return this.emailInboxService.getInboxSummary(userId, mode, filters);
+    return this.emailServiceDeps.emailInboxService.getInboxSummary(
+      userId,
+      mode,
+      filters,
+    );
   }
 
   async getInbox(
@@ -137,7 +114,7 @@ export class EmailsService {
     },
     pagination?: { offset?: number; limit?: number },
   ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
-    return this.emailInboxService.getInbox(
+    return this.emailServiceDeps.emailInboxService.getInbox(
       userId,
       _includeBatched,
       mode,
@@ -150,15 +127,18 @@ export class EmailsService {
   // ── Single email lookups ───────────────────────────────────────────────────
 
   async getEmailById(userId: string, emailId: string): Promise<Email> {
-    return this.emailCrudService.getEmailById(userId, emailId);
+    return this.emailServiceDeps.emailCrudService.getEmailById(userId, emailId);
   }
 
   async getEmailByMessageId(userId: string, messageId: string): Promise<Email> {
-    return this.emailCrudService.getEmailByMessageId(userId, messageId);
+    return this.emailServiceDeps.emailCrudService.getEmailByMessageId(
+      userId,
+      messageId,
+    );
   }
 
   async getGmailStarStatus(userId: string, emailId: string) {
-    return this.emailGmailService.getGmailStarStatus(
+    return this.emailServiceDeps.emailGmailService.getGmailStarStatus(
       userId,
       emailId,
       (uid, eid) => this.getEmailById(uid, eid),
@@ -166,8 +146,10 @@ export class EmailsService {
   }
 
   async getGmailLabels(userId: string, emailId: string) {
-    return this.emailGmailService.getGmailLabels(userId, emailId, (uid, eid) =>
-      this.getEmailById(uid, eid),
+    return this.emailServiceDeps.emailGmailService.getGmailLabels(
+      userId,
+      emailId,
+      (uid, eid) => this.getEmailById(uid, eid),
     );
   }
 
@@ -189,7 +171,10 @@ export class EmailsService {
       (att) => att.attachmentId === attachmentId,
     );
     if (!attachment) throw new Error("Attachment not found in email");
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    const provider =
+      await this.emailServiceDeps.emailProviderManager.getPrimaryProvider(
+        userId,
+      );
     if (!provider) throw new Error("No email provider connected");
     return provider.getAttachment(userId, email.messageId, attachmentId, {
       filename: attachment.filename,
@@ -205,25 +190,34 @@ export class EmailsService {
     threadId: string,
     options?: { limit?: number; order?: "ASC" | "DESC" },
   ): Promise<Email[]> {
-    return this.emailThreadService.getThreadEmails(userId, threadId, options);
+    return this.emailServiceDeps.emailThreadService.getThreadEmails(
+      userId,
+      threadId,
+      options,
+    );
   }
 
   async getRecentNonArchivedThreadIds(
     userId: string,
     days: number = DAYS.WEEK,
   ): Promise<string[]> {
-    return this.emailThreadService.getRecentNonArchivedThreadIds(userId, days);
+    return this.emailServiceDeps.emailThreadService.getRecentNonArchivedThreadIds(
+      userId,
+      days,
+    );
   }
 
   async getAllNonArchivedThreadIds(userId: string): Promise<string[]> {
-    return this.emailThreadService.getAllNonArchivedThreadIds(userId);
+    return this.emailServiceDeps.emailThreadService.getAllNonArchivedThreadIds(
+      userId,
+    );
   }
 
   async getNonArchivedThreadsNeedingCheck(
     userId: string,
     limit: number = QUERY_LIMITS.INBOX_PAGE_SIZE,
   ): Promise<string[]> {
-    return this.emailThreadService.getNonArchivedThreadsNeedingCheck(
+    return this.emailServiceDeps.emailThreadService.getNonArchivedThreadsNeedingCheck(
       userId,
       limit,
     );
@@ -237,7 +231,7 @@ export class EmailsService {
       syncStatus: "synced" | "unsynced";
     }>
   > {
-    const results = await this.emailThreadRepository
+    const results = await this.emailServiceDeps.emailThreadRepository
       .createQueryBuilder("thread")
       .select([
         "thread.threadId",
@@ -264,7 +258,7 @@ export class EmailsService {
     isArchived: boolean,
     setLastUserOperation: boolean = false,
   ): Promise<void> {
-    return this.emailThreadService.updateThreadArchivedStatus(
+    return this.emailServiceDeps.emailThreadService.updateThreadArchivedStatus(
       userId,
       threadId,
       isArchived,
@@ -276,7 +270,7 @@ export class EmailsService {
     userId: string,
     threadIds: string[],
   ): Promise<void> {
-    return this.emailThreadService.updateThreadsLastCheckedAt(
+    return this.emailServiceDeps.emailThreadService.updateThreadsLastCheckedAt(
       userId,
       threadIds,
     );
@@ -286,7 +280,7 @@ export class EmailsService {
     userId: string,
     updates: Array<{ threadId: string; isArchived: boolean }>,
   ): Promise<void> {
-    return this.emailThreadService.batchUpdateThreadArchivedStatuses(
+    return this.emailServiceDeps.emailThreadService.batchUpdateThreadArchivedStatuses(
       userId,
       updates,
     );
@@ -297,7 +291,7 @@ export class EmailsService {
     threadId: string,
     starCount: number,
   ): Promise<void> {
-    return this.emailThreadService.updateThreadStarCount(
+    return this.emailServiceDeps.emailThreadService.updateThreadStarCount(
       userId,
       threadId,
       starCount,
@@ -309,7 +303,7 @@ export class EmailsService {
     updates: { threadId: string; isArchived: boolean; starCount: number }[],
     deletedThreadIds: string[],
   ): Promise<void> {
-    return this.emailThreadService.batchUpdateThreadStatus(
+    return this.emailServiceDeps.emailThreadService.batchUpdateThreadStatus(
       userId,
       updates,
       deletedThreadIds,
@@ -322,7 +316,7 @@ export class EmailsService {
     starCount: number = STAR_COUNTS.NONE,
     isArchived: boolean = false,
   ): Promise<EmailThread> {
-    return this.emailThreadService.getOrCreateEmailThread(
+    return this.emailServiceDeps.emailThreadService.getOrCreateEmailThread(
       userId,
       threadId,
       starCount,
@@ -334,7 +328,10 @@ export class EmailsService {
     userId: string,
     updates: { threadId: string; starCount: number }[],
   ): Promise<void> {
-    return this.emailThreadService.batchUpdateThreadStarCount(userId, updates);
+    return this.emailServiceDeps.emailThreadService.batchUpdateThreadStarCount(
+      userId,
+      updates,
+    );
   }
 
   async markThreadSyncStatus(
@@ -342,7 +339,7 @@ export class EmailsService {
     threadId: string,
     syncStatus: "synced" | "unsynced",
   ): Promise<void> {
-    return this.emailThreadService.markThreadSyncStatus(
+    return this.emailServiceDeps.emailThreadService.markThreadSyncStatus(
       userId,
       threadId,
       syncStatus,
@@ -353,7 +350,10 @@ export class EmailsService {
     userId: string,
     threadIds: string[],
   ): Promise<void> {
-    return this.emailThreadService.markThreadsUnsynced(userId, threadIds);
+    return this.emailServiceDeps.emailThreadService.markThreadsUnsynced(
+      userId,
+      threadIds,
+    );
   }
 
   async getThreadsByThreadIds(
@@ -367,7 +367,10 @@ export class EmailsService {
       isArchived: boolean;
     }>
   > {
-    return this.emailThreadService.getThreadsByThreadIds(userId, threadIds);
+    return this.emailServiceDeps.emailThreadService.getThreadsByThreadIds(
+      userId,
+      threadIds,
+    );
   }
 
   async getExistingStarredThreads(
@@ -375,7 +378,9 @@ export class EmailsService {
   ): Promise<
     Array<{ threadId: string; starCount: number; isArchived: boolean }>
   > {
-    return this.emailThreadService.getExistingStarredThreads(userId);
+    return this.emailServiceDeps.emailThreadService.getExistingStarredThreads(
+      userId,
+    );
   }
 
   // ── Email creation & lifecycle ─────────────────────────────────────────────
@@ -385,7 +390,7 @@ export class EmailsService {
     emailData: EmailDataWithOptionalThreadProps,
     options?: { skipBatching?: boolean },
   ): Promise<Email> {
-    return this.emailLifecycleService.createEmail(
+    return this.emailServiceDeps.emailLifecycleService.createEmail(
       userId,
       emailData,
       options,
@@ -397,29 +402,39 @@ export class EmailsService {
     emailId: string,
     updates: Partial<Email>,
   ): Promise<Email | null> {
-    return this.emailCrudService.updateEmail(emailId, updates);
+    return this.emailServiceDeps.emailCrudService.updateEmail(emailId, updates);
   }
 
   // ── Read / unread ──────────────────────────────────────────────────────────
 
   async markAsRead(userId: string, emailId: string): Promise<Email> {
-    return this.emailReadService.markAsRead(userId, emailId, (uid, eid) =>
-      this.getEmailById(uid, eid),
+    return this.emailServiceDeps.emailReadService.markAsRead(
+      userId,
+      emailId,
+      (uid, eid) => this.getEmailById(uid, eid),
     );
   }
 
   async markAsUnread(userId: string, emailId: string): Promise<Email> {
-    return this.emailReadService.markAsUnread(userId, emailId, (uid, eid) =>
-      this.getEmailById(uid, eid),
+    return this.emailServiceDeps.emailReadService.markAsUnread(
+      userId,
+      emailId,
+      (uid, eid) => this.getEmailById(uid, eid),
     );
   }
 
   async bulkMarkAsRead(userId: string, emailIds: string[]): Promise<void> {
-    return this.emailReadService.bulkMarkAsRead(userId, emailIds);
+    return this.emailServiceDeps.emailReadService.bulkMarkAsRead(
+      userId,
+      emailIds,
+    );
   }
 
   async bulkMarkAsUnread(userId: string, emailIds: string[]): Promise<void> {
-    return this.emailReadService.bulkMarkAsUnread(userId, emailIds);
+    return this.emailServiceDeps.emailReadService.bulkMarkAsUnread(
+      userId,
+      emailIds,
+    );
   }
 
   // ── Stars ──────────────────────────────────────────────────────────────────
@@ -429,7 +444,7 @@ export class EmailsService {
     emailId: string,
     starCount: number,
   ): Promise<Email> {
-    return this.emailStarService.setStarCount(
+    return this.emailServiceDeps.emailStarService.setStarCount(
       userId,
       emailId,
       starCount,
@@ -439,7 +454,7 @@ export class EmailsService {
   }
 
   async toggleStar(userId: string, emailId: string): Promise<Email> {
-    return this.emailStarService.toggleStar(
+    return this.emailServiceDeps.emailStarService.toggleStar(
       userId,
       emailId,
       (uid, eid) => this.getEmailById(uid, eid),
@@ -450,15 +465,24 @@ export class EmailsService {
   // ── Archive & delete ───────────────────────────────────────────────────────
 
   async archiveEmail(userId: string, emailId: string): Promise<void> {
-    return this.emailArchiveService.archiveEmail(userId, emailId);
+    return this.emailServiceDeps.emailArchiveService.archiveEmail(
+      userId,
+      emailId,
+    );
   }
 
   async bulkArchiveEmails(userId: string, emailIds: string[]): Promise<void> {
-    return this.emailArchiveService.bulkArchiveEmails(userId, emailIds);
+    return this.emailServiceDeps.emailArchiveService.bulkArchiveEmails(
+      userId,
+      emailIds,
+    );
   }
 
   async deleteEmail(userId: string, emailId: string): Promise<void> {
-    return this.emailArchiveService.deleteEmail(userId, emailId);
+    return this.emailServiceDeps.emailArchiveService.deleteEmail(
+      userId,
+      emailId,
+    );
   }
 
   async overrideCategory(
@@ -467,7 +491,7 @@ export class EmailsService {
     newCategory: string,
     reasonText?: string,
   ): Promise<{ success: boolean; category: string }> {
-    return this.emailArchiveService.overrideCategory(
+    return this.emailServiceDeps.emailArchiveService.overrideCategory(
       userId,
       emailId,
       newCategory,
@@ -490,7 +514,7 @@ export class EmailsService {
     };
     breakdown: Array<{ factor: string; value: number; description: string }>;
   }> {
-    return this.emailPriorityExplanationService.getPriorityExplanation(
+    return this.emailServiceDeps.emailPriorityExplanationService.getPriorityExplanation(
       userId,
       emailId,
       (uid, eid) => this.getEmailById(uid, eid),
@@ -503,7 +527,7 @@ export class EmailsService {
       score?: number;
     } | null,
   ): number {
-    return this.emailPriorityExplanationService.calculateScoreFromBreakdown(
+    return this.emailServiceDeps.emailPriorityExplanationService.calculateScoreFromBreakdown(
       priorityExplanation,
     );
   }
@@ -513,22 +537,27 @@ export class EmailsService {
   async getSyncStatus(
     userId: string,
   ): Promise<{ lastSyncAt: Date | null; isSyncing: boolean }> {
-    return this.emailStatusService.getSyncStatus(userId);
+    return this.emailServiceDeps.emailStatusService.getSyncStatus(userId);
   }
 
   async getSyncHistory(userId: string, limit?: number) {
-    return this.emailDebugService.getSyncHistory(userId, limit);
+    return this.emailServiceDeps.emailDebugService.getSyncHistory(
+      userId,
+      limit,
+    );
   }
 
   async forceCheckNewEmails(userId: string): Promise<Email[]> {
-    return this.emailStatusService.forceCheckNewEmails(
+    return this.emailServiceDeps.emailStatusService.forceCheckNewEmails(
       userId,
       (uid, inc, mode) => this.getInbox(uid, inc, mode),
     );
   }
 
   async getNextBatchReleaseTime(userId: string): Promise<Date | null> {
-    return this.emailStatusService.getNextBatchReleaseTime(userId);
+    return this.emailServiceDeps.emailStatusService.getNextBatchReleaseTime(
+      userId,
+    );
   }
 
   async checkForUrgentEmails(userId: string): Promise<{
@@ -540,7 +569,9 @@ export class EmailsService {
       priorityScore: number;
     }>;
   }> {
-    return this.emailStatusService.checkForUrgentEmails(userId);
+    return this.emailServiceDeps.emailStatusService.checkForUrgentEmails(
+      userId,
+    );
   }
 
   // ── Search ─────────────────────────────────────────────────────────────────
@@ -555,19 +586,23 @@ export class EmailsService {
     skipLlmFallback?: boolean,
     skipSync?: boolean,
   ) {
-    return this.emailSearchService.searchEmails(userId, query, {
-      maxResults,
-      onProgress,
-      calculateDaysSinceLastEmail: (uid, email) =>
-        this.emailPriorityExplanationService.calculateDaysSinceLastEmail(
-          uid,
-          email,
-        ),
-      accountTypes,
-      skipLlmRanking,
-      skipLlmFallback,
-      skipSync,
-    });
+    return this.emailServiceDeps.emailSearchService.searchEmails(
+      userId,
+      query,
+      {
+        maxResults,
+        onProgress,
+        calculateDaysSinceLastEmail: (uid, email) =>
+          this.emailServiceDeps.emailPriorityExplanationService.calculateDaysSinceLastEmail(
+            uid,
+            email,
+          ),
+        accountTypes,
+        skipLlmRanking,
+        skipLlmFallback,
+        skipSync,
+      },
+    );
   }
 
   async rankSearchResults(
@@ -576,17 +611,17 @@ export class EmailsService {
     emailIds: string[],
     maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
   ) {
-    const emails = await this.emailRepository.find({
+    const emails = await this.emailServiceDeps.emailRepository.find({
       where: { userId, id: In(emailIds) },
       order: { receivedAt: "DESC" },
     });
-    return this.emailSearchService.rankAndExplainEmails(
+    return this.emailServiceDeps.emailSearchService.rankAndExplainEmails(
       userId,
       query,
       emails,
       maxResults,
       (uid, email) =>
-        this.emailPriorityExplanationService.calculateDaysSinceLastEmail(
+        this.emailServiceDeps.emailPriorityExplanationService.calculateDaysSinceLastEmail(
           uid,
           email,
         ),
@@ -598,7 +633,7 @@ export class EmailsService {
     query: string,
     existingEmailIds: string[],
   ) {
-    return this.emailSearchService.searchExpand(
+    return this.emailServiceDeps.emailSearchService.searchExpand(
       userId,
       query,
       new Set(existingEmailIds),
@@ -608,38 +643,54 @@ export class EmailsService {
   // ── Debug ──────────────────────────────────────────────────────────────────
 
   async debugStarredThreads(userId: string) {
-    return this.emailDebugService.debugStarredThreads(userId);
+    return this.emailServiceDeps.emailDebugService.debugStarredThreads(userId);
   }
 
   async debugOrphanEmails(userId: string) {
-    return this.emailDebugService.debugOrphanEmails(userId);
+    return this.emailServiceDeps.emailDebugService.debugOrphanEmails(userId);
   }
 
   async fixOrphanEmails(userId: string) {
-    return this.emailDebugService.fixOrphanEmails(userId);
+    return this.emailServiceDeps.emailDebugService.fixOrphanEmails(userId);
   }
 
   async fixStuckCalculatingThreads(userId: string) {
-    return this.emailDebugService.fixStuckCalculatingThreads(userId);
+    return this.emailServiceDeps.emailDebugService.fixStuckCalculatingThreads(
+      userId,
+    );
   }
 
   async fixStaleUnsyncedThreads(userId: string) {
-    return this.emailDebugService.fixStaleUnsyncedThreads(userId);
+    return this.emailServiceDeps.emailDebugService.fixStaleUnsyncedThreads(
+      userId,
+    );
   }
 
   async lookupThread(userId: string, threadId: string) {
-    return this.emailDebugService.lookupThread(userId, threadId);
+    return this.emailServiceDeps.emailDebugService.lookupThread(
+      userId,
+      threadId,
+    );
   }
 
   async lookupByMessageId(userId: string, messageId: string) {
-    return this.emailDebugService.lookupByMessageId(userId, messageId);
+    return this.emailServiceDeps.emailDebugService.lookupByMessageId(
+      userId,
+      messageId,
+    );
   }
 
   async lookupByGmailUrl(userId: string, gmailUrl: string) {
-    return this.emailDebugService.lookupByGmailUrl(userId, gmailUrl);
+    return this.emailServiceDeps.emailDebugService.lookupByGmailUrl(
+      userId,
+      gmailUrl,
+    );
   }
 
   async getCategoryDebugData(userId: string, emailId: string) {
-    return this.emailDebugService.getCategoryDebugData(userId, emailId);
+    return this.emailServiceDeps.emailDebugService.getCategoryDebugData(
+      userId,
+      emailId,
+    );
   }
 }

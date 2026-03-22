@@ -339,46 +339,12 @@ export class LLMService {
       };
     }
 
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Preparing data: ${receivedEmails.length} received threads/emails provided`,
-    );
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Using ALL ${receivedEmails.length} items (not limiting to ${QUERY_LIMITS.MAX_RESULTS_DEFAULT})`,
-    );
-    const receivedData = this.buildReceivedEmailStats(receivedEmails);
-
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Preparing sent emails: ${sentEmails.length} sent emails provided, will use first ${QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT}`,
-    );
-    const sentData = this.buildSentEmailStats(sentEmails);
-
-    const timeAnalysis = this.buildEmailTimeAnalysis(receivedEmails);
-    const currentContextText =
-      currentContext && currentContext.length > 0
-        ? currentContext
-            .map(
-              (ctx) =>
-                `- ${ctx.key}: ${ctx.value}${ctx.source ? ` (source: ${ctx.source})` : ""}`,
-            )
-            .join("\n")
-        : "No existing context.";
-    const timeAnalysisText =
-      timeAnalysis.receivedHours || timeAnalysis.replyHours
-        ? `\n\nTime Patterns:\n- Email reading times: ${timeAnalysis.receivedHours || "Not enough data"}\n- Email reply times: ${timeAnalysis.replyHours || "Not enough data"}`
-        : "";
-    const prompt = renderPrompt(promptConfig.prompt || "", {
-      userEmail: userEmail || "unknown@example.com",
-      currentContext: currentContextText,
-      receivedEmails: receivedData,
-      sentEmails: sentData,
-      timeAnalysis: timeAnalysisText,
-    });
-
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] About to call generateText() - prompt length: ${prompt.length} chars`,
-    );
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Input: ${receivedEmails.length} received emails, ${sentEmails.length} sent emails`,
+    const prompt = this.buildAnalyzeEmailPatternsPrompt(
+      promptConfig.prompt || "",
+      receivedEmails,
+      sentEmails,
+      currentContext,
+      userEmail,
     );
     const llmCallStart = Date.now();
     const response = await this.generateText(
@@ -418,6 +384,72 @@ export class LLMService {
         emailExamples: [],
       },
     };
+  }
+
+  private buildAnalyzeEmailPatternsPrompt(
+    promptTemplate: string,
+    receivedEmails: Array<{
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+      receivedAt: string;
+      isRead?: boolean;
+      timeToReply?: number | null;
+      readAt?: string | null;
+      repliedAt?: string | null;
+      starCount?: number;
+      isArchived?: boolean;
+    }>,
+    sentEmails: Array<{
+      emailId?: string;
+      to: string;
+      subject: string;
+      body: string;
+      sentAt: string;
+    }>,
+    currentContext?: Array<{ key: string; value: string; source?: string }>,
+    userEmail?: string,
+  ): string {
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [LLM] Preparing data: ${receivedEmails.length} received threads/emails provided`,
+    );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [LLM] Using ALL ${receivedEmails.length} items (not limiting to ${QUERY_LIMITS.MAX_RESULTS_DEFAULT})`,
+    );
+    const receivedData = this.buildReceivedEmailStats(receivedEmails);
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [LLM] Preparing sent emails: ${sentEmails.length} sent emails provided, will use first ${QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT}`,
+    );
+    const sentData = this.buildSentEmailStats(sentEmails);
+    const timeAnalysis = this.buildEmailTimeAnalysis(receivedEmails);
+    const currentContextText =
+      currentContext && currentContext.length > 0
+        ? currentContext
+            .map(
+              (ctx) =>
+                `- ${ctx.key}: ${ctx.value}${ctx.source ? ` (source: ${ctx.source})` : ""}`,
+            )
+            .join("\n")
+        : "No existing context.";
+    const timeAnalysisText =
+      timeAnalysis.receivedHours || timeAnalysis.replyHours
+        ? `\n\nTime Patterns:\n- Email reading times: ${timeAnalysis.receivedHours || "Not enough data"}\n- Email reply times: ${timeAnalysis.replyHours || "Not enough data"}`
+        : "";
+    const prompt = renderPrompt(promptTemplate, {
+      userEmail: userEmail || "unknown@example.com",
+      currentContext: currentContextText,
+      receivedEmails: receivedData,
+      sentEmails: sentData,
+      timeAnalysis: timeAnalysisText,
+    });
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [LLM] About to call generateText() - prompt length: ${prompt.length} chars`,
+    );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [LLM] Input: ${receivedEmails.length} received emails, ${sentEmails.length} sent emails`,
+    );
+    return prompt;
   }
 
   async summarizeEmail(
@@ -1376,25 +1408,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       );
     }
 
-    // Build prior thread context string for the prompt (excludes the latest email itself).
-    // Each message is stripped of quoted text/signatures via cleanEmailContent and
-    // capped to keep the prompt within a reasonable token budget.
-    const threadContext =
-      threadMessages && threadMessages.length > 0
-        ? threadMessages
-            .map((msg, idx) => {
-              const sender = msg.isFromUser ? "You" : msg.fromName || msg.from;
-              const date = new Date(msg.receivedAt).toLocaleDateString();
-              const cleanedMsgBody = cleanEmailContent(
-                msg.body,
-                null,
-                QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
-              );
-              return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedMsgBody}`;
-            })
-            .join("\n\n---\n\n")
-        : "";
-
+    const threadContext = this.buildReplyThreadContext(threadMessages);
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
       userName,
@@ -1443,6 +1457,33 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       userId,
     );
     return [{ label: "Draft Reply", text: fallbackDraft }];
+  }
+
+  private buildReplyThreadContext(
+    threadMessages?: Array<{
+      from: string;
+      fromName?: string;
+      body: string;
+      receivedAt: Date;
+      isFromUser: boolean;
+    }>,
+  ): string {
+    // Build prior thread context string for the prompt (excludes the latest email itself).
+    // Each message is stripped of quoted text/signatures via cleanEmailContent and
+    // capped to keep the prompt within a reasonable token budget.
+    if (!threadMessages || threadMessages.length === 0) return "";
+    return threadMessages
+      .map((msg, idx) => {
+        const sender = msg.isFromUser ? "You" : msg.fromName || msg.from;
+        const date = new Date(msg.receivedAt).toLocaleDateString();
+        const cleanedMsgBody = cleanEmailContent(
+          msg.body,
+          null,
+          QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+        );
+        return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedMsgBody}`;
+      })
+      .join("\n\n---\n\n");
   }
 
   async generateReplyDraft(

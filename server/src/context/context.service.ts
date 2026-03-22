@@ -895,12 +895,11 @@ export class ContextService {
         "debug",
       );
       const sentEmailsData =
-        await this.gmailDataService.fetchSentThreadsFromGmail(
+        await this.gmailDataService.fetchSentThreadsFromProvider(
           userId,
           userEmail || "",
           ninetyDaysAgo,
           today,
-          // Target 100 sent threads
           100,
         );
 

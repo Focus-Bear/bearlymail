@@ -161,6 +161,11 @@ module.exports = {
     // Limit JSX depth (too deep = hard to read) - relaxed
     'react/jsx-max-depth': ['warn', { max: 8 }],
 
+    // Disabled: all HTML rendering goes through SanitizedHTML.tsx with DOMPurify. See issue #939.
+    // The project's architecture explicitly channels all dangerouslySetInnerHTML through
+    // that single auditable wrapper, so the rule adds no safety value here.
+    'react/no-danger': 'off',
+
     // ===========================================
     // REACT HOOK IMPORT ENFORCEMENT
     // ===========================================
@@ -349,72 +354,6 @@ module.exports = {
       files: ['**/pages/*.tsx', '**/pages/*.ts'],
       rules: {
         'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
-      },
-    },
-    {
-      // Large hooks pending decomposition (tracked in issue #778)
-      // These hooks encapsulate complex stateful logic that requires significant refactoring
-      // to break apart without introducing regressions. Tracked for decomposition.
-      files: [
-        '**/hooks/useEmailDetailOperations.ts',
-        '**/hooks/useEmailDetailState.ts',
-        '**/hooks/useInboxState.ts',
-        '**/hooks/settings/useAnalysisProgress.ts',
-      ],
-      rules: {
-        'max-lines-per-function': 'off',
-        'max-lines': 'off',
-        'max-statements': 'off',
-        'complexity': 'off',
-        'react-hooks/exhaustive-deps': 'off', // Intentional dependency exclusions to prevent infinite re-render cycles
-      },
-    },
-
-    {
-      // Large components pending decomposition (tracked in issue #778)
-      // These components have complex render logic. Decomposition is planned.
-      // Some files also use standard Axios request body shape where 'data' property is required by the API.
-      files: [
-        '**/components/email-detail/EmailDetailActions.tsx',
-        '**/components/email-detail/EmailThreadView.tsx',
-        '**/components/email-detail/SummarySection.tsx',
-        '**/components/compose/RecipientFields.tsx',
-        '**/components/compose/TimePicker.tsx',
-        '**/components/search/SearchResults.tsx',
-        '**/components/inbox/CategorySection.tsx',
-        '**/components/settings/AnalysisProgressModal.tsx',
-        '**/components/settings/GuideOurAISection.tsx',
-        '**/components/settings/SchedulingPreferencesSection.tsx',
-        '**/components/settings/DataExportSection.tsx',
-        '**/components/settings/guide-ai/SummarizationRuleAddForm.tsx',
-        '**/components/settings/guide-ai/SummarizationRuleEditForm.tsx',
-        '**/components/settings/guide-ai/SummarizationRulesSection.tsx',
-        '**/components/settings/integrations/GitHubConnectionStatusSection.tsx',
-        '**/components/settings/integrations/GitHubRepoMappingsSection.tsx',
-        '**/components/priority/CategoryOverrideModal.tsx',
-        '**/components/rich-text/RichTextEditor.tsx',
-        '**/components/inbox/debug/DebugCategorySummarySection.tsx',
-        '**/components/inbox/debug/DebugSyncHistorySection.tsx',
-        '**/components/crm/DealFormModal.tsx',
-        '**/components/crm/KanbanColumn.tsx',
-        '**/components/github/GitHubProjectBadges.tsx',
-      ],
-      rules: {
-        'max-lines-per-function': 'off',
-        'max-statements': 'off',
-        'complexity': 'off',
-        'id-denylist': 'off', // Some components use Axios request body shape where 'data' is required by the API
-      },
-    },
-    {
-      // Utility files with complex parsing logic pending decomposition (tracked in issue #778)
-      files: [
-        '**/utils/emailBodyUtils.ts',
-      ],
-      rules: {
-        'max-lines-per-function': 'off',
-        'max-statements': 'off',
-        'complexity': 'off',
       },
     },
     {

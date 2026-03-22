@@ -327,13 +327,16 @@ module.exports = {
       },
     },
     {
-      // Legacy services/providers are actively being decomposed; keep strict lint elsewhere while
-      // allowing these modules to pass without inline eslint-disable comments.
+      // God-class files pending final decomposition into domain-specific services.
+      // Phase 5 progress (issue #939):
+      //   - llm-processor.ts: function violations cleared; only max-lines (1807) remains.
+      //     Split into llm-summary-processor + llm-priority-processor tracked for Phase 5g.
+      //   - context.service.ts: 3757 lines, multiple large functions. Split into 5 services
+      //     tracked for Phase 5g.
+      // gmail.provider.ts, context-gmail-data.service.ts removed — both now fully compliant.
       files: [
         'src/emails/llm-processor.ts',
-        'src/emails/providers/gmail.provider.ts',
         'src/context/context.service.ts',
-        'src/context/context-gmail-data.service.ts',
       ],
       rules: {
         'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
@@ -341,25 +344,15 @@ module.exports = {
         'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
         complexity: ['error', 250],
         'id-denylist': 'off',
-        'max-params': ['error', 30], // NestJS DI constructors can have many injected services
+        'max-params': ['error', 30],
       },
     },
 
     {
-      // Additional large legacy modules pending decomposition.
-      // These files are within file-level line limits but their functions still
-      // exceed max-lines-per-function / complexity / max-statements defaults, so the override is retained:
-      //   - context-batch-analysis.processor.ts: handleBatchAnalysisJob 516 lines, complexity 39, 138 statements
-      //   - emails.service.ts: constructor has 15 parameters (max-params exceeded)
-      //   - github-api.service.ts: 955 lines with functions exceeding function-level limits
-      //   - priority-analysis.service.ts: analyzePriorityBatch complexity 25, analyzePriority complexity 29
-      // llm.service.ts (3176 lines) remains — still requires relaxed override for file-level limits too.
+      // llm.service.ts: function violations cleared in Phase 5f; only max-lines (2811) remains.
+      // Split into 8 domain-specific LLM services tracked for Phase 5g. See issue #939.
       files: [
         'src/llm/llm.service.ts',
-        'src/context/context-batch-analysis.processor.ts',
-        'src/emails/emails.service.ts',
-        'src/github/github-api.service.ts',
-        'src/llm/priority-analysis.service.ts',
       ],
       rules: {
         'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],

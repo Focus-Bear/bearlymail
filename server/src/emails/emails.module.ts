@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
+import { getRepositoryToken, TypeOrmModule } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 import { AwsModule } from "../aws/aws.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
@@ -47,6 +48,11 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
 import { EmailSearchService } from "./email-search.service";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
+import {
+  EMAIL_DEPS_REPOS,
+  EMAIL_DEPS_SERVICES,
+  EmailServiceDeps,
+} from "./email-service-dependencies.provider";
 import { EmailStarService } from "./email-star.service";
 import { EmailStatusService } from "./email-status.service";
 import { EmailSyncProcessor } from "./email-sync.processor";
@@ -55,6 +61,7 @@ import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { LLMProcessor } from "./llm-processor";
 import { GmailProvider } from "./providers/gmail.provider";
+import { GmailSyncService } from "./providers/gmail-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
 import { ScanEmailService } from "./scan-email.service";
@@ -99,7 +106,6 @@ import { SyncHistoryService } from "./sync-history.service";
     SyncHistoryService,
     CategoryDedupService,
     EmailProviderManager,
-    // Put EmailProviderManager before EmailsService to avoid circular dependency
     EmailThreadService,
     EmailSearchService,
     EmailStarService,
@@ -108,16 +114,80 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailCrudService,
     EmailGmailService,
     EmailStatusService,
-    // New focused services — registered before facade
     EmailFollowUpService,
     EmailInboxService,
     EmailPriorityExplanationService,
     EmailLifecycleService,
     EmailArchiveService,
     EmailMigrationService,
+    // Group 1: repositories + provider manager + 5 sub-services (8 total, within max-params)
+    {
+      provide: EMAIL_DEPS_REPOS,
+      useFactory: (
+        emailRepository: Repository<Email>,
+        emailThreadRepository: Repository<EmailThread>,
+        emailProviderManager: EmailProviderManager,
+        emailThreadService: EmailThreadService,
+        emailSearchService: EmailSearchService,
+        emailStarService: EmailStarService,
+        emailDebugService: EmailDebugService,
+        emailReadService: EmailReadService,
+      ) => ({
+        emailRepository,
+        emailThreadRepository,
+        emailProviderManager,
+        emailThreadService,
+        emailSearchService,
+        emailStarService,
+        emailDebugService,
+        emailReadService,
+      }),
+      inject: [
+        getRepositoryToken(Email),
+        getRepositoryToken(EmailThread),
+        EmailProviderManager,
+        EmailThreadService,
+        EmailSearchService,
+        EmailStarService,
+        EmailDebugService,
+        EmailReadService,
+      ],
+    },
+    // Group 2: remaining 7 sub-services (within max-params)
+    {
+      provide: EMAIL_DEPS_SERVICES,
+      useFactory: (
+        emailCrudService: EmailCrudService,
+        emailGmailService: EmailGmailService,
+        emailStatusService: EmailStatusService,
+        emailInboxService: EmailInboxService,
+        emailPriorityExplanationService: EmailPriorityExplanationService,
+        emailLifecycleService: EmailLifecycleService,
+        emailArchiveService: EmailArchiveService,
+      ) => ({
+        emailCrudService,
+        emailGmailService,
+        emailStatusService,
+        emailInboxService,
+        emailPriorityExplanationService,
+        emailLifecycleService,
+        emailArchiveService,
+      }),
+      inject: [
+        EmailCrudService,
+        EmailGmailService,
+        EmailStatusService,
+        EmailInboxService,
+        EmailPriorityExplanationService,
+        EmailLifecycleService,
+        EmailArchiveService,
+      ],
+    },
+    EmailServiceDeps,
     EmailsService,
     ScanEmailService,
     GmailProvider,
+    GmailSyncService,
     Office365Provider,
     ZohoProvider,
     EmailSyncProcessor,

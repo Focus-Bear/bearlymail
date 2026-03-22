@@ -13,6 +13,55 @@ import {
 import { NODE_NAME_ANCHOR } from 'constants/strings';
 
 /**
+ * Find the cutoff index for an HTML signature by scanning HTML structure, then text representation.
+ * Returns content.length if no signature is found.
+ */
+function findHtmlSignatureCutoff(content: string, minContentChars: number): number {
+  const htmlSignaturePatterns = [
+    /(<div[^>]*>[\s\S]*?(?:RESEARCH CONTRACTS|Privacy Statement|www\.rmit\.edu\.au|RMIT values your privacy)[\s\S]*?<\/div>)/i,
+    /(<p[^>]*>[\s\S]*?(?:Best regards|Kind regards|Regards|Thanks|Thank you|Cheers|Sincerely|Yours truly|Warm regards|Best|All the best)[\s\S]*?<\/p>)/i,
+    /(<div[^>]*>[\s\S]*?--\s*<\/div>)/i,
+    /(<p[^>]*>[\s\S]*?--\s*<\/p>)/i,
+    /(<div[^>]*>[\s\S]*?(?:Sent from my|Get Outlook for|Sent from Mail|Sent from iPhone|Sent from iPad)[\s\S]*?<\/div>)/i,
+  ];
+  let cutoffIndex = content.length;
+  for (const pattern of htmlSignaturePatterns) {
+    const match = content.match(pattern);
+    if (match && match.index !== undefined) {
+      const index = match.index;
+      if (index > minContentChars && index < cutoffIndex) {
+        cutoffIndex = index;
+      }
+    }
+  }
+  return cutoffIndex;
+}
+
+/**
+ * Remove signature from plain-text email content.
+ * Returns the trimmed content up to the signature, or the original if no signature found.
+ */
+function removePlainTextSignature(content: string, minContentChars: number): string {
+  const signaturePatterns = [
+    /\n\n--\s*$/m,
+    /\n\n-{3,}\s*$/m,
+    /\n\n_{3,}\s*$/m,
+    /\n\n(Best regards?|Kind regards?|Regards?|Thanks?|Thank you|Cheers?|Sincerely|Yours truly|Warm regards?|Best|All the best)[\s\S]*$/i,
+    /\n\n(Sent from my|Get Outlook for|Sent from Mail|Sent from iPhone|Sent from iPad)[\s\S]*$/i,
+    /\n\nRESEARCH CONTRACTS TEAM[\s\S]*?Privacy[\s\S]*$/i,
+    /\n\nRMIT[\s\S]*?(Privacy|www\.rmit\.edu\.au)[\s\S]*$/i,
+  ];
+  let cutoffIndex = content.length;
+  for (const pattern of signaturePatterns) {
+    const match = content.match(pattern);
+    if (match && match.index !== undefined && match.index > minContentChars && match.index < cutoffIndex) {
+      cutoffIndex = match.index;
+    }
+  }
+  return cutoffIndex < content.length ? content.substring(0, cutoffIndex).trim() : content;
+}
+
+/**
  * Remove email signature from text (works for both plain text and HTML)
  */
 export function removeSignature(content: string, isHtml: boolean = false): string {
@@ -21,38 +70,12 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
   }
 
   if (isHtml) {
-    // For HTML, look for signature patterns directly in HTML structure
-    const htmlSignaturePatterns = [
-      // Look for structured signatures like RMIT with privacy statements
-      /(<div[^>]*>[\s\S]*?(?:RESEARCH CONTRACTS|Privacy Statement|www\.rmit\.edu\.au|RMIT values your privacy)[\s\S]*?<\/div>)/i,
-      // Look for signature blocks with common closings
-      /(<p[^>]*>[\s\S]*?(?:Best regards|Kind regards|Regards|Thanks|Thank you|Cheers|Sincerely|Yours truly|Warm regards|Best|All the best)[\s\S]*?<\/p>)/i,
-      // Look for signature dividers
-      /(<div[^>]*>[\s\S]*?--\s*<\/div>)/i,
-      /(<p[^>]*>[\s\S]*?--\s*<\/p>)/i,
-      // Look for mobile signatures
-      /(<div[^>]*>[\s\S]*?(?:Sent from my|Get Outlook for|Sent from Mail|Sent from iPhone|Sent from iPad)[\s\S]*?<\/div>)/i,
-    ];
+    let cutoffIndex = findHtmlSignatureCutoff(content, SIGNATURE_MIN_CONTENT_CHARS);
 
-    let cutoffIndex = content.length;
-
-    for (const pattern of htmlSignaturePatterns) {
-      const match = content.match(pattern);
-      if (match && match.index !== undefined) {
-        const index = match.index;
-        // Only cut if there's meaningful content before (at least 200 chars)
-        if (index > SIGNATURE_MIN_CONTENT_CHARS && index < cutoffIndex) {
-          cutoffIndex = index;
-        }
-      }
-    }
-
-    // Also check plain text representation for additional patterns
-    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
+    // Also refine using plain text representation for additional patterns
     const cleanedContent = removeCidImagesFromString(content);
     const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
     const text = doc.body.textContent || doc.body.innerText || '';
-
     const textSignaturePatterns = [
       /\n\n--\s*$/m,
       /\n\n-{3,}\s*$/m,
@@ -60,54 +83,21 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
       /\n\n(Best regards?|Kind regards?|Regards?|Thanks?|Thank you|Cheers?|Sincerely|Yours truly|Warm regards?|Best|All the best)[\s\S]*$/i,
       /\n\nRMIT[\s\S]*?(Privacy|www\.rmit\.edu\.au)[\s\S]*$/i,
     ];
-
     for (const pattern of textSignaturePatterns) {
       const match = text.match(pattern);
       if (match && match.index !== undefined) {
-        // Find the corresponding position in HTML (approximate)
         const textBeforeSig = text.substring(0, match.index);
-        const htmlPos = content.indexOf(textBeforeSig.slice(-TEXT_SEARCH_LAST_CHARS)); // Look for last 100 chars of text
+        const htmlPos = content.indexOf(textBeforeSig.slice(-TEXT_SEARCH_LAST_CHARS));
         if (htmlPos > SIGNATURE_MIN_CONTENT_CHARS && htmlPos < cutoffIndex) {
           cutoffIndex = htmlPos;
         }
       }
     }
 
-    if (cutoffIndex < content.length) {
-      return content.substring(0, cutoffIndex).trim();
-    }
-
-    return content;
-  } else {
-    // Plain text signature removal
-    const signaturePatterns = [
-      /\n\n--\s*$/m,
-      /\n\n-{3,}\s*$/m,
-      /\n\n_{3,}\s*$/m,
-      /\n\n(Best regards?|Kind regards?|Regards?|Thanks?|Thank you|Cheers?|Sincerely|Yours truly|Warm regards?|Best|All the best)[\s\S]*$/i,
-      /\n\n(Sent from my|Get Outlook for|Sent from Mail|Sent from iPhone|Sent from iPad)[\s\S]*$/i,
-      /\n\nRESEARCH CONTRACTS TEAM[\s\S]*?Privacy[\s\S]*$/i,
-      /\n\nRMIT[\s\S]*?(Privacy|www\.rmit\.edu\.au)[\s\S]*$/i,
-    ];
-
-    let cutoffIndex = content.length;
-
-    for (const pattern of signaturePatterns) {
-      const match = content.match(pattern);
-      if (match && match.index !== undefined) {
-        const index = match.index;
-        if (index > SIGNATURE_MIN_CONTENT_PLAINTEXT && index < cutoffIndex) {
-          cutoffIndex = index;
-        }
-      }
-    }
-
-    if (cutoffIndex < content.length) {
-      return content.substring(0, cutoffIndex).trim();
-    }
+    return cutoffIndex < content.length ? content.substring(0, cutoffIndex).trim() : content;
   }
 
-  return content;
+  return removePlainTextSignature(content, SIGNATURE_MIN_CONTENT_PLAINTEXT);
 }
 
 /**
@@ -199,6 +189,39 @@ function isInsideAnchor(node: Node): boolean {
   return false;
 }
 
+/**
+ * Replace URL matches in a text node with anchor elements.
+ * Returns true if any replacements were made.
+ */
+function replaceUrlsInTextNode(textNode: Text, text: string): void {
+  URL_REGEX.lastIndex = 0;
+  const fragment = document.createDocumentFragment();
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = URL_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    const url = match[0];
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.textContent = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    fragment.appendChild(anchor);
+    lastIndex = match.index + url.length;
+  }
+
+  if (lastIndex < text.length) {
+    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+
+  if (lastIndex > 0) {
+    textNode.parentNode?.replaceChild(fragment, textNode);
+  }
+}
+
 function linkifyTextNodes(root: HTMLElement): void {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   const textNodes: Text[] = [];
@@ -216,33 +239,7 @@ function linkifyTextNodes(root: HTMLElement): void {
     if (!URL_REGEX.test(text)) {
       continue;
     }
-    URL_REGEX.lastIndex = 0;
-
-    const fragment = document.createDocumentFragment();
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = URL_REGEX.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
-      const url = match[0];
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.textContent = url;
-      anchor.target = '_blank';
-      anchor.rel = 'noopener noreferrer';
-      fragment.appendChild(anchor);
-      lastIndex = match.index + url.length;
-    }
-
-    if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-
-    if (lastIndex > 0) {
-      textNode.parentNode?.replaceChild(fragment, textNode);
-    }
+    replaceUrlsInTextNode(textNode, text);
   }
 }
 

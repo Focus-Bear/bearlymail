@@ -17,6 +17,49 @@ import {
 } from "./llm-operations";
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
 
+type UserContextInput = {
+  urgentItems?: Array<{ value: string; explanation?: string }>;
+  notUrgentItems?: Array<{ value: string; explanation?: string }>;
+  goals?: Array<{ value: string; priority?: number }>;
+  workingOn?: Array<{ value: string; priority?: number }>;
+  dontCare?: Array<{ value: string }>;
+  emailCategories?: Array<{ name: string; description?: string }>;
+  protoCategories?: Array<{ name: string; description?: string }>;
+};
+
+type UserContextTexts = {
+  urgentContextText: string;
+  notUrgentContextText: string;
+  goalsContextText: string;
+  workingOnContextText: string;
+  dontCareContextText: string;
+  emailCategoriesText: string;
+};
+
+type PriorityResult = {
+  urgencyScore: number;
+  urgencyExplanation: string;
+  sentimentScore: number | undefined;
+  goalAlignmentScore: number;
+  goalAlignmentExplanation: string;
+  category: string;
+  categoryExplanation: string;
+  reasoning: string;
+  protoCategorySuggestion?: { name: string; description: string };
+};
+
+type BatchPriorityResult = PriorityResult & { isFallback: boolean };
+
+type BatchEmailInput = {
+  emailKey: string;
+  from: string;
+  fromName?: string;
+  senderJobTitle?: string;
+  subject: string;
+  body: string;
+  preComputedSentimentScore?: number;
+};
+
 @Injectable()
 export class PriorityAnalysisService {
   private readonly logger = new Logger(PriorityAnalysisService.name);
@@ -26,21 +69,9 @@ export class PriorityAnalysisService {
     private errorTrackingService: ErrorTrackingService,
   ) {}
 
-  private buildUserContextTexts(userContext?: {
-    urgentItems?: Array<{ value: string; explanation?: string }>;
-    notUrgentItems?: Array<{ value: string; explanation?: string }>;
-    goals?: Array<{ value: string; priority?: number }>;
-    workingOn?: Array<{ value: string; priority?: number }>;
-    dontCare?: Array<{ value: string }>;
-    emailCategories?: Array<{ name: string; description?: string }>;
-  }): {
-    urgentContextText: string;
-    notUrgentContextText: string;
-    goalsContextText: string;
-    workingOnContextText: string;
-    dontCareContextText: string;
-    emailCategoriesText: string;
-  } {
+  private buildUserContextTexts(
+    userContext?: UserContextInput,
+  ): UserContextTexts {
     const urgentContextText =
       userContext?.urgentItems && userContext.urgentItems.length > 0
         ? userContext.urgentItems
@@ -100,58 +131,29 @@ export class PriorityAnalysisService {
     };
   }
 
-  async analyzePriority(
+  /**
+   * Build the priority prompt for a single email.
+   * Loads the prompt template, formats user context and thread info, and renders the prompt string.
+   */
+  private buildPriorityPrompt(
     email: {
       from: string;
       fromName?: string;
       senderJobTitle?: string;
       subject: string;
       body: string;
-      // Should be pre-cleaned, but we'll clean defensively
     },
-    userHistory?: {
-      averageTimeToReply?: number;
-      similarEmailsReplyTime?: number;
-    },
-    provider?: LLMProvider,
-    userId?: string,
-    userContext?: {
-      urgentItems?: Array<{ value: string; explanation?: string }>;
-      notUrgentItems?: Array<{ value: string; explanation?: string }>;
-      goals?: Array<{ value: string; priority?: number }>;
-      workingOn?: Array<{ value: string; priority?: number }>;
-      dontCare?: Array<{ value: string }>;
-      emailCategories?: Array<{ name: string; description?: string }>;
-      protoCategories?: Array<{ name: string; description?: string }>;
-    },
-    threadInfo?: {
-      daysSinceLastReply?: number;
-      userShouldReply?: boolean;
-      lastReplyFrom?: string;
-    },
-    preComputedSentimentScore?: number,
-  ): Promise<{
-    urgencyScore: number;
-    urgencyExplanation: string;
-    sentimentScore: number | undefined;
-    goalAlignmentScore: number;
-    goalAlignmentExplanation: string;
-    category: string;
-    categoryExplanation: string;
-    reasoning: string;
-    protoCategorySuggestion?: {
-      name: string;
-      description: string;
-    };
-  }> {
-    // Defensive cleaning in case body wasn't pre-cleaned by caller
-    const cleanedBody = cleanEmailContent(
-      email.body,
-      null,
-      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-    );
-
-    // Load prompt from markdown file
+    userHistory: { averageTimeToReply?: number } | undefined,
+    userContext: UserContextInput | undefined,
+    threadInfo:
+      | {
+          daysSinceLastReply?: number;
+          userShouldReply?: boolean;
+          lastReplyFrom?: string;
+        }
+      | undefined,
+    userId: string | undefined,
+  ): { prompt: string; systemPrompt: string } {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
       const error = new StructuralError(
@@ -165,6 +167,12 @@ export class PriorityAnalysisService {
       throw error;
     }
 
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -172,17 +180,18 @@ export class PriorityAnalysisService {
       day: "numeric",
     });
 
-    const {
-      urgentContextText,
-      notUrgentContextText,
-      goalsContextText,
-      workingOnContextText,
-      dontCareContextText,
-      emailCategoriesText,
-    } = this.buildUserContextTexts(userContext);
+    const contextTexts = this.buildUserContextTexts(userContext);
 
     const threadInfoText = threadInfo
-      ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
+      ? `\nThread Information:\n${
+          threadInfo.daysSinceLastReply !== undefined
+            ? `- Days since last reply: ${threadInfo.daysSinceLastReply}`
+            : ""
+        }${
+          threadInfo.userShouldReply !== undefined
+            ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}`
+            : ""
+        }${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
       : "";
 
     const prompt = renderPrompt(promptConfig.prompt, {
@@ -193,21 +202,146 @@ export class PriorityAnalysisService {
       body: cleanedBody,
       averageTimeToReply: userHistory?.averageTimeToReply,
       currentDate: currentDateStr,
-      urgentContext: urgentContextText,
-      notUrgentContext: notUrgentContextText,
-      goalsContext: goalsContextText,
-      workingOnContext: workingOnContextText,
-      dontCareContext: dontCareContextText,
-      emailCategories: emailCategoriesText,
+      urgentContext: contextTexts.urgentContextText,
+      notUrgentContext: contextTexts.notUrgentContextText,
+      goalsContext: contextTexts.goalsContextText,
+      workingOnContext: contextTexts.workingOnContextText,
+      dontCareContext: contextTexts.dontCareContextText,
+      emailCategories: contextTexts.emailCategoriesText,
       threadInfo: threadInfoText,
     });
+
+    return { prompt, systemPrompt: promptConfig.systemPrompt || "" };
+  }
+
+  /**
+   * Parse a successful LLM priority response JSON into a PriorityResult.
+   * Returns null if the JSON doesn't contain a valid priority object.
+   */
+  private parsePriorityResponse(
+    response: string,
+    preComputedSentimentScore: number | undefined,
+    emailSubject: string,
+    responsePreview: string,
+    userId: string | undefined,
+  ): PriorityResult | null {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      this.logger.error(
+        `analyzePriority: LLM returned a non-JSON response - falling back to heuristics. Email subject: "${emailSubject}". Response preview: "${responsePreview}"`,
+      );
+      this.errorTrackingService.captureException(
+        new Error(
+          `LLM priority response contained no JSON object. Response preview: ${responsePreview}`,
+        ),
+        userId,
+        { operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY, responsePreview },
+      );
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const analysisResult =
+      parsed.result && typeof parsed.result === "object"
+        ? parsed.result
+        : parsed;
+    const category = analysisResult.category || "Other";
+
+    return {
+      urgencyScore: Math.max(
+        0,
+        Math.min(100, analysisResult.urgencyScore || 0),
+      ),
+      urgencyExplanation:
+        analysisResult.urgencyExplanation || "No urgency explanation provided",
+      sentimentScore:
+        preComputedSentimentScore !== undefined
+          ? preComputedSentimentScore
+          : undefined,
+      goalAlignmentScore: Math.max(
+        0,
+        Math.min(100, analysisResult.goalAlignmentScore || 0),
+      ),
+      goalAlignmentExplanation:
+        analysisResult.goalAlignmentExplanation ||
+        "No goal alignment explanation provided",
+      category,
+      categoryExplanation:
+        analysisResult.categoryExplanation ||
+        "No category explanation provided",
+      reasoning: analysisResult.reasoning || "No reasoning provided",
+      protoCategorySuggestion:
+        category === "Other" && analysisResult.protoCategorySuggestion
+          ? {
+              name: analysisResult.protoCategorySuggestion.name || "",
+              description:
+                analysisResult.protoCategorySuggestion.description || "",
+            }
+          : undefined,
+    };
+  }
+
+  /**
+   * Build a keyword-based fallback PriorityResult when LLM parsing fails.
+   */
+  private buildFallbackPriorityResult(
+    response: string,
+    preComputedSentimentScore: number | undefined,
+  ): PriorityResult {
+    const urgencyKeywords = /urgent|asap|critical|emergency/i.test(response);
+    const urgencyScore = urgencyKeywords
+      ? PRIORITY_ANALYSIS_FALLBACK.URGENCY_KEYWORDS_DETECTED
+      : PRIORITY_ANALYSIS_FALLBACK.URGENCY_NO_KEYWORDS;
+
+    return {
+      urgencyScore,
+      urgencyExplanation: urgencyKeywords
+        ? "Contains urgent keywords"
+        : "No urgent indicators detected",
+      sentimentScore: preComputedSentimentScore,
+      goalAlignmentScore: 0,
+      goalAlignmentExplanation: "No goal alignment detected",
+      category: "Other",
+      categoryExplanation: "Unable to categorize - fallback response",
+      reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
+    };
+  }
+
+  async analyzePriority(
+    email: {
+      from: string;
+      fromName?: string;
+      senderJobTitle?: string;
+      subject: string;
+      body: string;
+    },
+    userHistory?: {
+      averageTimeToReply?: number;
+      similarEmailsReplyTime?: number;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+    userContext?: UserContextInput,
+    threadInfo?: {
+      daysSinceLastReply?: number;
+      userShouldReply?: boolean;
+      lastReplyFrom?: string;
+    },
+    preComputedSentimentScore?: number,
+  ): Promise<PriorityResult> {
+    const { prompt, systemPrompt } = this.buildPriorityPrompt(
+      email,
+      userHistory,
+      userContext,
+      threadInfo,
+      userId,
+    );
 
     const response = await this.llmCoreService.generateText(
       {
         prompt,
-        systemPrompt: promptConfig.systemPrompt || "",
+        systemPrompt,
         temperature: RATIOS.THIRTY_PERCENT,
-        // Lower temperature for more consistent scoring
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
@@ -217,71 +351,20 @@ export class PriorityAnalysisService {
       userId,
     );
 
-    // Try to parse JSON response
     const responsePreview = response.substring(
       0,
       QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
     );
+
     try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Support new format { "result": {...} } and legacy flat format
-        const analysisResult =
-          parsed.result && typeof parsed.result === "object"
-            ? parsed.result
-            : parsed;
-        const category = analysisResult.category || "Other";
-        return {
-          urgencyScore: Math.max(
-            0,
-            Math.min(100, analysisResult.urgencyScore || 0),
-          ),
-          urgencyExplanation:
-            analysisResult.urgencyExplanation ||
-            "No urgency explanation provided",
-          // Use pre-computed sentiment from summary step if provided (token-efficient).
-          // The priority prompt instructs the LLM not to compute sentiment, so the
-          // LLM-returned value is unreliable. Fall back to undefined so applyPriorityResult
-          // skips the DB write and preserves the summary-step value.
-          sentimentScore:
-            preComputedSentimentScore !== undefined
-              ? preComputedSentimentScore
-              : undefined,
-          goalAlignmentScore: Math.max(
-            0,
-            Math.min(100, analysisResult.goalAlignmentScore || 0),
-          ),
-          goalAlignmentExplanation:
-            analysisResult.goalAlignmentExplanation ||
-            "No goal alignment explanation provided",
-          category,
-          categoryExplanation:
-            analysisResult.categoryExplanation ||
-            "No category explanation provided",
-          reasoning: analysisResult.reasoning || "No reasoning provided",
-          protoCategorySuggestion:
-            category === "Other" && analysisResult.protoCategorySuggestion
-              ? {
-                  name: analysisResult.protoCategorySuggestion.name || "",
-                  description:
-                    analysisResult.protoCategorySuggestion.description || "",
-                }
-              : undefined,
-        };
-      } else {
-        // No JSON object found in response - log clearly so it's visible in worker terminal
-        this.logger.error(
-          `analyzePriority: LLM returned a non-JSON response - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,
-        );
-        this.errorTrackingService.captureException(
-          new Error(
-            `LLM priority response contained no JSON object. Response preview: ${responsePreview}`,
-          ),
-          userId,
-          { operation: PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY, responsePreview },
-        );
-      }
+      const parsed = this.parsePriorityResponse(
+        response,
+        preComputedSentimentScore,
+        email.subject,
+        responsePreview,
+        userId,
+      );
+      if (parsed) return parsed;
     } catch (error) {
       this.logger.error(
         `analyzePriority: Failed to parse LLM priority response as JSON - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,
@@ -293,26 +376,10 @@ export class PriorityAnalysisService {
       });
     }
 
-    // Fallback: extract component scores from text if JSON parsing fails
-    const urgencyKeywords = /urgent|asap|critical|emergency/i.test(response);
-    const urgencyScore = urgencyKeywords
-      ? PRIORITY_ANALYSIS_FALLBACK.URGENCY_KEYWORDS_DETECTED
-      : PRIORITY_ANALYSIS_FALLBACK.URGENCY_NO_KEYWORDS;
-    const urgencyExplanation = urgencyKeywords
-      ? "Contains urgent keywords"
-      : "No urgent indicators detected";
-
-    return {
-      urgencyScore,
-      urgencyExplanation,
-      // Use pre-computed sentiment if available; undefined signals applyPriorityResult to skip DB write.
-      sentimentScore: preComputedSentimentScore,
-      goalAlignmentScore: 0,
-      goalAlignmentExplanation: "No goal alignment detected",
-      category: "Other",
-      categoryExplanation: "Unable to categorize - fallback response",
-      reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
-    };
+    return this.buildFallbackPriorityResult(
+      response,
+      preComputedSentimentScore,
+    );
   }
 
   /**
@@ -321,13 +388,11 @@ export class PriorityAnalysisService {
    * Only accepts the canonical shape: `{ "priority_results": [...] }`.
    * Any other shape (bare array, wrong wrapper key, etc.) is treated as a
    * prompt compliance failure — logged and returned as null so the caller
-   * falls back to sentinel values. This surfaces LLM non-compliance instead
-   * of silently accepting it.
+   * falls back to sentinel values.
    *
    * Returns `null` when the response does not match the canonical shape.
    */
   private extractBatchResultsArray(parsed: unknown): unknown[] | null {
-    // Only accept the canonical shape: { priority_results: [...] }
     if (
       parsed !== null &&
       typeof parsed === "object" &&
@@ -339,7 +404,6 @@ export class PriorityAnalysisService {
         "priority_results"
       ] as unknown[];
     }
-    // Any other shape is a prompt compliance failure — log it and return null (triggers fallback)
     this.logger.warn(
       `[analyzePriorityBatch] Unexpected response shape from LLM. Expected { priority_results: [...] }.`,
       {
@@ -353,96 +417,14 @@ export class PriorityAnalysisService {
   }
 
   /**
-   * Analyze priority for a batch of emails in a single LLM call.
-   * Returns results keyed by the email identifier passed in.
+   * Build the batch priority prompt. Renders the shared single-email template in batch mode.
+   * Using the shared template ensures batch categorisation always inherits prompt improvements.
    */
-
-  async analyzePriorityBatch(
-    emails: Array<{
-      emailKey: string;
-      from: string;
-      fromName?: string;
-      senderJobTitle?: string;
-      subject: string;
-      body: string;
-      /**
-       * Pre-computed sentiment score from the summarisation step.
-       * If provided, it is used directly and the priority LLM is not asked to compute sentiment.
-       */
-      preComputedSentimentScore?: number;
-    }>,
-    userContext?: {
-      urgentItems?: Array<{ value: string; explanation?: string }>;
-      notUrgentItems?: Array<{ value: string; explanation?: string }>;
-      goals?: Array<{ value: string; priority?: number }>;
-      workingOn?: Array<{ value: string; priority?: number }>;
-      dontCare?: Array<{ value: string }>;
-      emailCategories?: Array<{ name: string; description?: string }>;
-      protoCategories?: Array<{ name: string; description?: string }>;
-    },
-    provider?: LLMProvider,
-    userId?: string,
-  ): Promise<
-    Map<
-      string,
-      {
-        urgencyScore: number;
-        urgencyExplanation: string;
-        sentimentScore: number | undefined;
-        goalAlignmentScore: number;
-        goalAlignmentExplanation: string;
-        category: string;
-        categoryExplanation: string;
-        reasoning: string;
-        /**
-         * True when this entry is a fallback/sentinel value because the LLM did not
-         * return a result for this email. Callers MUST skip DB writes for fallback
-         * entries to avoid overwriting existing valid priority scores with zeros.
-         */
-        isFallback: boolean;
-        protoCategorySuggestion?: {
-          name: string;
-          description: string;
-        };
-      }
-    >
-  > {
-    const results = new Map<
-      string,
-      {
-        urgencyScore: number;
-        urgencyExplanation: string;
-        sentimentScore: number | undefined;
-        goalAlignmentScore: number;
-        goalAlignmentExplanation: string;
-        category: string;
-        categoryExplanation: string;
-        reasoning: string;
-        isFallback: boolean;
-        protoCategorySuggestion?: {
-          name: string;
-          description: string;
-        };
-      }
-    >();
-
-    if (emails.length === 0) return results;
-
-    const emailDescriptions = emails.map((email, index) => {
-      const cleanedBody = cleanEmailContent(
-        email.body,
-        null,
-        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
-      );
-      return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
-From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
-Subject: ${email.subject}
-Summary: ${cleanedBody}`;
-    });
-
-    // Load and render the same promptfoo template used by the single-email path (parity fix #1144).
-    // Using the shared template ensures batch categorisation always inherits prompt improvements:
-    // Step 1/2/3 sender-type logic, GitHub-specific guidance, exclusion qualifier reasoning.
+  private buildBatchPriorityPrompt(
+    emails: BatchEmailInput[],
+    userContext: UserContextInput | undefined,
+    userId: string | undefined,
+  ): string {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
       const error = new StructuralError(
@@ -459,15 +441,19 @@ Summary: ${cleanedBody}`;
       throw error;
     }
 
-    const {
-      urgentContextText,
-      notUrgentContextText,
-      goalsContextText,
-      workingOnContextText,
-      dontCareContextText,
-      emailCategoriesText,
-    } = this.buildUserContextTexts(userContext);
+    const emailDescriptions = emails.map((email, index) => {
+      const cleanedBody = cleanEmailContent(
+        email.body,
+        null,
+        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+      );
+      return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
+From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
+Subject: ${email.subject}
+Summary: ${cleanedBody}`;
+    });
 
+    const contextTexts = this.buildUserContextTexts(userContext);
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -475,18 +461,16 @@ Summary: ${cleanedBody}`;
       day: "numeric",
     });
 
-    const batchPrompt = renderPrompt(promptConfig.prompt, {
+    return renderPrompt(promptConfig.prompt, {
       batchMode: true,
       emailBatch: emailDescriptions.join("\n\n"),
-      emailCategories: emailCategoriesText,
-      urgentContext: urgentContextText,
-      notUrgentContext: notUrgentContextText,
-      goalsContext: goalsContextText,
-      workingOnContext: workingOnContextText,
-      dontCareContext: dontCareContextText,
+      emailCategories: contextTexts.emailCategoriesText,
+      urgentContext: contextTexts.urgentContextText,
+      notUrgentContext: contextTexts.notUrgentContextText,
+      goalsContext: contextTexts.goalsContextText,
+      workingOnContext: contextTexts.workingOnContextText,
+      dontCareContext: contextTexts.dontCareContextText,
       currentDate: currentDateStr,
-      // Single-email-only vars — not used in batch mode but must be present
-      // to avoid template rendering leaving unreplaced placeholders
       fromName: "",
       senderJobTitle: "",
       subject: "",
@@ -494,139 +478,112 @@ Summary: ${cleanedBody}`;
       threadInfo: "",
       averageTimeToReply: undefined,
     });
+  }
 
+  /**
+   * Parse a batch LLM response and populate the results map.
+   * Returns false if the response couldn't be parsed (caller should log an error).
+   */
+  private parseBatchPriorityResponse(
+    response: string,
+    emails: BatchEmailInput[],
+    results: Map<string, BatchPriorityResult>,
+    responsePreview: string,
+    userId: string | undefined,
+  ): boolean {
+    let parsed: unknown;
     try {
-      const response = await this.llmCoreService.generateText(
-        {
-          prompt: batchPrompt,
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: emails.length * QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
-          userId,
-          operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
-          jsonMode: true,
-        },
-        provider,
-        userId,
-      );
-
-      // Parse the JSON response.
-      // json_object mode guarantees valid JSON, so JSON.parse(response) is the primary path.
-      // Fallbacks handle edge cases (non-json_object providers, response leakage, etc.).
-      const batchResponsePreview = response.substring(
-        0,
-        QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
-      );
-
-      // Attempt to parse and extract the results array
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(response);
-      } catch {
-        // json_object mode should always yield valid JSON, but guard against edge cases
-        // by trying to extract a JSON object or array from the response text.
-        const jsonObjMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonObjMatch) {
-          // May throw — let the outer catch handle it and log "Failed to parse"
-          parsed = JSON.parse(jsonObjMatch[0]);
-        } else {
-          const jsonArrMatch = response.match(/\[[\s\S]*\]/);
-          if (jsonArrMatch) {
-            // May throw — let the outer catch handle it and log "Failed to parse"
-            parsed = JSON.parse(jsonArrMatch[0]);
-          }
-          // else: parsed remains undefined — handled below
-        }
-      }
-
-      // Extract the results array from the parsed response.
-      // Only accepts the canonical shape: { "priority_results": [...] }.
-      // Any other shape is treated as a prompt compliance failure.
-      const parsedArray = this.extractBatchResultsArray(parsed);
-
-      if (parsedArray !== null) {
-        // Build a lookup map of emailKey → preComputedSentimentScore for O(1) access
-        const sentimentByKey = new Map<string, number | undefined>(
-          emails.map((email) => [
-            email.emailKey,
-            email.preComputedSentimentScore,
-          ]),
-        );
-
-        for (const item of parsedArray) {
-          const typedItem = item as Record<string, unknown>;
-          const key =
-            (typedItem.key as string) || (typedItem.emailKey as string);
-          if (key) {
-            const category = (typedItem.category as string) || "Other";
-            const protoSuggestion = typedItem.protoCategorySuggestion as
-              | Record<string, string>
-              | undefined;
-            // Use pre-computed sentiment from summarisation step if available.
-            // The batch prompt instructs the LLM not to compute sentiment, so the LLM-returned
-            // value is unreliable. Returning undefined signals applyPriorityResult to skip the
-            // DB write and preserve the existing sentiment from the summary step.
-            const preComputedSentimentScore = sentimentByKey.get(key);
-            results.set(key, {
-              urgencyScore: Math.max(
-                0,
-                Math.min(100, (typedItem.urgencyScore as number) || 0),
-              ),
-              urgencyExplanation:
-                (typedItem.urgencyExplanation as string) || "No explanation",
-              sentimentScore: preComputedSentimentScore,
-              goalAlignmentScore: Math.max(
-                0,
-                Math.min(100, (typedItem.goalAlignmentScore as number) || 0),
-              ),
-              goalAlignmentExplanation:
-                (typedItem.goalAlignmentExplanation as string) ||
-                "No explanation",
-              category,
-              categoryExplanation:
-                (typedItem.categoryExplanation as string) || "No explanation",
-              reasoning: (typedItem.reasoning as string) || "No reasoning",
-              isFallback: false,
-              protoCategorySuggestion:
-                category === "Other" && protoSuggestion
-                  ? {
-                      name: protoSuggestion.name || "",
-                      description: protoSuggestion.description || "",
-                    }
-                  : undefined,
-            });
-          }
-        }
+      parsed = JSON.parse(response);
+    } catch {
+      const jsonObjMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonObjMatch) {
+        parsed = JSON.parse(jsonObjMatch[0]);
       } else {
-        // No usable array found — log clearly so it's visible in worker terminal
-        const emailKeys = emails
-          .map((emailEntry) => emailEntry.emailKey)
-          .join(", ");
-        this.logger.error(
-          `analyzePriorityBatch: LLM returned a non-JSON response for batch of ${emails.length} emails [${emailKeys}]. Response preview: "${batchResponsePreview}"`,
-        );
-        this.errorTrackingService.captureException(
-          new Error(
-            `LLM batch priority response contained no JSON array. Response preview: ${batchResponsePreview}`,
-          ),
-          userId,
-          {
-            operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
-            emailCount: emails.length,
-            emailKeys,
-            responsePreview: batchResponsePreview,
-          },
-        );
+        const jsonArrMatch = response.match(/\[[\s\S]*\]/);
+        if (jsonArrMatch) {
+          parsed = JSON.parse(jsonArrMatch[0]);
+        }
       }
-    } catch (error) {
-      this.logger.error(
-        `analyzePriorityBatch: Failed to parse batch priority response for ${emails.length} emails`,
-        error,
-      );
     }
 
-    // Fill in sentinel fallback entries for any emails that didn't get a result.
-    // NOTE: isFallback is set to TRUE — callers MUST check this flag and skip DB
-    // writes to avoid overwriting existing valid priority scores with zero values.
+    const parsedArray = this.extractBatchResultsArray(parsed);
+    if (parsedArray === null) {
+      const emailKeys = emails
+        .map((emailEntry) => emailEntry.emailKey)
+        .join(", ");
+      this.logger.error(
+        `analyzePriorityBatch: LLM returned a non-JSON response for batch of ${emails.length} emails [${emailKeys}]. Response preview: "${responsePreview}"`,
+      );
+      this.errorTrackingService.captureException(
+        new Error(
+          `LLM batch priority response contained no JSON array. Response preview: ${responsePreview}`,
+        ),
+        userId,
+        {
+          operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
+          emailCount: emails.length,
+          emailKeys,
+          responsePreview,
+        },
+      );
+      return false;
+    }
+
+    const sentimentByKey = new Map<string, number | undefined>(
+      emails.map((email) => [email.emailKey, email.preComputedSentimentScore]),
+    );
+
+    for (const item of parsedArray) {
+      const typedItem = item as Record<string, unknown>;
+      const key = (typedItem.key as string) || (typedItem.emailKey as string);
+      if (!key) continue;
+
+      const category = (typedItem.category as string) || "Other";
+      const protoSuggestion = typedItem.protoCategorySuggestion as
+        | Record<string, string>
+        | undefined;
+      const preComputedSentimentScore = sentimentByKey.get(key);
+
+      results.set(key, {
+        urgencyScore: Math.max(
+          0,
+          Math.min(100, (typedItem.urgencyScore as number) || 0),
+        ),
+        urgencyExplanation:
+          (typedItem.urgencyExplanation as string) || "No explanation",
+        sentimentScore: preComputedSentimentScore,
+        goalAlignmentScore: Math.max(
+          0,
+          Math.min(100, (typedItem.goalAlignmentScore as number) || 0),
+        ),
+        goalAlignmentExplanation:
+          (typedItem.goalAlignmentExplanation as string) || "No explanation",
+        category,
+        categoryExplanation:
+          (typedItem.categoryExplanation as string) || "No explanation",
+        reasoning: (typedItem.reasoning as string) || "No reasoning",
+        isFallback: false,
+        protoCategorySuggestion:
+          category === "Other" && protoSuggestion
+            ? {
+                name: protoSuggestion.name || "",
+                description: protoSuggestion.description || "",
+              }
+            : undefined,
+      });
+    }
+
+    return true;
+  }
+
+  /**
+   * Fill in sentinel fallback entries for any emails missing from the batch results.
+   * Callers MUST check isFallback and skip DB writes to avoid overwriting valid scores.
+   */
+  private fillFallbackEntries(
+    results: Map<string, BatchPriorityResult>,
+    emails: BatchEmailInput[],
+  ): void {
     const missingEmailKeys: string[] = [];
     for (const email of emails) {
       if (!results.has(email.emailKey)) {
@@ -634,7 +591,6 @@ Summary: ${cleanedBody}`;
         results.set(email.emailKey, {
           urgencyScore: 0,
           urgencyExplanation: "Batch analysis failed for this email",
-          // undefined signals applyPriorityResult to skip the DB write
           sentimentScore: undefined,
           goalAlignmentScore: 0,
           goalAlignmentExplanation: "Batch analysis failed for this email",
@@ -651,7 +607,60 @@ Summary: ${cleanedBody}`;
         `analyzePriorityBatch: ${missingEmailKeys.length} of ${emails.length} emails were missing from LLM batch response and received fallback values. Missing email keys: [${missingEmailKeys.join(", ")}]`,
       );
     }
+  }
 
+  /**
+   * Analyze priority for a batch of emails in a single LLM call.
+   * Returns results keyed by the email identifier passed in.
+   */
+  async analyzePriorityBatch(
+    emails: BatchEmailInput[],
+    userContext?: UserContextInput,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<Map<string, BatchPriorityResult>> {
+    const results = new Map<string, BatchPriorityResult>();
+    if (emails.length === 0) return results;
+
+    const batchPrompt = this.buildBatchPriorityPrompt(
+      emails,
+      userContext,
+      userId,
+    );
+
+    try {
+      const response = await this.llmCoreService.generateText(
+        {
+          prompt: batchPrompt,
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: emails.length * QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+          userId,
+          operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
+          jsonMode: true,
+        },
+        provider,
+        userId,
+      );
+
+      const responsePreview = response.substring(
+        0,
+        QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+      );
+      this.parseBatchPriorityResponse(
+        response,
+        emails,
+        results,
+        responsePreview,
+        userId,
+      );
+    } catch (error) {
+      this.logger.error(
+        `analyzePriorityBatch: Failed to parse batch priority response for ${emails.length} emails`,
+        error,
+      );
+    }
+
+    this.fillFallbackEntries(results, emails);
     return results;
   }
 }

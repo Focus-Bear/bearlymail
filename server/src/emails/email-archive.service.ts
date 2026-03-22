@@ -6,6 +6,10 @@ import { In, Repository } from "typeorm";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { getJobPriority } from "../queue/job-priorities";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -27,6 +31,8 @@ export class EmailArchiveService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(CategoryOverride)
     private categoryOverrideRepository: Repository<CategoryOverride>,
+    @InjectRepository(UserContext)
+    private userContextRepository: Repository<UserContext>,
     private emailCrudService: EmailCrudService,
     private emailThreadService: EmailThreadService,
     private emailReadService: EmailReadService,
@@ -256,16 +262,37 @@ export class EmailArchiveService {
     });
     await this.categoryOverrideRepository.save(categoryOverride);
 
-    await this.emailThreadRepository.update(
-      { id: thread.id },
-      {
-        category: newCategory,
-        categoryExplanation: `User override: ${reasonText || "No reason provided"}. Original category: ${originalCategory || "None"}`,
+    // Look up the UserContext EMAIL_CATEGORY entry matching newCategory name
+    // so we can set the UUID FK (categoryId) used for inbox filtering.
+    const matchedContext = await this.userContextRepository.findOne({
+      where: {
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+        contextValue: newCategory,
       },
-    );
+    });
+
+    const updatePayload: Partial<EmailThread> = {
+      category: newCategory,
+      categoryExplanation: `User override: ${reasonText || "No reason provided"}. Original category: ${originalCategory || "None"}`,
+    };
+
+    if (matchedContext) {
+      // Set UUID FK so inbox filtering (which queries by categoryId) resolves correctly.
+      updatePayload.categoryId = matchedContext.contextId;
+    } else {
+      // No matching context found (e.g. brand-new category name not yet persisted as
+      // a UserContext row). Leave categoryId unchanged — the backfill job will reconcile
+      // it once the context row is created.
+      this.logger.warn(
+        `[CategoryOverride] No EMAIL_CATEGORY context found for name "${newCategory}" (userId=${userId}). categoryId not updated.`,
+      );
+    }
+
+    await this.emailThreadRepository.update({ id: thread.id }, updatePayload);
 
     this.logger.log(
-      `Category override for thread ${thread.id}: ${originalCategory} -> ${newCategory}`,
+      `Category override for thread ${thread.id}: ${originalCategory} -> ${newCategory} (categoryId=${matchedContext?.contextId ?? "unchanged"})`,
     );
     return { success: true, category: newCategory };
   }

@@ -332,7 +332,7 @@ module.exports = {
         'testing-library/no-wait-for-multiple-assertions': 'off', // Tests may need multiple assertions in a single waitFor for clarity
         'no-script-url': 'off', // Test files may test URL sanitization with javascript: URLs
         'no-restricted-syntax': 'off', // Test files may use literal strings in comparisons (e.g. typeof checks)
-        '@typescript-eslint/no-explicit-any': 'warn', // I-3: tightened from off → warn; encourages unknown/mock types
+        '@typescript-eslint/no-explicit-any': 'warn',
       },
     },
     {
@@ -348,24 +348,18 @@ module.exports = {
       // Relax function length for page components (they often have lots of JSX)
       files: ['**/pages/*.tsx', '**/pages/*.ts'],
       rules: {
-        'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }], // I-6: tightened from 350 → 200; pages should be thin wrappers
+        'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
       },
     },
     {
       // Large hooks pending decomposition (tracked in issue #778)
       // These hooks encapsulate complex stateful logic that requires significant refactoring
       // to break apart without introducing regressions. Tracked for decomposition.
-      // I-2: Removed from override (within normal limits):
-      //   useEmailProcessingPolling.ts (32 lines), useInboxModeChanges.ts (96 lines), useInboxUrlSync.ts (86 lines)
       files: [
         '**/hooks/useEmailDetailOperations.ts',
         '**/hooks/useEmailDetailState.ts',
         '**/hooks/useInboxState.ts',
         '**/hooks/settings/useAnalysisProgress.ts',
-        '**/hooks/settings/useContextManagement.ts',
-        '**/hooks/settings/useRecategorizeProgress.ts',
-        '**/hooks/settings/useSummarizationRules.ts',
-        '**/hooks/useInboxKeyboardNavigation.ts',
       ],
       rules: {
         'max-lines-per-function': 'off',
@@ -382,9 +376,7 @@ module.exports = {
       // Some files also use standard Axios request body shape where 'data' property is required by the API.
       files: [
         '**/components/email-detail/EmailDetailActions.tsx',
-        '**/components/email-detail/EmailDetailHeader.tsx',
         '**/components/email-detail/EmailThreadView.tsx',
-        '**/components/email-detail/CustomRuleModal.tsx',
         '**/components/email-detail/SummarySection.tsx',
         '**/components/compose/RecipientFields.tsx',
         '**/components/compose/TimePicker.tsx',
@@ -395,11 +387,9 @@ module.exports = {
         '**/components/settings/SchedulingPreferencesSection.tsx',
         '**/components/settings/DataExportSection.tsx',
         '**/components/settings/guide-ai/SummarizationRuleAddForm.tsx',
-        '**/components/settings/guide-ai/SummarizationRuleDisplay.tsx',
         '**/components/settings/guide-ai/SummarizationRuleEditForm.tsx',
         '**/components/settings/guide-ai/SummarizationRulesSection.tsx',
         '**/components/settings/integrations/GitHubConnectionStatusSection.tsx',
-        '**/components/settings/integrations/GitHubIntegrationSection.tsx',
         '**/components/settings/integrations/GitHubRepoMappingsSection.tsx',
         '**/components/priority/CategoryOverrideModal.tsx',
         '**/components/rich-text/RichTextEditor.tsx',
@@ -408,7 +398,6 @@ module.exports = {
         '**/components/crm/DealFormModal.tsx',
         '**/components/crm/KanbanColumn.tsx',
         '**/components/github/GitHubProjectBadges.tsx',
-        '**/components/landing/CTAButton.tsx',
       ],
       rules: {
         'max-lines-per-function': 'off',
@@ -498,8 +487,14 @@ module.exports = {
         'no-restricted-syntax': 'off',
         'prefer-template': 'off',
         'id-denylist': 'off',
-        // I-4: no-restricted-imports re-enabled (removed from off). Absolute imports are good
-        // practice even in stories. Storybook resolves the same path aliases as the app.
+      },
+    },
+    {
+      // SanitizedHTML intentionally uses dangerouslySetInnerHTML after DOMPurify sanitization.
+      // This is the single auditable location for HTML rendering in the app — see the component's JSDoc.
+      files: ['**/components/common/SanitizedHTML.tsx'],
+      rules: {
+        'react/no-danger': 'off',
       },
     },
     {

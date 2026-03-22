@@ -281,7 +281,7 @@ module.exports = {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
         'max-statements': 'off',
-        '@typescript-eslint/no-explicit-any': 'warn', // I-3: tightened from off → warn; encourages unknown/mock types
+        '@typescript-eslint/no-explicit-any': 'warn',
         '@typescript-eslint/no-magic-numbers': 'off',
         // Test data variables often use generic names like 'data', which is acceptable in tests
         'id-denylist': 'off',
@@ -312,7 +312,7 @@ module.exports = {
       rules: {
         'max-lines': 'off',
         'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
-        'max-statements': ['error', 60, { ignoreTopLevelFunctions: true }], // I-5: tightened from 100 → 60
+        'max-statements': ['error', 60, { ignoreTopLevelFunctions: true }],
         'no-console': 'off',
         // Scripts use prompt IDs for CLI display
         'no-restricted-syntax': 'off',
@@ -329,7 +329,6 @@ module.exports = {
     {
       // Legacy services/providers are actively being decomposed; keep strict lint elsewhere while
       // allowing these modules to pass without inline eslint-disable comments.
-      // Phase 2 note: zoho.provider.ts (771 lines) removed — it is within standard limits and needs no override.
       files: [
         'src/emails/llm-processor.ts',
         'src/emails/providers/gmail.provider.ts',
@@ -348,12 +347,18 @@ module.exports = {
 
     {
       // Additional large legacy modules pending decomposition.
-      // I-1: context-error-handler.ts (81 lines) removed — it's within normal limits and needs no override.
+      // These files are within file-level line limits but their functions still
+      // exceed max-lines-per-function / complexity / max-statements defaults, so the override is retained:
+      //   - context-batch-analysis.processor.ts: handleBatchAnalysisJob 516 lines, complexity 39, 138 statements
+      //   - emails.service.ts: constructor has 15 parameters (max-params exceeded)
+      //   - github-api.service.ts: 955 lines with functions exceeding function-level limits
+      //   - priority-analysis.service.ts: analyzePriorityBatch complexity 25, analyzePriority complexity 29
+      // llm.service.ts (3176 lines) remains — still requires relaxed override for file-level limits too.
       files: [
+        'src/llm/llm.service.ts',
         'src/context/context-batch-analysis.processor.ts',
         'src/emails/emails.service.ts',
         'src/github/github-api.service.ts',
-        'src/llm/llm.service.ts',
         'src/llm/priority-analysis.service.ts',
       ],
       rules: {

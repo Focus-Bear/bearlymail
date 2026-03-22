@@ -17,7 +17,6 @@ interface SanitizedHTMLProps {
  * `dangerouslySetInnerHTML` directly — that keeps the "safe HTML" policy
  * auditable and testable in one location.
  */
-// eslint-disable-next-line react/no-danger -- intentional: DOMPurify sanitizes before render; single auditable location
 export const SanitizedHTML: React.FC<SanitizedHTMLProps> = ({ html, className }) => (
   <div
     className={className}

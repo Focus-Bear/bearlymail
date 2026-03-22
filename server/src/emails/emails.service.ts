@@ -491,12 +491,14 @@ export class EmailsService {
     emailId: string,
     newCategory: string,
     reasonText?: string,
+    categoryId?: string,
   ): Promise<{ success: boolean; category: string }> {
     return this.emailServiceDeps.emailArchiveService.overrideCategory(
       userId,
       emailId,
       newCategory,
       reasonText,
+      categoryId,
     );
   }
 

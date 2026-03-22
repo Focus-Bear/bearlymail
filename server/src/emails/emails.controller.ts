@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -40,6 +41,7 @@ import {
   PgBossWithInternals,
 } from "./email-controller.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { CategoryOverrideBody, InboxQuery } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 
@@ -60,21 +62,7 @@ export class EmailsController {
   ) {}
 
   @Get("inbox")
-  async getInbox(
-    @Request() req,
-    @Query()
-    query: {
-      includeBatched?: string;
-      mode?: "triage" | "action" | "follow-up" | "blocked";
-      accounts?: string;
-      categoryIds?: string;
-      minPriority?: string;
-      maxPriority?: string;
-      page?: string;
-      limit?: string;
-      offset?: string;
-    },
-  ) {
+  async getInbox(@Request() req, @Query() query: InboxQuery) {
     const {
       includeBatched,
       mode = "triage",
@@ -593,13 +581,16 @@ export class EmailsController {
   async overrideCategory(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: { category: string; reason?: string },
+    @Body() body: CategoryOverrideBody,
   ) {
+    if (body.categoryId !== undefined && !isUuid(body.categoryId))
+      throw new BadRequestException("categoryId must be a valid UUID");
     return this.emailsService.overrideCategory(
       req.user.userId,
       id,
-      body.category,
+      body.categoryName ?? body.category ?? "",
       body.reason,
+      body.categoryId,
     );
   }
 

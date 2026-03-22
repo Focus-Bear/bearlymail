@@ -1,24 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { devError } from 'utils/dev-logger';
 
 import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
 
 const ADD_NEW_VALUE = '__add_new__';
+const CATEGORY_LISTBOX_ID = 'category-override-listbox';
+
+interface CategoryOption {
+  id: string | null;
+  name: string;
+}
 
 interface CategorySelectProps {
-  existingCategories: string[];
+  existingCategories: CategoryOption[];
   loadingCategories: boolean;
   isAddingNew: boolean;
-  selectedCategory: string;
+  selectedCategoryId: string | null;
   customCategory: string;
-  onSelectChange: (v: string) => void;
+  onSelectChange: (id: string | null, name: string) => void;
   onCustomChange: (v: string) => void;
-  labelStyle: React.CSSProperties;
-  selectStyle: React.CSSProperties;
+  onAddNew: () => void;
   inputStyle: React.CSSProperties;
   t: (tKey: string) => string;
 }
@@ -27,47 +33,267 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
   existingCategories,
   loadingCategories,
   isAddingNew,
-  selectedCategory,
+  selectedCategoryId,
   customCategory,
   onSelectChange,
   onCustomChange,
-  labelStyle,
-  selectStyle,
+  onAddNew,
   inputStyle,
   t,
-}) => (
-  <div style={{ marginBottom: theme.spacing.md }}>
-    <label style={labelStyle}>{t('priority.categoryOverride.newCategory')}:</label>
-    <select
-      value={isAddingNew ? ADD_NEW_VALUE : selectedCategory}
-      onChange={event => onSelectChange(event.target.value)}
-      disabled={loadingCategories}
-      style={selectStyle}
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const isSelectingRef = useRef(false);
+
+  // Sync display when external selectedCategoryId changes
+  const selectedOption = existingCategories.find(cat => cat.id === selectedCategoryId) ?? null;
+
+  const filtered = existingCategories.filter(cat =>
+    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Total items = filtered categories + "Add new category" sentinel
+  const totalItems = filtered.length + 1;
+  const ADD_NEW_INDEX = filtered.length;
+
+  const getOptionId = (index: number) =>
+    index === ADD_NEW_INDEX
+      ? `${CATEGORY_LISTBOX_ID}-add-new`
+      : `${CATEGORY_LISTBOX_ID}-option-${index}`;
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+    setIsOpen(true);
+    setHighlightedIndex(-1);
+  };
+
+  const handleFocus = () => {
+    setIsOpen(true);
+  };
+
+  const handleBlur = () => {
+    if (!isSelectingRef.current) {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        setIsOpen(true);
+        setHighlightedIndex(0);
+        event.preventDefault();
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % totalItems);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedIndex(prev => (prev <= 0 ? totalItems - 1 : prev - 1));
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (highlightedIndex === ADD_NEW_INDEX) {
+        handleAddNewMouseDown();
+      } else if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+        handleOptionMouseDown(filtered[highlightedIndex]);
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setSearchTerm('');
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  const handleOptionMouseDown = (cat: CategoryOption) => {
+    isSelectingRef.current = true;
+    setSearchTerm(cat.name);
+    onSelectChange(cat.id, cat.name);
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+    isSelectingRef.current = false;
+  };
+
+  const handleAddNewMouseDown = () => {
+    isSelectingRef.current = true;
+    setSearchTerm('');
+    onAddNew();
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+    isSelectingRef.current = false;
+  };
+
+  const displayValue = isAddingNew ? '' : (selectedOption?.name ?? searchTerm);
+
+  return (
+    <div style={{ marginBottom: theme.spacing.md }}>
+      <label
+        style={{
+          display: 'block',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
+        {t('priority.categoryOverride.newCategory')}:
+      </label>
+
+      {/* Combobox container */}
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          aria-controls={CATEGORY_LISTBOX_ID}
+          aria-activedescendant={
+            isOpen && highlightedIndex >= 0 ? getOptionId(highlightedIndex) : undefined
+          }
+          value={isAddingNew ? searchTerm : displayValue}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          disabled={loadingCategories}
+          placeholder={
+            loadingCategories
+              ? t('priority.categoryOverride.loadingCategories')
+              : t('priority.categoryOverride.filterPlaceholder')
+          }
+          autoComplete="off"
+          style={{
+            ...inputStyle,
+            cursor: loadingCategories ? 'not-allowed' : 'text',
+          }}
+        />
+
+        {isOpen && !loadingCategories && (
+          <ul
+            id={CATEGORY_LISTBOX_ID}
+            role="listbox"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 10002,
+              listStyle: 'none',
+              margin: 0,
+              padding: 0,
+              backgroundColor: theme.colors.background.paper,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+              maxHeight: '200px',
+              overflowY: 'auto',
+            }}
+          >
+            {filtered.length === 0 && (
+              <li
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.secondary,
+                  fontStyle: 'italic',
+                }}
+              >
+                {t('priority.categoryOverride.noMatch')}
+              </li>
+            )}
+            {filtered.map((cat, index) => (
+              <CategoryOptionItem
+                key={cat.id ?? cat.name}
+                id={getOptionId(index)}
+                cat={cat}
+                isSelected={cat.id === selectedCategoryId}
+                isHighlighted={highlightedIndex === index}
+                onMouseDown={() => handleOptionMouseDown(cat)}
+              />
+            ))}
+            {/* Always show "+ Add new category" at bottom */}
+            <li
+              id={getOptionId(ADD_NEW_INDEX)}
+              role="option"
+              aria-selected={isAddingNew}
+              onMouseDown={handleAddNewMouseDown}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.primary.main,
+                cursor: 'pointer',
+                borderTop:
+                  filtered.length > 0 ? `1px solid ${theme.colors.border.light}` : undefined,
+                fontWeight: theme.typography.fontWeight.medium,
+                backgroundColor:
+                  highlightedIndex === ADD_NEW_INDEX
+                    ? theme.colors.background.subtle
+                    : 'transparent',
+              }}
+            >
+              {t('priority.categoryOverride.addNewCategory')}
+            </li>
+          </ul>
+        )}
+      </div>
+
+      {/* Custom category text input when adding new */}
+      {isAddingNew && (
+        <input
+          type="text"
+          autoFocus
+          value={customCategory}
+          onChange={event => onCustomChange(event.target.value)}
+          placeholder={t('priority.categoryOverride.categoryPlaceholder')}
+          style={{ ...inputStyle, marginTop: theme.spacing.sm }}
+        />
+      )}
+    </div>
+  );
+};
+
+interface CategoryOptionItemProps {
+  id: string;
+  cat: CategoryOption;
+  isSelected: boolean;
+  isHighlighted: boolean;
+  onMouseDown: () => void;
+}
+
+const CategoryOptionItem: React.FC<CategoryOptionItemProps> = ({ id, cat, isSelected, isHighlighted, onMouseDown }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  let backgroundColor = 'transparent';
+  if (isHighlighted || isHovered) {
+    backgroundColor = theme.colors.background.subtle;
+  } else if (isSelected) {
+    backgroundColor = theme.colors.primary.subtle;
+  }
+
+  return (
+    <li
+      id={id}
+      role="option"
+      aria-selected={isSelected}
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        cursor: 'pointer',
+        fontSize: theme.typography.fontSize.sm,
+        color: isSelected ? theme.colors.primary.main : theme.colors.text.primary,
+        backgroundColor,
+      }}
     >
-      <option value="" disabled>
-        {loadingCategories
-          ? t('priority.categoryOverride.loadingCategories')
-          : t('priority.categoryOverride.selectPlaceholder')}
-      </option>
-      {existingCategories.map(cat => (
-        <option key={cat} value={cat}>
-          {cat}
-        </option>
-      ))}
-      <option value={ADD_NEW_VALUE}>{t('priority.categoryOverride.addNewCategory')}</option>
-    </select>
-    {isAddingNew && (
-      <input
-        type="text"
-        autoFocus
-        value={customCategory}
-        onChange={event => onCustomChange(event.target.value)}
-        placeholder={t('priority.categoryOverride.categoryPlaceholder')}
-        style={{ ...inputStyle, marginTop: theme.spacing.sm }}
-      />
-    )}
-  </div>
-);
+      {cat.name}
+    </li>
+  );
+};
 
 interface CategoryOverrideModalProps {
   emailId: string;
@@ -83,29 +309,36 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
   onSubmitted,
 }) => {
   const { t } = useTranslation();
-  const [existingCategories, setExistingCategories] = useState<string[]>([]);
+  const [existingCategories, setExistingCategories] = useState<CategoryOption[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
+  // selectedCategoryId stores the UUID of the chosen category (null for "Other"/uncategorized)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // selectedCategoryName tracks the display name for the UI and audit log
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [reasonText, setReasonText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch all known categories from the API on mount so the dropdown is
-  // populated from the full dataset, not just emails loaded in Redux.
+  // Fetch categories from inbox-summary which returns { id, name } objects
   useEffect(() => {
     let cancelled = false;
     setLoadingCategories(true);
     axios
-      .get<string[]>(`${API_URL}/emails/categories`)
+      .get<{ categories: { id: string | null; name: string; count: number }[] }>(
+        `${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`
+      )
       .then(res => {
         if (!cancelled) {
-          // Exclude the current category so "move to same category" isn't offered
-          setExistingCategories(res.data.filter(cat => cat !== currentCategory));
+          const options: CategoryOption[] = res.data.categories
+            // Exclude the current category so "move to same category" isn't offered
+            .filter(cat => cat.name !== currentCategory)
+            .map(cat => ({ id: cat.id, name: cat.name }));
+          setExistingCategories(options);
         }
       })
       .catch(err => {
-        console.error('Failed to load categories:', err);
+        devError('Failed to load categories:', err);
       })
       .finally(() => {
         if (!cancelled) {
@@ -117,54 +350,52 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
     };
   }, [currentCategory]);
 
-  const resolvedCategory = isAddingNew ? customCategory.trim() : selectedCategory;
-
-  const handleSelectChange = (value: string) => {
-    if (value === ADD_NEW_VALUE) {
-      setIsAddingNew(true);
-      setSelectedCategory('');
-    } else {
-      setIsAddingNew(false);
-      setSelectedCategory(value);
-      setCustomCategory('');
-    }
+  const handleSelectChange = (id: string | null, name: string) => {
+    setIsAddingNew(false);
+    setSelectedCategoryId(id);
+    setSelectedCategoryName(name);
+    setCustomCategory('');
   };
 
+  const handleAddNew = () => {
+    setIsAddingNew(true);
+    setSelectedCategoryId(null);
+    setSelectedCategoryName('');
+    setCustomCategory('');
+  };
+
+  // Resolved values for submission
+  const resolvedCategoryName = isAddingNew ? customCategory.trim() : selectedCategoryName;
+  const resolvedCategoryId = isAddingNew ? null : selectedCategoryId;
+  const canSubmit = !!resolvedCategoryName;
+
   const handleSubmit = async () => {
-    if (!resolvedCategory) {
+    if (!canSubmit) {
       return;
     }
 
     setSubmitting(true);
     try {
       await axios.post(`${API_URL}/emails/${emailId}/category-override`, {
-        category: resolvedCategory,
+        // Send categoryId (UUID) when available — backend uses this directly without name→UUID lookup
+        // Falls back to categoryName for new custom categories that don't have a UUID yet
+        categoryId: resolvedCategoryId ?? undefined,
+        categoryName: resolvedCategoryName,
+        // Keep category field for backward compat with older server versions
+        category: resolvedCategoryName,
         reason: reasonText.trim() || undefined,
       });
 
       if (onSubmitted) {
-        onSubmitted(resolvedCategory);
+        onSubmitted(resolvedCategoryName);
       }
       onClose();
     } catch (error) {
-      console.error('Error submitting category override:', error);
+      devError('Error submitting category override:', error);
       alert(t('priority.categoryOverride.submitError'));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const selectStyle: React.CSSProperties = {
-    width: '100%',
-    padding: theme.spacing.sm,
-    border: `1px solid ${theme.colors.border.medium}`,
-    borderRadius: theme.borderRadius.md,
-    fontSize: theme.typography.fontSize.sm,
-    fontFamily: theme.typography.fontFamily,
-    backgroundColor: theme.colors.background.paper,
-    color: theme.colors.text.primary,
-    cursor: 'pointer',
-    appearance: 'auto' as React.CSSProperties['appearance'],
   };
 
   const inputStyle: React.CSSProperties = {
@@ -175,6 +406,8 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
     fontSize: theme.typography.fontSize.sm,
     fontFamily: theme.typography.fontFamily,
     boxSizing: 'border-box',
+    backgroundColor: theme.colors.background.paper,
+    color: theme.colors.text.primary,
   };
 
   return createPortal(
@@ -197,18 +430,11 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
           existingCategories={existingCategories}
           loadingCategories={loadingCategories}
           isAddingNew={isAddingNew}
-          selectedCategory={selectedCategory}
+          selectedCategoryId={selectedCategoryId}
           customCategory={customCategory}
           onSelectChange={handleSelectChange}
           onCustomChange={setCustomCategory}
-          labelStyle={{
-            display: 'block',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.xs,
-          }}
-          selectStyle={selectStyle}
+          onAddNew={handleAddNew}
           inputStyle={inputStyle}
           t={t}
         />
@@ -246,7 +472,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
           onCancel={onClose}
           onSubmit={handleSubmit}
           isSubmitting={submitting}
-          canSubmit={!!resolvedCategory}
+          canSubmit={canSubmit}
         />
       </ModalContent>
     </ModalBackdrop>,

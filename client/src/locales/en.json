@@ -2130,6 +2130,8 @@
       "description": "This email is currently categorized as \"{{category}}\". Select a different category to help improve our categorization.",
       "newCategory": "New Category",
       "selectPlaceholder": "Select a category...",
+      "filterPlaceholder": "Type to filter categories...",
+      "noMatch": "No categories match",
       "addNewCategory": "+ Add new category",
       "categoryPlaceholder": "Enter new category name...",
       "reason": "Reason (optional)",

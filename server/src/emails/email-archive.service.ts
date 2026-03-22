@@ -244,6 +244,7 @@ export class EmailArchiveService {
     emailId: string,
     newCategory: string,
     reasonText?: string,
+    categoryId?: string,
   ): Promise<{ success: boolean; category: string }> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
@@ -268,10 +269,15 @@ export class EmailArchiveService {
       return found ? found.contextValue.split(" - ")[0].trim() : null;
     };
 
-    // Resolve the category name to a UUID via user_contexts.
+    // Resolve to a UUID for the DB update.
+    // Fast path: caller provided categoryId directly (new client behaviour) — no name lookup needed.
+    // Fallback: reverse-lookup by name in user_contexts (legacy / new custom categories).
     // "Other" → null categoryId (uncategorized).
     let newCategoryId: string | null = null;
-    if (newCategory && newCategory !== "Other") {
+    if (categoryId) {
+      // UUID provided directly — use it and skip the fragile name lookup
+      newCategoryId = categoryId;
+    } else if (newCategory && newCategory !== "Other") {
       const matched = allCtxs.find(
         (ctx) =>
           ctx.contextValue.split(" - ")[0].trim().toLowerCase() ===

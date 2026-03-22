@@ -117,7 +117,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
   const [showExplanation, setShowExplanation] = useState(false);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [showDebugModal, setShowDebugModal] = useState(false);
-  const isOtherCategory = category === CATEGORY_OTHER;
+  const isOtherCategory = !category || category === CATEGORY_OTHER;
   const isAdmin = user?.isAdmin === true;
 
   return (

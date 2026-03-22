@@ -727,8 +727,8 @@ export class EmailInboxService {
       // EncryptionHelper.decrypt() has internal error handling; it never throws.
       category: row.categoryName
         ? (EncryptionHelper.decrypt(row.categoryName)?.split(" - ")[0].trim() ??
-          null)
-        : null,
+          OTHER_CATEGORY_NAME)
+        : OTHER_CATEGORY_NAME,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.decrypt(row.categoryExplanation)
         : null,

@@ -5,6 +5,7 @@ import { Email, getEmailPriorityScore } from 'types/email';
 import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
+import { CATEGORY_OTHER } from 'constants/strings';
 
 interface PriorityBadgeProps {
   email: Email;
@@ -84,7 +85,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           loadingPriorityExplanation={priorityTooltip.loadingPriorityExplanation}
           urgencyScore={email.urgencyScore}
           urgencyExplanation={email.urgencyExplanation}
-          category={email.category}
+          category={email.category || (!email.category_id ? CATEGORY_OTHER : null)}
           categoryExplanation={email.categoryExplanation}
           protoCategoryName={email.protoCategoryName}
           protoCategoryDescription={email.protoCategoryDescription}

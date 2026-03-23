@@ -2139,7 +2139,8 @@
       "reasonPlaceholder": "Why should this email be in a different category?",
       "buttonTitle": "Change category",
       "submitError": "Failed to update category. Please try again.",
-      "loadingCategories": "Loading categories…"
+      "loadingCategories": "Loading categories…",
+      "loadError": "Failed to load categories. Please close and try again."
     },
     "categoryDebug": {
       "title": "Category Debug Info",

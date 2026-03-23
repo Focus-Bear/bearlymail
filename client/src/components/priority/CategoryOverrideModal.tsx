@@ -3,17 +3,32 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { devError } from 'utils/dev-logger';
 
 import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
 
-const ADD_NEW_VALUE = '__add_new__';
 const CATEGORY_LISTBOX_ID = 'category-override-listbox';
+const EMAIL_CATEGORY_TYPE = 'EMAIL_CATEGORY';
+// Safe delimiter used to separate category name from description in contextValue.
+// Must not appear in user-defined category names.
+const CONTEXT_VALUE_DELIMITER = ' - ';
+
+// Keyboard key constants for combobox navigation
+const KEY_ARROW_DOWN = 'ArrowDown';
+const KEY_ARROW_UP = 'ArrowUp';
+const KEY_ENTER = 'Enter';
+const KEY_ESCAPE = 'Escape';
 
 interface CategoryOption {
   id: string | null;
   name: string;
+}
+
+// Shape of a UserContext item returned by GET /context
+interface UserContextItem {
+  contextId: string;
+  contextKey: string;
+  contextValue: string;
 }
 
 interface CategorySelectProps {
@@ -81,27 +96,27 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (event.key === KEY_ARROW_DOWN || event.key === KEY_ARROW_UP) {
         setIsOpen(true);
         setHighlightedIndex(0);
         event.preventDefault();
       }
       return;
     }
-    if (event.key === 'ArrowDown') {
+    if (event.key === KEY_ARROW_DOWN) {
       event.preventDefault();
       setHighlightedIndex(prev => (prev + 1) % totalItems);
-    } else if (event.key === 'ArrowUp') {
+    } else if (event.key === KEY_ARROW_UP) {
       event.preventDefault();
       setHighlightedIndex(prev => (prev <= 0 ? totalItems - 1 : prev - 1));
-    } else if (event.key === 'Enter') {
+    } else if (event.key === KEY_ENTER) {
       event.preventDefault();
       if (highlightedIndex === ADD_NEW_INDEX) {
         handleAddNewMouseDown();
       } else if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
         handleOptionMouseDown(filtered[highlightedIndex]);
       }
-    } else if (event.key === 'Escape') {
+    } else if (event.key === KEY_ESCAPE) {
       event.preventDefault();
       setSearchTerm('');
       setIsOpen(false);
@@ -311,7 +326,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
   const { t } = useTranslation();
   const [existingCategories, setExistingCategories] = useState<CategoryOption[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  // selectedCategoryId stores the UUID of the chosen category (null for "Other"/uncategorized)
+  // selectedCategoryId stores the UUID (contextId) of the chosen category (null for "Other"/uncategorized)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   // selectedCategoryName tracks the display name for the UI and audit log
   const [selectedCategoryName, setSelectedCategoryName] = useState('');
@@ -319,26 +334,41 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [reasonText, setReasonText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Fetch categories from inbox-summary which returns { id, name } objects
+  // Fetch ALL user categories from GET /context (EMAIL_CATEGORY entries).
+  // This returns every category the user has, not just ones with emails in the current view.
+  // The contextId is the UUID used as categoryId in email_threads.
   useEffect(() => {
     let cancelled = false;
     setLoadingCategories(true);
+    setFetchError(null);
     axios
-      .get<{ categories: { id: string | null; name: string; count: number }[] }>(
-        `${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`
-      )
+      .get<UserContextItem[]>(`${API_URL}/context`)
       .then(res => {
         if (!cancelled) {
-          const options: CategoryOption[] = res.data.categories
+          const options: CategoryOption[] = res.data
+            .filter(ctx => ctx.contextKey === EMAIL_CATEGORY_TYPE)
+            // Parse name: contextValue format is "CategoryName - optional description"
+            .map(ctx => ({
+              id: ctx.contextId,
+              name: ctx.contextValue.split(CONTEXT_VALUE_DELIMITER)[0].trim(),
+            }))
             // Exclude the current category so "move to same category" isn't offered
-            .filter(cat => cat.name !== currentCategory)
-            .map(cat => ({ id: cat.id, name: cat.name }));
+            .filter(category => category.name !== currentCategory)
+            // Remove blank names (malformed entries)
+            .filter(category => category.name !== '')
+            // Deduplicate by name
+            .filter((category, index, allCategories) => allCategories.findIndex(item => item.name === category.name) === index)
+            .sort((categoryA, categoryB) => categoryA.name.localeCompare(categoryB.name));
           setExistingCategories(options);
         }
       })
       .catch(err => {
-        devError('Failed to load categories:', err);
+        if (!cancelled) {
+          console.error('Failed to load categories:', err);
+          setFetchError(t('priority.categoryOverride.loadError'));
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -348,7 +378,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentCategory]);
+  }, [currentCategory, t]);
 
   const handleSelectChange = (id: string | null, name: string) => {
     setIsAddingNew(false);
@@ -377,7 +407,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
     setSubmitting(true);
     try {
       await axios.post(`${API_URL}/emails/${emailId}/category-override`, {
-        // Send categoryId (UUID) when available — backend uses this directly without name→UUID lookup
+        // Send categoryId (UUID / contextId) when available — backend uses this directly without name→UUID lookup
         // Falls back to categoryName for new custom categories that don't have a UUID yet
         categoryId: resolvedCategoryId ?? undefined,
         categoryName: resolvedCategoryName,
@@ -391,7 +421,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
       }
       onClose();
     } catch (error) {
-      devError('Error submitting category override:', error);
+      console.error('Error submitting category override:', error);
       alert(t('priority.categoryOverride.submitError'));
     } finally {
       setSubmitting(false);
@@ -425,6 +455,19 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
         >
           {t('priority.categoryOverride.description', { category: currentCategory })}
         </p>
+
+        {fetchError && (
+          <p
+            role="alert"
+            style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.feedback.error,
+              marginBottom: theme.spacing.md,
+            }}
+          >
+            {fetchError}
+          </p>
+        )}
 
         <CategorySelectField
           existingCategories={existingCategories}

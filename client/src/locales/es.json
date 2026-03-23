@@ -1804,7 +1804,8 @@
       "submitError": "No se pudo actualizar la categoría. Por favor inténtalo de nuevo.",
       "loadingCategories": "Cargando categorías…",
       "filterPlaceholder": "Escribe para filtrar categorías...",
-      "noMatch": "No hay categorías que coincidan"
+      "noMatch": "No hay categorías que coincidan",
+      "loadError": "No se pudieron cargar las categorías. Por favor, cierre e inténtelo de nuevo."
     },
     "categoryDebug": {
       "title": "Información de depuración de categoría",

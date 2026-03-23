@@ -353,20 +353,6 @@ module.exports = {
     },
 
     {
-      files: [
-        'src/context/context.service.ts',
-      ],
-      rules: {
-        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
-        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
-        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
-        complexity: ['error', 250],
-        'id-denylist': 'off',
-        'max-params': ['error', 17],
-      },
-    },
-
-    {
       // llm.service.ts: function violations cleared in Phase 5f; only max-lines (2811) remains.
       // Split into 8 domain-specific LLM services tracked for Phase 5g. See issue #939.
       // Phase 5A (issue #939): removed max-params override — constructor has only 1 param,

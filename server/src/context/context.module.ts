@@ -13,12 +13,16 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
-import { ContextAnalysisHelpersService } from "./context-analysis-helpers.service";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { ContextAnalysisProcessor } from "./context-analysis.processor";
+import { ContextAnalysisFinalizerService } from "./context-analysis-finalizer.service";
+import { ContextAnalysisHelpersService } from "./context-analysis-helpers.service";
+import { ContextAnalysisOrchestratorService } from "./context-analysis-orchestrator.service";
 import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
+import { ContextAnalysisQueryService } from "./context-analysis-query.service";
 import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
+import { ContextBatchPayloadService } from "./context-batch-payload.service";
 import { ContextCategoryService } from "./context-category.service";
 import { ContextCompressionService } from "./context-compression.service";
 import { ContextCrudService } from "./context-crud.service";
@@ -49,6 +53,10 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
   providers: [
     ContextService,
     ContextAnalysisHelpersService,
+    ContextAnalysisQueryService,
+    ContextAnalysisOrchestratorService,
+    ContextAnalysisFinalizerService,
+    ContextBatchPayloadService,
     ContextCrudService,
     ContextCategoryService,
     ContextCompressionService,

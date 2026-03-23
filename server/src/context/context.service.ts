@@ -42,6 +42,7 @@ import {
   CreateContextOptions,
 } from "./context-crud.service";
 import { classifyContextAnalysisError } from "./context-error-handler";
+import { ContextAnalysisHelpersService } from "./context-analysis-helpers.service";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
@@ -69,6 +70,7 @@ export class ContextService {
     private categoryService: ContextCategoryService,
     private progressService: ContextAnalysisProgressService,
     private contextCompressionService: ContextCompressionService,
+    private analysisHelpersService: ContextAnalysisHelpersService,
     @Inject("PG_BOSS") private boss: PgBoss,
   ) {}
 
@@ -1857,18 +1859,20 @@ export class ContextService {
 
   /**
    * Get an analysis record by ID
+   * @deprecated Delegated to ContextAnalysisHelpersService (Phase 6b split)
    */
   async getAnalysisRecordById(
     analysisRecordId: string,
   ): Promise<ContextAnalysis | null> {
-    return this.progressService.getAnalysisRecordById(analysisRecordId);
+    return this.analysisHelpersService.getAnalysisRecordById(analysisRecordId);
   }
 
   /**
    * Check if all batches are complete for an analysis
+   * @deprecated Delegated to ContextAnalysisHelpersService (Phase 6b split)
    */
   async getCompletedBatchCount(analysisRecordId: string): Promise<number> {
-    return this.progressService.getCompletedBatchCount(analysisRecordId);
+    return this.analysisHelpersService.getCompletedBatchCount(analysisRecordId);
   }
 
   /**

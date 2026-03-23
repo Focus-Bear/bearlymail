@@ -13,6 +13,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { QueueModule } from "../queue/queue.module";
 import { UsersModule } from "../users/users.module";
+import { ContextAnalysisHelpersService } from "./context-analysis-helpers.service";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { ContextAnalysisProcessor } from "./context-analysis.processor";
@@ -47,6 +48,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
   controllers: [ContextController],
   providers: [
     ContextService,
+    ContextAnalysisHelpersService,
     ContextCrudService,
     ContextCategoryService,
     ContextCompressionService,

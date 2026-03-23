@@ -108,6 +108,49 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
 
   // Stage order is now a stable module-level constant (STAGE_ORDER)
 
+  // Bug 2 fix: On mount, check whether there is already a running/pending
+  // analysis on the backend (e.g. user reloaded the page mid-analysis).
+  // The backend GET /context/analyze-progress without an analysisId falls back
+  // to the most recent running/pending analysis for the user.  If one is found,
+  // resume polling from that analysisId rather than starting from scratch.
+  useEffect(() => {
+    let cancelled = false;
+
+    const resumeIfInProgress = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/context/analyze-progress`);
+        if (cancelled) {
+          return;
+        }
+
+        const data = response.data;
+        // Backend returns an analysisId when an in-progress analysis exists
+        if (data?.analysisId && data?.progress && !data?.progress?.isComplete && !data?.error) {
+          devLog(`[useAnalysisProgress] Resuming in-progress analysis on mount: ${data.analysisId}`);
+          setAnalysisId(data.analysisId);
+          setAnalyzing(true);
+          setAnalyzeProgress({
+            show: true,
+            progress: data.progress,
+            error: null,
+            isComplete: false,
+          });
+        }
+      } catch (err) {
+        // Non-critical: if the check fails, do nothing — the user can start manually
+        devDebug('[useAnalysisProgress] Mount resume check failed (non-fatal):', err);
+      }
+    };
+
+    resumeIfInProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  // Run once on mount only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startAnalysis = useCallback(async () => {
     devLog('===== Starting Context Analysis =====');
     console.log('[FRONTEND] ===== Starting Context Analysis =====');
@@ -405,8 +448,14 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }
       backoff.cancelAll();
     };
-    // backoff functions are stable (useCallback with []); including backoff satisfies the rule without causing re-renders
-  }, [analyzing, analysisId, onComplete, backoff]);
+    // `backoff` is intentionally excluded from the dependency array.
+    // It is now a stable memoised object (useMemo in usePollingWithBackoff), but
+    // including it here would risk re-triggering this effect if the memo identity
+    // ever changes. The polling loop captures all needed backoff methods through
+    // the closure established at effect setup time; those callbacks are themselves
+    // stable (useCallback) so this is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzing, analysisId, onComplete]);
 
   const dismissProgress = useCallback(() => {
     // Stop polling when user dismisses - use ref to ensure closure sees the cancellation

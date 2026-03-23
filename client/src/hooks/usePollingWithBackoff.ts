@@ -9,7 +9,7 @@
  *
  * @see plans/1054-1055-email-fetch-backoff.md
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import {
   BACKOFF_BASE_MS,
@@ -216,5 +216,13 @@ return true;
     timersRef.current.clear();
   }, []);
 
-  return { getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll };
+  // Memoize the returned object so that the reference is stable across renders.
+  // Without this, every render produces a new object literal which, when the
+  // BackoffContext is placed in a useEffect dependency array, tears down and
+  // restarts the effect on every render (10–50ms cycle instead of the intended
+  // 2 s polling interval).
+  return useMemo(
+    () => ({ getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll }),
+    [getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll]
+  );
 }

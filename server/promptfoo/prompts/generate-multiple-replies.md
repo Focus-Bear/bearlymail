@@ -38,8 +38,14 @@ Hi John,\n\nThanks for reaching out. I'd be happy to help with that.\n\nLet me k
 
 IMPORTANT: Sign off using the user's name "{{userName}}" (not any other name). Match the user's writing style from the examples if provided.
 
+## Scheduling Rules (ALWAYS APPLY)
+CRITICAL: NEVER propose specific dates, times, or availability. You do not have access to the user's calendar.
+
 {% if calendarLink %}
-SCHEDULING: If either reply option involves suggesting meeting times or discussing availability, include this calendar booking link instead of proposing specific times: {{calendarLink}}
+When a reply involves scheduling a meeting or call, include this booking link so the recipient can choose a time: {{calendarLink}}
+Example: "Here's my booking link to find a time that works: {{calendarLink}}"
+{% else %}
+When a reply involves scheduling a meeting or call, ask the recipient to share their availability or suggest coordinating via email. Do NOT propose specific times.
 {% endif %}
 
 Return a JSON object with a key "options" which is an array of: { "label": string (short description), "text": string (full email body) }

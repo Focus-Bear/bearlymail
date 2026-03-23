@@ -11,6 +11,11 @@ User's preferred tone: {{tone}}
 User commonly uses these phrases: {{commonPhrases}}
 {% endif %}
 
+CRITICAL: NEVER propose specific dates, times, or availability. You do not have access to the user's calendar. If the follow-up relates to scheduling, ask the recipient to share their availability.
+{% if calendarLink %}
+If relevant, include this booking link: {{calendarLink}}
+{% endif %}
+
 I need to follow up on an email thread.
 
 Subject: {{subject}}

@@ -1639,6 +1639,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       preferredName?: string | null;
       greetingStyle?: string | null;
     },
+    calendarBookingUrl?: string | null,
   ): Promise<string> {
     const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_FOLLOW_UP);
     if (!promptConfig) {
@@ -1682,6 +1683,7 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       businessDaysWaiting,
       daysLabel: businessDaysWaiting === 1 ? "day" : "days",
       skipGreeting,
+      calendarLink: calendarBookingUrl || "",
     });
 
     return await this.generateText(

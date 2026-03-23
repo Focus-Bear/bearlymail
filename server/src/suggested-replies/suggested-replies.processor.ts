@@ -285,6 +285,8 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         },
         undefined,
         userId,
+        undefined,
+        userContext.calendarLink,
       );
 
       return [{ label: "Follow Up", text: followUpText }];

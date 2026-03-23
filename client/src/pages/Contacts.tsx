@@ -25,6 +25,7 @@ import {
   STRING_WHITE,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useNotifications } from 'contexts/NotificationContext';
 import { useContactsData } from 'hooks/useContactsData';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -96,9 +97,12 @@ interface ContactsListProps {
   getContactTypeConfig: (typeName: string | null | undefined) => ContactTypeConfig | undefined;
 }
 
+const isValidUUID = (id: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeConfig }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { showInfo } = useNotifications();
   return (
     <div
       style={{
@@ -121,17 +125,18 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeCon
       <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
         {contacts.map((contact, index) => {
           const typeConfig = getContactTypeConfig(contact.contactType);
+          const canNavigate = Boolean(contact.id && isValidUUID(contact.id));
           return (
             <div
               key={contact.id || contact.email}
               onClick={() => {
-                // Only navigate for contacts with a local DB record (UUID id).
-                // Gmail-only results (isLocal: false) have a Google People API resource
-                // name as their id (e.g. "people/c12345") — navigating would produce
-                // a 4-segment path that doesn't match the route, causing a blank screen.
-                const canNavigate = contact.id && contact.isLocal !== false;
+                // Navigate for contacts with a valid UUID id (local DB records).
+                // Gmail-only search results use a Google People API resource name
+                // (e.g. "people/c12345") which is not a UUID — show feedback instead.
                 if (canNavigate) {
                   navigate(`/crm/contacts/${contact.id}`);
+                } else {
+                  showInfo(t('contacts.gmailOnlyContactInfo'));
                 }
               }}
               style={{
@@ -140,11 +145,11 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeCon
                 padding: theme.spacing.md,
                 borderBottom: index < contacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE,
                 gap: theme.spacing.md,
-                cursor: contact.id && contact.isLocal !== false ? STRING_POINTER : STRING_DEFAULT,
+                cursor: canNavigate ? STRING_POINTER : STRING_DEFAULT,
                 transition: theme.transitions.fast,
               }}
               onMouseEnter={event => {
-                if (contact.id && contact.isLocal !== false) {
+                if (canNavigate) {
                   event.currentTarget.style.backgroundColor = theme.colors.background.default;
                 }
               }}

@@ -881,6 +881,7 @@
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
     "totalContacts_plural": "{{count}} contactos",
+    "gmailOnlyContactInfo": "Este contacto es de Gmail y aún no ha sido sincronizado. Sincroniza los contactos para ver los detalles.",
     "addContact": "Agregar Contacto",
     "viewDetail": "Ver Detalles",
     "notes": "Notas",

@@ -1266,6 +1266,7 @@
     "tryDifferentSearch": "Try a different search term.",
     "totalContacts": "{{count}} contact",
     "totalContacts_plural": "{{count}} contacts",
+    "gmailOnlyContactInfo": "This contact is from Gmail and hasn't been synced yet. Sync contacts to view details.",
     "addContact": "Add Contact",
     "viewDetail": "View Details",
     "notes": "Notes",

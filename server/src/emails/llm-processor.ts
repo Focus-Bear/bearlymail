@@ -584,6 +584,60 @@ export class LLMProcessor implements OnModuleInit {
   }
 
   /**
+   * Run incremental analysis for each email in the batch and return only those
+   * that could NOT be handled incrementally (i.e., need full LLM analysis).
+   * Fix #1396: batch path was skipping tryIncrementalAnalysis entirely.
+   */
+  private async filterEmailsHandledIncrementally(
+    emailsToProcess: Email[],
+    userId: string,
+    workerId: string,
+    tracker: JobPerformanceTracker,
+  ): Promise<Email[]> {
+    const uniqueThreadIds = [
+      ...new Set(
+        emailsToProcess.map((email) => email.emailThreadId).filter(Boolean),
+      ),
+    ] as string[];
+    const threads: EmailThread[] =
+      uniqueThreadIds.length > 0
+        ? await this.emailThreadRepository.find({
+            where: { id: In(uniqueThreadIds) },
+          })
+        : [];
+    const threadMap = new Map<string, EmailThread>(
+      threads.map((thread) => [thread.id, thread]),
+    );
+
+    const needsFullAnalysis: Email[] = [];
+    for (const email of emailsToProcess) {
+      const thread = email.emailThreadId
+        ? (threadMap.get(email.emailThreadId) ?? null)
+        : null;
+      try {
+        const incrementalResult = await this.tryIncrementalAnalysis(
+          thread,
+          email,
+          false,
+          userId,
+          workerId,
+          tracker,
+        );
+        if (!incrementalResult.handled) {
+          needsFullAnalysis.push(email);
+        }
+      } catch (error) {
+        this.logger.error(
+          `[Worker ${workerId}] Incremental analysis failed for email ${email.id}, falling back to full analysis`,
+          error,
+        );
+        needsFullAnalysis.push(email);
+      }
+    }
+    return needsFullAnalysis;
+  }
+
+  /**
    * Execute the batch priority refinement pipeline. Returns the locked thread IDs.
    */
   private async runBatchRefinement(
@@ -618,8 +672,44 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("dataFetch");
     tracker.startPhase("processing");
 
+    // Fix #1396: run incremental analysis first; only full-LLM emails that can't be handled cheaply.
+    const emailsNeedingFullAnalysis = await this.filterEmailsHandledIncrementally(
+      emailsToProcess,
+      userId,
+      workerId,
+      tracker,
+    );
+
+    // Fix #1395: unlock threads that were fully handled incrementally (delta=0 case never cleared the lock).
+    const handledIncrementallyThreadIds = new Set(
+      emailsToProcess.map((email) => email.emailThreadId).filter(Boolean),
+    ) as Set<string>;
+    const fullAnalysisThreadIds = new Set(
+      emailsNeedingFullAnalysis.map((email) => email.emailThreadId).filter(Boolean),
+    ) as Set<string>;
+    const fullyHandledThreadIds = [...handledIncrementallyThreadIds].filter(
+      (threadId) => !fullAnalysisThreadIds.has(threadId),
+    );
+    if (fullyHandledThreadIds.length > 0) {
+      await this.emailThreadRepository.update(
+        { id: In(fullyHandledThreadIds) },
+        { isProcessingPriority: false },
+      );
+      this.logger.log(
+        `[Worker ${workerId}] Unlocked ${fullyHandledThreadIds.length} incrementally-handled threads`,
+      );
+    }
+
+    if (emailsNeedingFullAnalysis.length === 0) {
+      this.logger.log(
+        `[Worker ${workerId}] All ${emailsToProcess.length} batch emails handled incrementally`,
+      );
+      tracker.finish();
+      return threadIdsToLock;
+    }
+
     const userContext = this.buildUserContext(contexts, protoCategories);
-    const batchEmails = this.buildBatchEmailPayloads(emailsToProcess);
+    const batchEmails = this.buildBatchEmailPayloads(emailsNeedingFullAnalysis);
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
@@ -636,13 +726,13 @@ export class LLMProcessor implements OnModuleInit {
     await this.applyBatchResults(
       workerId,
       userId,
-      emailsToProcess,
+      emailsNeedingFullAnalysis,
       batchResults,
       contexts,
     );
     tracker.endPhase("dbUpdate");
     this.logger.log(
-      `[Worker ${workerId}] Batch priority refinement complete: ${emailsToProcess.length} emails processed`,
+      `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis`,
     );
     tracker.finish();
     return threadIdsToLock;
@@ -960,7 +1050,7 @@ export class LLMProcessor implements OnModuleInit {
   }> {
     tracker.startPhase("dataFetch");
 
-    const jobsToProcess: SummaryJobEntry[] = [];
+    const candidates: SummaryJobEntry[] = [];
     const skipCount = { alreadyHasSummary: 0, notFound: 0 };
 
     for (const job of jobArray) {
@@ -977,34 +1067,10 @@ export class LLMProcessor implements OnModuleInit {
         continue;
       }
 
-      if (email.emailThreadId) {
-        const emailWithSummary = await this.emailRepository.findOne({
-          where: {
-            emailThreadId: email.emailThreadId,
-            summary: Not(IsNull()),
-          },
-          select: ["id", "summary", "phishingConfidence", "phishingReason"],
-        });
-        if (
-          emailWithSummary?.summary &&
-          emailWithSummary.summary.trim() !== ""
-        ) {
-          if (!email.summary || email.summary.trim() === "") {
-            await this.emailRepository.update(
-              { id: emailId },
-              {
-                summary: emailWithSummary.summary,
-                isProcessingSummary: false,
-                // Copy phishing verdict from sibling to ensure stale flags are cleared (#744)
-                phishingConfidence: emailWithSummary.phishingConfidence ?? null,
-                phishingReason: emailWithSummary.phishingReason ?? null,
-              },
-            );
-          }
-          skipCount.alreadyHasSummary++;
-          continue;
-        }
-      }
+      // Fix #1396: Do NOT copy a sibling email's stale summary to the new email.
+      // A new email in a thread must trigger fresh LLM summarization so the thread
+      // summary reflects the new content. The old shortcut caused stale summaries.
+      // (Previously this block copied summary from any thread sibling and skipped LLM.)
 
       if (
         email.summary &&
@@ -1015,7 +1081,43 @@ export class LLMProcessor implements OnModuleInit {
         continue;
       }
 
-      jobsToProcess.push({ job, userId, emailId, email });
+      candidates.push({ job, userId, emailId, email });
+    }
+
+    // Per-thread deduplication: when multiple emails from the same thread are pending
+    // summary, only queue the NEWEST one for full LLM processing. Older emails in the
+    // same thread burst will get their summary from a subsequent pass once the newest
+    // email's summary is persisted. This prevents N parallel LLM summary calls for a
+    // thread where only the final result matters (e.g., first-sync of a large thread).
+    const newestByThread = new Map<string, SummaryJobEntry>();
+    const noThreadEntries: SummaryJobEntry[] = [];
+
+    for (const entry of candidates) {
+      const threadId = entry.email.emailThreadId;
+      if (!threadId) {
+        noThreadEntries.push(entry);
+        continue;
+      }
+      const existing = newestByThread.get(threadId);
+      if (!existing) {
+        newestByThread.set(threadId, entry);
+      } else {
+        if (entry.email.receivedAt > existing.email.receivedAt) {
+          newestByThread.set(threadId, entry);
+        }
+      }
+    }
+
+    const jobsToProcess: SummaryJobEntry[] = [
+      ...noThreadEntries,
+      ...newestByThread.values(),
+    ];
+
+    const dedupSkipCount = candidates.length - jobsToProcess.length;
+    if (dedupSkipCount > 0) {
+      this.logger.log(
+        `[Batch ${batchId}] Per-thread dedup: skipped ${dedupSkipCount} older same-thread summary jobs (kept newest per thread)`,
+      );
     }
 
     tracker.endPhase("dataFetch");
@@ -1145,9 +1247,9 @@ export class LLMProcessor implements OnModuleInit {
       },
     );
 
-    if (category && email.emailThreadId) {
+    if (email.emailThreadId) {
       let matchedCategoryId: string | null = null;
-      if (category !== "Other") {
+      if (category && category !== "Other") {
         const matched =
           await this.protoCategoriesService.findMatchingFullCategory(
             jobEntry.userId,
@@ -1160,7 +1262,10 @@ export class LLMProcessor implements OnModuleInit {
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
         {
-          categoryExplanation: categoryExplanation ?? undefined,
+          lastSummarizedAt: new Date(),
+          ...(category
+            ? { categoryExplanation: categoryExplanation ?? undefined }
+            : {}),
           ...(matchedCategoryId !== null
             ? { categoryId: matchedCategoryId }
             : {}),
@@ -1924,6 +2029,16 @@ export class LLMProcessor implements OnModuleInit {
       return { handled: false };
     }
 
+    // Fix #1396: when the LLM signals that the thread's category might have changed,
+    // fall back to full priority refinement so resolveCategoryAndProtoCategory runs
+    // and updates the thread's categoryId to reflect the new content.
+    if (incrementalResult.categoryMightChange && email.emailThreadId) {
+      this.logger.log(
+        `[Worker ${workerId}] Incremental check: categoryMightChange=true for thread ${email.emailThreadId} — triggering full recalc for re-categorization`,
+      );
+      return { handled: false };
+    }
+
     this.logger.log(
       `[Worker ${workerId}] Incremental check: skipping full recalc for thread ${email.emailThreadId} - ${incrementalResult.reason}`,
     );
@@ -2030,6 +2145,11 @@ export class LLMProcessor implements OnModuleInit {
           await this.emailRepository.update(
             { id: In(threadEmailIds) },
             { summary: result.updatedSummary, isProcessingSummary: false },
+          );
+
+          await this.emailThreadRepository.update(
+            { id: email.emailThreadId },
+            { lastSummarizedAt: new Date() },
           );
 
           this.logger.log(

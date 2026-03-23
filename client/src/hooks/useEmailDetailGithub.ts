@@ -84,11 +84,11 @@ export function useEmailDetailGithub(emailId: string) {
         setGithubLinks(deduplicateLinks(response.data.links || []));
         setHasGithubToken(response.data.hasToken !== false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (axios.isCancel(error)) {
         return;
       }
-      if (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN) {
+      if (axios.isAxiosError(error) && (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)) {
         setHasGithubToken(false);
       }
     } finally {

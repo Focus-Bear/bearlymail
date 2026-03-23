@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 import { Email } from 'types/email';
+import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -284,15 +285,15 @@ export const useSearch = () => {
           stateSetters,
           searchStartMs
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         stopProgress();
         setLoading(false);
         console.error('Error searching emails:', error);
-        if (error.response?.status === HTTP_UNAUTHORIZED) {
+        if (axios.isAxiosError(error) && error.response?.status === HTTP_UNAUTHORIZED) {
           alert('Please log in again to search emails.');
           navigate('/login');
         } else {
-          alert('Error searching emails. Please try again.');
+          alert(getAxiosErrorMessage(error, 'Error searching emails. Please try again.'));
         }
       }
     },

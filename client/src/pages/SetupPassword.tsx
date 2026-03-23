@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -169,8 +170,8 @@ const SetupPassword: React.FC = () => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       captureEvent(ANALYTICS_EVENTS.PASSWORD_SETUP_COMPLETED);
       navigate('/inbox');
-    } catch (err: any) {
-      setError(err.response?.data?.message || t('auth.setupPasswordError'));
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, t('auth.setupPasswordError')));
     } finally {
       setLoading(false);
     }

@@ -37,6 +37,8 @@ describe('useSearch', () => {
     console.error = jest.fn();
     window.alert = jest.fn();
     mockedUseNavigate.mockReturnValue(mockNavigate);
+    // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation((err) => err?.isAxiosError === true);
     // Mock connected-accounts call that happens on mount
     mockedAxios.get.mockResolvedValue({ data: [] });
   });
@@ -201,6 +203,7 @@ describe('useSearch', () => {
       });
 
       const error = {
+        isAxiosError: true,
         response: { status: HTTP_UNAUTHORIZED },
       };
       mockedAxios.get.mockRejectedValueOnce(error);
@@ -238,7 +241,8 @@ describe('useSearch', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(window.alert).toHaveBeenCalledWith('Error searching emails. Please try again.');
+      // getAxiosErrorMessage returns err.message for Error instances
+      expect(window.alert).toHaveBeenCalledWith('Network error');
       expect(console.error).toHaveBeenCalledWith('Error searching emails:', error);
     });
 

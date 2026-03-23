@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import axios from 'axios';
 import { Email } from 'types/email';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import { MAX_BULK_SEND_COUNT, POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS } from 'constants/numbers';
@@ -71,8 +72,8 @@ export const useFollowUps = () => {
       const threadsData = response.data as ThreadWithFollowUp[];
       setThreads(threadsData);
       return threadsData;
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch threads');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to fetch threads'));
       console.error('Error fetching threads with drafts:', err);
       return [];
     } finally {
@@ -94,8 +95,8 @@ export const useFollowUps = () => {
       try {
         await axios.post(`${API_URL}/follow-ups/generate-drafts-for-threads`, { threadIds });
         startGenerationPolling();
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to generate drafts');
+      } catch (err: unknown) {
+        setError(getAxiosErrorMessage(err, 'Failed to generate drafts'));
         setIsGeneratingDrafts(false);
         console.error('Error generating drafts:', err);
       }
@@ -108,8 +109,8 @@ export const useFollowUps = () => {
       try {
         await axios.put(`${API_URL}/follow-ups/${followUpId}/draft`, { draft });
         await fetchThreadsWithDrafts();
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to update draft');
+      } catch (err: unknown) {
+        setError(getAxiosErrorMessage(err, 'Failed to update draft'));
         throw err;
       }
     },
@@ -126,8 +127,8 @@ export const useFollowUps = () => {
         const response = await axios.post(`${API_URL}/follow-ups/bulk-send`, { followUpIds });
         startSendStatusPolling(followUpIds, threads, fetchThreadsWithDrafts);
         return response.data;
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to send follow-ups');
+      } catch (err: unknown) {
+        setError(getAxiosErrorMessage(err, 'Failed to send follow-ups'));
         throw err;
       }
     },

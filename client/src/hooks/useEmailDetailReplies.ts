@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
@@ -97,7 +98,7 @@ async function executeSendReply(params: SendReplyParams): Promise<void> {
     params.setInitialAttachments([]);
     params.setScheduledSendAt(null);
     params.showSuccess(params.successMsg);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending reply:', error);
     params.setDraft(params.draftToSend);
     params.setReplyRecipients(params.recipients);
@@ -108,7 +109,7 @@ async function executeSendReply(params: SendReplyParams): Promise<void> {
     params.setInitialAttachments([]);
     params.setScheduledSendAt(params.scheduleTime);
     params.setShowReplyComposer(true);
-    params.showError(error.response?.data?.message || params.errorPrefix);
+    params.showError(getAxiosErrorMessage(error, params.errorPrefix));
   }
 }
 

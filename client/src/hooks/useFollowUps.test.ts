@@ -23,6 +23,8 @@ describe('useFollowUps', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     console.error = jest.fn();
+    // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation((err) => err?.isAxiosError === true);
     mockedUseFollowUpPolling.mockReturnValue({
       startGenerationPolling: mockStartGenerationPolling,
     } as any);
@@ -77,6 +79,7 @@ describe('useFollowUps', () => {
     it('should handle fetch errors', async () => {
       const { result } = renderHook(() => useFollowUps());
       const error = {
+        isAxiosError: true,
         response: { data: { message: 'Fetch failed' } },
       };
 
@@ -96,7 +99,8 @@ describe('useFollowUps', () => {
 
     it('should handle errors without response data', async () => {
       const { result } = renderHook(() => useFollowUps());
-      const error = new Error('Network error');
+      // A non-axios Error instance: getAxiosErrorMessage returns err.message
+      const error = new Error('Failed to fetch threads');
 
       mockedAxios.get.mockRejectedValue(error);
 
@@ -130,6 +134,7 @@ describe('useFollowUps', () => {
     it('should handle generation errors', async () => {
       const { result } = renderHook(() => useFollowUps());
       const error = {
+        isAxiosError: true,
         response: { data: { message: 'Generation failed' } },
       };
 
@@ -167,6 +172,7 @@ describe('useFollowUps', () => {
     it('should handle update errors', async () => {
       const { result } = renderHook(() => useFollowUps());
       const error = {
+        isAxiosError: true,
         response: { data: { message: 'Update failed' } },
       };
 
@@ -262,6 +268,7 @@ describe('useFollowUps', () => {
     it('should handle send errors', async () => {
       const { result } = renderHook(() => useFollowUps());
       const error = {
+        isAxiosError: true,
         response: { data: { message: 'Send failed' } },
       };
 

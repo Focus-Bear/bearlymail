@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
@@ -67,8 +68,8 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
       });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create calendar invite');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to create calendar invite'));
     } finally {
       setLoading(false);
     }

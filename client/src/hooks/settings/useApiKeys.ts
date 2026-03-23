@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import { TOAST_DURATION_MS } from 'constants/numbers';
@@ -111,10 +112,9 @@ export const useApiKeys = () => {
       setHasAnthropicKey(true);
       setAnthropicApiKey('');
       setTimeout(() => setAnthropicApiKeySaved(false), TOAST_DURATION_MS);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving Anthropic API key:', error);
-      const message = error?.response?.data?.message;
-      alert(message ?? t('settings.apiKeyError'));
+      alert(getAxiosErrorMessage(error, t('settings.apiKeyError')));
     }
   }, [anthropicApiKey, t]);
 

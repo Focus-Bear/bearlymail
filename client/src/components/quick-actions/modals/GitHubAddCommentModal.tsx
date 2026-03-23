@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
@@ -55,8 +56,8 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
       });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add comment');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to add comment'));
     } finally {
       setLoading(false);
     }

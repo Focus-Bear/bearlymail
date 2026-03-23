@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
@@ -149,10 +150,9 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
           },
         });
         setProjectStatusData(response.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setFetchError(
-          err.response?.data?.message ||
-          t('quickActions.github.failedToLoadOptions', { defaultValue: 'Failed to load project status options.' }),
+          getAxiosErrorMessage(err, t('quickActions.github.failedToLoadOptions', { defaultValue: 'Failed to load project status options.' })),
         );
       } finally {
         setFetchingOptions(false);
@@ -183,8 +183,8 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
       await submitStatusUpdate();
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || t('quickActions.github.failedToUpdateStatus', { defaultValue: 'Failed to update status' }));
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, t('quickActions.github.failedToUpdateStatus', { defaultValue: 'Failed to update status' })));
     } finally {
       setLoading(false);
     }

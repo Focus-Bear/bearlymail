@@ -8,7 +8,7 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name?: string;
@@ -110,10 +110,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let response;
     try {
       response = await axios.post(`${API_URL}/auth/login`, { email, password });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
       // render a specific, actionable message.
-      if (err?.response?.data?.error === 'OAUTH_ONLY_ACCOUNT') {
+      if (axios.isAxiosError(err) && (err.response?.data as { error?: string } | undefined)?.error === 'OAUTH_ONLY_ACCOUNT') {
         throw new OAuthOnlyAccountError();
       }
       throw err;

@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { captureEvent } from 'utils/posthog';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
@@ -324,12 +325,12 @@ export function useEmailDetailOperations(
           console.error('Invalid response from summarization API:', response.data);
           setSummary(null);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (axios.isCancel(error)) {
           return;
         }
         console.error('Error summarizing with custom rule:', error);
-        if (error.response) {
+        if (axios.isAxiosError(error) && error.response) {
           console.error('API error response:', error.response.data);
         }
         setSummary(null);
@@ -515,8 +516,8 @@ export function useEmailDetailOperations(
         setGithubLinks(uniqueLinks);
         setHasGithubToken(response.data.hasToken !== false);
       }
-    } catch (error: any) {
-      if (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN) {
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)) {
         setHasGithubToken(false);
       }
     } finally {
@@ -876,14 +877,14 @@ export function useEmailDetailOperations(
           // but that is idempotent (filter on already-absent id is a no-op).
           dispatch(removeEmail(currentId));
           routeAfterSend({ keepInAction, expectedReplyHours, scheduledSendAt, performArchiveAfterReply, performSnoozeAfterReply, navigate, getInboxPath });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Error sending reply:', error);
           setDraft(draftToSend);
           setReplyRecipients(currentReplyRecipients);
           setReplyCc(currentReplyCc);
           setReplyBcc(currentReplyBcc);
           setShowReplyComposer(true);
-          showError(error.response?.data?.message || t('emailDetail.replySentError'));
+          showError(getAxiosErrorMessage(error, t('emailDetail.replySentError')));
         }
       };
 
@@ -1020,9 +1021,9 @@ export function useEmailDetailOperations(
       try {
         await axios.post(`${API_URL}/calendar/invitation/${emailId}/respond`, { response });
         return Promise.resolve();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error responding to calendar invitation:', error);
-        throw new Error(error.response?.data?.message || 'Failed to respond to invitation');
+        throw new Error(getAxiosErrorMessage(error, 'Failed to respond to invitation'));
       }
     },
     []

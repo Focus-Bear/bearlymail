@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { devLog } from 'utils/dev-logger';
+import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
 import { LoginFormSection } from 'components/auth/LoginFormSection';
@@ -54,13 +55,13 @@ const Login: React.FC = () => {
     try {
       await login(email, password);
       navigate('/inbox');
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof OAuthOnlyAccountError) {
         setIsOAuthOnlyError(true);
         // Set a non-empty error string so the error block renders (handled by isOAuthOnlyError flag)
         setError('OAUTH_ONLY_ACCOUNT');
       } else {
-        setError(err.response?.data?.message || t('auth.authenticationFailed'));
+        setError(getAxiosErrorMessage(err, t('auth.authenticationFailed')));
       }
     }
   };

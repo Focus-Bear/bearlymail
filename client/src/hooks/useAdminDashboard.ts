@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import { ADMIN_TAB_WAITLIST, AdminTab } from 'constants/adminTabs';
@@ -79,9 +80,9 @@ export function useAdminDashboard() {
         setExtendingUserId(null);
         setExtendDays(DEFAULT_EXTEND_DAYS);
         await fetchUsers();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error extending trial:', error);
-        alert(error.response?.data?.message || 'Failed to extend trial');
+        alert(getAxiosErrorMessage(error, 'Failed to extend trial'));
       }
     },
     [extendDays, fetchUsers]

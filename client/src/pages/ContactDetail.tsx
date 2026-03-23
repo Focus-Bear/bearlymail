@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { ContactCustomFieldValue, ContactDetail as ContactDetailType, ContactTypeConfig } from 'types/contact';
 
 import { Sidebar } from 'components/inbox/Sidebar';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -33,7 +34,7 @@ import {
   STRING_TRANSPARENT,
   STRING_WHITE,
 } from 'constants/strings';
-import { useAuth } from 'contexts/AuthContext';
+import { useAuth, User } from 'contexts/AuthContext';
 import { useContactThreads } from 'hooks/useContactThreads';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -172,7 +173,7 @@ function buildContactDetailStyles(): ContactStyles {
 }
 
 interface ContactDetailStateViewProps {
-  user: any;
+  user: User | null;
   logout: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -216,13 +217,13 @@ const ContactDetailStateView: React.FC<ContactDetailStateViewProps> = ({
 );
 
 interface ContactBasicFieldsProps {
-  contact: any;
-  contactTypes: any[];
+  contact: ContactDetailType;
+  contactTypes: ContactTypeConfig[];
   editingField: string | null;
   editValue: string;
   styles: ContactStyles;
   t: (key: string) => string;
-  onUpdateField: (field: string, value: any) => void;
+  onUpdateField: (field: string, value: string | null) => void;
   setEditingField: (field: string | null) => void;
   setEditValue: (value: string) => void;
 }
@@ -251,7 +252,7 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
           style={{ ...inputStyle, cursor: STRING_POINTER }}
         >
           <option value="">--</option>
-          {contactTypes.map((ct: any) => (
+          {contactTypes.map(ct => (
             <option key={ct.name} value={ct.name}>{ct.icon} {ct.label}</option>
           ))}
         </select>
@@ -345,7 +346,7 @@ function getCustomFieldInputType(fieldType: string): string {
 }
 
 interface ContactCustomFieldsSectionProps {
-  contact: any;
+  contact: ContactDetailType;
   editingField: string | null;
   editValue: string;
   showAddCustomField: boolean;
@@ -415,7 +416,7 @@ const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
         </div>
       ) : (
         <div style={{ display: STRING_GRID, gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
-          {contact.customFields.map((cf: any) => (
+          {contact.customFields.map((cf: ContactCustomFieldValue) => (
             <div key={cf.fieldId}>
               <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                 {cf.fieldName}

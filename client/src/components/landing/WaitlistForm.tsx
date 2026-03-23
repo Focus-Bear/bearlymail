@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
 import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
@@ -129,8 +130,8 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
       });
       captureEvent(ANALYTICS_EVENTS.WAIT_LIST_SUBMITTED);
       onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to submit. Please try again.');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to submit. Please try again.'));
     } finally {
       setSubmitting(false);
     }

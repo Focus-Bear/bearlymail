@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
@@ -61,8 +62,8 @@ export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
       });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create issue');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to create issue'));
     } finally {
       setLoading(false);
     }

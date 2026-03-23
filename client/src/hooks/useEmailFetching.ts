@@ -11,6 +11,7 @@ import {
   setCachedCategoryEmails,
   setCachedSummary,
 } from 'utils/emailCache';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import {
@@ -320,7 +321,7 @@ interface CategoryFetchArgs {
 function handleCategoryFetchError(
   args: CategoryFetchArgs,
   catKey: string,
-  error: any,
+  error: unknown,
   sessionId: number
 ) {
   const { categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef, categorySummaryRef } = args;
@@ -336,7 +337,7 @@ return;
     return;
   }
 
-  const is429 = error?.response?.status === HTTP_TOO_MANY_REQUESTS;
+  const is429 = axios.isAxiosError(error) && error.response?.status === HTTP_TOO_MANY_REQUESTS;
   const delayMs = Math.max(0, backoffState.nextAllowedAt - Date.now());
   console.warn(
     `[Accordion] Category load failed (${is429 ? '429' : 'error'}), retry ${backoffState.retryCount}/${MAX_CATEGORY_FETCH_RETRIES} in ${Math.round(delayMs / MS_PER_SECOND)}s:`,
@@ -456,7 +457,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
       dispatch(markCategoryLoaded(catKey));
       console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleCategoryFetchError(args, catKey, error, sessionId);
   } finally {
     categoryBackoff.clearInFlight(catKey);
@@ -699,7 +700,7 @@ async function fetchEmailsImpl({
     dispatch(setDecrypting(false));
     dispatch(setFetchError(null));
     dispatch(setLastFetchedAt(Date.now()));
-  } catch (error: any) {
+  } catch (error: unknown) {
     dispatch(setDecrypting(false));
     dispatch(setSummaryLoading(false));
     handleFetchError(dispatch, error);
@@ -710,21 +711,27 @@ async function fetchEmailsImpl({
   }
 }
 
-function handleFetchError(dispatch: AppDispatch, error: any) {
-  if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
+function handleFetchError(dispatch: AppDispatch, error: unknown) {
+  if (axios.isAxiosError(error)) {
+    if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
+      dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
+    } else if (error.response?.status === HTTP_UNAUTHORIZED) {
+      const msg = (error.response?.data as { message?: string } | undefined)?.message ?? '';
+      dispatch(
+        setFetchError(
+          msg.includes(ERROR_GMAIL_REQUIRED) || msg.includes(ERROR_GMAIL)
+            ? 'GMAIL_REQUIRED'
+            : 'Please log in again to view emails.'
+        )
+      );
+    } else {
+      dispatch(
+        setFetchError(getAxiosErrorMessage(error, 'Failed to load emails. Please try again.'))
+      );
+    }
+  } else if (error instanceof Error && error.message.includes(ERROR_NETWORK)) {
     dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
-  } else if (error.response?.status === HTTP_UNAUTHORIZED) {
-    const msg = error.response?.data?.message || '';
-    dispatch(
-      setFetchError(
-        msg.includes(ERROR_GMAIL_REQUIRED) || msg.includes(ERROR_GMAIL)
-          ? 'GMAIL_REQUIRED'
-          : 'Please log in again to view emails.'
-      )
-    );
   } else {
-    dispatch(
-      setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.')
-    );
+    dispatch(setFetchError('Failed to load emails. Please try again.'));
   }
 }

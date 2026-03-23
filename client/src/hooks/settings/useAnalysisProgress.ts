@@ -1,6 +1,7 @@
 import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { devDebug, devError, devLog } from 'utils/dev-logger';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { API_URL } from 'config/api';
 import {
@@ -184,20 +185,22 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         devLog(`Stored analysis ID: ${response.data.analysisId}`);
         console.log(`[FRONTEND] Stored analysis ID: ${response.data.analysisId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       devError('Error starting context analysis:', error);
       console.error('[FRONTEND ERROR] Error starting context analysis:', error);
-      devError('Error response:', error.response?.data);
-      console.error('[FRONTEND ERROR] Error response:', error.response?.data);
-      devError('Error status:', error.response?.status);
-      console.error('[FRONTEND ERROR] Error status:', error.response?.status);
+      if (axios.isAxiosError(error)) {
+        devError('Error response:', error.response?.data);
+        console.error('[FRONTEND ERROR] Error response:', error.response?.data);
+        devError('Error status:', error.response?.status);
+        console.error('[FRONTEND ERROR] Error status:', error.response?.status);
+      }
       console.error('Error starting context analysis:', error);
       setAnalyzing(false);
       setAnalysisId(null); // Clear analysis ID on error
       setAnalyzeProgress({
         show: true,
         progress: null,
-        error: error.response?.data?.message || 'Failed to start analysis. Please try again.',
+        error: getAxiosErrorMessage(error, 'Failed to start analysis. Please try again.'),
         isComplete: false,
       });
       // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
@@ -378,12 +381,12 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
             }
           }, POLLING_INTERVAL_MS);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         devError('Error fetching analysis progress:', error);
         console.error('Error fetching analysis progress:', error);
 
         const backoffState = backoff.onError(ANALYSIS_BACKOFF_KEY, error);
-        const is429 = (error as any)?.response?.status === HTTP_TOO_MANY_REQUESTS;
+        const is429 = axios.isAxiosError(error) && error.response?.status === HTTP_TOO_MANY_REQUESTS;
 
         if (backoffState.exhausted) {
           // Max retries reached — surface a permanent error to the user.
@@ -391,7 +394,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           setAnalysisId(null);
           const errorMessage = is429
             ? 'Too many requests. Please wait a moment and try again.'
-            : (error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.');
+            : getAxiosErrorMessage(error, 'Failed to fetch analysis progress. Please try again.');
           setAnalyzeProgress({
             show: true,
             progress: null,
@@ -413,8 +416,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           if (errorCount >= 3) {
             setAnalyzing(false);
             setAnalysisId(null);
-            const errorMessage =
-              error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
+            const errorMessage = getAxiosErrorMessage(error, 'Failed to fetch analysis progress. Please try again.');
             setAnalyzeProgress({
               show: true,
               progress: null,

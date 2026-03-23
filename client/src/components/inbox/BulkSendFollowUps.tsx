@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { getErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
 import { BulkSendConfirmModal } from 'components/inbox/bulk/BulkSendConfirmModal';
@@ -120,10 +121,10 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
         results.set(id, { success: true });
       });
       setSendResults(results);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const results = new Map<string, { success: boolean; error: string }>();
       selectedFollowUps.forEach(followUp => {
-        results.set(followUp.id, { success: false, error: error.message || 'Failed to send' });
+        results.set(followUp.id, { success: false, error: getErrorMessage(error, 'Failed to send') });
       });
       setSendResults(results);
     } finally {

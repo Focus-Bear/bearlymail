@@ -1,11 +1,11 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { ContactNote } from 'types/contact';
+import { ContactDetail, ContactNote } from 'types/contact';
 
 import { OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 
 interface Props {
-  contact: any;
+  contact: ContactDetail;
   newNote: string;
   addingNote: boolean;
   onNewNoteChange: (v: string) => void;
@@ -21,7 +21,7 @@ interface Props {
 }
 
 interface ContactNotesListProps {
-  contact: any;
+  contact: ContactDetail;
   newNote: string;
   addingNote: boolean;
   onNewNoteChange: (v: string) => void;
@@ -108,7 +108,7 @@ const ContactNotesList: React.FC<ContactNotesListProps> = ({
 };
 
 interface ContactDealsListProps {
-  contact: any;
+  contact: ContactDetail;
   sectionStyle: React.CSSProperties;
   buttonPrimary: React.CSSProperties;
   dealsOnView: () => void;

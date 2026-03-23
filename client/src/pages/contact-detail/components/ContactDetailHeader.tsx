@@ -1,11 +1,11 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { ContactTypeConfig } from 'types/contact';
+import { ContactDetail, ContactTypeConfig } from 'types/contact';
 
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 
 interface Props {
-  contact: any;
+  contact: ContactDetail;
   typeConfig?: ContactTypeConfig | undefined;
   WIDTH_64_PX: number;
   HEIGHT_64_PX: number;

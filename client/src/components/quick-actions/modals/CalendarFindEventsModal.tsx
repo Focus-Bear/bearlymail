@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
@@ -31,8 +32,8 @@ export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = (
           daysBack: CALENDAR_DAYS_BACK,
         });
         setEvents(response.data || []);
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to find calendar events');
+      } catch (err: unknown) {
+        setError(getAxiosErrorMessage(err, 'Failed to find calendar events'));
         setEvents([]);
       } finally {
         setLoading(false);

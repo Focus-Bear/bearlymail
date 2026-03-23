@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { getAxiosErrorMessage } from 'utils/errors';
 
 import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
@@ -39,8 +40,8 @@ export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = (
         query: query.trim(),
       });
       setResults(response.data || []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to search issues');
+    } catch (err: unknown) {
+      setError(getAxiosErrorMessage(err, 'Failed to search issues'));
       setResults([]);
     } finally {
       setLoading(false);

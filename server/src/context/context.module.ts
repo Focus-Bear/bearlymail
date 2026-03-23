@@ -19,6 +19,7 @@ import { ContextAnalysisProcessor } from "./context-analysis.processor";
 import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
 import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
 import { ContextCategoryService } from "./context-category.service";
+import { ContextCompressionService } from "./context-compression.service";
 import { ContextCrudService } from "./context-crud.service";
 import { ContextFinalizationProcessor } from "./context-finalization.processor";
 import { ContextGmailDataService } from "./context-gmail-data.service";
@@ -48,6 +49,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextService,
     ContextCrudService,
     ContextCategoryService,
+    ContextCompressionService,
     ContextAnalysisProgressService,
     ContextPiiRedactionService,
     ContextGmailDataService,

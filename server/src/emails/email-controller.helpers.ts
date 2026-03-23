@@ -17,13 +17,23 @@ export const EMAIL_CONTROLLER_DEFAULTS = {
 
 /**
  * Appends the user's email signature (or the default BearlyMail signature) to
- * an outgoing email body, separated by two newlines.
+ * an outgoing email body.
+ *
+ * When the body contains HTML markup, the signature is appended with `<br><br>`
+ * to preserve correct rendering in HTML email clients. Plain-text bodies use
+ * `\n\n` as before.
  */
 export const appendSignature = (
   emailBody: string,
   userSignature?: string | null,
-): string =>
-  `${emailBody}\n\n${userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE}`;
+): string => {
+  const signature = userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
+  // Detect HTML body by the presence of angle-bracket tags
+  if (/<[a-z][\s\S]*>/i.test(emailBody)) {
+    return `${emailBody}<br><br>${signature}`;
+  }
+  return `${emailBody}\n\n${signature}`;
+};
 
 /**
  * Extended pg-boss interface to access internal methods not exposed in types.

@@ -38,6 +38,28 @@ export { parseRecipientsFromString } from "../../utils/email-address.utils";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { parseRecipientsFromString } from "../../utils/email-address.utils";
 
+/**
+ * Strips HTML tags and decodes common HTML entities to produce a plain-text
+ * fallback body for multipart/alternative emails.
+ */
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .trim();
+}
+
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
 const GMAIL_INBOX_QUERY =
   "in:inbox -label:SnoozedBearlyMail -label:VA-to-action";
@@ -322,7 +344,10 @@ export class GmailProvider implements EmailProvider {
     const emailContent = buildEmailContent({
       to,
       subject,
-      body,
+      // plain-text fallback for email clients that don't render HTML
+      body: stripHtmlTags(body),
+      // HTML content from rich text editor
+      htmlBody: body,
       cc,
       bcc,
       attachments,

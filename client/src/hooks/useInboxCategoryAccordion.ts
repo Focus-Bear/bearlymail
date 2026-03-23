@@ -5,6 +5,7 @@ import { getCategoryKey } from 'hooks/useEmailFetching';
 interface CategorySummaryItem {
   id?: string | null;
   name: string;
+  count?: number;
 }
 
 interface UseInboxCategoryAccordionParams {
@@ -235,6 +236,38 @@ export function useInboxCategoryAccordion({
   // effects can read it without depending on it as a reactive dep.
   const expandedCategoriesRef = useRef(expandedCategories);
   expandedCategoriesRef.current = expandedCategories;
+
+  // Effect: Auto-prune expanded categories whose count has dropped to 0 (or that have
+  // been removed from the summary entirely). This handles both:
+  //   - Archive All: optimistic decrement sets count=0 before component unmounts
+  //   - Single last-email archive: count drops to 0 during animation delay
+  // Without this, stale keys remain in expandedCategories so the accordion re-expands
+  // next time the category reappears (e.g. after a summary refresh with new emails).
+  useEffect(() => {
+    if (!categorySummary) {
+      return;
+    }
+
+    const validKeys = new Set(
+      categorySummary
+        .filter(cat => (cat.count ?? 1) > 0)
+        .map(cat => getCategoryKey(cat.id, cat.name))
+    );
+
+    setExpandedCategories(prev => {
+      const next = new Set<string>();
+      for (const key of prev) {
+        if (validKeys.has(key)) {
+          next.add(key);
+        }
+      }
+      // Only trigger a re-render if something actually changed
+      if (next.size === prev.size) {
+        return prev;
+      }
+      return next;
+    });
+  }, [categorySummary]);
 
   // NOTE: Effect 3 (null → populated re-fetch) was removed — it is fully covered by
   // Effect 1. When categorySummary transitions null → non-null, Effect 1 fires because

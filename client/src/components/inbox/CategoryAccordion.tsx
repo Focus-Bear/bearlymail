@@ -358,11 +358,11 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const handleConfirmArchive = useCallback(async () => {
     setShowArchiveConfirmation(false);
     if (onArchiveAll) {
-      await onArchiveAll(category, emailIds);
-      // After archiving all emails in this category, collapse it so the user returns to the list
-      // without an empty expanded accordion.
+      // Collapse FIRST so the accordion closes immediately on confirmation, before the
+      // optimistic removal can unmount this component (which would make onToggle a no-op).
       onToggle();
       onAfterCollapse?.();
+      await onArchiveAll(category, emailIds);
     }
   }, [onArchiveAll, category, emailIds, onToggle, onAfterCollapse]);
 

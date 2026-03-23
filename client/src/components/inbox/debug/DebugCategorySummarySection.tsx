@@ -16,9 +16,10 @@ import {
   COLOR_WHITE,
 } from 'constants/colors';
 import { EMOJI_WARNING } from 'constants/emojis';
-import { CATEGORY_OTHER, STRING_NONE } from 'constants/strings';
+import { STRING_NONE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 interface DebugCategorySummaryProps {
   categorySummary: CategorySummaryItem[] | null;
@@ -30,17 +31,16 @@ interface DebugCategorySummaryProps {
 }
 
 const getLoadedEmailsForCategory = (categoryKey: string, emails: Email[]): Email[] => {
-  if (categoryKey === CATEGORY_OTHER) {
+  if (categoryKey === CATEGORY_KEY_UNCATEGORIZED) {
+    // "Other" / uncategorized emails have a null category_id
     return emails.filter(
       event =>
         !event.isArchived &&
-        (event.category === null ||
-          event.category === undefined ||
-          event.category === '' ||
-          event.category === CATEGORY_OTHER)
+        (!event.category_id || event.category_id === null)
     );
   }
-  return emails.filter(event => !event.isArchived && event.category === categoryKey);
+  // UUID-based lookup: match by category_id (consistent with how inboxDataSlice keys emails)
+  return emails.filter(event => !event.isArchived && event.category_id === categoryKey);
 };
 
 const getCategoryStatus = (

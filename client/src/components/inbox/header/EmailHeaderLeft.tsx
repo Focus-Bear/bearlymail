@@ -22,6 +22,7 @@ interface EmailHeaderLeftProps {
   };
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
+  onCategoryOverride?: (newCategory: string) => void;
 }
 
 export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
@@ -29,6 +30,7 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
   priorityTooltip,
   onOverrideUrgency,
   onProvideFeedback,
+  onCategoryOverride,
 }) => {
   const { navigateToContact } = useContactNavigation();
   const senderEmail = email.correspondentEmail || email.from;
@@ -64,6 +66,7 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
         priorityTooltip={priorityTooltip}
         onOverrideUrgency={onOverrideUrgency}
         onProvideFeedback={onProvideFeedback}
+        onCategoryOverride={onCategoryOverride}
       />
 
       <EmailLabels labels={email.labels || []} />

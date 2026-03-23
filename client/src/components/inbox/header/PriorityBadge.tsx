@@ -19,6 +19,7 @@ interface PriorityBadgeProps {
   };
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
+  onCategoryOverride?: (newCategory: string) => void;
 }
 
 export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
@@ -26,6 +27,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   priorityTooltip,
   onOverrideUrgency,
   onProvideFeedback,
+  onCategoryOverride,
 }) => {
   const { t } = useTranslation();
   const priorityScore = getEmailPriorityScore(email);
@@ -89,10 +91,12 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           categoryExplanation={email.categoryExplanation}
           protoCategoryName={email.protoCategoryName}
           protoCategoryDescription={email.protoCategoryDescription}
+          currentCategoryId={email.category_id ?? null}
           onClose={priorityTooltip.hidePriorityTooltip}
           onOverrideUrgency={onOverrideUrgency}
           onProvideFeedback={onProvideFeedback}
           onExpedite={() => priorityTooltip.expeditePriorityCalculation(email.id)}
+          onCategoryOverride={onCategoryOverride}
         />
       )}
     </span>

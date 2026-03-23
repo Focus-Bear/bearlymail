@@ -13,6 +13,8 @@ interface PriorityTooltipCategoryProps {
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
   emailId: string;
+  /** UUID of the email's current category — passed to CategoryOverrideModal for correct optimistic update. */
+  currentCategoryId?: string | null;
   onCategoryOverride?: (newCategory: string) => void;
 }
 
@@ -110,6 +112,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
   protoCategoryName,
   protoCategoryDescription,
   emailId,
+  currentCategoryId,
   onCategoryOverride,
 }) => {
   const { t } = useTranslation();
@@ -185,6 +188,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
         <CategoryOverrideModal
           emailId={emailId}
           currentCategory={category}
+          currentCategoryId={currentCategoryId}
           onClose={() => setShowOverrideModal(false)}
           onSubmitted={onCategoryOverride}
         />

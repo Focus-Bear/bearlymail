@@ -26,10 +26,13 @@ interface PriorityTooltipProps {
   categoryExplanation?: string | null;
   protoCategoryName?: string | null;
   protoCategoryDescription?: string | null;
+  /** UUID of the email's current category — threaded through to CategoryOverrideModal. */
+  currentCategoryId?: string | null;
   onClose: () => void;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
   onExpedite?: () => void;
+  onCategoryOverride?: (newCategory: string) => void;
 }
 
 export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
@@ -43,10 +46,12 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   categoryExplanation,
   protoCategoryName,
   protoCategoryDescription,
+  currentCategoryId,
   onClose,
   onOverrideUrgency,
   onProvideFeedback,
   onExpedite,
+  onCategoryOverride,
 }) => {
   // Always show the tooltip if it's the hovered email, even if loading or no explanation yet
   // This prevents the blank popup from auto-closing
@@ -64,9 +69,11 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         protoCategoryName={protoCategoryName}
         protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}
+        currentCategoryId={currentCategoryId}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}
         onExpedite={onExpedite}
+        onCategoryOverride={onCategoryOverride}
       />
     </PriorityTooltipContainer>
   );

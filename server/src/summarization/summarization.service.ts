@@ -368,17 +368,18 @@ export class SummarizationService {
 
   /**
    * Convert a PhishingLLMResult (or null) to a PhishingSignal for the caller.
-   * If LLM verdict is null (no JSON / no phishing field), returns keyword fallback.
-   * If LLM says safe (is_phishing: false), returns null, clearing keyword false-positives.
+   * If LLM verdict is null (no JSON / no phishing field), returns null — fail-safe,
+   * no phishing alert is shown. Keyword-only signals are NEVER used as a verdict.
+   * If LLM says safe (is_phishing: false), returns null.
    */
   private resolvePhishingSignalFromLLM(
     llmPhishing:
       | import("./phishing-detection.service").PhishingLLMResult
       | null,
-    keywordFallback: PhishingSignal | null,
   ): PhishingSignal | null {
     if (llmPhishing === null) {
-      return keywordFallback;
+      // LLM didn't return a phishing verdict — fail safe, show no alert
+      return null;
     }
     if (!llmPhishing.is_phishing) {
       return null;
@@ -394,11 +395,14 @@ export class SummarizationService {
    * but they do NOT gate whether LLM analysis runs — the LLM always decides.
    *
    * Graceful degradation:
-   * - LLM call throws → falls back to generateLLMSummary + keyword signal
-   * - LLM returns invalid JSON → null phishing field → keyword fallback
-   * - LLM returns phishing: null → keyword signal used as fallback
-   * - LLM returns is_phishing: false → keyword signal suppressed (fixes false positives)
+   * - LLM call throws → falls back to generateLLMSummary, phishing signal = null (fail-safe)
+   * - LLM returns invalid JSON → null phishing field → no alert (fail-safe)
+   * - LLM returns phishing: null → no alert (fail-safe, NOT keyword fallback)
+   * - LLM returns is_phishing: false → no alert
    * - LLM returns is_phishing: true → LLM signal returned with LLM's confidence + reason
+   *
+   * Keyword/heuristic signals (domain mismatch, suspicious words) are used ONLY as
+   * context hints fed to the LLM prompt. They never produce standalone phishing verdicts.
    */
   async summarizeEmailWithPhishing(
     userId: string,
@@ -445,8 +449,7 @@ export class SummarizationService {
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
 
-    const { phishingSignals, keywordFallbackSignal } =
-      buildPhishingContext(allThreadEmails);
+    const { phishingSignals } = buildPhishingContext(allThreadEmails);
 
     const cacheKey = buildPhishingCacheKey(email.from, email.subject);
     const cached = this.phishingCache.get(cacheKey);
@@ -493,7 +496,6 @@ export class SummarizationService {
       messagesToSummarize,
       allThreadEmails,
       phishingSignals,
-      keywordFallbackSignal,
       cacheKey,
       rule,
       llmProvider,
@@ -524,7 +526,6 @@ export class SummarizationService {
       messagesToSummarize: Array<unknown>;
       allThreadEmails: Array<unknown>;
       phishingSignals: PhishingSignals;
-      keywordFallbackSignal: PhishingSignal | null;
       cacheKey: string;
       rule: SummarizationRule;
       llmProvider: LLMProvider | undefined;
@@ -551,7 +552,6 @@ export class SummarizationService {
       messagesToSummarize,
       allThreadEmails,
       phishingSignals,
-      keywordFallbackSignal,
       cacheKey,
       rule,
       llmProvider,
@@ -578,10 +578,7 @@ export class SummarizationService {
         existingActions,
       });
 
-      const phishingSignal = this.resolvePhishingSignalFromLLM(
-        result.phishing,
-        keywordFallbackSignal,
-      );
+      const phishingSignal = this.resolvePhishingSignalFromLLM(result.phishing);
 
       this.phishingCache.set(cacheKey, {
         signal: phishingSignal,
@@ -611,7 +608,6 @@ export class SummarizationService {
         rule,
         userId,
         emailId,
-        keywordFallbackSignal,
       );
     }
   }
@@ -668,7 +664,8 @@ export class SummarizationService {
 
   /**
    * Fallback path when the combined LLM summarize+phishing call fails.
-   * Uses separate summary generation and returns the keyword-only phishing signal.
+   * Uses separate summary generation and returns null phishing signal (fail-safe).
+   * Keyword-only signals are NOT used — only the LLM can produce a phishing verdict.
    */
   private async summarizeEmailFallback(
     emailWithHtml: EmailWithHtmlBody,
@@ -679,7 +676,6 @@ export class SummarizationService {
     rule: SummarizationRule,
     userId: string,
     emailId: string,
-    keywordFallbackSignal: PhishingSignal | null,
   ): Promise<{
     summary: string;
     phishingSignal: PhishingSignal | null;
@@ -702,7 +698,8 @@ export class SummarizationService {
       );
       return {
         summary,
-        phishingSignal: keywordFallbackSignal,
+        // fail-safe: no phishing alert without LLM verdict
+        phishingSignal: null,
         sentimentScore: null,
         sentimentExplanation: null,
         category: null,

@@ -5,9 +5,13 @@
  *  1. Domain mismatch – the sender's domain does not match domains linked in the body
  *  2. Suspicious body content – urgent language, credential harvesting phrases, etc.
  *
- * Two modes:
+ * Primary API:
  *  - extractPhishingSignals(): structured signal extraction for LLM context injection
- *  - detectPhishingSignal(): legacy keyword-only verdict (used as graceful-degradation fallback)
+ *
+ * Deprecated (signals only, NOT verdicts):
+ *  - detectPhishingSignal(): keyword-only heuristic — kept for reference/testing only.
+ *    This function is NO LONGER used as a fallback verdict path. If the LLM fails,
+ *    the phishing result is null (fail-safe). Keyword signals feed the LLM prompt only.
  */
 
 export type PhishingConfidence = "low" | "medium" | "high";
@@ -49,6 +53,62 @@ export interface PhishingLLMResult {
 
 const REGISTERED_DOMAIN_PARTS = -2;
 const HIGH_CONFIDENCE_THRESHOLD = 6;
+
+/**
+ * Well-known domains that are commonly linked in legitimate emails.
+ * These are excluded from domain-mismatch checks because nearly every
+ * business email links to at least one of these services.
+ */
+const TRUSTED_LINK_DOMAINS = new Set([
+  "google.com",
+  "youtube.com",
+  "github.com",
+  "gitlab.com",
+  "bitbucket.org",
+  "linkedin.com",
+  "twitter.com",
+  "x.com",
+  "facebook.com",
+  "instagram.com",
+  "microsoft.com",
+  "office.com",
+  "outlook.com",
+  "apple.com",
+  "amazon.com",
+  "zoom.us",
+  "slack.com",
+  "notion.so",
+  "figma.com",
+  "dropbox.com",
+  "atlassian.com",
+  "jira.com",
+  "confluence.com",
+  "trello.com",
+  "hubspot.com",
+  "mailchimp.com",
+  "sendgrid.net",
+  "stripe.com",
+  "intercom.io",
+  "calendly.com",
+  "loom.com",
+  "miro.com",
+  "canva.com",
+  "airtable.com",
+  "typeform.com",
+  "surveymonkey.com",
+  "docusign.com",
+  "cloudflare.com",
+  "amazonaws.com",
+  "googleapis.com",
+  "gstatic.com",
+  "googleusercontent.com",
+  "github.io",
+  "githubusercontent.com",
+  "wp.com",
+  "wordpress.com",
+  "medium.com",
+  "substack.com",
+]);
 
 const CONFIDENCE_LEVELS: Record<PhishingConfidence, number> = {
   low: 1,
@@ -99,6 +159,9 @@ function extractBodyDomains(body: string): Set<string> {
 /**
  * Returns true when none of the body domains share a registered domain with the sender.
  * We compare the last two parts of the hostname (e.g. "paypal.com" from "secure.paypal.com").
+ *
+ * Trusted well-known domains (e.g. google.com, github.com) are excluded from the check
+ * because nearly every legitimate business email links to at least one of these services.
  */
 function hasDomainMismatch(
   senderDomain: string,
@@ -110,9 +173,18 @@ function hasDomainMismatch(
     host.split(".").slice(REGISTERED_DOMAIN_PARTS).join(".");
 
   const senderRegistered = registeredDomain(senderDomain);
-  for (const domain of bodyDomains) {
+
+  // Filter out trusted/well-known domains before checking for mismatches
+  const untrustedDomains = [...bodyDomains].filter(
+    (domain) => !TRUSTED_LINK_DOMAINS.has(registeredDomain(domain)),
+  );
+
+  // If all linked domains are trusted, there's no mismatch to report
+  if (untrustedDomains.length === 0) return false;
+
+  for (const domain of untrustedDomains) {
     if (registeredDomain(domain) === senderRegistered) {
-      // At least one domain matches — not a mismatch
+      // At least one untrusted domain matches the sender — not a mismatch
       return false;
     }
   }
@@ -261,7 +333,12 @@ export function mergePhishingSignalSets(
 }
 
 /**
- * Main entry point: analyse an email and return a PhishingSignal if suspicious,
+ * @deprecated No longer used as a phishing verdict path.
+ * Keyword/heuristic signals are fed to the LLM as context only — they never produce
+ * standalone phishing alerts. If the LLM fails, the result is null (fail-safe).
+ * Kept here for reference and unit tests. Do NOT call this in production verdict paths.
+ *
+ * Analyse an email and return a PhishingSignal if suspicious,
  * or null if the email looks clean.
  */
 export function detectPhishingSignal(

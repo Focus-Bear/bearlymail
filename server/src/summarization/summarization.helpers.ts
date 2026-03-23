@@ -9,11 +9,8 @@ import { SummarizationRule as SummarizationRuleEntity } from "../database/entiti
 import { LLMService } from "../llm/llm.service";
 import { logWarn } from "../utils/logger";
 import {
-  detectPhishingSignal,
   extractPhishingSignals,
-  mergePhishingSignals,
   mergePhishingSignalSets,
-  PhishingSignal,
   PhishingSignals,
 } from "./phishing-detection.service";
 
@@ -30,12 +27,13 @@ export function buildPhishingCacheKey(
 
 /**
  * Derive combined phishing signals from all emails in a thread.
+ * These signals are passed as context to the LLM — they are NOT used as a standalone
+ * phishing verdict. Only the LLM can produce a phishing verdict.
  */
 export function buildPhishingContext(
   allThreadEmails: Array<{ from?: string; body?: string | null }>,
 ): {
   phishingSignals: PhishingSignals;
-  keywordFallbackSignal: PhishingSignal | null;
 } {
   const emptySignals: PhishingSignals = {
     hasDomainMismatch: false,
@@ -52,15 +50,7 @@ export function buildPhishingContext(
       ),
     emptySignals,
   );
-  const keywordFallbackSignal = allThreadEmails.reduce(
-    (merged, threadEmail) =>
-      mergePhishingSignals(
-        merged,
-        detectPhishingSignal(threadEmail.from, threadEmail.body ?? ""),
-      ),
-    null as PhishingSignal | null,
-  );
-  return { phishingSignals, keywordFallbackSignal };
+  return { phishingSignals };
 }
 
 /**

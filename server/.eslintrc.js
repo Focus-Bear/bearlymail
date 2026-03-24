@@ -334,10 +334,9 @@ module.exports = {
     // All new files pass global max-lines: 800. See issue #939.
 
     {
-      // llm.service.ts: function violations cleared in Phase 5f; only max-lines (2811) remains.
-      // Split into 8 domain-specific LLM services tracked for Phase 5g. See issue #939.
-      // Phase 5A (issue #939): removed max-params override — constructor has only 1 param,
-      // so the previous max-params: 30 was a copy-paste error with no justification.
+      // llm.service.ts: 3219 lines. Only max-lines remains.
+      // Phase 7a (issue #939): splitting into 8 domain-specific LLM services.
+      // constructor has only 1 param (LLMCoreService) — max-params not needed here.
       files: [
         'src/llm/llm.service.ts',
       ],

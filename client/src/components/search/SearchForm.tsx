@@ -59,7 +59,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({ query, loading, onQueryC
       <p
         style={{
           marginTop: theme.spacing.sm,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           color: theme.colors.text.secondary,
         }}
       >

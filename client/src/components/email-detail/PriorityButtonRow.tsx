@@ -37,7 +37,7 @@ export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({ emailId, s
     >
       <span
         style={{
-          fontSize: theme.typography.fontSize.xs,
+          fontSize: theme.typography.fontSize.sm,
           color: theme.colors.text.tertiary,
           fontWeight: theme.typography.fontWeight.semibold,
           letterSpacing: LETTER_SPACING_WIDER,
@@ -65,7 +65,7 @@ export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({ emailId, s
                 border: `1px solid ${isActive ? theme.colors.text.primary : theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.full || '999px',
                 cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
+                fontSize: theme.typography.fontSize.lg,
                 fontWeight: theme.typography.fontWeight.medium,
                 display: 'flex',
                 alignItems: 'center',

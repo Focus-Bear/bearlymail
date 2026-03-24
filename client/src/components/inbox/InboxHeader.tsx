@@ -64,7 +64,7 @@ const FilterToggleButton: React.FC<FilterToggleButtonProps> = ({
             color: theme.colors.primary.main,
             borderRadius: theme.borderRadius.full,
             padding: `0 ${theme.spacing.xs}`,
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.bold,
             minWidth: '16px',
             textAlign: 'center',
@@ -87,7 +87,7 @@ const ClearFiltersButton: React.FC<ClearFiltersButtonProps> = ({ onClear, label 
     onClick={onClear}
     style={{
       padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-      fontSize: theme.typography.fontSize.sm,
+      fontSize: theme.typography.fontSize.lg,
       border: STRING_NONE,
       backgroundColor: COLOR_TRANSPARENT,
       color: theme.colors.primary.main,

@@ -237,34 +237,36 @@ export const theme = {
     },
 
     // Body Text Styles
+    // Minimum readable sizes: xs=11px, sm=12px, md=13px (WCAG / Apple HIG / Material Design recommend ≥12px)
     body: {
       xLarge: {
-        fontSize: '1rem', // 16px
+        fontSize: '1rem', // 16px — unchanged
         lineHeight: 1.5,
       },
       large: {
-        fontSize: '0.875rem', // 14px
+        fontSize: '0.875rem', // 14px — unchanged
         lineHeight: 1.5,
       },
       medium: {
-        fontSize: '0.75rem', // 12px
+        fontSize: '0.8125rem', // 13px — bumped from 12px
         lineHeight: 1.5,
       },
       small: {
-        fontSize: '0.625rem', // 10px
+        fontSize: '0.75rem', // 12px — bumped from 10px
         lineHeight: 1.5,
       },
       xSmall: {
-        fontSize: '0.5rem', // 8px
+        fontSize: '0.6875rem', // 11px — bumped from 8px
         lineHeight: 1.5,
       },
     },
 
     // Legacy fontSize for backward compatibility
+    // Scale floor raised: xs 8px→11px, sm 10px→12px, md 12px→13px
     fontSize: {
-      xs: '0.5rem', // 8px - Body XSmall
-      sm: '0.625rem', // 10px - Body Small
-      md: '0.75rem', // 12px - Body Medium (alias)
+      xs: '0.6875rem', // 11px (was 8px) — minimum for non-debug text
+      sm: '0.75rem', // 12px (was 10px) — small labels, timestamps
+      md: '0.8125rem', // 13px (was 12px) — secondary body text (alias)
       base: '1rem', // 16px - Body XLarge
       lg: '0.875rem', // 14px - Body Large
       xl: '1.25rem', // 20px - H5

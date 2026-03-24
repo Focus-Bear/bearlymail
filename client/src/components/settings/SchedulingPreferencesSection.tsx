@@ -70,7 +70,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
     <div id="scheduling-availability">
       <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityHours')}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
+        <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.tertiary }}>
           {t('settings.schedulingPreferences.startHour')}
         </span>
         <select
@@ -84,7 +84,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             </option>
           ))}
         </select>
-        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
+        <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.tertiary }}>
           {t('settings.schedulingPreferences.endHour')}
         </span>
         <select
@@ -164,7 +164,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         <div style={labelStyle}>{t('settings.schedulingPreferences.bookingLink')}</div>
         <p
           style={{
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.lg,
             color: theme.colors.text.tertiary,
             marginBottom: theme.spacing.sm,
             marginTop: 0,
@@ -180,7 +180,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               borderRadius: theme.borderRadius.sm,
               border: `1px solid ${theme.colors.border.medium}`,
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.lg,
               backgroundColor: theme.colors.background.default,
               color: theme.colors.text.secondary,
               overflow: 'hidden',
@@ -196,7 +196,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
               border: STRING_NONE,
               backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main,
               color: COLOR_NAMED_WHITE,
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.lg,
               fontWeight: theme.typography.fontWeight.medium,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -311,7 +311,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
   }, [user?.id]);
 
   const labelStyle: React.CSSProperties = {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.medium,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
@@ -320,7 +320,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
     borderRadius: theme.borderRadius.sm,
     border: `1px solid ${theme.colors.border.medium}`,
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.lg,
     backgroundColor: theme.colors.background.paper,
     color: theme.colors.text.primary,
   };
@@ -351,7 +351,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
         {(saving || saved) && (
           <span
             style={{
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.lg,
               color: saved ? theme.colors.accent.success : theme.colors.text.tertiary,
               marginLeft: 'auto',
             }}
@@ -362,7 +362,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
       </div>
       <p
         style={{
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           color: theme.colors.text.tertiary,
           marginBottom: theme.spacing.lg,
           lineHeight: theme.typography.lineHeight.normal,

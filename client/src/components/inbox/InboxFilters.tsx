@@ -183,7 +183,7 @@ const MultiSelectTriggerButton: React.FC<MultiSelectTriggerButtonProps> = ({
       style={{
         display: 'block',
         marginBottom: theme.spacing.xs,
-        fontSize: theme.typography.fontSize.sm,
+        fontSize: theme.typography.fontSize.lg,
         color: theme.colors.text.secondary,
         fontWeight: theme.typography.fontWeight.medium,
       }}
@@ -390,7 +390,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, opti
         style={{
           display: 'block',
           marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           color: theme.colors.text.secondary,
           fontWeight: theme.typography.fontWeight.medium,
         }}

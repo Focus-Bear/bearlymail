@@ -19,7 +19,7 @@ export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({ urgencyScore, urgenc
     <span
       title={urgencyExplanation || t('inbox.highUrgencyEmail')}
       style={{
-        fontSize: theme.typography.fontSize.xs,
+        fontSize: theme.typography.fontSize.sm,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         backgroundColor: theme.colors.accent.error,
         color: theme.colors.background.paper,

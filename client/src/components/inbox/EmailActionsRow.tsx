@@ -48,7 +48,7 @@ const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlo
         style={btnStyle}
       >
         <span>{EMOJI_LINK}</span>
-        <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
           {t('inbox.unsubscribe')}
         </span>
       </button>
@@ -57,7 +57,7 @@ const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlo
   return (
     <button onClick={event => onBlockSender(email.id, event)} title={t('inbox.blockSender')} style={btnStyle}>
       <span>{EMOJI_BLOCK}</span>
-      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+      <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
         {t('inbox.blockSender')}
       </span>
     </button>
@@ -99,7 +99,7 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
             cursor: 'pointer',
             opacity: 0.7,
             transition: 'opacity 0.2s',
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.secondary,
           }}
           onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
@@ -125,7 +125,7 @@ const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email
             cursor: 'pointer',
             opacity: 0.7,
             transition: 'opacity 0.2s',
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.secondary,
           }}
           onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
@@ -206,7 +206,7 @@ const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
         }}
       >
         <span>{EMOJI_INBOX}</span>
-        <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
           {t('inbox.archive')}
         </span>
       </button>
@@ -295,7 +295,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div
               style={{
-                fontSize: theme.typography.fontSize.xs,
+                fontSize: theme.typography.fontSize.sm,
                 color: theme.colors.text.tertiary,
                 fontWeight: theme.typography.fontWeight.medium,
                 whiteSpace: 'nowrap',

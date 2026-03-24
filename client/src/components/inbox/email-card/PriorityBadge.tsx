@@ -22,7 +22,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   return (
     <span
       style={{
-        fontSize: theme.typography.fontSize.xs,
+        fontSize: theme.typography.fontSize.sm,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         backgroundColor: priorityBg,
         color: priorityColor,

@@ -22,7 +22,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
       <div
         style={{
           color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           maxWidth: '100%',
           minWidth: 0,
           lineHeight: theme.typography.lineHeight.relaxed,
@@ -114,7 +114,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
         <div
           style={{
             color: theme.colors.text.tertiary,
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             marginTop: theme.spacing.xs,
             fontStyle: 'italic',
             display: 'flex',

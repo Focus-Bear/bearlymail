@@ -113,7 +113,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
       />
       <div
         style={{
-          fontSize: theme.typography.fontSize.xs,
+          fontSize: theme.typography.fontSize.sm,
           color: theme.colors.text.tertiary,
           marginTop: theme.spacing.xs,
         }}

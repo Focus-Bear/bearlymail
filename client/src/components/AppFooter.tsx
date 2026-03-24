@@ -21,7 +21,7 @@ export const AppFooter: React.FC = () => {
       <span
         style={{
           color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.xs,
+          fontSize: theme.typography.fontSize.sm,
         }}
       >
         {t('footer.copyright', { year: new Date().getFullYear() })}
@@ -29,7 +29,7 @@ export const AppFooter: React.FC = () => {
       <span
         style={{
           color: theme.colors.text.tertiary,
-          fontSize: theme.typography.fontSize.xs,
+          fontSize: theme.typography.fontSize.sm,
         }}
       >
         •
@@ -37,7 +37,7 @@ export const AppFooter: React.FC = () => {
       <span
         style={{
           color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.xs,
+          fontSize: theme.typography.fontSize.sm,
         }}
       >
         {t('footer.madeBy')}

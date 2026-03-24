@@ -41,7 +41,7 @@ const ToneRulesContent: React.FC<ToneRulesContentProps> = ({
         style={{
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.md,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
         }}
       >
         {t('settings.toneConfig')}
@@ -152,7 +152,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
             color: theme.colors.text.secondary,
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
             borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.lg,
             fontWeight: theme.typography.fontWeight.medium,
           }}
         >

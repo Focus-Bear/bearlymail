@@ -46,7 +46,7 @@ const BatchInfoTooltip: React.FC<BatchInfoTooltipProps & { width?: string }> = (
             boxShadow: theme.shadows.md,
             width,
             zIndex: 1000,
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.secondary,
             lineHeight: theme.typography.lineHeight.relaxed,
           }}
@@ -72,7 +72,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({ nextDelivery, lastUr
         backgroundColor: theme.colors.background.subtle,
         borderRadius: theme.borderRadius.md,
         marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
+        fontSize: theme.typography.fontSize.lg,
         color: theme.colors.text.secondary,
       }}
     >

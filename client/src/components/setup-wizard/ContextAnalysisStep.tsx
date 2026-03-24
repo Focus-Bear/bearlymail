@@ -49,7 +49,7 @@ const retryButtonStyle: React.CSSProperties = {
   color: COLOR_NAMED_WHITE,
   border: STRING_NONE,
   borderRadius: theme.borderRadius.md,
-  fontSize: theme.typography.fontSize.sm,
+  fontSize: theme.typography.fontSize.lg,
   fontWeight: theme.typography.fontWeight.semibold,
   cursor: 'pointer',
 };
@@ -60,7 +60,7 @@ const skipButtonStyle: React.CSSProperties = {
   color: theme.colors.text.secondary,
   border: `1px solid ${theme.colors.border.medium}`,
   borderRadius: theme.borderRadius.md,
-  fontSize: theme.typography.fontSize.sm,
+  fontSize: theme.typography.fontSize.lg,
   fontWeight: theme.typography.fontWeight.semibold,
   cursor: 'pointer',
 };
@@ -98,7 +98,7 @@ const progressBarTrackStyle: React.CSSProperties = {
 
 const progressLabelStyle: React.CSSProperties = {
   color: theme.colors.text.secondary,
-  fontSize: theme.typography.fontSize.sm,
+  fontSize: theme.typography.fontSize.lg,
   margin: 0,
   textAlign: 'center',
 };
@@ -115,7 +115,7 @@ const insightsPanelStyle: React.CSSProperties = {
 const insightsPanelHeaderStyle: React.CSSProperties = {
   marginBottom: theme.spacing.xs,
   fontWeight: theme.typography.fontWeight.semibold,
-  fontSize: theme.typography.fontSize.xs,
+  fontSize: theme.typography.fontSize.sm,
   color: theme.colors.text.primary,
 };
 
@@ -126,7 +126,7 @@ const insightsListStyle: React.CSSProperties = {
 };
 
 const insightItemStyle: React.CSSProperties = {
-  fontSize: theme.typography.fontSize.xs,
+  fontSize: theme.typography.fontSize.lg,
   color: theme.colors.text.secondary,
   lineHeight: 1.4,
 };

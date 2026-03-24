@@ -168,7 +168,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                     onClick={onCopyEmail}
                     title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
                     style={{
-                      fontSize: theme.typography.fontSize.xs,
+                      fontSize: theme.typography.fontSize.sm,
                       color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
                       fontWeight: theme.typography.fontWeight.normal,
                       cursor: 'pointer',
@@ -187,7 +187,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                       padding: 0,
                       cursor: 'pointer',
                       color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
-                      fontSize: theme.typography.fontSize.sm,
+                      fontSize: theme.typography.fontSize.lg,
                       lineHeight: 1,
                     }}
                   >
@@ -198,7 +198,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
             </div>
             <div
               style={{
-                fontSize: theme.typography.fontSize.sm,
+                fontSize: theme.typography.fontSize.lg,
                 color: theme.colors.text.primary,
                 opacity: 0.8,
               }}
@@ -218,7 +218,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
             {email.to && (
               <div
                 style={{
-                  fontSize: theme.typography.fontSize.xs,
+                  fontSize: theme.typography.fontSize.sm,
                   color: theme.colors.text.secondary,
                   marginTop: theme.spacing.xs,
                 }}
@@ -229,7 +229,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
             {email.cc && (
               <div
                 style={{
-                  fontSize: theme.typography.fontSize.xs,
+                  fontSize: theme.typography.fontSize.sm,
                   color: theme.colors.text.secondary,
                   marginTop: theme.spacing.xs,
                 }}
@@ -245,7 +245,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
             backgroundColor: theme.colors.background.default,
             borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,
             color: theme.colors.text.secondary,
             cursor: 'pointer',
@@ -266,7 +266,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                 backgroundColor: theme.colors.background.paper,
                 borderRadius: theme.borderRadius.sm,
                 border: `1px solid ${theme.colors.border.light}`,
-                fontSize: theme.typography.fontSize.xs,
+                fontSize: theme.typography.fontSize.sm,
                 minWidth: '200px',
                 boxShadow: theme.shadows.md,
                 zIndex: 999,
@@ -279,7 +279,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                   </span>
                   <span>{priorityExplanation.dimensions.goalAlignment.score.toFixed(0)}%</span>
                   {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
-                    <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginTop: '2px' }}>
+                    <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginTop: '2px' }}>
                       {priorityExplanation.dimensions.goalAlignment.reasons[0]}
                     </div>
                   )}
@@ -367,7 +367,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                     padding: theme.spacing.sm,
                     backgroundColor: theme.colors.background.subtle,
                     borderRadius: theme.borderRadius.sm,
-                    fontSize: theme.typography.fontSize.sm,
+                    fontSize: theme.typography.fontSize.lg,
                     lineHeight: theme.typography.lineHeight.relaxed,
                   }}
                 >
@@ -407,7 +407,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                         display: 'flex',
                         justifyContent: 'space-between',
                         marginBottom: theme.spacing.xs,
-                        fontSize: theme.typography.fontSize.sm,
+                        fontSize: theme.typography.fontSize.lg,
                       }}
                     >
                       <span
@@ -455,7 +455,7 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                   border: 'none',
                   borderRadius: theme.borderRadius.sm,
                   cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.xs,
+                  fontSize: theme.typography.fontSize.sm,
                   fontWeight: theme.typography.fontWeight.medium,
                 }}
               >

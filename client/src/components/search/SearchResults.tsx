@@ -81,7 +81,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           <p
             style={{
               color: theme.colors.accent.warning,
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.lg,
               marginBottom: theme.spacing.md,
               padding: theme.spacing.sm,
               backgroundColor: theme.colors.sunray.light3,
@@ -113,7 +113,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               <p
                 style={{
                   color: theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.sm,
+                  fontSize: theme.typography.fontSize.lg,
                   marginBottom: theme.spacing.sm,
                   fontWeight: theme.typography.fontWeight.medium,
                 }}
@@ -125,7 +125,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   margin: 0,
                   paddingLeft: theme.spacing.lg,
                   color: theme.colors.text.tertiary,
-                  fontSize: theme.typography.fontSize.xs,
+                  fontSize: theme.typography.fontSize.sm,
                 }}
               >
                 {triedQueries.map((queryItem: { query: string; resultCount: number; accountType?: string }) => (
@@ -177,7 +177,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <div
           style={{
             color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.lg,
           }}
         >
           {t('search.found', { count: searchResults.length, plural: searchResults.length !== 1 ? 's' : '' })}
@@ -188,7 +188,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: theme.spacing.xs,
-              fontSize: theme.typography.fontSize.xs,
+              fontSize: theme.typography.fontSize.sm,
               color: theme.colors.primary.main,
               backgroundColor: theme.colors.primary.subtle,
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -208,7 +208,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             padding: theme.spacing.sm,
             backgroundColor: theme.colors.background.subtle,
             borderRadius: theme.borderRadius.md,
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             color: theme.colors.text.tertiary,
             marginBottom: theme.spacing.xs,
           }}
@@ -294,7 +294,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                         }
                       }}
                       style={{
-                        fontSize: theme.typography.fontSize.xs,
+                        fontSize: theme.typography.fontSize.sm,
                         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                         backgroundColor: getScoreBackgroundColor(searchEmail.relevanceScore),
                         color: getScoreColor(searchEmail.relevanceScore),
@@ -315,7 +315,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     priority.label !== STRING_NA && (
                       <span
                         style={{
-                          fontSize: theme.typography.fontSize.xs,
+                          fontSize: theme.typography.fontSize.sm,
                           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                           backgroundColor: priority.bg,
                           color: priority.color,
@@ -332,7 +332,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 </div>
                 <span
                   style={{
-                    fontSize: theme.typography.fontSize.xs,
+                    fontSize: theme.typography.fontSize.sm,
                     color: theme.colors.text.tertiary,
                   }}
                 >
@@ -352,7 +352,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               <div
                 style={{
                   color: theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.sm,
+                  fontSize: theme.typography.fontSize.lg,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -368,7 +368,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     padding: theme.spacing.sm,
                     backgroundColor: theme.colors.primary.subtle,
                     borderRadius: theme.borderRadius.sm,
-                    fontSize: theme.typography.fontSize.xs,
+                    fontSize: theme.typography.fontSize.sm,
                     color: theme.colors.text.secondary,
                     fontStyle: 'italic',
                     borderLeft: `3px solid ${theme.colors.primary.main}`,

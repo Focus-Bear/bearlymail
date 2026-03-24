@@ -74,7 +74,7 @@ const ReanalyseButton: React.FC<ReanalyseButtonProps> = ({ onClick, isReanalysin
         border: STRING_NONE,
         backgroundColor: isHovered ? theme.colors.interactive.hover : 'transparent',
         color: isReanalysing ? theme.colors.text.disabled : theme.colors.text.tertiary,
-        fontSize: theme.typography.fontSize.sm,
+        fontSize: theme.typography.fontSize.lg,
         cursor: isReanalysing ? 'not-allowed' : 'pointer',
         transition: theme.transitions.fast,
         display: 'flex',
@@ -159,7 +159,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
           color: theme.colors.text.secondary,
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
           borderRadius: theme.borderRadius.full,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           fontWeight: theme.typography.fontWeight.medium,
         }}
       >
@@ -175,7 +175,7 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
             border: STRING_NONE,
             backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
             color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.lg,
             cursor: 'pointer',
             transition: theme.transitions.fast,
             display: 'flex',
@@ -256,7 +256,7 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
               border: STRING_NONE,
               backgroundColor: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
               color: theme.colors.text.tertiary,
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.lg,
               cursor: 'pointer',
               transition: theme.transitions.fast,
               display: 'flex',
@@ -294,7 +294,7 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
           justifyContent: 'center',
           padding: theme.spacing.lg,
           color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           gap: theme.spacing.sm,
         }}
       >

@@ -46,7 +46,7 @@ const SchedulingActionButtons: React.FC<SchedulingActionButtonsProps> = ({
           borderRadius: theme.borderRadius.md,
           fontWeight: theme.typography.fontWeight.semibold,
           cursor: 'pointer',
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -69,7 +69,7 @@ const SchedulingActionButtons: React.FC<SchedulingActionButtonsProps> = ({
           borderRadius: theme.borderRadius.md,
           fontWeight: theme.typography.fontWeight.semibold,
           cursor: drafting ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -132,7 +132,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
         <span style={{ fontSize: theme.typography.fontSize.lg }}>{EMOJI_CALENDAR}</span>
         <span
           style={{
-            fontSize: theme.typography.fontSize.sm,
+            fontSize: theme.typography.fontSize.lg,
             fontWeight: theme.typography.fontWeight.semibold,
             color: theme.colors.text.primary,
           }}
@@ -143,7 +143,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
 
       <div
         style={{
-          fontSize: theme.typography.fontSize.sm,
+          fontSize: theme.typography.fontSize.lg,
           color: theme.colors.text.secondary,
           lineHeight: theme.typography.lineHeight.normal,
         }}

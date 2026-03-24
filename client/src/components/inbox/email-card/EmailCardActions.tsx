@@ -81,7 +81,7 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
             backgroundColor: COLOR_TRANSPARENT,
             border: STRING_NONE,
             cursor: 'pointer',
-            fontSize: theme.typography.fontSize.xs,
+            fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,
             padding: theme.spacing.xs,
           }}

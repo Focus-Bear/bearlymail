@@ -73,7 +73,7 @@ export const EmailLabels: React.FC<EmailLabelsProps> = ({ labels }) => {
           <span
             key={getLabelKey(label, index)}
             style={{
-              fontSize: theme.typography.fontSize.xs,
+              fontSize: theme.typography.fontSize.sm,
               padding: `2px ${theme.spacing.sm}`,
               backgroundColor: isCategory ? theme.colors.background.subtle : theme.colors.primary.subtle,
               color: isCategory ? theme.colors.text.secondary : theme.colors.primary.main,

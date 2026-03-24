@@ -43,7 +43,7 @@ export const SearchHeader: React.FC = () => {
             to="/help/search"
             onClick={() => captureEvent(ANALYTICS_EVENTS.SEARCH_HELP_CLICKED)}
             style={{
-              fontSize: theme.typography.fontSize.xs,
+              fontSize: theme.typography.fontSize.sm,
               color: theme.colors.text.tertiary,
               textDecoration: 'none',
             }}

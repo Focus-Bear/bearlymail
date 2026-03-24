@@ -9,7 +9,7 @@ export const EmailTimestamp: React.FC<EmailTimestampProps> = ({ receivedAt }) =>
   return (
     <span
       style={{
-        fontSize: theme.typography.fontSize.xs,
+        fontSize: theme.typography.fontSize.sm,
         color: theme.colors.text.tertiary,
       }}
     >

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -13,12 +13,15 @@ import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { PrioritisationInterstitial } from 'components/inbox/PrioritisationInterstitial';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
+import { VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import { GATE_FILTER_SWITCHED_KEY,usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 
@@ -142,11 +145,37 @@ const InboxView: React.FC = () => {
 
   const { isDebugModeEnabled } = useDebugMode();
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts();
+  const {
+    isGated,
+    prioritisedCount: gatePrioritisedCount,
+    totalCount: gateTotalCount,
+    justUngated,
+    clearJustUngated,
+  } = usePrioritisationGate();
 
   const activeFilterCount =
     (filters.accountIds.length > 0 ? 1 : 0) +
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.minPriority !== null ? 1 : 0);
+
+  // When the prioritisation gate lifts for the first time, auto-switch to VH filter
+  // so new users get the focused experience after initial analysis completes.
+  useEffect(() => {
+    if (justUngated) {
+      const hasAlreadySwitched = (() => {
+        try {
+ return !!localStorage.getItem(GATE_FILTER_SWITCHED_KEY); 
+} catch {
+ return false; 
+}
+      })();
+      if (!hasAlreadySwitched && filters.minPriority === null && filters.maxPriority === null) {
+        setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
+        fetchEmails({ minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null });
+      }
+      clearJustUngated();
+    }
+  }, [justUngated, clearJustUngated, filters.minPriority, filters.maxPriority, setPriorityFilter, fetchEmails]);
 
   if (loading) {
     return <InboxLoadingState />;
@@ -154,6 +183,16 @@ const InboxView: React.FC = () => {
 
   if (fetchError === ERROR_CODE_GMAIL_REQUIRED) {
     return <GmailConnectionScreen />;
+  }
+
+  // Show the prioritisation interstitial while the initial analysis is running
+  if (isGated) {
+    return (
+      <div className="h-dvh" style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
+        <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={handleCloseMobileMenu} />
+        <PrioritisationInterstitial prioritised={gatePrioritisedCount} total={gateTotalCount} />
+      </div>
+    );
   }
 
   return (

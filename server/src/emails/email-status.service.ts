@@ -148,26 +148,61 @@ export class EmailStatusService {
 
   async getPriorityCounts(
     userId: string,
-  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number }> {
+  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number }> {
     const rows = await this.emailThreadRepository.query(
       `SELECT
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 50) AS "veryHigh",
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 30 AND COALESCE("priorityScore", 0) <= 50) AS high,
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) > 15 AND COALESCE("priorityScore", 0) <= 30) AS medium,
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 0 AND COALESCE("priorityScore", 0) <= 15) AS low,
-         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 0) AS "veryLow"
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 50) AS "veryHigh",
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 30 AND "priorityScore" <= 50) AS high,
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 15 AND "priorityScore" <= 30) AS medium,
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" >= 0 AND "priorityScore" <= 15) AS low,
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" < 0) AS "veryLow",
+         COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS unprioritised
        FROM email_threads
        WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
       [userId],
     );
-    const row = rows[0] ?? { veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 };
+    const row = rows[0] ?? { veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0, unprioritised: 0 };
     return {
       veryHigh: parseInt(row.veryHigh, 10) || 0,
       high: parseInt(row.high, 10) || 0,
       medium: parseInt(row.medium, 10) || 0,
       low: parseInt(row.low, 10) || 0,
       veryLow: parseInt(row.veryLow, 10) || 0,
+      unprioritised: parseInt(row.unprioritised, 10) || 0,
     };
+  }
+
+  /**
+   * Returns the prioritisation status for the inbox gate:
+   * how many threads are prioritised vs total, and whether analysis is active.
+   * "Prioritised" means priorityScore IS NOT NULL.
+   */
+  async getPrioritisationStatus(userId: string): Promise<{
+    totalThreads: number;
+    prioritisedCount: number;
+    unprioritisedCount: number;
+    isAnalysisRunning: boolean;
+  }> {
+    const rows = await this.emailThreadRepository.query(
+      `SELECT
+         COUNT(*) AS "totalThreads",
+         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL) AS "prioritisedCount",
+         COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS "unprioritisedCount"
+       FROM email_threads
+       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
+      [userId],
+    );
+    const row = rows[0] ?? { totalThreads: 0, prioritisedCount: 0, unprioritisedCount: 0 };
+    const totalThreads = parseInt(row.totalThreads, 10) || 0;
+    const prioritisedCount = parseInt(row.prioritisedCount, 10) || 0;
+    const unprioritisedCount = parseInt(row.unprioritisedCount, 10) || 0;
+
+    // Analysis is considered "running" when there are still unprioritised threads
+    // and some have already been prioritised (analysis in progress), OR when
+    // there are unprioritised threads and none are prioritised yet (just started).
+    const isAnalysisRunning = unprioritisedCount > 0;
+
+    return { totalThreads, prioritisedCount, unprioritisedCount, isAnalysisRunning };
   }
 
   async getConnectedAccounts(userId: string): Promise<

@@ -136,6 +136,16 @@ export class EmailsController {
     return this.emailsService.getPriorityCounts(req.user.userId);
   }
 
+  /**
+   * Returns prioritisation status for the inbox gate:
+   * how many threads are prioritised vs total, and whether analysis is still running.
+   * Used by the client to decide whether to show the prioritisation interstitial.
+   */
+  @Get("prioritisation-status")
+  async getPrioritisationStatus(@Request() req) {
+    return this.emailsService.getPrioritisationStatus(req.user.userId);
+  }
+
   @Get("inbox-summary")
   async getInboxSummary(
     @Request() req,

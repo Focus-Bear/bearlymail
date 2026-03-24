@@ -14,6 +14,8 @@ export interface PriorityCounts {
   low: number;
   /** Threads with priorityScore < 0 */
   veryLow: number;
+  /** Threads with priorityScore IS NULL (analysis not yet run) */
+  unprioritised: number;
 }
 
 /**

@@ -130,13 +130,13 @@ function loadInitialFilters(): InboxFilter {
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);
   }
-  // First visit (no stored filters) — default to VERY_HIGH_PRIORITY_THRESHOLD (score > 50).
-  // New users start with the most focused view (very high priority only).
-  // The null workaround from PR #1121 (fix #1119) is no longer needed:
-  // PR #1159 (fix #1155) properly fixed priorityModeActive, making it safe
-  // to restore the original high-priority default from PR #846.
+  // First visit (no stored filters) — default to "All" (null/null) for new users.
+  // PR #1435 (fix #1433): new users now start on "All" instead of "Very High" to avoid
+  // false inbox zero during the initial prioritisation phase. Once the inbox gate lifts
+  // (≥20 emails prioritised), usePrioritisationGate auto-switches to VERY_HIGH_PRIORITY_THRESHOLD
+  // to give the focused experience. Existing users are unaffected (they have stored filters).
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+  return { accountIds: [], categories: [], minPriority: null, maxPriority: null };
 }
 
 export function useInboxFilters() {

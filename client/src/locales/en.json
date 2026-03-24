@@ -362,8 +362,22 @@
       "nextTierQuestion": "There are {{count}} {{tier}} emails waiting. Want to tackle them next?",
       "showTier": "Show {{tier}} emails",
       "later": "Maybe later",
-      "allCaughtUp": "You’re all caught up! 🏆",
-      "allCaughtUpSub": "You’ve cleared every priority tier. Enjoy your focus time."
+      "allCaughtUp": "You're all caught up! 🏆",
+      "allCaughtUpSub": "You've cleared every priority tier. Enjoy your focus time."
+    },
+    "prioritisationGate": {
+      "title": "Setting up your smart inbox",
+      "subtitle": "We're analysing your emails to prioritise what matters most.",
+      "progress": "{{count}} of {{total}} emails analysed",
+      "patience": "This usually takes a minute or two."
+    },
+    "analysingPriority": {
+      "label": "Analysing priority...",
+      "description": "These emails are being processed. They'll appear in the right category once analysis completes."
+    },
+    "filteredEmpty": {
+      "hasLowerPriority": "No high priority emails right now. There are {{count}} lower priority emails.",
+      "showAll": "Show all emails"
     }
   },
   "emailDetail": {

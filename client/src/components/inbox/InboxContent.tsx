@@ -57,7 +57,7 @@ export interface InboxContentProps {
   /** Current active priority filter for progressive unlock */
   minPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
-  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number } | null;
+  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
@@ -108,6 +108,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
     onReanalyseOther: handleReanalyseOther,
     minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
+    unprioritisedCount: priorityCounts?.unprioritised ?? 0,
   };
 
   return (

@@ -106,10 +106,11 @@ describe('useInboxFilters', () => {
   });
 
   describe('initialization', () => {
-    it('defaults to VERY_HIGH_PRIORITY_THRESHOLD when localStorage is empty (first visit)', () => {
+    it('defaults to null/null when localStorage is empty (first visit, PR #1435)', () => {
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
       expect(result.current.filters.accountIds).toEqual([]);
       expect(result.current.filters.categories).toEqual([]);
     });
@@ -132,13 +133,14 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.maxPriority).toBe(50);
     });
 
-    it('falls back to VERY_HIGH_PRIORITY_THRESHOLD when localStorage JSON is malformed', () => {
+    it('falls back to null/null when localStorage JSON is malformed (PR #1435)', () => {
       localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
       console.error = jest.fn();
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBeNull();
+      expect(result.current.filters.maxPriority).toBeNull();
     });
   });
 
@@ -224,11 +226,12 @@ describe('useInboxFilters', () => {
     // Trade-off: users who deliberately cleared all filters are indistinguishable from
     // broken-default users and will also be reset — intentional one-time disruption.
 
-    it('first visit: applies VERY_HIGH_PRIORITY_THRESHOLD default (no stored filters)', () => {
+    it('first visit: defaults to null/null (no stored filters, PR #1435)', () => {
       // No STORAGE_KEY, no PRIORITY_MIGRATION_KEY — completely fresh browser.
+      // PR #1435: new users start on "All" (null/null) instead of VERY_HIGH_PRIORITY_THRESHOLD.
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(VERY_HIGH_PRIORITY_THRESHOLD);
+      expect(result.current.filters.minPriority).toBeNull();
       expect(result.current.filters.maxPriority).toBeNull();
       // Migration key is not needed for first visit (takes the else branch)
       // but FIRST_LOAD_KEY should be set

@@ -1507,6 +1507,20 @@
       "later": "Quizás más tarde",
       "allCaughtUp": "¡Todo al día! 🏆",
       "allCaughtUpSub": "Has limpiado todos los niveles de prioridad. Disfruta de tu tiempo de concentración."
+    },
+    "prioritisationGate": {
+      "title": "Configurando tu bandeja inteligente",
+      "subtitle": "Estamos analizando tus correos para priorizar lo que más importa.",
+      "progress": "{{count}} de {{total}} correos analizados",
+      "patience": "Esto suele tardar un par de minutos."
+    },
+    "analysingPriority": {
+      "label": "Analizando prioridad...",
+      "description": "Estos correos están siendo procesados. Aparecerán en la categoría correcta cuando el análisis termine."
+    },
+    "filteredEmpty": {
+      "hasLowerPriority": "No hay correos de alta prioridad ahora mismo. Hay {{count}} correos de menor prioridad.",
+      "showAll": "Mostrar todos los correos"
     }
   },
   "landing": {

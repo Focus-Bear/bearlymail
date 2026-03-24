@@ -19,6 +19,7 @@ import { EmailListItem } from 'components/inbox/EmailListItem';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
+import { AnalysingPriorityCategory } from 'components/inbox/states/AnalysingPriorityCategory';
 import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
@@ -605,11 +606,13 @@ export interface InboxEmailListPanelProps {
   /** Current active priority filter for progressive unlock */
   minPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
-  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number } | null;
+  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
+  /** Count of threads not yet prioritised (priorityScore IS NULL) — used for the virtual "Analysing priority..." category */
+  unprioritisedCount?: number;
 }
 
 export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) => {
@@ -624,6 +627,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
     onEmailClick, onEmailSelect, onSendFollowUp, onGenerateDrafts, onRetry,
     onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox, onReanalyseOther,
     minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
+    unprioritisedCount,
   } = props;
 
   const { isDebugModeEnabled } = useDebugMode();
@@ -727,6 +731,9 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           onUnlockPriorityTier={onUnlockPriorityTier}
           onDismissUnlockPrompt={onDismissUnlockPrompt}
         />
+        {canRenderCategories && unprioritisedCount !== null && unprioritisedCount !== undefined && unprioritisedCount > 0 && (
+          <AnalysingPriorityCategory count={unprioritisedCount} />
+        )}
         {canRenderCategories && <InboxCategoryList {...categoryListProps} />}
         {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (
           <div ref={sentinelRef} style={{ height: '1px', visibility: 'hidden' }} aria-hidden="true" />

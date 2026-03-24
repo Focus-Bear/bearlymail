@@ -57,8 +57,17 @@ export class EmailsService {
 
   async getPriorityCounts(
     userId: string,
-  ): Promise<{ high: number; medium: number; low: number }> {
+  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number }> {
     return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId);
+  }
+
+  async getPrioritisationStatus(userId: string): Promise<{
+    totalThreads: number;
+    prioritisedCount: number;
+    unprioritisedCount: number;
+    isAnalysisRunning: boolean;
+  }> {
+    return this.emailServiceDeps.emailStatusService.getPrioritisationStatus(userId);
   }
 
   async getConnectedAccounts(userId: string): Promise<

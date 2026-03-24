@@ -11,9 +11,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * This migration resets the backfill flag so the existing backfillCategoryIds()
  * startup job re-processes these threads on next deployment.
  */
-export class RebackfillNullCategoryIds1785300000000
-  implements MigrationInterface
-{
+export class RebackfillNullCategoryIds1785300000000 implements MigrationInterface {
   name = "RebackfillNullCategoryIds1785300000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {

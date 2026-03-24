@@ -179,14 +179,14 @@ export class ContextAnalysisProgressService {
     );
 
     if (missingBatchIndices.length > 0) {
-      await this.requeueMissingBatches(
+      await this.requeueMissingBatches({
         userId,
-        analysis.id,
+        analysisId: analysis.id,
         stats,
         missingBatchIndices,
         batchJobIds,
         batchPayloadsForRetry,
-      );
+      });
     } else {
       this.logger.log(
         `[PROGRESS-CHECK] ✅ All batches accounted for - no missing jobs detected`,
@@ -307,12 +307,12 @@ export class ContextAnalysisProgressService {
   /**
    * Re-queue batches that are missing from PgBoss, updating batchJobIds in the DB.
    */
-  private async requeueMissingBatches(
-    userId: string,
-    analysisId: string,
-    stats: Record<string, unknown>,
-    missingBatchIndices: number[],
-    batchJobIds: Record<number, string | null>,
+  private async requeueMissingBatches(options: {
+    userId: string;
+    analysisId: string;
+    stats: Record<string, unknown>;
+    missingBatchIndices: number[];
+    batchJobIds: Record<number, string | null>;
     batchPayloadsForRetry: Record<
       number,
       Array<{
@@ -327,8 +327,16 @@ export class ContextAnalysisProgressService {
         starCount?: number;
         isArchived?: boolean;
       }>
-    >,
-  ): Promise<void> {
+    >;
+  }): Promise<void> {
+    const {
+      userId,
+      analysisId,
+      stats,
+      missingBatchIndices,
+      batchJobIds,
+      batchPayloadsForRetry,
+    } = options;
     this.logger.warn(
       `[PROGRESS-CHECK] Found ${missingBatchIndices.length} missing batches: ${missingBatchIndices.slice(0, 10).join(", ")}${missingBatchIndices.length > 10 ? ` ... (${missingBatchIndices.length - 10} more)` : ""}`,
     );

@@ -146,9 +146,14 @@ export class EmailStatusService {
     return Array.from(new Set<string>(names)).sort();
   }
 
-  async getPriorityCounts(
-    userId: string,
-  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number }> {
+  async getPriorityCounts(userId: string): Promise<{
+    veryHigh: number;
+    high: number;
+    medium: number;
+    low: number;
+    veryLow: number;
+    unprioritised: number;
+  }> {
     const rows = await this.emailThreadRepository.query(
       `SELECT
          COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 50) AS "veryHigh",
@@ -161,7 +166,14 @@ export class EmailStatusService {
        WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
       [userId],
     );
-    const row = rows[0] ?? { veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0, unprioritised: 0 };
+    const row = rows[0] ?? {
+      veryHigh: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      veryLow: 0,
+      unprioritised: 0,
+    };
     return {
       veryHigh: parseInt(row.veryHigh, 10) || 0,
       high: parseInt(row.high, 10) || 0,
@@ -192,7 +204,11 @@ export class EmailStatusService {
        WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
       [userId],
     );
-    const row = rows[0] ?? { totalThreads: 0, prioritisedCount: 0, unprioritisedCount: 0 };
+    const row = rows[0] ?? {
+      totalThreads: 0,
+      prioritisedCount: 0,
+      unprioritisedCount: 0,
+    };
     const totalThreads = parseInt(row.totalThreads, 10) || 0;
     const prioritisedCount = parseInt(row.prioritisedCount, 10) || 0;
     const unprioritisedCount = parseInt(row.unprioritisedCount, 10) || 0;
@@ -202,7 +218,12 @@ export class EmailStatusService {
     // there are unprioritised threads and none are prioritised yet (just started).
     const isAnalysisRunning = unprioritisedCount > 0;
 
-    return { totalThreads, prioritisedCount, unprioritisedCount, isAnalysisRunning };
+    return {
+      totalThreads,
+      prioritisedCount,
+      unprioritisedCount,
+      isAnalysisRunning,
+    };
   }
 
   async getConnectedAccounts(userId: string): Promise<

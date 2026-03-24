@@ -120,14 +120,13 @@ describe("LLMController (Integration)", () => {
 
       expect(response.body).toHaveProperty("isOk");
       expect(response.body).toHaveProperty("suggestions");
-      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
-        "Hey! What's up?",
-        ["Be professional", "Avoid slang"],
-        undefined,
-        "test-user-id",
-        null,
-        null,
-      );
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "Hey! What's up?",
+        rules: ["Be professional", "Avoid slang"],
+        userId: "test-user-id",
+        scheduledSendAt: null,
+        currentTime: null,
+      });
     });
 
     it("should use user tone settings when rules not provided", async () => {
@@ -140,14 +139,13 @@ describe("LLMController (Integration)", () => {
 
       expect(response.body).toHaveProperty("isOk");
       expect(mockUsersService.findOne).toHaveBeenCalledWith("test-user-id");
-      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
-        "Test email",
-        ["Be professional", "Keep it concise"],
-        undefined,
-        "test-user-id",
-        null,
-        null,
-      );
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "Test email",
+        rules: ["Be professional", "Keep it concise"],
+        userId: "test-user-id",
+        scheduledSendAt: null,
+        currentTime: null,
+      });
     });
 
     it("should return isOk: true when user has no tone settings", async () => {
@@ -184,14 +182,13 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
-        "Test email",
-        ["Be professional"],
-        undefined,
-        "test-user-id",
-        scheduledTime,
-        null,
-      );
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "Test email",
+        rules: ["Be professional"],
+        userId: "test-user-id",
+        scheduledSendAt: scheduledTime,
+        currentTime: null,
+      });
     });
 
     it("should pass currentTime to checkTone service for immediate-send timing checks", async () => {
@@ -206,14 +203,13 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
-        "Test email",
-        ["Be professional"],
-        undefined,
-        "test-user-id",
-        null,
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "Test email",
+        rules: ["Be professional"],
+        userId: "test-user-id",
+        scheduledSendAt: null,
         currentTime,
-      );
+      });
     });
 
     it("should pass both currentTime and scheduledSendAt to checkTone service", async () => {
@@ -230,14 +226,13 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.checkTone).toHaveBeenCalledWith(
-        "Scheduled email",
-        ["Be professional"],
-        undefined,
-        "test-user-id",
-        scheduledTime,
+      expect(mockLLMService.checkTone).toHaveBeenCalledWith({
+        text: "Scheduled email",
+        rules: ["Be professional"],
+        userId: "test-user-id",
+        scheduledSendAt: scheduledTime,
         currentTime,
-      );
+      });
     });
 
     it("should suppress low-significance results", async () => {
@@ -435,19 +430,18 @@ describe("LLMController (Integration)", () => {
         .expect(201);
 
       expect(response.body).toBeDefined();
-      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
-        "Please complete the task.",
-        undefined,
-        "test-user-id",
-        undefined,
-        {
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith({
+        emailBody: "Please complete the task.",
+        subject: undefined,
+        userId: "test-user-id",
+        senderInfo: undefined,
+        recipientInfo: {
           name: "Test User",
           email: "test@example.com",
         },
-        false,
-        [],
-        undefined,
-      );
+        isUserSender: false,
+        existingActions: [],
+      });
     });
 
     it("should detect if user is sender", async () => {
@@ -462,23 +456,22 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
-        "I will complete this task.",
-        undefined,
-        "test-user-id",
-        {
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith({
+        emailBody: "I will complete this task.",
+        subject: undefined,
+        userId: "test-user-id",
+        senderInfo: {
           from: "test@example.com",
           fromName: "Test User",
         },
-        {
+        recipientInfo: {
           name: "Test User",
           email: "test@example.com",
         },
         // isUserSender should be true
-        true,
-        [],
-        undefined,
-      );
+        isUserSender: true,
+        existingActions: [],
+      });
     });
 
     it("should forward existingActions to service for deduplication", async () => {
@@ -491,19 +484,18 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
-        "Please schedule a call.",
-        undefined,
-        "test-user-id",
-        undefined,
-        {
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith({
+        emailBody: "Please schedule a call.",
+        subject: undefined,
+        userId: "test-user-id",
+        senderInfo: undefined,
+        recipientInfo: {
           name: "Test User",
           email: "test@example.com",
         },
-        false,
+        isUserSender: false,
         existingActions,
-        undefined,
-      );
+      });
     });
 
     it("should treat email as user-sent when isSentEmail flag is true", async () => {
@@ -519,23 +511,22 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
-        "I will complete this task.",
-        undefined,
-        "test-user-id",
-        {
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith({
+        emailBody: "I will complete this task.",
+        subject: undefined,
+        userId: "test-user-id",
+        senderInfo: {
           from: "alias@otherdomain.com",
           fromName: "Test User",
         },
-        {
+        recipientInfo: {
           name: "Test User",
           email: "test@example.com",
         },
         // isUserSender should be true because isSentEmail=true, even though emails don't match
-        true,
-        [],
-        undefined,
-      );
+        isUserSender: true,
+        existingActions: [],
+      });
     });
 
     it("should return cached actionItemsJson when emailId is provided and cache is populated", async () => {
@@ -614,23 +605,22 @@ describe("LLMController (Integration)", () => {
         })
         .expect(201);
 
-      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith(
-        "I will follow up with the team tomorrow.",
-        undefined,
-        "test-user-id",
-        {
+      expect(mockLLMService.extractActionItems).toHaveBeenCalledWith({
+        emailBody: "I will follow up with the team tomorrow.",
+        subject: undefined,
+        userId: "test-user-id",
+        senderInfo: {
           from: "alias@otherdomain.com",
           fromName: "Test User Alias",
         },
-        {
+        recipientInfo: {
           name: "Test User",
           email: "test@example.com",
         },
         // isUserSender should be true because isSentEmail hint overrides alias mismatch
-        true,
-        [],
-        undefined,
-      );
+        isUserSender: true,
+        existingActions: [],
+      });
     });
   });
 

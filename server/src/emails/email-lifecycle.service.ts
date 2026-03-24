@@ -106,14 +106,14 @@ export class EmailLifecycleService {
     await this.assignHmacsAndContact(userId, email, emailData);
 
     if (isBlocked) {
-      return this.saveBlockedEmail(
+      return this.saveBlockedEmail({
         userId,
         email,
         thread,
         isSenderBlocked,
         senderEmail,
         subject,
-      );
+      });
     }
 
     thread.isProcessingPriority = true;
@@ -391,7 +391,10 @@ export class EmailLifecycleService {
         JOB_NAMES.GENERATE_SUMMARY,
         { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
         {
-          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY_BACKGROUND, false),
+          priority: getJobPriority(
+            JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
+            false,
+          ),
           singletonKey: `generate-summary-thread-${savedEmail.emailThreadId || savedEmail.id}`,
           singletonMinutes: 5,
         },
@@ -433,7 +436,10 @@ export class EmailLifecycleService {
         JOB_NAMES.FETCH_GITHUB_METADATA,
         { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
         {
-          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY_BACKGROUND, false),
+          priority: getJobPriority(
+            JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
+            false,
+          ),
           singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
           singletonMinutes: MINUTES.HOUR,
         },
@@ -471,14 +477,16 @@ export class EmailLifecycleService {
       );
   }
 
-  async saveBlockedEmail(
-    userId: string,
-    email: Email,
-    thread: EmailThread,
-    isSenderBlocked: boolean,
-    senderEmail: string,
-    subject: string,
-  ): Promise<Email> {
+  async saveBlockedEmail(options: {
+    userId: string;
+    email: Email;
+    thread: EmailThread;
+    isSenderBlocked: boolean;
+    senderEmail: string;
+    subject: string;
+  }): Promise<Email> {
+    const { userId, email, thread, isSenderBlocked, senderEmail, subject } =
+      options;
     const blockReason = isSenderBlocked
       ? `blocked sender ${senderEmail}`
       : `blocked keyword in subject "${subject}"`;
@@ -592,7 +600,10 @@ export class EmailLifecycleService {
           JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId: emailIds[0] },
           {
-            priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
+            priority: getJobPriority(
+              JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
+              false,
+            ),
             singletonKey: `refine-priority-${emailIds[0]}`,
             singletonMinutes: 1,
           },

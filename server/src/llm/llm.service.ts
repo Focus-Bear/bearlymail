@@ -287,7 +287,7 @@ export class LLMService {
     };
   }
 
-  async analyzeEmailPatterns(
+  async analyzeEmailPatterns(options: {
     receivedEmails: Array<{
       from: string;
       fromName?: string;
@@ -295,26 +295,24 @@ export class LLMService {
       body: string;
       receivedAt: string;
       isRead?: boolean;
-      // Time to reply in minutes
       timeToReply?: number | null;
       readAt?: string | null;
       repliedAt?: string | null;
       starCount?: number;
       isArchived?: boolean;
-    }>,
+    }>;
     sentEmails: Array<{
-      // Optional email ID for linking
       emailId?: string;
       to: string;
       subject: string;
       body: string;
       sentAt: string;
-    }>,
-    provider?: LLMProvider,
-    userId?: string,
-    userEmail?: string,
-    currentContext?: Array<{ key: string; value: string; source?: string }>,
-  ): Promise<{
+    }>;
+    provider?: LLMProvider;
+    userId?: string;
+    userEmail?: string;
+    currentContext?: Array<{ key: string; value: string; source?: string }>;
+  }): Promise<{
     context: Array<{ key: string; value: string; source: string }>;
     writingStyle: {
       tone: string;
@@ -323,6 +321,14 @@ export class LLMService {
       emailExamples?: string[];
     };
   }> {
+    const {
+      receivedEmails,
+      sentEmails,
+      provider,
+      userId,
+      userEmail,
+      currentContext,
+    } = options;
     // Load prompt from markdown file - NO hardcoded prompts!
     const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.ANALYZE_EMAIL_PATTERNS);
     if (!promptConfig) {
@@ -530,18 +536,18 @@ export class LLMService {
    * Returns `{ summary, phishing }` where phishing is the LLM's verdict or
    * null if the LLM considers the email clearly legitimate.
    */
-  async summarizeEmailWithPhishingCheck(
-    emailBody: string,
-    emailSubject: string,
-    summaryType: SummaryType,
-    phishingSignals: PhishingSignals,
-    provider?: LLMProvider,
-    userId?: string,
-    isUserSender: boolean = false,
-    from: string = "",
-    fromName: string = "",
-    existingActions: string[] = [],
-  ): Promise<{
+  async summarizeEmailWithPhishingCheck(options: {
+    emailBody: string;
+    emailSubject: string;
+    summaryType: SummaryType;
+    phishingSignals: PhishingSignals;
+    provider?: LLMProvider;
+    userId?: string;
+    isUserSender?: boolean;
+    from?: string;
+    fromName?: string;
+    existingActions?: string[];
+  }): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
     sentiment: { score: number; explanation: string } | null;
@@ -549,6 +555,18 @@ export class LLMService {
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
+    const {
+      emailBody,
+      emailSubject,
+      summaryType,
+      phishingSignals,
+      provider,
+      userId,
+      isUserSender = false,
+      from = "",
+      fromName = "",
+      existingActions = [],
+    } = options;
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
     const contextNote = isThread
@@ -734,16 +752,16 @@ export class LLMService {
    * @param provider Optional LLM provider override
    * @param userId Optional user ID for tracking / API key selection
    */
-  async summarizeCustomPromptWithPhishing(
-    emailBody: string,
-    emailSubject: string,
-    customPrompt: string,
-    phishingSignals: PhishingSignals,
-    isThread: boolean,
-    totalMessageCount: number,
-    provider?: LLMProvider,
-    userId?: string,
-  ): Promise<{
+  async summarizeCustomPromptWithPhishing(options: {
+    emailBody: string;
+    emailSubject: string;
+    customPrompt: string;
+    phishingSignals: PhishingSignals;
+    isThread: boolean;
+    totalMessageCount: number;
+    provider?: LLMProvider;
+    userId?: string;
+  }): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
     sentiment: { score: number; explanation: string } | null;
@@ -751,6 +769,16 @@ export class LLMService {
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
   }> {
+    const {
+      emailBody,
+      emailSubject,
+      customPrompt,
+      phishingSignals,
+      isThread,
+      totalMessageCount,
+      provider,
+      userId,
+    } = options;
     const PHISHING_JSON_TOKEN_OVERHEAD = 300;
 
     const bodyPreamble = isThread
@@ -1028,14 +1056,14 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     return new Map();
   }
 
-  async checkTone(
-    text: string,
-    rules: string[] = ["Be concise", "Use non-violent communication"],
-    provider?: LLMProvider,
-    userId?: string,
-    scheduledSendAt?: string | null,
-    currentTime?: string | null,
-  ): Promise<{
+  async checkTone(options: {
+    text: string;
+    rules?: string[];
+    provider?: LLMProvider;
+    userId?: string;
+    scheduledSendAt?: string | null;
+    currentTime?: string | null;
+  }): Promise<{
     isOk: boolean;
     significance?: "low" | "medium" | "high";
     suggestions: string[];
@@ -1043,6 +1071,14 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     attachmentReminder?: string | null;
     inappropriateTiming?: string | null;
   }> {
+    const {
+      text,
+      rules = ["Be concise", "Use non-violent communication"],
+      provider,
+      userId,
+      scheduledSendAt,
+      currentTime,
+    } = options;
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_TONE_STYLE);
     if (!promptConfig) {
       this.logger.error(
@@ -1087,16 +1123,26 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     return { isOk: true, suggestions: [] };
   }
 
-  async extractActionItems(
-    emailBody: string,
-    provider?: LLMProvider,
-    userId?: string,
-    senderInfo?: { from: string; fromName?: string },
-    recipientInfo?: { name?: string; email?: string },
-    isUserSender: boolean = false,
-    existingActions: string[] = [],
-    subject?: string,
-  ): Promise<Array<{ description: string; confidence: number }>> {
+  async extractActionItems(options: {
+    emailBody: string;
+    provider?: LLMProvider;
+    userId?: string;
+    senderInfo?: { from: string; fromName?: string };
+    recipientInfo?: { name?: string; email?: string };
+    isUserSender?: boolean;
+    existingActions?: string[];
+    subject?: string;
+  }): Promise<Array<{ description: string; confidence: number }>> {
+    const {
+      emailBody,
+      provider,
+      userId,
+      senderInfo,
+      recipientInfo,
+      isUserSender = false,
+      existingActions = [],
+      subject,
+    } = options;
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(
       emailBody,
@@ -1621,26 +1667,37 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
    * @param userId Optional user ID for API key
    */
 
-  async generateFollowUpDraft(
-    subject: string,
+  async generateFollowUpDraft(options: {
+    subject: string;
     threadMessages: Array<{
       from: string;
       fromName?: string;
       body: string;
       receivedAt: Date;
       isFromUser: boolean;
-    }>,
-    theirName: string,
-    businessDaysWaiting: number,
-    userCommunicationStyle?: { tone?: string; commonPhrases?: string[] },
-    provider?: LLMProvider,
-    userId?: string,
+    }>;
+    theirName: string;
+    businessDaysWaiting: number;
+    userCommunicationStyle?: { tone?: string; commonPhrases?: string[] };
+    provider?: LLMProvider;
+    userId?: string;
     threadStyleInfo?: {
       preferredName?: string | null;
       greetingStyle?: string | null;
-    },
-    calendarBookingUrl?: string | null,
-  ): Promise<string> {
+    };
+    calendarBookingUrl?: string | null;
+  }): Promise<string> {
+    const {
+      subject,
+      threadMessages,
+      theirName,
+      businessDaysWaiting,
+      userCommunicationStyle,
+      provider,
+      userId,
+      threadStyleInfo,
+      calendarBookingUrl,
+    } = options;
     const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_FOLLOW_UP);
     if (!promptConfig) {
       this.logger.error(
@@ -1703,23 +1760,23 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
   /**
    * Analyze override reason to extract rules and suggest context updates
    */
-  async analyzeOverrideReason(
+  async analyzeOverrideReason(options: {
     email: {
       from: string;
       fromName?: string | null;
       subject: string;
       body: string;
-    },
-    reasonType: string,
-    reasonText: string,
+    };
+    reasonType: string;
+    reasonText: string;
     currentContext: Array<{
       contextKey: string;
       contextValue: string;
       priority?: number | null;
-    }>,
-    provider?: LLMProvider,
-    userId?: string,
-  ): Promise<{
+    }>;
+    provider?: LLMProvider;
+    userId?: string;
+  }): Promise<{
     suggestedRules: string[];
     updatedContexts: Array<{
       contextKey: string;
@@ -1727,6 +1784,8 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
       priority?: number;
     }>;
   }> {
+    const { email, reasonType, reasonText, currentContext, provider, userId } =
+      options;
     const cleanedBody = cleanEmailContent(
       email.body || "",
       null,
@@ -2399,18 +2458,20 @@ CATEGORY: Choose the best fit from the listed options; use Other only if nothing
     }
   }
 
-  async disputeToneCheck(
-    emailText: string,
-    rules: string[],
-    suggestions: string[],
-    userArgument: string,
-    provider?: LLMProvider,
-    userId?: string,
-  ): Promise<{
+  async disputeToneCheck(options: {
+    emailText: string;
+    rules: string[];
+    suggestions: string[];
+    userArgument: string;
+    provider?: LLMProvider;
+    userId?: string;
+  }): Promise<{
     accepted: boolean;
     rulesToRemove: string[];
     explanation: string;
   }> {
+    const { emailText, rules, suggestions, userArgument, provider, userId } =
+      options;
     const promptConfig = getPrompt(UTILITY_PROMPT_IDS.DISPUTE_TONE_CHECK);
     if (!promptConfig) {
       this.logger.error(

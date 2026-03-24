@@ -219,3 +219,14 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
   maxAutoResponsesPerSender: 1,
   cooldownPeriodDays: 7,
 };
+
+export interface PreparedResponse {
+  senderEmailHash: string;
+  priorityLevel: "low" | "medium" | "high";
+  qaResult: { answer: string; confidence: number } | null;
+  templateUsed: string;
+  responseBody: string;
+  responseSubject: string;
+  responseHtmlBody: string;
+  classification: EmailClassification;
+}

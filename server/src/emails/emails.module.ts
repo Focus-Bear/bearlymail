@@ -50,7 +50,11 @@ import { EmailSearchService } from "./email-search.service";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 import {
   EMAIL_DEPS_REPOS,
+  EMAIL_DEPS_REPOS_A,
+  EMAIL_DEPS_REPOS_B,
   EMAIL_DEPS_SERVICES,
+  EMAIL_DEPS_SERVICES_A,
+  EMAIL_DEPS_SERVICES_B,
   EmailServiceDeps,
 } from "./email-service-dependencies.provider";
 import { EmailStarService } from "./email-star.service";
@@ -123,22 +127,30 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailLifecycleService,
     EmailArchiveService,
     EmailMigrationService,
-    // Group 1: repositories + provider manager + 5 sub-services (8 total, within max-params)
+    // Group 1a: repositories + provider manager (3 items)
     {
-      provide: EMAIL_DEPS_REPOS,
+      provide: EMAIL_DEPS_REPOS_A,
       useFactory: (
         emailRepository: Repository<Email>,
         emailThreadRepository: Repository<EmailThread>,
         emailProviderManager: EmailProviderManager,
+      ) => ({ emailRepository, emailThreadRepository, emailProviderManager }),
+      inject: [
+        getRepositoryToken(Email),
+        getRepositoryToken(EmailThread),
+        EmailProviderManager,
+      ],
+    },
+    // Group 1b: thread/search/star/debug/read services (5 items)
+    {
+      provide: EMAIL_DEPS_REPOS_B,
+      useFactory: (
         emailThreadService: EmailThreadService,
         emailSearchService: EmailSearchService,
         emailStarService: EmailStarService,
         emailDebugService: EmailDebugService,
         emailReadService: EmailReadService,
       ) => ({
-        emailRepository,
-        emailThreadRepository,
-        emailProviderManager,
         emailThreadService,
         emailSearchService,
         emailStarService,
@@ -146,9 +158,6 @@ import { SyncHistoryService } from "./sync-history.service";
         emailReadService,
       }),
       inject: [
-        getRepositoryToken(Email),
-        getRepositoryToken(EmailThread),
-        EmailProviderManager,
         EmailThreadService,
         EmailSearchService,
         EmailStarService,
@@ -156,25 +165,30 @@ import { SyncHistoryService } from "./sync-history.service";
         EmailReadService,
       ],
     },
-    // Group 2: remaining 7 sub-services (within max-params)
+    // Group 1: merge sub-groups A + B
     {
-      provide: EMAIL_DEPS_SERVICES,
+      provide: EMAIL_DEPS_REPOS,
+      useFactory: (
+        groupA: ReturnType<typeof Object.assign>,
+        groupB: ReturnType<typeof Object.assign>,
+      ) => ({ ...groupA, ...groupB }),
+      inject: [EMAIL_DEPS_REPOS_A, EMAIL_DEPS_REPOS_B],
+    },
+    // Group 2a: crud/gmail/status/inbox/priority services (5 items)
+    {
+      provide: EMAIL_DEPS_SERVICES_A,
       useFactory: (
         emailCrudService: EmailCrudService,
         emailGmailService: EmailGmailService,
         emailStatusService: EmailStatusService,
         emailInboxService: EmailInboxService,
         emailPriorityExplanationService: EmailPriorityExplanationService,
-        emailLifecycleService: EmailLifecycleService,
-        emailArchiveService: EmailArchiveService,
       ) => ({
         emailCrudService,
         emailGmailService,
         emailStatusService,
         emailInboxService,
         emailPriorityExplanationService,
-        emailLifecycleService,
-        emailArchiveService,
       }),
       inject: [
         EmailCrudService,
@@ -182,9 +196,25 @@ import { SyncHistoryService } from "./sync-history.service";
         EmailStatusService,
         EmailInboxService,
         EmailPriorityExplanationService,
-        EmailLifecycleService,
-        EmailArchiveService,
       ],
+    },
+    // Group 2b: lifecycle/archive services (2 items)
+    {
+      provide: EMAIL_DEPS_SERVICES_B,
+      useFactory: (
+        emailLifecycleService: EmailLifecycleService,
+        emailArchiveService: EmailArchiveService,
+      ) => ({ emailLifecycleService, emailArchiveService }),
+      inject: [EmailLifecycleService, EmailArchiveService],
+    },
+    // Group 2: merge sub-groups 2a + 2b
+    {
+      provide: EMAIL_DEPS_SERVICES,
+      useFactory: (
+        groupA: ReturnType<typeof Object.assign>,
+        groupB: ReturnType<typeof Object.assign>,
+      ) => ({ ...groupA, ...groupB }),
+      inject: [EMAIL_DEPS_SERVICES_A, EMAIL_DEPS_SERVICES_B],
     },
     EmailServiceDeps,
     EmailsService,

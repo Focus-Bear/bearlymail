@@ -213,14 +213,22 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
    * Call the LLM to analyze a batch of email patterns.
    * Returns the analysis result and timing.
    */
-  private async runLlmAnalysis(
-    workerId: string,
-    userId: string,
-    batch: ThreadPayload[],
-    sentPayload: BatchAnalysisJob["sentPayload"],
-    userEmail: string | undefined,
-    currentContextForPrompt: BatchAnalysisJob["currentContextForPrompt"],
-  ) {
+  private async runLlmAnalysis(options: {
+    workerId: string;
+    userId: string;
+    batch: ThreadPayload[];
+    sentPayload: BatchAnalysisJob["sentPayload"];
+    userEmail: string | undefined;
+    currentContextForPrompt: BatchAnalysisJob["currentContextForPrompt"];
+  }) {
+    const {
+      workerId,
+      userId,
+      batch,
+      sentPayload,
+      userEmail,
+      currentContextForPrompt,
+    } = options;
     this.logger.log(
       `[Worker ${workerId}] 🤖 Step 3/4: Calling LLM to analyze ${batch.length} email patterns...`,
     );
@@ -230,14 +238,13 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     );
 
     const llmStartTime = Date.now();
-    const batchAnalysis = await this.llmService.analyzeEmailPatterns(
-      batch,
-      sentPayload,
-      undefined,
+    const batchAnalysis = await this.llmService.analyzeEmailPatterns({
+      receivedEmails: batch,
+      sentEmails: sentPayload,
       userId,
-      userEmail || undefined,
-      currentContextForPrompt,
-    );
+      userEmail: userEmail || undefined,
+      currentContext: currentContextForPrompt,
+    });
     const llmDuration = Date.now() - llmStartTime;
     const llmExceeded = llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS;
 
@@ -296,18 +303,26 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     );
   }
 
-  private async saveBatchResults(
-    workerId: string,
-    userId: string,
-    batchIndex: number,
-    analysisRecordId: string,
-    batch: ThreadPayload[],
-    batchAnalysis: { context?: unknown[]; writingStyle?: unknown | null },
-  ): Promise<{
+  private async saveBatchResults(options: {
+    workerId: string;
+    userId: string;
+    batchIndex: number;
+    analysisRecordId: string;
+    batch: ThreadPayload[];
+    batchAnalysis: { context?: unknown[]; writingStyle?: unknown | null };
+  }): Promise<{
     saveDuration: number;
     batchResults: Record<string, unknown>;
     analysisRecord: ContextAnalysis;
   }> {
+    const {
+      workerId,
+      userId,
+      batchIndex,
+      analysisRecordId,
+      batch,
+      batchAnalysis,
+    } = options;
     this.logger.log(
       `[Worker ${workerId}] 💾 Step 4/4: Saving batch results to database...`,
     );
@@ -401,14 +416,22 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
   /**
    * Emit the total performance budget CloudWatch metric.
    */
-  private emitTotalBudgetMetric(
-    workerId: string,
-    userId: string,
-    fetchDuration: number,
-    processDuration: number,
-    llmDuration: number,
-    saveDuration: number,
-  ): void {
+  private emitTotalBudgetMetric(options: {
+    workerId: string;
+    userId: string;
+    fetchDuration: number;
+    processDuration: number;
+    llmDuration: number;
+    saveDuration: number;
+  }): void {
+    const {
+      workerId,
+      userId,
+      fetchDuration,
+      processDuration,
+      llmDuration,
+      saveDuration,
+    } = options;
     const totalTimeSoFar =
       saveDuration + llmDuration + processDuration + fetchDuration;
     const totalExceeded = totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL;
@@ -511,14 +534,22 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
   /**
    * Store a batch failure record in the database after max retries are exceeded.
    */
-  private async storeBatchFailure(
-    workerId: string,
-    analysisRecordId: string,
-    batchIndex: number,
-    errorMessage: string,
-    correlationId: string,
-    errorType: string,
-  ): Promise<void> {
+  private async storeBatchFailure(options: {
+    workerId: string;
+    analysisRecordId: string;
+    batchIndex: number;
+    errorMessage: string;
+    correlationId: string;
+    errorType: string;
+  }): Promise<void> {
+    const {
+      workerId,
+      analysisRecordId,
+      batchIndex,
+      errorMessage,
+      correlationId,
+      errorType,
+    } = options;
     try {
       const failRecord = await this.contextAnalysisRepository.findOne({
         where: { id: analysisRecordId },
@@ -556,15 +587,24 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
    * Execute one attempt of the batch processing pipeline.
    * Returns on success. Throws on failure so the retry loop can handle it.
    */
-  private async runBatchAttempt(
-    workerId: string,
-    userId: string,
-    batchIndex: number,
-    totalBatches: number,
-    attemptNumber: number,
-    jobData: BatchAnalysisJob,
-    tracker: JobPerformanceTracker,
-  ): Promise<void> {
+  private async runBatchAttempt(options: {
+    workerId: string;
+    userId: string;
+    batchIndex: number;
+    totalBatches: number;
+    attemptNumber: number;
+    jobData: BatchAnalysisJob;
+    tracker: JobPerformanceTracker;
+  }): Promise<void> {
+    const {
+      workerId,
+      userId,
+      batchIndex,
+      totalBatches,
+      attemptNumber,
+      jobData,
+      tracker,
+    } = options;
     const {
       threadIds,
       batch: legacyBatch,
@@ -609,31 +649,31 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
       legacyBatch,
       userEmail,
     );
-    const { batchAnalysis, llmDuration } = await this.runLlmAnalysis(
+    const { batchAnalysis, llmDuration } = await this.runLlmAnalysis({
       workerId,
       userId,
       batch,
       sentPayload,
       userEmail,
       currentContextForPrompt,
-    );
-    const { saveDuration, batchResults } = await this.saveBatchResults(
+    });
+    const { saveDuration, batchResults } = await this.saveBatchResults({
       workerId,
       userId,
       batchIndex,
       analysisRecordId,
       batch,
       batchAnalysis,
-    );
+    });
 
-    this.emitTotalBudgetMetric(
+    this.emitTotalBudgetMetric({
       workerId,
       userId,
       fetchDuration,
       processDuration,
       llmDuration,
       saveDuration,
-    );
+    });
     await this.updateUserProgress(workerId, userId, batchResults, totalBatches);
 
     const duration = Math.round(
@@ -653,16 +693,26 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
    * Handle a batch processing error: either record final failure (if max retries exceeded) or log for retry.
    * Returns true if the error is terminal (max retries exceeded), false if should retry.
    */
-  private async handleBatchError(
-    workerId: string,
-    batchIndex: number,
-    totalBatches: number,
-    attemptNumber: number,
-    maxRetries: number,
-    analysisRecordId: string,
-    error: unknown,
-    tracker: JobPerformanceTracker,
-  ): Promise<boolean> {
+  private async handleBatchError(options: {
+    workerId: string;
+    batchIndex: number;
+    totalBatches: number;
+    attemptNumber: number;
+    maxRetries: number;
+    analysisRecordId: string;
+    error: unknown;
+    tracker: JobPerformanceTracker;
+  }): Promise<boolean> {
+    const {
+      workerId,
+      batchIndex,
+      totalBatches,
+      attemptNumber,
+      maxRetries,
+      analysisRecordId,
+      error,
+      tracker,
+    } = options;
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
@@ -687,14 +737,14 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
         `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
         "error",
       );
-      await this.storeBatchFailure(
+      await this.storeBatchFailure({
         workerId,
         analysisRecordId,
         batchIndex,
         errorMessage,
-        batchCorrelationId,
+        correlationId: batchCorrelationId,
         errorType,
-      );
+      });
       tracker.finish(error as Error);
       return true;
     }
@@ -746,7 +796,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
 
     while (attemptNumber <= maxRetries) {
       try {
-        await this.runBatchAttempt(
+        await this.runBatchAttempt({
           workerId,
           userId,
           batchIndex,
@@ -754,11 +804,11 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           attemptNumber,
           jobData,
           tracker,
-        );
+        });
         return;
       } catch (error: unknown) {
         attemptNumber++;
-        const isTerminal = await this.handleBatchError(
+        const isTerminal = await this.handleBatchError({
           workerId,
           batchIndex,
           totalBatches,
@@ -767,7 +817,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           analysisRecordId,
           error,
           tracker,
-        );
+        });
         if (isTerminal) throw error;
       }
     }

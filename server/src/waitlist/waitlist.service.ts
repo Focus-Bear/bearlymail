@@ -68,26 +68,34 @@ export class WaitlistService {
     }
 
     // Send Cliq notification
-    await this.sendCliqNotification(
+    await this.sendCliqNotification({
       email,
       firstName,
       reason,
       approved,
       emailSystem,
       emailSystemOther,
-    );
+    });
 
     return saved;
   }
 
-  private async sendCliqNotification(
-    email: string,
-    firstName: string,
-    reason: string,
-    approved: boolean,
-    emailSystem?: string,
-    emailSystemOther?: string,
-  ): Promise<void> {
+  private async sendCliqNotification(options: {
+    email: string;
+    firstName: string;
+    reason: string;
+    approved: boolean;
+    emailSystem?: string;
+    emailSystemOther?: string;
+  }): Promise<void> {
+    const {
+      email,
+      firstName,
+      reason,
+      approved,
+      emailSystem,
+      emailSystemOther,
+    } = options;
     try {
       const cliqWebhookUrl = this.configService.get<string>(
         "ZOHO_CLIQ_BACKEND_BOT_WEBHOOK",

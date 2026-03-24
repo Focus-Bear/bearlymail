@@ -23,7 +23,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
-  BLOCKED_MODE_THREAD_FILTER,
+  buildThreadFilter,
   lookupCategoryIdByName,
   RawEmailRow,
   SYSTEM_LABELS,
@@ -85,7 +85,7 @@ export class EmailInboxService {
       threadIds?: string[];
     }[];
   }> {
-    const threadFilter = this.buildThreadFilter(mode);
+    const threadFilter = buildThreadFilter(mode);
     const { additionalFilters, queryParams } =
       this.buildSummaryFiltersAndParams(userId, filters);
     const needsUserSentLastFilter =
@@ -135,14 +135,14 @@ export class EmailInboxService {
       categoryCounts,
       categoryThreadIds,
       categoryUuidByName,
-    } = await this.countRowsByCategory(
+    } = await this.countRowsByCategory({
       userId,
       mode,
       rows,
-      filters?.includeThreadIds ?? false,
+      includeThreadIds: filters?.includeThreadIds ?? false,
       needsUserSentLastFilter,
       userEmailLower,
-    );
+    });
 
     const visibleCategories = await this.filterVisibleCategoriesByIds(
       userId,
@@ -267,25 +267,33 @@ export class EmailInboxService {
     return false;
   }
 
-  private async countRowsByCategory(
-    userId: string,
-    mode: string,
+  private async countRowsByCategory(options: {
+    userId: string;
+    mode: string;
     rows: {
       categoryName: string | null;
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
       allLabels?: string[] | null;
-    }[],
-    includeThreadIds: boolean,
-    needsUserSentLastFilter: boolean,
-    userEmailLower: string | null,
-  ): Promise<{
+    }[];
+    includeThreadIds: boolean;
+    needsUserSentLastFilter: boolean;
+    userEmailLower: string | null;
+  }): Promise<{
     categoryOrder: string[];
     categoryCounts: Record<string, number>;
     categoryThreadIds: Record<string, string[]>;
     categoryUuidByName: Map<string, string>;
   }> {
+    const {
+      userId,
+      mode,
+      rows,
+      includeThreadIds,
+      needsUserSentLastFilter,
+      userEmailLower,
+    } = options;
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
     const categoryThreadIds: Record<string, string[]> = {};
@@ -373,19 +381,26 @@ export class EmailInboxService {
     });
   }
 
-  async getInbox(
-    userId: string,
-    _includeBatched: boolean = false,
-    mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
+  async getInbox(options: {
+    userId: string;
+    includeBatched?: boolean;
+    mode?: "triage" | "action" | "follow-up" | "blocked";
     filters?: {
       accountIds?: string[];
       categoryIds?: string[];
       minPriority?: number;
       maxPriority?: number;
-    },
-    pagination?: { offset?: number; limit?: number },
-    fixStuckCalculatingThreads?: (userId: string) => Promise<unknown>,
-  ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
+    };
+    pagination?: { offset?: number; limit?: number };
+    fixStuckCalculatingThreads?: (userId: string) => Promise<unknown>;
+  }): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
+    const {
+      userId,
+      mode = "triage",
+      filters,
+      pagination,
+      fixStuckCalculatingThreads,
+    } = options;
     const perf = new PerformanceTracker(
       `getInbox(${mode})`,
       this.cloudWatchService,
@@ -521,7 +536,7 @@ export class EmailInboxService {
       maxPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
-    const threadFilter = this.buildThreadFilter(mode);
+    const threadFilter = buildThreadFilter(mode);
     const queryParams: (string | number)[] = [userId];
     let additionalFilters = "";
     let paramIndex = 2;
@@ -869,14 +884,5 @@ export class EmailInboxService {
           );
       }
     }
-  }
-
-  private buildThreadFilter(mode: string): string {
-    if (mode === INBOX_MODES.TRIAGE)
-      return 'AND thread."isArchived" = false AND thread."starCount" = 0';
-    if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP)
-      return 'AND thread."isArchived" = false AND thread."starCount" > 0';
-    if (mode === INBOX_MODES.BLOCKED) return BLOCKED_MODE_THREAD_FILTER;
-    return 'AND thread."isArchived" = false';
   }
 }

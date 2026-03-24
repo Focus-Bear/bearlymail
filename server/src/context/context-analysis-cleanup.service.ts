@@ -43,12 +43,9 @@ export class ContextAnalysisCleanupService implements OnModuleInit {
       ContextAnalysisCleanupService.CLEANUP_CRON,
     );
 
-    await this.boss.work(
-      JOB_NAMES.CLEANUP_STUCK_ANALYSES,
-      async () => {
-        await this.cleanupStuckAnalyses();
-      },
-    );
+    await this.boss.work(JOB_NAMES.CLEANUP_STUCK_ANALYSES, async () => {
+      await this.cleanupStuckAnalyses();
+    });
 
     this.logger.log("Stuck-analysis cleanup job registered successfully");
   }

@@ -106,14 +106,14 @@ export class AuthService {
     let user = await this.usersService.findByEmail(email);
     const isNewUser = !user;
 
-    await this.handleMissingRefreshToken(
+    await this.handleMissingRefreshToken({
       user,
       email,
       isJeremy,
       accessToken,
-      profile.id,
+      profileId: profile.id,
       refreshToken,
-    );
+    });
 
     if (!user) {
       user = await this.createGoogleUser(
@@ -141,14 +141,16 @@ export class AuthService {
     return result;
   }
 
-  private async handleMissingRefreshToken(
-    user: User | null,
-    email: string,
-    isJeremy: boolean,
-    accessToken: string,
-    profileId: string,
-    refreshToken: string,
-  ): Promise<void> {
+  private async handleMissingRefreshToken(options: {
+    user: User | null;
+    email: string;
+    isJeremy: boolean;
+    accessToken: string;
+    profileId: string;
+    refreshToken: string;
+  }): Promise<void> {
+    const { user, email, isJeremy, accessToken, profileId, refreshToken } =
+      options;
     if (refreshToken) return;
     this.logger.error(
       `[LOGIN] CRITICAL: Google OAuth did not provide a refresh token for user ${email}`,

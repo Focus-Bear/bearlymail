@@ -160,12 +160,15 @@ export async function sendReplyViaZoho(
 export async function sendEmailViaZoho(
   zohoClient: AxiosInstance,
   zohoAccountId: string,
-  to: Array<{ email: string; name?: string }>,
-  subject: string,
-  htmlBody: string,
-  cc?: Array<{ email: string; name?: string }>,
-  bcc?: Array<{ email: string; name?: string }>,
+  params: {
+    to: Array<{ email: string; name?: string }>;
+    subject: string;
+    body: string;
+    cc?: Array<{ email: string; name?: string }>;
+    bcc?: Array<{ email: string; name?: string }>;
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { to, subject, body: htmlBody, cc, bcc } = params;
   interface ZohoRecipient {
     address: string;
     personal?: string;

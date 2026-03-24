@@ -243,8 +243,8 @@ export class PriorityLearningService {
       });
 
       // Use LLM to analyze the override reason and suggest rule updates
-      const analysis = await this.llmService.analyzeOverrideReason(
-        {
+      const analysis = await this.llmService.analyzeOverrideReason({
+        email: {
           from: email.from,
           fromName: email.fromName,
           subject: email.subject,
@@ -252,16 +252,13 @@ export class PriorityLearningService {
         },
         reasonType,
         reasonText,
-        contexts.map((item) => ({
+        currentContext: contexts.map((item) => ({
           contextKey: item.contextKey,
           contextValue: item.contextValue,
           priority: item.priority,
         })),
-        undefined,
-        // provider
         userId,
-        // userId
-      );
+      });
 
       await this.applyContextUpdates(
         userId,
@@ -355,21 +352,20 @@ export class PriorityLearningService {
       const contextSummary = await this.fetchContextSummary(userId);
 
       // Use LLM to analyze feedback and extract patterns
-      const analysis = await this.llmService.analyzeOverrideReason(
-        {
+      const analysis = await this.llmService.analyzeOverrideReason({
+        email: {
           from: email.from,
           fromName: email.fromName,
           subject: email.subject,
           body: email.body,
         },
-        expectedPriority
+        reasonType: expectedPriority
           ? `Expected priority: ${expectedPriority}`
           : "Priority feedback",
-        feedback,
-        contextSummary,
-        undefined,
+        reasonText: feedback,
+        currentContext: contextSummary,
         userId,
-      );
+      });
 
       // Update or create context entries based on LLM analysis
       for (const contextUpdate of analysis.updatedContexts) {

@@ -5,14 +5,15 @@ import { API_URL } from 'config/api';
 import { SUMMARY_TYPE_TLDR } from 'constants/strings';
 
 // Pure helper: applies the best-matching summarization rule (or fallback) for an email.
-function applyMatchedRule(
-  matchedRule: any,
-  rulesList: any[],
-  id: string,
-  initializedRef: MutableRefObject<string | null>,
-  handleUseCustomRule: (rule: any) => void,
-  handleSummarize: (type: string) => void
-): void {
+function applyMatchedRule(options: {
+  matchedRule: any;
+  rulesList: any[];
+  id: string;
+  initializedRef: MutableRefObject<string | null>;
+  handleUseCustomRule: (rule: any) => void;
+  handleSummarize: (type: string) => void;
+}): void {
+  const { matchedRule, rulesList, id, initializedRef, handleUseCustomRule, handleSummarize } = options;
   const validRule = (rule: any) => rule?.ruleId && rule?.whenToUse && rule?.howToSummarize;
   const ruleToApply = validRule(matchedRule) ? matchedRule : rulesList.find(validRule);
   initializedRef.current = id;
@@ -317,17 +318,17 @@ async function initializeEmailSummary({
     if (rulesList.length > 0) {
       try {
         const response = await axios.post(`${API_URL}/summarize/match-rule/${id}`);
-        applyMatchedRule(
-          response.data?.rule,
+        applyMatchedRule({
+          matchedRule: response.data?.rule,
           rulesList,
           id,
-          initializedEmailIdRef,
+          initializedRef: initializedEmailIdRef,
           handleUseCustomRule,
-          handleSummarize
-        );
+          handleSummarize,
+        });
       } catch (error) {
         console.error('Error matching rule:', error);
-        applyMatchedRule(null, rulesList, id, initializedEmailIdRef, handleUseCustomRule, handleSummarize);
+        applyMatchedRule({ matchedRule: null, rulesList, id, initializedRef: initializedEmailIdRef, handleUseCustomRule, handleSummarize });
       }
     } else {
       initializedEmailIdRef.current = id;

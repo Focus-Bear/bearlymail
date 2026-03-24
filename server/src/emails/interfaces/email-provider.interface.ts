@@ -124,11 +124,13 @@ export interface EmailProvider {
    */
   sendReply(
     userId: string,
-    threadId: string,
-    to: string,
-    subject: string,
-    body: string,
-    options?: SendReplyOptions,
+    params: {
+      threadId: string;
+      to: string;
+      subject: string;
+      body: string;
+      options?: SendReplyOptions;
+    },
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**
@@ -136,12 +138,14 @@ export interface EmailProvider {
    */
   sendEmail(
     userId: string,
-    to: EmailRecipient[],
-    subject: string,
-    body: string,
-    cc?: EmailRecipient[],
-    bcc?: EmailRecipient[],
-    attachments?: EmailAttachmentData[],
+    params: {
+      to: EmailRecipient[];
+      subject: string;
+      body: string;
+      cc?: EmailRecipient[];
+      bcc?: EmailRecipient[];
+      attachments?: EmailAttachmentData[];
+    },
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**

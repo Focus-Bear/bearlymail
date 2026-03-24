@@ -19,12 +19,15 @@ import {
 export async function sendReply(
   provider: Office365Provider,
   userId: string,
-  threadId: string,
-  to: string,
-  subject: string,
-  body: string,
-  options?: SendReplyOptions,
+  params: {
+    threadId: string;
+    to: string;
+    subject: string;
+    body: string;
+    options?: SendReplyOptions;
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { threadId, to, subject, body, options } = params;
   const { htmlBody, cc, bcc } = options ?? {};
   const primaryAccount =
     await provider.office365AccountsService.findPrimary(userId);
@@ -34,14 +37,13 @@ export async function sendReply(
   const graphClient = provider.client.createGraphClient(accessToken);
 
   try {
-    const result = await sendReplyViaOffice365(
-      graphClient,
+    const result = await sendReplyViaOffice365(graphClient, {
       to,
       subject,
-      htmlBody || body,
+      htmlBody: htmlBody || body,
       cc,
       bcc,
-    );
+    });
     provider.logger.log(`Reply sent for user ${userId} to ${to}`);
     return { messageId: result.messageId, threadId };
   } catch (error: unknown) {
@@ -50,7 +52,13 @@ export async function sendReply(
         userId,
         primaryAccount.id,
       );
-      return sendReply(provider, userId, threadId, to, subject, body, options);
+      return sendReply(provider, userId, {
+        threadId,
+        to,
+        subject,
+        body,
+        options,
+      });
     }
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
   }
@@ -59,13 +67,16 @@ export async function sendReply(
 export async function sendEmail(
   provider: Office365Provider,
   userId: string,
-  to: EmailRecipient[],
-  subject: string,
-  body: string,
-  cc?: EmailRecipient[],
-  bcc?: EmailRecipient[],
-  _attachments?: EmailAttachmentData[],
+  params: {
+    to: EmailRecipient[];
+    subject: string;
+    body: string;
+    cc?: EmailRecipient[];
+    bcc?: EmailRecipient[];
+    attachments?: EmailAttachmentData[];
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { to, subject, body, cc, bcc } = params;
   const primaryAccount =
     await provider.office365AccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Office 365 account not connected.");
@@ -74,14 +85,20 @@ export async function sendEmail(
   const graphClient = provider.client.createGraphClient(accessToken);
 
   try {
-    return await sendEmailViaOffice365(graphClient, to, subject, body, cc, bcc);
+    return await sendEmailViaOffice365(graphClient, {
+      to,
+      subject,
+      htmlBody: body,
+      cc,
+      bcc,
+    });
   } catch (error: unknown) {
     if (isAuthError(error)) {
       accessToken = await provider.client.refreshTokenIfNeeded(
         userId,
         primaryAccount.id,
       );
-      return sendEmail(provider, userId, to, subject, body, cc, bcc);
+      return sendEmail(provider, userId, params);
     }
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
   }

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddCorrelationIdToContextAnalysis1775000000000
-  implements MigrationInterface
-{
+export class AddCorrelationIdToContextAnalysis1775000000000 implements MigrationInterface {
   name = "AddCorrelationIdToContextAnalysis1775000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

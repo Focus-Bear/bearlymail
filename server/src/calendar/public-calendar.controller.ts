@@ -89,16 +89,14 @@ export class PublicCalendarController {
       }
     }
 
-    return this.calendarService.createEvent(
+    return this.calendarService.createEvent({
       userId,
-      body.startTime,
-      body.duration || MINUTES.THIRTY,
-      body.guestEmail,
-      body.guestName,
-      undefined,
-      undefined,
+      startTime: body.startTime,
+      durationMinutes: body.duration || MINUTES.THIRTY,
+      guestEmail: body.guestEmail,
+      guestName: body.guestName,
       additionalGuests,
-    );
+    });
   }
 
   @Get("booking/:bookingToken")

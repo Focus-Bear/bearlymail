@@ -67,9 +67,15 @@ export class AddScheduledEmails1739600300000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "scheduled_emails" DROP CONSTRAINT "FK_scheduled_emails_user"`);
-    await queryRunner.query(`DROP INDEX "IDX_scheduled_emails_scheduledSendAt_status"`);
-    await queryRunner.query(`DROP INDEX "IDX_scheduled_emails_userId_scheduledSendAt"`);
+    await queryRunner.query(
+      `ALTER TABLE "scheduled_emails" DROP CONSTRAINT "FK_scheduled_emails_user"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "IDX_scheduled_emails_scheduledSendAt_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "IDX_scheduled_emails_userId_scheduledSendAt"`,
+    );
     await queryRunner.query(`DROP TABLE "scheduled_emails"`);
   }
 }

@@ -5,7 +5,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint/eslint-plugin', 'simple-import-sort'],
+  plugins: ['@typescript-eslint/eslint-plugin', 'simple-import-sort', 'better-max-params'],
   extends: [
     'plugin:@typescript-eslint/recommended',
     'plugin:prettier/recommended',
@@ -69,9 +69,14 @@ module.exports = {
     'max-nested-callbacks': ['error', 4],
 
     // Limit function parameters (too many suggests function does too much)
-    // Set to 13 to accommodate NestJS DI constructors which commonly have many injected services
-    // ESLint v8 only supports numeric max-params config here (no ignoreConstructors option)
-    'max-params': ['error', 13],
+    // eslint-plugin-better-max-params provides separate limits for constructors vs regular functions.
+    // Replaces the old max-params: 13 global (which was set high just to accommodate NestJS DI).
+    // func: 5 is the target limit per Jeremy's request (PR #1416). As of this change, there are
+    // 66 existing violations across the codebase that predate this rule tightening. These will be
+    // fixed incrementally via options/config object refactors in follow-up PRs.
+    // constructor: 20 covers NestJS DI constructors (ESLint v8 has no built-in ignoreConstructors).
+    'max-params': 'off',
+    'better-max-params/better-max-params': ['error', { func: 5, constructor: 20 }],
 
     // Limit cyclomatic complexity (number of independent paths through code)
     complexity: ['error', 20],

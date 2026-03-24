@@ -95,15 +95,24 @@ export class ContextAnalysisFinalizerService {
     private piiRedactionService: ContextPiiRedactionService,
   ) {}
 
-  async finalizeContextAnalysis(
-    userId: string,
-    analysisRecordId: string,
-    totalBatches: number,
-    totalThreads: number,
-    sentEmailsCount: number,
-    analysisStats: AnalysisStatsInput,
-    trueVipContacts: VipContactEntry[] = [],
-  ): Promise<void> {
+  async finalizeContextAnalysis(options: {
+    userId: string;
+    analysisRecordId: string;
+    totalBatches: number;
+    totalThreads: number;
+    sentEmailsCount: number;
+    analysisStats: AnalysisStatsInput;
+    trueVipContacts?: VipContactEntry[];
+  }): Promise<void> {
+    const {
+      userId,
+      analysisRecordId,
+      totalBatches,
+      totalThreads,
+      sentEmailsCount,
+      analysisStats,
+      trueVipContacts = [],
+    } = options;
     this.logger.log(
       `[CONTEXT-ANALYSIS] Starting finalization for analysis ${analysisRecordId}`,
     );
@@ -127,14 +136,14 @@ export class ContextAnalysisFinalizerService {
     const analysis = this.buildAnalysisFromBatches(finalStats, totalBatches);
 
     await this.runFinalizationSteps(userId, analysis, effectiveVipContacts);
-    await this.persistFinalAnalysisRecord(
+    await this.persistFinalAnalysisRecord({
       analysisRecord,
       analysisStats,
       totalThreads,
       sentEmailsCount,
-      effectiveVipContacts.length,
+      vipContactsEvaluated: effectiveVipContacts.length,
       finalStats,
-    );
+    });
 
     await this.usersService.update(userId, {
       scanProgress: 100,
@@ -244,14 +253,22 @@ export class ContextAnalysisFinalizerService {
     await this.saveWritingStyle(userId, analysis.writingStyle);
   }
 
-  private async persistFinalAnalysisRecord(
-    analysisRecord: ContextAnalysis,
-    analysisStats: AnalysisStatsInput,
-    totalThreads: number,
-    sentEmailsCount: number,
-    vipContactsEvaluated: number,
-    finalStats: Record<string, unknown>,
-  ): Promise<void> {
+  private async persistFinalAnalysisRecord(options: {
+    analysisRecord: ContextAnalysis;
+    analysisStats: AnalysisStatsInput;
+    totalThreads: number;
+    sentEmailsCount: number;
+    vipContactsEvaluated: number;
+    finalStats: Record<string, unknown>;
+  }): Promise<void> {
+    const {
+      analysisRecord,
+      analysisStats,
+      totalThreads,
+      sentEmailsCount,
+      vipContactsEvaluated,
+      finalStats,
+    } = options;
     const { threadsNeverOpened, threadsReadButNotReplied } =
       this.computeThreadStats(finalStats);
 

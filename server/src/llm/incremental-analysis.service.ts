@@ -148,14 +148,22 @@ export class IncrementalAnalysisService {
    * Much faster and cheaper than regenerating the full summary.
    * @param needsContactTypeGuess If true, the LLM will also guess the sender's contact type
    */
-  async updateSummaryIncrementally(
-    existingSummary: string,
-    newEmail: NewEmailData,
-    isResolution?: boolean,
-    provider?: LLMProvider,
-    userId?: string,
-    needsContactTypeGuess?: boolean,
-  ): Promise<IncrementalSummaryResult> {
+  async updateSummaryIncrementally(options: {
+    existingSummary: string;
+    newEmail: NewEmailData;
+    isResolution?: boolean;
+    provider?: LLMProvider;
+    userId?: string;
+    needsContactTypeGuess?: boolean;
+  }): Promise<IncrementalSummaryResult> {
+    const {
+      existingSummary,
+      newEmail,
+      isResolution,
+      provider,
+      userId,
+      needsContactTypeGuess,
+    } = options;
     const promptConfig = getPrompt(CONTEXT_PROMPT_IDS.INCREMENTAL_SUMMARY);
     if (!promptConfig) {
       this.logger.warn("incremental summary prompt not found");

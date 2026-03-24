@@ -25,14 +25,15 @@ const removeDraftName =
  * Manages the mutable operations (promote / rename / delete) for proto categories.
  * Owns the in-flight status state for each operation.
  */
-const useProtoCategoryMutations = (
-  setCategories: React.Dispatch<React.SetStateAction<ProtoCategory[]>>,
-  setDraftNames: React.Dispatch<React.SetStateAction<Record<string, string>>>,
-  draftNames: Record<string, string>,
-  showSuccess: (m: string) => void,
-  showError: (m: string) => void,
-  tFunc: (key: string) => string
-) => {
+const useProtoCategoryMutations = (options: {
+  setCategories: React.Dispatch<React.SetStateAction<ProtoCategory[]>>;
+  setDraftNames: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  draftNames: Record<string, string>;
+  showSuccess: (m: string) => void;
+  showError: (m: string) => void;
+  tFunc: (key: string) => string;
+}) => {
+  const { setCategories, setDraftNames, draftNames, showSuccess, showError, tFunc } = options;
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingNameId, setSavingNameId] = useState<string | null>(null);
@@ -135,7 +136,7 @@ export const useProtoCategories = (
     fetchCategories();
   }, [fetchCategories]);
 
-  const mutations = useProtoCategoryMutations(setCategories, setDraftNames, draftNames, showSuccess, showError, tFunc);
+  const mutations = useProtoCategoryMutations({ setCategories, setDraftNames, draftNames, showSuccess, showError, tFunc });
 
   return { categories, isLoading, draftNames, fetchCategories, ...mutations };
 };

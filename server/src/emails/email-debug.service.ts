@@ -281,15 +281,15 @@ export class EmailDebugService {
     // Step 4: Build per-thread result rows
     const threads: StarredThreadEntry[] = await Promise.all(
       gmailStarredThreadIds.map((gmailThreadId) =>
-        analyzeStarredThread(
+        analyzeStarredThread({
           gmailThreadId,
           dbThreadMap,
           latestEmailsByThread,
           gmailInboxSet,
-          (uid, senderEmail) =>
+          isSenderBlocked: (uid, senderEmail) =>
             this.blockedSendersService.isSenderBlocked(uid, senderEmail),
           userId,
-        ),
+        }),
       ),
     );
 

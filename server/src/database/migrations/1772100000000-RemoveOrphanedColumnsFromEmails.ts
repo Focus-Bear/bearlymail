@@ -1,9 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class RemoveOrphanedColumnsFromEmails1772100000000
-  implements MigrationInterface
-{
-  name = 'RemoveOrphanedColumnsFromEmails1772100000000';
+export class RemoveOrphanedColumnsFromEmails1772100000000 implements MigrationInterface {
+  name = "RemoveOrphanedColumnsFromEmails1772100000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Drop orphaned columns from emails table that were moved to email_threads

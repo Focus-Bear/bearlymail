@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddActionItemsJsonToEmails1785200000000
-  implements MigrationInterface
-{
+export class AddActionItemsJsonToEmails1785200000000 implements MigrationInterface {
   name = "AddActionItemsJsonToEmails1785200000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {

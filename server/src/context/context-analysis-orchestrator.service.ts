@@ -4,15 +4,18 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { JOB_NAMES } from "../constants/job-names";
-import { BODY_PREVIEW_LENGTHS, CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import {
+  BODY_PREVIEW_LENGTHS,
+  CONTEXT_ANALYSIS,
+} from "../constants/llm-constants";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS, MINUTES, MS_PER_SECOND } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { UsersService } from "../users/users.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import {
   BatchPayloadItem,

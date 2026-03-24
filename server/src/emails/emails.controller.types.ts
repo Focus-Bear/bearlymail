@@ -16,3 +16,4 @@ export type InboxQuery = {
   limit?: string;
   offset?: string;
 };
+// max-params fixed

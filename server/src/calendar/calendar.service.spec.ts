@@ -247,15 +247,15 @@ describe("CalendarService", () => {
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
-      const result = await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        60,
-        "guest@example.com",
-        "Guest Name",
-        "Meeting Title",
-        "Meeting description",
-      );
+      const result = await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 60,
+        guestEmail: "guest@example.com",
+        guestName: "Guest Name",
+        title: "Meeting Title",
+        description: "Meeting description",
+      });
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -293,13 +293,13 @@ describe("CalendarService", () => {
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
-      await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        60,
-        "guest@example.com",
-        "Guest",
-      );
+      await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 60,
+        guestEmail: "guest@example.com",
+        guestName: "Guest",
+      });
 
       const insertCall = mockCalendar.events.insert.mock.calls[0][0];
       expect(insertCall.requestBody.description).toContain("Reschedule:");
@@ -315,13 +315,13 @@ describe("CalendarService", () => {
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
-      await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        60,
-        "guest@example.com",
-        "Guest",
-      );
+      await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 60,
+        guestEmail: "guest@example.com",
+        guestName: "Guest",
+      });
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -341,12 +341,12 @@ describe("CalendarService", () => {
       } as any);
 
       await expect(
-        service.createEvent(
-          "user-1",
-          "2024-01-15T10:00:00Z",
-          60,
-          "guest@example.com",
-        ),
+        service.createEvent({
+          userId: "user-1",
+          startTime: "2024-01-15T10:00:00Z",
+          durationMinutes: 60,
+          guestEmail: "guest@example.com",
+        }),
       ).rejects.toThrow("Google Calendar not connected");
     });
 
@@ -357,12 +357,12 @@ describe("CalendarService", () => {
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
 
       await expect(
-        service.createEvent(
-          "user-1",
-          "2024-01-15T10:00:00Z",
-          60,
-          "guest@example.com",
-        ),
+        service.createEvent({
+          userId: "user-1",
+          startTime: "2024-01-15T10:00:00Z",
+          durationMinutes: 60,
+          guestEmail: "guest@example.com",
+        }),
       ).rejects.toThrow("Failed to create calendar event");
 
       consoleErrorSpy.mockRestore();
@@ -388,12 +388,12 @@ describe("CalendarService", () => {
         data: mockEventWithConference,
       });
 
-      const result = await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        30,
-        "guest@example.com",
-      );
+      const result = await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
 
       expect(result.meetLink).toBe(mockMeetUri);
     });
@@ -409,12 +409,12 @@ describe("CalendarService", () => {
         data: mockEventWithoutConference,
       });
 
-      const result = await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        30,
-        "guest@example.com",
-      );
+      const result = await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
 
       expect(result.meetLink).toBeNull();
     });
@@ -436,12 +436,12 @@ describe("CalendarService", () => {
         data: mockEventPhoneOnly,
       });
 
-      const result = await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        30,
-        "guest@example.com",
-      );
+      const result = await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
 
       expect(result.meetLink).toBeNull();
     });
@@ -452,12 +452,12 @@ describe("CalendarService", () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
-      await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        30,
-        "guest@example.com",
-      );
+      await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -480,18 +480,18 @@ describe("CalendarService", () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
-      await service.createEvent(
-        "user-1",
-        "2024-01-15T10:00:00Z",
-        30,
-        "guest@example.com",
-      );
-      await service.createEvent(
-        "user-1",
-        "2024-01-15T11:00:00Z",
-        30,
-        "guest@example.com",
-      );
+      await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T10:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
+      await service.createEvent({
+        userId: "user-1",
+        startTime: "2024-01-15T11:00:00Z",
+        durationMinutes: 30,
+        guestEmail: "guest@example.com",
+      });
 
       const firstCallRequestId =
         mockCalendar.events.insert.mock.calls[0][0].requestBody.conferenceData
@@ -1376,7 +1376,10 @@ describe("CalendarService", () => {
 
       const result = await service.checkEventExists("user-1", baseEventData);
 
-      expect(result).toEqual({ exists: true, calendarEventId: "gcal-event-123" });
+      expect(result).toEqual({
+        exists: true,
+        calendarEventId: "gcal-event-123",
+      });
       expect(mockCalendar.events.list).toHaveBeenCalledWith(
         expect.objectContaining({
           iCalUID: "test-uid@example.com",
@@ -1396,7 +1399,13 @@ describe("CalendarService", () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       mockCalendar.events.list.mockResolvedValue({
         data: {
-          items: [{ id: "gcal-event-456", summary: "Team Standup", start: { dateTime: "2024-03-15T10:00:00.000Z" } }],
+          items: [
+            {
+              id: "gcal-event-456",
+              summary: "Team Standup",
+              start: { dateTime: "2024-03-15T10:00:00.000Z" },
+            },
+          ],
         },
       });
 

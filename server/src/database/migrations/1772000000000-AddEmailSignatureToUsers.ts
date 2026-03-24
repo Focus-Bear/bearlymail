@@ -8,7 +8,8 @@ export class AddEmailSignatureToUsers1772000000000 implements MigrationInterface
         name: "emailSignature",
         type: "text",
         isNullable: true,
-        comment: "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
+        comment:
+          "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
       }),
     );
   }

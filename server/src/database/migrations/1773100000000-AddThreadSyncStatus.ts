@@ -29,6 +29,8 @@ export class AddThreadSyncStatus1773100000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "email_threads" DROP COLUMN "syncStatusUpdatedAt"`,
     );
-    await queryRunner.query(`ALTER TABLE "email_threads" DROP COLUMN "syncStatus"`);
+    await queryRunner.query(
+      `ALTER TABLE "email_threads" DROP COLUMN "syncStatus"`,
+    );
   }
 }

@@ -30,6 +30,26 @@ export const EMAIL_DEPS_REPOS = Symbol("EMAIL_DEPS_REPOS");
 export const EMAIL_DEPS_SERVICES = Symbol("EMAIL_DEPS_SERVICES");
 
 /**
+ * Sub-token A: repositories + provider manager (3 items).
+ */
+export const EMAIL_DEPS_REPOS_A = Symbol("EMAIL_DEPS_REPOS_A");
+
+/**
+ * Sub-token B: thread/search/star/debug/read services (5 items).
+ */
+export const EMAIL_DEPS_REPOS_B = Symbol("EMAIL_DEPS_REPOS_B");
+
+/**
+ * Sub-token C: crud/gmail/status/inbox/priority services (5 items).
+ */
+export const EMAIL_DEPS_SERVICES_A = Symbol("EMAIL_DEPS_SERVICES_A");
+
+/**
+ * Sub-token D: lifecycle/archive (2 items).
+ */
+export const EMAIL_DEPS_SERVICES_B = Symbol("EMAIL_DEPS_SERVICES_B");
+
+/**
  * First group: repositories and provider manager + thread/search/star/debug/read services.
  */
 export interface EmailDepsRepos {

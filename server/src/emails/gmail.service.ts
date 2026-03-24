@@ -143,14 +143,15 @@ export class GmailService {
     }
   }
 
-  private async handleExistingGmailEmail(
-    userId: string,
-    existing: { id: string; threadId: string; body?: string },
-    labelIds: string[],
-    starCount: number,
-    body: string,
-    htmlBody: string | undefined,
-  ): Promise<void> {
+  private async handleExistingGmailEmail(options: {
+    userId: string;
+    existing: { id: string; threadId: string; body?: string };
+    labelIds: string[];
+    starCount: number;
+    body: string;
+    htmlBody: string | undefined;
+  }): Promise<void> {
+    const { userId, existing, labelIds, starCount, body, htmlBody } = options;
     const isArchivedInGmail = !labelIds.includes("INBOX");
     if (existing.threadId) {
       await this.emailsService.updateThreadStarCount(
@@ -198,14 +199,14 @@ export class GmailService {
       msg.id,
     );
     if (existing) {
-      await this.handleExistingGmailEmail(
+      await this.handleExistingGmailEmail({
         userId,
         existing,
         labelIds,
         starCount,
         body,
         htmlBody,
-      );
+      });
       return;
     }
     await this.emailsService.createEmail(userId, {

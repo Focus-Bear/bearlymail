@@ -88,7 +88,7 @@ describe("PriorityAnalysisService", () => {
         validPriorityResponse,
       );
 
-      const result = await service.analyzePriority(mockEmail);
+      const result = await service.analyzePriority({ email: mockEmail });
 
       expect(result.category).toBe("Customer Support");
       expect(result.categoryExplanation).toBe("Support request");
@@ -104,15 +104,10 @@ describe("PriorityAnalysisService", () => {
         validPriorityResponse,
       );
 
-      const result = await service.analyzePriority(
-        mockEmail,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        0.8,
-      );
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        preComputedSentimentScore: 0.8,
+      });
 
       expect(result.sentimentScore).toBe(0.8);
     });
@@ -132,7 +127,7 @@ describe("PriorityAnalysisService", () => {
         legacyResponse,
       );
 
-      const result = await service.analyzePriority(mockEmail);
+      const result = await service.analyzePriority({ email: mockEmail });
 
       expect(result.category).toBe("Sales");
       expect(result.urgencyScore).toBe(75);
@@ -143,7 +138,7 @@ describe("PriorityAnalysisService", () => {
         validPriorityResponse,
       );
 
-      await service.analyzePriority(mockEmail);
+      await service.analyzePriority({ email: mockEmail });
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({ jsonMode: true }),
@@ -157,7 +152,7 @@ describe("PriorityAnalysisService", () => {
         validPriorityResponse,
       );
 
-      await service.analyzePriority(mockEmail);
+      await service.analyzePriority({ email: mockEmail });
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -174,12 +169,10 @@ describe("PriorityAnalysisService", () => {
         nonJsonResponse,
       );
 
-      const result = await service.analyzePriority(
-        mockEmail,
-        undefined,
-        undefined,
-        "user-123",
-      );
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userId: "user-123",
+      });
 
       // Should log a clear error (not warn) so it's visible in worker terminal
       expect(loggerErrorSpy).toHaveBeenCalledWith(
@@ -215,12 +208,10 @@ describe("PriorityAnalysisService", () => {
         malformedJson,
       );
 
-      const result = await service.analyzePriority(
-        mockEmail,
-        undefined,
-        undefined,
-        "user-456",
-      );
+      const result = await service.analyzePriority({
+        email: mockEmail,
+        userId: "user-456",
+      });
 
       // Should log a clear error (not warn) with response preview
       expect(loggerErrorSpy).toHaveBeenCalledWith(
@@ -253,7 +244,7 @@ describe("PriorityAnalysisService", () => {
         "This is URGENT please respond ASAP",
       );
 
-      const result = await service.analyzePriority(mockEmail);
+      const result = await service.analyzePriority({ email: mockEmail });
 
       expect(result.urgencyExplanation).toBe("Contains urgent keywords");
       expect(result.urgencyScore).toBeGreaterThan(0);
@@ -262,9 +253,9 @@ describe("PriorityAnalysisService", () => {
     it("should throw StructuralError when prompt template is not found", async () => {
       (prompts.getPrompt as jest.Mock).mockReturnValue(null);
 
-      await expect(service.analyzePriority(mockEmail)).rejects.toThrow(
-        "Prompt template not found: analyze_priority",
-      );
+      await expect(
+        service.analyzePriority({ email: mockEmail }),
+      ).rejects.toThrow("Prompt template not found: analyze_priority");
     });
 
     it("should handle category 'Other' with protoCategorySuggestion", async () => {
@@ -288,7 +279,7 @@ describe("PriorityAnalysisService", () => {
         responseWithProtoCategory,
       );
 
-      const result = await service.analyzePriority(mockEmail);
+      const result = await service.analyzePriority({ email: mockEmail });
 
       expect(result.category).toBe("Other");
       expect(result.protoCategorySuggestion).toEqual({

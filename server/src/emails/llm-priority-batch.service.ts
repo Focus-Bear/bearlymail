@@ -361,14 +361,14 @@ export class LLMPriorityBatchService {
         : null;
       try {
         const incrementalResult =
-          await this.summaryProcessorService.tryIncrementalAnalysis(
+          await this.summaryProcessorService.tryIncrementalAnalysis({
             thread,
             email,
-            false,
+            forceRecalculate: false,
             userId,
             workerId,
             tracker,
-          );
+          });
         if (!incrementalResult.handled) {
           needsFullAnalysis.push(email);
         }

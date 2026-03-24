@@ -56,7 +56,9 @@ function stripHtmlTags(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
     .trim();
 }
 
@@ -285,12 +287,15 @@ export class GmailProvider implements EmailProvider {
 
   async sendReply(
     userId: string,
-    threadId: string,
-    to: string,
-    subject: string,
-    body: string,
-    options?: SendReplyOptions,
+    params: {
+      threadId: string;
+      to: string;
+      subject: string;
+      body: string;
+      options?: SendReplyOptions;
+    },
   ): Promise<{ messageId: string; threadId: string }> {
+    const { threadId, to, subject, body, options } = params;
     const { attachments, htmlBody, cc, bcc } = options ?? {};
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
@@ -331,13 +336,16 @@ export class GmailProvider implements EmailProvider {
 
   async sendEmail(
     userId: string,
-    to: EmailRecipient[],
-    subject: string,
-    body: string,
-    cc?: EmailRecipient[],
-    bcc?: EmailRecipient[],
-    attachments?: EmailAttachmentData[],
+    params: {
+      to: EmailRecipient[];
+      subject: string;
+      body: string;
+      cc?: EmailRecipient[];
+      bcc?: EmailRecipient[];
+      attachments?: EmailAttachmentData[];
+    },
   ): Promise<{ messageId: string; threadId: string }> {
+    const { to, subject, body, cc, bcc, attachments } = params;
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
 

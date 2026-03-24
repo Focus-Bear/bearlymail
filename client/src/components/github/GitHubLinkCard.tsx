@@ -92,7 +92,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
       <>
         <GitHubLinkCardNoStatus link={link} />
         {actionButtons}
-        {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess, undefined)}
+        {activeAction && renderModal({ action: activeAction, issueInfo, email, onClose: setActiveAction, onSuccess: handleActionSuccess, projectName: undefined })}
       </>
     );
   }
@@ -132,20 +132,21 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         {actionButtons}
       </div>
 
-      {activeAction && renderModal(activeAction, issueInfo, email, setActiveAction, handleActionSuccess, linkedProjectName)}
+      {activeAction && renderModal({ action: activeAction, issueInfo, email, onClose: setActiveAction, onSuccess: handleActionSuccess, projectName: linkedProjectName })}
     </>
   );
 };
 
-function renderModal(
-  action: SuggestedAction,
-  issueInfo: { owner: string; repo: string; number: number },
-  email: { subject?: string; body?: string; from?: string; fromName?: string } | null | undefined,
-  onClose: (_value: null) => void,
-  onSuccess: () => void,
+function renderModal(params: {
+  action: SuggestedAction;
+  issueInfo: { owner: string; repo: string; number: number };
+  email: { subject?: string; body?: string; from?: string; fromName?: string } | null | undefined;
+  onClose: (_value: null) => void;
+  onSuccess: () => void;
   /** Project name to forward to GitHubUpdateStatusModal when the issue is linked to a project. */
-  projectName: string | undefined,
-): React.ReactNode {
+  projectName: string | undefined;
+}): React.ReactNode {
+  const { action, issueInfo, email, onClose, onSuccess, projectName } = params;
   const actionIssueInfo = (action.metadata?.issueInfo as typeof issueInfo | undefined) ?? issueInfo;
 
   if (action.type === ACTION_TYPE_GITHUB_UPDATE_STATUS) {

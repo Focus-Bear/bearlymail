@@ -132,14 +132,14 @@ export class ContextQaExtractionService {
       const normalizedQuestion = qa.question.toLowerCase().trim();
       const normalizedAnswer = qa.answer.toLowerCase().trim();
       if (
-        this.isQADuplicate(
+        this.isQADuplicate({
           normalizedQuestion,
           normalizedAnswer,
           seenQuestions,
           seenAnswers,
           existingQuestions,
           existingAnswers,
-        )
+        })
       ) {
         this.logger.log(
           `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
@@ -152,14 +152,22 @@ export class ContextQaExtractionService {
     }
   }
 
-  private isQADuplicate(
-    normalizedQuestion: string,
-    normalizedAnswer: string,
-    seenQuestions: Set<string>,
-    seenAnswers: Set<string>,
-    existingQuestions: Set<string>,
-    existingAnswers: Set<string>,
-  ): boolean {
+  private isQADuplicate(options: {
+    normalizedQuestion: string;
+    normalizedAnswer: string;
+    seenQuestions: Set<string>;
+    seenAnswers: Set<string>;
+    existingQuestions: Set<string>;
+    existingAnswers: Set<string>;
+  }): boolean {
+    const {
+      normalizedQuestion,
+      normalizedAnswer,
+      seenQuestions,
+      seenAnswers,
+      existingQuestions,
+      existingAnswers,
+    } = options;
     const similar = (strA: string, strB: string) =>
       this.piiRedactionService.areContextValuesSimilar(strA, strB);
     return (

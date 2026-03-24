@@ -207,7 +207,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(store.getState().inboxUI.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
@@ -222,7 +222,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(store.getState().inboxUI.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
@@ -236,7 +236,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox');
@@ -251,7 +251,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
@@ -266,7 +266,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/follow-up');
@@ -282,7 +282,7 @@ describe('useEmailDetailOperations', () => {
       );
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(onSnoozeComplete).toHaveBeenCalledWith(TEST_EMAIL_ID);
@@ -306,7 +306,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       // Wait for the background snooze to fail and revert
@@ -326,7 +326,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 0, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 0, draftOverride: 'Test reply' });
       });
 
       expect(store.getState().inboxUI.optimisticallyArchived).toContain(TEST_EMAIL_ID);
@@ -340,7 +340,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 0, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 0, draftOverride: 'Test reply' });
       });
 
       expect(store.getState().inboxUI.optimisticallyArchived).toContain(TEST_EMAIL_ID);
@@ -355,7 +355,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 0, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 0, draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
@@ -371,7 +371,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 48, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 48, draftOverride: 'Test reply' });
       });
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -388,7 +388,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], 0, 'Test reply');
+        await result.current.handleSendReply({ files: [], expectedReplyHours: 0, draftOverride: 'Test reply' });
       });
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -405,7 +405,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], undefined, 'Test reply');
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply' });
       });
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -424,7 +424,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], undefined, 'Test reply');
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox');
@@ -439,7 +439,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], undefined, 'Test reply');
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
@@ -454,7 +454,7 @@ describe('useEmailDetailOperations', () => {
       });
 
       await act(async () => {
-        await result.current.handleSendReply([], undefined, 'Test reply');
+        await result.current.handleSendReply({ files: [], draftOverride: 'Test reply' });
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox/triage');

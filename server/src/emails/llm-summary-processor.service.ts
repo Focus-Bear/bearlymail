@@ -476,14 +476,21 @@ export class LLMSummaryProcessorService {
     );
   }
 
-  async tryIncrementalAnalysis(
-    thread: EmailThread | null,
-    email: Email,
-    forceRecalculate: boolean | undefined,
-    userId: string,
-    workerId: string,
-    tracker: JobPerformanceTracker,
-  ): Promise<{ handled: boolean }> {
+  async tryIncrementalAnalysis({
+    thread,
+    email,
+    forceRecalculate,
+    userId,
+    workerId,
+    tracker,
+  }: {
+    thread: EmailThread | null;
+    email: Email;
+    forceRecalculate: boolean | undefined;
+    userId: string;
+    workerId: string;
+    tracker: JobPerformanceTracker;
+  }): Promise<{ handled: boolean }> {
     if (
       !thread ||
       forceRecalculate ||
@@ -624,14 +631,13 @@ export class LLMSummaryProcessorService {
       };
 
       const result =
-        await this.incrementalAnalysisService.updateSummaryIncrementally(
+        await this.incrementalAnalysisService.updateSummaryIncrementally({
           existingSummary,
-          newEmailData,
-          false,
-          undefined,
+          newEmail: newEmailData,
+          isResolution: false,
           userId,
           needsContactTypeGuess,
-        );
+        });
 
       if (result.updatedSummary && result.updatedSummary !== existingSummary) {
         if (email.emailThreadId) {

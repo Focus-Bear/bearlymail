@@ -796,14 +796,16 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
-    async (
-      files: File[] = [],
-      expectedReplyHours?: number,
-      draftOverride?: string,
-      scheduledSendAt?: Date,
-      keepInAction?: boolean,
-      inlineImages?: Map<string, File>
-    ) => {
+    async (sendOptions: {
+      files?: File[];
+      expectedReplyHours?: number;
+      forwardAttachmentIds?: string[];
+      draftOverride?: string;
+      scheduledSendAt?: Date;
+      keepInAction?: boolean;
+      inlineImages?: Map<string, File>;
+    } = {}) => {
+      const { files = [], expectedReplyHours, draftOverride, scheduledSendAt, keepInAction, inlineImages } = sendOptions;
       const draftToSend = draftOverride || draft;
       if (!id || !draftToSend) {
         return;
@@ -958,7 +960,7 @@ export function useEmailDetailOperations(
       return;
     }
     if (autoSendCountdown <= 0) {
-      void handleSendReplyRef.current([]);
+      void handleSendReplyRef.current({});
       setAutoSendCountdown(null);
       return;
     }

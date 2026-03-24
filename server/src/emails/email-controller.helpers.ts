@@ -27,7 +27,8 @@ export const appendSignature = (
   emailBody: string,
   userSignature?: string | null,
 ): string => {
-  const signature = userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
+  const signature =
+    userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
   // Detect HTML body by the presence of angle-bracket tags
   if (/<[a-z][\s\S]*>/i.test(emailBody)) {
     return `${emailBody}<br><br>${signature}`;

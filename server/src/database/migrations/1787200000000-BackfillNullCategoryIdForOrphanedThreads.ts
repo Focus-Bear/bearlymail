@@ -13,9 +13,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * Safe to re-run: WHERE clause is guarded by IS NOT NULL + NOT EXISTS.
  * Runs in a transaction automatically (TypeORM migration default).
  */
-export class BackfillNullCategoryIdForOrphanedThreads1787200000000
-  implements MigrationInterface
-{
+export class BackfillNullCategoryIdForOrphanedThreads1787200000000 implements MigrationInterface {
   name = "BackfillNullCategoryIdForOrphanedThreads1787200000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {

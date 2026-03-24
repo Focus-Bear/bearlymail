@@ -307,28 +307,37 @@ export class PriorityAnalysisService {
     };
   }
 
-  async analyzePriority(
+  async analyzePriority(options: {
     email: {
       from: string;
       fromName?: string;
       senderJobTitle?: string;
       subject: string;
       body: string;
-    },
+    };
     userHistory?: {
       averageTimeToReply?: number;
       similarEmailsReplyTime?: number;
-    },
-    provider?: LLMProvider,
-    userId?: string,
-    userContext?: UserContextInput,
+    };
+    provider?: LLMProvider;
+    userId?: string;
+    userContext?: UserContextInput;
     threadInfo?: {
       daysSinceLastReply?: number;
       userShouldReply?: boolean;
       lastReplyFrom?: string;
-    },
-    preComputedSentimentScore?: number,
-  ): Promise<PriorityResult> {
+    };
+    preComputedSentimentScore?: number;
+  }): Promise<PriorityResult> {
+    const {
+      email,
+      userHistory,
+      provider,
+      userId,
+      userContext,
+      threadInfo,
+      preComputedSentimentScore,
+    } = options;
     const { prompt, systemPrompt } = this.buildPriorityPrompt(
       email,
       userHistory,

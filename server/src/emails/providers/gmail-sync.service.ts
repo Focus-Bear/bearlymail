@@ -735,7 +735,9 @@ export class GmailSyncService {
               this.boss.send(
                 JOB_NAMES.SCAN_HISTORY_EMAIL,
                 { userId, messageId },
-                { priority: getJobPriority(JOB_NAMES.SCAN_HISTORY_EMAIL, false) },
+                {
+                  priority: getJobPriority(JOB_NAMES.SCAN_HISTORY_EMAIL, false),
+                },
               ),
             ),
         );

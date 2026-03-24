@@ -19,12 +19,15 @@ import {
 export async function sendReply(
   provider: ZohoProvider,
   userId: string,
-  threadId: string,
-  to: string,
-  subject: string,
-  body: string,
-  options?: SendReplyOptions,
+  params: {
+    threadId: string;
+    to: string;
+    subject: string;
+    body: string;
+    options?: SendReplyOptions;
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { threadId, to, subject, body, options } = params;
   const { htmlBody, cc, bcc } = options ?? {};
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
@@ -53,7 +56,7 @@ export async function sendReply(
         userId,
         primaryAccount.id,
       );
-      return sendReply(provider, userId, threadId, to, subject, body, options);
+      return sendReply(provider, userId, params);
     }
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
   }
@@ -62,13 +65,16 @@ export async function sendReply(
 export async function sendEmail(
   provider: ZohoProvider,
   userId: string,
-  to: EmailRecipient[],
-  subject: string,
-  body: string,
-  cc?: EmailRecipient[],
-  bcc?: EmailRecipient[],
-  _attachments?: EmailAttachmentData[],
+  params: {
+    to: EmailRecipient[];
+    subject: string;
+    body: string;
+    cc?: EmailRecipient[];
+    bcc?: EmailRecipient[];
+    attachments?: EmailAttachmentData[];
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { to, subject, body, cc, bcc } = params;
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -80,22 +86,20 @@ export async function sendEmail(
       userId,
       accessToken,
     );
-    return await sendEmailViaZoho(
-      zohoClient,
-      zohoAccountId,
+    return await sendEmailViaZoho(zohoClient, zohoAccountId, {
       to,
       subject,
       body,
       cc,
       bcc,
-    );
+    });
   } catch (error: unknown) {
     if (isAuthError(error)) {
       accessToken = await provider.client.refreshTokenIfNeeded(
         userId,
         primaryAccount.id,
       );
-      return sendEmail(provider, userId, to, subject, body, cc, bcc);
+      return sendEmail(provider, userId, params);
     }
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
   }

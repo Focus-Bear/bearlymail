@@ -9,7 +9,9 @@ import { ContextAnalysisProgressService } from "./context-analysis-progress.serv
  */
 @Injectable()
 export class ContextAnalysisHelpersService {
-  constructor(private readonly progressService: ContextAnalysisProgressService) {}
+  constructor(
+    private readonly progressService: ContextAnalysisProgressService,
+  ) {}
 
   /**
    * Get an analysis record by ID

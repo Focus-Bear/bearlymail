@@ -120,15 +120,15 @@ export class LLMPriorityResultService {
         .map((ctx) => ctx.contextValue.split(" - ")[0].trim());
 
       const { finalCategory, protoCategoryId, categoryId } =
-        await this.resolveCategoryAndProtoCategory(
+        await this.resolveCategoryAndProtoCategory({
           email,
           thread,
           llmResult,
           userId,
           workerId,
           knownCategoryNames,
-          contexts as UserContext[],
-        );
+          contexts: contexts as UserContext[],
+        });
 
       if (categoryId === null && finalCategory && finalCategory !== "Other") {
         this.logger.warn(
@@ -377,15 +377,78 @@ export class LLMPriorityResultService {
     return rawName;
   }
 
-  async resolveCategoryAndProtoCategory(
-    email: Email,
-    thread: EmailThread,
-    llmResult: PriorityLlmResult,
-    userId: string,
-    workerId: string,
-    knownCategoryNames: string[] = [],
-    contexts: UserContext[] = [],
-  ): Promise<{
+  private async applyDirectProtoMatch(options: {
+    categoryName: string;
+    emailThreadId: string;
+    userId: string;
+    workerId: string;
+    lookupCategoryContextId: (name: string | null) => string | null;
+  }): Promise<{
+    finalCategory: string | null;
+    categoryId: string | null;
+    protoCategoryId: string | null;
+  } | null> {
+    const {
+      categoryName,
+      emailThreadId,
+      userId,
+      workerId,
+      lookupCategoryContextId,
+    } = options;
+    try {
+      const directProtoMatch =
+        await this.protoCategoriesService.findMatchingProtoCategory(
+          userId,
+          categoryName,
+        );
+      if (!directProtoMatch) return null;
+      const updatedProto =
+        await this.protoCategoriesService.assignThreadToProtoCategory(
+          directProtoMatch.id,
+          emailThreadId,
+        );
+      this.logger.log(
+        `[Worker ${workerId}] Batch: LLM returned proto-category name directly: "${categoryName}" — re-routed`,
+      );
+      if (updatedProto.isPromoted) {
+        const resolvedCategory = updatedProto.name;
+        return {
+          finalCategory: resolvedCategory,
+          categoryId: lookupCategoryContextId(resolvedCategory),
+          protoCategoryId: null,
+        };
+      }
+      return {
+        finalCategory: "Other",
+        categoryId: null,
+        protoCategoryId: updatedProto.id,
+      };
+    } catch (err) {
+      this.logger.warn(
+        `[Worker ${workerId}] Batch: Failed defensive proto-category check for "${categoryName}":`,
+        err,
+      );
+      return null;
+    }
+  }
+
+  async resolveCategoryAndProtoCategory({
+    email,
+    thread,
+    llmResult,
+    userId,
+    workerId,
+    knownCategoryNames = [],
+    contexts = [],
+  }: {
+    email: Email;
+    thread: EmailThread;
+    llmResult: PriorityLlmResult;
+    userId: string;
+    workerId: string;
+    knownCategoryNames?: string[];
+    contexts?: UserContext[];
+  }): Promise<{
     finalCategory: string | null;
     protoCategoryId: string | null;
     categoryId: string | null;
@@ -426,35 +489,15 @@ export class LLMPriorityResultService {
       resolvedLlmResult.category !== "Other" &&
       email.emailThreadId
     ) {
-      try {
-        const directProtoMatch =
-          await this.protoCategoriesService.findMatchingProtoCategory(
-            userId,
-            resolvedLlmResult.category,
-          );
-        if (directProtoMatch) {
-          const updatedProto =
-            await this.protoCategoriesService.assignThreadToProtoCategory(
-              directProtoMatch.id,
-              email.emailThreadId,
-            );
-          if (updatedProto.isPromoted) {
-            finalCategory = updatedProto.name;
-            categoryId = lookupCategoryContextId(finalCategory);
-          } else {
-            finalCategory = "Other";
-            categoryId = null;
-            protoCategoryId = updatedProto.id;
-          }
-          this.logger.log(
-            `[Worker ${workerId}] Batch: LLM returned proto-category name directly: "${resolvedLlmResult.category}" — re-routed`,
-          );
-        }
-      } catch (err) {
-        this.logger.warn(
-          `[Worker ${workerId}] Batch: Failed defensive proto-category check for "${resolvedLlmResult.category}":`,
-          err,
-        );
+      const matchResult = await this.applyDirectProtoMatch({
+        categoryName: resolvedLlmResult.category,
+        emailThreadId: email.emailThreadId,
+        userId,
+        workerId,
+        lookupCategoryContextId,
+      });
+      if (matchResult) {
+        ({ finalCategory, categoryId, protoCategoryId } = matchResult);
       }
     }
 
@@ -462,31 +505,38 @@ export class LLMPriorityResultService {
       resolvedLlmResult.category === "Other" &&
       resolvedLlmResult.protoCategorySuggestion?.name
     ) {
-      const resolved = await this.applyProtoSuggestion(
+      const resolved = await this.applyProtoSuggestion({
         email,
-        resolvedLlmResult,
+        llmResult: resolvedLlmResult,
         userId,
         workerId,
         finalCategory,
         protoCategoryId,
         lookupCategoryContextId,
-      );
+      });
       ({ finalCategory, protoCategoryId, categoryId } = resolved);
     }
 
     return { finalCategory, protoCategoryId, categoryId };
   }
 
-  async applyProtoSuggestion(
-    email: Email,
-    llmResult: PriorityLlmResult,
-    userId: string,
-    workerId: string,
-    finalCategory: string | null,
-    protoCategoryId: string | null,
-    lookupCategoryContextId: (name: string | null) => string | null = () =>
-      null,
-  ): Promise<{
+  async applyProtoSuggestion({
+    email,
+    llmResult,
+    userId,
+    workerId,
+    finalCategory,
+    protoCategoryId,
+    lookupCategoryContextId = () => null,
+  }: {
+    email: Email;
+    llmResult: PriorityLlmResult;
+    userId: string;
+    workerId: string;
+    finalCategory: string | null;
+    protoCategoryId: string | null;
+    lookupCategoryContextId?: (name: string | null) => string | null;
+  }): Promise<{
     finalCategory: string | null;
     protoCategoryId: string | null;
     categoryId: string | null;

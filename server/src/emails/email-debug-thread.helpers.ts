@@ -286,14 +286,22 @@ export interface StarredThreadEntry {
  * Analyse a single Gmail-starred thread against the BearlyMail DB records.
  * Returns a StarredThreadEntry (not-in-DB path or fully-analysed path).
  */
-export async function analyzeStarredThread(
-  gmailThreadId: string,
-  dbThreadMap: Map<string, EmailThread>,
-  latestEmailsByThread: Map<string, Email>,
-  gmailInboxSet: Set<string>,
-  isSenderBlocked: (userId: string, email: string) => Promise<boolean>,
-  userId: string,
-): Promise<StarredThreadEntry> {
+export async function analyzeStarredThread(options: {
+  gmailThreadId: string;
+  dbThreadMap: Map<string, EmailThread>;
+  latestEmailsByThread: Map<string, Email>;
+  gmailInboxSet: Set<string>;
+  isSenderBlocked: (userId: string, email: string) => Promise<boolean>;
+  userId: string;
+}): Promise<StarredThreadEntry> {
+  const {
+    gmailThreadId,
+    dbThreadMap,
+    latestEmailsByThread,
+    gmailInboxSet,
+    isSenderBlocked,
+    userId,
+  } = options;
   const thread = dbThreadMap.get(gmailThreadId);
 
   if (!thread) {

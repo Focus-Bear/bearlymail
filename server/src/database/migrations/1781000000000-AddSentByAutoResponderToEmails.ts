@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddSentByAutoResponderToEmails1781000000000
-  implements MigrationInterface
-{
+export class AddSentByAutoResponderToEmails1781000000000 implements MigrationInterface {
   name = "AddSentByAutoResponderToEmails1781000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

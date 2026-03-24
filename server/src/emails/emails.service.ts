@@ -55,9 +55,14 @@ export class EmailsService {
     return this.emailServiceDeps.emailStatusService.getCategories(userId);
   }
 
-  async getPriorityCounts(
-    userId: string,
-  ): Promise<{ veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number }> {
+  async getPriorityCounts(userId: string): Promise<{
+    veryHigh: number;
+    high: number;
+    medium: number;
+    low: number;
+    veryLow: number;
+    unprioritised: number;
+  }> {
     return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId);
   }
 
@@ -67,7 +72,9 @@ export class EmailsService {
     unprioritisedCount: number;
     isAnalysisRunning: boolean;
   }> {
-    return this.emailServiceDeps.emailStatusService.getPrioritisationStatus(userId);
+    return this.emailServiceDeps.emailStatusService.getPrioritisationStatus(
+      userId,
+    );
   }
 
   async getConnectedAccounts(userId: string): Promise<
@@ -124,14 +131,14 @@ export class EmailsService {
     },
     pagination?: { offset?: number; limit?: number },
   ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
-    return this.emailServiceDeps.emailInboxService.getInbox(
+    return this.emailServiceDeps.emailInboxService.getInbox({
       userId,
-      _includeBatched,
+      includeBatched: _includeBatched,
       mode,
       filters,
       pagination,
-      (uid) => this.fixStuckCalculatingThreads(uid),
-    );
+      fixStuckCalculatingThreads: (uid) => this.fixStuckCalculatingThreads(uid),
+    });
   }
 
   // ── Single email lookups ───────────────────────────────────────────────────
@@ -591,13 +598,23 @@ export class EmailsService {
   async searchEmails(
     userId: string,
     query: string,
-    maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
-    onProgress?: (step: string, message: string) => void,
-    accountTypes?: string[],
-    skipLlmRanking?: boolean,
-    skipLlmFallback?: boolean,
-    skipSync?: boolean,
+    options: {
+      maxResults?: number;
+      onProgress?: (step: string, message: string) => void;
+      accountTypes?: string[];
+      skipLlmRanking?: boolean;
+      skipLlmFallback?: boolean;
+      skipSync?: boolean;
+    } = {},
   ) {
+    const {
+      maxResults = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
+      onProgress,
+      accountTypes,
+      skipLlmRanking,
+      skipLlmFallback,
+      skipSync,
+    } = options;
     return this.emailServiceDeps.emailSearchService.searchEmails(
       userId,
       query,

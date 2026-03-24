@@ -52,49 +52,49 @@ describe('computeCanRenderCategories', () => {
   it('returns true when all conditions are clear', () => {
     const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: loadingModeSwitch, fetchError: fetchError, categoriesCount: categoriesCount }),
     ).toBe(true);
   });
 
   it('returns false when loading is true', () => {
     const { isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(true, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount),
+      computeCanRenderCategories({ loading: true, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: loadingModeSwitch, fetchError: fetchError, categoriesCount: categoriesCount }),
     ).toBe(false);
   });
 
   it('returns false when isRefetchingWithoutData is true', () => {
     const { loading, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(loading, true, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: true, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: loadingModeSwitch, fetchError: fetchError, categoriesCount: categoriesCount }),
     ).toBe(false);
   });
 
   it('returns false when not yet initially loaded', () => {
     const { loading, isRefetchingWithoutData, loadingModeSwitch, fetchError, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(loading, isRefetchingWithoutData, false, loadingModeSwitch, fetchError, categoriesCount),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: false, loadingModeSwitch: loadingModeSwitch, fetchError: fetchError, categoriesCount: categoriesCount }),
     ).toBe(false);
   });
 
   it('returns false when loadingModeSwitch is true', () => {
     const { loading, isRefetchingWithoutData, hasInitiallyLoaded, fetchError, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, true, fetchError, categoriesCount),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: true, fetchError: fetchError, categoriesCount: categoriesCount }),
     ).toBe(false);
   });
 
   it('returns false when fetchError is set', () => {
     const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, categoriesCount } = defaults;
     expect(
-      computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, 'Network error', categoriesCount),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: loadingModeSwitch, fetchError: 'Network error', categoriesCount: categoriesCount }),
     ).toBe(false);
   });
 
   it('returns false when categoriesCount is 0', () => {
     const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError } = defaults;
     expect(
-      computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, 0),
+      computeCanRenderCategories({ loading: loading, isRefetchingWithoutData: isRefetchingWithoutData, hasInitiallyLoaded: hasInitiallyLoaded, loadingModeSwitch: loadingModeSwitch, fetchError: fetchError, categoriesCount: 0 }),
     ).toBe(false);
   });
 });

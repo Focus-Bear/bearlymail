@@ -64,3 +64,26 @@ export const BRANDING = {
   // URL for the BearlyMail marketing/landing page
   WEBSITE_URL: "https://bearlymail.com",
 } as const;
+
+/**
+ * Determine the priority level for a thread based on star count and urgency score.
+ */
+export function determinePriorityLevel(
+  thread: { starCount: number; urgencyScore: number | null } | null,
+): "low" | "medium" | "high" {
+  if (!thread) return "medium";
+  if (
+    thread.starCount >= PRIORITY_THRESHOLDS.HIGH_PRIORITY_STARS ||
+    (thread.urgencyScore ?? 0) >= PRIORITY_THRESHOLDS.HIGH_URGENCY
+  ) {
+    return "high";
+  }
+  if (
+    thread.starCount === PRIORITY_THRESHOLDS.LOW_PRIORITY_STARS ||
+    (thread.urgencyScore ?? PRIORITY_THRESHOLDS.LOW_URGENCY) <
+      PRIORITY_THRESHOLDS.LOW_URGENCY
+  ) {
+    return "low";
+  }
+  return "medium";
+}

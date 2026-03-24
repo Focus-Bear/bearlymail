@@ -63,14 +63,13 @@ export class LLMController {
       };
     }
 
-    const result = await this.llmService.checkTone(
-      body.text,
+    const result = await this.llmService.checkTone({
+      text: body.text,
       rules,
-      undefined,
-      req.user.userId,
-      body.scheduledSendAt ?? null,
-      body.currentTime ?? null,
-    );
+      userId: req.user.userId,
+      scheduledSendAt: body.scheduledSendAt ?? null,
+      currentTime: body.currentTime ?? null,
+    });
 
     // Suppress low-significance results — trivial rewording should never block a send.
     // Preserve attachmentReminder and inappropriateTiming even when isOk is forced true
@@ -138,16 +137,15 @@ export class LLMController {
     // a secondary signal in case normalizeEmail comparison fails due to alias mismatch.
     const isUserSender = emailMatchesSender || body.isSentEmail === true;
 
-    return this.llmService.extractActionItems(
-      body.emailBody,
-      undefined,
-      req.user.userId,
-      body.senderInfo,
+    return this.llmService.extractActionItems({
+      emailBody: body.emailBody,
+      userId: req.user.userId,
+      senderInfo: body.senderInfo,
       recipientInfo,
       isUserSender,
-      body.existingActions ?? [],
-      body.subject,
-    );
+      existingActions: body.existingActions ?? [],
+      subject: body.subject,
+    });
   }
 
   @Post("suggest-replies")
@@ -202,14 +200,13 @@ export class LLMController {
     const user = await this.usersService.findOne(req.user.userId);
     const currentRules = user?.toneSettings?.rules || [];
 
-    const result = await this.llmService.disputeToneCheck(
-      body.emailText,
-      currentRules,
-      body.suggestions,
-      body.userArgument,
-      undefined,
-      req.user.userId,
-    );
+    const result = await this.llmService.disputeToneCheck({
+      emailText: body.emailText,
+      rules: currentRules,
+      suggestions: body.suggestions,
+      userArgument: body.userArgument,
+      userId: req.user.userId,
+    });
 
     if (result.accepted && result.rulesToRemove.length > 0) {
       const updatedRules = currentRules.filter(

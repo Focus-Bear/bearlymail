@@ -639,16 +639,13 @@ describe("EmailsController", () => {
       const result = await controller.searchEmails(mockRequest, query);
 
       expect(result).toEqual(mockResults);
-      expect(emailsService.searchEmails).toHaveBeenCalledWith(
-        userId,
-        query,
-        50,
-        undefined,
-        undefined,
-        false,
-        false,
-        false,
-      );
+      expect(emailsService.searchEmails).toHaveBeenCalledWith(userId, query, {
+        maxResults: 50,
+        accountTypes: undefined,
+        skipLlmRanking: false,
+        skipLlmFallback: false,
+        skipSync: false,
+      });
     });
 
     it("should return empty array when query is empty", async () => {
@@ -671,16 +668,13 @@ describe("EmailsController", () => {
 
       await controller.searchEmails(mockRequest, query, maxResults);
 
-      expect(emailsService.searchEmails).toHaveBeenCalledWith(
-        userId,
-        query,
-        100,
-        undefined,
-        undefined,
-        false,
-        false,
-        false,
-      );
+      expect(emailsService.searchEmails).toHaveBeenCalledWith(userId, query, {
+        maxResults: 100,
+        accountTypes: undefined,
+        skipLlmRanking: false,
+        skipLlmFallback: false,
+        skipSync: false,
+      });
     });
 
     it("should handle search errors gracefully", async () => {
@@ -849,12 +843,13 @@ describe("EmailsController", () => {
       expect(mockEmailsService.searchEmails).toHaveBeenCalledWith(
         userId,
         "test query",
-        50,
-        undefined,
-        undefined,
-        false,
-        false,
-        false,
+        {
+          maxResults: 50,
+          accountTypes: undefined,
+          skipLlmRanking: false,
+          skipLlmFallback: false,
+          skipSync: false,
+        },
       );
     });
 
@@ -876,12 +871,13 @@ describe("EmailsController", () => {
       expect(mockEmailsService.searchEmails).toHaveBeenCalledWith(
         userId,
         "test query",
-        50,
-        undefined,
-        undefined,
-        true,
-        true,
-        true,
+        {
+          maxResults: 50,
+          accountTypes: undefined,
+          skipLlmRanking: true,
+          skipLlmFallback: true,
+          skipSync: true,
+        },
       );
     });
 

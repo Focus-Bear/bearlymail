@@ -59,7 +59,8 @@ module.exports = {
     'max-nested-callbacks': ['warn', 4],
 
     // Limit function parameters (too many suggests function does too much)
-    'max-params': ['warn', 6],
+    // Updated to 5 to align with server's better-max-params func: 5 limit (PR #1416).
+    'max-params': ['warn', 5],
 
     // Limit cyclomatic complexity (number of independent paths through code)
     complexity: ['warn', 20],

@@ -14,8 +14,8 @@ import {
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import {
+  determinePriorityLevel,
   EMAIL_AGE_CONFIG,
-  PRIORITY_THRESHOLDS,
 } from "./auto-responder-constants";
 import { AutoResponderContextService } from "./auto-responder-context.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
@@ -29,18 +29,8 @@ import {
   AutoResponseTemplateVars,
   DEFAULT_AUTO_RESPONDER_CONFIG,
   EmailClassification,
+  PreparedResponse,
 } from "./types/auto-responder.types";
-
-type PreparedResponse = {
-  senderEmailHash: string;
-  priorityLevel: "low" | "medium" | "high";
-  qaResult: { answer: string; confidence: number } | null;
-  templateUsed: string;
-  responseBody: string;
-  responseSubject: string;
-  responseHtmlBody: string;
-  classification: EmailClassification;
-};
 
 @Injectable()
 export class AutoResponderService {
@@ -212,19 +202,19 @@ export class AutoResponderService {
       return { sent: false, reason };
     }
 
-    const priorityLevel = this.determinePriorityLevel(thread);
-    return this.buildAndSendResponse(
+    const priorityLevel = determinePriorityLevel(thread);
+    return this.buildAndSendResponse({
       logContext,
       config,
       thread,
       latestEmail,
       user,
       emailThreadId,
-      {
+      priorityAndClassification: {
         priorityLevel,
         classification: classification!,
       },
-    );
+    });
   }
 
   private async checkEarlySkipConditions(
@@ -379,7 +369,7 @@ export class AutoResponderService {
     config: AutoResponderConfig,
     thread: EmailThread,
   ): { sent: boolean; reason: string } | null {
-    const priorityLevel = this.determinePriorityLevel(thread);
+    const priorityLevel = determinePriorityLevel(thread);
     autoresponderLogger.logPriorityCheck(
       logContext,
       priorityLevel,
@@ -455,47 +445,47 @@ export class AutoResponderService {
     return null;
   }
 
-  private async buildAndSendResponse(
-    logContext: AutoresponderDecisionContext,
-    config: AutoResponderConfig,
+  private async resolveCategoryName(
     thread: EmailThread,
+  ): Promise<string | null> {
+    if (!thread.categoryId) return null;
+    const categoryCtx = await this.userContextRepository.findOne({
+      where: {
+        contextId: thread.categoryId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+      },
+      select: ["contextValue"],
+    });
+    return categoryCtx ? categoryCtx.contextValue.split(" - ")[0].trim() : null;
+  }
+
+  private async buildPreparedResponse(options: {
+    config: AutoResponderConfig;
     latestEmail: {
       from: string;
       fromName: string | null;
       subject: string;
       body: string;
-      htmlBody: string | null;
-      replyTo: string | null;
-    },
-    user: User,
-    emailThreadId: string,
-    priorityAndClassification: {
-      priorityLevel: "low" | "medium" | "high";
-      classification: EmailClassification;
-    },
-  ): Promise<{ sent: boolean; reason: string }> {
-    const { priorityLevel, classification } = priorityAndClassification;
+    };
+    user: User;
+    priorityLevel: "low" | "medium" | "high";
+    classification: EmailClassification;
+    categoryName: string | null;
+  }): Promise<PreparedResponse> {
+    const {
+      config,
+      latestEmail,
+      user,
+      priorityLevel,
+      classification,
+      categoryName,
+    } = options;
     const senderEmailHash = this.contextService.hashEmail(latestEmail.from);
     const queueStats = await this.contextService.getQueueStats(user.id);
-    // Resolve category display name from categoryId for accurate response-time lookup.
-    let categoryName: string | null = null;
-    if (thread.categoryId) {
-      const categoryCtx = await this.userContextRepository.findOne({
-        where: {
-          contextId: thread.categoryId,
-          contextKey: ContextKey.EMAIL_CATEGORY,
-        },
-        select: ["contextValue"],
-      });
-      categoryName = categoryCtx
-        ? categoryCtx.contextValue.split(" - ")[0].trim()
-        : null;
-    }
     const categoryResponseTime = this.contextService.getResponseTimeForCategory(
       queueStats,
       categoryName,
     );
-
     let qaResult = null;
     if (config.qaContextEnabled) {
       qaResult = await this.contextService.generateQAAnswer(
@@ -505,7 +495,6 @@ export class AutoResponderService {
         config.qaMinConfidence,
       );
     }
-
     const templateVars: AutoResponseTemplateVars = {
       userName: user.name || "the recipient",
       senderName: latestEmail.fromName || latestEmail.from.split("@")[0],
@@ -518,7 +507,6 @@ export class AutoResponderService {
       aiAnswer: qaResult?.answer || null,
       hasAiAnswer: !!qaResult && qaResult.confidence >= config.qaMinConfidence,
     };
-
     const template = this.templateService.selectTemplate(
       config,
       priorityLevel,
@@ -531,8 +519,7 @@ export class AutoResponderService {
     );
     const responseSubject = `Re: ${latestEmail.subject} - BearlyMail Auto-Response`;
     const responseHtmlBody = this.templateService.markdownToHtml(responseBody);
-
-    const prepared: PreparedResponse = {
+    return {
       senderEmailHash,
       priorityLevel,
       qaResult,
@@ -542,14 +529,52 @@ export class AutoResponderService {
       responseHtmlBody,
       classification,
     };
+  }
 
+  private async buildAndSendResponse(options: {
+    logContext: AutoresponderDecisionContext;
+    config: AutoResponderConfig;
+    thread: EmailThread;
+    latestEmail: {
+      from: string;
+      fromName: string | null;
+      subject: string;
+      body: string;
+      htmlBody: string | null;
+      replyTo: string | null;
+    };
+    user: User;
+    emailThreadId: string;
+    priorityAndClassification: {
+      priorityLevel: "low" | "medium" | "high";
+      classification: EmailClassification;
+    };
+  }): Promise<{ sent: boolean; reason: string }> {
+    const {
+      logContext,
+      config,
+      thread,
+      latestEmail,
+      user,
+      emailThreadId,
+      priorityAndClassification,
+    } = options;
+    const { priorityLevel, classification } = priorityAndClassification;
+    const categoryName = await this.resolveCategoryName(thread);
+    const prepared = await this.buildPreparedResponse({
+      config,
+      latestEmail,
+      user,
+      priorityLevel,
+      classification,
+      categoryName,
+    });
     autoresponderLogger.logSendAttempt(
       logContext,
-      templateUsed,
-      responseSubject,
+      prepared.templateUsed,
+      prepared.responseSubject,
     );
-
-    return this.sendAutoResponse(
+    return this.sendAutoResponse({
       logContext,
       config,
       thread,
@@ -557,23 +582,33 @@ export class AutoResponderService {
       user,
       emailThreadId,
       prepared,
-    );
+    });
   }
 
   /**
    * Persist the sent auto-response: save the Email entity, log analytics,
    * guard the thread from sync-archiving, and add cooldown suppression.
    */
-  private async persistAutoResponseRecord(
-    userId: string,
-    emailThreadId: string,
-    thread: EmailThread,
-    user: User,
-    replyToAddress: string,
-    sentResult: { messageId?: string } | null | undefined,
-    prepared: PreparedResponse,
-    config: AutoResponderConfig,
-  ): Promise<void> {
+  private async persistAutoResponseRecord(options: {
+    userId: string;
+    emailThreadId: string;
+    thread: EmailThread;
+    user: User;
+    replyToAddress: string;
+    sentResult: { messageId?: string } | null | undefined;
+    prepared: PreparedResponse;
+    config: AutoResponderConfig;
+  }): Promise<void> {
+    const {
+      userId,
+      emailThreadId,
+      thread,
+      user,
+      replyToAddress,
+      sentResult,
+      prepared,
+      config,
+    } = options;
     const {
       senderEmailHash,
       priorityLevel,
@@ -643,15 +678,24 @@ export class AutoResponderService {
     );
   }
 
-  private async sendAutoResponse(
-    logContext: AutoresponderDecisionContext,
-    config: AutoResponderConfig,
-    thread: EmailThread,
-    latestEmail: { from: string; replyTo: string | null },
-    user: User,
-    emailThreadId: string,
-    prepared: PreparedResponse,
-  ): Promise<{ sent: boolean; reason: string }> {
+  private async sendAutoResponse(options: {
+    logContext: AutoresponderDecisionContext;
+    config: AutoResponderConfig;
+    thread: EmailThread;
+    latestEmail: { from: string; replyTo: string | null };
+    user: User;
+    emailThreadId: string;
+    prepared: PreparedResponse;
+  }): Promise<{ sent: boolean; reason: string }> {
+    const {
+      logContext,
+      config,
+      thread,
+      latestEmail,
+      user,
+      emailThreadId,
+      prepared,
+    } = options;
     const userId = user.id;
     const {
       templateUsed,
@@ -679,16 +723,15 @@ export class AutoResponderService {
       }
 
       const replyToAddress = latestEmail.replyTo || latestEmail.from;
-      const sentResult = await provider.sendReply(
-        userId,
-        thread.threadId,
-        replyToAddress,
-        responseSubject,
-        responseBody,
-        { htmlBody: responseHtmlBody },
-      );
+      const sentResult = await provider.sendReply(userId, {
+        threadId: thread.threadId,
+        to: replyToAddress,
+        subject: responseSubject,
+        body: responseBody,
+        options: { htmlBody: responseHtmlBody },
+      });
 
-      await this.persistAutoResponseRecord(
+      await this.persistAutoResponseRecord({
         userId,
         emailThreadId,
         thread,
@@ -697,7 +740,7 @@ export class AutoResponderService {
         sentResult,
         prepared,
         config,
-      );
+      });
 
       autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
       autoresponderLogger.logDecision(logContext, {
@@ -746,30 +789,6 @@ export class AutoResponderService {
     return thread.emails.some(
       (email) => email.from.toLowerCase() === userEmail,
     );
-  }
-
-  /**
-   * Determine priority level from thread's star count and urgency
-   */
-  private determinePriorityLevel(
-    thread: EmailThread | null,
-  ): "low" | "medium" | "high" {
-    if (!thread) {
-      return "medium";
-    }
-    if (
-      thread.starCount >= PRIORITY_THRESHOLDS.HIGH_PRIORITY_STARS ||
-      thread.urgencyScore >= PRIORITY_THRESHOLDS.HIGH_URGENCY
-    ) {
-      return "high";
-    }
-    if (
-      thread.starCount === PRIORITY_THRESHOLDS.LOW_PRIORITY_STARS ||
-      thread.urgencyScore < PRIORITY_THRESHOLDS.LOW_URGENCY
-    ) {
-      return "low";
-    }
-    return "medium";
   }
 
   // === Delegated methods to extracted services ===

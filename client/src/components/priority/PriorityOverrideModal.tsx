@@ -35,14 +35,15 @@ function getPriorityLabel(tFunc: TFunction, isHighPriority: boolean, score: numb
   return tFunc('priority.veryLow');
 }
 
-function getDescription(
-  tFunc: TFunction,
-  context: string,
-  isHighPriority: boolean,
-  origScore: number,
-  newScore: number,
-  priorityLabel: string
-): string {
+function getDescription(options: {
+  tFunc: TFunction;
+  context: string;
+  isHighPriority: boolean;
+  origScore: number;
+  newScore: number;
+  priorityLabel: string;
+}): string {
+  const { tFunc, context, isHighPriority, origScore, newScore, priorityLabel } = options;
   if (context === CONTEXT_ARCHIVE) {
     const key = isHighPriority ? 'priority.override.archiveHighPriority' : 'priority.override.archiveLowPriority';
     return tFunc(key, { score: origScore.toFixed(0), priority: priorityLabel });
@@ -92,14 +93,14 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     }
   };
 
-  const description = getDescription(
-    t,
+  const description = getDescription({
+    tFunc: t,
     context,
     isHighPriority,
-    originalPriorityScore,
-    newPriorityScore,
+    origScore: originalPriorityScore,
+    newScore: newPriorityScore,
     priorityLabel
-  );
+  });
 
   return (
     <ModalBackdrop onClose={onClose}>

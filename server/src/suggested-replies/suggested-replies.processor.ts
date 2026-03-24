@@ -274,20 +274,18 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         latestEmail,
       );
 
-      const followUpText = await this.llmService.generateFollowUpDraft(
-        latestEmail.subject || "",
-        followUpCtx.threadMessages,
-        followUpCtx.recipientName,
-        Math.max(1, followUpCtx.daysSinceLastEmail),
-        {
+      const followUpText = await this.llmService.generateFollowUpDraft({
+        subject: latestEmail.subject || "",
+        threadMessages: followUpCtx.threadMessages,
+        theirName: followUpCtx.recipientName,
+        businessDaysWaiting: Math.max(1, followUpCtx.daysSinceLastEmail),
+        userCommunicationStyle: {
           tone: userContext.tone,
           commonPhrases: emailExamples,
         },
-        undefined,
         userId,
-        undefined,
-        userContext.calendarLink,
-      );
+        calendarBookingUrl: userContext.calendarLink,
+      });
 
       return [{ label: "Follow Up", text: followUpText }];
     }

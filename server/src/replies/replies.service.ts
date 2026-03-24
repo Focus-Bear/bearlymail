@@ -356,17 +356,28 @@ ${closing}`;
     return result;
   }
 
-  private async storeSentReply(
-    userId: string,
-    user: { name?: string | null },
-    email: Email,
-    sentMessage: { messageId: string },
-    replySubject: string,
-    bodyWithSignature: string,
-    userEmail: string,
-    replyToAddress: string,
-    cc?: string,
-  ): Promise<void> {
+  private async storeSentReply(options: {
+    userId: string;
+    user: { name?: string | null };
+    email: Email;
+    sentMessage: { messageId: string };
+    replySubject: string;
+    bodyWithSignature: string;
+    userEmail: string;
+    replyToAddress: string;
+    cc?: string;
+  }): Promise<void> {
+    const {
+      userId,
+      user,
+      email,
+      sentMessage,
+      replySubject,
+      bodyWithSignature,
+      userEmail,
+      replyToAddress,
+      cc,
+    } = options;
     try {
       const thread = await this.emailThreadRepository.findOne({
         where: { userId, threadId: email.threadId },
@@ -487,20 +498,22 @@ ${closing}`;
    * Gather all attachment data (user-supplied + forwarded) and resolve the
    * reply-to address.  Returns the complete payload ready for dispatch.
    */
-  private async buildReplyPayload(
-    userId: string,
-    body: string,
-    email: Email,
-    user: { emailSignature: string | null },
-    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
-    options: {
+  private async buildReplyPayload(params: {
+    userId: string;
+    body: string;
+    email: Email;
+    user: { emailSignature: string | null };
+    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>;
+    replyOptions: {
       attachments?: ReplyAttachment[];
       inlineImages?: InlineImage[];
       forwardAttachmentIds?: string[];
       recipients?: string;
       isForward?: boolean;
-    },
-  ): Promise<ReplyPayload> {
+    };
+  }): Promise<ReplyPayload> {
+    const { userId, body, email, user, provider } = params;
+    const options = params.replyOptions;
     const {
       attachments,
       inlineImages,
@@ -575,35 +588,34 @@ ${closing}`;
         ...allInlineImages,
       ];
 
-      return provider.sendEmail(
-        userId,
-        toRecipients,
-        replySubject,
-        bodyWithSignature,
-        ccRecipients,
-        bccRecipients,
-        forwardAttachmentsWithInline.length > 0
-          ? forwardAttachmentsWithInline
-          : undefined,
-      );
+      return provider.sendEmail(userId, {
+        to: toRecipients,
+        subject: replySubject,
+        body: bodyWithSignature,
+        cc: ccRecipients,
+        bcc: bccRecipients,
+        attachments:
+          forwardAttachmentsWithInline.length > 0
+            ? forwardAttachmentsWithInline
+            : undefined,
+      });
     }
 
     // Regular reply — thread into the existing conversation
     const attachmentsWithInline = [...allAttachments, ...allInlineImages];
-    return provider.sendReply(
-      userId,
-      email.threadId,
-      replyToAddress,
-      replySubject,
-      bodyWithSignature,
-      {
+    return provider.sendReply(userId, {
+      threadId: email.threadId,
+      to: replyToAddress,
+      subject: replySubject,
+      body: bodyWithSignature,
+      options: {
         attachments:
           attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
         htmlBody: bodyWithSignature,
         cc: cc || undefined,
         bcc: bcc || undefined,
       },
-    );
+    });
   }
 
   async sendReply(
@@ -639,14 +651,14 @@ ${closing}`;
       );
     }
 
-    const payload = await this.buildReplyPayload(
+    const payload = await this.buildReplyPayload({
       userId,
       body,
       email,
       user,
       provider,
-      options,
-    );
+      replyOptions: options,
+    });
 
     const sentMessage = await this.dispatchReply(
       userId,
@@ -660,17 +672,17 @@ ${closing}`;
       },
     );
 
-    await this.storeSentReply(
+    await this.storeSentReply({
       userId,
       user,
       email,
       sentMessage,
-      payload.replySubject,
-      payload.bodyWithSignature,
+      replySubject: payload.replySubject,
+      bodyWithSignature: payload.bodyWithSignature,
       userEmail,
-      payload.replyToAddress,
+      replyToAddress: payload.replyToAddress,
       cc,
-    );
+    });
 
     try {
       await this.writingStyleLearningService.learnFromSentEmailBodies(userId, [

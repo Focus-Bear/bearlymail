@@ -15,9 +15,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * Rollback (down): Re-adds the three columns as nullable/default — no data is
  * restored (the encrypted values are gone). Rollback is a last-resort operation.
  */
-export class RemoveDenormalizedCategoryColumn1787000000000
-  implements MigrationInterface
-{
+export class RemoveDenormalizedCategoryColumn1787000000000 implements MigrationInterface {
   name = "RemoveDenormalizedCategoryColumn1787000000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {

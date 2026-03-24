@@ -442,14 +442,14 @@ const EmailDetailContent: React.FC<any> = ({
     effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
 
-  const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers(
-    st.replyOptions,
-    st.setDraft,
-    st.setSelectedReplyOption,
-    st.setReplyOptions,
-    st.setToneCheckResult,
-    st.setShowReplyComposer
-  );
+  const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers({
+    replyOptions: st.replyOptions,
+    setDraft: st.setDraft,
+    setSelectedReplyOption: st.setSelectedReplyOption,
+    setReplyOptions: st.setReplyOptions,
+    setToneCheckResult: st.setToneCheckResult,
+    setShowReplyComposer: st.setShowReplyComposer,
+  });
 
   // Partition suggested actions into three buckets:
   //   githubActions    → GitHubStatusSection → GitHubLinkCard (fixed by #819)
@@ -567,15 +567,15 @@ const EmailDetailContent: React.FC<any> = ({
               onDraftChange={handleDraftChange}
               onReplyOptionSelect={handleReplyOptionSelect}
               onClose={handleReplyClose}
-              onSend={(
-                files: File[],
-                hrs?: number,
-                _fwd?: string[],
-                draft?: string,
-                sched?: Date,
-                keepInAction?: boolean,
-                inlineImages?: Map<string, File>
-              ) => ops.handleSendReply(files, hrs, draft, sched, keepInAction, inlineImages)}
+              onSend={(params) => ops.handleSendReply({
+                files: params.files,
+                expectedReplyHours: params.expectedReplyHours,
+                forwardAttachmentIds: params.forwardAttachmentIds,
+                draftOverride: params.draftOverride,
+                scheduledSendAt: params.scheduledSendAt,
+                keepInAction: params.keepInAction,
+                inlineImages: params.inlineImages,
+              })}
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);
               }}

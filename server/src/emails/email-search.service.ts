@@ -4,72 +4,27 @@ import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { LLMService } from "../llm/llm.service";
 import { searchLogger } from "../utils/search-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import {
+  buildSearchDebugInfo,
+  EmailWithMetadata,
+  ProviderSearchResult,
+  QueryTried,
+  RawSearchEmail,
+  SearchEmailsOptions,
+} from "./email-search.types";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 
-// Type for emails with search metadata
-// Note: We use a type intersection instead of extends to avoid getPriorityScore requirement issues
-export type EmailWithMetadata = Email & {
-  searchExplanation?: string;
-  relevanceScore?: number;
-  debugInfo?: Record<string, unknown>;
-};
-
-export interface RawSearchEmail {
-  receivedAt: Date;
-  from?: string;
-  fromName?: string;
-  subject?: string;
-  messageId?: string;
-  [key: string]: unknown;
-}
-
-export interface QueryTried {
-  query: string;
-  resultCount: number;
-  accountType?: string;
-}
-
-export interface ProviderSearchResult {
-  rawEmails: RawSearchEmail[];
-  successfulQuery: string | null;
-  queriesTried: QueryTried[];
-}
-
-export interface SearchEmailsOptions {
-  maxResults?: number;
-  onProgress?: (step: string, message: string) => void;
-  calculateDaysSinceLastEmail?: (
-    userId: string,
-    email: Partial<Email>,
-  ) => Promise<number | undefined>;
-  accountTypes?: string[];
-  skipLlmRanking?: boolean;
-  /**
-   * When true, skip the LLM-driven query expansion fallback in Phase 1.
-   * Used by the initial fast-search path (GET /emails/search?skipLlm=true)
-   * to return results within the 2s performance budget.
-   * LLM expansion is deferred to Phase 3 (POST /emails/search/expand).
-   */
-  skipLlmFallback?: boolean;
-  /**
-   * When true, skip the targeted provider sync step in syncAndFetchMatchedEmails.
-   * Use for Phase 1 (fast path) to avoid extra provider latency.
-   * Missing emails will be synced in the background.
-   */
-  skipSync?: boolean;
-}
-
-/**
- * Note: Search returns a "no-results" marker object when no results are found.
- * The marker has shape: { id: "no-results", subject: "", from: "", body: "",
- * receivedAt: string, debugInfo: { originalQuery, queriesTried, message } }
- * Cast through `unknown` to EmailWithMetadata for type compatibility.
- */
+export type {
+  EmailWithMetadata,
+  ProviderSearchResult,
+  QueryTried,
+  RawSearchEmail,
+  SearchEmailsOptions,
+} from "./email-search.types";
 
 @Injectable()
 export class EmailSearchService {
@@ -169,13 +124,13 @@ export class EmailSearchService {
         );
       }
 
-      return this.performRankedSearch(
+      return this.performRankedSearch({
         userId,
         originalQuery,
         query,
         matchedEmails,
         rawEmails,
-        {
+        context: {
           maxResults,
           skipLlmRanking,
           calculateDaysSinceLastEmail,
@@ -185,7 +140,7 @@ export class EmailSearchService {
           queriesTried,
           searchStartTime,
         },
-      );
+      });
     } catch (error) {
       this.logger.error("Search failed:", error);
       searchLogger.logSearchError(userId, originalQuery, String(error));
@@ -248,12 +203,12 @@ export class EmailSearchService {
    * Apply LLM ranking (or skip it) and build the final result array.
    * Extracted from searchEmails() to reduce its statement/line count.
    */
-  private async performRankedSearch(
-    userId: string,
-    originalQuery: string,
-    query: string,
-    matchedEmails: Email[],
-    rawEmails: RawSearchEmail[],
+  private async performRankedSearch(options: {
+    userId: string;
+    originalQuery: string;
+    query: string;
+    matchedEmails: Email[];
+    rawEmails: RawSearchEmail[];
     context: {
       maxResults: number;
       skipLlmRanking?: boolean;
@@ -263,8 +218,10 @@ export class EmailSearchService {
       gmailQueries: string[];
       queriesTried: QueryTried[];
       searchStartTime: number;
-    },
-  ): Promise<EmailWithMetadata[]> {
+    };
+  }): Promise<EmailWithMetadata[]> {
+    const { userId, originalQuery, query, matchedEmails, rawEmails, context } =
+      options;
     const {
       maxResults,
       skipLlmRanking,
@@ -309,10 +266,10 @@ export class EmailSearchService {
       );
 
     onProgress?.("explaining", "Generating explanations...");
-    const result = await this.buildSearchResults(
+    const result = await this.buildSearchResults({
       userId,
       originalQuery,
-      query,
+      fallbackQuery: query,
       matchedEmails,
       filteredEmails,
       rawEmails,
@@ -322,7 +279,7 @@ export class EmailSearchService {
       gmailQueries,
       queriesTried,
       maxResults,
-    );
+    });
 
     searchLogger.logSearchComplete(
       userId,
@@ -550,20 +507,34 @@ export class EmailSearchService {
     }
   }
 
-  private async buildSearchResults(
-    userId: string,
-    originalQuery: string,
-    fallbackQuery: string,
-    matchedEmails: Email[],
-    filteredEmails: Email[],
-    rawEmails: RawSearchEmail[],
-    allScores: Map<number, number>,
-    now: Date,
-    successfulQuery: string | null,
-    gmailQueries: string[],
-    queriesTried: QueryTried[],
-    maxResults: number,
-  ): Promise<EmailWithMetadata[]> {
+  private async buildSearchResults(options: {
+    userId: string;
+    originalQuery: string;
+    fallbackQuery: string;
+    matchedEmails: Email[];
+    filteredEmails: Email[];
+    rawEmails: RawSearchEmail[];
+    allScores: Map<number, number>;
+    now: Date;
+    successfulQuery: string | null;
+    gmailQueries: string[];
+    queriesTried: QueryTried[];
+    maxResults: number;
+  }): Promise<EmailWithMetadata[]> {
+    const {
+      userId,
+      originalQuery,
+      fallbackQuery,
+      matchedEmails,
+      filteredEmails,
+      rawEmails,
+      allScores,
+      now,
+      successfulQuery,
+      gmailQueries,
+      queriesTried,
+      maxResults,
+    } = options;
     let explanationsMap = new Map<number, string>();
     if (filteredEmails.length > 0) {
       try {
@@ -589,7 +560,6 @@ export class EmailSearchService {
         );
       }
     }
-
     const emailsWithMetadata: EmailWithMetadata[] = filteredEmails.map(
       (email, idx) => {
         const emailIndex = matchedEmails.indexOf(email);
@@ -605,40 +575,22 @@ export class EmailSearchService {
         } as EmailWithMetadata;
       },
     );
-
     emailsWithMetadata.sort(
       (itemA, itemB) =>
         (itemB.relevanceScore ?? 0) - (itemA.relevanceScore ?? 0),
     );
-
-    const debugInfo = {
+    const debugInfo = buildSearchDebugInfo({
       originalQuery,
-      gmailQuery: successfulQuery || gmailQueries[0] || fallbackQuery,
+      fallbackQuery,
+      rawEmails,
+      filteredEmails,
+      allScores,
+      now,
+      successfulQuery,
+      gmailQueries,
       queriesTried,
-      totalRawEmails: rawEmails.length,
-      maxResultsRequested: maxResults,
-      filteredCount: filteredEmails.length,
-      allRawEmails: rawEmails.map((rawEmail, index) => {
-        const receivedDate = new Date(rawEmail.receivedAt);
-        const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
-        );
-        return {
-          index,
-          from: rawEmail.fromName || rawEmail.from,
-          subject: rawEmail.subject,
-          receivedAt: rawEmail.receivedAt,
-          daysAgo,
-          aiScore: allScores.get(index) ?? null,
-          includedInResults: filteredEmails.some(
-            (emailEntry) =>
-              (emailEntry as { messageId?: string }).messageId ===
-              (rawEmail.messageId as string),
-          ),
-        };
-      }),
-    };
-
+      maxResults,
+    });
     return emailsWithMetadata.map((email, index) => {
       if (index === 0) {
         (email as EmailWithMetadata).debugInfo = debugInfo;

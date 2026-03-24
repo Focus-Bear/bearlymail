@@ -61,23 +61,21 @@ const dispatchToField = (
 const applyRemoveTag = (
   index: number,
   field: FieldType,
-  toTags: string[],
-  ccTags: string[],
-  bccTags: string[],
+  tags: { toTags: string[]; ccTags: string[]; bccTags: string[] },
   dispatch: DispatchFns
 ) => {
-  const tags = getTagsForField(field, toTags, ccTags, bccTags);
-  dispatchToField(field, tags.filter((_, i) => i !== index).join(', '), dispatch);
+  const { toTags, ccTags, bccTags } = tags;
+  const fieldTags = getTagsForField(field, toTags, ccTags, bccTags);
+  dispatchToField(field, fieldTags.filter((_, i) => i !== index).join(', '), dispatch);
 };
 
 const applySelectContact = (
   contact: Contact,
   field: FieldType,
-  toTags: string[],
-  ccTags: string[],
-  bccTags: string[],
+  tags: { toTags: string[]; ccTags: string[]; bccTags: string[] },
   dispatch: DispatchFns
 ) => {
+  const { toTags, ccTags, bccTags } = tags;
   const current = getTagsForField(field, toTags, ccTags, bccTags);
   const display = contact.name ? `${contact.name} <${contact.email}>` : contact.email;
   dispatchToField(field, [...current, display].join(', '), dispatch);
@@ -299,12 +297,12 @@ export const useRecipients = ({
   const bccTags = useMemo(() => parseEmailsToTags(replyBcc), [replyBcc]);
 
   const handleRemoveTag = useCallback(
-    (index: number, field: FieldType) => applyRemoveTag(index, field, toTags, ccTags, bccTags, dispatch),
+    (index: number, field: FieldType) => applyRemoveTag(index, field, { toTags, ccTags, bccTags }, dispatch),
     [toTags, ccTags, bccTags, dispatch]
   );
 
   const handleSelectContact = useCallback((contact: Contact, field: FieldType) => {
-    applySelectContact(contact, field, toTags, ccTags, bccTags, dispatch);
+    applySelectContact(contact, field, { toTags, ccTags, bccTags }, dispatch);
     setInputValues(prev => ({ ...prev, [field]: '' }));
     setSearchResults([]);
     setActiveField(null);

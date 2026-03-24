@@ -26,9 +26,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * and re-encrypt.  As a lightweight SQL-only step we also clear any rows
  * where the stored category is NULL or an empty string.
  */
-export class RepairThreadCategoryNames1784000000000
-  implements MigrationInterface
-{
+export class RepairThreadCategoryNames1784000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Because category is encrypted we cannot do text manipulation in SQL.
     // We add a boolean flag so the application-layer repair job (triggered on

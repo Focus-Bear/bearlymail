@@ -123,13 +123,23 @@ describe("GitHubController - getAdminDebugInfo", () => {
 
   // Helper to set up standard SQL mocks with 6 calls (the new query for recent threads is 6th)
   const setupStandardMocks = (
-    usersCount = "3",
-    threadsCount = "42",
-    jobStatsRows: Array<{ state: string; count: string }> = [],
-    failedJobRows: unknown[] = [],
-    completedCount = "150",
-    recentThreadRows: unknown[] = [],
+    opts: {
+      usersCount?: string;
+      threadsCount?: string;
+      jobStatsRows?: Array<{ state: string; count: string }>;
+      failedJobRows?: unknown[];
+      completedCount?: string;
+      recentThreadRows?: unknown[];
+    } = {},
   ) => {
+    const {
+      usersCount = "3",
+      threadsCount = "42",
+      jobStatsRows = [],
+      failedJobRows = [],
+      completedCount = "150",
+      recentThreadRows = [],
+    } = opts;
     mockExecuteSql
       // users with token
       .mockResolvedValueOnce({ rows: [{ count: usersCount }] })
@@ -146,16 +156,15 @@ describe("GitHubController - getAdminDebugInfo", () => {
   };
 
   it("should return debug info with correct structure", async () => {
-    setupStandardMocks(
-      "3",
-      "42",
-      [
+    setupStandardMocks({
+      usersCount: "3",
+      threadsCount: "42",
+      jobStatsRows: [
         { state: "failed", count: "2" },
         { state: "active", count: "1" },
       ],
-      [],
-      "150",
-    );
+      completedCount: "150",
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -185,13 +194,13 @@ describe("GitHubController - getAdminDebugInfo", () => {
       retrycount: 3,
     };
 
-    setupStandardMocks(
-      "1",
-      "10",
-      [{ state: "failed", count: "1" }],
-      [mockFailedJob],
-      "5",
-    );
+    setupStandardMocks({
+      usersCount: "1",
+      threadsCount: "10",
+      jobStatsRows: [{ state: "failed", count: "1" }],
+      failedJobRows: [mockFailedJob],
+      completedCount: "5",
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -208,7 +217,11 @@ describe("GitHubController - getAdminDebugInfo", () => {
   });
 
   it("should handle empty query results gracefully", async () => {
-    setupStandardMocks("0", "0", [], [], "0");
+    setupStandardMocks({
+      usersCount: "0",
+      threadsCount: "0",
+      completedCount: "0",
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -231,13 +244,13 @@ describe("GitHubController - getAdminDebugInfo", () => {
       retrycount: 2,
     };
 
-    setupStandardMocks(
-      "1",
-      "5",
-      [{ state: "failed", count: "1" }],
-      [mockFailedJob],
-      "3",
-    );
+    setupStandardMocks({
+      usersCount: "1",
+      threadsCount: "5",
+      jobStatsRows: [{ state: "failed", count: "1" }],
+      failedJobRows: [mockFailedJob],
+      completedCount: "3",
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -245,18 +258,17 @@ describe("GitHubController - getAdminDebugInfo", () => {
   });
 
   it("should count all job states from the stats query", async () => {
-    setupStandardMocks(
-      "2",
-      "10",
-      [
+    setupStandardMocks({
+      usersCount: "2",
+      threadsCount: "10",
+      jobStatsRows: [
         { state: "created", count: "5" },
         { state: "active", count: "2" },
         { state: "retry", count: "1" },
         { state: "failed", count: "3" },
       ],
-      [],
-      "100",
-    );
+      completedCount: "100",
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -274,14 +286,19 @@ describe("GitHubController - getAdminDebugInfo", () => {
     // Since EncryptionHelper.decrypt will fail on non-encrypted data,
     // the controller's try/catch will skip malformed rows, so threadsWithLinksNoStatus stays 0
     // for test data that doesn't have real encryption
-    setupStandardMocks("1", "5", [], [], "10", [
-      {
-        id: "thread-1",
-        userId: "user-1",
-        githubMetadata: "not-real-encrypted-data",
-        updatedAt: "2026-02-20T10:00:00Z",
-      },
-    ]);
+    setupStandardMocks({
+      usersCount: "1",
+      threadsCount: "5",
+      completedCount: "10",
+      recentThreadRows: [
+        {
+          id: "thread-1",
+          userId: "user-1",
+          githubMetadata: "not-real-encrypted-data",
+          updatedAt: "2026-02-20T10:00:00Z",
+        },
+      ],
+    });
 
     const result = await controller.getAdminDebugInfo();
 
@@ -291,7 +308,11 @@ describe("GitHubController - getAdminDebugInfo", () => {
   });
 
   it("should return recentSilentFailures as empty array when no threads found", async () => {
-    setupStandardMocks("2", "10", [], [], "50", []);
+    setupStandardMocks({
+      usersCount: "2",
+      threadsCount: "10",
+      completedCount: "50",
+    });
 
     const result = await controller.getAdminDebugInfo();
 

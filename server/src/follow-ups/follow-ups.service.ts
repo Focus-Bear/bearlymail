@@ -189,12 +189,12 @@ export class FollowUpsService {
             });
           }
 
-          const draft = await this.llmService.generateFollowUpDraft(
-            followUp.subject || "Follow up",
+          const draft = await this.llmService.generateFollowUpDraft({
+            subject: followUp.subject || "Follow up",
             threadMessages,
-            followUp.lastTheirReplyFrom || "them",
-            followUp.followUpDays,
-          );
+            theirName: followUp.lastTheirReplyFrom || "them",
+            businessDaysWaiting: followUp.followUpDays,
+          });
           followUp.draftFollowUp = draft;
           await this.followUpRepository.save(followUp);
         } catch (error) {

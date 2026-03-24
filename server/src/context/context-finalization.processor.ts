@@ -262,16 +262,16 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       "log",
     );
 
-    await this.contextService.finalizeContextAnalysis(
+    await this.contextService.finalizeContextAnalysis({
       userId,
       analysisRecordId,
       // Use actual value from stats
-      actualTotalBatches,
-      threadsInRange,
-      sentEmailsData,
+      totalBatches: actualTotalBatches,
+      totalThreads: threadsInRange,
+      sentEmailsCount: sentEmailsData,
       analysisStats,
       trueVipContacts,
-    );
+    });
 
     this.logger.log(
       `[Worker ${workerId}] ✅ Completed context analysis for user ${userId} (analysis ${analysisRecordId}). All ${jobData.totalBatches} batches processed.`,

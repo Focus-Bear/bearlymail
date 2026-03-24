@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddPhishingSignalToEmails1777000000000
-  implements MigrationInterface
-{
+export class AddPhishingSignalToEmails1777000000000 implements MigrationInterface {
   name = "AddPhishingSignalToEmails1777000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

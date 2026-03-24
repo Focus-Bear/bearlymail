@@ -255,16 +255,15 @@ export class FollowUpsProcessor implements OnModuleInit {
         `Thread style analysis for follow-up ${followUpId}: hasPreferredName=${!!ctx.threadStyleInfo.preferredName}, greetingStyle=${ctx.threadStyleInfo.greetingStyle}`,
       );
 
-      const draft = await this.llmService.generateFollowUpDraft(
-        followUp.subject || "Follow up",
-        ctx.threadMessages,
-        ctx.theirName,
-        ctx.businessDaysWaiting,
-        ctx.userCommunicationStyle,
-        undefined,
+      const draft = await this.llmService.generateFollowUpDraft({
+        subject: followUp.subject || "Follow up",
+        threadMessages: ctx.threadMessages,
+        theirName: ctx.theirName,
+        businessDaysWaiting: ctx.businessDaysWaiting,
+        userCommunicationStyle: ctx.userCommunicationStyle,
         userId,
-        ctx.threadStyleInfo,
-      );
+        threadStyleInfo: ctx.threadStyleInfo,
+      });
 
       followUp.draftFollowUp = draft;
       followUp.generationStatus = "completed";
@@ -300,13 +299,12 @@ export class FollowUpsProcessor implements OnModuleInit {
 
     while (retries < maxRetries) {
       try {
-        await provider.sendReply(
-          userId,
-          followUp.threadId,
-          recipient,
+        await provider.sendReply(userId, {
+          threadId: followUp.threadId,
+          to: recipient,
           subject,
-          draft,
-        );
+          body: draft,
+        });
         return;
       } catch (error: unknown) {
         lastError = error as Error;

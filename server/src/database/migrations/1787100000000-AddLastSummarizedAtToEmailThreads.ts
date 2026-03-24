@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddLastSummarizedAtToEmailThreads1787100000000
-  implements MigrationInterface
-{
+export class AddLastSummarizedAtToEmailThreads1787100000000 implements MigrationInterface {
   name = "AddLastSummarizedAtToEmailThreads1787100000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {

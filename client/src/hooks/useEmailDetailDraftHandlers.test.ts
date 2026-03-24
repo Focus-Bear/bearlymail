@@ -28,14 +28,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleDraftChange sets draft and clears tone check result', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     act(() => {
@@ -50,14 +50,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleDraftChange persists user content to customDraftRef', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     act(() => {
@@ -70,14 +70,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleReplyOptionSelect restores custom draft when switching back to Custom tab', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     // User types something in the custom tab
@@ -101,14 +101,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleReplyOptionSelect sets suggestion draft for non-custom tabs', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     act(() => {
@@ -123,14 +123,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleReplyOptionSelect preserves selected option index even when handleDraftChange fires immediately after (simulating Tiptap cascade)', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     act(() => {
@@ -150,14 +150,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleDraftChange without prior handleReplyOptionSelect still switches to Custom', async () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     // No option selection — user is typing directly
@@ -172,14 +172,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleDraftChange after microtask clears flag — subsequent typing resets to Custom', async () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     // Select option A
@@ -205,14 +205,14 @@ describe('useEmailDetailDraftHandlers', () => {
   it('handleReplyClose clears all reply state', () => {
     const setters = makeSetters();
     const { result } = renderHook(() =>
-      useEmailDetailDraftHandlers(
-        replyOptions,
-        setters.setDraft,
-        setters.setSelectedReplyOption,
-        setters.setReplyOptions,
-        setters.setToneCheckResult,
-        setters.setShowReplyComposer
-      )
+      useEmailDetailDraftHandlers({
+        replyOptions: replyOptions,
+        setDraft: setters.setDraft,
+        setSelectedReplyOption: setters.setSelectedReplyOption,
+        setReplyOptions: setters.setReplyOptions,
+        setToneCheckResult: setters.setToneCheckResult,
+        setShowReplyComposer: setters.setShowReplyComposer,
+      })
     );
 
     act(() => {

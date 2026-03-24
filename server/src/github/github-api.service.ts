@@ -5,107 +5,16 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { HTTP_STATUS } from "../constants/http-status";
 import { getErrorMessage, isApiError } from "../types/common";
 import { ParsedGitHubLink } from "./github.service";
+import {
+  GitHubIssueStatus,
+  GitHubPRStatus,
+  GraphQLErrorWithData,
+  ProjectItemsGraphQLResponse,
+  ProjectStatusOptionsGraphQLResponse,
+  SearchResultItem,
+} from "./github-api.types";
 
-/**
- * GraphQL response for project items query
- * This is a complex nested structure from GitHub's GraphQL API
- */
-interface ProjectItemsGraphQLResponse {
-  repository?: {
-    issue?: {
-      projectItems?: {
-        nodes?: Array<{
-          project?: { title?: string };
-          fieldValues?: {
-            nodes?: Array<{
-              field?: { name?: string };
-              name?: string;
-            } | null>;
-          };
-        } | null>;
-      };
-    };
-  };
-}
-
-/**
- * GraphQL error with optional response data
- * GitHub's GraphQL can return partial data even with errors
- */
-interface GraphQLErrorWithData {
-  responseData?: ProjectItemsGraphQLResponse;
-  graphqlResponseData?: ProjectItemsGraphQLResponse;
-  response?: { graphqlResponseData?: ProjectItemsGraphQLResponse };
-}
-
-/**
- * Search result item from Octokit REST API
- */
-interface SearchResultItem {
-  number: number;
-  title: string;
-  state: string;
-  html_url: string;
-  repository_url: string;
-  body?: string | null;
-  labels: Array<{ name?: string; color?: string }>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GitHubIssueStatus {
-  state: "open" | "closed";
-  title: string;
-  labels: Array<{ name: string; color: string }>;
-  assignees: Array<{ login: string; avatar_url: string }>;
-  projects?: Array<{
-    name: string;
-    // Status field value (e.g., "In Progress", "Backlog")
-    status?: string;
-  }>;
-}
-
-export interface GitHubPRStatus {
-  state: "open" | "closed" | "merged";
-  title: string;
-  labels: Array<{ name: string; color: string }>;
-  assignees: Array<{ login: string; avatar_url: string }>;
-  reviewStatus: "approved" | "changes_requested" | "pending" | null;
-  commentsCount: number;
-  mergeable: boolean | null;
-  merged: boolean;
-  projects?: Array<{
-    name: string;
-    // Status field value (e.g., "In Progress", "Backlog")
-    status?: string;
-  }>;
-}
-
-/**
- * GraphQL response for fetching project status field options via Projects v2
- */
-interface ProjectStatusOptionsGraphQLResponse {
-  repository?: {
-    issue?: {
-      projectItems?: {
-        nodes?: Array<{
-          project?: {
-            title?: string;
-            fields?: {
-              nodes?: Array<{
-                name?: string;
-                options?: Array<{
-                  id: string;
-                  name: string;
-                }>;
-              } | null>;
-            };
-          };
-        } | null>;
-      };
-    };
-  };
-}
+export type { GitHubIssueStatus, GitHubPRStatus } from "./github-api.types";
 
 @Injectable()
 export class GitHubApiService {
@@ -712,12 +621,15 @@ export class GitHubApiService {
    */
   async createIssue(
     token: string,
-    owner: string,
-    repo: string,
-    title: string,
-    body: string,
-    labels?: string[],
+    params: {
+      owner: string;
+      repo: string;
+      title: string;
+      body: string;
+      labels?: string[];
+    },
   ): Promise<unknown> {
+    const { owner, repo, title, body, labels } = params;
     try {
       const octokit = this.createClient(token);
       const response = await octokit.rest.issues.create({

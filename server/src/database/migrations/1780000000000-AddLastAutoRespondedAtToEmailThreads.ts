@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddLastAutoRespondedAtToEmailThreads1780000000000
-  implements MigrationInterface
-{
+export class AddLastAutoRespondedAtToEmailThreads1780000000000 implements MigrationInterface {
   name = "AddLastAutoRespondedAtToEmailThreads1780000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

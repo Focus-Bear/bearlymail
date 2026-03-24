@@ -16,15 +16,24 @@ export class Office365AccountsService {
     private usersService: UsersService,
   ) {}
 
-  async create(
-    userId: string,
-    microsoftId: string,
-    email: string,
-    name: string,
-    accessToken: string,
-    refreshToken: string,
-    isPrimary: boolean = false,
-  ): Promise<Office365Account> {
+  async create(options: {
+    userId: string;
+    microsoftId: string;
+    email: string;
+    name: string;
+    accessToken: string;
+    refreshToken: string;
+    isPrimary?: boolean;
+  }): Promise<Office365Account> {
+    const {
+      userId,
+      microsoftId,
+      email,
+      name,
+      accessToken,
+      refreshToken,
+      isPrimary = false,
+    } = options;
     // If this is set as primary, unset other primary accounts
     if (isPrimary) {
       await this.office365AccountRepository.update(

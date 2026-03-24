@@ -155,14 +155,15 @@ export class LLMProcessor implements OnModuleInit {
     return { email, thread };
   }
 
-  private async runFullPriorityRefinement(
-    userId: string,
-    emailId: string,
-    email: Email,
-    thread: EmailThread | null,
-    workerId: string,
-    tracker: JobPerformanceTracker,
-  ): Promise<void> {
+  private async runFullPriorityRefinement(options: {
+    userId: string;
+    emailId: string;
+    email: Email;
+    thread: EmailThread | null;
+    workerId: string;
+    tracker: JobPerformanceTracker;
+  }): Promise<void> {
+    const { userId, emailId, email, thread, workerId, tracker } = options;
     if (email.emailThreadId && thread) {
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
@@ -206,21 +207,20 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
-    const llmResult = await this.priorityAnalysisService.analyzePriority(
-      {
+    const llmResult = await this.priorityAnalysisService.analyzePriority({
+      email: {
         from: email.from || "",
         fromName: email.fromName,
         senderJobTitle: email.senderJobTitle,
         subject: email.subject || "",
         body: bodyForPriority,
       },
-      { averageTimeToReply: avgTimeToReply },
-      undefined,
+      userHistory: { averageTimeToReply: avgTimeToReply },
       userId,
       userContext,
-      replyStatus,
-      email.sentimentScore ?? undefined,
-    );
+      threadInfo: replyStatus,
+      preComputedSentimentScore: email.sentimentScore ?? undefined,
+    });
 
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");
@@ -267,24 +267,24 @@ export class LLMProcessor implements OnModuleInit {
       const { email, thread } = fetchResult;
 
       const incrementalResult =
-        await this.summaryProcessorService.tryIncrementalAnalysis(
+        await this.summaryProcessorService.tryIncrementalAnalysis({
           thread,
           email,
           forceRecalculate,
           userId,
           workerId,
           tracker,
-        );
+        });
       if (incrementalResult.handled) return;
 
-      await this.runFullPriorityRefinement(
+      await this.runFullPriorityRefinement({
         userId,
         emailId,
         email,
         thread,
         workerId,
         tracker,
-      );
+      });
       tracker.finish();
     } catch (error) {
       this.logger.error(

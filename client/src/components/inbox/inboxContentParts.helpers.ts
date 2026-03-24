@@ -19,14 +19,15 @@ export function computeEmailListBorderRight(
   return 'none';
 }
 
-export function computeCanRenderCategories(
-  loading: boolean,
-  isRefetchingWithoutData: boolean,
-  hasInitiallyLoaded: boolean,
-  loadingModeSwitch: boolean,
-  fetchError: string | null | undefined,
-  categoriesCount: number,
-): boolean {
+export function computeCanRenderCategories(options: {
+  loading: boolean;
+  isRefetchingWithoutData: boolean;
+  hasInitiallyLoaded: boolean;
+  loadingModeSwitch: boolean;
+  fetchError: string | null | undefined;
+  categoriesCount: number;
+}): boolean {
+  const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } = options;
   if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) {
     return false;
   }

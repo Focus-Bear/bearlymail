@@ -64,7 +64,10 @@ export class ContextService {
     userId: string,
     analysisId?: string,
   ): Promise<void> {
-    return this.orchestratorService.analyzeAndLearnFromEmails(userId, analysisId);
+    return this.orchestratorService.analyzeAndLearnFromEmails(
+      userId,
+      analysisId,
+    );
   }
 
   async createOrUpdateContext(
@@ -129,35 +132,27 @@ export class ContextService {
     );
   }
 
-  async finalizeContextAnalysis(
-    userId: string,
-    analysisRecordId: string,
-    totalBatches: number,
-    totalThreads: number,
-    sentEmailsCount: number,
+  async finalizeContextAnalysis(options: {
+    userId: string;
+    analysisRecordId: string;
+    totalBatches: number;
+    totalThreads: number;
+    sentEmailsCount: number;
     analysisStats: {
       totalThreads: number;
       outboundEmails: number;
       threadsNeverOpened: number;
       threadsReadButNotReplied: number;
       vipContactsEvaluated: number;
-    },
-    trueVipContacts: Array<{
+    };
+    trueVipContacts?: Array<{
       emailKey: string;
       from: string;
       fromName?: string;
       threadCount: number;
-    }> = [],
-  ): Promise<void> {
-    return this.finalizerService.finalizeContextAnalysis(
-      userId,
-      analysisRecordId,
-      totalBatches,
-      totalThreads,
-      sentEmailsCount,
-      analysisStats,
-      trueVipContacts,
-    );
+    }>;
+  }): Promise<void> {
+    return this.finalizerService.finalizeContextAnalysis(options);
   }
 
   async consolidateExistingCategories(userId: string): Promise<{
@@ -183,7 +178,9 @@ export class ContextService {
   }
 
   async enqueueContextCompressionIfNeeded(userId: string): Promise<boolean> {
-    return this.contextCompressionService.enqueueContextCompressionIfNeeded(userId);
+    return this.contextCompressionService.enqueueContextCompressionIfNeeded(
+      userId,
+    );
   }
 
   async compressUserContext(

@@ -243,14 +243,14 @@ export class ZohoProvider implements EmailProvider {
       `Found ${inboxMessages.length} inbox and ${importantMessages.length} important messages`,
     );
 
-    const threadUpdates = await this.processThreads(
+    const threadUpdates = await this.processThreads({
       userId,
       threadMap,
       inboxMessages,
       zohoClient,
       zohoAccountId,
       isInitialSync,
-    );
+    });
     await this.applyThreadUpdates(userId, threadUpdates);
     await this.checkExistingStarredThreads(
       userId,
@@ -266,17 +266,25 @@ export class ZohoProvider implements EmailProvider {
     );
   }
 
-  private async processThreads(
-    userId: string,
-    threadMap: Map<string, ZohoMailMessage[]>,
-    inboxMessages: ZohoMailMessage[],
-    zohoClient: AxiosInstance,
-    zohoAccountId: string,
-    isInitialSync: boolean,
-  ): Promise<{
+  private async processThreads(options: {
+    userId: string;
+    threadMap: Map<string, ZohoMailMessage[]>;
+    inboxMessages: ZohoMailMessage[];
+    zohoClient: AxiosInstance;
+    zohoAccountId: string;
+    isInitialSync: boolean;
+  }): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
     archivedUpdates: { threadId: string; isArchived: boolean }[];
   }> {
+    const {
+      userId,
+      threadMap,
+      inboxMessages,
+      zohoClient,
+      zohoAccountId,
+      isInitialSync,
+    } = options;
     const starUpdates: { threadId: string; starCount: number }[] = [];
     const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
 
@@ -299,15 +307,15 @@ export class ZohoProvider implements EmailProvider {
 
         for (const message of messages) {
           if (!message.uid) continue;
-          await this.processMessage(
+          await this.processMessage({
             userId,
             message,
             threadId,
             zohoClient,
             zohoAccountId,
-            isImportant ? 3 : 0,
+            starCount: isImportant ? 3 : 0,
             isInitialSync,
-          );
+          });
         }
       } catch (threadError: unknown) {
         this.handleThreadProcessingError(threadId, threadError);
@@ -317,15 +325,24 @@ export class ZohoProvider implements EmailProvider {
     return { starUpdates, archivedUpdates };
   }
 
-  private async processMessage(
-    userId: string,
-    message: ZohoMailMessage,
-    threadId: string,
-    zohoClient: AxiosInstance,
-    zohoAccountId: string,
-    starCount: number,
-    isInitialSync: boolean,
-  ): Promise<void> {
+  private async processMessage(options: {
+    userId: string;
+    message: ZohoMailMessage;
+    threadId: string;
+    zohoClient: AxiosInstance;
+    zohoAccountId: string;
+    starCount: number;
+    isInitialSync: boolean;
+  }): Promise<void> {
+    const {
+      userId,
+      message,
+      threadId: _threadId,
+      zohoClient,
+      zohoAccountId,
+      starCount,
+      isInitialSync,
+    } = options;
     const fullMsg = await zohoClient.get(
       `/accounts/${zohoAccountId}/messages/${message.uid}`,
     );
@@ -680,25 +697,29 @@ export class ZohoProvider implements EmailProvider {
 
   async sendReply(
     userId: string,
-    threadId: string,
-    to: string,
-    subject: string,
-    body: string,
-    options?: SendReplyOptions,
+    params: {
+      threadId: string;
+      to: string;
+      subject: string;
+      body: string;
+      options?: SendReplyOptions;
+    },
   ): Promise<{ messageId: string; threadId: string }> {
-    return sendReply(this, userId, threadId, to, subject, body, options);
+    return sendReply(this, userId, params);
   }
 
   async sendEmail(
     userId: string,
-    to: EmailRecipient[],
-    subject: string,
-    body: string,
-    cc?: EmailRecipient[],
-    bcc?: EmailRecipient[],
-    _attachments?: EmailAttachmentData[],
+    params: {
+      to: EmailRecipient[];
+      subject: string;
+      body: string;
+      cc?: EmailRecipient[];
+      bcc?: EmailRecipient[];
+      attachments?: EmailAttachmentData[];
+    },
   ): Promise<{ messageId: string; threadId: string }> {
-    return sendEmail(this, userId, to, subject, body, cc, bcc, _attachments);
+    return sendEmail(this, userId, params);
   }
 
   async searchEmails(

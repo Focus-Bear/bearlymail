@@ -23,9 +23,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * The flag approach allows the repair to run incrementally on server startup
  * without blocking the migration itself.
  */
-export class DeduplicateCategoryNames1786000000000
-  implements MigrationInterface
-{
+export class DeduplicateCategoryNames1786000000000 implements MigrationInterface {
   name = "DeduplicateCategoryNames1786000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

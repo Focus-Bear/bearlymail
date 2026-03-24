@@ -323,14 +323,14 @@ export class Office365Provider implements EmailProvider {
 
         for (const message of messages) {
           if (!message.id) continue;
-          await this.processMessage(
+          await this.processMessage({
             userId,
             message,
             conversationId,
             graphClient,
-            isImportant ? 3 : 0,
+            starCount: isImportant ? 3 : 0,
             isInitialSync,
-          );
+          });
         }
       } catch (threadError: unknown) {
         this.handleThreadProcessingError(conversationId, threadError);
@@ -340,14 +340,22 @@ export class Office365Provider implements EmailProvider {
     return { starUpdates, archivedUpdates };
   }
 
-  private async processMessage(
-    userId: string,
-    message: MicrosoftGraphMessage,
-    conversationId: string,
-    graphClient: AxiosInstance,
-    starCount: number,
-    isInitialSync: boolean,
-  ): Promise<void> {
+  private async processMessage(options: {
+    userId: string;
+    message: MicrosoftGraphMessage;
+    conversationId: string;
+    graphClient: AxiosInstance;
+    starCount: number;
+    isInitialSync: boolean;
+  }): Promise<void> {
+    const {
+      userId,
+      message,
+      conversationId: _conversationId,
+      graphClient,
+      starCount,
+      isInitialSync,
+    } = options;
     const fullMsg = await graphClient.get(`/me/messages/${message.id}`, {
       params: {
         $select:
@@ -703,25 +711,29 @@ export class Office365Provider implements EmailProvider {
 
   async sendReply(
     userId: string,
-    threadId: string,
-    to: string,
-    subject: string,
-    body: string,
-    options?: SendReplyOptions,
+    params: {
+      threadId: string;
+      to: string;
+      subject: string;
+      body: string;
+      options?: SendReplyOptions;
+    },
   ): Promise<{ messageId: string; threadId: string }> {
-    return sendReply(this, userId, threadId, to, subject, body, options);
+    return sendReply(this, userId, params);
   }
 
   async sendEmail(
     userId: string,
-    to: EmailRecipient[],
-    subject: string,
-    body: string,
-    cc?: EmailRecipient[],
-    bcc?: EmailRecipient[],
-    _attachments?: EmailAttachmentData[],
+    params: {
+      to: EmailRecipient[];
+      subject: string;
+      body: string;
+      cc?: EmailRecipient[];
+      bcc?: EmailRecipient[];
+      attachments?: EmailAttachmentData[];
+    },
   ): Promise<{ messageId: string; threadId: string }> {
-    return sendEmail(this, userId, to, subject, body, cc, bcc, _attachments);
+    return sendEmail(this, userId, params);
   }
 
   async searchEmails(

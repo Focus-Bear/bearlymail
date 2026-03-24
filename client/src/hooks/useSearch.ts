@@ -62,14 +62,15 @@ interface SearchStateSetters {
   setQueriesTried: (items: Array<{ query: string; resultCount: number; accountType?: string }>) => void;
 }
 
-async function runPhase2Ranking(
-  emailIds: string[],
-  query: string,
-  currentSession: number,
-  searchSessionRef: MutableRefObject<number>,
-  selectedAccountTypes: string[],
-  setters: Pick<SearchStateSetters, 'setSearchResults' | 'setIsRefining'>
-): Promise<void> {
+async function runPhase2Ranking(options: {
+  emailIds: string[];
+  query: string;
+  currentSession: number;
+  searchSessionRef: MutableRefObject<number>;
+  selectedAccountTypes: string[];
+  setters: Pick<SearchStateSetters, 'setSearchResults' | 'setIsRefining'>;
+}): Promise<void> {
+  const { emailIds, query, currentSession, searchSessionRef, selectedAccountTypes, setters } = options;
   const phase2StartMs = Date.now();
   try {
     const rankResponse = await axios.post(`${API_URL}/emails/search/rank`, { emailIds, query, maxResults: 50 });
@@ -142,15 +143,16 @@ async function runPhase3Expansion(
 
 const SEARCH_SLOW_THRESHOLD_MS = 2000;
 
-async function processSearchResults(
-  responseData: any[],
-  query: string,
-  currentSession: number,
-  searchSessionRef: MutableRefObject<number>,
-  selectedAccountTypes: string[],
-  setters: SearchStateSetters,
-  searchStartMs: number
-): Promise<void> {
+async function processSearchResults(options: {
+  responseData: any[];
+  query: string;
+  currentSession: number;
+  searchSessionRef: MutableRefObject<number>;
+  selectedAccountTypes: string[];
+  setters: SearchStateSetters;
+  searchStartMs: number;
+}): Promise<void> {
+  const { responseData, query, currentSession, searchSessionRef, selectedAccountTypes, setters, searchStartMs } = options;
   if (responseData[0]?.debugInfo?.queriesTried) {
     setters.setQueriesTried(responseData[0].debugInfo.queriesTried);
   }
@@ -180,7 +182,7 @@ async function processSearchResults(
       .map((event: Email) => event.id);
     if (emailIds.length > 0) {
       setters.setIsRefining(true);
-      await runPhase2Ranking(emailIds, query, currentSession, searchSessionRef, selectedAccountTypes, setters);
+      await runPhase2Ranking({ emailIds, query, currentSession, searchSessionRef, selectedAccountTypes, setters });
     }
   }
   if (isNoResults && currentSession === searchSessionRef.current) {
@@ -276,15 +278,15 @@ export const useSearch = () => {
           setLoading(false);
           return;
         }
-        await processSearchResults(
-          response.data,
+        await processSearchResults({
+          responseData: response.data,
           query,
           currentSession,
           searchSessionRef,
           selectedAccountTypes,
-          stateSetters,
-          searchStartMs
-        );
+          setters: stateSetters,
+          searchStartMs,
+        });
       } catch (error: unknown) {
         stopProgress();
         setLoading(false);

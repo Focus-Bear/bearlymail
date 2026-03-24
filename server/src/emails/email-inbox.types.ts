@@ -3,9 +3,22 @@
  * Extracted to keep email-inbox.service.ts under the 800-line limit.
  */
 
+import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true`;
+
+/**
+ * Returns the SQL WHERE fragment for thread filtering based on inbox mode.
+ */
+export function buildThreadFilter(mode: string): string {
+  if (mode === INBOX_MODES.TRIAGE)
+    return 'AND thread."isArchived" = false AND thread."starCount" = 0';
+  if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP)
+    return 'AND thread."isArchived" = false AND thread."starCount" > 0';
+  if (mode === INBOX_MODES.BLOCKED) return BLOCKED_MODE_THREAD_FILTER;
+  return 'AND thread."isArchived" = false';
+}
 
 export interface RawEmailRow {
   id: string;

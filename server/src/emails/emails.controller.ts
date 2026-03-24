@@ -149,14 +149,24 @@ export class EmailsController {
   @Get("inbox-summary")
   async getInboxSummary(
     @Request() req,
-    @Query("mode")
-    mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
-    @Query("categoryIds") categoryIds?: string,
-    @Query("minPriority") minPriority?: string,
-    @Query("maxPriority") maxPriority?: string,
-    @Query("includeThreadIds") includeThreadIds?: string,
-    @Query("accounts") accounts?: string,
+    @Query()
+    query: {
+      mode?: "triage" | "action" | "follow-up" | "blocked";
+      categoryIds?: string;
+      minPriority?: string;
+      maxPriority?: string;
+      includeThreadIds?: string;
+      accounts?: string;
+    },
   ) {
+    const {
+      mode = "triage",
+      categoryIds,
+      minPriority,
+      maxPriority,
+      includeThreadIds,
+      accounts,
+    } = query;
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
@@ -287,16 +297,13 @@ export class EmailsController {
     try {
       // When skipLlm=true (Phase 1 fast path), also skip LLM fallback query
       // generation and provider sync to keep response within the 2s budget.
-      return await this.emailsService.searchEmails(
-        req.user.userId,
-        query,
-        max,
-        undefined,
-        selectedAccountTypes,
+      return await this.emailsService.searchEmails(req.user.userId, query, {
+        maxResults: max,
+        accountTypes: selectedAccountTypes,
         skipLlmRanking,
-        skipLlmRanking,
-        skipLlmRanking,
-      );
+        skipLlmFallback: skipLlmRanking,
+        skipSync: skipLlmRanking,
+      });
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
       // Return no-results marker with error info so UI can show what happened
@@ -747,7 +754,8 @@ export class EmailsController {
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       to: EmailRecipient[];
       subject: string;
       body: string;
@@ -815,15 +823,14 @@ export class EmailsController {
     const bodyWithSignature = appendSignature(body.body, user?.emailSignature);
 
     // Send the email
-    const result = await provider.sendEmail(
-      userId,
-      body.to,
-      body.subject,
-      bodyWithSignature,
-      body.cc,
-      body.bcc,
+    const result = await provider.sendEmail(userId, {
+      to: body.to,
+      subject: body.subject,
+      body: bodyWithSignature,
+      cc: body.cc,
+      bcc: body.bcc,
       attachments,
-    );
+    });
 
     // Track contact frequency for each recipient
     const allRecipients = [...body.to, ...(body.cc || []), ...(body.bcc || [])];

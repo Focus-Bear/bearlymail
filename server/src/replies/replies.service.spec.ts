@@ -509,19 +509,19 @@ describe("RepliesService", () => {
 
       await service.sendReply(userId, emailId, "Reply body");
 
-      expect(mockProvider.sendReply).toHaveBeenCalledWith(
-        userId,
-        email.threadId,
-        email.from,
-        "Re: Test Subject",
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        {
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
+        threadId: email.threadId,
+        to: email.from,
+        subject: "Re: Test Subject",
+        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        options: {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           htmlBody:
             "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         },
-      );
+      });
     });
 
     it("should not add Re: prefix if already present", async () => {
@@ -541,19 +541,19 @@ describe("RepliesService", () => {
       await service.sendReply(userId, emailId, "Reply body");
 
       // Should not double add Re:
-      expect(mockProvider.sendReply).toHaveBeenCalledWith(
-        userId,
-        email.threadId,
-        email.from,
-        "Re: Test Subject",
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        {
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
+        threadId: email.threadId,
+        to: email.from,
+        subject: "Re: Test Subject",
+        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        options: {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           htmlBody:
             "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         },
-      );
+      });
     });
 
     it("should use provided recipients for reply-all instead of from address", async () => {
@@ -570,19 +570,19 @@ describe("RepliesService", () => {
         cc: "cc@example.com",
       });
 
-      expect(mockProvider.sendReply).toHaveBeenCalledWith(
-        userId,
-        email.threadId,
-        replyAllRecipients,
-        "Re: Test Subject",
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        {
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
+        threadId: email.threadId,
+        to: replyAllRecipients,
+        subject: "Re: Test Subject",
+        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        options: {
           attachments: undefined,
+          bcc: undefined,
           cc: "cc@example.com",
           htmlBody:
             "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         },
-      );
+      });
     });
 
     it("should fall back to from address when recipients is empty", async () => {
@@ -597,19 +597,19 @@ describe("RepliesService", () => {
         recipients: "",
       });
 
-      expect(mockProvider.sendReply).toHaveBeenCalledWith(
-        userId,
-        email.threadId,
-        email.from,
-        "Re: Test Subject",
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        {
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
+        threadId: email.threadId,
+        to: email.from,
+        subject: "Re: Test Subject",
+        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        options: {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           htmlBody:
             "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         },
-      );
+      });
     });
 
     it("should sync star to provider when expectedReplyHours is set (follow-up triage→follow-up fix)", async () => {

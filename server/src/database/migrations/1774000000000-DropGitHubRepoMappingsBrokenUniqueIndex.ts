@@ -11,9 +11,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * of decrypted values), and findAllForUser automatically cleans up any existing
  * duplicates on next read.
  */
-export class DropGitHubRepoMappingsBrokenUniqueIndex1774000000000
-  implements MigrationInterface
-{
+export class DropGitHubRepoMappingsBrokenUniqueIndex1774000000000 implements MigrationInterface {
   name = "DropGitHubRepoMappingsBrokenUniqueIndex1774000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

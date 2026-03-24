@@ -198,16 +198,26 @@ export class CalendarService {
     };
   }
 
-  async createEvent(
-    userId: string,
-    startTime: string,
-    durationMinutes: number,
-    guestEmail: string,
-    guestName?: string,
-    title?: string,
-    description?: string,
-    additionalGuests: string[] = [],
-  ): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
+  async createEvent(options: {
+    userId: string;
+    startTime: string;
+    durationMinutes: number;
+    guestEmail: string;
+    guestName?: string;
+    title?: string;
+    description?: string;
+    additionalGuests?: string[];
+  }): Promise<calendar_v3.Schema$Event & { meetLink: string | null }> {
+    const {
+      userId,
+      startTime,
+      durationMinutes,
+      guestEmail,
+      guestName,
+      title,
+      description,
+      additionalGuests = [],
+    } = options;
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);

@@ -32,14 +32,15 @@ interface ReplyOption {
  * a short delay. `customDraftRef` still updates synchronously so tab-switching stays
  * correct.
  */
-export function useEmailDetailDraftHandlers(
-  replyOptions: ReplyOption[] | null,
-  setDraft: (d: string) => void,
-  setSelectedReplyOption: (idx: number) => void,
-  setReplyOptions: (opts: ReplyOption[] | null) => void,
-  setToneCheckResult: (r: any) => void,
-  setShowReplyComposer: (show: boolean) => void
-) {
+export function useEmailDetailDraftHandlers(options: {
+  replyOptions: ReplyOption[] | null;
+  setDraft: (d: string) => void;
+  setSelectedReplyOption: (idx: number) => void;
+  setReplyOptions: (opts: ReplyOption[] | null) => void;
+  setToneCheckResult: (r: any) => void;
+  setShowReplyComposer: (show: boolean) => void;
+}) {
+  const { replyOptions, setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult, setShowReplyComposer } = options;
   // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
   const customDraftRef = useRef<string>('');
 

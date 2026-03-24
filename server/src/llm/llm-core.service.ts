@@ -216,14 +216,16 @@ export class LLMCoreService {
     });
   }
 
-  private async generateWithOpenAIReasoningModel(
-    openaiClient: OpenAI,
-    request: LLMRequest,
-    model: string,
-    reasoningEffort: string,
-    userId: string | undefined,
-    startTime: number,
-  ): Promise<string> {
+  private async generateWithOpenAIReasoningModel(options: {
+    openaiClient: OpenAI;
+    request: LLMRequest;
+    model: string;
+    reasoningEffort: string;
+    userId: string | undefined;
+    startTime: number;
+  }): Promise<string> {
+    const { openaiClient, request, model, reasoningEffort, userId, startTime } =
+      options;
     if (
       !openaiClient.responses ||
       typeof openaiClient.responses.create !== "function"
@@ -375,14 +377,14 @@ export class LLMCoreService {
       );
 
       if (isReasoningModel) {
-        return this.generateWithOpenAIReasoningModel(
-          capturedClient,
+        return this.generateWithOpenAIReasoningModel({
+          openaiClient: capturedClient,
           request,
           model,
           reasoningEffort,
           userId,
           startTime,
-        );
+        });
       }
       return this.generateWithOpenAIStandardModel(
         capturedClient,

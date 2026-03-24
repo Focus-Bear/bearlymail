@@ -73,15 +73,15 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: (
-    files: File[],
-    expectedReplyHours?: number,
-    forwardAttachmentIds?: string[],
-    draftOverride?: string,
-    scheduledSendAt?: Date,
-    keepInAction?: boolean,
-    inlineImages?: Map<string, File>
-  ) => void;
+  onSend: (params: {
+    files?: File[];
+    expectedReplyHours?: number;
+    forwardAttachmentIds?: string[];
+    draftOverride?: string;
+    scheduledSendAt?: Date;
+    keepInAction?: boolean;
+    inlineImages?: Map<string, File>;
+  }) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
@@ -195,15 +195,15 @@ const useReplyComposerState = (
     const currentFiles = files;
     const currentForwardIds = forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined;
     const currentInlineImages = inlineImages.size > 0 ? inlineImages : undefined;
-    onSend(
-      currentFiles,
+    onSend({
+      files: currentFiles,
       expectedReplyHours,
-      currentForwardIds,
+      forwardAttachmentIds: currentForwardIds,
       draftOverride,
-      scheduledAt,
+      scheduledSendAt: scheduledAt,
       keepInAction,
-      currentInlineImages,
-    );
+      inlineImages: currentInlineImages,
+    });
   };
 
   const handleClose = () => {

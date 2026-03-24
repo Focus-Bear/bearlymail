@@ -139,12 +139,15 @@ function parseRecipientsToOffice365(
  */
 export async function sendReplyViaOffice365(
   graphClient: AxiosInstance,
-  to: string,
-  subject: string,
-  htmlBody: string,
-  cc?: string,
-  bcc?: string,
+  params: {
+    to: string;
+    subject: string;
+    htmlBody: string;
+    cc?: string;
+    bcc?: string;
+  },
 ): Promise<{ messageId: string }> {
+  const { to, subject, htmlBody, cc, bcc } = params;
   const message: Record<string, unknown> = {
     subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
     body: {
@@ -174,12 +177,15 @@ export async function sendReplyViaOffice365(
  */
 export async function sendEmailViaOffice365(
   graphClient: AxiosInstance,
-  to: Array<{ email: string; name?: string }>,
-  subject: string,
-  htmlBody: string,
-  cc?: Array<{ email: string; name?: string }>,
-  bcc?: Array<{ email: string; name?: string }>,
+  params: {
+    to: Array<{ email: string; name?: string }>;
+    subject: string;
+    htmlBody: string;
+    cc?: Array<{ email: string; name?: string }>;
+    bcc?: Array<{ email: string; name?: string }>;
+  },
 ): Promise<{ messageId: string; threadId: string }> {
+  const { to, subject, htmlBody, cc, bcc } = params;
   interface Office365Recipient {
     emailAddress: { address: string; name?: string };
   }

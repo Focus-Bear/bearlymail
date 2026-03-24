@@ -632,9 +632,9 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
 
   const { isDebugModeEnabled } = useDebugMode();
   const panelFlex = computeEmailListFlex(splitView);
-  const canRenderCategories = computeCanRenderCategories(
-    loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, displayCategories.length
-  );
+  const canRenderCategories = computeCanRenderCategories({
+    loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount: displayCategories.length
+  });
   const emailsEmpty = computeIsEmailsEmpty(isRefetchingWithoutData, categorySummary, loading, loadingModeSwitch, emails.length);
 
   const renderItem = (email: Email, emailIndex: number) => (

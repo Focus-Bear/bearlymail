@@ -389,15 +389,15 @@ export class AuthController {
         );
       } else {
         const isPrimary = existingAccounts.length === 0;
-        await this.office365AccountsService.create(
-          stateData.userId,
+        await this.office365AccountsService.create({
+          userId: stateData.userId,
           microsoftId,
           email,
           name,
           accessToken,
           refreshToken,
           isPrimary,
-        );
+        });
       }
       res.redirect(`${frontendUrl}/settings?office365Connected=true`);
       return true;

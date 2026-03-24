@@ -56,14 +56,13 @@ export class SuggestedActionsController {
     }
 
     const token = EncryptionHelper.decrypt(user.githubToken);
-    return this.githubApiService.createIssue(
-      token,
-      body.owner,
-      body.repo,
-      body.title,
-      body.body,
-      body.labels,
-    );
+    return this.githubApiService.createIssue(token, {
+      owner: body.owner,
+      repo: body.repo,
+      title: body.title,
+      body: body.body,
+      labels: body.labels,
+    });
   }
 
   @Post("github/update-project-status")
@@ -192,15 +191,15 @@ export class SuggestedActionsController {
     },
   ) {
     const { userId } = req.user;
-    const event = await this.calendarService.createEvent(
+    const event = await this.calendarService.createEvent({
       userId,
-      body.startTime,
-      body.durationMinutes,
-      body.guestEmail,
-      body.guestName,
-      body.title,
-      body.description,
-    );
+      startTime: body.startTime,
+      durationMinutes: body.durationMinutes,
+      guestEmail: body.guestEmail,
+      guestName: body.guestName,
+      title: body.title,
+      description: body.description,
+    });
     return event;
   }
 

@@ -316,14 +316,15 @@ export class ScheduledEmailsService {
       throw new Error("No recipient email found in scheduled email");
     }
 
-    await provider.sendReply(
-      userId,
-      scheduledEmail.threadId,
-      recipientEmail,
-      scheduledEmail.subject,
-      bodyWithSignature,
-      { attachments: allAttachments.length > 0 ? allAttachments : undefined },
-    );
+    await provider.sendReply(userId, {
+      threadId: scheduledEmail.threadId,
+      to: recipientEmail,
+      subject: scheduledEmail.subject,
+      body: bodyWithSignature,
+      options: {
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+      },
+    });
 
     if (scheduledEmail.expectedReplyHours) {
       this.logger.log(
@@ -404,15 +405,14 @@ export class ScheduledEmailsService {
         ? scheduledEmail.bcc
         : undefined;
 
-    await provider.sendEmail(
-      userId,
-      toRecipients,
-      scheduledEmail.subject,
-      bodyWithSignature,
-      ccRecipients,
-      bccRecipients,
-      allAttachments.length > 0 ? allAttachments : undefined,
-    );
+    await provider.sendEmail(userId, {
+      to: toRecipients,
+      subject: scheduledEmail.subject,
+      body: bodyWithSignature,
+      cc: ccRecipients,
+      bcc: bccRecipients,
+      attachments: allAttachments.length > 0 ? allAttachments : undefined,
+    });
 
     if (scheduledEmail.expectedReplyHours) {
       this.logger.log(
@@ -434,15 +434,14 @@ export class ScheduledEmailsService {
       throw new Error(ERROR_MESSAGES.NO_EMAIL_PROVIDER);
     }
 
-    await provider.sendEmail(
-      userId,
-      scheduledEmail.to,
-      scheduledEmail.subject,
-      bodyWithSignature,
-      scheduledEmail.cc || undefined,
-      scheduledEmail.bcc || undefined,
+    await provider.sendEmail(userId, {
+      to: scheduledEmail.to,
+      subject: scheduledEmail.subject,
+      body: bodyWithSignature,
+      cc: scheduledEmail.cc || undefined,
+      bcc: scheduledEmail.bcc || undefined,
       attachments,
-    );
+    });
   }
 
   /**

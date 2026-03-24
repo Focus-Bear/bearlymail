@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableIndex } from "typeorm";
 
-export class AddIndexOnPasswordResetToken1786300000000
-  implements MigrationInterface
-{
+export class AddIndexOnPasswordResetToken1786300000000 implements MigrationInterface {
   name = "AddIndexOnPasswordResetToken1786300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -18,9 +18,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * Targets: emails updated before the PR #768 merge timestamp that still carry
  * phishing data (i.e. keyword-only verdicts, never re-evaluated by LLM).
  */
-export class ClearPreLlmPhishingFalsePositives1786100000000
-  implements MigrationInterface
-{
+export class ClearPreLlmPhishingFalsePositives1786100000000 implements MigrationInterface {
   name = "ClearPreLlmPhishingFalsePositives1786100000000";
 
   // PR #768 merge timestamp — emails updated before this were flagged by

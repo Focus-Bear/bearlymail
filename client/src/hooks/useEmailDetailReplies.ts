@@ -333,14 +333,15 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
   } = deps;
 
   return useCallback(
-    async (
-      files: File[] = [],
-      expectedReplyHours?: number,
-      forwardAttachmentIds?: string[],
-      onClose?: () => void,
-      draftOverride?: string,
-      scheduledSendAtOverride?: Date
-    ) => {
+    async (sendOptions: {
+      files?: File[];
+      expectedReplyHours?: number;
+      forwardAttachmentIds?: string[];
+      onClose?: () => void;
+      draftOverride?: string;
+      scheduledSendAtOverride?: Date;
+    } = {}) => {
+      const { files = [], expectedReplyHours, forwardAttachmentIds, onClose, draftOverride, scheduledSendAtOverride } = sendOptions;
       const draftToSend = draftOverride || draft;
       const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
       if (!emailId || !draftToSend) {

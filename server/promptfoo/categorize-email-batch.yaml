@@ -322,3 +322,143 @@ tests:
             throw new Error(`Genuine security email misclassified as "${item.category}". A real data breach report should be "Security & Compliance" even with a GDPR footer. Explanation: ${item.categoryExplanation}`);
           }
           return true;
+
+  # Test 10: Jira notification about a bug → Jira category, NOT "Customer feedback" (cross-platform signal-extraction)
+  - description: "Jira bug notification — platform identity (Jira) takes priority over content topic (bug)"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "jira-bug-1") ---
+        From: Jira <jira@atlassian.net>
+        Subject: "[BEAR-123] Login button does not work on iOS 17"
+        Summary: A new issue was created in Jira by a customer: "Login button does not work on iOS 17". Severity: High. Reporter: user@example.com. View on Jira: https://focusbear.atlassian.net/browse/BEAR-123
+      emailCategories: |
+           - "Customer feedback": Feature requests and feedback submitted directly by customers via email
+           - "Jira tickets": Issues and notifications from Jira / Atlassian
+           - "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           - "Customer Support": Direct support requests from customers via email
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'Customer feedback') {
+            throw new Error(`Jira bug notification misclassified as "${item.category}". Platform identity (Jira) must take priority over content topic. Explanation: ${item.categoryExplanation}`);
+          }
+          if (item.category !== 'Jira tickets') {
+            throw new Error(`Jira bug notification should be "Jira tickets", got "${item.category}". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 11: Slack digest notification → Slack category, NOT "HR Admin" (cross-platform: Slack)
+  - description: "Slack digest — platform identity (Slack) takes priority over content topic (team/HR-adjacent)"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "slack-digest-1") ---
+        From: Slack <no-reply@slack.com>
+        Subject: "Your Slack digest: 3 unread messages in #team-general"
+        Summary: You have 3 unread messages in #team-general on the Focus Bear Slack workspace. Topics include upcoming team offsite planning, public holiday policy reminder, and a new hire announcement. View in Slack: https://focusbear.slack.com
+      emailCategories: |
+           - "HR Admin": HR communications, admin tasks, internal company matters, policies
+           - "Slack messages": Notifications and digests from Slack
+           - "Newsletters": Marketing emails, digests, promotional content
+           - "Customer Support": Support requests, customer issues
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'HR Admin') {
+            throw new Error(`Slack digest misclassified as "${item.category}". Platform identity (Slack) must take priority. Explanation: ${item.categoryExplanation}`);
+          }
+          if (item.category !== 'Slack messages') {
+            throw new Error(`Slack digest should be "Slack messages", got "${item.category}". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 12: GitHub issue about a feature request → GitHub category, NOT "Customer feedback" (platform > topic)
+  - description: "GitHub issue notification about feature request — platform (GitHub) beats topic (customer feedback)"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "github-feature-1") ---
+        From: notifications@github.com
+        Subject: "[Focus-Bear/BearlyMail] Feature request: Dark mode support (#999)"
+        Summary: A new GitHub issue was opened by user@example.com requesting dark mode support for BearlyMail. The user describes wanting a dark theme for use at night. View on GitHub: https://github.com/Focus-Bear/BearlyMail/issues/999
+      emailCategories: |
+           - "Customer feedback": Feature requests and feedback submitted directly by customers via email or feedback forms — NOT via GitHub issues
+           - "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           - "New GitHub issues (human-created)": New issues opened on GitHub by humans
+           - "Customer Support": Direct support requests from customers
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'Customer feedback') {
+            throw new Error(`GitHub feature request misclassified as "${item.category}". The category says "NOT via GitHub issues" — platform identity must take precedence. Explanation: ${item.categoryExplanation}`);
+          }
+          if (item.category !== 'New GitHub issues (human-created)') {
+            throw new Error(`GitHub feature request should be "New GitHub issues (human-created)", got "${item.category}". Explanation: ${item.categoryExplanation}`);
+          }
+          return true;
+
+  # Test 13: Dependabot PR (GitHub) → "GitHub bot notifications", NOT "Code reviews by human developers"
+  - description: "Dependabot dependency update PR — automated bot, not a human code review"
+    vars:
+      batchMode: true
+      emailBatch: |
+        --- EMAIL 1 (key: "dependabot-pr-1") ---
+        From: notifications@github.com
+        Subject: "[Focus-Bear/BearlyMail] Bump lodash from 4.17.20 to 4.17.21 (#1001)"
+        Summary: Dependabot opened a pull request to bump lodash from 4.17.20 to 4.17.21 to fix a known prototype pollution vulnerability. Automated security update. View on GitHub: https://github.com/Focus-Bear/BearlyMail/pull/1001
+      emailCategories: |
+           - "Code reviews by human developers": Pull requests opened or reviewed by human developers — NOT bots
+           - "GitHub bot notifications": Automated notifications from GitHub bots and CI/CD systems
+           - "Devin PRs": Pull requests created by Devin AI
+           - "Security & Compliance": Security alerts, compliance issues
+      urgentContext: ""
+      notUrgentContext: ""
+      goalsContext: ""
+      workingOnContext: ""
+      dontCareContext: ""
+      currentDate: "Monday, March 23, 2026"
+    assert:
+      - type: javascript
+        value: |
+          const parsed = typeof output === 'string'
+            ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
+            : output;
+          const item = parsed?.priority_results?.[0];
+          if (item.category === 'Code reviews by human developers') {
+            throw new Error(`Dependabot PR misclassified as "${item.category}". Dependabot is a bot — not eligible for human developer category. Explanation: ${item.categoryExplanation}`);
+          }
+          if (item.category !== 'GitHub bot notifications') {
+            throw new Error(`Dependabot PR should be "GitHub bot notifications", got "${item.category}". Dependabot is a GitHub bot sending an automated notification. Explanation: ${item.categoryExplanation}`);
+          }
+          return true;

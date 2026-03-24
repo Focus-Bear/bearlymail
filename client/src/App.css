@@ -206,13 +206,14 @@ button, a, input, select, textarea {
   height: 100dvh;
 }
 
-/* Tab pulse animation — signals that an email moved to the Action tab on mobile */
+/* Tab pulse animation — signals that an email moved to the Action tab (mobile + desktop) */
 @keyframes tabPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.7); }
-  50%  { box-shadow: 0 0 0 8px rgba(255, 165, 0, 0.3); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.7); transform: scale(1); }
+  40%  { box-shadow: 0 0 0 10px rgba(255, 165, 0, 0.3); transform: scale(1.05); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0); transform: scale(1); }
 }
 
 .animate-tab-pulse {
   animation: tabPulse 700ms ease-out forwards;
+  transform-origin: center;
 }

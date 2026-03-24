@@ -83,14 +83,17 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const openEmailRef = useRef<((emailId: string) => void) | null>(null);
   // Stable ref for isMobile — wired after splitView is created (same pattern as openEmailRef)
   const isMobileRef = useRef<boolean>(false);
-  // Action tab pulse state — set true when email moves on mobile to signal where it went
+  // Action tab pulse state — set true when email moves to signal where it went
   const [actionTabPulsing, setActionTabPulsing] = useState(false);
   const onEmailMovedInTriage = useCallback(
     (emailId: string) => {
-      if (isMobileRef.current) {
-        // On mobile, skip opening email — pulse the Action tab instead
-        setActionTabPulsing(true);
-      } else {
+      // Always pulse the Action tab to show where the email went (mobile + desktop)
+      // Force a class removal/re-add cycle via requestAnimationFrame so rapid
+      // prioritisations each re-trigger the animation even if it's already running.
+      setActionTabPulsing(false);
+      requestAnimationFrame(() => setActionTabPulsing(true));
+      if (!isMobileRef.current) {
+        // On desktop, also open the email in split view
         openEmailRef.current?.(emailId);
       }
     },

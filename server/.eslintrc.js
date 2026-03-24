@@ -338,19 +338,8 @@ module.exports = {
     //   - LLMProcessor (thin orchestrator, ~395 lines)
     // All new files pass global max-lines: 800. See issue #939.
 
-    {
-      // llm.service.ts: 3219 lines. Only max-lines remains.
-      // Phase 7a (issue #939): splitting into 8 domain-specific LLM services.
-      // constructor has only 1 param (LLMCoreService) — max-params not needed here.
-      files: [
-        'src/llm/llm.service.ts',
-      ],
-      rules: {
-        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
-        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
-        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
-        complexity: ['error', 250],
-      },
-    },
+    // llm.service.ts override removed — Phase 7a split all 3219 lines into 8 domain services.
+    // llm.service.ts is now a thin facade (~617 lines) under the global max-lines: 800 limit.
+    // See issue #939.
   ],
 };

@@ -10,7 +10,15 @@ import { UsersModule } from "../users/users.module";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
+import { LLMActionsService } from "./llm-actions.service";
+import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
+import { LLMMiscService } from "./llm-misc.service";
+import { LLMPatternsService } from "./llm-patterns.service";
+import { LLMReplyService } from "./llm-reply.service";
+import { LLMSearchService } from "./llm-search.service";
+import { LLMSummarizationService } from "./llm-summarization.service";
+import { LLMToneService } from "./llm-tone.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import { TokenUsageController } from "./token-usage.controller";
 import { TokenUsageService } from "./token-usage.service";
@@ -26,6 +34,14 @@ import { TokenUsageService } from "./token-usage.service";
   providers: [
     LLMService,
     LLMCoreService,
+    LLMActionsService,
+    LLMCategoriesService,
+    LLMMiscService,
+    LLMPatternsService,
+    LLMReplyService,
+    LLMSearchService,
+    LLMSummarizationService,
+    LLMToneService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,
@@ -33,6 +49,14 @@ import { TokenUsageService } from "./token-usage.service";
   exports: [
     LLMService,
     LLMCoreService,
+    LLMActionsService,
+    LLMCategoriesService,
+    LLMMiscService,
+    LLMPatternsService,
+    LLMReplyService,
+    LLMSearchService,
+    LLMSummarizationService,
+    LLMToneService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,

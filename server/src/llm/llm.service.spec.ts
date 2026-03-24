@@ -2,13 +2,26 @@ import { Test, TestingModule } from "@nestjs/testing";
 
 import { extractPlainSummary, LLMService } from "./llm.service";
 import { LLMProvider } from "./llm.types";
+import { LLMActionsService } from "./llm-actions.service";
+import { LLMCategoriesService } from "./llm-categories.service";
 import { LLMCoreService } from "./llm-core.service";
+import { LLMMiscService } from "./llm-misc.service";
+import { LLMPatternsService } from "./llm-patterns.service";
+import { LLMReplyService } from "./llm-reply.service";
+import { LLMSearchService } from "./llm-search.service";
+import { LLMSummarizationService } from "./llm-summarization.service";
+import { LLMToneService } from "./llm-tone.service";
 import { getPrompt, loadPrompts } from "./prompts";
 import * as prompts from "./prompts";
 
 describe("LLMService", () => {
   let service: LLMService;
-  let mockLLMCoreService: Partial<LLMCoreService>;
+  let mockLLMCoreService: jest.Mocked<
+    Pick<
+      LLMCoreService,
+      "generateText" | "getAvailableProviders" | "getDefaultProvider"
+    >
+  >;
 
   beforeEach(async () => {
     mockLLMCoreService = {
@@ -21,6 +34,14 @@ describe("LLMService", () => {
       providers: [
         LLMService,
         { provide: LLMCoreService, useValue: mockLLMCoreService },
+        LLMActionsService,
+        LLMCategoriesService,
+        LLMMiscService,
+        LLMPatternsService,
+        LLMReplyService,
+        LLMSearchService,
+        LLMSummarizationService,
+        LLMToneService,
       ],
     }).compile();
 
@@ -148,10 +169,10 @@ describe("LLMService", () => {
           systemPrompt: "You are a helpful assistant",
         });
 
-      // Mock generateText for the fallback
-      jest
-        .spyOn(service as any, "generateText")
-        .mockResolvedValueOnce("Fallback reply");
+      // Mock llmCoreService.generateText for the fallback
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        "Fallback reply",
+      );
 
       const result = await service.generateReplyOptions(
         {
@@ -226,16 +247,14 @@ describe("LLMService", () => {
 
   describe("generateReplyOptions with thread context (#885)", () => {
     it("should call generateText with a prompt containing thread context when threadMessages is provided", async () => {
-      const mockGenerateText = jest
-        .spyOn(service as any, "generateText")
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            options: [
-              { label: "Agree", text: "Sure, I'll do that." },
-              { label: "Defer", text: "Let me check and get back to you." },
-            ],
-          }),
-        );
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        JSON.stringify({
+          options: [
+            { label: "Agree", text: "Sure, I'll do that." },
+            { label: "Defer", text: "Let me check and get back to you." },
+          ],
+        }),
+      );
 
       const threadMessages = [
         {
@@ -267,24 +286,23 @@ describe("LLMService", () => {
         threadMessages,
       );
 
-      expect(mockGenerateText).toHaveBeenCalledTimes(1);
-      const [[callArgs]] = mockGenerateText.mock.calls;
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(1);
+      const [[callArgs]] = (mockLLMCoreService.generateText as jest.Mock).mock
+        .calls;
       // The rendered prompt should include prior conversation context
       expect(callArgs.prompt).toContain("Prior Conversation");
       expect(callArgs.prompt).toContain("Sarah Chen");
     });
 
     it("should call generateText without thread context block when threadMessages is empty", async () => {
-      const mockGenerateText = jest
-        .spyOn(service as any, "generateText")
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            options: [
-              { label: "Agree", text: "Sure, sounds good." },
-              { label: "Defer", text: "Let me think about it." },
-            ],
-          }),
-        );
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        JSON.stringify({
+          options: [
+            { label: "Agree", text: "Sure, sounds good." },
+            { label: "Defer", text: "Let me think about it." },
+          ],
+        }),
+      );
 
       await service.generateReplyOptions(
         {
@@ -298,23 +316,22 @@ describe("LLMService", () => {
         [],
       );
 
-      expect(mockGenerateText).toHaveBeenCalledTimes(1);
-      const [[callArgs]] = mockGenerateText.mock.calls;
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(1);
+      const [[callArgs]] = (mockLLMCoreService.generateText as jest.Mock).mock
+        .calls;
       // No thread context block should appear when there are no prior messages
       expect(callArgs.prompt).not.toContain("Prior Conversation");
     });
 
     it("should work correctly when threadMessages is omitted (backward compat)", async () => {
-      const mockGenerateText = jest
-        .spyOn(service as any, "generateText")
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            options: [
-              { label: "Agree", text: "Sure." },
-              { label: "Defer", text: "Later." },
-            ],
-          }),
-        );
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        JSON.stringify({
+          options: [
+            { label: "Agree", text: "Sure." },
+            { label: "Defer", text: "Later." },
+          ],
+        }),
+      );
 
       const result = await service.generateReplyOptions(
         {
@@ -329,7 +346,7 @@ describe("LLMService", () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -394,15 +411,14 @@ describe("LLMService", () => {
   });
 
   describe("parseSummaryWithPhishing success-path sanitisation (issue #1162)", () => {
-    // parseSummaryWithPhishing is private; access via `any` cast for unit testing.
-    let service: LLMService;
+    // parseSummaryWithPhishing moved to LLMSummarizationService (Phase 7a, #939).
+    // Access it via a minimal instance that only needs LLMCoreService.
+    let summarizationService: LLMSummarizationService;
 
     beforeEach(() => {
-      // Create a minimal service stub — we only need the private method.
-      // LLMService takes a single LLMCoreService dependency; null is fine here
-      // because parseSummaryWithPhishing is a pure synchronous method that
-      // does not call through to the core service.
-      service = new LLMService(null as any);
+      // parseSummaryWithPhishing is a pure synchronous method — LLMCoreService
+      // is never called, so null is safe here.
+      summarizationService = new LLMSummarizationService(null as any);
     });
 
     it("sanitises a plain-text summary in the success path", () => {
@@ -413,7 +429,9 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = (service as any).parseSummaryWithPhishing(response);
+      const result = (summarizationService as any).parseSummaryWithPhishing(
+        response,
+      );
       expect(result.summary).toBe(
         "This email asks you to review the attached proposal.",
       );
@@ -429,7 +447,9 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = (service as any).parseSummaryWithPhishing(response);
+      const result = (summarizationService as any).parseSummaryWithPhishing(
+        response,
+      );
       // extractPlainSummary should extract the value, not return raw JSON
       expect(result.summary).not.toContain("{");
       expect(result.summary).not.toContain("}");
@@ -438,7 +458,7 @@ describe("LLMService", () => {
 
     it("fallback path sanitises correctly (regression guard)", () => {
       // Non-JSON input — exercises the fallback path.
-      const result = (service as any).parseSummaryWithPhishing(
+      const result = (summarizationService as any).parseSummaryWithPhishing(
         "  plain fallback summary  ",
       );
       expect(result.summary).toBe("plain fallback summary");

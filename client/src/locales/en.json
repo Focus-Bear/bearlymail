@@ -416,6 +416,8 @@
     "howToSummarizeLabel": "How should the email be summarized? (e.g., \"Extract only deadlines and action items\", \"Summarize in 3 bullet points\")",
     "howToSummarizePlaceholder": "Describe how to summarize...",
     "createAndUse": "Create & Use",
+    "showFullMessage": "Show full message",
+    "hideQuotedContent": "Hide quoted content",
     "emailNotFound": "Email not found",
     "loadingEmail": "Loading email...",
     "replySentSuccess": "Reply sent successfully!",

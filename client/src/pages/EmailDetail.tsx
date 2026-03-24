@@ -642,6 +642,8 @@ const EmailDetailContent: React.FC<any> = ({
           removeSignature={ops.removeSignature}
           extractCleanHtmlBody={ops.extractCleanHtmlBody}
           sanitizeAndProcessHtml={ops.sanitizeAndProcessHtml}
+          extractCleanHtmlBodyWithMeta={ops.extractCleanHtmlBodyWithMeta}
+          extractCleanBodyWithMeta={ops.extractCleanBodyWithMeta}
         />
       </div>
       {user?.isAdmin && st.email && <EmailDetailDebugInfo email={st.email} threadEmails={st.threadEmails} />}

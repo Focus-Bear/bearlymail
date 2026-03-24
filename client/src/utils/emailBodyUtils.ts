@@ -112,11 +112,28 @@ function removeCidImagesFromString(html: string): string {
 }
 
 /**
- * Helper function to clean HTML body by removing quoted/forwarded email content
+ * Result of extracting a clean HTML body, including whether content was truncated.
  */
-export function extractCleanHtmlBody(htmlBody: string): string {
+export interface CleanHtmlResult {
+  html: string;
+  wasTruncated: boolean;
+}
+
+/**
+ * Result of extracting a clean plain-text body, including whether content was truncated.
+ */
+export interface CleanBodyResult {
+  text: string;
+  wasTruncated: boolean;
+}
+
+/**
+ * Helper function to clean HTML body by removing quoted/forwarded email content.
+ * Returns both the cleaned HTML and a flag indicating whether content was truncated.
+ */
+export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult {
   if (!htmlBody) {
-    return '';
+    return { html: '', wasTruncated: false };
   }
 
   // Remove cid: images before parsing to prevent browser from trying to load them
@@ -163,17 +180,24 @@ export function extractCleanHtmlBody(htmlBody: string): string {
       if (nextTagStart >= 0 && nextTagStart - cutPoint < HTML_CUT_POINT_OFFSET_100) {
         cutPoint = nextTagStart;
       }
-      return htmlBody.substring(0, cutPoint).trim();
+      return { html: htmlBody.substring(0, cutPoint).trim(), wasTruncated: true };
     }
   }
 
   // Also check for HTML blockquote tags
   const blockquoteMatch = htmlBody.search(/<blockquote[^>]*>/i);
   if (blockquoteMatch > BLOCKQUOTE_MIN_POSITION) {
-    return htmlBody.substring(0, blockquoteMatch).trim();
+    return { html: htmlBody.substring(0, blockquoteMatch).trim(), wasTruncated: true };
   }
 
-  return htmlBody;
+  return { html: htmlBody, wasTruncated: false };
+}
+
+/**
+ * Helper function to clean HTML body by removing quoted/forwarded email content
+ */
+export function extractCleanHtmlBody(htmlBody: string): string {
+  return extractCleanHtmlBodyWithMeta(htmlBody).html;
 }
 
 const URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g;
@@ -430,70 +454,68 @@ export function stripHtmlTags(html: string): string {
 }
 
 /**
- * Extract clean body from email (removes quoted content and signatures)
+ * Extract clean body from email (removes quoted content and signatures).
+ * Returns both the cleaned text and whether content was truncated.
  */
-export function extractCleanBody(emailBody: string, htmlBody?: string): string {
+export function extractCleanBodyWithMeta(emailBody: string, htmlBody?: string): CleanBodyResult {
   if (!emailBody && !htmlBody) {
-    return '';
+    return { text: '', wasTruncated: false };
   }
 
-  // Prefer plain text body, fallback to HTML
   let content = emailBody || '';
 
   if (content.includes('<')) {
-    // emailBody contains HTML markup (e.g. replies sent from BearlyMail store HTML in body field)
-    // Strip tags to get plain text before further processing
-    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
     const cleanedContent = removeCidImagesFromString(content);
     const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
     content = doc.body.textContent || doc.body.innerText || '';
   } else if (htmlBody && !emailBody) {
-    // Convert HTML to text for cleaning
-    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
     const cleanedHtml = removeCidImagesFromString(htmlBody);
     const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
     content = doc.body.textContent || doc.body.innerText || '';
   }
 
-  // Find the boundary where the quoted/forwarded email starts
-  // Use simpler, more reliable patterns - be less aggressive
   const boundaryPatterns = [
-    // "On [date] at [time] [name] <email> wrote:" - Gmail style (most common)
     /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}\s+at\s+\d{1,2}:\d{2}.*?wrote:/i,
-    // "On [date] [name] wrote:" - common pattern
     /On\s+\w+,\s+\d{1,2}\s+\w+\s+\d{4}.*?wrote:/i,
-    // "From: [name] <email> Sent: ... Subject: ..."
     /From:\s+.*?<.*?@.*?>\s+Sent:\s+.*?Subject:/i,
-    // "-----Original Message-----"
     /-----Original Message-----/i,
   ];
 
   let cutoffIndex = content.length;
-
   for (const pattern of boundaryPatterns) {
     const match = content.search(pattern);
     if (match > 0 && match < cutoffIndex) {
-      // Need at least 50 chars of content before boundary (less aggressive)
       if (match > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
         cutoffIndex = match;
       }
     }
   }
 
-  // If we found a boundary, cut the content there
+  let wasTruncated = false;
   if (cutoffIndex < content.length && cutoffIndex > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
     const cleaned = content.substring(0, cutoffIndex).trim();
-    // Only return cleaned if we have substantial content (at least 50 chars)
     if (cleaned.length > MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE) {
       content = cleaned;
+      wasTruncated = true;
     }
   }
 
   // Remove any remaining quoted lines (lines starting with >)
+  const beforeQuoteRemoval = content;
   content = content.replace(/^>+.*$/gm, '');
+  if (content !== beforeQuoteRemoval) {
+    wasTruncated = true;
+  }
 
   // Remove signatures
   content = removeSignature(content, false);
 
-  return content.replace(/\n{3,}/g, '\n\n').trim();
+  return { text: content.replace(/\n{3,}/g, '\n\n').trim(), wasTruncated };
+}
+
+/**
+ * Extract clean body from email (removes quoted content and signatures)
+ */
+export function extractCleanBody(emailBody: string, htmlBody?: string): string {
+  return extractCleanBodyWithMeta(emailBody, htmlBody).text;
 }

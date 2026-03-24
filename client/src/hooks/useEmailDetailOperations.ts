@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanBody, extractCleanBodyWithMeta, extractCleanHtmlBody, extractCleanHtmlBodyWithMeta, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { captureEvent } from 'utils/posthog';
@@ -1069,8 +1069,10 @@ export function useEmailDetailOperations(
     handleRespondToInvitation,
     // Helper functions
     extractCleanBody,
+    extractCleanBodyWithMeta,
     removeSignature,
     extractCleanHtmlBody,
+    extractCleanHtmlBodyWithMeta,
     sanitizeAndProcessHtml,
   };
 }

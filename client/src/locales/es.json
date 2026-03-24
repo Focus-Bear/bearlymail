@@ -748,6 +748,8 @@
     "delete": "Borrar",
     "deleteActionItem": "Eliminar elemento de acción",
     "draftReply": "Borrador de respuesta",
+    "showFullMessage": "Mostrar mensaje completo",
+    "hideQuotedContent": "Ocultar contenido citado",
     "emailNotFound": "Correo electrónico no encontrado",
     "expandSummary": "Ampliar resumen",
     "extracting": "Extrayendo...",

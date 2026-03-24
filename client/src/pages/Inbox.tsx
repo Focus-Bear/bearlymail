@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
@@ -13,15 +14,15 @@ import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxOverlays } from 'components/inbox/InboxOverlays';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
-import { PrioritisationInterstitial } from 'components/inbox/PrioritisationInterstitial';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
-import { GATE_FILTER_SWITCHED_KEY,usePrioritisationGate } from 'hooks/usePrioritisationGate';
+import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 
@@ -151,6 +152,7 @@ const InboxView: React.FC = () => {
     totalCount: gateTotalCount,
     justUngated,
     clearJustUngated,
+    dismissGate,
   } = usePrioritisationGate();
 
   const activeFilterCount =
@@ -183,16 +185,6 @@ const InboxView: React.FC = () => {
 
   if (fetchError === ERROR_CODE_GMAIL_REQUIRED) {
     return <GmailConnectionScreen />;
-  }
-
-  // Show the prioritisation interstitial while the initial analysis is running
-  if (isGated) {
-    return (
-      <div className="h-dvh" style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
-        <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={handleCloseMobileMenu} />
-        <PrioritisationInterstitial prioritised={gatePrioritisedCount} total={gateTotalCount} />
-      </div>
-    );
   }
 
   return (
@@ -270,49 +262,66 @@ const InboxView: React.FC = () => {
             onCancel={keyboardShortcuts.cancelPendingArchive}
           />
         )}
-        <InboxContent
-          mode={mode} emails={emails} loading={loading} hasInitiallyLoaded={hasInitiallyLoaded}
-          loadingModeSwitch={loadingModeSwitch} decrypting={decrypting} fetchError={fetchError}
-          selectedEmailIndex={selectedEmailIndex} selectedEmailIds={selectedEmailIds}
-          triageSuggestions={triageSuggestions} followUpDataMap={followUpDataMap}
-          isGeneratingDrafts={isGeneratingDrafts} followUpsError={followUpsError}
-          priorityTooltip={priorityTooltip} keyboardHint={keyboardHint} snoozeInput={snoozeInput}
-          emailActions={emailActions} modals={modals} splitView={splitView}
-          nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck}
-          onEmailClick={handleEmailClick} onEmailSelect={handleEmailSelect}
-          onGenerateDrafts={async () => {
-            const threadIds = emails.filter(email => !email.isArchived).map(email => email.threadId);
-            await generateDrafts(threadIds);
-          }}
-          onRetry={fetchEmails} updateDraft={updateDraft} bulkSend={bulkSend}
-          fetchThreadsWithDrafts={fetchThreadsWithDrafts} emailListRef={emailListRef} emailDetailRef={emailDetailRef}
-          onBulkArchive={async (emailIds: string[]) => {
-            await emailActions.handleBulkArchiveByIds(emailIds);
-            fetchPriorityCounts();
-          }} expandedCategories={expandedCategories}
-          stableCategoryOrder={stableCategoryOrder} onToggleCategory={toggleCategory}
-          onUpdateStableCategoryOrder={updateStableCategoryOrder} onLoadMore={loadMore} hasMore={hasMore}
-          categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}
-          loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
-          minPriority={filters.minPriority}
-          priorityCounts={priorityCounts}
-          onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
-            const newFilters = { minPriority, maxPriority };
-            setPriorityFilter(minPriority, maxPriority);
-            fetchEmails(newFilters);
-            fetchPriorityCounts();
-          }}
-          onDismissUnlockPrompt={() => {
-            // Keep current priority tier — do not change minPriority
-          }}
-          onSplitViewArchive={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
-          onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
-          onSplitViewPrioritySet={(id, count) => {
-            const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-            emailActions.handleSetStarCount(id, count, fakeEvent);
-            navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex);
-          }}
-        />
+        {/* Onboarding gate: shown while initial prioritisation is running */}
+        {isGated ? (
+          <PrioritisationInterstitial
+            prioritisedCount={gatePrioritisedCount}
+            totalCount={gateTotalCount}
+            onDismiss={dismissGate}
+          />
+        ) : (
+          <>
+            {/* "Analysing priority..." virtual category for remaining unprioritised emails */}
+            {priorityCounts && priorityCounts.unprioritised > 0 && (
+              <div style={{ padding: `${theme.spacing.sm} ${theme.spacing.md} 0` }}>
+                <AnalysingPriorityCategory count={priorityCounts.unprioritised} />
+              </div>
+            )}
+            <InboxContent
+              mode={mode} emails={emails} loading={loading} hasInitiallyLoaded={hasInitiallyLoaded}
+              loadingModeSwitch={loadingModeSwitch} decrypting={decrypting} fetchError={fetchError}
+              selectedEmailIndex={selectedEmailIndex} selectedEmailIds={selectedEmailIds}
+              triageSuggestions={triageSuggestions} followUpDataMap={followUpDataMap}
+              isGeneratingDrafts={isGeneratingDrafts} followUpsError={followUpsError}
+              priorityTooltip={priorityTooltip} keyboardHint={keyboardHint} snoozeInput={snoozeInput}
+              emailActions={emailActions} modals={modals} splitView={splitView}
+              nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck}
+              onEmailClick={handleEmailClick} onEmailSelect={handleEmailSelect}
+              onGenerateDrafts={async () => {
+                const threadIds = emails.filter(email => !email.isArchived).map(email => email.threadId);
+                await generateDrafts(threadIds);
+              }}
+              onRetry={fetchEmails} updateDraft={updateDraft} bulkSend={bulkSend}
+              fetchThreadsWithDrafts={fetchThreadsWithDrafts} emailListRef={emailListRef} emailDetailRef={emailDetailRef}
+              onBulkArchive={async (emailIds: string[]) => {
+                await emailActions.handleBulkArchiveByIds(emailIds);
+                fetchPriorityCounts();
+              }} expandedCategories={expandedCategories}
+              stableCategoryOrder={stableCategoryOrder} onToggleCategory={toggleCategory}
+              onUpdateStableCategoryOrder={updateStableCategoryOrder} onLoadMore={loadMore} hasMore={hasMore}
+              categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}
+              loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
+              minPriority={filters.minPriority}
+              priorityCounts={priorityCounts}
+              onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
+                const newFilters = { minPriority, maxPriority };
+                setPriorityFilter(minPriority, maxPriority);
+                fetchEmails(newFilters);
+                fetchPriorityCounts();
+              }}
+              onDismissUnlockPrompt={() => {
+                // Keep current priority tier — do not change minPriority
+              }}
+              onSplitViewArchive={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
+              onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
+              onSplitViewPrioritySet={(id, count) => {
+                const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+                emailActions.handleSetStarCount(id, count, fakeEvent);
+                navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex);
+              }}
+            />
+          </>
+        )}
       </div>
       <InboxModals
         modals={{ blockConfirmEmail: modals.blockConfirmEmail, starDiscrepancyModal: modals.starDiscrepancyModal, priorityOverrideModal: modals.priorityOverrideModal, urgencyOverrideModal: modals.urgencyOverrideModal, priorityFeedbackModal: modals.priorityFeedbackModal }}

@@ -369,7 +369,8 @@
       "title": "Setting up your smart inbox",
       "subtitle": "We're analysing your emails to prioritise what matters most.",
       "progress": "{{count}} of {{total}} emails analysed",
-      "patience": "This usually takes a minute or two."
+      "patience": "This usually takes a minute or two.",
+      "skip": "Skip and see my inbox"
     },
     "analysingPriority": {
       "label": "Analysing priority...",

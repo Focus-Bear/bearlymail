@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 
-const GATE_THRESHOLD = 20;
+export const GATE_THRESHOLD = 20;
 const POLL_INTERVAL_MS = 5000;
 const GATE_DISMISSED_KEY = 'inbox_gate_graduated';
 const GATE_FILTER_SWITCHED_KEY = 'inbox_gate_filter_switched';
@@ -24,6 +24,8 @@ interface UsePrioritisationGateResult {
   /** True if the gate just transitioned from gated → ungated this session */
   justUngated: boolean;
   clearJustUngated: () => void;
+  /** Dismiss the gate manually (skip link). Prevents re-gating this session. */
+  dismissGate: () => void;
 }
 
 /**
@@ -42,6 +44,7 @@ export function usePrioritisationGate(): UsePrioritisationGateResult {
   const [status, setStatus] = useState<PrioritisationStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [justUngated, setJustUngated] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevGatedRef = useRef<boolean | null>(null);
 
@@ -148,13 +151,23 @@ export function usePrioritisationGate(): UsePrioritisationGateResult {
     }
   }, []);
 
-  const isGated = computeIsGated(status);
+  /** Called when user explicitly skips the gate (dismiss button). Prevents re-gating this session. */
+  const dismissGate = useCallback(() => {
+    markDismissed();
+    setDismissed(true); // triggers immediate re-render so isGated becomes false
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const isGated = !dismissed && computeIsGated(status);
   const prioritisedCount = status?.prioritisedCount ?? 0;
   // Use actual totalThreads for display (not inflated to 20).
   // The GATE_THRESHOLD of 20 is only used for the gate condition check above.
   const totalCount = status?.totalThreads ?? 0;
 
-  return { isGated, prioritisedCount, totalCount, isLoading, justUngated, clearJustUngated };
+  return { isGated, prioritisedCount, totalCount, isLoading, justUngated, clearJustUngated, dismissGate };
 }
 
 export { GATE_FILTER_SWITCHED_KEY };

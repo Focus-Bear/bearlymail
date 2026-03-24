@@ -1512,7 +1512,8 @@
       "title": "Configurando tu bandeja inteligente",
       "subtitle": "Estamos analizando tus correos para priorizar lo que más importa.",
       "progress": "{{count}} de {{total}} correos analizados",
-      "patience": "Esto suele tardar un par de minutos."
+      "patience": "Esto suele tardar un par de minutos.",
+      "skip": "Saltar y ver mi bandeja"
     },
     "analysingPriority": {
       "label": "Analizando prioridad...",

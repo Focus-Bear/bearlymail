@@ -385,8 +385,15 @@
       "description": "These emails are being processed. They'll appear in the right category once analysis completes."
     },
     "filteredEmpty": {
-      "hasLowerPriority": "No high priority emails right now. There are {{count}} lower priority emails.",
+      "noTierEmails": "No {{tier}} emails",
+      "hasLowerPriority": "You have {{count}} lower priority email(s) waiting to be triaged.",
       "showAll": "Show all emails"
+    },
+    "priority": {
+      "veryHigh": "Very High priority",
+      "high": "High priority",
+      "medium": "Medium priority",
+      "low": "Low priority"
     }
   },
   "emailDetail": {

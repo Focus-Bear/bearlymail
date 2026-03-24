@@ -1529,7 +1529,14 @@
     },
     "filteredEmpty": {
       "hasLowerPriority": "No hay correos de alta prioridad ahora mismo. Hay {{count}} correos de menor prioridad.",
-      "showAll": "Mostrar todos los correos"
+      "showAll": "Mostrar todos los correos",
+      "noTierEmails": "Sin correos de prioridad {{tier}}"
+    },
+    "priority": {
+      "veryHigh": "Prioridad muy alta",
+      "high": "Prioridad alta",
+      "medium": "Prioridad media",
+      "low": "Prioridad baja"
     }
   },
   "landing": {

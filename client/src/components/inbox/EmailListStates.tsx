@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
-import { AllCaughtUpState, EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
+import { AllCaughtUpState, EmptyState, ErrorState, FilteredEmptyState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
 import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 
 interface PriorityCounts {
@@ -86,6 +86,43 @@ function findNextNonEmptyTier(
   return null;
 }
 
+/**
+ * Compute the total count of emails in priority tiers below the given minPriority.
+ * Used to detect whether a filtered-empty state is misleading (lower emails exist).
+ */
+function computeTotalLowerPriority(minPriority: number, counts: PriorityCounts): number {
+  let total = 0;
+  if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) {
+ total += counts.high; 
+}
+  if (minPriority >= HIGH_PRIORITY_THRESHOLD) {
+ total += counts.medium; 
+}
+  if (minPriority >= MEDIUM_PRIORITY_THRESHOLD) {
+ total += counts.low; 
+}
+  if (minPriority >= LOW_PRIORITY_THRESHOLD) {
+ total += counts.veryLow; 
+}
+  return total;
+}
+
+/**
+ * Human-readable label for the current active priority filter tier.
+ */
+function getCurrentTierLabel(minPriority: number, translate: (key: string) => string): string {
+  if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) {
+ return translate('inbox.priority.veryHigh'); 
+}
+  if (minPriority >= HIGH_PRIORITY_THRESHOLD) {
+ return translate('inbox.priority.high'); 
+}
+  if (minPriority >= MEDIUM_PRIORITY_THRESHOLD) {
+ return translate('inbox.priority.medium'); 
+}
+  return translate('inbox.priority.low');
+}
+
 interface EmailListStatesProps {
   loading: boolean;
   hasInitiallyLoaded: boolean;
@@ -103,6 +140,8 @@ interface EmailListStatesProps {
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
+  /** Called when user clicks "Show all emails" to clear the priority filter */
+  onClearFilters?: () => void;
 }
 
 interface EmptyInboxProps {
@@ -114,11 +153,18 @@ interface EmptyInboxProps {
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   onDismissUnlockPrompt?: () => void;
   handleDismissPrompt: () => void;
+  onClearFilters?: () => void;
 }
 
 /**
  * Renders the appropriate state when the email list is empty.
  * Extracted to reduce complexity of the parent component.
+ *
+ * Decision tree:
+ * 1. Progressive unlock prompt — filter active, not dismissed, next tier has emails → ProgressiveUnlockPrompt
+ * 2. All caught up — filter active, priorityCounts loaded, ALL lower tiers empty → AllCaughtUpState
+ * 3. Filtered but lower emails exist — filter active, priorityCounts loaded, lower > 0 (e.g. dismissed) → FilteredEmptyState
+ * 4. Genuine empty / loading — no filter, or priorityCounts still loading → EmptyState
  */
 function EmptyInboxContent({
   t,
@@ -129,12 +175,15 @@ function EmptyInboxContent({
   onUnlockPriorityTier,
   onDismissUnlockPrompt,
   handleDismissPrompt,
+  onClearFilters,
 }: EmptyInboxProps): React.ReactElement {
-  // Progressive unlock: offer to drop to the next lower priority tier.
-  // Uses tier-chain logic to skip empty tiers (fixes #1434).
-  const hasActiveFilter = !isUnlockPromptDismissed && minPriority !== null && minPriority !== undefined;
+  const hasActiveFilter = minPriority !== null && minPriority !== undefined;
 
-  if (hasActiveFilter && priorityCounts && onUnlockPriorityTier && onDismissUnlockPrompt) {
+  // 1. Progressive unlock prompt (only when user hasn't dismissed it for this session).
+  //    Dismissal hides the prompt but does NOT disable filter-awareness (fixes edge case 1).
+  const isPromptEligible = hasActiveFilter && !isUnlockPromptDismissed;
+
+  if (isPromptEligible && priorityCounts && onUnlockPriorityTier && onDismissUnlockPrompt) {
     const nextTier = findNextNonEmptyTier(minPriority as number, priorityCounts);
     if (nextTier) {
       const nextCount = priorityCounts[nextTier.nextCountKey] as number;
@@ -150,19 +199,37 @@ function EmptyInboxContent({
     }
   }
 
-  // "All caught up" state: no lower tiers have emails AND user is below VH filter.
-  const allLowerTiersEmpty =
-    priorityCounts &&
-    priorityCounts.high === 0 &&
-    priorityCounts.medium === 0 &&
-    priorityCounts.low === 0 &&
-    priorityCounts.veryLow === 0;
+  // 2 & 3 require priorityCounts to be loaded — guard here (fixes edge case 2).
+  if (hasActiveFilter && priorityCounts) {
+    // 2. True "all caught up" — every lower tier (across all bands) is genuinely empty.
+    const allLowerTiersEmpty =
+      priorityCounts.high === 0 &&
+      priorityCounts.medium === 0 &&
+      priorityCounts.low === 0 &&
+      priorityCounts.veryLow === 0;
 
-  if (hasActiveFilter && allLowerTiersEmpty) {
-    return <AllCaughtUpState />;
+    if (allLowerTiersEmpty) {
+      return <AllCaughtUpState />;
+    }
+
+    // 3. Filter active, lower-priority emails exist (dismissed or no callbacks).
+    //    Show FilteredEmptyState rather than the misleading generic EmptyState.
+    //    Use filter-aware count so the number reflects emails actually below the current tier.
+    const totalLower = computeTotalLowerPriority(minPriority as number, priorityCounts);
+    const displayCount = totalLower > 0
+      ? totalLower
+      : priorityCounts.high + priorityCounts.medium + priorityCounts.low + priorityCounts.veryLow;
+
+    return (
+      <FilteredEmptyState
+        currentTierLabel={getCurrentTierLabel(minPriority as number, t)}
+        lowerPriorityCount={displayCount}
+        onShowAll={onClearFilters}
+      />
+    );
   }
 
-  // Filtered empty: filter is active but no emails match — show generic empty state.
+  // 4. No filter active, or priorityCounts not yet loaded — fall back to generic EmptyState.
   return <EmptyState mode={mode} />;
 }
 
@@ -185,6 +252,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   priorityCounts,
   onUnlockPriorityTier,
   onDismissUnlockPrompt,
+  onClearFilters,
 }) => {
   const { t } = useTranslation();
   const [isUnlockPromptDismissed, setIsUnlockPromptDismissed] = useState(false);
@@ -217,6 +285,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
         onUnlockPriorityTier={onUnlockPriorityTier}
         onDismissUnlockPrompt={onDismissUnlockPrompt}
         handleDismissPrompt={handleDismissPrompt}
+        onClearFilters={onClearFilters}
       />
     );
   }

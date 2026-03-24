@@ -611,6 +611,8 @@ export interface InboxEmailListPanelProps {
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
+  /** Called when user clicks "Show all emails" to clear the priority filter */
+  onClearFilters?: () => void;
   /** Count of threads not yet prioritised (priorityScore IS NULL) — used for the virtual "Analysing priority..." category */
   unprioritisedCount?: number;
 }
@@ -626,7 +628,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
     priorityTooltip, keyboardHint, snoozeInput, emailActions, modals, updateDraft,
     onEmailClick, onEmailSelect, onSendFollowUp, onGenerateDrafts, onRetry,
     onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox, onReanalyseOther,
-    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
     unprioritisedCount,
   } = props;
 
@@ -730,6 +732,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           priorityCounts={priorityCounts}
           onUnlockPriorityTier={onUnlockPriorityTier}
           onDismissUnlockPrompt={onDismissUnlockPrompt}
+          onClearFilters={onClearFilters}
         />
         {canRenderCategories && unprioritisedCount !== null && unprioritisedCount !== undefined && unprioritisedCount > 0 && (
           <AnalysingPriorityCategory count={unprioritisedCount} />

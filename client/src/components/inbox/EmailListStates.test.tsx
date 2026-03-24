@@ -38,6 +38,13 @@ jest.mock('components/inbox/states', () => ({
   AllCaughtUpState: () => <div data-testid="all-caught-up-state">AllCaughtUp</div>,
   EmptyState: ({ mode }: { mode: string }) => <div data-testid="empty-state">{mode}</div>,
   ErrorState: ({ error }: { error: string }) => <div data-testid="error-state">{error}</div>,
+  FilteredEmptyState: ({ currentTierLabel, lowerPriorityCount, onShowAll }: { currentTierLabel: string; lowerPriorityCount: number; onShowAll?: () => void }) => (
+    <div data-testid="filtered-empty-state">
+      <span data-testid="filtered-tier-label">{currentTierLabel}</span>
+      <span data-testid="filtered-lower-count">{lowerPriorityCount}</span>
+      {onShowAll && <button data-testid="show-all-btn" onClick={onShowAll}>Show all</button>}
+    </div>
+  ),
   LoadingState: () => <div data-testid="loading-state">Loading</div>,
   ProgressiveUnlockPrompt: ({
     message,
@@ -127,7 +134,7 @@ describe('EmailListStates', () => {
       expect(onUnlockPriorityTier).toHaveBeenCalledWith(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD);
     });
 
-    it('hides ProgressiveUnlockPrompt and shows EmptyState after dismissal', () => {
+    it('hides ProgressiveUnlockPrompt and shows FilteredEmptyState after dismissal when lower emails exist', () => {
       const onDismissUnlockPrompt = jest.fn();
       render(
         <EmailListStates
@@ -142,7 +149,9 @@ describe('EmailListStates', () => {
       fireEvent.click(screen.getByTestId('later-btn'));
       expect(onDismissUnlockPrompt).toHaveBeenCalled();
       expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
-      expect(screen.getByTestId('empty-state')).toBeTruthy();
+      // FilteredEmptyState, NOT generic EmptyState — lower-priority emails still exist
+      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('empty-state')).toBeNull();
     });
 
     it('does NOT render ProgressiveUnlockPrompt when high count is 0', () => {
@@ -253,7 +262,7 @@ describe('EmailListStates', () => {
       expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
     });
 
-    it('does NOT render AllCaughtUpState when low count > 0', () => {
+    it('does NOT render AllCaughtUpState when low count > 0 — shows FilteredEmptyState instead', () => {
       render(
         <EmailListStates
           {...baseProps}
@@ -265,6 +274,7 @@ describe('EmailListStates', () => {
         />
       );
       expect(screen.queryByTestId('all-caught-up-state')).toBeNull();
+      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
     });
   });
 
@@ -292,6 +302,115 @@ describe('EmailListStates', () => {
       expect(screen.queryByTestId('error-state')).toBeNull();
       expect(screen.queryByTestId('empty-state')).toBeNull();
       expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
+    });
+  });
+
+  describe('dismiss → AllCaughtUpState when all tiers truly empty', () => {
+    it('shows AllCaughtUpState after dismiss when all lower tiers are zero', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      // No prompt to dismiss (all tiers empty), goes directly to AllCaughtUpState
+      expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
+      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
+    });
+  });
+
+  describe('progressive unlock — tier skipping', () => {
+    it('skips high tier (high=0) and prompts for medium when VH inbox empty', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      // Should show prompt — skips empty high tier, picks medium via highDone message
+      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
+      // doneMsgKey for the high→medium tier entry is used when skipping VH→high (high=0)
+      expect(screen.getByText('inbox.progressiveUnlock.highDone')).toBeTruthy();
+    });
+
+    it('skips high and medium (both 0) and prompts for low when VH inbox empty', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
+    });
+  });
+
+  describe('priorityCounts null/loading — edge case 2', () => {
+    it('shows generic EmptyState when priorityCounts is null (loading state)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={null}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      // Falls through to generic EmptyState — acceptable during loading
+      expect(screen.getByTestId('empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
+    });
+  });
+
+  describe('FilteredEmptyState — onClearFilters wiring', () => {
+    it('calls onClearFilters when "Show all" is clicked after dismiss', () => {
+      const onClearFilters = jest.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 3, low: 2, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+          onClearFilters={onClearFilters}
+        />
+      );
+      // Dismiss to trigger FilteredEmptyState
+      fireEvent.click(screen.getByTestId('later-btn'));
+      expect(screen.getByTestId('show-all-btn')).toBeTruthy();
+      fireEvent.click(screen.getByTestId('show-all-btn'));
+      expect(onClearFilters).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('FilteredEmptyState — VH filter, dismiss, shows correct count', () => {
+    it('shows total lower-priority count of 7 after VH dismiss (high=5, medium=2)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 2, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      fireEvent.click(screen.getByTestId('later-btn'));
+      const countEl = screen.getByTestId('filtered-lower-count');
+      expect(countEl.textContent).toBe('7');
     });
   });
 });

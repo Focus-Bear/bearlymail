@@ -62,6 +62,8 @@ export interface InboxContentProps {
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
   onDismissUnlockPrompt?: () => void;
+  /** Called when user clicks "Show all emails" to clear the priority filter */
+  onClearFilters?: () => void;
 }
 
 export const InboxContent: React.FC<InboxContentProps> = (props) => {
@@ -75,7 +77,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet, onBulkArchive,
     expandedCategories, stableCategoryOrder, onToggleCategory, onUpdateStableCategoryOrder,
     onLoadMore, hasMore, categorySummary, loadedCategoryNames,
-    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
   } = props;
 
   const {
@@ -107,7 +109,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onToggleCategory, onBulkArchive, onConvertProtoCategory: handleConvertProtoCategory,
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
     onReanalyseOther: handleReanalyseOther,
-    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt,
+    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
     unprioritisedCount: priorityCounts?.unprioritised ?? 0,
   };
 

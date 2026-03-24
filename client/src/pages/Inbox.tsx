@@ -334,6 +334,10 @@ const InboxView: React.FC = () => {
               onDismissUnlockPrompt={() => {
                 // Keep current priority tier — do not change minPriority
               }}
+              onClearFilters={() => {
+                clearFilters();
+                fetchEmails();
+              }}
               onSplitViewArchive={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
               onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
               onSplitViewPrioritySet={(id, count) => {

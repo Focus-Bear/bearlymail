@@ -15,5 +15,26 @@ export type InboxQuery = {
   page?: string;
   limit?: string;
   offset?: string;
+  /** Filter threads by assignee. Use a userId UUID, or the string "unassigned" for threads with no assignee. */
+  assigneeId?: string;
 };
 // max-params fixed
+
+export type InboxSummaryQuery = {
+  mode?: "triage" | "action" | "follow-up" | "blocked";
+  categoryIds?: string;
+  minPriority?: string;
+  maxPriority?: string;
+  includeThreadIds?: string;
+  accounts?: string;
+};
+
+export type SendEmailBody = {
+  to: import("./interfaces/email-provider.interface").EmailRecipient[];
+  subject: string;
+  body: string;
+  cc?: import("./interfaces/email-provider.interface").EmailRecipient[];
+  bcc?: import("./interfaces/email-provider.interface").EmailRecipient[];
+  scheduledSendAt?: string;
+  userTimezone?: string;
+};

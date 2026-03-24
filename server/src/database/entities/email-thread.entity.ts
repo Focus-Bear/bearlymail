@@ -260,6 +260,24 @@ export class EmailThread {
   @JoinColumn({ name: "userId" })
   user: User;
 
+  /**
+   * The org member this thread is assigned to for triage/response.
+   * NULL means unassigned. Set NULL on delete to prevent data loss if the
+   * assignee leaves the platform.
+   *
+   * Part of Batch B — team thread assignment (#1112).
+   */
+  @Column({
+    type: "uuid",
+    nullable: true,
+    comment: "Assigned team member user ID (null = unassigned)",
+  })
+  assigneeId: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "assigneeId" })
+  assignee: User | null;
+
   @OneToMany(() => Email, (email) => email.thread)
   emails: Email[];
 }

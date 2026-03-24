@@ -41,9 +41,13 @@ import {
   PgBossWithInternals,
 } from "./email-controller.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
-import { CategoryOverrideBody, InboxQuery } from "./emails.controller.types";
+import {
+  CategoryOverrideBody,
+  InboxQuery,
+  InboxSummaryQuery,
+  SendEmailBody,
+} from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
-import { EmailRecipient } from "./interfaces/email-provider.interface";
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)
@@ -73,6 +77,7 @@ export class EmailsController {
       page: pageParam,
       limit: limitParam,
       offset: offsetParam,
+      assigneeId,
     } = query;
     // Parse filter parameters
     const accountIds = accounts
@@ -104,6 +109,7 @@ export class EmailsController {
         categoryIds: categoryIdList,
         minPriority: minPriorityValue,
         maxPriority: maxPriorityValue,
+        assigneeId,
       },
       { offset, limit: pageSize },
     );
@@ -150,14 +156,7 @@ export class EmailsController {
   async getInboxSummary(
     @Request() req,
     @Query()
-    query: {
-      mode?: "triage" | "action" | "follow-up" | "blocked";
-      categoryIds?: string;
-      minPriority?: string;
-      maxPriority?: string;
-      includeThreadIds?: string;
-      accounts?: string;
-    },
+    query: InboxSummaryQuery,
   ) {
     const {
       mode = "triage",
@@ -755,15 +754,7 @@ export class EmailsController {
   async sendEmail(
     @Request() req,
     @Body()
-    body: {
-      to: EmailRecipient[];
-      subject: string;
-      body: string;
-      cc?: EmailRecipient[];
-      bcc?: EmailRecipient[];
-      scheduledSendAt?: string;
-      userTimezone?: string;
-    },
+    body: SendEmailBody,
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const { userId } = req.user;

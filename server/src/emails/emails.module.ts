@@ -15,6 +15,7 @@ import { CategoryOverride } from "../database/entities/category-override.entity"
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
@@ -35,6 +36,7 @@ import { ArchiveEmailProcessor } from "./archive-email.processor";
 import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailArchiveService } from "./email-archive.service";
+import { EmailAssignmentService } from "./email-assignment.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
@@ -79,6 +81,7 @@ import { SyncHistoryService } from "./sync-history.service";
     TypeOrmModule.forFeature([
       Email,
       EmailThread,
+      OrganizationMember,
       ScanEmail,
       UserContext,
       ActionItem,
@@ -112,6 +115,7 @@ import { SyncHistoryService } from "./sync-history.service";
   providers: [
     SyncHistoryService,
     CategoryDedupService,
+    EmailAssignmentService,
     EmailProviderManager,
     EmailThreadService,
     EmailSearchService,

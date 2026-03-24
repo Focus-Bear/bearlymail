@@ -23,6 +23,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
+  buildSummaryFiltersAndParams,
   buildThreadFilter,
   lookupCategoryIdByName,
   RawEmailRow,
@@ -86,8 +87,10 @@ export class EmailInboxService {
     }[];
   }> {
     const threadFilter = buildThreadFilter(mode);
-    const { additionalFilters, queryParams } =
-      this.buildSummaryFiltersAndParams(userId, filters);
+    const { additionalFilters, queryParams } = buildSummaryFiltersAndParams(
+      userId,
+      filters,
+    );
     const needsUserSentLastFilter =
       mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP;
 
@@ -166,49 +169,6 @@ export class EmailInboxService {
     }));
     const total = categories.reduce((sum, cat) => sum + cat.count, 0);
     return { total, categories };
-  }
-
-  private buildSummaryFiltersAndParams(
-    userId: string,
-    filters?: {
-      minPriority?: number;
-      maxPriority?: number;
-      accountIds?: string[];
-    },
-  ): { additionalFilters: string; queryParams: unknown[] } {
-    const queryParams: unknown[] = [userId];
-    let additionalFilters = "";
-    let paramIndex = 2;
-
-    if (filters?.minPriority !== undefined) {
-      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
-      queryParams.push(filters.minPriority);
-    }
-    if (filters?.maxPriority !== undefined) {
-      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
-      queryParams.push(filters.maxPriority);
-    }
-    if (filters?.accountIds && filters.accountIds.length > 0) {
-      const phGoogle = filters.accountIds
-        .map(() => `$${paramIndex++}`)
-        .join(", ");
-      const phOffice = filters.accountIds
-        .map(() => `$${paramIndex++}`)
-        .join(", ");
-      const phZoho = filters.accountIds
-        .map(() => `$${paramIndex++}`)
-        .join(", ");
-      additionalFilters += ` AND EXISTS (
-        SELECT 1 FROM emails acctFilter WHERE acctFilter."emailThreadId" = thread.id
-          AND (acctFilter."googleAccountId" IN (${phGoogle}) OR acctFilter."office365AccountId" IN (${phOffice}) OR acctFilter."zohoAccountId" IN (${phZoho}))
-      )`;
-      queryParams.push(
-        ...filters.accountIds,
-        ...filters.accountIds,
-        ...filters.accountIds,
-      );
-    }
-    return { additionalFilters, queryParams };
   }
 
   private async resolveUserEmailLower(
@@ -390,6 +350,8 @@ export class EmailInboxService {
       categoryIds?: string[];
       minPriority?: number;
       maxPriority?: number;
+      /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
+      assigneeId?: string;
     };
     pagination?: { offset?: number; limit?: number };
     fixStuckCalculatingThreads?: (userId: string) => Promise<unknown>;
@@ -534,6 +496,8 @@ export class EmailInboxService {
       accountIds?: string[];
       minPriority?: number;
       maxPriority?: number;
+      /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
+      assigneeId?: string;
     },
   ): Promise<RawEmailRow[]> {
     const threadFilter = buildThreadFilter(mode);
@@ -565,6 +529,13 @@ export class EmailInboxService {
     if (filters?.maxPriority !== undefined) {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
       queryParams.push(filters.maxPriority);
+    }
+    // Assignee filter (Batch B — #1112)
+    if (filters?.assigneeId === "unassigned") {
+      additionalFilters += ` AND thread."assigneeId" IS NULL`;
+    } else if (filters?.assigneeId) {
+      additionalFilters += ` AND thread."assigneeId" = $${paramIndex++}`;
+      queryParams.push(filters.assigneeId);
     }
 
     return this.emailRepository.query(

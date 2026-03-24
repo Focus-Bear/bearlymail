@@ -128,6 +128,7 @@ export class EmailsService {
       categoryIds?: string[];
       minPriority?: number;
       maxPriority?: number;
+      assigneeId?: string;
     },
     pagination?: { offset?: number; limit?: number },
   ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {

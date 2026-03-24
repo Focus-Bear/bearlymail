@@ -44,6 +44,13 @@ export const RETRY_CONSTANTS = {
   FINALIZATION_RETRY_DELAY_SECONDS: 10,
 } as const;
 
+/**
+ * Maximum number of times the finalization job may re-queue itself waiting
+ * for batch completion before giving up and marking the analysis as failed.
+ * 30 retries × 10 s = ~5 minutes maximum wait.
+ */
+export const MAX_FINALIZATION_RETRIES = 30;
+
 // Priority learning thresholds
 export const LEARNING_THRESHOLDS = {
   // Star count for high priority detection

@@ -105,6 +105,16 @@ export class ContextService {
     return this.analysisHelpersService.getCompletedBatchCount(analysisRecordId);
   }
 
+  async markAnalysisAsFailed(
+    analysisRecordId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    return this.analysisHelpersService.markAnalysisAsFailed(
+      analysisRecordId,
+      errorMessage,
+    );
+  }
+
   async checkAndSyncJobs(userId: string, analysisId?: string): Promise<void> {
     return this.progressService.checkAndSyncJobs(userId, analysisId);
   }

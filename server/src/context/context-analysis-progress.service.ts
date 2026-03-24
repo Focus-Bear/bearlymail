@@ -353,8 +353,11 @@ export class ContextAnalysisProgressService {
             {
               userId,
               batchIndex,
-              emailBatch: batchPayload,
-              analysisId,
+              batch: batchPayload,
+              analysisRecordId: analysisId,
+              totalBatches: (stats.totalBatches as number) || 0,
+              sentPayload: [],
+              currentContextForPrompt: [],
             },
             {
               priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH),

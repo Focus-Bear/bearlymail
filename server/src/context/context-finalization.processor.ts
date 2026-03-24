@@ -5,7 +5,10 @@ import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { JOB_NAMES } from "../constants/job-names";
-import { RETRY_CONSTANTS } from "../constants/service-constants";
+import {
+  MAX_FINALIZATION_RETRIES,
+  RETRY_CONSTANTS,
+} from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
@@ -32,11 +35,8 @@ interface FinalizationJob {
     threadCount: number;
   }>;
   userEmail?: string;
-}
-
-interface PgBossJob {
-  id?: string;
-  payload: unknown;
+  /** Tracks how many times this finalization job has been re-queued (Bug #3 fix). */
+  retryCount?: number;
 }
 
 @Injectable()
@@ -80,8 +80,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
       JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS,
       { teamSize: this.finalizationConcurrency } as { teamSize: number },
       async (job) => {
-        const pgBossJob = job as unknown as PgBossJob;
-        await this.processFinalizationJob(pgBossJob);
+        await this.processFinalizationJob(job as PgBoss.Job<FinalizationJob>);
       },
     );
 
@@ -141,6 +140,8 @@ export class ContextFinalizationProcessor implements OnModuleInit {
 
   /**
    * Re-queue this finalization job to run again after a short delay.
+   * Enforces a maximum retry limit (MAX_FINALIZATION_RETRIES) to prevent
+   * infinite re-queue loops. Marks the analysis as failed when limit is exceeded.
    */
   private async requeueFinalizationJob(
     workerId: string,
@@ -149,16 +150,38 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     actualTotalBatches: number,
     completedBatches: number,
   ): Promise<void> {
+    const currentRetryCount = (jobData.retryCount ?? 0) + 1;
+
+    // Enforce max re-queue limit to prevent infinite loops (Bug #3 fix)
+    if (currentRetryCount > MAX_FINALIZATION_RETRIES) {
+      this.logger.error(
+        `[Worker ${workerId}] ❌ Finalization exceeded max retries (${MAX_FINALIZATION_RETRIES}) for analysis ${analysisRecordId}. Marking as failed.`,
+      );
+      writeAnalysisLog(
+        `[Worker ${workerId}] ❌ Finalization exceeded max retries (${MAX_FINALIZATION_RETRIES}). Marking analysis ${analysisRecordId} as failed.`,
+        "error",
+      );
+      await this.contextService.markAnalysisAsFailed(
+        analysisRecordId,
+        `Analysis timed out: batches did not complete after ${MAX_FINALIZATION_RETRIES} retries (${completedBatches}/${actualTotalBatches} batches completed).`,
+      );
+      return;
+    }
+
     this.logger.log(
-      `[Worker ${workerId}] Not all batches complete yet (${completedBatches}/${actualTotalBatches}). Re-queuing finalization job in 30 seconds.`,
+      `[Worker ${workerId}] Not all batches complete yet (${completedBatches}/${actualTotalBatches}). Re-queuing finalization job in ${RETRY_CONSTANTS.FINALIZATION_RETRY_DELAY_SECONDS}s (attempt ${currentRetryCount}/${MAX_FINALIZATION_RETRIES}).`,
     );
     writeAnalysisLog(
-      `[Worker ${workerId}] Not all batches complete yet (${completedBatches}/${actualTotalBatches}). Re-queuing finalization job in 30 seconds.`,
+      `[Worker ${workerId}] Not all batches complete yet (${completedBatches}/${actualTotalBatches}). Re-queuing finalization job in ${RETRY_CONSTANTS.FINALIZATION_RETRY_DELAY_SECONDS}s (attempt ${currentRetryCount}/${MAX_FINALIZATION_RETRIES}).`,
       "log",
     );
 
-    // Update job data with correct totalBatches before re-queuing
-    const updatedJobData = { ...jobData, totalBatches: actualTotalBatches };
+    // Update job data with correct totalBatches and incremented retryCount before re-queuing
+    const updatedJobData = {
+      ...jobData,
+      totalBatches: actualTotalBatches,
+      retryCount: currentRetryCount,
+    };
 
     // Use a unique key with timestamp to avoid singleton conflict with current job
     const retryJobId = await this.boss.send(
@@ -173,7 +196,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
           Date.now() +
             RETRY_CONSTANTS.FINALIZATION_RETRY_DELAY_SECONDS *
               MILLISECONDS.SECOND,
-          // Retry in 10 seconds (faster retry)
         ),
       },
     );
@@ -263,8 +285,10 @@ export class ContextFinalizationProcessor implements OnModuleInit {
   /**
    * Core handler for a finalize-context-analysis job.
    */
-  private async processFinalizationJob(job: PgBossJob): Promise<void> {
-    const jobData = job.payload as FinalizationJob;
+  private async processFinalizationJob(
+    job: PgBoss.Job<FinalizationJob>,
+  ): Promise<void> {
+    const jobData = job.data;
     const { userId, analysisRecordId, totalBatches } = jobData;
     const workerId = job.id || "unknown";
     const tracker = new JobPerformanceTracker(

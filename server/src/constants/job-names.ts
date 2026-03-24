@@ -36,6 +36,7 @@ export const JOB_NAMES = {
   ANALYZE_CONTEXT_BATCH: "analyze-context-batch",
   FINALIZE_CONTEXT_ANALYSIS: "finalize-context-analysis",
   COMPRESS_CONTEXT: "compress-context",
+  CLEANUP_STUCK_ANALYSES: "cleanup-stuck-analyses",
 
   // Writing style & learning
   CHECK_WRITING_STYLE_LEARNING: "check-writing-style-learning",

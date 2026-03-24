@@ -26,4 +26,19 @@ export class ContextAnalysisHelpersService {
   async getCompletedBatchCount(analysisRecordId: string): Promise<number> {
     return this.progressService.getCompletedBatchCount(analysisRecordId);
   }
+
+  /**
+   * Mark an analysis record as failed with an optional error message.
+   * Used by processors that detect unrecoverable failure conditions.
+   */
+  async markAnalysisAsFailed(
+    analysisRecordId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    return this.progressService.updateAnalysisStatus(
+      analysisRecordId,
+      "failed",
+      errorMessage,
+    );
+  }
 }

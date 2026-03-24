@@ -26,6 +26,7 @@ import { ContextBatchPayloadService } from "./context-batch-payload.service";
 import { ContextCategoryService } from "./context-category.service";
 import { ContextCompressionService } from "./context-compression.service";
 import { ContextCrudService } from "./context-crud.service";
+import { ContextAnalysisCleanupService } from "./context-analysis-cleanup.service";
 import { ContextFinalizationProcessor } from "./context-finalization.processor";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
@@ -67,6 +68,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
     ContextAnalysisProcessor,
     ContextBatchAnalysisProcessor,
     ContextFinalizationProcessor,
+    ContextAnalysisCleanupService,
     WritingStyleLearningService,
     WritingStyleLearningProcessor,
   ],

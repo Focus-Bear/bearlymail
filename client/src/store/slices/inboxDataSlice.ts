@@ -128,12 +128,18 @@ const inboxDataSlice = createSlice({
       // Threads with no category_id are "uncategorized" (summary items with id === null).
       if (emailToRemove && state.categorySummary) {
         const catId = emailToRemove.category_id ?? null;
+        // Defense-in-depth for #1404: treat emails with a stale category_id UUID that
+        // resolved to "Other" as uncategorized, so the count decrement targets the
+        // id === null summary bucket (not a missing stale-UUID bucket).
+        const isOtherEmail = !catId || emailToRemove.category === 'Other';
         const summaryItem = state.categorySummary.find(cat =>
-          catId ? cat.id === catId : cat.id === null
+          isOtherEmail ? cat.id === null : cat.id === catId
         );
         if (summaryItem) {
           const remainingInCategory = state.emails.filter(email =>
-            catId ? email.category_id === catId : (!email.category_id)
+            isOtherEmail
+              ? (!email.category_id || email.category === 'Other')
+              : email.category_id === catId
           );
           if (remainingInCategory.length === 0) {
             summaryItem.count = 0;

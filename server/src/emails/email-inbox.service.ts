@@ -652,8 +652,13 @@ export class EmailInboxService {
       filteredEmails = filteredEmails.filter((emailEntry) => {
         // categoryId is the single source of truth (fixes #1293).
         // NULL categoryId → "Other" bucket.
-        if (requestedOther && !emailEntry.categoryId) return true;
-        if (emailEntry.categoryId)
+        // Defense-in-depth for #1404: also catch orphaned-UUID threads where
+        // decryptRawEmailRow already resolved category to OTHER_CATEGORY_NAME.
+        const isOtherThread =
+          !emailEntry.categoryId ||
+          emailEntry.category === OTHER_CATEGORY_NAME;
+        if (requestedOther && isOtherThread) return true;
+        if (emailEntry.categoryId && !isOtherThread)
           return requestedUuids.has(emailEntry.categoryId);
         return false;
       });
@@ -747,7 +752,10 @@ export class EmailInboxService {
       phishingConfidence: row.phishingConfidence,
       phishingReason: row.phishingReason,
       priorityScore: row.priorityScore ?? null,
-      categoryId: row.categoryId,
+      // Orphaned UUID: if the LEFT JOIN returned no categoryName, the referenced
+      // user_context was deleted. Null out categoryId so this email is treated as
+      // truly uncategorized downstream (fixes #1404 — stale-UUID category mismatch).
+      categoryId: row.categoryName ? row.categoryId : null,
       cc: row.cc ? EncryptionHelper.decrypt(row.cc) : null,
     } as InboxEmail;
   }

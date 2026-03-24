@@ -233,6 +233,28 @@ const InboxView: React.FC = () => {
           loadingAccounts={loadingAccounts} loadingCategories={loadingCategories}
           hasActiveFilters={hasActiveFilters} setAccountFilter={setAccountFilter}
           setCategoryFilter={setCategoryFilter} setPriorityFilter={setPriorityFilter}
+          categoryCounts={categorySummary ? Object.fromEntries(categorySummary.map(cat => [cat.id, cat.count])) : undefined}
+          bucketCounts={priorityCounts ? {
+            'Very Low': priorityCounts.veryLow,
+            'Low': priorityCounts.low,
+            'Medium': priorityCounts.medium,
+            'High': priorityCounts.high,
+            'Very High': priorityCounts.veryHigh,
+          } : undefined}
+          priorityTotalCount={priorityCounts ? (() => {
+            const minVal = filters.minPriority ?? 0;
+            const maxVal = filters.maxPriority ?? 100;
+            const BUCKET_BOUNDARIES = [
+              { key: 'veryLow' as const, min: 0, max: 20 },
+              { key: 'low' as const, min: 20, max: 40 },
+              { key: 'medium' as const, min: 40, max: 60 },
+              { key: 'high' as const, min: 60, max: 80 },
+              { key: 'veryHigh' as const, min: 80, max: 100 },
+            ];
+            return BUCKET_BOUNDARIES
+              .filter(bucket => bucket.min < maxVal && bucket.max > minVal)
+              .reduce((sum, bucket) => sum + (priorityCounts[bucket.key] ?? 0), 0);
+          })() : undefined}
         />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel

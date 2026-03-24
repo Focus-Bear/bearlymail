@@ -29,7 +29,8 @@
     "hide": "Hide",
     "show": "Show",
     "pageNotFound": "Page not found",
-    "goHome": "Go home"
+    "goHome": "Go home",
+    "checkmark": "✓"
   },
   "auth": {
     "loginTitle": "Welcome Back",
@@ -337,12 +338,19 @@
       "clear": "Clear all filters",
       "account": "Email Account",
       "category": "Category",
-      "priority": "Minimum Priority",
+      "categoryGroup": "Category filter",
+      "priority": "Priority Filter",
+      "priorityAll": "All priorities",
+      "priorityMinHandle": "Minimum priority",
+      "priorityMaxHandle": "Maximum priority",
       "allAccounts": "All accounts",
-      "allCategories": "All categories",
+      "allCategories": "All",
       "noAccounts": "No accounts found",
       "noCategories": "No categories yet",
-      "clearAll": "Clear Filters"
+      "clearAll": "Clear Filters",
+      "moreCategories": "more",
+      "showMoreCategories": "Show {{count}} more categories",
+      "nCategoriesSelected": "{{count}} selected"
     },
     "blockConfirm": {
       "title": "Block Sender",

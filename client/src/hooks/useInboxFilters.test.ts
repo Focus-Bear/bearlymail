@@ -16,15 +16,21 @@ describe('PRIORITY_RANGES', () => {
   it('Very Low range uses min: null (no lower bound) instead of -Infinity', () => {
     const veryLow = PRIORITY_RANGES.find(range => range.label === 'Very Low');
     expect(veryLow).toBeDefined();
-    expect(veryLow!.min).toBeNull();
-    expect(veryLow!.max).toBe(0);
+    expect(veryLow!.min).toBe(0);
+    expect(veryLow!.max).toBe(20);
   });
 
   it('Very High range uses max: null (no upper bound)', () => {
     const veryHigh = PRIORITY_RANGES.find(range => range.label === 'Very High');
     expect(veryHigh).toBeDefined();
-    expect(veryHigh!.min).toBe(50);
+    expect(veryHigh!.min).toBe(80);
     expect(veryHigh!.max).toBeNull();
+  });
+
+  it('covers all 5 priority buckets plus "All"', () => {
+    expect(PRIORITY_RANGES).toHaveLength(6);
+    const labels = PRIORITY_RANGES.map(range => range.label);
+    expect(labels).toEqual(['All', 'Very Low', 'Low', 'Medium', 'High', 'Very High']);
   });
 });
 
@@ -54,14 +60,14 @@ describe('useInboxFilters', () => {
       expect(result.current.hasActiveFilters).toBe(true);
     });
 
-    it('keeps a valid stored range (minPriority=30, maxPriority=50 = "High") as-is', () => {
-      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 30, maxPriority: 50 });
+    it('keeps a valid stored range (minPriority=60, maxPriority=80 = "High") as-is', () => {
+      const stored = JSON.stringify({ accountIds: [], categories: [], minPriority: 60, maxPriority: 80 });
       localStorage.setItem(STORAGE_KEY, stored);
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(30);
-      expect(result.current.filters.maxPriority).toBe(50);
+      expect(result.current.filters.minPriority).toBe(60);
+      expect(result.current.filters.maxPriority).toBe(80);
       expect(result.current.hasActiveFilters).toBe(true);
     });
 
@@ -122,15 +128,15 @@ describe('useInboxFilters', () => {
     });
 
     it('restores stored filters from localStorage on subsequent visits', () => {
-      const storedFilters = { accountIds: [], categories: [], minPriority: 30, maxPriority: 50 };
+      const storedFilters = { accountIds: [], categories: [], minPriority: 60, maxPriority: 80 };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedFilters));
       localStorage.setItem(FIRST_LOAD_KEY, '1');
       localStorage.setItem(PRIORITY_MIGRATION_KEY, '1');
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(30);
-      expect(result.current.filters.maxPriority).toBe(50);
+      expect(result.current.filters.minPriority).toBe(60);
+      expect(result.current.filters.maxPriority).toBe(80);
     });
 
     it('falls back to null/null when localStorage JSON is malformed (PR #1435)', () => {
@@ -266,16 +272,16 @@ describe('useInboxFilters', () => {
       expect(result.current.filters.maxPriority).toBeNull();
     });
 
-    it('custom minPriority preserved: user with minPriority=30 is not touched by migration', () => {
+    it('custom minPriority preserved: user with minPriority=60 is not touched by migration', () => {
       // User customised their min priority — migration condition not met, skipped entirely.
-      const custom = JSON.stringify({ accountIds: [], categories: [], minPriority: 30, maxPriority: 50 });
+      const custom = JSON.stringify({ accountIds: [], categories: [], minPriority: 60, maxPriority: 80 });
       localStorage.setItem(STORAGE_KEY, custom);
       // PRIORITY_MIGRATION_KEY not set yet (migration hasn't run)
 
       const { result } = renderHook(() => useInboxFilters());
 
-      expect(result.current.filters.minPriority).toBe(30);
-      expect(result.current.filters.maxPriority).toBe(50);
+      expect(result.current.filters.minPriority).toBe(60);
+      expect(result.current.filters.maxPriority).toBe(80);
     });
 
     it('custom accountIds preserved: user with non-empty accountIds is not touched by migration', () => {

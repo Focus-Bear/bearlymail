@@ -12,6 +12,7 @@ import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
 
 import { API_URL } from 'config/api';
+import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 export interface InboxFilter {
@@ -42,17 +43,15 @@ export const MEDIUM_PRIORITY_THRESHOLD = 15;
 /** Threshold for the low-priority tier. Shared with EmailListStates. */
 export const LOW_PRIORITY_THRESHOLD = 1;
 
-// Priority ranges — each entry carries both min and max to support bounded range filtering.
-// max: null means "no upper bound" (i.e., score >= min with no ceiling).
-// min: null means "no lower bound" (i.e., score <= max with no floor).
-export const PRIORITY_RANGES = [
-  { label: 'All', min: null, max: null },
-  { label: 'Very Low', min: null, max: 0, displayValue: '< 0' },
-  { label: 'Low', min: 0, max: 15, displayValue: '0-15' },
-  { label: 'Medium', min: 15, max: 30, displayValue: '15-30' },
-  { label: 'High', min: 30, max: 50, displayValue: '30-50' },
-  { label: 'Very High', min: 50, max: null, displayValue: '> 50' },
-] as const;
+/**
+ * Priority ranges used for sanitizing stored filters.
+ * Each entry is a valid (min, max) pair from the PriorityRangeSelector slider.
+ * The slider snaps to multiples of 20 (0, 20, 40, 60, 80, 100); null means no bound.
+ *
+ * Single source of truth: derived from PRIORITY_BUCKET_DEFS in constants/priorityBuckets.ts.
+ * Do not hardcode bucket boundaries here — update priorityBuckets.ts instead.
+ */
+export const PRIORITY_RANGES = PRIORITY_BUCKET_DEFS;
 
 /**
  * Sanitize filters loaded from localStorage.

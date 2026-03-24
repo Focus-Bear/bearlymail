@@ -123,6 +123,35 @@ splitViewI18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+// ---------- InboxFilters ----------
+export const inboxFiltersI18n = i18n.createInstance();
+inboxFiltersI18n.use(initReactI18next).init({
+  lng: 'en',
+  fallbackLng: 'en',
+  resources: {
+    en: {
+      translation: {
+        'inbox.filters.account': 'Account',
+        'inbox.filters.allAccounts': 'All accounts',
+        'inbox.filters.noAccounts': 'No accounts',
+        'inbox.filters.category': 'Category',
+        'inbox.filters.categoryGroup': 'Category filter',
+        'inbox.filters.allCategories': 'All',
+        'inbox.filters.noCategories': 'No categories',
+        'inbox.filters.priority': 'Priority Filter',
+        'inbox.filters.priorityAll': 'All priorities',
+        'inbox.filters.priorityMinHandle': 'Minimum priority',
+        'inbox.filters.priorityMaxHandle': 'Maximum priority',
+        'inbox.filters.moreCategories': 'more',
+        'inbox.filters.showMoreCategories': 'Show {{count}} more categories',
+        'inbox.filters.nCategoriesSelected': '{{count}} selected',
+        'common.checkmark': '✓',
+      },
+    },
+  },
+  interpolation: { escapeValue: false },
+});
+
 // ---------- EmailListItem ----------
 export const emailListItemI18n = i18n.createInstance();
 emailListItemI18n.use(initReactI18next).init({

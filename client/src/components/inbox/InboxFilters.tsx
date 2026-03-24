@@ -4,9 +4,10 @@ import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
-import { PRIORITY_RANGES } from 'hooks/useInboxFilters';
 
 import { getMultiSelectDisplayText } from './inboxFilters.helpers';
+import { PriorityRangeSelector } from './PriorityRangeSelector';
+import { VisualCategoryFilter } from './VisualCategoryFilter';
 
 interface InboxFiltersProps {
   onFilterChange?: (overrideFilters?: Partial<InboxFilter>) => void;
@@ -20,9 +21,16 @@ interface InboxFiltersProps {
   setAccountFilter: (accountIds: string[]) => void;
   setCategoryFilter: (categories: string[]) => void;
   setPriorityFilter: (minPriority: number | null, maxPriority?: number | null) => void;
+  /** Optional per-category email counts, keyed by category id. */
+  categoryCounts?: Record<string, number>;
+  /** Optional per-bucket email counts for display under priority labels. */
+  bucketCounts?: Record<string, number>;
+  /** Optional total email count for the currently selected priority range. */
+  priorityTotalCount?: number;
 }
 
-// Multi-select dropdown component with search
+// ── Multi-select dropdown (for Account filter) ────────────────────────────────
+
 interface MultiSelectDropdownProps {
   label: string;
   options: Array<{ id: string; label: string }>;
@@ -285,154 +293,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   );
 };
 
-// Single-select dropdown component for priority ranges (min + max)
-interface PriorityRangeOption {
-  label: string;
-  min: number | null;
-  max: number | null;
-  displayValue?: string;
-}
-
-interface SingleSelectDropdownProps {
-  label: string;
-  options: readonly PriorityRangeOption[];
-  selectedMin: number | null;
-  selectedMax: number | null;
-  onChange: (min: number | null, max: number | null) => void;
-}
-
-interface SingleSelectOptionsListProps {
-  options: readonly PriorityRangeOption[];
-  selectedMin: number | null;
-  selectedMax: number | null;
-  onSelect: (min: number | null, max: number | null) => void;
-}
-
-const SingleSelectOptionsList: React.FC<SingleSelectOptionsListProps> = ({ options, selectedMin, selectedMax, onSelect }) => (
-  <div
-    style={{
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      marginTop: theme.spacing.xs,
-      maxHeight: '280px',
-      overflowY: 'auto',
-      backgroundColor: theme.colors.background.paper,
-      border: `1px solid ${theme.colors.border.medium}`,
-      borderRadius: theme.borderRadius.md,
-      boxShadow: theme.shadows.lg,
-      zIndex: 1000,
-    }}
-  >
-    {options.map(option => {
-      // Compare both min and max to determine selection
-      const minMatch = option.min === selectedMin;
-      const maxMatch = option.max === selectedMax;
-      const isSelected = minMatch && maxMatch;
-      return (
-        <div
-          key={option.label}
-          onClick={() => onSelect(option.min, option.max)}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            cursor: 'pointer',
-            backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-            fontSize: theme.typography.fontSize.lg,
-            color: theme.colors.text.primary,
-            transition: theme.transitions.fast,
-          }}
-          onMouseEnter={event => {
-            if (!isSelected) {
-              event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-            }
-          }}
-          onMouseLeave={event => {
-            if (!isSelected) {
-              event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-            }
-          }}
-        >
-          {option.label}
-          {option.displayValue && (
-            <span style={{ color: theme.colors.text.tertiary, marginLeft: theme.spacing.xs }}>
-              {option.displayValue}
-            </span>
-          )}
-        </div>
-      );
-    })}
-  </div>
-);
-
-const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({ label, options, selectedMin, selectedMax, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find(opt => opt.min === selectedMin && opt.max === selectedMax);
-  const displayText = selectedOption
-    ? `${selectedOption.label}${selectedOption.displayValue ? ` (${selectedOption.displayValue})` : ''}`
-    : options[0]?.label || 'Select...';
-
-  return (
-    <div ref={dropdownRef} style={{ position: 'relative', minWidth: '180px', flex: '1' }}>
-      <label
-        style={{
-          display: 'block',
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}
-      >
-        {label}
-      </label>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          fontSize: theme.typography.fontSize.lg,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.medium}`,
-          backgroundColor: theme.colors.background.paper,
-          color: theme.colors.text.primary,
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: theme.transitions.fast,
-          textAlign: 'left',
-        }}
-      >
-        <span>{displayText}</span>
-        <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
-      </button>
-      {isOpen && (
-        <SingleSelectOptionsList
-          options={options}
-          selectedMin={selectedMin}
-          selectedMax={selectedMax}
-          onSelect={(min, max) => {
-            onChange(min, max);
-            setIsOpen(false);
-          }}
-        />
-      )}
-    </div>
-  );
-};
+// ── Main InboxFilters component ───────────────────────────────────────────────
 
 export const InboxFilters: React.FC<InboxFiltersProps> = ({
   onFilterChange,
@@ -445,6 +306,9 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   setAccountFilter,
   setCategoryFilter,
   setPriorityFilter,
+  categoryCounts,
+  bucketCounts,
+  priorityTotalCount,
 }) => {
   const { t } = useTranslation();
 
@@ -473,11 +337,6 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
     label: `${account.email} (${account.provider})`,
   }));
 
-  const categoryOptions = availableCategories.map(category => ({
-    id: category.id,
-    label: category.label,
-  }));
-
   // Hide account filter if only one account
   const showAccountFilter = connectedAccounts.length > 1;
 
@@ -489,46 +348,52 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
     <div
       style={{
         display: 'flex',
-        gap: theme.spacing.md,
-        flexWrap: 'wrap',
+        flexDirection: 'column',
+        gap: theme.spacing.sm,
         padding: theme.spacing.md,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
       }}
     >
-      {/* Account Filter - only show if more than 1 account */}
+      {/* Row 1: Account selector — full width, only shown if more than 1 connected account */}
       {showAccountFilter && !loadingAccounts && (
-        <MultiSelectDropdown
-          label={t('inbox.filters.account')}
-          options={accountOptions}
-          selectedIds={filters.accountIds}
-          onChange={handleAccountChange}
-          placeholder={t('inbox.filters.allAccounts')}
-          emptyMessage={t('inbox.filters.noAccounts')}
-        />
+        <div style={{ width: '100%' }}>
+          <MultiSelectDropdown
+            label={t('inbox.filters.account')}
+            options={accountOptions}
+            selectedIds={filters.accountIds}
+            onChange={handleAccountChange}
+            placeholder={t('inbox.filters.allAccounts')}
+            emptyMessage={t('inbox.filters.noAccounts')}
+          />
+        </div>
       )}
 
-      {/* Category Filter - with search */}
-      {!loadingCategories && categoryOptions.length > 0 && (
-        <MultiSelectDropdown
-          label={t('inbox.filters.category')}
-          options={categoryOptions}
-          selectedIds={filters.categories}
-          onChange={handleCategoryChange}
-          placeholder={t('inbox.filters.allCategories')}
-          searchable
-          emptyMessage={t('inbox.filters.noCategories')}
-        />
-      )}
+      {/* Row 2: Category filter (50%) + Priority range slider (50%) */}
+      <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'flex-start' }}>
+        {/* Category Filter — visual pill-based multi-select, 50% width */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {!loadingCategories && (
+            <VisualCategoryFilter
+              categories={availableCategories}
+              selectedIds={filters.categories}
+              onChange={handleCategoryChange}
+              categoryCounts={categoryCounts}
+            />
+          )}
+        </div>
 
-      {/* Priority Filter */}
-      <SingleSelectDropdown
-        label={t('inbox.filters.priority')}
-        options={PRIORITY_RANGES}
-        selectedMin={filters.minPriority}
-        selectedMax={filters.maxPriority}
-        onChange={handlePriorityChange}
-      />
+        {/* Priority Filter — dual-thumb range slider, 50% width */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <PriorityRangeSelector
+            selectedMin={filters.minPriority}
+            selectedMax={filters.maxPriority}
+            onChange={handlePriorityChange}
+            bucketCounts={bucketCounts}
+            totalCount={priorityTotalCount}
+          />
+        </div>
+      </div>
     </div>
   );
 };

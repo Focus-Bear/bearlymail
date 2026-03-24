@@ -373,7 +373,8 @@
     "hide": "Ocultar",
     "show": "Mostrar",
     "pageNotFound": "Página no encontrada",
-    "goHome": "Ir al inicio"
+    "goHome": "Ir al inicio",
+    "checkmark": "✓"
   },
   "compose": {
     "addBcc": "Agregar CCO",
@@ -1364,12 +1365,19 @@
       "clear": "Borrar todos los filtros",
       "account": "Cuenta de correo",
       "category": "Categoría",
-      "priority": "Prioridad mínima",
+      "categoryGroup": "Filtro de categoría",
+      "priority": "Filtro de prioridad",
+      "priorityAll": "Todas las prioridades",
+      "priorityMinHandle": "Prioridad mínima",
+      "priorityMaxHandle": "Prioridad máxima",
       "allAccounts": "Todas las cuentas",
-      "allCategories": "Todas las categorías",
+      "allCategories": "Todas",
       "noAccounts": "No se encontraron cuentas",
       "noCategories": "No hay categorías todavía",
-      "clearAll": "Borrar filtros"
+      "clearAll": "Borrar filtros",
+      "moreCategories": "más",
+      "showMoreCategories": "Mostrar {{count}} categorías más",
+      "nCategoriesSelected": "{{count}} seleccionadas"
     },
     "checkUrgent": "Verificar urgentes",
     "loadMore": "Cargar más correos",

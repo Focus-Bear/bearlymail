@@ -27,6 +27,7 @@ import {
   lookupCategoryIdByName,
   RawEmailRow,
   SYSTEM_LABELS,
+  threadHasBlockedLabel,
 } from "./email-inbox.types";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
@@ -96,7 +97,8 @@ export class EmailInboxService {
 
     const rows = (await this.emailThreadRepository.query(
       `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
-              latest_email."latestFrom"${threadIdSelect}
+              latest_email."latestFrom",
+              thread_labels."allLabels"${threadIdSelect}
        FROM email_threads thread
        LEFT JOIN user_contexts uc
          ON uc."contextId" = thread."categoryId"
@@ -104,6 +106,10 @@ export class EmailInboxService {
          SELECT em."from" AS "latestFrom" FROM emails em
          WHERE em."emailThreadId" = thread.id ORDER BY em."receivedAt" DESC LIMIT 1
        ) latest_email ON true
+       LEFT JOIN LATERAL (
+         SELECT array_agg(em.labels) AS "allLabels" FROM emails em
+         WHERE em."emailThreadId" = thread.id AND em.labels IS NOT NULL
+       ) thread_labels ON true
        WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
          AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
          AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
@@ -114,6 +120,7 @@ export class EmailInboxService {
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
+      allLabels?: string[] | null;
     }[];
 
     const userEmailLower = await this.resolveUserEmailLower(
@@ -225,10 +232,14 @@ export class EmailInboxService {
   private async shouldSkipSummaryRow(
     userId: string,
     mode: string,
-    row: { latestFrom?: string },
+    row: { latestFrom?: string; allLabels?: string[] | null },
     needsUserSentLastFilter: boolean,
     userEmailLower: string | null,
   ): Promise<boolean> {
+    if (mode === INBOX_MODES.BLOCKED) {
+      // Use threadHasBlockedLabel to check all emails in the thread (not just the latest).
+      return !threadHasBlockedLabel(row.allLabels);
+    }
     if (mode !== INBOX_MODES.BLOCKED && row.latestFrom) {
       let fromEmail = "";
       try {
@@ -264,6 +275,7 @@ export class EmailInboxService {
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
+      allLabels?: string[] | null;
     }[],
     includeThreadIds: boolean,
     needsUserSentLastFilter: boolean,
@@ -403,11 +415,19 @@ export class EmailInboxService {
     }
     this.logger.debug(`Found ${rawEmails.length} threads for mode=${mode}`);
 
+    // Filter blocked-mode threads using raw (encrypted) label data before decryption.
+    // This keeps encrypted ciphertext strictly server-side — it is never copied into
+    // the InboxEmail response type.
+    const filteredRawEmails =
+      mode === INBOX_MODES.BLOCKED
+        ? rawEmails.filter((row) => threadHasBlockedLabel(row.allThreadLabels))
+        : rawEmails;
+
     const endDecrypt = perf.startSpan(
       "decryption",
       PERFORMANCE_BUDGETS.DECRYPTION,
     );
-    const threadRepresentatives: InboxEmail[] = rawEmails.map(
+    const threadRepresentatives: InboxEmail[] = filteredRawEmails.map(
       (row: RawEmailRow) => this.decryptRawEmailRow(row),
     );
     endDecrypt();
@@ -550,7 +570,8 @@ export class EmailInboxService {
         e."phishingConfidence", e."phishingReason",
         e."receivedAt", e.labels, e."cc", e."senderContactId",
         correspondent."from" as "correspondentEmail",
-        correspondent."fromName" as "correspondentName"
+        correspondent."fromName" as "correspondentName",
+        thread_labels."allThreadLabels"
       FROM email_threads thread
       CROSS JOIN LATERAL (
         SELECT em.id, em."userId", em."threadId", em."emailThreadId", em."messageId",
@@ -570,6 +591,10 @@ export class EmailInboxService {
           AND LOWER(cor."from") != LOWER(u.email)
         ORDER BY cor."receivedAt" ASC LIMIT 1
       ) correspondent ON true
+      LEFT JOIN LATERAL (
+        SELECT array_agg(em.labels) AS "allThreadLabels" FROM emails em
+        WHERE em."emailThreadId" = thread.id AND em.labels IS NOT NULL
+      ) thread_labels ON true
       LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
       LEFT JOIN user_contexts uc ON uc."contextId" = thread."categoryId"
       WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
@@ -597,6 +622,9 @@ export class EmailInboxService {
       "blocked_filter",
       QUERY_LIMITS.MAX_RESULTS_DEFAULT,
     );
+    // Blocked-mode thread filtering (by encrypted label) is applied upstream on raw
+    // rows before decryption. Here we only need to filter by blocked senders for
+    // non-blocked modes.
     const blockedEmailIds =
       mode === INBOX_MODES.BLOCKED
         ? []
@@ -608,10 +636,9 @@ export class EmailInboxService {
             })),
           );
     const blockedSet = new Set(blockedEmailIds);
-    let filteredEmails =
-      mode === INBOX_MODES.BLOCKED
-        ? emails
-        : emails.filter((emailItem) => !blockedSet.has(emailItem.id));
+    let filteredEmails = emails.filter(
+      (emailItem) => !blockedSet.has(emailItem.id),
+    );
     endBlockedFilter();
 
     if (blockedEmailIds.length > 0)
@@ -655,8 +682,7 @@ export class EmailInboxService {
         // Defense-in-depth for #1404: also catch orphaned-UUID threads where
         // decryptRawEmailRow already resolved category to OTHER_CATEGORY_NAME.
         const isOtherThread =
-          !emailEntry.categoryId ||
-          emailEntry.category === OTHER_CATEGORY_NAME;
+          !emailEntry.categoryId || emailEntry.category === OTHER_CATEGORY_NAME;
         if (requestedOther && isOtherThread) return true;
         if (emailEntry.categoryId && !isOtherThread)
           return requestedUuids.has(emailEntry.categoryId);

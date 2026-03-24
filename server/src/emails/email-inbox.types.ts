@@ -3,12 +3,9 @@
  * Extracted to keep email-inbox.service.ts under the 800-line limit.
  */
 
-export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true AND EXISTS (
-  SELECT 1 FROM emails em2
-  WHERE em2."emailThreadId" = thread.id
-    AND em2."userId" = $1
-    AND 'BearlyMail-Blocked' = ANY(COALESCE(em2.labels, ARRAY[]::text[]))
-)`;
+import { EncryptionHelper } from "../encryption/encryption.helper";
+
+export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true`;
 
 export interface RawEmailRow {
   id: string;
@@ -54,6 +51,8 @@ export interface RawEmailRow {
   priorityScore: number | null;
   cc: string | null;
   latestFrom?: string | null;
+  /** Aggregated encrypted labels from all emails in the thread (used for blocked-mode app-level filter). */
+  allThreadLabels?: string[] | null;
 }
 
 // System labels shared across providers (Gmail, O365, Zoho)
@@ -104,4 +103,23 @@ export function lookupCategoryIdByName(
     if (kl === np || nl.startsWith(kl) || kl.startsWith(nl)) return id;
   }
   return null;
+}
+
+/**
+ * Returns true if any of the aggregated encrypted label values in a thread
+ * contain the "BearlyMail-Blocked" label after decryption.
+ */
+export function threadHasBlockedLabel(
+  allThreadLabels: string[] | null | undefined,
+): boolean {
+  if (!allThreadLabels || allThreadLabels.length === 0) return false;
+  return allThreadLabels.some((encryptedLabels) => {
+    try {
+      const decrypted = EncryptionHelper.decrypt(encryptedLabels) || "[]";
+      const parsed: unknown = JSON.parse(decrypted);
+      return Array.isArray(parsed) && parsed.includes("BearlyMail-Blocked");
+    } catch {
+      return false;
+    }
+  });
 }

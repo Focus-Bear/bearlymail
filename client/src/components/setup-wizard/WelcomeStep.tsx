@@ -29,7 +29,7 @@ const ConsentField: React.FC<{
           cursor: 'pointer',
         }}
       />
-      <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, flex: 1 }}>
+      <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, flex: 1 }}>
         {t('consent.iAcceptThe')}{' '}
         <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: theme.colors.primary.main }}>
           {t('consent.termsOfUse')}
@@ -93,7 +93,7 @@ const WelcomePrivacyBlock: React.FC<{ t: (key: string) => string }> = ({ t }) =>
     <p
       style={{
         color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.base,
+        fontSize: theme.typography.fontSize.xl,
         lineHeight: 1.6,
         margin: 0,
       }}
@@ -103,6 +103,8 @@ const WelcomePrivacyBlock: React.FC<{ t: (key: string) => string }> = ({ t }) =>
   </div>
 );
 
+// Note (#1430): The "Use Your Own OpenAI Key (Optional)" field is NOT present in this component.
+// OpenAI API key configuration lives in Settings > Integrations (OpenAIApiKeySection) only.
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
   const [consentAccepted, setConsentAccepted] = useState(false);

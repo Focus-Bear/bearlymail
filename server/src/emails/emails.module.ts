@@ -59,7 +59,10 @@ import { EmailSyncProcessor } from "./email-sync.processor";
 import { EmailThreadService } from "./email-thread.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
+import { LLMPriorityBatchService } from "./llm-priority-batch.service";
+import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMProcessor } from "./llm-processor";
+import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
@@ -192,6 +195,9 @@ import { SyncHistoryService } from "./sync-history.service";
     ZohoProvider,
     EmailSyncProcessor,
     LLMProcessor,
+    LLMPriorityResultService,
+    LLMPriorityBatchService,
+    LLMSummaryProcessorService,
     ArchiveEmailProcessor,
     EmailAdminService,
     EmailDebugCategoryService,

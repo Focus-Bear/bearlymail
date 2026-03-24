@@ -326,31 +326,12 @@ module.exports = {
         'id-denylist': 'off',
       },
     },
-    {
-      // God-class files pending final decomposition into domain-specific services.
-      // Phase 5 progress (issue #939):
-      //   - llm-processor.ts: function violations cleared; only max-lines (1807) remains.
-      //     Split into llm-summary-processor + llm-priority-processor tracked for Phase 5g.
-      //   - context.service.ts: 3757 lines, multiple large functions. Split into 5 services
-      //     tracked for Phase 5g.
-      // gmail.provider.ts, context-gmail-data.service.ts removed — both now fully compliant.
-      //
-      // Phase 5B (issue #939): max-params tightened to actual constructor param counts.
-      //   - llm-processor.ts constructor: 16 params (was overriding to 30 — wrong)
-      //   - context.service.ts constructor: 17 params (was overriding to 30 — wrong)
-      // ESLint v8 lacks ignoreConstructors; remove these overrides once constructors are decomposed.
-      files: [
-        'src/emails/llm-processor.ts',
-      ],
-      rules: {
-        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
-        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
-        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
-        complexity: ['error', 250],
-        'id-denylist': 'off',
-        'max-params': ['error', 16],
-      },
-    },
+    // llm-processor.ts override removed — Phase 7b split the 2198-line monolith into:
+    //   - LLMPriorityResultService (~609 lines)
+    //   - LLMSummaryProcessorService (~688 lines)
+    //   - LLMPriorityBatchService (~550 lines)
+    //   - LLMProcessor (thin orchestrator, ~395 lines)
+    // All new files pass global max-lines: 800. See issue #939.
 
     {
       // llm.service.ts: function violations cleared in Phase 5f; only max-lines (2811) remains.

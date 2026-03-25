@@ -55,7 +55,10 @@ export class EmailsService {
     return this.emailServiceDeps.emailStatusService.getCategories(userId);
   }
 
-  async getPriorityCounts(userId: string): Promise<{
+  async getPriorityCounts(
+    userId: string,
+    mode: "triage" | "action" | "follow-up" = "triage",
+  ): Promise<{
     veryHigh: number;
     high: number;
     medium: number;
@@ -63,7 +66,7 @@ export class EmailsService {
     veryLow: number;
     unprioritised: number;
   }> {
-    return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId);
+    return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId, mode);
   }
 
   async getPrioritisationStatus(userId: string): Promise<{

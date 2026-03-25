@@ -1,9 +1,13 @@
 /**
  * PriorityRangeSelector — dual-thumb range slider for filtering emails by priority score.
  *
- * Design: 5 buckets (Very Low 0-20, Low 20-40, Medium 40-60, High 60-80, Very High 80-100)
- * with a segmented colour track (slate → blue → amber → orange → red).
- * Draggable min/max handles snap to bucket boundaries (multiples of 20).
+ * Design: 5 buckets (Very Low, Low, Medium, High, Very High) with a segmented colour track
+ * (slate → blue → amber → orange → red). Draggable min/max handles snap to bucket boundaries.
+ *
+ * Fix #1452 (bugs 3 & 4): The slider now maps between visual positions (0-20-40-60-80-100)
+ * and actual server score values (null/0/15/30/50/null). Previously, score values were used
+ * directly as visual positions, causing the slider to show wrong buckets (e.g. score 30 "High"
+ * appeared at visual position 30 which is in the "Low" visual bucket).
  *
  * Replaces the old pill-based VisualPriorityFilter for issue #1414.
  *
@@ -14,7 +18,16 @@ import React, { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { BUCKET_SIZE, PRIORITY_BUCKET_RANGES } from 'constants/priorityBuckets';
+import {
+  PRIORITY_BUCKET_RANGES,
+  scoreMaxToVisual,
+  scoreMinToVisual,
+  VISUAL_BUCKET_SIZE,
+  VISUAL_SLIDER_MAX,
+  VISUAL_SLIDER_MIN,
+  visualMaxToScore,
+  visualMinToScore,
+} from 'constants/priorityBuckets';
 
 // ── Bucket definitions ────────────────────────────────────────────────────────
 
@@ -37,19 +50,27 @@ export const PRIORITY_BUCKETS: PriorityBucket[] = PRIORITY_BUCKET_RANGES.map((bu
   const TRACK_COLORS = ['#64748B', '#3B82F6', '#F59E0B', '#F97316', '#EF4444'];
   return {
     label: bucketDef.label,
-    min: bucketDef.min,
+    // Visual slider positions: Very Low has score min=null → visual position 0 (VISUAL_SLIDER_MIN)
+    min: bucketDef.min ?? VISUAL_SLIDER_MIN,
     max: bucketDef.max,
     trackColor: TRACK_COLORS[index] ?? '#64748B',
     dotColor: TRACK_COLORS[index] ?? '#64748B',
   };
 });
 
-/** Slider tick positions — bucket boundaries including 0 and 100. */
-const TICKS = [0, BUCKET_SIZE, BUCKET_SIZE * 2, BUCKET_SIZE * 3, BUCKET_SIZE * 4, 100];
-const SLIDER_MIN = 0;
-const SLIDER_MAX = 100;
-/** Lower bound of the Very High bucket — last snap point before the slider max. */
-const VERY_HIGH_MIN = BUCKET_SIZE * 4;
+/** Slider tick positions — visual bucket boundaries (even spacing, 0-100). */
+const TICKS = [
+  VISUAL_SLIDER_MIN,
+  VISUAL_BUCKET_SIZE,
+  VISUAL_BUCKET_SIZE * 2,
+  VISUAL_BUCKET_SIZE * 3,
+  VISUAL_BUCKET_SIZE * 4,
+  VISUAL_SLIDER_MAX,
+];
+const SLIDER_MIN = VISUAL_SLIDER_MIN;
+const SLIDER_MAX = VISUAL_SLIDER_MAX;
+/** Lower visual bound of the Very High bucket — last snap point before the slider max. */
+const VERY_HIGH_MIN = VISUAL_BUCKET_SIZE * 4;
 /** Opacity for inactive (dimmed) track segments and bucket labels. */
 const INACTIVE_OPACITY = 0.2;
 /** Opacity for inactive bucket labels (slightly higher than track for readability). */
@@ -191,7 +212,7 @@ return;
   }, [onDrag, getValueFromEvent]);
 
   const handleKeyDown = useCallback((keyEvent: React.KeyboardEvent) => {
-    const step = BUCKET_SIZE;
+    const step = VISUAL_BUCKET_SIZE;
     if (keyEvent.key === 'ArrowLeft' || keyEvent.key === 'ArrowDown') {
       keyEvent.preventDefault();
       onDrag(Math.max(SLIDER_MIN, value - step));
@@ -319,22 +340,24 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
 
 export interface PriorityRangeSelectorProps {
   /**
-   * Lower bound for the priority filter.
-   * null = 0 (show all from very low).
+   * Lower bound for the priority filter (actual server score value).
+   * null = no lower bound (show all including Very Low).
    * Maps to `minPriority` in useInboxFilters.
+   * Examples: null (all), 0 (≥Low), 15 (≥Medium), 30 (≥High), 50 (≥Very High).
    */
   selectedMin: number | null;
   /**
-   * Upper bound for the priority filter.
-   * null = 100 (show all up to very high).
+   * Upper bound for the priority filter (actual server score value).
+   * null = no upper cap (show all up to Very High).
    * Maps to `maxPriority` in useInboxFilters.
+   * Examples: null (no cap), 0 (≤Very Low), 15 (≤Low), 30 (≤Medium), 50 (≤High).
    */
   selectedMax: number | null;
   /**
    * Called when the user changes the range.
-   * Passes (minPriority, maxPriority) where:
-   *   - 0 min → pass null (no lower bound)
-   *   - 100 max → pass null (no upper bound)
+   * Passes (minPriority, maxPriority) as actual server score values:
+   *   - null min = no lower bound
+   *   - null max = no upper cap
    */
   onChange: (min: number | null, max: number | null) => void;
   /** Optional per-bucket email counts for display under labels. */
@@ -353,21 +376,25 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
   const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // Map null to slider edges
-  const minVal = selectedMin ?? 0;
-  const maxVal = selectedMax ?? 100;
+  // Map actual score values to visual slider positions (0-100, multiples of 20).
+  // Fix #1452 bug 4: previously score values were used directly as visual positions,
+  // causing e.g. score 30 (High) to show at visual position 30 (Low bucket 20-40).
+  const minVal = scoreMinToVisual(selectedMin);
+  const maxVal = scoreMaxToVisual(selectedMax);
 
   const handleMinDrag = useCallback((newVal: number) => {
-    const clampedMin = Math.min(newVal, maxVal - BUCKET_SIZE);
-    const outMin = clampedMin <= SLIDER_MIN ? null : clampedMin;
-    const outMax = maxVal >= SLIDER_MAX ? null : maxVal;
+    const clampedMin = Math.min(newVal, maxVal - VISUAL_BUCKET_SIZE);
+    // Convert visual position back to actual score before emitting
+    const outMin = visualMinToScore(clampedMin);
+    const outMax = visualMaxToScore(maxVal);
     onChange(outMin, outMax);
   }, [maxVal, onChange]);
 
   const handleMaxDrag = useCallback((newVal: number) => {
-    const clampedMax = Math.max(newVal, minVal + BUCKET_SIZE);
-    const outMin = minVal <= SLIDER_MIN ? null : minVal;
-    const outMax = clampedMax >= SLIDER_MAX ? null : clampedMax;
+    const clampedMax = Math.max(newVal, minVal + VISUAL_BUCKET_SIZE);
+    // Convert visual position back to actual score before emitting
+    const outMin = visualMinToScore(minVal);
+    const outMax = visualMaxToScore(clampedMax);
     onChange(outMin, outMax);
   }, [minVal, onChange]);
 

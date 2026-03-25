@@ -33,6 +33,14 @@ export interface ConnectedAccount {
 const STORAGE_KEY = 'inbox_filters';
 const FIRST_LOAD_KEY = 'inbox_first_load_seen';
 const PRIORITY_DEFAULT_FIX_KEY = 'inbox_priority_migration_v2_done';
+/**
+ * v3 migration key: resets users who stored old visual bucket values (80/null for VH, etc.)
+ * from PR #1417 back to the correct score-based VH threshold (50/null).
+ * Fix #1452: PR #1417 introduced visual 0-100 buckets that didn't match server score ranges.
+ * Those bucket values (80/null, 60/80, etc.) are now invalid after this fix.
+ * sanitizeStoredFilters resets them to null/null; this migration then re-applies VH.
+ */
+const PRIORITY_SCORE_RANGE_FIX_KEY = 'inbox_priority_migration_v3_score_ranges_done';
 
 /** Threshold for the very high-priority tier. Shared with EmailListStates. */
 export const VERY_HIGH_PRIORITY_THRESHOLD = 50;
@@ -124,22 +132,40 @@ function loadInitialFilters(): InboxFilter {
         }
       }
 
+      // v3 migration: PR #1417 stored visual bucket values (e.g. minPriority: 80 for "Very High")
+      // which don't match actual server score ranges. sanitizeStoredFilters above already reset
+      // these invalid pairs to null/null; this migration converts null/null back to VH (50/null).
+      // The migration key ensures this only fires once per user.
+      if (!localStorage.getItem(PRIORITY_SCORE_RANGE_FIX_KEY)) {
+        localStorage.setItem(PRIORITY_SCORE_RANGE_FIX_KEY, '1');
+        if (
+          parsed.minPriority === null &&
+          parsed.maxPriority === null &&
+          parsed.accountIds.length === 0 &&
+          parsed.categories.length === 0
+        ) {
+          return { ...parsed, minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+        }
+      }
+
       return parsed;
     }
   } catch (error) {
     console.error('Failed to load filters from localStorage:', error);
   }
-  // First visit (no stored filters) — default to "All" (null/null) for new users.
-  // PR #1435 (fix #1433): new users now start on "All" instead of "Very High" to avoid
-  // false inbox zero during the initial prioritisation phase. Once the inbox gate lifts
-  // (≥20 emails prioritised), usePrioritisationGate auto-switches to VERY_HIGH_PRIORITY_THRESHOLD
-  // to give the focused experience. Existing users are unaffected (they have stored filters).
+  // First visit (no stored filters) — default to Very High for new users.
+  // Fix #1452 (bug 2): revert the PR #1435 change that defaulted new users to null/null ("All").
+  // The inbox prioritisation gate (usePrioritisationGate) handles the initial analysis phase
+  // separately — while analysis is running and fewer than 20 emails are prioritised, the gate
+  // interstitial is shown regardless of the filter value. Once the gate lifts, the guided
+  // progressive unlock flow starts from Very High as intended. Starting on null/null ("All")
+  // broke the progressive unlock sequence entirely.
   localStorage.setItem(FIRST_LOAD_KEY, '1');
-  return { accountIds: [], categories: [], minPriority: null, maxPriority: null };
+  return { accountIds: [], categories: [], minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
 }
 
 export function useInboxFilters() {
-  const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
+  const [isFilterBarVisible, setIsFilterBarVisible] = useState(false);
   const [filters, setFilters] = useState<InboxFilter>(loadInitialFilters);
 
   const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; label: string }>>([]);

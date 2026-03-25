@@ -137,9 +137,25 @@ export class EmailsController {
     return this.emailsService.getCategories(req.user.userId);
   }
 
+  /**
+   * Returns priority tier counts for a given inbox mode.
+   *
+   * Fix #1452 bug 3: accepts optional `mode` query param (triage|action|follow-up).
+   * Defaults to "triage" to match the primary use case (progressive unlock prompt).
+   * Passing the correct mode ensures bucket counts match the inbox tab total.
+   */
   @Get("priority-counts")
-  async getPriorityCounts(@Request() req) {
-    return this.emailsService.getPriorityCounts(req.user.userId);
+  async getPriorityCounts(
+    @Request() req,
+    @Query("mode") mode?: string,
+  ) {
+    const validModes = ["triage", "action", "follow-up"] as const;
+    type ValidMode = (typeof validModes)[number];
+    const resolvedMode: ValidMode =
+      validModes.includes(mode as ValidMode)
+        ? (mode as ValidMode)
+        : "triage";
+    return this.emailsService.getPriorityCounts(req.user.userId, resolvedMode);
   }
 
   /**

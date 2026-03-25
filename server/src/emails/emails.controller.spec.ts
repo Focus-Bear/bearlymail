@@ -368,7 +368,7 @@ describe("EmailsController", () => {
       const result = await controller.getPriorityCounts(mockRequest);
 
       expect(result).toEqual(mockCounts);
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId);
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
     });
 
     it("should return zero counts when user has no inbox emails", async () => {
@@ -386,7 +386,7 @@ describe("EmailsController", () => {
       expect(result).toEqual({ high: 0, medium: 0, low: 0 });
     });
 
-    it("should delegate to emailsService with the authenticated user id", async () => {
+    it("should delegate to emailsService with the authenticated user id and default triage mode", async () => {
       const userId = "user-789";
       const mockRequest = { user: { userId } };
 
@@ -399,7 +399,37 @@ describe("EmailsController", () => {
       await controller.getPriorityCounts(mockRequest);
 
       expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledTimes(1);
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId);
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
+    });
+
+    it("should pass valid mode param to emailsService", async () => {
+      const userId = "user-789";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getPriorityCounts.mockResolvedValue({
+        high: 2,
+        medium: 1,
+        low: 0,
+      });
+
+      await controller.getPriorityCounts(mockRequest, "action");
+
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "action");
+    });
+
+    it("should default to triage mode for unknown mode param", async () => {
+      const userId = "user-789";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getPriorityCounts.mockResolvedValue({
+        high: 0,
+        medium: 0,
+        low: 0,
+      });
+
+      await controller.getPriorityCounts(mockRequest, "unknown-mode");
+
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
     });
   });
 

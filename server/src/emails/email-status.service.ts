@@ -146,7 +146,22 @@ export class EmailStatusService {
     return Array.from(new Set<string>(names)).sort();
   }
 
-  async getPriorityCounts(userId: string): Promise<{
+  /**
+   * Returns priority tier counts for the given inbox mode.
+   *
+   * Fix #1452 bug 3: previously this query had no mode filter, counting ALL non-archived
+   * threads regardless of starCount. Triage mode threads have starCount = 0; action/follow-up
+   * have starCount > 0. Without this filter, the sum of bucket counts (VL+L+M+H+VH) did not
+   * match the triage tab total — e.g. bucket counts summed to 45 while the tab showed 142
+   * because the tab uses getInboxSummary("triage") which applies starCount = 0 filtering.
+   *
+   * @param mode Inbox mode — applies the same starCount filter as getInboxSummary.
+   *             Defaults to "triage" to preserve backwards compatibility.
+   */
+  async getPriorityCounts(
+    userId: string,
+    mode: "triage" | "action" | "follow-up" = "triage",
+  ): Promise<{
     veryHigh: number;
     high: number;
     medium: number;
@@ -154,6 +169,16 @@ export class EmailStatusService {
     veryLow: number;
     unprioritised: number;
   }> {
+    // Apply the same mode-based starCount filter as buildThreadFilter in email-inbox.types.ts.
+    // This ensures bucket counts match the thread count shown on the inbox tab for that mode.
+    let modeFilter: string;
+    if (mode === "action" || mode === "follow-up") {
+      modeFilter = 'AND "starCount" > 0';
+    } else {
+      // triage (default): only threads not yet actioned
+      modeFilter = 'AND "starCount" = 0';
+    }
+
     const rows = await this.emailThreadRepository.query(
       `SELECT
          COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 50) AS "veryHigh",
@@ -163,7 +188,7 @@ export class EmailStatusService {
          COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" < 0) AS "veryLow",
          COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS unprioritised
        FROM email_threads
-       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
+       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false ${modeFilter}`,
       [userId],
     );
     const row = rows[0] ?? {

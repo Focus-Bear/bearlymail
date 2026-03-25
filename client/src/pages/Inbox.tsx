@@ -145,7 +145,8 @@ const InboxView: React.FC = () => {
   const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
 
   const { isDebugModeEnabled } = useDebugMode();
-  const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts();
+  // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
+  const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
   const {
     isGated,
     prioritisedCount: gatePrioritisedCount,
@@ -306,7 +307,17 @@ const InboxView: React.FC = () => {
               triageSuggestions={triageSuggestions} followUpDataMap={followUpDataMap}
               isGeneratingDrafts={isGeneratingDrafts} followUpsError={followUpsError}
               priorityTooltip={priorityTooltip} keyboardHint={keyboardHint} snoozeInput={snoozeInput}
-              emailActions={emailActions} modals={modals} splitView={splitView}
+              emailActions={{
+                ...emailActions,
+                // Refresh priority counts after individual email archive so the progressive
+                // unlock prompt shows accurate tier counts. Fix #1456: without this,
+                // the stale VH=1 count persists after archiving the last VH email, causing
+                // the prompt to show an incorrect "1 email waiting" count.
+                handleArchive: async (emailId: string, event: React.MouseEvent) => {
+                  await emailActions.handleArchive(emailId, event);
+                  fetchPriorityCounts();
+                },
+              }} modals={modals} splitView={splitView}
               nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck}
               onEmailClick={handleEmailClick} onEmailSelect={handleEmailSelect}
               onGenerateDrafts={async () => {

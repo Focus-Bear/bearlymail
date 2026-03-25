@@ -159,3 +159,26 @@ describe('computeEmailListFlex', () => {
     ).toBe('0 0 60%');
   });
 });
+
+describe('computeIsEmailsEmpty — post-archive blank screen fix (#1456)', () => {
+  it('returns true when all categories have count 0 and emailsCount is 0', () => {
+    // Simulates the post-archive state: optimistic update set count to 0 but
+    // the animating email is still in state.emails (emailsCount may be 0 after removeEmail fires).
+    const summary = [{ id: 'c1', name: 'Newsletters', count: 0 }];
+    expect(computeIsEmailsEmpty(false, summary, false, false, 0)).toBe(true);
+  });
+
+  it('returns false when categories have count 0 but emailsCount > 0 (animation still running)', () => {
+    // While the exit animation is running, emailsCount > 0 so we should not show empty state yet.
+    const summary = [{ id: 'c1', name: 'Newsletters', count: 0 }];
+    expect(computeIsEmailsEmpty(false, summary, false, false, 1)).toBe(false);
+  });
+
+  it('returns false when any category has count > 0', () => {
+    const summary = [
+      { id: 'c1', name: 'Newsletters', count: 0 },
+      { id: 'c2', name: 'Work', count: 3 },
+    ];
+    expect(computeIsEmailsEmpty(false, summary, false, false, 0)).toBe(false);
+  });
+});

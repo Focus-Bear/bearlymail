@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { getAxiosErrorMessage } from 'utils/errors';
+import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 
 import { API_URL } from 'config/api';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
@@ -342,11 +343,13 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
       scheduledSendAtOverride?: Date;
     } = {}) => {
       const { files = [], expectedReplyHours, forwardAttachmentIds, onClose, draftOverride, scheduledSendAtOverride } = sendOptions;
-      const draftToSend = draftOverride || draft;
+      const rawDraft = draftOverride || draft;
       const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
-      if (!emailId || !draftToSend) {
+      if (!emailId || !rawDraft) {
         return;
       }
+      // Swap blob: preview URLs back to cid: references before tone-check and send.
+      const draftToSend = replaceBlobUrlsWithCids(rawDraft);
       // Pass the scheduled send time so the server can suppress timing nags when
       // the user has already queued the email for a specific delivery time.
       if (!draftOverride && !(await checkTone(draftToSend, scheduleTime?.toISOString() ?? null))) {

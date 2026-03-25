@@ -6,6 +6,7 @@ import axios from 'axios';
 import { extractCleanBody, extractCleanBodyWithMeta, extractCleanHtmlBody, extractCleanHtmlBodyWithMeta, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
+import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 import { captureEvent } from 'utils/posthog';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
@@ -806,10 +807,12 @@ export function useEmailDetailOperations(
       inlineImages?: Map<string, File>;
     } = {}) => {
       const { files = [], expectedReplyHours, draftOverride, scheduledSendAt, keepInAction, inlineImages } = sendOptions;
-      const draftToSend = draftOverride || draft;
-      if (!id || !draftToSend) {
+      const rawDraft = draftOverride || draft;
+      if (!id || !rawDraft) {
         return;
       }
+      // Swap blob: preview URLs back to cid: references before tone-check and send.
+      const draftToSend = replaceBlobUrlsWithCids(rawDraft);
 
       // Skip tone check if using revised text from tone check or dispute was already accepted
       if (!draftOverride && !disputeResult?.accepted) {

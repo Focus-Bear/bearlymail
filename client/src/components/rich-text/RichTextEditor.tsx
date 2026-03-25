@@ -60,6 +60,7 @@ function generateInlineCid(): string {
 function buildPasteHandler(
   onPasteFiles?: (files: File[]) => void,
   onInlineImage?: (cid: string, file: File) => void,
+  trackBlobUrl?: (url: string) => void,
 ) {
   return (_view: any, event: ClipboardEvent): boolean => {
     const items = event.clipboardData?.items;
@@ -85,12 +86,14 @@ function buildPasteHandler(
       event.preventDefault();
       imageFiles.forEach(file => {
         const cid = generateInlineCid();
-        // Insert <img src="cid:…"> into the editor — the image travels as a
-        // MIME inline attachment, avoiding base64 data: URIs in the email body
-        // which exceed the server body-parser limit.
+        // Use a blob: URL so the browser can render the image in the editor.
+        // The data-cid attribute carries the CID so we can swap blob: → cid:
+        // at send time (see replaceBlobUrlsWithCids in inlineImageUtils.ts).
+        const blobUrl = URL.createObjectURL(file);
+        trackBlobUrl?.(blobUrl);
         _view.dispatch(
           _view.state.tr.replaceSelectionWith(
-            _view.state.schema.nodes.image.create({ src: `cid:${cid}` }),
+            _view.state.schema.nodes.image.create({ src: blobUrl, 'data-cid': cid }),
           ),
         );
         onInlineImage?.(cid, file);
@@ -119,6 +122,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const isInternalUpdate = useRef(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const linkShortcutCallbackRef = useRef(() => setLinkDialogOpen(true));
+  // Track blob URLs created for pasted images so we can revoke them on unmount.
+  const blobUrlsRef = useRef<string[]>([]);
 
   // Use refs for paste handler callbacks to avoid stale closures.
   // The paste handler is created once at editor init; refs let it always call
@@ -155,7 +160,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       Placeholder.configure({ placeholder }),
       TextStyle,
       Color,
-      Image.configure({ inline: true, allowBase64: true }),
+      Image.configure({ inline: true, allowBase64: true }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            'data-cid': {
+              default: null,
+              parseHTML: element => element.getAttribute('data-cid'),
+              renderHTML: attributes => {
+                if (!attributes['data-cid']) {
+                  return {};
+                }
+                return { 'data-cid': attributes['data-cid'] };
+              },
+            },
+          };
+        },
+      }),
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
     [placeholder], // eslint deps: createLinkShortcut is module-level (stable); linkShortcutCallbackRef is a ref (stable)
@@ -167,9 +188,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     buildPasteHandler(
       (files) => onPasteFilesRef.current?.(files),
       (cid, file) => onInlineImageRef.current?.(cid, file),
+      (url) => {
+        blobUrlsRef.current.push(url);
+      },
     ),
-    [], // onPasteFilesRef and onInlineImageRef are refs (stable across renders)
+    [], // onPasteFilesRef, onInlineImageRef, and blobUrlsRef are refs (stable across renders)
   );
+
+  // Revoke blob URLs when the editor unmounts to prevent memory leaks.
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   const editor = useEditor({
     extensions,

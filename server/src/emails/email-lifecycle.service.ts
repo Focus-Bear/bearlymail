@@ -553,9 +553,9 @@ export class EmailLifecycleService {
     { emailIds: string[]; timer: ReturnType<typeof setTimeout> | null }
   >();
 
-  private readonly BATCH_FLUSH_DELAY_MS = 2 * MS_PER_SECOND;
+  private readonly BATCH_FLUSH_DELAY_MS = 5 * MS_PER_SECOND;
 
-  private readonly BATCH_MAX_SIZE = 5;
+  private readonly BATCH_MAX_SIZE = 10;
 
   async queueBatchPriorityRefinement(
     userId: string,

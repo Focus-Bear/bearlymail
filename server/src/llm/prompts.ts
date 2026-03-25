@@ -187,7 +187,27 @@ function loadPromptFile(
   const filePath = path.join(promptsDir, file);
   if (fs.existsSync(filePath)) {
     const content = fs.readFileSync(filePath, "utf-8");
-    cache.set(key, { id: key, prompt: content, systemPrompt: "" });
+    // Support optional ---SYSTEM--- delimiter to split static system instructions
+    // from the dynamic user prompt (enables provider-side prompt caching).
+    const SYSTEM_DELIMITER = "---SYSTEM---";
+    const delimiterStart = content.indexOf(SYSTEM_DELIMITER);
+    const delimiterEnd = content.indexOf(
+      SYSTEM_DELIMITER,
+      delimiterStart + SYSTEM_DELIMITER.length,
+    );
+    let promptText = content;
+    let systemPromptText = "";
+    if (
+      delimiterStart !== -1 &&
+      delimiterEnd !== -1 &&
+      delimiterEnd > delimiterStart
+    ) {
+      systemPromptText = content
+        .slice(delimiterStart + SYSTEM_DELIMITER.length, delimiterEnd)
+        .trim();
+      promptText = content.slice(delimiterEnd + SYSTEM_DELIMITER.length).trim();
+    }
+    cache.set(key, { id: key, prompt: promptText, systemPrompt: systemPromptText });
     if (critical) {
       logLog(`✅ Loaded prompt: ${key} from ${file}`);
     }

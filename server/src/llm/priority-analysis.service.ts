@@ -433,7 +433,7 @@ export class PriorityAnalysisService {
     emails: BatchEmailInput[],
     userContext: UserContextInput | undefined,
     userId: string | undefined,
-  ): string {
+  ): { prompt: string; systemPrompt: string } {
     const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
     if (!promptConfig) {
       const error = new StructuralError(
@@ -470,7 +470,7 @@ Summary: ${cleanedBody}`;
       day: "numeric",
     });
 
-    return renderPrompt(promptConfig.prompt, {
+    const prompt = renderPrompt(promptConfig.prompt, {
       batchMode: true,
       emailBatch: emailDescriptions.join("\n\n"),
       emailCategories: contextTexts.emailCategoriesText,
@@ -487,6 +487,7 @@ Summary: ${cleanedBody}`;
       threadInfo: "",
       averageTimeToReply: undefined,
     });
+    return { prompt, systemPrompt: promptConfig.systemPrompt || "" };
   }
 
   /**
@@ -631,16 +632,14 @@ Summary: ${cleanedBody}`;
     const results = new Map<string, BatchPriorityResult>();
     if (emails.length === 0) return results;
 
-    const batchPrompt = this.buildBatchPriorityPrompt(
-      emails,
-      userContext,
-      userId,
-    );
+    const { prompt: batchPrompt, systemPrompt: batchSystemPrompt } =
+      this.buildBatchPriorityPrompt(emails, userContext, userId);
 
     try {
       const response = await this.llmCoreService.generateText(
         {
           prompt: batchPrompt,
+          systemPrompt: batchSystemPrompt,
           temperature: RATIOS.THIRTY_PERCENT,
           maxTokens: emails.length * QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
           userId,

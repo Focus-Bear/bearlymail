@@ -38,6 +38,8 @@ import { EmailAdminService } from "./email-admin.service";
 import { EmailArchiveService } from "./email-archive.service";
 import { EmailAssignmentService } from "./email-assignment.service";
 import { EmailCrudService } from "./email-crud.service";
+import { EmailDebugAdminController } from "./email-debug-admin.controller";
+import { EmailSearchOpsController } from "./email-search-ops.controller";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -112,7 +114,11 @@ import { SyncHistoryService } from "./sync-history.service";
     AwsModule,
     forwardRef(() => ScheduledEmailsModule),
   ],
-  controllers: [EmailsController],
+  controllers: [
+    EmailsController,
+    EmailDebugAdminController,
+    EmailSearchOpsController,
+  ],
   providers: [
     SyncHistoryService,
     CategoryDedupService,

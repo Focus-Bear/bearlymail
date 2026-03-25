@@ -64,6 +64,7 @@ export class EmailSearchService {
       skipLlmRanking,
       skipLlmFallback,
       skipSync,
+      maxSyncThreads,
     } = options;
     const originalQuery = query;
     const searchStartTime = Date.now();
@@ -108,6 +109,7 @@ export class EmailSearchService {
           rawEmails,
           onProgress,
           skipSync,
+          maxSyncThreads,
         );
 
       if (matchedEmails.length === 0) {
@@ -386,6 +388,7 @@ export class EmailSearchService {
     rawEmails: RawSearchEmail[],
     onProgress?: SearchEmailsOptions["onProgress"],
     skipSync?: boolean,
+    maxSyncThreads?: number,
   ): Promise<{ emails: Email[]; noResultsReason?: string }> {
     const initial = await this.fetchMatchedDbEmails(userId, rawEmails);
     if (initial.length > 0) return { emails: initial };
@@ -415,13 +418,14 @@ export class EmailSearchService {
     }
 
     const MAX_THREADS_TO_SYNC = 10;
+    const syncLimit = maxSyncThreads ?? MAX_THREADS_TO_SYNC;
     for (const [providerType, threadIdSet] of byProvider.entries()) {
       const provider = await this.emailProviderManager.getProvider(
         userId,
         providerType,
       );
       if (!provider) continue;
-      const threadIds = [...threadIdSet].slice(0, MAX_THREADS_TO_SYNC);
+      const threadIds = [...threadIdSet].slice(0, syncLimit);
       this.logger.log(
         `[SEARCH] Syncing ${threadIds.length} missing threads from ${providerType} for user ${userId}`,
       );

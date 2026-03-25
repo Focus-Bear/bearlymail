@@ -44,6 +44,7 @@ export interface SearchEmailsOptions {
   skipLlmRanking?: boolean;
   skipLlmFallback?: boolean;
   skipSync?: boolean;
+  maxSyncThreads?: number;
 }
 
 /**

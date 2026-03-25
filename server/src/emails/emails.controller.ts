@@ -20,7 +20,6 @@ import {
 import { FilesInterceptor } from "@nestjs/platform-express";
 import PgBoss from "pg-boss";
 
-import { AdminGuard } from "../auth/admin.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
@@ -236,15 +235,6 @@ export class EmailsController {
     }
   }
 
-  @Get("recategorize-progress")
-  async getRecategorizeProgress(
-    @Request() req,
-    @Query("batchId") batchId: string,
-  ) {
-    const { userId } = req.user;
-    return this.emailAdminService.getRecategorizationProgress(userId, batchId);
-  }
-
   @Get("tab-counts")
   async getTabCounts(
     @Request() req,
@@ -310,14 +300,16 @@ export class EmailsController {
       : undefined;
     const skipLlmRanking = skipLlm === "true";
     try {
-      // When skipLlm=true (Phase 1 fast path), also skip LLM fallback query
-      // generation and provider sync to keep response within the 2s budget.
+      // When skipLlm=true (Phase 1 fast path), skip LLM fallback query
+      // generation but allow sync so unsynced Gmail results can be fetched.
+      // maxSyncThreads: 5 caps the sync work to keep Phase 1 within budget.
       return await this.emailsService.searchEmails(req.user.userId, query, {
         maxResults: max,
         accountTypes: selectedAccountTypes,
         skipLlmRanking,
         skipLlmFallback: skipLlmRanking,
-        skipSync: skipLlmRanking,
+        skipSync: false,
+        ...(skipLlmRanking ? { maxSyncThreads: 5 } : {}),
       });
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
@@ -337,49 +329,6 @@ export class EmailsController {
           },
         },
       ];
-    }
-  }
-
-  @Post("search/rank")
-  async rankSearchResults(
-    @Request() req,
-    @Body() body: { emailIds: string[]; query: string; maxResults?: number },
-  ) {
-    const { emailIds, query, maxResults } = body;
-    if (!query || !emailIds || emailIds.length === 0) {
-      return [];
-    }
-    try {
-      return await this.emailsService.rankSearchResults(
-        req.user.userId,
-        query,
-        emailIds,
-        maxResults ?? EMAIL_CONTROLLER_DEFAULTS.MAX_RESULTS,
-      );
-    } catch (error) {
-      this.logger.error(`Error in rankSearchResults:`, error);
-      return [];
-    }
-  }
-
-  @Post("search/expand")
-  async expandSearchResults(
-    @Request() req,
-    @Body() body: { query: string; existingEmailIds: string[] },
-  ) {
-    const { query, existingEmailIds } = body;
-    if (!query) {
-      return [];
-    }
-    try {
-      return await this.emailsService.expandSearchResults(
-        req.user.userId,
-        query,
-        existingEmailIds ?? [],
-      );
-    } catch (error) {
-      this.logger.error(`Error in expandSearchResults:`, error);
-      return [];
     }
   }
 
@@ -653,118 +602,6 @@ export class EmailsController {
     return this.emailsService.checkForUrgentEmails(req.user.userId);
   }
 
-  @Get("debug/sync-status")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async getSyncStatus(@Request() req) {
-    return this.emailsService.getSyncStatus(req.user.userId);
-  }
-
-  @Get("debug/sync-history")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async getSyncHistory(@Request() req, @Query("limit") limit?: string) {
-    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
-    return this.emailsService.getSyncHistory(
-      req.user.userId,
-      parsedLimit && !isNaN(parsedLimit) ? parsedLimit : undefined,
-    );
-  }
-
-  @Get("debug/starred-threads")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async debugStarredThreads(@Request() req) {
-    return this.emailsService.debugStarredThreads(req.user.userId);
-  }
-
-  @Get("debug/orphan-emails")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async debugOrphanEmails(@Request() req) {
-    return this.emailsService.debugOrphanEmails(req.user.userId);
-  }
-
-  @Post("debug/fix-orphan-emails")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async fixOrphanEmails(@Request() req) {
-    return this.emailsService.fixOrphanEmails(req.user.userId);
-  }
-
-  @Post("debug/reset-stuck-jobs")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async resetStuckJobs(@Request() _req) {
-    // Reset jobs that are stuck in retry state with future startafter times
-    // Cast to extended interface to access internal pg-boss methods
-    const bossInternal = this.boss as unknown as PgBossWithInternals;
-    const stuckJobs = await bossInternal.getQueueSize(
-      JOB_NAMES.REFINE_PRIORITY,
-    );
-    const stuckSummary = await bossInternal.getQueueSize(
-      JOB_NAMES.GENERATE_SUMMARY,
-    );
-    const stuckSync = await bossInternal.getQueueSize(JOB_NAMES.SYNC_EMAILS);
-
-    // Use raw SQL to reset startafter for stuck jobs
-    const result = await bossInternal.db.executeSql(`
-      UPDATE pgboss.job
-      SET startafter = NOW(), retrycount = 0
-      WHERE state = 'retry'
-      AND startafter > NOW()
-      AND name IN ('refine-priority', 'generate-summary', 'sync-emails', 'learn-from-star')
-    `);
-
-    return {
-      message: "Reset stuck jobs",
-      queueSizes: {
-        [JOB_NAMES.REFINE_PRIORITY]: stuckJobs,
-        [JOB_NAMES.GENERATE_SUMMARY]: stuckSummary,
-        [JOB_NAMES.SYNC_EMAILS]: stuckSync,
-      },
-      resetCount: result?.rowCount || 0,
-    };
-  }
-
-  @Post("debug/fix-stuck-calculating")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async fixStuckCalculating(@Request() req) {
-    return this.emailsService.fixStuckCalculatingThreads(req.user.userId);
-  }
-
-  @Post("debug/fix-stale-unsynced")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async fixStaleUnsynced(@Request() req) {
-    return this.emailsService.fixStaleUnsyncedThreads(req.user.userId);
-  }
-
-  @Get("debug/thread-lookup/:threadId")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async lookupThread(@Request() req, @Param("threadId") threadId: string) {
-    // Check if the input is a Gmail URL — use the dedicated Gmail URL lookup which
-    // handles the base64url-encoded URL IDs used in Gmail's web interface (these differ
-    // from the hexadecimal IDs used by the Gmail REST API).
-    const gmailUrlPattern = /^https?:\/\/mail\.google\.com\/mail\//i;
-    if (gmailUrlPattern.test(threadId)) {
-      this.logger.log(`Detected Gmail URL, using Gmail URL lookup`);
-      return this.emailsService.lookupByGmailUrl(req.user.userId, threadId);
-    }
-
-    // Otherwise treat it as a thread ID or message ID
-    // Try message ID lookup first (since it's more specific)
-    const messageIdResult = await this.emailsService.lookupByMessageId(
-      req.user.userId,
-      threadId,
-    );
-    if (messageIdResult.found) {
-      return messageIdResult;
-    }
-
-    // Fall back to thread ID lookup
-    return this.emailsService.lookupThread(req.user.userId, threadId);
-  }
-
-  @Get(":id/debug/category")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async getCategoryDebugData(@Request() req, @Param("id") id: string) {
-    return this.emailsService.getCategoryDebugData(req.user.userId, id);
-  }
-
   @Post("send")
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(
@@ -950,23 +787,4 @@ export class EmailsController {
     };
   }
 
-  @Post("recategorize-triage")
-  async recategorizeTriageEmails(
-    @Request() req,
-    @Query("modes") modesParam?: string,
-  ) {
-    return this.emailAdminService.queueBulkRecategorization(
-      req.user.userId,
-      modesParam,
-    );
-  }
-
-  @Get("admin/job-stats")
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  async getJobStats(
-    @Request() _req,
-    @Query("range") range: "24h" | "7d" | "30d" | "all" = "all",
-  ) {
-    return this.emailAdminService.getJobStats(range);
-  }
 }

@@ -1,5 +1,6 @@
 import { plainToInstance, Type } from "class-transformer";
 import {
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -63,6 +64,25 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(DB_POOL_SIZE_MAX)
   DB_PGBOSS_POOL_SIZE?: number;
+
+  /**
+   * Feature flag: route new-user onboarding context analysis batches to SQS + Lambda
+   * instead of PgBoss. Default: false (safe rollout).
+   *
+   * Set to "true" to enable. Requires CONTEXT_ANALYSIS_SQS_QUEUE_URL.
+   */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  LAMBDA_CONTEXT_ANALYSIS_ENABLED?: boolean;
+
+  /**
+   * SQS queue URL for context analysis Lambda dispatch.
+   * Required when LAMBDA_CONTEXT_ANALYSIS_ENABLED=true.
+   */
+  @IsOptional()
+  @IsString()
+  CONTEXT_ANALYSIS_SQS_QUEUE_URL?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

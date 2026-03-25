@@ -165,7 +165,10 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
     onComplete();
   }, [onComplete]);
 
-  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(handleAnalysisComplete);
+  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(
+    handleAnalysisComplete,
+    { isNewUserOnboarding: true },
+  );
 
   const hasStartedRef = useRef(false);
 

@@ -85,7 +85,11 @@ const resolveEffectiveMessageKey = ({
   return messageKey;
 };
 
-export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
+export interface UseAnalysisProgressOptions {
+  isNewUserOnboarding?: boolean;
+}
+
+export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOptions?: UseAnalysisProgressOptions) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [analyzeProgress, setAnalyzeProgress] = useState<AnalyzeProgress>({
@@ -174,7 +178,9 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     try {
       devLog(`Making POST request to ${API_URL}/context/analyze`);
       console.log(`[FRONTEND] Making POST request to ${API_URL}/context/analyze`);
-      const response = await axios.post(`${API_URL}/context/analyze`);
+      const response = await axios.post(`${API_URL}/context/analyze`, {
+        isNewUserOnboarding: hookOptions?.isNewUserOnboarding ?? false,
+      });
       devLog('POST request successful', response.data);
       console.log('[FRONTEND] POST request successful', response.data);
 

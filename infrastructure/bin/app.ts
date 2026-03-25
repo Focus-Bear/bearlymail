@@ -9,6 +9,7 @@ import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
 import { BearlyMailSecretsStack } from '../lib/bearlymail-secrets-stack';
 import { BearlyMailDatabaseStack } from '../lib/bearlymail-database-stack';
 import { BearlyMailGitHubActionsStack } from '../lib/bearlymail-github-actions-stack';
+import { BearlyMailContextAnalysisStack } from '../lib/bearlymail-context-analysis-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
@@ -102,7 +103,25 @@ appStack.addDependency(secretsStack);
 appStack.addDependency(databaseStack);
 
 // ============================================
-// 5. GitHub Actions Stack (OIDC Provider + Deployment Role)
+// 5. Context Analysis Stack (SQS + Lambda + RDS Proxy)
+// ============================================
+const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMailContextAnalysisStack', {
+  env,
+  description: 'BearlyMail - Context Analysis (SQS + Lambda + RDS Proxy for parallel processing)',
+  vpc: networkingStack.vpc,
+  database: databaseStack.database,
+  dbSecret: databaseStack.dbSecret,
+  appSecrets: secretsStack.appSecrets,
+  ecsTaskRoleArn: appStack.ecsTaskRole.roleArn,
+});
+
+contextAnalysisStack.addDependency(networkingStack);
+contextAnalysisStack.addDependency(databaseStack);
+contextAnalysisStack.addDependency(secretsStack);
+contextAnalysisStack.addDependency(appStack);
+
+// ============================================
+// 6. GitHub Actions Stack (OIDC Provider + Deployment Role)
 // ============================================
 const githubActionsStack = new BearlyMailGitHubActionsStack(app, 'BearlyMailGitHubActionsStack', {
   env,

@@ -41,6 +41,9 @@ export interface BearlyMailStackProps extends cdk.StackProps {
 }
 
 export class BearlyMailStack extends cdk.Stack {
+  /** ECS task role — shared with BearlyMailContextAnalysisStack to grant SQS send permissions */
+  public readonly ecsTaskRole: iam.Role;
+
   constructor(scope: Construct, id: string, props: BearlyMailStackProps) {
     super(scope, id, props);
 
@@ -90,9 +93,10 @@ export class BearlyMailStack extends cdk.Stack {
     // ============================================
     // ECS Task Role (for application permissions)
     // ============================================
-    const taskRole = new iam.Role(this, 'TaskRole', {
+    this.ecsTaskRole = new iam.Role(this, 'TaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
+    const taskRole = this.ecsTaskRole;
 
     // Grant SES permissions for sending emails
     taskRole.addToPolicy(new iam.PolicyStatement({

@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
-
 import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
@@ -22,8 +22,10 @@ import {
   ContextBatchPayloadService,
 } from "./context-batch-payload.service";
 import { ContextCrudService } from "./context-crud.service";
+import { ContextEnqueueService } from "./context-enqueue.service";
 import { classifyContextAnalysisError } from "./context-error-handler";
 import { ContextGmailDataService } from "./context-gmail-data.service";
+import { ContextSqsDispatchService } from "./context-sqs-dispatch.service";
 
 type SentPayloadItem = {
   emailId: string;
@@ -47,17 +49,7 @@ type AnalysisStats = {
   vipContactsEvaluated: number;
 };
 
-type EnqueueJobContext = {
-  userId: string;
-  analysisRecord: ContextAnalysis;
-  sentPayload: SentPayloadItem[];
-  currentContextForPrompt: ContextPromptItem[];
-  twelveDaysAgo: Date;
-  fiveDaysAgo: Date;
-  userEmail: string | null;
-  totalThreadIds: number;
-  analysisBatchSize: number;
-};
+// EnqueueJobContext is defined in context-enqueue.service.ts; removed duplicate here.
 
 type EnqueueBatchesArgs = {
   userId: string;
@@ -68,6 +60,8 @@ type EnqueueBatchesArgs = {
   twelveDaysAgo: Date;
   fiveDaysAgo: Date;
   userEmail: string | null;
+  /** When true, dispatch via SQS → Lambda instead of PgBoss */
+  useLambda?: boolean;
 };
 
 type EnqueueBatchesResult = {
@@ -84,6 +78,8 @@ type FinalizationParams = {
   analysisStats: AnalysisStats;
   userEmail: string | null;
   successfulEnqueues: number;
+  /** When true, use shorter startAfter delay — Lambda completes faster than PgBoss */
+  isLambdaDispatched?: boolean;
 };
 
 const EMPTY_ANALYSIS_STATS: AnalysisStats = {
@@ -98,6 +94,8 @@ const EMPTY_ANALYSIS_STATS: AnalysisStats = {
 export class ContextAnalysisOrchestratorService {
   private readonly logger = new Logger(ContextAnalysisOrchestratorService.name);
 
+  private readonly lambdaEnabled: boolean;
+
   constructor(
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,
@@ -106,11 +104,25 @@ export class ContextAnalysisOrchestratorService {
     private crudService: ContextCrudService,
     private batchPayloadService: ContextBatchPayloadService,
     @Inject("PG_BOSS") private boss: PgBoss,
-  ) {}
+    private configService: ConfigService,
+    private contextSqsDispatchService: ContextSqsDispatchService,
+    private contextEnqueueService: ContextEnqueueService,
+  ) {
+    this.lambdaEnabled =
+      this.configService.get<boolean>("LAMBDA_CONTEXT_ANALYSIS_ENABLED") ===
+      true;
+
+    if (this.lambdaEnabled) {
+      this.logger.log(
+        "[CONTEXT-ANALYSIS] 🚀 Lambda dispatch ENABLED (LAMBDA_CONTEXT_ANALYSIS_ENABLED=true)",
+      );
+    }
+  }
 
   async analyzeAndLearnFromEmails(
     userId: string,
     analysisId?: string,
+    options?: { isNewUserOnboarding?: boolean },
   ): Promise<void> {
     const logSuffix = analysisId ? ` with analysis ID ${analysisId}` : "";
     this.logger.log(
@@ -127,7 +139,7 @@ export class ContextAnalysisOrchestratorService {
     );
 
     try {
-      await this.runAnalysisPipeline(userId, analysisRecord);
+      await this.runAnalysisPipeline(userId, analysisRecord, options);
     } catch (pipelineError) {
       await this.handleAnalysisError(userId, analysisRecord, pipelineError);
       throw pipelineError;
@@ -195,6 +207,7 @@ export class ContextAnalysisOrchestratorService {
   private async runAnalysisPipeline(
     userId: string,
     analysisRecord: ContextAnalysis,
+    options?: { isNewUserOnboarding?: boolean },
   ): Promise<void> {
     await this.usersService.update(userId, { scanProgress: 0, scanTotal: 100 });
     analysisRecord.progress = 0;
@@ -234,6 +247,16 @@ export class ContextAnalysisOrchestratorService {
     const currentContextForPrompt =
       await this.buildCurrentContextPrompt(userId);
 
+    // Route to Lambda (SQS) if feature flag is enabled and this is a new user onboarding
+    const useLambda =
+      this.lambdaEnabled && (options?.isNewUserOnboarding ?? false);
+
+    if (useLambda) {
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] 🚀 Routing to Lambda via SQS for new user onboarding (userId: ${userId})`,
+      );
+    }
+
     const { allProcessedBatches, jobResults, enqueueErrors, totalBatches } =
       await this.enqueueAnalysisBatches({
         userId,
@@ -244,6 +267,7 @@ export class ContextAnalysisOrchestratorService {
         twelveDaysAgo,
         fiveDaysAgo,
         userEmail,
+        useLambda,
       });
 
     if (enqueueErrors.length > 0) {
@@ -268,6 +292,7 @@ export class ContextAnalysisOrchestratorService {
       analysisStats,
       userEmail,
       successfulEnqueues,
+      isLambdaDispatched: useLambda,
     });
 
     this.logger.log(
@@ -407,7 +432,7 @@ export class ContextAnalysisOrchestratorService {
       globalBatchIndex,
       jobPromises,
       enqueueErrors,
-    } = await this.buildAndQueueBatchJobs(
+    } = await this.contextEnqueueService.buildAndQueueBatchJobs(
       args,
       FETCH_BATCH_SIZE,
       ANALYSIS_BATCH_SIZE,
@@ -430,107 +455,29 @@ export class ContextAnalysisOrchestratorService {
       args.analysisRecord,
     );
 
-    await new Promise((resolve) => setTimeout(resolve, MS_PER_SECOND));
-    const queuedCount = await this.boss.getQueueSize(
-      JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-    );
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] Queue verification: ${queuedCount} jobs queued`,
-    );
+    if (!args.useLambda) {
+      // PgBoss path: verify queue depth
+      await new Promise((resolve) => setTimeout(resolve, MS_PER_SECOND));
+      const queuedCount = await this.boss.getQueueSize(
+        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
+      );
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] Queue verification: ${queuedCount} jobs queued`,
+      );
+    } else {
+      const successCount = jobResults.filter(
+        (jobResult) => jobResult.jobId !== null,
+      ).length;
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] [SQS] ${successCount}/${totalBatches} batches dispatched to Lambda`,
+      );
+    }
 
     return { allProcessedBatches, jobResults, enqueueErrors, totalBatches };
   }
 
-  private async buildAndQueueBatchJobs(
-    args: EnqueueBatchesArgs,
-    fetchBatchSize: number,
-    analysisBatchSize: number,
-  ): Promise<{
-    allProcessedBatches: BatchPayloadItem[][];
-    globalBatchIndex: number;
-    jobPromises: Promise<{ jobId: string | null; batchNum: number }>[];
-    enqueueErrors: Array<{ batchNum: number; error: string }>;
-  }> {
-    const {
-      userId,
-      analysisRecord,
-      threadIds,
-      sentPayload,
-      currentContextForPrompt,
-      twelveDaysAgo,
-      fiveDaysAgo,
-      userEmail,
-    } = args;
-
-    this.logger.log(
-      `[CONTEXT-ANALYSIS] Fetching threads progressively (${fetchBatchSize} at a time)...`,
-    );
-
-    const allProcessedBatches: BatchPayloadItem[][] = [];
-    let globalBatchIndex = 0;
-    const jobPromises: Promise<{ jobId: string | null; batchNum: number }>[] =
-      [];
-    const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
-
-    for (let start = 0; start < threadIds.length; start += fetchBatchSize) {
-      const batchIds = threadIds.slice(
-        start,
-        Math.min(start + fetchBatchSize, threadIds.length),
-      );
-      const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
-        userId,
-        batchIds,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Fetched batch ${Math.floor(start / fetchBatchSize) + 1}: ${fetchedThreads.length}/${batchIds.length} threads`,
-      );
-
-      const processedBatches = this.batchPayloadService.buildBatchPayloads(
-        fetchedThreads,
-        userEmail,
-        analysisBatchSize,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads`,
-      );
-
-      for (const batchPayload of processedBatches) {
-        if (batchPayload.length === 0) {
-          this.logger.warn(`[CONTEXT-ANALYSIS] Skipping empty batch payload`);
-          continue;
-        }
-        const batchNum = globalBatchIndex++;
-        const jobCtx: EnqueueJobContext = {
-          userId,
-          analysisRecord,
-          sentPayload,
-          currentContextForPrompt,
-          twelveDaysAgo,
-          fiveDaysAgo,
-          userEmail,
-          totalThreadIds: threadIds.length,
-          analysisBatchSize,
-        };
-        jobPromises.push(
-          this.enqueueSingleBatchJob(
-            batchNum,
-            batchPayload,
-            jobCtx,
-            enqueueErrors,
-          ),
-        );
-      }
-
-      allProcessedBatches.push(...processedBatches);
-    }
-
-    return {
-      allProcessedBatches,
-      globalBatchIndex,
-      jobPromises,
-      enqueueErrors,
-    };
-  }
+  // buildAndQueueBatchJobs moved to ContextEnqueueService to reduce file size
+  // and centralize enqueue logic. See server/src/context/context-enqueue.service.ts
 
   private async resolveJobPromises(
     jobPromises: Promise<{ jobId: string | null; batchNum: number }>[],
@@ -565,56 +512,6 @@ export class ContextAnalysisOrchestratorService {
       `[CONTEXT-ANALYSIS] Job enqueueing complete: ${successfulEnqueues} successful, ${jobResults.length - successfulEnqueues} failed`,
     );
     return jobResults;
-  }
-
-  private async enqueueSingleBatchJob(
-    batchNum: number,
-    batchPayload: BatchPayloadItem[],
-    ctx: EnqueueJobContext,
-    enqueueErrors: Array<{ batchNum: number; error: string }>,
-  ): Promise<{ jobId: string | null; batchNum: number }> {
-    const singletonKey = `analyze-context-batch-${ctx.analysisRecord.id}-${batchNum}`;
-    try {
-      const jobId = await this.boss.send(
-        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-        {
-          userId: ctx.userId,
-          batchIndex: batchNum,
-          batch: batchPayload,
-          sentPayload: batchNum === 0 ? ctx.sentPayload : [],
-          userEmail: ctx.userEmail || undefined,
-          currentContextForPrompt: ctx.currentContextForPrompt,
-          analysisRecordId: ctx.analysisRecord.id,
-          totalBatches: Math.ceil(ctx.totalThreadIds / ctx.analysisBatchSize),
-          after: ctx.twelveDaysAgo.toISOString(),
-          before: ctx.fiveDaysAgo.toISOString(),
-        },
-        {
-          priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH, false),
-          singletonKey,
-          singletonMinutes: MINUTES.HOUR,
-        },
-      );
-
-      if (jobId) {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Enqueued batch ${batchNum + 1} with job ID: ${jobId}`,
-        );
-      } else {
-        this.logger.warn(
-          `[CONTEXT-ANALYSIS] Batch ${batchNum + 1} returned null job ID (may be singleton duplicate)`,
-        );
-      }
-
-      return { jobId, batchNum };
-    } catch (enqueueError) {
-      const errorMessage = getErrorMessage(enqueueError);
-      this.logger.error(
-        `[CONTEXT-ANALYSIS] ERROR: Failed to enqueue batch ${batchNum + 1}: ${errorMessage}`,
-      );
-      enqueueErrors.push({ batchNum: batchNum + 1, error: errorMessage });
-      return { jobId: null, batchNum };
-    }
   }
 
   private async persistBatchState(
@@ -676,7 +573,16 @@ export class ContextAnalysisOrchestratorService {
       analysisStats,
       userEmail,
       successfulEnqueues,
+      isLambdaDispatched,
     } = params;
+
+    // Lambda processes all batches concurrently — expect completion in ~30-60s
+    // PgBoss processes sequentially at 6-10 concurrent — expect 5-15 minutes
+    // 30 seconds — Lambda processes all batches concurrently; enough headroom before timeout.
+    const LAMBDA_FINALIZATION_DELAY_MS = 30_000;
+    const finalizationDelayMs = isLambdaDispatched
+      ? LAMBDA_FINALIZATION_DELAY_MS
+      : CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS;
 
     if (totalBatches <= 0 || successfulEnqueues <= 0) {
       this.logger.error(
@@ -705,7 +611,7 @@ export class ContextAnalysisOrchestratorService {
         priority: getJobPriority(JOB_NAMES.FINALIZE_CONTEXT_ANALYSIS, false),
         singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
         singletonMinutes: MINUTES.HOUR,
-        startAfter: new Date(Date.now() + CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS),
+        startAfter: new Date(Date.now() + finalizationDelayMs),
       },
     );
 

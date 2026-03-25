@@ -204,13 +204,13 @@ describe('groupEmailsByCategory', () => {
       category: 'Sales',
       category_id: null,
       priorityExplanation: { breakdown: [{ label: 'urgency', value: 90, description: '' }] },
-    } as any);
+    } as unknown as Partial<Email>);
     const lowPriority = makeEmail({
       id: '2',
       category: 'Sales',
       category_id: null,
       priorityExplanation: { breakdown: [{ label: 'urgency', value: 10, description: '' }] },
-    } as any);
+    } as unknown as Partial<Email>);
     const groups = groupEmailsByCategory([lowPriority, highPriority]);
     expect(groups[0].emails[0].id).toBe('1');
   });

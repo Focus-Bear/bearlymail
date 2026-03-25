@@ -6,6 +6,9 @@
  */
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
+import { Email } from 'types/email';
+
+import { CategoryGroup } from 'components/inbox/CategoryAccordion';
 
 import { InboxCategoryItem } from './InboxContentParts';
 
@@ -13,7 +16,7 @@ jest.mock('utils/posthog', () => ({ captureEvent: jest.fn() }));
 jest.mock('axios');
 
 jest.mock('components/inbox/CategoryAccordion', () => ({
-  CategoryAccordion: ({ children, isExpanded, onToggle, count }: any) => (
+  CategoryAccordion: ({ children, isExpanded, onToggle, count }: { children?: React.ReactNode; isExpanded: boolean; onToggle: () => void; count?: number }) => (
     <div data-testid="category-accordion" data-expanded={String(isExpanded)} data-count={count}>
       <button data-testid="toggle-btn" onClick={onToggle}>toggle</button>
       {children}
@@ -65,7 +68,7 @@ const DEFAULT_PROPS = {
   categoryKey: 'cat-1',
   isExpanded: true,
   isLoaded: true,
-  group: { emails: [], name: 'Newsletters' } as any,
+  group: { emails: [], name: 'Newsletters', category: 'Newsletters', maxPriority: 0 } as CategoryGroup,
   globalIndex: 0,
   otherProtoGroups: [],
   protoCategories: [],
@@ -109,10 +112,10 @@ describe('InboxCategoryItem – auto-collapse on empty category (#805)', () => {
   });
 
   it('does NOT call onToggleCategory when category still has emails', async () => {
-    const emails = [{ id: 'email-1' } as any];
+    const emails: Email[] = [{ id: 'email-1' } as unknown as Email];
     const props = {
       ...DEFAULT_PROPS,
-      group: { emails, name: 'Newsletters' } as any,
+      group: { emails, name: 'Newsletters', category: 'Newsletters', maxPriority: 0 } as CategoryGroup,
     };
 
     render(<InboxCategoryItem {...props} />);
@@ -122,10 +125,10 @@ describe('InboxCategoryItem – auto-collapse on empty category (#805)', () => {
   });
 
   it('calls onToggleCategory when emails drop from non-zero to zero (archive-one-by-one)', async () => {
-    const emails = [{ id: 'email-1' } as any];
+    const emails: Email[] = [{ id: 'email-1' } as unknown as Email];
     const props = {
       ...DEFAULT_PROPS,
-      group: { emails, name: 'Newsletters' } as any,
+      group: { emails, name: 'Newsletters', category: 'Newsletters', maxPriority: 0 } as CategoryGroup,
     };
 
     const { rerender } = render(<InboxCategoryItem {...props} />);
@@ -138,7 +141,7 @@ describe('InboxCategoryItem – auto-collapse on empty category (#805)', () => {
     rerender(
       <InboxCategoryItem
         {...props}
-        group={{ emails: [], name: 'Newsletters' } as any}
+        group={{ emails: [], name: 'Newsletters', category: 'Newsletters', maxPriority: 0 } as CategoryGroup}
       />
     );
 

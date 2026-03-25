@@ -18,8 +18,8 @@ describe('emailUtils', () => {
     });
 
     it('should return empty string for null/undefined input', () => {
-      expect(removeSignature(null as any)).toBe('');
-      expect(removeSignature(undefined as any)).toBe('');
+      expect(removeSignature(null as unknown as string)).toBe('');
+      expect(removeSignature(undefined as unknown as string)).toBe('');
     });
 
     it('should remove signature starting with --', () => {
@@ -106,7 +106,7 @@ describe('emailUtils', () => {
         };
         global.document = {
           createElement: jest.fn(() => mockElement),
-        } as any;
+        } as unknown as Document;
       }
     });
 
@@ -116,8 +116,8 @@ describe('emailUtils', () => {
     });
 
     it('should return empty string for null/undefined input', () => {
-      expect(sanitizeAndProcessHtml(null as any)).toBe('');
-      expect(sanitizeAndProcessHtml(undefined as any)).toBe('');
+      expect(sanitizeAndProcessHtml(null as unknown as string)).toBe('');
+      expect(sanitizeAndProcessHtml(undefined as unknown as string)).toBe('');
     });
 
     it('should sanitize basic HTML', () => {

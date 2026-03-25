@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
@@ -339,7 +340,7 @@ describe.skip('useEmailFetching', () => {
     });
 
     it('should use correct mode in API call', async () => {
-      const mockEmails: any[] = [];
+      const mockEmails: Email[] = [];
 
       mockedAxios.get.mockResolvedValue({ data: mockEmails });
 

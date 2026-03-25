@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
@@ -64,7 +65,7 @@ describe('useSearch', () => {
       const { result } = renderHook(() => useSearch());
 
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -81,7 +82,7 @@ describe('useSearch', () => {
         result.current.setQuery('   ');
       });
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -101,7 +102,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: mockResults });
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -135,7 +136,7 @@ describe('useSearch', () => {
       });
       mockedAxios.get.mockImplementation(() => delayedResponse);
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       act(() => {
         result.current.handleSearch(mockEvent);
       });
@@ -156,7 +157,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -167,7 +168,7 @@ describe('useSearch', () => {
 
       expect(result.current.searchResults).toHaveLength(1);
       expect(result.current.searchResults[0].id).toBe('no-results');
-      expect((result.current.searchResults[0] as { debugInfo?: any }).debugInfo).toBeDefined();
+      expect((result.current.searchResults[0] as { debugInfo?: unknown }).debugInfo).toBeDefined();
     });
 
     it('should handle null response data', async () => {
@@ -180,7 +181,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: null });
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -207,7 +208,7 @@ describe('useSearch', () => {
       };
       mockedAxios.get.mockRejectedValueOnce(error);
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -231,7 +232,7 @@ describe('useSearch', () => {
       const error = new Error('Network error');
       mockedAxios.get.mockRejectedValueOnce(error);
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -255,7 +256,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -275,7 +276,7 @@ describe('useSearch', () => {
 
       mockedAxios.get.mockRejectedValueOnce(new Error('Error'));
 
-      const mockEvent = { preventDefault: jest.fn() } as any;
+      const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
       });
@@ -312,7 +313,7 @@ describe('search performance tracking (#1115)', () => {
     // Phase 2 ranking returns empty
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as any;
+    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
     await act(async () => {
       jest.advanceTimersByTime(100);
       await result.current.handleSearch(mockEvent);
@@ -350,7 +351,7 @@ describe('search performance tracking (#1115)', () => {
     mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as any;
+    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
     await act(async () => {
       await result.current.handleSearch(mockEvent);
     });
@@ -384,7 +385,7 @@ describe('search performance tracking (#1115)', () => {
     mockedAxios.get.mockResolvedValueOnce({ data: [fakeEmail] });
     mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-    const mockEvent = { preventDefault: jest.fn() } as any;
+    const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
     await act(async () => {
       await result.current.handleSearch(mockEvent);
     });

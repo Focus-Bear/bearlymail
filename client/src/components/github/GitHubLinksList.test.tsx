@@ -38,9 +38,9 @@ jest.mock('constants/emojis', () => ({
 
 // Stub out sub-components so we can focus on routing logic
 jest.mock('./GitHubLinkCard', () => ({
-  GitHubLinkCard: ({ link, suggestedActions }: any) => (
+  GitHubLinkCard: ({ link, suggestedActions }: { link: GitHubLink; suggestedActions?: SuggestedAction[] }) => (
     <div data-testid={`card-${link.owner}-${link.repo}-${link.number}`}>
-      {suggestedActions?.map((suggestedAction: any) => (
+      {suggestedActions?.map((suggestedAction: SuggestedAction) => (
         <span key={suggestedAction.type} data-testid={`action-${suggestedAction.type}`}>
           {suggestedAction.type}
         </span>

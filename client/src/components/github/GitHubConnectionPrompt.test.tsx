@@ -73,11 +73,11 @@ describe('GitHubConnectionPrompt', () => {
   });
 
   it('shows connecting state while API call is in progress', async () => {
-    let resolvePromise: (value: any) => void;
+    let resolvePromise: (value: unknown) => void;
     const pendingPromise = new Promise(resolve => {
       resolvePromise = resolve;
     });
-    mockedAxios.post.mockReturnValueOnce(pendingPromise as any);
+    mockedAxios.post.mockReturnValueOnce(pendingPromise as ReturnType<typeof mockedAxios.post>);
 
     render(<GitHubConnectionPrompt />);
 

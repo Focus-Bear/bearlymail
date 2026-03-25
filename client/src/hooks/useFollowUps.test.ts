@@ -6,7 +6,7 @@ import { MAX_BULK_SEND_COUNT, POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS } fr
 import { FOLLOW_UP_SEND_STATUS_SENT } from 'constants/strings';
 import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
 
-import { useFollowUps } from './useFollowUps';
+import { ThreadWithFollowUp, useFollowUps } from './useFollowUps';
 
 jest.mock('axios');
 jest.mock('hooks/useFollowUpPolling', () => ({
@@ -27,7 +27,7 @@ describe('useFollowUps', () => {
     (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation((err) => err?.isAxiosError === true);
     mockedUseFollowUpPolling.mockReturnValue({
       startGenerationPolling: mockStartGenerationPolling,
-    } as any);
+    });
   });
 
   afterEach(() => {
@@ -229,7 +229,7 @@ describe('useFollowUps', () => {
       mockedAxios.get.mockResolvedValue({ data: threadsWithFollowUps });
 
       act(() => {
-        result.current.threads.push(...(threadsWithFollowUps as any));
+        result.current.threads.push(...(threadsWithFollowUps as unknown as ThreadWithFollowUp[]));
       });
 
       await act(async () => {

@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { act, renderHook } from '@testing-library/react';
+import { Contact } from 'types/contact';
 
 import { useComposeForm } from './useComposeForm';
 
@@ -119,7 +120,7 @@ describe('useComposeForm', () => {
 
     it('should handle Contact type with name', () => {
       const { result } = renderHook(() => useComposeForm());
-      const contact = { email: 'test@example.com', name: 'Test User' } as any;
+      const contact: Contact = { email: 'test@example.com', name: 'Test User' };
 
       act(() => {
         result.current.addRecipient(contact, 'to');
@@ -130,7 +131,7 @@ describe('useComposeForm', () => {
 
     it('should handle Contact type without name', () => {
       const { result } = renderHook(() => useComposeForm());
-      const contact = { email: 'test@example.com' } as any;
+      const contact: Contact = { email: 'test@example.com' };
 
       act(() => {
         result.current.addRecipient(contact, 'to');

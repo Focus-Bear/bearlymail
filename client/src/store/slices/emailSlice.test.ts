@@ -6,6 +6,7 @@
 import { Email } from 'types/email';
 
 import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
+import { RootState } from 'store/store';
 
 import inboxDataReducer, {
   InboxDataState,
@@ -111,7 +112,7 @@ describe('inboxUISlice – animation reducers', () => {
 describe('selectVisibleEmails – animatingOut integration', () => {
   it('hides emails that are optimistically archived when not animating', () => {
     const state = makeState({}, { optimisticallyArchived: ['1'] });
-    const visible = selectVisibleEmails(state as any);
+    const visible = selectVisibleEmails(state as unknown as RootState);
     expect(visible.map(event => event.id)).not.toContain('1');
     expect(visible.map(event => event.id)).toEqual(expect.arrayContaining(['2', '3']));
   });
@@ -127,7 +128,7 @@ describe('selectVisibleEmails – animatingOut integration', () => {
         animatingOut: [{ id: '1', type: 'archive' as const }],
       }
     );
-    const visible = selectVisibleEmails(state as any);
+    const visible = selectVisibleEmails(state as unknown as RootState);
     expect(visible.map(event => event.id)).toContain('1');
   });
 
@@ -139,14 +140,14 @@ describe('selectVisibleEmails – animatingOut integration', () => {
     uiState = inboxUIReducer(uiState, addOptimisticArchive('1'));
     uiState = inboxUIReducer(uiState, addAnimatingOut({ id: '1', type: 'archive' }));
 
-    const duringAnimation = selectVisibleEmails(makeState(dataState, uiState) as any);
+    const duringAnimation = selectVisibleEmails(makeState(dataState, uiState) as unknown as RootState);
     expect(duringAnimation.map(event => event.id)).toContain('1');
 
     // Simulate: animation completes → removeEmail + removeAnimatingOut
     dataState = inboxDataReducer(dataState, removeEmail('1'));
     uiState = inboxUIReducer(uiState, removeAnimatingOut('1'));
 
-    const afterAnimation = selectVisibleEmails(makeState(dataState, uiState) as any);
+    const afterAnimation = selectVisibleEmails(makeState(dataState, uiState) as unknown as RootState);
     expect(afterAnimation.map(event => event.id)).not.toContain('1');
   });
 });
@@ -154,13 +155,13 @@ describe('selectVisibleEmails – animatingOut integration', () => {
 describe('selectAnimatingOut', () => {
   it('returns empty array when nothing is animating', () => {
     const state = makeState();
-    expect(selectAnimatingOut(state as any)).toEqual([]);
+    expect(selectAnimatingOut(state as unknown as RootState)).toEqual([]);
   });
 
   it('returns the current animating items', () => {
     const uiState = inboxUIReducer(baseUIState, addAnimatingOut({ id: '2', type: 'priority' }));
     const state = makeState({}, uiState);
-    expect(selectAnimatingOut(state as any)).toEqual([{ id: '2', type: 'priority' }]);
+    expect(selectAnimatingOut(state as unknown as RootState)).toEqual([{ id: '2', type: 'priority' }]);
   });
 });
 

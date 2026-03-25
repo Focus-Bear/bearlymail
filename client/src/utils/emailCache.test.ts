@@ -4,6 +4,10 @@
  * localStorage is provided by jsdom (configured via Jest/ts-jest).
  */
 
+import { Email } from 'types/email';
+
+import { CategorySummaryItem } from 'store/slices/emailSlice';
+
 import {
   clearCacheForMode,
   getCachedCategoryEmails,
@@ -14,12 +18,12 @@ import {
 } from './emailCache';
 
 // A minimal Email stub — only id is needed for cache filter tests
-function makeEmail(id: string, subject = 'Test Subject') {
-  return { id, subject } as any;
+function makeEmail(id: string, subject = 'Test Subject'): Email {
+  return { id, subject } as unknown as Email;
 }
 
-function makeSummaryItem(name: string, count: number) {
-  return { id: null, name, count } as any;
+function makeSummaryItem(name: string, count: number): CategorySummaryItem {
+  return { id: null, name, count };
 }
 
 beforeEach(() => {

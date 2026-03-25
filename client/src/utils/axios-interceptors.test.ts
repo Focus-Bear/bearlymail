@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
@@ -14,8 +14,18 @@ const createJWT = (exp: number): string => {
 
 describe('axios-interceptors', () => {
   let mockLogout: jest.Mock;
-  let requestInterceptor: any;
-  let responseInterceptor: any;
+  // mock.calls[0] holds the handler functions registered via interceptors.*.use():
+  // [0] = success handler, [1] = error handler
+  type RequestInterceptorHandlers = [
+    (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>,
+    (err: unknown) => Promise<never>,
+  ];
+  type ResponseInterceptorHandlers = [
+    (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>,
+    (err: unknown) => Promise<never>,
+  ];
+  let requestInterceptor: RequestInterceptorHandlers;
+  let responseInterceptor: ResponseInterceptorHandlers;
   let removeItemSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -42,9 +52,9 @@ describe('axios-interceptors', () => {
 
     setupAxiosInterceptors(mockLogout);
 
-    // Capture the interceptors
-    requestInterceptor = requestUseSpy.mock.calls[0];
-    responseInterceptor = responseUseSpy.mock.calls[0];
+    // Capture the interceptors (cast because jest spy types include optional overloads)
+    requestInterceptor = requestUseSpy.mock.calls[0] as unknown as RequestInterceptorHandlers;
+    responseInterceptor = responseUseSpy.mock.calls[0] as unknown as ResponseInterceptorHandlers;
   });
 
   afterEach(() => {
@@ -78,7 +88,7 @@ describe('axios-interceptors', () => {
         url: '/api/test',
       };
 
-      const result = await requestInterceptor[0](config);
+      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
 
       expect(result.headers.Authorization).toBe(`Bearer ${token}`);
     });
@@ -89,7 +99,7 @@ describe('axios-interceptors', () => {
         url: '/api/test',
       };
 
-      const result = await requestInterceptor[0](config);
+      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
 
       expect(result.headers.Authorization).toBeUndefined();
     });
@@ -104,7 +114,7 @@ describe('axios-interceptors', () => {
         url: '/api/test',
       };
 
-      const result = await requestInterceptor[0](config);
+      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
 
       expect(removeItemSpy).toHaveBeenCalledWith('token');
       expect(result.headers.Authorization).toBeUndefined();
@@ -118,7 +128,7 @@ describe('axios-interceptors', () => {
         url: '/api/test',
       };
 
-      const result = await requestInterceptor[0](config);
+      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
 
       // Invalid token should be treated as expired
       expect(removeItemSpy).toHaveBeenCalledWith('token');
@@ -136,7 +146,7 @@ describe('axios-interceptors', () => {
         url: '/api/test',
       };
 
-      const result = await requestInterceptor[0](config);
+      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
 
       // Token without exp is treated as valid (isTokenExpired returns false when no exp)
       expect(result.headers.Authorization).toBe(`Bearer ${token}`);
@@ -155,7 +165,7 @@ describe('axios-interceptors', () => {
       const response = { data: { success: true } };
       const successHandler = responseInterceptor[0];
 
-      const result = await successHandler(response);
+      const result = await successHandler(response as AxiosResponse);
 
       expect(result).toEqual(response);
       expect(mockLogout).not.toHaveBeenCalled();

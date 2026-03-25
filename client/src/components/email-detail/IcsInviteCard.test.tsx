@@ -59,7 +59,7 @@ describe('IcsInviteCard — error handling (#1116)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Make isAxiosError work properly in tests
-    (axios.isAxiosError as unknown as jest.Mock) = jest.fn((err: any) => err?.isAxiosError === true);
+    (axios.isAxiosError as unknown as jest.Mock) = jest.fn((err: unknown) => (err as { isAxiosError?: boolean })?.isAxiosError === true);
   });
 
   describe('fetchIcsInfo error handling', () => {

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import { Contact } from 'types/contact';
 
 import { API_URL } from 'config/api';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
@@ -221,7 +222,7 @@ describe('useContactSearch', () => {
         result.current.setCcSearch('test');
         result.current.setBccSearch('test');
         result.current.setActiveField('to');
-        result.current.searchResults.push({ id: '1', email: 'test@example.com' } as any);
+        result.current.searchResults.push({ id: '1', email: 'test@example.com' } as Contact);
       });
 
       act(() => {

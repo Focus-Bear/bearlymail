@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { Email } from 'types/email';
 
 import {
   EVENT_KEYDOWN,
@@ -18,10 +19,10 @@ import {
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
 describe('useKeyboardShortcuts', () => {
-  const mockEmails = [
-    { id: '1', subject: 'Email 1' } as any,
-    { id: '2', subject: 'Email 2' } as any,
-    { id: '3', subject: 'Email 3' } as any,
+  const mockEmails: Email[] = [
+    { id: '1', subject: 'Email 1' } as unknown as Email,
+    { id: '2', subject: 'Email 2' } as unknown as Email,
+    { id: '3', subject: 'Email 3' } as unknown as Email,
   ];
 
   const mockSetSelectedEmailIndex = jest.fn();

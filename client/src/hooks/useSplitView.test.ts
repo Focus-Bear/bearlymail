@@ -40,7 +40,7 @@ describe('useSplitView', () => {
       isMobile: false,
       isTablet: false,
       isDesktop: true,
-    } as any);
+    } as ReturnType<typeof mockedUseResponsiveBreakpoints>);
     Object.defineProperty(window, 'localStorage', {
       value: mockLocalStorage,
       writable: true,
@@ -289,7 +289,7 @@ describe('useSplitView', () => {
         isMobile: true,
         isTablet: false,
         isDesktop: false,
-      } as any);
+      } as ReturnType<typeof mockedUseResponsiveBreakpoints>);
 
       const { result } = renderHook(() => useSplitView());
 
@@ -301,7 +301,7 @@ describe('useSplitView', () => {
         isMobile: false,
         isTablet: false,
         isDesktop: true,
-      } as any);
+      } as ReturnType<typeof mockedUseResponsiveBreakpoints>);
 
       const { result } = renderHook(() => useSplitView());
 

@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import { Email } from 'types/email';
 
 import inboxDataReducer from 'store/slices/inboxDataSlice';
 import inboxUIReducer from 'store/slices/inboxUISlice';
@@ -21,7 +22,7 @@ const mockedUseEmailActionsBase = useEmailActionsBaseModule as jest.Mocked<typeo
 
 // Helper to create a test store
 const createTestStore = (preloadedState: Partial<import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState> = {}) => {
-  const { emails, hasMore, totalCount, currentOffset, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, lastFetchedAt, ...uiState } = preloadedState as any;
+  const { emails, hasMore, totalCount, currentOffset, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, lastFetchedAt, ...uiState } = preloadedState as unknown as import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState;
   return configureStore({
     reducer: {
       inboxData: inboxDataReducer,
@@ -126,7 +127,7 @@ describe('useEmailManagement', () => {
       });
 
       // Set initial emails
-      result.current.setEmails([{ id: '1', isRead: false } as any, { id: '2', isRead: false } as any]);
+      result.current.setEmails([{ id: '1', isRead: false } as unknown as Email, { id: '2', isRead: false } as unknown as Email]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
@@ -151,7 +152,7 @@ describe('useEmailManagement', () => {
         wrapper: createWrapper(testStore),
       });
 
-      result.current.setEmails([{ id: '1', isRead: false } as any]);
+      result.current.setEmails([{ id: '1', isRead: false } as unknown as Email]);
 
       const error = new Error('Failed to mark as read');
       mockedAxios.put.mockRejectedValue(error);
@@ -170,7 +171,7 @@ describe('useEmailManagement', () => {
         wrapper: createWrapper(testStore),
       });
 
-      result.current.setEmails([{ id: '1', isRead: true } as any, { id: '2', isRead: true } as any]);
+      result.current.setEmails([{ id: '1', isRead: true } as unknown as Email, { id: '2', isRead: true } as unknown as Email]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
@@ -195,7 +196,7 @@ describe('useEmailManagement', () => {
         wrapper: createWrapper(testStore),
       });
 
-      result.current.setEmails([{ id: '1', isRead: true } as any]);
+      result.current.setEmails([{ id: '1', isRead: true } as unknown as Email]);
 
       const error = new Error('Failed to mark as unread');
       mockedAxios.put.mockRejectedValue(error);
@@ -220,9 +221,9 @@ describe('useEmailManagement', () => {
       );
 
       result.current.setEmails([
-        { id: '1', isRead: false } as any,
-        { id: '2', isRead: false } as any,
-        { id: '3', isRead: false } as any,
+        { id: '1', isRead: false } as unknown as Email,
+        { id: '2', isRead: false } as unknown as Email,
+        { id: '3', isRead: false } as unknown as Email,
       ]);
 
       mockedAxios.post.mockResolvedValue({ data: {} });
@@ -276,7 +277,7 @@ describe('useEmailManagement', () => {
         wrapper: createWrapper(testStore),
       });
 
-      result.current.setEmails([{ id: '1', isRead: false } as any]);
+      result.current.setEmails([{ id: '1', isRead: false } as unknown as Email]);
 
       const error = new Error('Bulk read failed');
       mockedAxios.post.mockRejectedValue(error);
@@ -300,7 +301,7 @@ describe('useEmailManagement', () => {
         { wrapper: createWrapper(testStore) }
       );
 
-      result.current.setEmails([{ id: '1', isRead: true } as any, { id: '2', isRead: true } as any]);
+      result.current.setEmails([{ id: '1', isRead: true } as unknown as Email, { id: '2', isRead: true } as unknown as Email]);
 
       mockedAxios.post.mockResolvedValue({ data: {} });
 

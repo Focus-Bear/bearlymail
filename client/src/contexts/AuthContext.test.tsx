@@ -21,14 +21,14 @@ const mockedPosthog = posthogModule as jest.Mocked<typeof posthogModule>;
 // Mock useAuthInitialization
 const mockUseAuthInitialization = jest.fn();
 jest.mock('./useAuthInitialization', () => ({
-  useAuthInitialization: (...args: any[]) => mockUseAuthInitialization(...args),
+  useAuthInitialization: (...args: unknown[]) => mockUseAuthInitialization(...args),
 }));
 
 describe('AuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
-    delete (axios.defaults.headers.common as any)['Authorization'];
+    delete (axios.defaults.headers.common as Record<string, unknown>)['Authorization'];
 
     // Setup default mock for useAuthInitialization
     mockUseAuthInitialization.mockImplementation((setUser, setLoading) => {

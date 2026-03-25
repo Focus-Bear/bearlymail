@@ -259,6 +259,12 @@ export interface VisualCategoryFilterProps {
    * When provided, each pill shows the count: `Newsletters (12)`.
    */
   categoryCounts?: Record<string, number>;
+  /**
+   * When true, pill counts show a loading skeleton instead of (possibly stale)
+   * count values. Used during inbox summary refetch after a filter change.
+   * Fix #1466 (P2): prevents stale count flash during cross-filter transitions.
+   */
+  loading?: boolean;
 }
 
 export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
@@ -267,6 +273,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
   onChange,
   totalCount,
   categoryCounts,
+  loading,
 }) => {
   const { t } = useTranslation();
 
@@ -296,7 +303,8 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
       ? selectedLabels[0]!
       : t('inbox.filters.nCategoriesSelected', '{{count}} selected', { count: selectedLabels.length });
 
-  const countText = totalCount !== undefined ? ` (${totalCount})` : '';
+  // While summary is refetching, show a neutral "…" instead of a stale count (fix #1466).
+  const countText = loading ? ' (…)' : totalCount !== undefined ? ` (${totalCount})` : '';
 
   return (
     <div
@@ -357,24 +365,24 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
           onClick={handleAllClick}
         />
 
-        {/* Visible category pills */}
+        {/* Visible category pills — suppress counts while summary is refetching (fix #1466) */}
         {visibleCategories.map(cat => (
           <CategoryPill
             key={cat.id}
             label={cat.label}
             isSelected={selectedIds.includes(cat.id)}
-            count={categoryCounts?.[cat.id]}
+            count={loading ? undefined : categoryCounts?.[cat.id]}
             onClick={() => handleToggle(cat.id)}
           />
         ))}
 
-        {/* Overflow dropdown */}
+        {/* Overflow dropdown — suppress counts while summary is refetching (fix #1466) */}
         {overflowCategories.length > 0 && (
           <OverflowDropdown
             categories={overflowCategories}
             startIndex={MAX_VISIBLE_PILLS}
             selectedIds={selectedIds}
-            categoryCounts={categoryCounts}
+            categoryCounts={loading ? undefined : categoryCounts}
             onToggle={handleToggle}
             overflowCount={overflowCategories.length}
           />

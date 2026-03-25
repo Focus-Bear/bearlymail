@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
@@ -17,6 +18,7 @@ import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
+import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
@@ -25,6 +27,7 @@ import { VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
 import { GATE_FILTER_SWITCHED_KEY, usePrioritisationGate } from 'hooks/usePrioritisationGate';
 import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
+import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 
 function navigateToNextEmailAfterAction(
   removedEmailId: string,
@@ -147,6 +150,8 @@ const InboxView: React.FC = () => {
   const { isDebugModeEnabled } = useDebugMode();
   // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
+  // Fix #1466: track summary refetch so category pills can show a loading skeleton.
+  const isSummaryLoading = useSelector(selectSummaryLoading);
   const {
     isGated,
     prioritisedCount: gatePrioritisedCount,
@@ -243,19 +248,35 @@ const InboxView: React.FC = () => {
             'Very High': priorityCounts.veryHigh,
           } : undefined}
           priorityTotalCount={priorityCounts ? (() => {
-            const minVal = filters.minPriority ?? 0;
-            const maxVal = filters.maxPriority ?? 100;
-            const BUCKET_BOUNDARIES = [
-              { key: 'veryLow' as const, min: 0, max: 20 },
-              { key: 'low' as const, min: 20, max: 40 },
-              { key: 'medium' as const, min: 40, max: 60 },
-              { key: 'high' as const, min: 60, max: 80 },
-              { key: 'veryHigh' as const, min: 80, max: 100 },
-            ];
-            return BUCKET_BOUNDARIES
-              .filter(bucket => bucket.min < maxVal && bucket.max > minVal)
-              .reduce((sum, bucket) => sum + (priorityCounts[bucket.key] ?? 0), 0);
+            // Fix #1466 (P1): use score-based bucket boundaries from PRIORITY_BUCKET_DEFS
+            // instead of hardcoded visual positions (0-20-40-60-80-100). The old code
+            // compared score values (e.g. minPriority=50) against visual boundaries,
+            // which caused wrong bucket overlap — e.g. "Very High" (score≥50) incorrectly
+            // included "Medium" (visual max=60 > score 50).
+            const LABEL_TO_KEY: Record<string, keyof typeof priorityCounts> = {
+              'Very Low': 'veryLow',
+              'Low': 'low',
+              'Medium': 'medium',
+              'High': 'high',
+              'Very High': 'veryHigh',
+            };
+            const minScore = filters.minPriority;
+            const maxScore = filters.maxPriority;
+            return PRIORITY_BUCKET_DEFS
+              .filter(bucket => bucket.label !== 'All')
+              .filter(bucket => {
+                const bucketMin = bucket.min ?? -Infinity;
+                const bucketMax = bucket.max ?? Infinity;
+                const filterMin = minScore ?? -Infinity;
+                const filterMax = maxScore ?? Infinity;
+                return bucketMin < filterMax && bucketMax > filterMin;
+              })
+              .reduce((sum, bucket) => {
+                const key = LABEL_TO_KEY[bucket.label];
+                return sum + (key ? (priorityCounts[key] ?? 0) : 0);
+              }, 0);
           })() : undefined}
+          isSummaryLoading={isSummaryLoading}
         />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel

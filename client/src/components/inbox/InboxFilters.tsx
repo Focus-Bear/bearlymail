@@ -27,6 +27,12 @@ interface InboxFiltersProps {
   bucketCounts?: Record<string, number>;
   /** Optional total email count for the currently selected priority range. */
   priorityTotalCount?: number;
+  /**
+   * True while the inbox summary is being re-fetched (e.g. after a filter change).
+   * Passed to VisualCategoryFilter so it can show a loading skeleton on pill counts
+   * instead of stale values during cross-filter transitions. Fix #1466 (P2).
+   */
+  isSummaryLoading?: boolean;
 }
 
 // ── Multi-select dropdown (for Account filter) ────────────────────────────────
@@ -309,6 +315,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   categoryCounts,
   bucketCounts,
   priorityTotalCount,
+  isSummaryLoading,
 }) => {
   const { t } = useTranslation();
 
@@ -379,6 +386,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
               selectedIds={filters.categories}
               onChange={handleCategoryChange}
               categoryCounts={categoryCounts}
+              loading={isSummaryLoading}
             />
           )}
         </div>

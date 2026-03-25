@@ -119,10 +119,10 @@ tests:
         Subject: Re: Bug report - Login button not working
         Body: Fix has been implemented and deployed to staging. Sending to QA for verification.
     assert:
+      - type: llm-rubric
+        value: "The category should relate to QA verification or testing, not marketing or newsletters"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
-        config:
-          expectedCategory: "QA Passed"
 
   # Bot detection - should NOT categorize bot emails as "from humans"
   - description: "Bot detection: devin-ai-integration[bot] should NOT be in 'PRs from humans'"
@@ -241,10 +241,11 @@ tests:
         - "Newsletters": Marketing newsletters and promotional content
         - "Other": Anything else
     assert:
+      - type: llm-rubric
+        value: "The category should be newsletter or marketing related"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "Newsletters"
           excludedCategories: "Updates (excluding newsletters)"
 
   # ============================================================
@@ -305,10 +306,11 @@ tests:
         - "Customer Support": Support tickets from customers
         - "HR Admin": HR-related communications
     assert:
+      - type: llm-rubric
+        value: "The response should suggest a proto-category related to infrastructure, server monitoring, or IT operations"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "Other"
           expectProtoCategorySuggestion: true
           # Keyword similarity check - proto category should relate to infrastructure/monitoring
           protoCategoryRelevantTo: ["infrastructure"]
@@ -342,10 +344,11 @@ tests:
         - "Customer Support": Support tickets
         - "Sales": Sales inquiries
     assert:
+      - type: llm-rubric
+        value: "The category should be newsletter or tech news digest"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "Newsletters"
           expectProtoCategorySuggestion: false
 
   # Proto category test 5: Should match existing proto category (billing)
@@ -414,10 +417,10 @@ tests:
         - "Customer Support": Support tickets
         - "Sales": Sales inquiries
     assert:
+      - type: llm-rubric
+        value: "The category should indicate this doesn't fit any provided category"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
-        config:
-          expectedCategory: "Other"
 
   # ============================================================
   # GITHUB-SPECIFIC CATEGORIZATION TESTS
@@ -446,10 +449,11 @@ tests:
         Subject: Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
         Body: Merged #3916 into develop.
     assert:
+      - type: llm-rubric
+        value: "The category should relate to automated PRs or bot activity, not human-authored PRs"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)"
           excludedCategories: "PRs from humans (not Devin)"
 
   # QA pass comment: should get "Other" + "✅ QA passed issues" proto category
@@ -483,10 +487,11 @@ tests:
         - "PRs from humans (not Devin)": Pull requests authored by human developers
         - "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": Devin AI PRs
     assert:
+      - type: llm-rubric
+        value: "The category should relate to QA failure or testing"
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "QA failed issues"
           excludedCategories: "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests"
 
 

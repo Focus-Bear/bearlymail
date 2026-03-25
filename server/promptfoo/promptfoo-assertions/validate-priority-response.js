@@ -63,11 +63,11 @@ module.exports = (output, context) => {
     jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
     parsed = JSON.parse(jsonString);
   } catch (e) {
-    throw new Error('Response must be valid JSON. Got: ' + output.substring(0, 200));
+    return { pass: false, score: 0, reason: 'Response must be valid JSON. Got: ' + String(output).substring(0, 200) };
   }
   
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Response must be a JSON object');
+    return { pass: false, score: 0, reason: 'Response must be a JSON object' };
   }
 
   // Unwrap "result" key if present (new format: { "result": { ... } })
@@ -79,28 +79,28 @@ module.exports = (output, context) => {
   // Note: sentimentScore is NO LONGER returned by the priority prompt — it comes from the
   // summary step (commit #781). Validation is intentionally omitted here.
   if (typeof parsed.urgencyScore !== 'number' || parsed.urgencyScore < 0 || parsed.urgencyScore > 100) {
-    throw new Error('Response must have a valid urgencyScore (0-100)');
+    return { pass: false, score: 0, reason: 'Response must have a valid urgencyScore (0-100)' };
   }
   
   if (!parsed.urgencyExplanation || typeof parsed.urgencyExplanation !== 'string') {
-    throw new Error('Response must have an urgencyExplanation string');
+    return { pass: false, score: 0, reason: 'Response must have an urgencyExplanation string' };
   }
   
   // sentimentScore is pre-computed from the summary step — the priority prompt omits it.
   // If present (e.g., old test data), validate it; if absent, skip.
   if (parsed.sentimentScore !== undefined && parsed.sentimentScore !== null) {
     if (typeof parsed.sentimentScore !== 'number' || parsed.sentimentScore < -1 || parsed.sentimentScore > 1) {
-      throw new Error('sentimentScore present but invalid — must be a number between -1 and 1');
+      return { pass: false, score: 0, reason: 'sentimentScore present but invalid — must be a number between -1 and 1' };
     }
   }
   
   if (!parsed.reasoning || typeof parsed.reasoning !== 'string') {
-    throw new Error('Response must have a reasoning string');
+    return { pass: false, score: 0, reason: 'Response must have a reasoning string' };
   }
   
   // Check for VIP mentions (should not be in reasoning)
   if (parsed.reasoning.toLowerCase().includes('vip')) {
-    throw new Error('Reasoning should not mention VIP status');
+    return { pass: false, score: 0, reason: 'Reasoning should not mention VIP status' };
   }
   
   // Validate expected values from context.config
@@ -110,15 +110,15 @@ module.exports = (output, context) => {
     const isUrgent = parsed.isUrgent !== undefined ? parsed.isUrgent : (parsed.urgencyScore >= 90);
     
     if (context.config.minScore !== undefined && score < context.config.minScore) {
-      throw new Error(`Expected score >= ${context.config.minScore}, got ${score}`);
+      return { pass: false, score: 0, reason: `Expected score >= ${context.config.minScore}, got ${score}` };
     }
     
     if (context.config.maxScore !== undefined && score > context.config.maxScore) {
-      throw new Error(`Expected score <= ${context.config.maxScore}, got ${score}`);
+      return { pass: false, score: 0, reason: `Expected score <= ${context.config.maxScore}, got ${score}` };
     }
     
     if (context.config.expectedIsUrgent !== undefined && isUrgent !== context.config.expectedIsUrgent) {
-      throw new Error(`Expected isUrgent to be ${context.config.expectedIsUrgent}, got ${isUrgent} (urgencyScore: ${parsed.urgencyScore})`);
+      return { pass: false, score: 0, reason: `Expected isUrgent to be ${context.config.expectedIsUrgent}, got ${isUrgent} (urgencyScore: ${parsed.urgencyScore})` };
     }
     
     if (context.config.expectedSentiment) {
@@ -151,12 +151,20 @@ module.exports = (output, context) => {
           const sentimentScoreValid = typeof parsed.sentimentScore === 'number' && parsed.sentimentScore < context.config.maxSentimentScore;
           
           if (!sentimentMatches && !sentimentScoreValid) {
-            throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${actualSentiment}, sentimentScore=${parsed.sentimentScore}`);
+            return {
+              pass: false,
+              score: 0,
+              reason: `Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${actualSentiment}, sentimentScore=${parsed.sentimentScore}`
+            };
           }
         } else {
           // No sentimentScore check, just validate sentiment
           if (!expectedSentiments.includes(actualSentiment)) {
-            throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${actualSentiment} (derived from sentimentScore: ${parsed.sentimentScore})`);
+            return {
+              pass: false,
+              score: 0,
+              reason: `Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${actualSentiment} (derived from sentimentScore: ${parsed.sentimentScore})`
+            };
           }
         }
       }
@@ -167,7 +175,7 @@ module.exports = (output, context) => {
       if (typeof parsed.sentimentScore !== 'number') {
         // sentimentScore absent (expected) — skip this check
       } else if (parsed.sentimentScore >= context.config.minSentimentScore) {
-        throw new Error(`Expected sentimentScore < ${context.config.minSentimentScore}, got ${parsed.sentimentScore}`);
+        return { pass: false, score: 0, reason: `Expected sentimentScore < ${context.config.minSentimentScore}, got ${parsed.sentimentScore}` };
       }
     }
     
@@ -177,33 +185,37 @@ module.exports = (output, context) => {
         // sentimentScore absent (expected) — skip this check
       } else if (parsed.sentimentScore >= context.config.maxSentimentScore) {
         // maxSentimentScore means "must be more negative than this" (e.g., if maxSentimentScore is -0.01, sentimentScore should be < -0.01)
-        throw new Error(`Expected sentimentScore < ${context.config.maxSentimentScore} (more negative), got ${parsed.sentimentScore}`);
+        return { pass: false, score: 0, reason: `Expected sentimentScore < ${context.config.maxSentimentScore} (more negative), got ${parsed.sentimentScore}` };
       }
     }
     
     // Category validation
     if (context.config.expectedCategory !== undefined) {
       if (!parsed.category || typeof parsed.category !== 'string') {
-        throw new Error(`Expected category to be a string, but it's missing or invalid`);
+        return { pass: false, score: 0, reason: `Expected category to be a string, but it's missing or invalid` };
       }
       const expectedCategories = Array.isArray(context.config.expectedCategory) 
         ? context.config.expectedCategory 
         : [context.config.expectedCategory];
       if (!expectedCategories.includes(parsed.category)) {
-        throw new Error(`Expected category to be one of [${expectedCategories.join(', ')}], got "${parsed.category}"`);
+        return { pass: false, score: 0, reason: `Expected category to be one of [${expectedCategories.join(', ')}], got "${parsed.category}"` };
       }
     }
     
     // Category exclusion validation (ensure category is NOT one of these)
     if (context.config.excludedCategories !== undefined) {
       if (!parsed.category || typeof parsed.category !== 'string') {
-        throw new Error(`Expected category to be a string, but it's missing or invalid`);
+        return { pass: false, score: 0, reason: `Expected category to be a string, but it's missing or invalid` };
       }
       const excludedCategories = Array.isArray(context.config.excludedCategories) 
         ? context.config.excludedCategories 
         : [context.config.excludedCategories];
       if (excludedCategories.includes(parsed.category)) {
-        throw new Error(`Category should NOT be one of [${excludedCategories.join(', ')}], but got "${parsed.category}"`);
+        return {
+          pass: false,
+          score: 0,
+          reason: `Category should NOT be one of [${excludedCategories.join(', ')}], but got "${parsed.category}"`
+        };
       }
     }
     
@@ -223,28 +235,28 @@ module.exports = (output, context) => {
         const isListedCategory = listedCategories.includes(parsed.category);
         const isOther = parsed.category === 'Other';
         if (isListedCategory) {
-          throw new Error(`Expected category to be "Other" or a new category, got listed category "${parsed.category}"`);
+          return { pass: false, score: 0, reason: `Expected category to be "Other" or a new category, got listed category "${parsed.category}"` };
         }
         if (isOther && (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object')) {
-          throw new Error(`Expected protoCategorySuggestion object when category is "Other", but it's missing or invalid`);
+          return { pass: false, score: 0, reason: `Expected protoCategorySuggestion object when category is "Other", but it's missing or invalid` };
         }
         if (isOther || parsed.protoCategorySuggestion) {
           if (parsed.protoCategorySuggestion) {
             if (!parsed.protoCategorySuggestion.name || typeof parsed.protoCategorySuggestion.name !== 'string') {
-              throw new Error(`Expected protoCategorySuggestion.name to be a non-empty string`);
+              return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.name to be a non-empty string` };
             }
             if (!parsed.protoCategorySuggestion.description || typeof parsed.protoCategorySuggestion.description !== 'string') {
-              throw new Error(`Expected protoCategorySuggestion.description to be a non-empty string`);
+              return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.description to be a non-empty string` };
             }
             if (!/^[\p{Emoji}]/u.test(parsed.protoCategorySuggestion.name)) {
-              throw new Error(`Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"`);
+              return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"` };
             }
           }
         }
       } else if (context.config.expectProtoCategorySuggestion === false) {
         // Should NOT have a proto category suggestion (e.g., when a category is matched)
         if (parsed.protoCategorySuggestion) {
-          throw new Error(`Expected no protoCategorySuggestion when a category matches, but got one: "${parsed.protoCategorySuggestion.name}"`);
+          return { pass: false, score: 0, reason: `Expected no protoCategorySuggestion when a category matches, but got one: "${parsed.protoCategorySuggestion.name}"` };
         }
       }
     }
@@ -252,7 +264,7 @@ module.exports = (output, context) => {
     // Proto category name matching (for when we expect a specific proto category name pattern)
     if (context.config.protoCategoryNameContains !== undefined) {
       if (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object') {
-        throw new Error(`Expected protoCategorySuggestion object, but it's missing or invalid`);
+        return { pass: false, score: 0, reason: `Expected protoCategorySuggestion object, but it's missing or invalid` };
       }
       const expectedSubstrings = Array.isArray(context.config.protoCategoryNameContains) 
         ? context.config.protoCategoryNameContains 
@@ -261,7 +273,7 @@ module.exports = (output, context) => {
         parsed.protoCategorySuggestion.name.toLowerCase().includes(substring.toLowerCase())
       );
       if (!nameMatches) {
-        throw new Error(`Expected protoCategorySuggestion.name to contain one of [${expectedSubstrings.join(', ')}], got "${parsed.protoCategorySuggestion.name}"`);
+        return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.name to contain one of [${expectedSubstrings.join(', ')}], got "${parsed.protoCategorySuggestion.name}"` };
       }
     }
     
@@ -282,7 +294,7 @@ module.exports = (output, context) => {
       const hasWordOverlap = expectedWords.some(word => actualWords.includes(word));
       
       if (normalizedActual !== normalizedExpected && !hasWordOverlap) {
-        throw new Error(`Expected to match existing proto category "${expectedProtoCategory}", got category "${parsed.category}". Neither exact match nor word overlap found.`);
+        return { pass: false, score: 0, reason: `Expected to match existing proto category "${expectedProtoCategory}", got category "${parsed.category}". Neither exact match nor word overlap found.` };
       }
     }
     

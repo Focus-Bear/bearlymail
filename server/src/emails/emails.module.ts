@@ -74,6 +74,7 @@ import { GmailSyncService } from "./providers/gmail-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
 import { ScanEmailService } from "./scan-email.service";
+import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 import { SyncHistoryService } from "./sync-history.service";
 
 @Module({
@@ -236,6 +237,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailAdminService,
     EmailDebugCategoryService,
     EmailSearchRankingService,
+    StuckPriorityDetectionService,
   ],
   exports: [
     EmailsService,

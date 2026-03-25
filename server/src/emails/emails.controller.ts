@@ -921,9 +921,15 @@ export class EmailsController {
       );
     }
 
+    // Detect score=0 with no breakdown — email stuck after a failed batch run
+    const hasNoBreakdown =
+      !thread?.priorityExplanation?.breakdown ||
+      thread.priorityExplanation.breakdown.length === 0;
+
     if (
       priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE ||
-      thread?.isProcessingPriority
+      thread?.isProcessingPriority ||
+      (priorityScore === 0 && hasNoBreakdown)
     ) {
       await this.boss.send(
         JOB_NAMES.REFINE_PRIORITY,

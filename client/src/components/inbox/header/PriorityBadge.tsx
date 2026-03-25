@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email, getEmailPriorityScore } from 'types/email';
+import { Email, getEmailPriorityScore, isEmailPriorityCalculating } from 'types/email';
 import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
@@ -54,13 +54,13 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
       onClick={event => {
         event.stopPropagation();
         event.preventDefault();
-        if (email.isProcessingPriority) {
+        if (isEmailPriorityCalculating(email)) {
           return;
         }
         priorityTooltip.togglePriorityTooltip(email.id);
       }}
     >
-      {email.isProcessingPriority ? (
+      {isEmailPriorityCalculating(email) ? (
         <>
           <span
             style={{

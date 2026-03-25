@@ -138,3 +138,22 @@ export function getEmailPriorityScore(email: Email): number {
   }
   return email.priorityExplanation.breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
 }
+
+/**
+ * Returns true when an email's priority is in a "calculating" state — either
+ * explicitly flagged by the backend (isProcessingPriority=true) or when the
+ * score is 0 with no breakdown, which indicates a failed/incomplete batch run.
+ *
+ * Use this instead of checking isProcessingPriority directly so the UI shows
+ * "Calculating..." for emails stuck at score=0 after a failed prioritisation.
+ */
+export function isEmailPriorityCalculating(email: Email): boolean {
+  if (email.isProcessingPriority) {
+    return true;
+  }
+  const score = getEmailPriorityScore(email);
+  const hasBreakdown =
+    email.priorityExplanation?.breakdown != null &&
+    email.priorityExplanation.breakdown.length > 0;
+  return score === 0 && !hasBreakdown;
+}

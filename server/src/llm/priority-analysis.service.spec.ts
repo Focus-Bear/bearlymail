@@ -586,7 +586,7 @@ describe("PriorityAnalysisService", () => {
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "analyzePriorityBatch: Failed to parse batch priority response",
+          "analyzePriorityBatch: Batch LLM call failed for",
         ),
         expect.any(Error),
       );

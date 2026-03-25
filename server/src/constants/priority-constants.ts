@@ -3,6 +3,9 @@
  * Use these instead of magic numbers for priority calculations
  */
 
+/** Maximum number of times a thread may be re-queued for priority calculation before giving up. */
+export const MAX_PRIORITY_RETRIES = 3;
+
 export const PRIORITY_SCORES = {
   MIN: 0,
   MAX: 100,

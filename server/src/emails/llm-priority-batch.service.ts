@@ -1,8 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import { JOB_NAMES } from "../constants/job-names";
+import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
@@ -17,9 +21,13 @@ import {
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { getJobPriority } from "../queue/job-priorities";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+
+/** Delay in seconds before re-queuing a fallback email for retry. */
+const PRIORITY_RETRY_DELAY_SECONDS = 60;
 
 type UserContextInput = Array<{
   contextKey: string;
@@ -39,6 +47,7 @@ export class LLMPriorityBatchService {
   private readonly logger = new Logger(LLMPriorityBatchService.name);
 
   constructor(
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
@@ -536,10 +545,106 @@ export class LLMPriorityBatchService {
       contexts,
     );
     tracker.endPhase("dbUpdate");
+
+    // Re-queue any emails that received fallback results (LLM batch failed for them).
+    // Uses singletonKey to prevent duplicate jobs and respects MAX_PRIORITY_RETRIES.
+    await this.requeueFallbackEmails(
+      workerId,
+      userId,
+      emailsNeedingFullAnalysis,
+      batchResults,
+    );
+
     this.logger.log(
       `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis`,
     );
     tracker.finish();
     return threadIdsToLock;
+  }
+
+  /**
+   * Re-queue individual refine-priority jobs for any emails that received a
+   * fallback (isFallback=true) result during batch analysis.  This prevents
+   * emails from getting permanently stuck at score=0 when an LLM batch call
+   * fails.  Each email is allowed at most MAX_PRIORITY_RETRIES attempts before
+   * we give up (tracked via `priorityRetryCount` on the thread).
+   */
+  private async requeueFallbackEmails(
+    workerId: string,
+    userId: string,
+    emailsNeedingFullAnalysis: Email[],
+    batchResults: Map<string, BatchPriorityResult>,
+  ): Promise<void> {
+    const fallbackEmails = emailsNeedingFullAnalysis.filter((email) => {
+      const result = batchResults.get(email.id);
+      return !result || result.isFallback;
+    });
+
+    if (fallbackEmails.length === 0) return;
+
+    this.logger.warn(
+      `[Worker ${workerId}] ${fallbackEmails.length} email(s) received fallback results — scheduling individual retries`,
+    );
+
+    // Batch-load all threads upfront to avoid N+1 queries
+    const threadIds = [
+      ...new Set(
+        fallbackEmails
+          .map((email) => email.emailThreadId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const threads = await this.emailThreadRepository.find({
+      where: { id: In(threadIds) },
+      select: ["id", "priorityRetryCount"],
+    });
+    const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
+
+    for (const email of fallbackEmails) {
+      try {
+        // Check retry count on the thread to avoid infinite loops
+        if (email.emailThreadId) {
+          const thread = threadMap.get(email.emailThreadId);
+
+          if (thread && thread.priorityRetryCount >= MAX_PRIORITY_RETRIES) {
+            this.logger.warn(
+              `[Worker ${workerId}] Email ${email.id} (thread ${email.emailThreadId}) has reached MAX_PRIORITY_RETRIES (${MAX_PRIORITY_RETRIES}) — giving up`,
+            );
+            continue;
+          }
+        }
+
+        // Send job first; only increment retry count after successful enqueue
+        await this.boss.send(
+          JOB_NAMES.REFINE_PRIORITY,
+          { userId, emailId: email.id, isRetry: true },
+          {
+            priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
+            singletonKey: `refine-priority-retry-${email.id}`,
+            startAfter: new Date(
+              Date.now() + PRIORITY_RETRY_DELAY_SECONDS * MILLISECONDS.SECOND,
+            ),
+          },
+        );
+
+        // Increment retry count only after successful boss.send()
+        if (email.emailThreadId) {
+          await this.emailThreadRepository.increment(
+            { id: email.emailThreadId },
+            "priorityRetryCount",
+            1,
+          );
+        }
+
+        this.logger.log(
+          `[Worker ${workerId}] Queued retry for email ${email.id} (starts in ${PRIORITY_RETRY_DELAY_SECONDS}s)`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `[Worker ${workerId}] Failed to queue retry for email ${email.id}:`,
+          err,
+        );
+      }
+    }
   }
 }

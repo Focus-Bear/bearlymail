@@ -38,6 +38,9 @@ export const JOB_NAMES = {
   COMPRESS_CONTEXT: "compress-context",
   CLEANUP_STUCK_ANALYSES: "cleanup-stuck-analyses",
 
+  // Priority retry / stuck detection
+  DETECT_STUCK_PRIORITIES: "detect-stuck-priorities",
+
   // Writing style & learning
   CHECK_WRITING_STYLE_LEARNING: "check-writing-style-learning",
   LEARN_FROM_STAR: "learn-from-star",

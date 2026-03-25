@@ -109,6 +109,14 @@ export class EmailThread {
   })
   isProcessingPriority: boolean;
 
+  @Column({
+    type: "int",
+    default: 0,
+    comment:
+      "Number of priority retry attempts made for this thread. Used to prevent infinite retry loops.",
+  })
+  priorityRetryCount: number;
+
   // GitHub issue/PR metadata
   @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
   githubMetadata: {

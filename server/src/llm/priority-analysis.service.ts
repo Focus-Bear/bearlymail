@@ -663,9 +663,41 @@ Summary: ${cleanedBody}`;
       );
     } catch (error) {
       this.logger.error(
-        `analyzePriorityBatch: Failed to parse batch priority response for ${emails.length} emails`,
+        `analyzePriorityBatch: Batch LLM call failed for ${emails.length} emails — attempting individual fallback`,
         error,
       );
+
+      // Attempt individual analysis for each email instead of marking all as fallback.
+      // This degrades gracefully at higher LLM cost rather than leaving all emails stuck at score=0.
+      for (const batchEmail of emails) {
+        // already succeeded
+        if (results.has(batchEmail.emailKey)) continue;
+        try {
+          const individualResult = await this.analyzePriority({
+            email: {
+              from: batchEmail.from,
+              fromName: batchEmail.fromName,
+              senderJobTitle: batchEmail.senderJobTitle,
+              subject: batchEmail.subject,
+              body: batchEmail.body,
+            },
+            userContext,
+            provider,
+            userId,
+            preComputedSentimentScore: batchEmail.preComputedSentimentScore,
+          });
+          results.set(batchEmail.emailKey, {
+            ...individualResult,
+            isFallback: false,
+          });
+        } catch (individualError) {
+          // Only this specific email falls back — logged below by fillFallbackEntries
+          this.logger.error(
+            `analyzePriorityBatch: Individual fallback also failed for email key "${batchEmail.emailKey}"`,
+            individualError,
+          );
+        }
+      }
     }
 
     this.fillFallbackEntries(results, emails);

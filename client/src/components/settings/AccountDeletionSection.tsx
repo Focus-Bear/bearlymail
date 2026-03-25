@@ -158,6 +158,7 @@ export const AccountDeletionSection: React.FC = () => {
 
     try {
       await axios.delete(`${API_URL}/users/me`, {
+        // eslint-disable-next-line id-denylist -- axios config requires the `data` property key for request body
         data: { confirmationText: confirmationInput },
       });
       logout();

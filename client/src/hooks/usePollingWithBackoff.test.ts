@@ -34,7 +34,6 @@ describe('computeBackoffDelay', () => {
   });
 
   it('should grow exponentially up to BACKOFF_MAX_MS', () => {
-    const delay0 = computeBackoffDelay(0);
     const delay3 = computeBackoffDelay(3);
     // delay3 should generally be larger than delay0 (jitter could overlap at low counts but not by much)
     // We use a wide margin to accommodate jitter

@@ -6,7 +6,6 @@
 import { Email, InboxMode } from 'types/email';
 
 import { CategoryGroup, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
-import { CATEGORY_OTHER } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';

@@ -7,7 +7,6 @@ import { API_URL } from 'config/api';
 import {
   DELAY_1_SECOND_MS,
   HTTP_TOO_MANY_REQUESTS,
-  LONG_TIMEOUT_MS,
   MAX_POLL_RETRIES_429,
   MAX_RETRIES_POLLING,
   MS_PER_SECOND,
@@ -124,15 +123,15 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           return;
         }
 
-        const data = response.data;
+        const resumeCheckResult = response.data;
         // Backend returns an analysisId when an in-progress analysis exists
-        if (data?.analysisId && data?.progress && !data?.progress?.isComplete && !data?.error) {
-          devLog(`[useAnalysisProgress] Resuming in-progress analysis on mount: ${data.analysisId}`);
-          setAnalysisId(data.analysisId);
+        if (resumeCheckResult?.analysisId && resumeCheckResult?.progress && !resumeCheckResult?.progress?.isComplete && !resumeCheckResult?.error) {
+          devLog(`[useAnalysisProgress] Resuming in-progress analysis on mount: ${resumeCheckResult.analysisId}`);
+          setAnalysisId(resumeCheckResult.analysisId);
           setAnalyzing(true);
           setAnalyzeProgress({
             show: true,
-            progress: data.progress,
+            progress: resumeCheckResult.progress,
             error: null,
             isComplete: false,
           });

@@ -7,7 +7,7 @@
  * Issue #1225 (Critical Issue #1): eliminates god hook + 4-layer prop drilling.
  */
 
-import React, { createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import { InboxMode } from 'types/email';
 
 import { useInboxFilters } from 'hooks/useInboxFilters';

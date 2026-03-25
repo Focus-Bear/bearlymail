@@ -59,8 +59,8 @@ const AttendeesList: React.FC<{ attendees: IcsEventData['attendees']; t: (k: str
   const overflow = attendees.length - MAX_VISIBLE_ATTENDEES;
   return (
     <div style={{ marginTop: theme.spacing.xs }}>
-      {visible.map((att, idx) => (
-        <div key={idx} style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+      {visible.map((att) => (
+        <div key={att.email} style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
           {att.name ? `${att.name} <${att.email}>` : att.email}
           {att.status && att.status !== 'NEEDS-ACTION' && (
             <span style={{ marginLeft: theme.spacing.xs, color: theme.colors.text.tertiary }}>

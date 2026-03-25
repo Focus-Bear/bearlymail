@@ -7,7 +7,7 @@ import {
   MS_PER_SECOND,
   SECONDS_PER_MINUTE,
 } from 'constants/numbers';
-import { TYPEOF_STRING } from 'constants/strings';
+
 
 /**
  * Returns 9:00 AM the next business day in browser-local time.

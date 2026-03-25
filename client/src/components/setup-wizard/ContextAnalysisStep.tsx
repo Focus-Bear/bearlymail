@@ -228,8 +228,8 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                   {analyzeProgress.progress.insights
                     .slice(-CONTEXT_ANALYSIS_RECENT_COUNT)
                     .reverse()
-                    .map((insight, idx) => (
-                      <div key={`${insight.type}-${idx}`} style={insightItemStyle}>
+                    .map((insight) => (
+                      <div key={`${insight.type}-${insight.message}`} style={insightItemStyle}>
                         {insight.message}
                       </div>
                     ))}

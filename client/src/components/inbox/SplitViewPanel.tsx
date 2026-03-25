@@ -1,5 +1,5 @@
 import React, { RefObject } from 'react';
-import { Email, InboxMode } from 'types/email';
+import { InboxMode } from 'types/email';
 
 import { MODE_ACTION } from 'constants/strings';
 import EmailDetail from 'pages/EmailDetail';

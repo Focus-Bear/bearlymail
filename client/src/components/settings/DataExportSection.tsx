@@ -7,7 +7,7 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
-import { STRING_NONE, TYPEOF_OBJECT } from 'constants/strings';
+import { STRING_NONE } from 'constants/strings';
 
 import { formatImportDetails, type ImportResult, parseImportFile } from './dataExport.helpers';
 

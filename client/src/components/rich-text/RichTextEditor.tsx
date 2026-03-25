@@ -15,7 +15,7 @@ import { theme } from 'theme/theme';
 
 import { RichTextToolbar } from 'components/rich-text/RichTextToolbar';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { TAG_EMPTY_PARAGRAPH, TYPEOF_STRING } from 'constants/strings';
+import { TAG_EMPTY_PARAGRAPH } from 'constants/strings';
 
 interface RichTextEditorProps {
   content: string | null;

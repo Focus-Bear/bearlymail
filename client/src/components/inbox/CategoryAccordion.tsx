@@ -8,8 +8,6 @@ import { OPACITY_DISABLED } from 'constants/numbers';
 import {
   CATEGORY_DANGEROUS_PHISHING,
   CATEGORY_OTHER,
-  KEY_ESCAPE,
-  KEY_Y,
   MODE_AUTORESPONDED,
   PHISHING_CONFIDENCE_HIGH,
   PHISHING_CONFIDENCE_MEDIUM,
@@ -18,7 +16,6 @@ import {
 import { getCategoryKey } from 'hooks/useEmailFetching';
 
 import {
-  DEFAULT_CATEGORY_TRANSLATIONS,
   getCategoryIcon,
   getCategoryTranslationKey,
   isDefaultCategory,

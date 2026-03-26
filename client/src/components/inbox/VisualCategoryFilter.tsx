@@ -24,15 +24,20 @@ const MAX_VISIBLE_PILLS = 5;
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+/** Max width for pill labels before truncating. Tighter on mobile (compact). */
+const PILL_LABEL_MAX_WIDTH_DEFAULT = 200;
+const PILL_LABEL_MAX_WIDTH_COMPACT = 120;
+
 interface PillProps {
   label: string;
   isSelected: boolean;
   count?: number;
   isAll?: boolean;
+  compact?: boolean;
   onClick: () => void;
 }
 
-const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = false, onClick }) => {
+const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = false, compact = false, onClick }) => {
   const { t } = useTranslation();
   const backgroundColor = isSelected
     ? isAll
@@ -52,29 +57,34 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
       : theme.colors.text.primary
     : theme.colors.text.secondary;
 
-  const displayLabel = count !== undefined ? `${label} (${count})` : label;
+  const maxLabelWidth = compact ? PILL_LABEL_MAX_WIDTH_COMPACT : PILL_LABEL_MAX_WIDTH_DEFAULT;
+  const countSuffix = count !== undefined ? ` (${count})` : '';
 
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={isSelected}
+      title={`${label}${countSuffix}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '5px',
-        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        fontSize: theme.typography.fontSize.lg,
+        padding: compact
+          ? `${theme.spacing.xs} ${theme.spacing.xs}`
+          : `${theme.spacing.xs} ${theme.spacing.sm}`,
+        fontSize: compact ? theme.typography.fontSize.md : theme.typography.fontSize.lg,
         fontWeight: isSelected ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
         backgroundColor,
         color: textColor,
         border: `1.5px solid ${borderColor}`,
         borderRadius: theme.borderRadius.full,
         cursor: 'pointer',
-        whiteSpace: 'nowrap',
         transition: theme.transitions.fast,
         outline: 'none',
         boxShadow: isSelected && !isAll ? `0 0 0 2px ${theme.colors.primary.main}33` : 'none',
+        minHeight: '44px',
+        minWidth: compact ? '44px' : undefined,
       }}
       onFocus={event => {
         event.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary.main}44`;
@@ -97,7 +107,19 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
           {t('common.checkmark')}
         </span>
       )}
-      {displayLabel}
+      <span
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          maxWidth: `${maxLabelWidth}px`,
+        }}
+      >
+        {label}
+      </span>
+      {countSuffix && (
+        <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{countSuffix}</span>
+      )}
     </button>
   );
 };
@@ -109,6 +131,7 @@ interface OverflowDropdownProps {
   categoryCounts?: Record<string, number>;
   onToggle: (id: string) => void;
   overflowCount: number;
+  compact?: boolean;
 }
 
 const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
@@ -117,6 +140,7 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
   categoryCounts,
   onToggle,
   overflowCount,
+  compact = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -146,8 +170,10 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
-          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          fontSize: theme.typography.fontSize.lg,
+          padding: compact
+            ? `${theme.spacing.xs} ${theme.spacing.xs}`
+            : `${theme.spacing.xs} ${theme.spacing.sm}`,
+          fontSize: compact ? theme.typography.fontSize.md : theme.typography.fontSize.lg,
           fontWeight: theme.typography.fontWeight.medium,
           backgroundColor: hasSelectedOverflow ? theme.colors.background.subtle : theme.colors.background.paper,
           color: hasSelectedOverflow ? theme.colors.text.primary : theme.colors.text.tertiary,
@@ -157,6 +183,8 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
           whiteSpace: 'nowrap',
           transition: theme.transitions.fast,
           outline: 'none',
+          minHeight: compact ? '44px' : undefined,
+          minWidth: compact ? '44px' : undefined,
         }}
       >
         +{overflowCount} {t('inbox.filters.moreCategories', 'more')}
@@ -190,6 +218,7 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
                 type="button"
                 role="option"
                 aria-selected={isSelected}
+                title={displayLabel}
                 onClick={() => onToggle(cat.id)}
                 style={{
                   display: 'flex',
@@ -265,6 +294,11 @@ export interface VisualCategoryFilterProps {
    * Fix #1466 (P2): prevents stale count flash during cross-filter transitions.
    */
   loading?: boolean;
+  /**
+   * When true, renders pills with reduced padding and font size for narrow/mobile viewports.
+   * Touch targets are preserved at ≥44px.
+   */
+  compact?: boolean;
 }
 
 export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
@@ -274,6 +308,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
   totalCount,
   categoryCounts,
   loading,
+  compact = false,
 }) => {
   const { t } = useTranslation();
 
@@ -316,6 +351,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.md,
         boxShadow: theme.shadows.sm,
+        overflow: 'visible',
       }}
     >
       {/* Header */}
@@ -355,6 +391,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
           flexWrap: 'wrap',
           gap: theme.spacing.xs,
           alignItems: 'center',
+          overflow: 'visible',
         }}
       >
         {/* "All" pill */}
@@ -362,6 +399,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
           label={t('inbox.filters.allCategories', 'All')}
           isSelected={isAllSelected}
           isAll
+          compact={compact}
           onClick={handleAllClick}
         />
 
@@ -372,6 +410,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
             label={cat.label}
             isSelected={selectedIds.includes(cat.id)}
             count={loading ? undefined : categoryCounts?.[cat.id]}
+            compact={compact}
             onClick={() => handleToggle(cat.id)}
           />
         ))}
@@ -385,6 +424,7 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
             categoryCounts={loading ? undefined : categoryCounts}
             onToggle={handleToggle}
             overflowCount={overflowCategories.length}
+            compact={compact}
           />
         )}
       </div>

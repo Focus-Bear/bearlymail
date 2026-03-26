@@ -15,8 +15,13 @@
  * 10. InboxFilters — Full filter bar (multi-account + categories)
  * 11. InboxFilters — Single account (account filter hidden)
  * 12. InboxFilters — Loading states
+ * 13. VisualCategoryFilter — Compact/mobile (reduced padding, ≥44px touch targets) [PR #1486]
+ * 14. VisualCategoryFilter — Compact overflow dropdown [PR #1486]
+ * 15. InboxFilters — Mobile viewport (375px): stacked layout [PR #1486]
+ * 16. InboxFilters — Tablet viewport (768px): side-by-side layout [PR #1486]
  *
  * Implemented for issue #1414 (visual filters).
+ * Mobile responsive layout added in PR #1486 (fix #1477).
  */
 import React, { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -388,5 +393,163 @@ export const LoadingStates: StoryObj = {
       initialMinPriority={null}
       initialMaxPriority={null}
     />
+  ),
+};
+
+// ── PR #1486 — Mobile responsive layout stories ───────────────────────────────
+
+/**
+ * VisualCategoryFilter in compact mode (mobile).
+ * Pills use reduced padding + font size while keeping ≥44px touch targets.
+ * Labels truncate at 120px with ellipsis; full name on title attr.
+ * Added in PR #1486 (fix #1477).
+ */
+export const CategoryCompactMobile: StoryObj = {
+  name: 'Category — compact/mobile (≥44px touch targets, tight pills) [PR #1486]',
+  render: () => (
+    <I18nextProvider i18n={inboxFiltersI18n}>
+      <div style={{ padding: '16px', maxWidth: '375px', border: '1px dashed #ccc' }}>
+        <p style={{ marginBottom: '8px', fontSize: '11px', color: '#999' }}>
+          Simulating 375px mobile viewport — compact=true
+        </p>
+        <VisualCategoryFilter
+          categories={MOCK_CATEGORIES_MANY}
+          selectedIds={['cat-uuid-1', 'cat-uuid-3']}
+          onChange={() => {/* no-op */}}
+          categoryCounts={MOCK_CATEGORY_COUNTS}
+          compact
+        />
+      </div>
+    </I18nextProvider>
+  ),
+};
+
+/**
+ * VisualCategoryFilter in compact mode with overflow dropdown open.
+ * Overflow pills also render with compact sizing and ≥44px touch targets.
+ * Added in PR #1486 (fix #1477).
+ */
+export const CategoryCompactOverflow: StoryObj = {
+  name: 'Category — compact overflow dropdown [PR #1486]',
+  render: () => {
+    const CompactOverflowDemo: React.FC = () => {
+      const [selectedIds, setSelectedIds] = React.useState<string[]>(['cat-uuid-1', 'cat-uuid-6']);
+      return (
+        <I18nextProvider i18n={inboxFiltersI18n}>
+          <div style={{ padding: '16px', maxWidth: '375px', border: '1px dashed #ccc' }}>
+            <p style={{ marginBottom: '8px', fontSize: '11px', color: '#999' }}>
+              compact=true — click &quot;+ 3 more&quot; for overflow
+            </p>
+            <VisualCategoryFilter
+              categories={MOCK_CATEGORIES_MANY}
+              selectedIds={selectedIds}
+              onChange={setSelectedIds}
+              categoryCounts={MOCK_CATEGORY_COUNTS}
+              compact
+            />
+            <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
+              selected: [{selectedIds.join(', ')}]
+            </p>
+          </div>
+        </I18nextProvider>
+      );
+    };
+    return <CompactOverflowDemo />;
+  },
+};
+
+/**
+ * InboxFilters rendered at 375px mobile width.
+ * Category filter + priority slider stack vertically (flexDirection: column).
+ * Each child is full-width; VisualCategoryFilter gets compact=true.
+ * Added in PR #1486 (fix #1477).
+ */
+export const MobileStackedLayout: StoryObj = {
+  name: 'InboxFilters — mobile 375px stacked layout [PR #1486]',
+  parameters: {
+    viewport: { defaultViewport: 'mobile1' },
+  },
+  render: () => {
+    const MobileDemo: React.FC = () => {
+      const [filters, setFilters] = React.useState({
+        accountIds: [] as string[],
+        categories: ['cat-uuid-2'] as string[],
+        minPriority: 80 as number | null,
+        maxPriority: null as number | null,
+      });
+      const hasActiveFilters =
+        filters.categories.length > 0 || filters.minPriority !== null;
+      return (
+        <I18nextProvider i18n={inboxFiltersI18n}>
+          {/* Constrain to 375px to force the isMobile responsive path */}
+          <div style={{ width: '375px', border: '1px dashed #aaa' }}>
+            <InboxFilters
+              isFilterBarVisible
+              filters={filters}
+              connectedAccounts={[MOCK_ACCOUNTS[0]]}
+              availableCategories={MOCK_CATEGORIES_MANY}
+              loadingAccounts={false}
+              loadingCategories={false}
+              hasActiveFilters={hasActiveFilters}
+              setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
+              setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
+              setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
+              onFilterChange={() => {/* no-op */}}
+              categoryCounts={MOCK_CATEGORY_COUNTS}
+              bucketCounts={MOCK_BUCKET_COUNTS}
+              priorityTotalCount={Object.values(MOCK_BUCKET_COUNTS).reduce((acc, val) => acc + val, 0)}
+            />
+          </div>
+          <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
+            On screens &lt;640px, InboxFilters stacks the category + priority rows and
+            passes compact=true to VisualCategoryFilter. useResponsiveBreakpoints drives this.
+          </p>
+        </I18nextProvider>
+      );
+    };
+    return <MobileDemo />;
+  },
+};
+
+/**
+ * InboxFilters at tablet width (768px): side-by-side layout preserved.
+ * Category filter and priority slider are in a horizontal row (flexDirection: row).
+ * compact=false so pills use full desktop sizing.
+ * Added in PR #1486 (fix #1477).
+ */
+export const TabletSideBySideLayout: StoryObj = {
+  name: 'InboxFilters — tablet 768px side-by-side layout [PR #1486]',
+  parameters: {
+    viewport: { defaultViewport: 'tablet' },
+  },
+  render: () => (
+    <I18nextProvider i18n={inboxFiltersI18n}>
+      <div style={{ width: '768px', border: '1px dashed #aaa' }}>
+        <InboxFilters
+          isFilterBarVisible
+          filters={{
+            accountIds: [],
+            categories: ['cat-uuid-1'],
+            minPriority: 40,
+            maxPriority: null,
+          }}
+          connectedAccounts={[MOCK_ACCOUNTS[0]]}
+          availableCategories={MOCK_CATEGORIES_MANY}
+          loadingAccounts={false}
+          loadingCategories={false}
+          hasActiveFilters
+          setAccountFilter={() => {/* no-op */}}
+          setCategoryFilter={() => {/* no-op */}}
+          setPriorityFilter={() => {/* no-op */}}
+          onFilterChange={() => {/* no-op */}}
+          categoryCounts={MOCK_CATEGORY_COUNTS}
+          bucketCounts={MOCK_BUCKET_COUNTS}
+          priorityTotalCount={Object.values(MOCK_BUCKET_COUNTS).reduce((acc, val) => acc + val, 0)}
+        />
+      </div>
+      <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
+        At ≥640px (tablet/desktop), category + priority remain side-by-side (flex row, compact=false).
+      </p>
+    </I18nextProvider>
   ),
 };

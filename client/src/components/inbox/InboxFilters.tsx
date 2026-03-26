@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import type { ConnectedAccount, InboxFilter } from 'hooks/useInboxFilters';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getMultiSelectDisplayText } from './inboxFilters.helpers';
 import { PriorityRangeSelector } from './PriorityRangeSelector';
@@ -318,6 +319,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
   isSummaryLoading,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
 
   const handleAccountChange = (ids: string[]) => {
     setAccountFilter(ids);
@@ -376,10 +378,17 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
         </div>
       )}
 
-      {/* Row 2: Category filter (50%) + Priority range slider (50%) */}
-      <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'flex-start' }}>
-        {/* Category Filter — visual pill-based multi-select, 50% width */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* Row 2: Category filter + Priority range slider — stacked on mobile, side-by-side on tablet/desktop */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: theme.spacing.md,
+          alignItems: 'flex-start',
+        }}
+      >
+        {/* Category Filter — visual pill-based multi-select */}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined }}>
           {!loadingCategories && (
             <VisualCategoryFilter
               categories={availableCategories}
@@ -387,12 +396,13 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
               onChange={handleCategoryChange}
               categoryCounts={categoryCounts}
               loading={isSummaryLoading}
+              compact={isMobile}
             />
           )}
         </div>
 
-        {/* Priority Filter — dual-thumb range slider, 50% width */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Priority Filter — dual-thumb range slider */}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined }}>
           <PriorityRangeSelector
             selectedMin={filters.minPriority}
             selectedMax={filters.maxPriority}

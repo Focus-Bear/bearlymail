@@ -78,7 +78,8 @@
       "intro": "BearlyMail needs the following permissions to help you manage your email effectively. We take your privacy seriously and only request what's necessary.",
       "gmail": {
         "title": "Gmail Access",
-        "description": "Read, organize, and send emails on your behalf. This allows BearlyMail to prioritize your inbox, archive emails, and send replies."
+        "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
+        "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder."
       },
       "calendar": {
         "title": "Calendar Events",

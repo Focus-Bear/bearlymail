@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_SHIELD } from 'constants/emojis';
 import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
@@ -52,6 +53,33 @@ const PermissionsContent: React.FC<PermissionsContentProps> = ({ t }) => (
         title={t('auth.permissions.gmail.title')}
         description={t('auth.permissions.gmail.description')}
       />
+      <div
+        style={{
+          backgroundColor: `${theme.colors.success.main}08`,
+          border: `1px solid ${theme.colors.success.main}30`,
+          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.md,
+          marginTop: `-${theme.spacing.sm}`,
+          marginBottom: theme.spacing.lg,
+          marginLeft: `calc(${theme.typography.fontSize['2xl']} + ${theme.spacing.md})`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: theme.spacing.sm,
+        }}
+      >
+        <span style={{ fontSize: theme.typography.fontSize.sm }}>{EMOJI_SHIELD}</span>
+        <p
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.xs,
+            lineHeight: 1.5,
+            margin: 0,
+            fontStyle: 'italic',
+          }}
+        >
+          {t('auth.permissions.gmail.sendClarification')}
+        </p>
+      </div>
       <PermissionItem
         icon="📅"
         title={t('auth.permissions.calendar.title')}

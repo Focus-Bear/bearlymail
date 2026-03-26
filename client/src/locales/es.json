@@ -216,7 +216,8 @@
       "intro": "BearlyMail necesita los siguientes permisos para ayudarte a gestionar tu correo electrónico de manera efectiva. Nos tomamos tu privacidad en serio y solo solicitamos lo necesario.",
       "gmail": {
         "title": "Acceso a Gmail",
-        "description": "Leer, organizar y enviar correos electrónicos en tu nombre. Esto permite a BearlyMail priorizar tu bandeja de entrada, archivar correos y enviar respuestas."
+        "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
+        "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA."
       },
       "calendar": {
         "title": "Eventos del calendario",

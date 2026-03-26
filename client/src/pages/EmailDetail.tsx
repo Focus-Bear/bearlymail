@@ -216,7 +216,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       ref,
       () => ({
         openReplyComposer: (mode: 'reply' | 'replyAll' | 'forward' = 'reply') => {
-          ops.handleOpenReplyComposer(mode === 'forward' ? 'reply' : mode);
+          ops.handleOpenReplyComposer(mode);
           setTimeout(() => {
             replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             replyTextareaRef.current?.focus();

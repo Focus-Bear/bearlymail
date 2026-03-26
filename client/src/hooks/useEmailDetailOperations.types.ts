@@ -41,8 +41,8 @@ export interface EmailDetailState {
   setSelectedReplyOption: (index: number) => void;
   showReplyComposer: boolean;
   setShowReplyComposer: (show: boolean) => void;
-  replyMode: 'reply' | 'replyAll';
-  setReplyMode: (mode: 'reply' | 'replyAll') => void;
+  replyMode: 'reply' | 'replyAll' | 'forward';
+  setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   replyRecipients: string;
   setReplyRecipients: (recipients: string) => void;
   replyCc: string;

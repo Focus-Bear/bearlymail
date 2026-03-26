@@ -59,7 +59,7 @@ export function useEmailDetailState() {
   const [replyOptions, setReplyOptions] = useState<Array<{ label: string; text: string }> | null>(null);
   const [selectedReplyOption, setSelectedReplyOption] = useState<number>(0);
   const [showReplyComposer, setShowReplyComposer] = useState(false);
-  const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
+  const [replyMode, setReplyMode] = useState<'reply' | 'replyAll' | 'forward'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
   const [replyCc, setReplyCc] = useState<string>('');
   const [replyBcc, setReplyBcc] = useState<string>('');

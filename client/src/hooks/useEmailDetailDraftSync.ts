@@ -6,17 +6,17 @@ interface UseEmailDetailDraftSyncParams {
   id: string | null | undefined;
   email: { id?: string; threadId?: string } | null | undefined;
   draft: string | null;
-  replyMode: 'reply' | 'replyAll';
+  replyMode: 'reply' | 'replyAll' | 'forward';
   replyRecipients: string;
   autoGenerateReplies: boolean;
   replyOptions: unknown;
   showReplyComposer: boolean;
   replyComposerRef: RefObject<HTMLDivElement | null>;
-  saveDraft: (draft: string, mode: 'reply' | 'replyAll', recipients: string) => void | Promise<void>;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => void | Promise<void>;
   fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
-  setReplyMode: (mode: 'reply' | 'replyAll') => void;
+  setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   setShowReplyComposer: (show: boolean) => void;
   setReplyOptions: (options: unknown) => void;
   setToneCheckResult: (result: null) => void;
@@ -47,7 +47,7 @@ export const useEmailDetailDraftSync = ({
   const previousEmailIdRef = useRef<string | null>(null);
   const previousThreadIdRef = useRef<string | null>(null);
   const previousDraftRef = useRef<string | null>(null);
-  const previousReplyModeRef = useRef<'reply' | 'replyAll'>('reply');
+  const previousReplyModeRef = useRef<'reply' | 'replyAll' | 'forward'>('reply');
   const previousRecipientsRef = useRef<string>('');
 
   // Save draft when switching to a different email
@@ -133,9 +133,9 @@ interface UseAutoSaveDraftParams {
   showReplyComposer: boolean;
   threadId: string | undefined;
   draft: string;
-  replyMode: 'reply' | 'replyAll';
+  replyMode: 'reply' | 'replyAll' | 'forward';
   replyRecipients: string;
-  saveDraft: (draft: string, mode: 'reply' | 'replyAll', recipients: string) => void | Promise<void>;
+  saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => void | Promise<void>;
 }
 
 function useAutoSaveDraft({

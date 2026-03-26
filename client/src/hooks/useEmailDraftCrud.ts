@@ -21,7 +21,7 @@ export function useEmailDraftCrud(threadId: string | undefined) {
   }, [threadId]);
 
   const saveDraft = useCallback(
-    async (content: string, mode: 'reply' | 'replyAll', recipients: string) => {
+    async (content: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string) => {
       if (!threadId || !content.trim()) {
         return;
       }

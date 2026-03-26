@@ -20,6 +20,7 @@ import {
   ANIMATION_TYPE_PRIORITY,
   ANIMATION_TYPE_SEND,
   GITHUB_ACTION_PREFIX,
+  REPLY_MODE_FORWARD,
   REPLY_MODE_REPLY_ALL,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
@@ -45,6 +46,8 @@ interface SendReplyPayload {
   files: File[];
   /** Inline images keyed by their CID (from <img src="cid:…"> in the draft). */
   inlineImages?: Map<string, File>;
+  /** Attachment IDs from the original email to carry through when forwarding. */
+  forwardAttachmentIds?: string[];
 }
 
 function buildSendReplyFormData(payload: SendReplyPayload): FormData {
@@ -52,6 +55,7 @@ function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   formData.append('reply', payload.draft);
   formData.append('recipients', payload.recipients);
   formData.append('replyAll', String(payload.replyMode === REPLY_MODE_REPLY_ALL));
+  formData.append('isForward', String(payload.replyMode === REPLY_MODE_FORWARD));
   if (payload.cc) {
     formData.append('cc', payload.cc);
   }
@@ -63,6 +67,9 @@ function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   }
   if (payload.scheduledSendAt) {
     formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
+  }
+  if (payload.forwardAttachmentIds && payload.forwardAttachmentIds.length > 0) {
+    formData.append('forwardAttachmentIds', JSON.stringify(payload.forwardAttachmentIds));
   }
   payload.files.forEach(file => {
     formData.append('files', file);
@@ -89,6 +96,8 @@ async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
       cc: payload.cc || undefined,
       bcc: payload.bcc || undefined,
       replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
+      isForward: payload.replyMode === REPLY_MODE_FORWARD,
+      forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
       expectedReplyHours: payload.expectedReplyHours,
       scheduledSendAt: payload.scheduledSendAt?.toISOString(),
     });
@@ -806,7 +815,7 @@ export function useEmailDetailOperations(
       keepInAction?: boolean;
       inlineImages?: Map<string, File>;
     } = {}) => {
-      const { files = [], expectedReplyHours, draftOverride, scheduledSendAt, keepInAction, inlineImages } = sendOptions;
+      const { files = [], expectedReplyHours, forwardAttachmentIds, draftOverride, scheduledSendAt, keepInAction, inlineImages } = sendOptions;
       const rawDraft = draftOverride || draft;
       if (!id || !rawDraft) {
         return;
@@ -866,6 +875,7 @@ export function useEmailDetailOperations(
           scheduledSendAt,
           files,
           inlineImages,
+          forwardAttachmentIds,
         };
         try {
           await sendReplyRequest(payload);

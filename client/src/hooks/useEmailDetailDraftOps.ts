@@ -4,7 +4,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
+import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
 import { EmailDetailState } from './useEmailDetailOperations.types';
 import { useEmailDraftCrud } from './useEmailDraftCrud';
@@ -66,6 +66,11 @@ function buildReplyRecipientsForMode(
   };
   const isCurrentUser: IsCurrentUserFn = addr => !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
   const isLatestFromCurrentUser = normalizedUserEmail && isCurrentUser(latestEmail.from);
+
+  if (mode === REPLY_MODE_FORWARD) {
+    // Forwards start with empty recipient field — the user fills in a new destination
+    return { recipients: '', cc: null };
+  }
 
   if (mode === REPLY_MODE_REPLY_ALL) {
     return buildReplyAllRecipients(latestEmail, isCurrentUser, isLatestFromCurrentUser);
@@ -208,7 +213,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
   const handleGenerateDraft = useDraftGenerationCallback(id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption);
 
   const handleOpenReplyComposer = useCallback(
-    (mode: 'reply' | 'replyAll') => {
+    (mode: 'reply' | 'replyAll' | 'forward') => {
       captureEvent(ANALYTICS_EVENTS.REPLY_BUTTON_CLICKED, { email_id: id, reply_type: mode });
       setReplyMode(mode);
       setShowReplyComposer(true);
@@ -234,9 +239,14 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
         }
       }
 
-      if (!replyOptions || replyOptions.length === 0) {
-        setDraft('');
-        handleGenerateDraft();
+      // AI draft generation is only meaningful for replies, not forwards
+      if (mode !== REPLY_MODE_FORWARD) {
+        if (!replyOptions || replyOptions.length === 0) {
+          setDraft('');
+          handleGenerateDraft();
+        } else {
+          setDraft('');
+        }
       } else {
         setDraft('');
       }

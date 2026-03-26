@@ -530,7 +530,7 @@ export class EmailInboxService {
       additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
       queryParams.push(filters.maxPriority);
     }
-    // Assignee filter (Batch B — #1112)
+    // Assignee filter (#1112)
     if (filters?.assigneeId === "unassigned") {
       additionalFilters += ` AND thread."assigneeId" IS NULL`;
     } else if (filters?.assigneeId) {

@@ -2582,5 +2582,54 @@
   "serviceError": {
     "message": "BearlyMail no está disponible temporalmente. Por favor, inténtalo de nuevo.",
     "retry": "Reintentar"
+  },
+  "team": {
+    "invite": {
+      "validating": "Validando invitación...",
+      "invalidTitle": "Invitación no encontrada",
+      "invalidBody": "Este enlace de invitación no es válido o ha caducado. Pide al administrador del equipo que envíe una nueva invitación.",
+      "goToLogin": "Ir al inicio de sesión",
+      "title": "¡Has sido invitado!",
+      "body": "{{inviter}} te ha invitado a unirte a {{org}} como {{role}}.",
+      "someone": "Alguien",
+      "loginRequired": "Debes iniciar sesión o crear una cuenta para aceptar esta invitación.",
+      "accept": "Aceptar invitación",
+      "loginToAccept": "Iniciar sesión para aceptar",
+      "accepting": "Aceptando...",
+      "acceptError": "No se pudo aceptar la invitación. Por favor, inténtalo de nuevo o contacta al administrador del equipo."
+    },
+    "settings": {
+      "title": "Equipo",
+      "orgName": "Organización",
+      "noOrg": "No formas parte de ninguna organización de equipo.",
+      "members": "Miembros",
+      "noMembers": "Aún no hay miembros activos.",
+      "pendingInvites": "Invitaciones pendientes",
+      "pending": "Pendiente",
+      "owner": "Propietario",
+      "remove": "Eliminar",
+      "confirmRemove": "¿Eliminar a {{name}} de la organización?",
+      "inviteMember": "Invitar a un miembro",
+      "emailPlaceholder": "Correo electrónico",
+      "sendInvite": "Enviar invitación",
+      "inviting": "Enviando...",
+      "inviteSent": "Invitación enviada correctamente.",
+      "inviteError": "No se pudo enviar la invitación. Por favor, inténtalo de nuevo.",
+      "roleAdmin": "Administrador",
+      "roleMember": "Miembro",
+      "roleChangeError": "No se pudo actualizar el rol. Por favor, inténtalo de nuevo.",
+      "removeError": "No se pudo eliminar el miembro. Por favor, inténtalo de nuevo.",
+      "confirmRemoveTitle": "Eliminar miembro",
+      "seats": "{{active}} de {{max}} asientos usados",
+      "emailUsage": "{{used}} / {{limit}} correos usados ({{percent}}%)",
+      "volumeWarning": "Advertencia: {{percent}}% del volumen de correos usado. Considera actualizar tu plan.",
+      "volumeLimitReached": "Límite de volumen de correos alcanzado. No se procesarán nuevos correos hasta que se renueve tu plan.",
+      "promoCodeTitle": "Código promocional",
+      "promoCodePlaceholder": "Ingresa el código promocional",
+      "promoApply": "Aplicar",
+      "promoApplying": "Aplicando...",
+      "promoApplied": "Código promocional aplicado correctamente.",
+      "promoError": "No se pudo aplicar el código promocional. Verifica el código e intenta de nuevo."
+    }
   }
 }

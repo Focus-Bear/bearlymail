@@ -33,6 +33,44 @@ export class Organization {
   @OneToMany(() => OrganizationMember, (member) => member.organization)
   members: OrganizationMember[];
 
+  @Column({ type: "int", default: 0, comment: "Max paid seats for this org" })
+  maxSeats: number;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment: "RevenueCat subscription ID for the org-level billing",
+  })
+  revenueCatOrgSubscriptionId: string | null;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment: "Volume tier product ID from RevenueCat (starter|growth|business)",
+  })
+  volumeTierProductId: string | null;
+
+  @Column({
+    type: "int",
+    default: 0,
+    comment: "Emails processed this billing cycle",
+  })
+  emailsUsedThisCycle: number;
+
+  @Column({
+    type: "int",
+    default: 3000,
+    comment: "Email volume limit based on tier",
+  })
+  emailVolumeLimit: number;
+
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment: "Start of current billing cycle for volume tracking",
+  })
+  billingCycleStart: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

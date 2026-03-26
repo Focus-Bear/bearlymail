@@ -36,14 +36,14 @@ import { ArchiveEmailProcessor } from "./archive-email.processor";
 import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailArchiveService } from "./email-archive.service";
+import { EmailAssignmentController } from "./email-assignment.controller";
 import { EmailAssignmentService } from "./email-assignment.service";
 import { EmailBacklogController } from "./email-backlog.controller";
 import { EmailBacklogService } from "./email-backlog.service";
 import { EmailCrudService } from "./email-crud.service";
-import { EmailDebugAdminController } from "./email-debug-admin.controller";
-import { EmailSearchOpsController } from "./email-search-ops.controller";
 import { EmailDebugController } from "./email-debug.controller";
 import { EmailDebugService } from "./email-debug.service";
+import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
@@ -54,6 +54,7 @@ import { EmailPriorityExplanationService } from "./email-priority-explanation.se
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
 import { EmailSearchService } from "./email-search.service";
+import { EmailSearchOpsController } from "./email-search-ops.controller";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 import { EmailSendController } from "./email-send.controller";
 import {
@@ -125,6 +126,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailBacklogController,
     EmailDebugController,
     EmailSendController,
+    EmailAssignmentController,
   ],
   providers: [
     SyncHistoryService,

@@ -23,6 +23,7 @@ jest.mock("../encryption/encryption.helper", () => ({
 
 const mockOrgRepo = {
   findOne: jest.fn(),
+  findOneOrFail: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
 };
@@ -30,6 +31,7 @@ const mockOrgRepo = {
 const mockMemberRepo = {
   findOne: jest.fn(),
   find: jest.fn(),
+  count: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
 };
@@ -176,6 +178,9 @@ describe("OrganizationsService", () => {
       mockMemberRepo.findOne
         .mockResolvedValueOnce(activeMembership)
         .mockResolvedValueOnce(null);
+      // getSeatUsage: org has maxSeats=5, 1 active member
+      mockOrgRepo.findOneOrFail.mockResolvedValue(makeOrg({ maxSeats: 5 }));
+      mockMemberRepo.count.mockResolvedValue(1);
       const pendingMember = makeMember({
         status: "pending",
         role: "member",
@@ -187,7 +192,7 @@ describe("OrganizationsService", () => {
       mockMemberRepo.create.mockReturnValue(pendingMember);
       mockMemberRepo.save.mockResolvedValue(pendingMember);
       mockUserRepo.findOne.mockResolvedValue(makeUser());
-      mockOrgRepo.findOne.mockResolvedValue(makeOrg());
+      mockOrgRepo.findOne.mockResolvedValue(makeOrg({ maxSeats: 5 }));
       mockInviteService.sendInviteEmail.mockResolvedValue(undefined);
 
       const result = await service.inviteMember(USER_ID, {
@@ -200,10 +205,25 @@ describe("OrganizationsService", () => {
       expect(result.status).toBe("pending");
     });
 
+    it("throws ForbiddenException when seat limit is reached", async () => {
+      mockMemberRepo.findOne.mockResolvedValueOnce(activeMembership);
+      mockOrgRepo.findOneOrFail.mockResolvedValue(makeOrg({ maxSeats: 2 }));
+      mockMemberRepo.count.mockResolvedValue(2);
+
+      await expect(
+        service.inviteMember(USER_ID, {
+          email: "bob@example.com",
+          role: "member",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
     it("throws ConflictException when email already active in org", async () => {
       mockMemberRepo.findOne
         .mockResolvedValueOnce(activeMembership)
         .mockResolvedValueOnce(makeMember({ status: "active" }));
+      mockOrgRepo.findOneOrFail.mockResolvedValue(makeOrg({ maxSeats: 5 }));
+      mockMemberRepo.count.mockResolvedValue(1);
 
       await expect(
         service.inviteMember(USER_ID, {
@@ -484,6 +504,65 @@ describe("OrganizationsService", () => {
       await expect(service.removeMember(USER_ID, "member-2")).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  // ─── getSeatUsage ──────────────────────────────────────────────────────────
+
+  describe("getSeatUsage", () => {
+    it("returns seat usage from org.maxSeats and active member count", async () => {
+      mockOrgRepo.findOneOrFail.mockResolvedValue(makeOrg({ maxSeats: 5 }));
+      mockMemberRepo.count.mockResolvedValue(3);
+
+      const result = await service.getSeatUsage(ORG_ID);
+
+      expect(result).toEqual({ activeSeats: 3, maxSeats: 5, canInvite: true });
+    });
+
+    it("returns canInvite=false when seat limit reached", async () => {
+      mockOrgRepo.findOneOrFail.mockResolvedValue(makeOrg({ maxSeats: 2 }));
+      mockMemberRepo.count.mockResolvedValue(2);
+
+      const result = await service.getSeatUsage(ORG_ID);
+
+      expect(result).toEqual({ activeSeats: 2, maxSeats: 2, canInvite: false });
+    });
+  });
+
+  // ─── getVolumeUsage ────────────────────────────────────────────────────────
+
+  describe("getVolumeUsage", () => {
+    it("returns volume usage percentages", async () => {
+      mockOrgRepo.findOneOrFail.mockResolvedValue(
+        makeOrg({
+          emailsUsedThisCycle: 1500,
+          emailVolumeLimit: 3000,
+          volumeTierProductId: "bearlymail_starter",
+        } as Partial<Organization>),
+      );
+
+      const result = await service.getVolumeUsage(ORG_ID);
+
+      expect(result).toEqual({
+        emailsUsed: 1500,
+        emailLimit: 3000,
+        percentUsed: 50,
+        tier: "bearlymail_starter",
+      });
+    });
+
+    it("returns tier=none when no volume tier is set", async () => {
+      mockOrgRepo.findOneOrFail.mockResolvedValue(
+        makeOrg({
+          emailsUsedThisCycle: 0,
+          emailVolumeLimit: 3000,
+          volumeTierProductId: null,
+        } as Partial<Organization>),
+      );
+
+      const result = await service.getVolumeUsage(ORG_ID);
+
+      expect(result.tier).toBe("none");
     });
   });
 });

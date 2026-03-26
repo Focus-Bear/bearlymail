@@ -13,6 +13,7 @@ import { SetupWizard } from 'components/setup-wizard';
 import { API_URL } from 'config/api';
 import { AuthProvider, useAuth } from 'contexts/AuthContext';
 import { NotificationProvider } from 'contexts/NotificationContext';
+import AcceptInvite from 'pages/AcceptInvite';
 import AdminDashboard from 'pages/AdminDashboard';
 import AuthError from 'pages/AuthError';
 import BookingCancelPage from 'pages/BookingCancelPage';
@@ -171,6 +172,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/setup-password" element={<SetupPassword />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/accept-invite/:token" element={<AcceptInvite />} />
     <Route path="/privacy" element={<PrivacyPolicy />} />
     <Route path="/terms" element={<TermsOfUse />} />
     <Route path="/inbox" element={<PrivateRoute><Inbox /></PrivateRoute>} />

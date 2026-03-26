@@ -6,8 +6,22 @@ import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
+import { DAYS, MILLISECONDS } from "../constants/time-constants";
+import { Organization } from "../database/entities/organization.entity";
+import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { ApiError } from "../types/common";
+import { VOLUME_TIER_NONE, VOLUME_TIERS } from "./volume-tiers.constants";
+
+export { VOLUME_TIER_NONE, VOLUME_TIERS };
+
+/** Threshold (as a percentage) at which a warning is emitted for email volume usage. */
+export const EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT = 80;
+
+function isOrgProduct(productId: string | undefined): boolean {
+  if (!productId) return false;
+  return productId.startsWith("bearlymail_seat") || productId in VOLUME_TIERS;
+}
 
 /**
  * RevenueCat webhook event payload structure
@@ -36,15 +50,22 @@ interface RevenueCatRequestData {
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
   private readonly apiKey: string | null = null;
+  private readonly webhookSecret: string | null = null;
   // RevenueCat API base URL
   private readonly baseUrl = "https://api.revenuecat.com/v1";
 
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Organization)
+    private orgRepository: Repository<Organization>,
+    @InjectRepository(OrganizationMember)
+    private memberRepository: Repository<OrganizationMember>,
     private configService: ConfigService,
   ) {
     this.apiKey = this.configService.get<string>("REVENUECAT_API_KEY") || null;
+    this.webhookSecret =
+      this.configService.get<string>("REVENUECAT_WEBHOOK_SECRET") || null;
     if (this.apiKey) {
       this.logger.log("RevenueCat API initialized");
     } else {
@@ -52,6 +73,38 @@ export class SubscriptionsService {
         "REVENUECAT_API_KEY not found, RevenueCat features disabled",
       );
     }
+    if (!this.webhookSecret) {
+      this.logger.warn(
+        "REVENUECAT_WEBHOOK_SECRET not configured — webhook signature verification is disabled",
+      );
+    }
+  }
+
+  /**
+   * Verifies the RevenueCat webhook Authorization header.
+   * RevenueCat sends the secret as a plain Bearer token in the Authorization header.
+   * Returns true if verification is disabled (no secret configured), or if the header matches.
+   * See: https://www.revenuecat.com/docs/integrations/webhooks/authentication
+   */
+  verifyWebhookSignature(authorizationHeader: string | undefined): boolean {
+    if (!this.webhookSecret) {
+      // Secret not configured — fail open with a warning (already logged at startup).
+      return true;
+    }
+    if (!authorizationHeader) {
+      return false;
+    }
+    const expected = `Bearer ${this.webhookSecret}`;
+    // Constant-time comparison to prevent timing attacks
+    if (authorizationHeader.length !== expected.length) {
+      return false;
+    }
+    let mismatch = 0;
+    for (let idx = 0; idx < authorizationHeader.length; idx++) {
+      mismatch |=
+        authorizationHeader.charCodeAt(idx) ^ expected.charCodeAt(idx);
+    }
+    return mismatch === 0;
   }
 
   private async makeRevenueCatRequest(
@@ -228,12 +281,22 @@ export class SubscriptionsService {
         return;
       }
 
-      // Update subscription status based on event type
+      const productId = event.product_id as string | undefined;
+
+      // Route org-level product events separately
+      if (isOrgProduct(productId)) {
+        await this.handleOrgSubscriptionEvent(event);
+        this.logger.log(
+          `Processed org RevenueCat webhook: ${event.type} for user ${user.id}`,
+        );
+        return;
+      }
+
+      // Update subscription status based on event type (individual users)
       switch (event.type) {
         case "INITIAL_PURCHASE":
         case "RENEWAL":
         case "PRODUCT_CHANGE":
-          // Fetch latest customer info from RevenueCat
           if (this.apiKey) {
             try {
               const customerInfo = await this.makeRevenueCatRequest(
@@ -378,5 +441,279 @@ export class SubscriptionsService {
       trialStartedAt: user.trialStartedAt,
       createdAt: user.createdAt,
     }));
+  }
+
+  // ─── Team seat management ─────────────────────────────────────────────────────
+
+  /**
+   * Activates a team seat for a user.
+   * Sets subscriptionStatus=active with expiry synced to the org's billing period.
+   */
+  async activateTeamSeat(userId: string, orgId: string): Promise<void> {
+    const org = await this.orgRepository.findOne({ where: { id: orgId } });
+    if (!org) {
+      this.logger.warn(`activateTeamSeat: org ${orgId} not found`);
+      return;
+    }
+
+    let expiresAt: Date | undefined;
+    if (org.billingCycleStart) {
+      const computed = new Date(
+        org.billingCycleStart.getTime() + DAYS.MONTH * MILLISECONDS.DAY,
+      );
+      // Guard against stale billing cycles: if the computed expiry is already in
+      // the past, fall back to 30 days from now so the seat isn't immediately expired.
+      expiresAt =
+        computed > new Date()
+          ? computed
+          : new Date(Date.now() + DAYS.MONTH * MILLISECONDS.DAY);
+    }
+
+    await this.userRepository.update(userId, {
+      subscriptionStatus: "active",
+      ...(expiresAt ? { subscriptionExpiresAt: expiresAt } : {}),
+    });
+    this.logger.log(`Team seat activated for user ${userId} in org ${orgId}`);
+  }
+
+  /**
+   * Deactivates a team seat for a user.
+   * Reverts to expired unless user has their own RevenueCat subscription.
+   */
+  async deactivateTeamSeat(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) return;
+
+    if (user.revenueCatUserId && this.apiKey) {
+      try {
+        const status = await this.checkSubscriptionStatus(userId);
+        if (status.isActive) {
+          this.logger.log(
+            `User ${userId} has own subscription — not deactivating`,
+          );
+          return;
+        }
+      } catch {
+        // Fall through to deactivation
+      }
+    }
+
+    await this.userRepository.update(userId, {
+      subscriptionStatus: "expired",
+    });
+    this.logger.log(`Team seat deactivated for user ${userId}`);
+  }
+
+  /**
+   * Looks up the Organisation record for a given RevenueCat app_user_id.
+   * First tries owner-based lookup, then falls back to the stored RC subscription ID.
+   * Returns null if no org is found.
+   */
+  private async findOrgForRcUser(
+    appUserId: string,
+  ): Promise<Organization | null> {
+    const owner = await this.userRepository.findOne({
+      where: { revenueCatUserId: appUserId },
+    });
+
+    if (owner) {
+      const ownerOrg = await this.orgRepository.findOne({
+        where: { ownerId: owner.id },
+      });
+      if (ownerOrg) return ownerOrg;
+    }
+
+    return this.orgRepository.findOne({
+      where: { revenueCatOrgSubscriptionId: appUserId },
+    });
+  }
+
+  /**
+   * Handles org-level RevenueCat webhook events.
+   * Updates Organization.maxSeats and volume tier based on product.
+   */
+  private async handleOrgSubscriptionEvent(
+    event: RevenueCatWebhookPayload["event"],
+  ): Promise<void> {
+    const appUserId = event.app_user_id;
+    const productId = event.product_id as string | undefined;
+
+    const org = await this.findOrgForRcUser(appUserId);
+
+    if (!org) {
+      this.logger.warn(
+        `handleOrgSubscriptionEvent: no org found for RC user ${appUserId}`,
+      );
+      return;
+    }
+
+    const eventType = event.type as string;
+    const seatQty = (event["quantity"] as number) ?? 1;
+
+    if (eventType === "INITIAL_PURCHASE" || eventType === "PRODUCT_CHANGE") {
+      if (productId && productId.startsWith("bearlymail_seat")) {
+        org.maxSeats = seatQty;
+        org.revenueCatOrgSubscriptionId = appUserId;
+      } else if (productId && productId in VOLUME_TIERS) {
+        org.volumeTierProductId = productId;
+        org.emailVolumeLimit = VOLUME_TIERS[productId].limit;
+      }
+      org.billingCycleStart = new Date();
+    } else if (eventType === "RENEWAL") {
+      org.emailsUsedThisCycle = 0;
+      org.billingCycleStart = new Date();
+    } else if (eventType === "CANCELLATION" || eventType === "EXPIRATION") {
+      org.maxSeats = 0;
+      org.volumeTierProductId = null;
+      org.emailVolumeLimit = 0;
+    }
+
+    await this.orgRepository.save(org);
+    this.logger.log(
+      `Org ${org.id} updated from RC event ${eventType} (product: ${productId ?? "none"})`,
+    );
+
+    await this.syncOrgSeatSubscriptions(org, eventType);
+  }
+
+  /**
+   * Activates or deactivates all team member subscriptions for an org
+   * based on a billing event type. Extracted to keep handleOrgSubscriptionEvent
+   * under the statement-count limit.
+   */
+  private async syncOrgSeatSubscriptions(
+    org: Organization,
+    eventType: string,
+  ): Promise<void> {
+    if (eventType === "INITIAL_PURCHASE" || eventType === "RENEWAL") {
+      const members = await this.memberRepository.find({
+        where: { organizationId: org.id, status: "active" },
+      });
+      await Promise.all(
+        members
+          .filter((member) => member.userId)
+          .map((member) => this.activateTeamSeat(member.userId!, org.id)),
+      );
+      return;
+    }
+
+    if (eventType === "CANCELLATION" || eventType === "EXPIRATION") {
+      const members = await this.memberRepository.find({
+        where: { organizationId: org.id, status: "active" },
+      });
+      await Promise.all(
+        members
+          .filter((member) => member.userId)
+          .map((member) => this.deactivateTeamSeat(member.userId!)),
+      );
+      this.logger.log(
+        `Deactivated ${members.length} team seat(s) for org ${org.id} due to ${eventType}`,
+      );
+    }
+  }
+
+  /**
+   * Tracks an email processed for an org member.
+   * Returns { allowed: boolean, percentUsed: number }.
+   */
+  async trackEmailProcessed(
+    orgId: string,
+  ): Promise<{ allowed: boolean; percentUsed: number }> {
+    // Use atomic increment to avoid read-modify-write race conditions under concurrency.
+    await this.orgRepository.increment({ id: orgId }, "emailsUsedThisCycle", 1);
+
+    const org = await this.orgRepository.findOne({ where: { id: orgId } });
+    if (!org) return { allowed: true, percentUsed: 0 };
+
+    const percentUsed =
+      org.emailVolumeLimit > 0
+        ? Math.round((org.emailsUsedThisCycle / org.emailVolumeLimit) * 100)
+        : 0;
+
+    if (percentUsed >= EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT) {
+      this.logger.warn(
+        `Org ${orgId} at ${percentUsed}% email volume (${org.emailsUsedThisCycle}/${org.emailVolumeLimit})`,
+      );
+    }
+
+    const allowed = org.emailsUsedThisCycle <= org.emailVolumeLimit;
+    return { allowed, percentUsed };
+  }
+
+  /**
+   * Grants complimentary access to a user via RevenueCat promotional entitlement.
+   * Also updates local subscriptionStatus for immediate effect.
+   */
+  async grantComplimentaryAccess(
+    userId: string,
+    durationDays: number,
+  ): Promise<{ success: boolean }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+    await this.userRepository.update(userId, {
+      subscriptionStatus: "active",
+      subscriptionExpiresAt: expiresAt,
+    });
+
+    // RevenueCat promotional entitlement grant is not yet wired up —
+    // local DB update above is the source of truth until product IDs are configured.
+    // TODO(#1836): call RevenueCat /subscribers/:id/entitlements/:id/promotional
+    //              with correct entitlement identifier once product IDs are known.
+    if (user.revenueCatUserId && this.apiKey) {
+      this.logger.warn(
+        `RevenueCat promotional entitlement not implemented — local status updated for ${userId}`,
+      );
+    }
+
+    this.logger.log(
+      `Granted ${durationDays}-day complimentary access to user ${userId}`,
+    );
+    return { success: true };
+  }
+
+  /**
+   * Applies a RevenueCat promo code for a user.
+   * Validates via RevenueCat API and syncs subscription status.
+   */
+  async applyPromoCode(
+    userId: string,
+    _promoCode: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+
+    if (!this.apiKey) {
+      return { success: false, message: "Billing provider not configured" };
+    }
+
+    // TODO(#1836): The RevenueCat promo code endpoint (/subscribers/:id/promotionals)
+    // is not a valid RevenueCat REST API endpoint. This needs to be implemented
+    // against the correct API contract once product IDs and entitlement identifiers
+    // are configured. For now, surface a clear not-implemented response.
+    this.logger.warn(
+      `applyPromoCode called for user ${userId} but RevenueCat promo endpoint is not yet implemented`,
+    );
+    return {
+      success: false,
+      message: "Promo code redemption is not yet available",
+    };
+  }
+
+  /**
+   * Links an org to a RevenueCat org subscription.
+   * Only callable by org owner or admin.
+   */
+  async linkOrgRevenueCat(
+    orgId: string,
+    revenueCatOrgSubscriptionId: string,
+  ): Promise<void> {
+    await this.orgRepository.update(orgId, { revenueCatOrgSubscriptionId });
+    this.logger.log(
+      `Linked org ${orgId} to RevenueCat subscription ${revenueCatOrgSubscriptionId}`,
+    );
   }
 }

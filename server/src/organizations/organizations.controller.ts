@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -16,6 +17,7 @@ import {
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
+import { VOLUME_TIER_NONE } from "../subscriptions/volume-tiers.constants";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { InviteMemberDto } from "./dto/invite-member.dto";
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
@@ -69,8 +71,7 @@ export class OrganizationsController {
   }
 
   /**
-   * Accept an invite. The user must be signed in (their email is verified against
-   * the invite) or this endpoint is called post-registration.
+   * Accept an invite. The user must be signed in.
    * POST /organizations/invite/:token/accept
    */
   @Post("invite/:token/accept")
@@ -79,7 +80,7 @@ export class OrganizationsController {
   }
 
   /**
-   * Update a member's role (admin only / owner only).
+   * Update a member's role (admin or owner only).
    * PATCH /organizations/members/:memberId
    */
   @Patch("members/:memberId")
@@ -106,5 +107,46 @@ export class OrganizationsController {
     @Param("memberId") memberId: string,
   ): Promise<void> {
     await this.organizationsService.removeMember(req.user.userId, memberId);
+  }
+
+  /**
+   * Get seat usage for the current user's organisation.
+   * GET /organizations/seats
+   */
+  @Get("seats")
+  async getSeatUsage(@Request() req) {
+    try {
+      const { organization } =
+        await this.organizationsService.getMyOrganization(req.user.userId);
+      return this.organizationsService.getSeatUsage(organization.id);
+    } catch (err) {
+      if (err instanceof NotFoundException) {
+        return { activeSeats: 0, maxSeats: 0, canInvite: false };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Get email volume usage for the current user's organisation.
+   * GET /organizations/usage
+   */
+  @Get("usage")
+  async getVolumeUsage(@Request() req) {
+    try {
+      const { organization } =
+        await this.organizationsService.getMyOrganization(req.user.userId);
+      return this.organizationsService.getVolumeUsage(organization.id);
+    } catch (err) {
+      if (err instanceof NotFoundException) {
+        return {
+          emailsUsed: 0,
+          emailLimit: 3000,
+          percentUsed: 0,
+          tier: VOLUME_TIER_NONE,
+        };
+      }
+      throw err;
+    }
   }
 }

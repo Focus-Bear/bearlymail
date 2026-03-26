@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsController } from "./subscriptions.controller";
 import { SubscriptionsService } from "./subscriptions.service";
@@ -15,10 +16,15 @@ describe("SubscriptionsController", () => {
     linkRevenueCatUser: jest.fn(),
     extendTrial: jest.fn(),
     getAllUsersWithSubscriptions: jest.fn(),
+    verifyWebhookSignature: jest.fn().mockReturnValue(true),
   };
 
   const mockUsersService = {
     findOne: jest.fn(),
+  };
+
+  const mockOrganizationsService = {
+    findActiveMembership: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -32,6 +38,10 @@ describe("SubscriptionsController", () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: OrganizationsService,
+          useValue: mockOrganizationsService,
         },
       ],
     }).compile();
@@ -97,7 +107,10 @@ describe("SubscriptionsController", () => {
 
       mockSubscriptionsService.handleWebhook.mockResolvedValue(undefined);
 
-      const result = await controller.handleWebhook(payload);
+      const result = await controller.handleWebhook(
+        "Bearer test-secret",
+        payload,
+      );
 
       expect(result).toEqual({ received: true });
       expect(subscriptionsService.handleWebhook).toHaveBeenCalledWith(payload);

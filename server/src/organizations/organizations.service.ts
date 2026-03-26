@@ -26,6 +26,19 @@ import { InviteService } from "./invite.service";
 const INVITE_EXPIRY_DAYS = 7;
 const INVITE_TOKEN_BYTES = 32;
 
+export interface SeatUsage {
+  activeSeats: number;
+  maxSeats: number;
+  canInvite: boolean;
+}
+
+export interface VolumeUsage {
+  emailsUsed: number;
+  emailLimit: number;
+  percentUsed: number;
+  tier: string;
+}
+
 @Injectable()
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
@@ -53,7 +66,6 @@ export class OrganizationsService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
 
-    // One org per user (owner): prevent duplicates
     const existingOwned = await this.orgRepo.findOne({
       where: { ownerId: userId },
     });
@@ -63,14 +75,14 @@ export class OrganizationsService {
       );
     }
 
+    // Owner auto-enrolls as the first active seat
     const org = this.orgRepo.create({
       name: dto.name,
       ownerId: userId,
+      maxSeats: 1,
     });
     const saved = await this.orgRepo.save(org);
 
-    // Auto-enroll the owner as an active member
-    // user.email is decrypted by the TypeORM column transformer
     const ownerEmail = user.email;
     const ownerMember = this.memberRepo.create({
       organizationId: saved.id,
@@ -100,7 +112,6 @@ export class OrganizationsService {
     organization: Organization;
     members: OrganizationMember[];
   }> {
-    // Find via member record (user may be owner or non-owner member)
     const membership = await this.memberRepo.findOne({
       where: { userId, status: "active" },
       relations: ["organization"],
@@ -117,6 +128,54 @@ export class OrganizationsService {
     return { organization: membership.organization, members };
   }
 
+  // ─── Seat & volume usage ──────────────────────────────────────────────────────
+
+  /**
+   * Returns seat usage for the given org.
+   * Uses Organization.maxSeats — no separate TeamSubscription entity.
+   */
+  async getSeatUsage(orgId: string): Promise<SeatUsage> {
+    const org = await this.orgRepo.findOneOrFail({ where: { id: orgId } });
+    const activeSeats = await this.memberRepo.count({
+      where: { organizationId: orgId, status: "active" },
+    });
+    return {
+      activeSeats,
+      maxSeats: org.maxSeats,
+      canInvite: activeSeats < org.maxSeats,
+    };
+  }
+
+  /**
+   * Enforces that the org has capacity to invite another member.
+   * Throws ForbiddenException if seat limit is reached.
+   */
+  async enforceInviteAllowed(orgId: string): Promise<void> {
+    const usage = await this.getSeatUsage(orgId);
+    if (!usage.canInvite) {
+      throw new ForbiddenException(
+        `Seat limit reached (${usage.activeSeats}/${usage.maxSeats}). ` +
+          `Upgrade your team plan to invite more members.`,
+      );
+    }
+  }
+
+  /**
+   * Returns email volume usage for the given org.
+   */
+  async getVolumeUsage(orgId: string): Promise<VolumeUsage> {
+    const org = await this.orgRepo.findOneOrFail({ where: { id: orgId } });
+    return {
+      emailsUsed: org.emailsUsedThisCycle,
+      emailLimit: org.emailVolumeLimit,
+      percentUsed:
+        org.emailVolumeLimit > 0
+          ? Math.round((org.emailsUsedThisCycle / org.emailVolumeLimit) * 100)
+          : 0,
+      tier: org.volumeTierProductId ?? "none",
+    };
+  }
+
   // ─── Invite flow ─────────────────────────────────────────────────────────────
 
   /**
@@ -131,9 +190,11 @@ export class OrganizationsService {
     this.requireAdminOrOwner(membership);
 
     const orgId = membership.organizationId;
+
+    await this.enforceInviteAllowed(orgId);
+
     const emailHash = EncryptionHelper.hashEmail(dto.email);
 
-    // Check for existing member with same email in this org
     const existing = await this.memberRepo.findOne({
       where: { organizationId: orgId, emailHash },
     });
@@ -147,7 +208,6 @@ export class OrganizationsService {
           "This member was deactivated. Re-activate via the members API",
         );
       }
-      // Pending — refresh token and resend
       return this.refreshAndSendInvite(existing, inviterId, orgId);
     }
 
@@ -204,7 +264,6 @@ export class OrganizationsService {
 
     const inviterName =
       inviter.displayName ?? inviter.name ?? inviter.email ?? "A teammate";
-    // org.name and member.email are decrypted by TypeORM column transformers
     const orgName = org.name;
 
     try {
@@ -215,7 +274,6 @@ export class OrganizationsService {
         member.inviteToken!,
       );
     } catch (err) {
-      // Email dispatch failure should not abort the invite creation
       this.logger.error(
         `Invite email dispatch failed for member ${member.id}`,
         err instanceof Error ? err.stack : String(err),
@@ -280,7 +338,6 @@ export class OrganizationsService {
     });
     if (!user) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
 
-    // Validate email matches invite
     const userEmailHash = EncryptionHelper.hashEmail(user.email);
     if (userEmailHash !== member.emailHash) {
       throw new ForbiddenException(
@@ -288,7 +345,6 @@ export class OrganizationsService {
       );
     }
 
-    // Reject if already in another org
     const alreadyMember = await this.memberRepo.findOne({
       where: { userId: acceptingUserId, status: "active" },
     });
@@ -373,6 +429,34 @@ export class OrganizationsService {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  async getOrgMembersForUser(userId: string): Promise<OrganizationMember[]> {
+    const membership = await this.requireActiveMembership(userId);
+    return this.memberRepo.find({
+      where: {
+        organizationId: membership.organizationId,
+        status: "active",
+      },
+    });
+  }
+
+  async findActiveMembership(
+    userId: string,
+  ): Promise<OrganizationMember | null> {
+    return this.memberRepo.findOne({ where: { userId, status: "active" } });
+  }
+
+  async areInSameOrg(userAId: string, userBId: string): Promise<boolean> {
+    const memberA = await this.memberRepo.findOne({
+      where: { userId: userAId, status: "active" },
+    });
+    if (!memberA) return false;
+    const memberB = await this.memberRepo.findOne({
+      where: { userId: userBId, status: "active" },
+    });
+    if (!memberB) return false;
+    return memberA.organizationId === memberB.organizationId;
+  }
 
   private async requireActiveMembership(
     userId: string,

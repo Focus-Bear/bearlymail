@@ -15,10 +15,9 @@ export type InboxQuery = {
   page?: string;
   limit?: string;
   offset?: string;
-  /** Filter threads by assignee. Use a userId UUID, or the string "unassigned" for threads with no assignee. */
+  /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
   assigneeId?: string;
 };
-// max-params fixed
 
 export type InboxSummaryQuery = {
   mode?: "triage" | "action" | "follow-up" | "blocked";

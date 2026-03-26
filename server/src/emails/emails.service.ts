@@ -134,6 +134,7 @@ export class EmailsService {
       categoryIds?: string[];
       minPriority?: number;
       maxPriority?: number;
+      /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
       assigneeId?: string;
     },
     pagination?: { offset?: number; limit?: number },

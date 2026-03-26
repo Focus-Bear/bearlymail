@@ -2579,5 +2579,54 @@
   "serviceError": {
     "message": "BearlyMail is temporarily unavailable. Please try again.",
     "retry": "Retry"
+  },
+  "team": {
+    "invite": {
+      "validating": "Validating invite...",
+      "invalidTitle": "Invite not found",
+      "invalidBody": "This invite link is invalid or has expired. Ask your team admin to send a new invite.",
+      "goToLogin": "Go to Login",
+      "title": "You have been invited!",
+      "body": "{{inviter}} has invited you to join {{org}} as {{role}}.",
+      "someone": "Someone",
+      "loginRequired": "You need to sign in or create an account to accept this invite.",
+      "accept": "Accept Invite",
+      "loginToAccept": "Sign in to Accept",
+      "accepting": "Accepting...",
+      "acceptError": "Failed to accept invite. Please try again or contact your team admin."
+    },
+    "settings": {
+      "title": "Team",
+      "orgName": "Organisation",
+      "noOrg": "You are not part of a team organisation.",
+      "members": "Members",
+      "noMembers": "No active members yet.",
+      "pendingInvites": "Pending Invites",
+      "pending": "Pending",
+      "owner": "Owner",
+      "remove": "Remove",
+      "confirmRemove": "Remove {{name}} from the organisation?",
+      "inviteMember": "Invite a Member",
+      "emailPlaceholder": "Email address",
+      "sendInvite": "Send Invite",
+      "inviting": "Sending...",
+      "inviteSent": "Invite sent successfully.",
+      "inviteError": "Failed to send invite. Please try again.",
+      "roleAdmin": "Admin",
+      "roleMember": "Member",
+      "roleChangeError": "Failed to update role. Please try again.",
+      "removeError": "Failed to remove member. Please try again.",
+      "confirmRemoveTitle": "Remove Member",
+      "seats": "{{active}} of {{max}} seats used",
+      "emailUsage": "{{used}} / {{limit}} emails used ({{percent}}%)",
+      "volumeWarning": "Warning: {{percent}}% of your email volume used. Consider upgrading.",
+      "volumeLimitReached": "Email volume limit reached. New emails will not be processed until your plan renews.",
+      "promoCodeTitle": "Promo Code",
+      "promoCodePlaceholder": "Enter promo code",
+      "promoApply": "Apply",
+      "promoApplying": "Applying...",
+      "promoApplied": "Promo code applied successfully.",
+      "promoError": "Failed to apply promo code. Please check the code and try again."
+    }
   }
 }

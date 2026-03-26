@@ -14,6 +14,7 @@ import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
+import { TeamSettingsSection } from 'components/settings/TeamSettingsSection';
 import { TroubleshootingSection } from 'components/settings/TroubleshootingSection';
 import { VersionFooter } from 'components/settings/VersionFooter';
 import { WorkflowsSection } from 'components/settings/workflows';
@@ -273,6 +274,8 @@ const Settings: React.FC = () => {
         />
 
         <SetPasswordSection />
+
+        <TeamSettingsSection />
 
         <DataExportSection />
 

@@ -25,8 +25,8 @@ import { AdminGuard } from "../auth/admin.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { JOB_NAMES } from "../constants/job-names";
-import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailAdminService } from "./email-admin.service";
+import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")

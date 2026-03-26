@@ -207,7 +207,11 @@ function loadPromptFile(
         .trim();
       promptText = content.slice(delimiterEnd + SYSTEM_DELIMITER.length).trim();
     }
-    cache.set(key, { id: key, prompt: promptText, systemPrompt: systemPromptText });
+    cache.set(key, {
+      id: key,
+      prompt: promptText,
+      systemPrompt: systemPromptText,
+    });
     if (critical) {
       logLog(`✅ Loaded prompt: ${key} from ${file}`);
     }

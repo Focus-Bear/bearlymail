@@ -66,7 +66,10 @@ export class EmailsService {
     veryLow: number;
     unprioritised: number;
   }> {
-    return this.emailServiceDeps.emailStatusService.getPriorityCounts(userId, mode);
+    return this.emailServiceDeps.emailStatusService.getPriorityCounts(
+      userId,
+      mode,
+    );
   }
 
   async getPrioritisationStatus(userId: string): Promise<{

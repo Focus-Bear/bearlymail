@@ -37,9 +37,12 @@ import { CategoryDedupService } from "./category-dedup.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailArchiveService } from "./email-archive.service";
 import { EmailAssignmentService } from "./email-assignment.service";
+import { EmailBacklogController } from "./email-backlog.controller";
+import { EmailBacklogService } from "./email-backlog.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailSearchOpsController } from "./email-search-ops.controller";
+import { EmailDebugController } from "./email-debug.controller";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -52,6 +55,7 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
 import { EmailSearchService } from "./email-search.service";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
+import { EmailSendController } from "./email-send.controller";
 import {
   EMAIL_DEPS_REPOS,
   EMAIL_DEPS_REPOS_A,
@@ -118,10 +122,14 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailsController,
     EmailDebugAdminController,
     EmailSearchOpsController,
+    EmailBacklogController,
+    EmailDebugController,
+    EmailSendController,
   ],
   providers: [
     SyncHistoryService,
     CategoryDedupService,
+    EmailBacklogService,
     EmailAssignmentService,
     EmailProviderManager,
     EmailThreadService,
@@ -250,6 +258,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailThreadService,
     EmailProviderManager,
     ScanEmailService,
+    EmailBacklogService,
   ],
 })
 export class EmailsModule {}

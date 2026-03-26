@@ -1,11 +1,20 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+
+const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 3;
+
+function getInactivityThresholdDays(): number {
+  const envVal = parseInt(process.env.AI_INACTIVITY_THRESHOLD_DAYS ?? "", 10);
+  return Number.isFinite(envVal) && envVal > 0
+    ? envVal
+    : DEFAULT_INACTIVITY_THRESHOLD_DAYS;
+}
 
 @Injectable()
 export class UsersService {
@@ -63,12 +72,20 @@ export class UsersService {
    * Optimized for JWT validation - selects only id, email, isAdmin, isApproved.
    * Use in authentication flows where you only need basic user info.
    */
-  async findOneForAuth(id: string): Promise<User | null> {
+  async findOneForAuth(
+    id: string,
+  ): Promise<(User & { lastActivityAt: Date | null }) | null> {
     return this.userRepository
       .createQueryBuilder("user")
-      .select(["user.id", "user.email", "user.isAdmin", "user.isApproved"])
+      .select([
+        "user.id",
+        "user.email",
+        "user.isAdmin",
+        "user.isApproved",
+        "user.lastActivityAt",
+      ])
       .where("user.id = :id", { id })
-      .getOne();
+      .getOne() as Promise<(User & { lastActivityAt: Date | null }) | null>;
   }
 
   /**
@@ -282,6 +299,64 @@ export class UsersService {
       hasScannedHistory: true,
     });
     return this.findOne(userId);
+  }
+
+  async findOneActivityTimestamp(userId: string): Promise<Date | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ["id", "lastActivityAt"],
+    });
+    return user?.lastActivityAt ?? null;
+  }
+
+  async updateLastActivity(userId: string): Promise<void> {
+    await this.userRepository.update(userId, { lastActivityAt: new Date() });
+  }
+
+  async isUserActive(
+    userId: string,
+    thresholdDays = getInactivityThresholdDays(),
+  ): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ["id", "lastActivityAt"],
+    });
+    if (!user?.lastActivityAt) return false;
+    const HOURS_PER_DAY = 24;
+    const MINUTES_PER_HOUR = 60;
+    const SECONDS_PER_MINUTE = 60;
+    const MS_PER_SECOND = 1000;
+    const msPerDay =
+      HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND;
+    const threshold = new Date(Date.now() - thresholdDays * msPerDay);
+    return user.lastActivityAt > threshold;
+  }
+
+  async wasUserInactive(
+    userId: string,
+    thresholdDays = getInactivityThresholdDays(),
+  ): Promise<boolean> {
+    return !(await this.isUserActive(userId, thresholdDays));
+  }
+
+  async findInactiveUserIds(
+    thresholdDays = getInactivityThresholdDays(),
+  ): Promise<string[]> {
+    const HOURS_PER_DAY = 24;
+    const MINUTES_PER_HOUR = 60;
+    const SECONDS_PER_MINUTE = 60;
+    const MS_PER_SECOND = 1000;
+    const msPerDay =
+      HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND;
+    const threshold = new Date(Date.now() - thresholdDays * msPerDay);
+    const users = await this.userRepository.find({
+      where: [
+        { lastActivityAt: LessThan(threshold) },
+        { lastActivityAt: IsNull() },
+      ],
+      select: ["id"],
+    });
+    return users.map((user) => user.id);
   }
 
   async deleteAccount(userId: string): Promise<void> {

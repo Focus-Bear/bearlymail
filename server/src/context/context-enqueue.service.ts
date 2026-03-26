@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import PgBoss from "pg-boss";
+
 import { JOB_NAMES } from "../constants/job-names";
 import { MINUTES } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";

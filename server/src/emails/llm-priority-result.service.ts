@@ -153,6 +153,7 @@ export class LLMPriorityResultService {
           categoryExplanation: resolvedCategoryExplanation,
           protoCategoryId,
           isProcessingPriority: false,
+          aiProcessingDeferred: false,
         },
       );
 

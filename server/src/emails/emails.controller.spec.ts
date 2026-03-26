@@ -366,7 +366,10 @@ describe("EmailsController", () => {
       const result = await controller.getPriorityCounts(mockRequest);
 
       expect(result).toEqual(mockCounts);
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(
+        userId,
+        "triage",
+      );
     });
 
     it("should return zero counts when user has no inbox emails", async () => {
@@ -397,7 +400,10 @@ describe("EmailsController", () => {
       await controller.getPriorityCounts(mockRequest);
 
       expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledTimes(1);
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(
+        userId,
+        "triage",
+      );
     });
 
     it("should pass valid mode param to emailsService", async () => {
@@ -412,7 +418,10 @@ describe("EmailsController", () => {
 
       await controller.getPriorityCounts(mockRequest, "action");
 
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "action");
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(
+        userId,
+        "action",
+      );
     });
 
     it("should default to triage mode for unknown mode param", async () => {
@@ -427,7 +436,10 @@ describe("EmailsController", () => {
 
       await controller.getPriorityCounts(mockRequest, "unknown-mode");
 
-      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(userId, "triage");
+      expect(mockEmailsService.getPriorityCounts).toHaveBeenCalledWith(
+        userId,
+        "triage",
+      );
     });
   });
 

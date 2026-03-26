@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
+
 import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,

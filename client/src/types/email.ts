@@ -63,6 +63,8 @@ export interface Email {
   isBatched?: boolean;
   batchReleaseAt?: string | null;
   batchDecisionReason?: string | null;
+  // True when AI processing was skipped due to user inactivity; backlog processing will catch up
+  aiProcessingDeferred?: boolean;
   // Email attachments
   attachments?: Array<{
     attachmentId: string;

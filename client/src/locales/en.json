@@ -394,7 +394,9 @@
       "high": "High priority",
       "medium": "Medium priority",
       "low": "Low priority"
-    }
+    },
+    "catchingUp": "Catching up on {{remaining}} email thread(s) missed while you were away...",
+    "catchingUpTooltip": "AI processing was paused while you were inactive. Processing now in the background."
   },
   "emailDetail": {
     "attachments": "Attachments ({{count}})",

@@ -19,6 +19,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { JOB_NAMES } from "../constants/job-names";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
+import { EmailBacklogService } from "../emails/email-backlog.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -65,6 +66,8 @@ export class AuthService {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @Inject(forwardRef(() => WaitlistService))
     private waitlistService: WaitlistService,
+    @Inject(forwardRef(() => EmailBacklogService))
+    private emailBacklogService: EmailBacklogService,
   ) {}
 
   async validateUser(
@@ -575,6 +578,25 @@ export class AuthService {
           "Your account is pending approval. Please wait for admin approval.",
         );
       }
+    }
+
+    const wasInactive = await this.usersService.wasUserInactive(user.id);
+    await this.usersService.updateLastActivity(user.id);
+
+    if (wasInactive) {
+      this.emailBacklogService
+        .queueBacklogProcessing(user.id)
+        .then(({ threadCount }) =>
+          this.logger.log(
+            `[LOGIN] User ${user.id} was inactive — queued backlog processing for ${threadCount} deferred threads`,
+          ),
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Failed to queue backlog processing for user ${user.id}:`,
+            err,
+          ),
+        );
     }
 
     const payload = { email: user.email, sub: user.id };

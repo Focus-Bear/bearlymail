@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  forwardRef,
   Get,
   Inject,
   Logger,
@@ -13,11 +12,8 @@ import {
   Put,
   Query,
   Request,
-  UploadedFiles,
   UseGuards,
-  UseInterceptors,
 } from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
 import PgBoss from "pg-boss";
 
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
@@ -30,21 +26,17 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
 import { getJobPriority } from "../queue/job-priorities";
-import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
 import {
-  appendSignature,
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
-  PgBossWithInternals,
 } from "./email-controller.helpers";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import {
   CategoryOverrideBody,
   InboxQuery,
   InboxSummaryQuery,
-  SendEmailBody,
 } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 
@@ -59,8 +51,6 @@ export class EmailsController {
     private readonly batchScheduleService: BatchScheduleService,
     private readonly usersService: UsersService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
-    @Inject(forwardRef(() => ScheduledEmailsService))
-    private readonly scheduledEmailsService: ScheduledEmailsService,
     private readonly emailAdminService: EmailAdminService,
   ) {}
 
@@ -144,16 +134,12 @@ export class EmailsController {
    * Passing the correct mode ensures bucket counts match the inbox tab total.
    */
   @Get("priority-counts")
-  async getPriorityCounts(
-    @Request() req,
-    @Query("mode") mode?: string,
-  ) {
+  async getPriorityCounts(@Request() req, @Query("mode") mode?: string) {
     const validModes = ["triage", "action", "follow-up"] as const;
     type ValidMode = (typeof validModes)[number];
-    const resolvedMode: ValidMode =
-      validModes.includes(mode as ValidMode)
-        ? (mode as ValidMode)
-        : "triage";
+    const resolvedMode: ValidMode = validModes.includes(mode as ValidMode)
+      ? (mode as ValidMode)
+      : "triage";
     return this.emailsService.getPriorityCounts(req.user.userId, resolvedMode);
   }
 
@@ -601,190 +587,4 @@ export class EmailsController {
     // Syncing is handled by the cron job and force-check button
     return this.emailsService.checkForUrgentEmails(req.user.userId);
   }
-
-  @Post("send")
-  @UseInterceptors(FilesInterceptor("files", 10))
-  async sendEmail(
-    @Request() req,
-    @Body()
-    body: SendEmailBody,
-    @UploadedFiles() files?: Express.Multer.File[],
-  ) {
-    const { userId } = req.user;
-
-    const attachments =
-      files?.map((file) => ({
-        filename: file.originalname,
-        mimeType: file.mimetype,
-        content: file.buffer,
-      })) || undefined;
-
-    // If scheduled send time is provided, create scheduled email instead of sending immediately
-    if (body.scheduledSendAt) {
-      const scheduledSendAt = new Date(body.scheduledSendAt);
-
-      // Convert attachments to base64 for storage
-      const scheduledAttachments = attachments?.map((att) => ({
-        filename: att.filename,
-        mimeType: att.mimeType,
-        content: att.content.toString("base64"),
-      }));
-
-      const scheduledEmail = await this.scheduledEmailsService.scheduleEmail(
-        userId,
-        {
-          emailType: "new",
-          to: body.to,
-          cc: body.cc,
-          bcc: body.bcc,
-          subject: body.subject,
-          body: body.body,
-          attachments: scheduledAttachments,
-          scheduledSendAt,
-          userTimezone: body.userTimezone,
-        },
-      );
-
-      return {
-        success: true,
-        scheduledEmailId: scheduledEmail.id,
-        scheduledSendAt: scheduledEmail.scheduledSendAt,
-        message: "Email scheduled successfully",
-      };
-    }
-
-    // Otherwise send immediately (existing behavior)
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-
-    if (!provider) {
-      throw new Error(
-        "No email provider connected. Please connect your email account.",
-      );
-    }
-
-    // Get user to append signature
-    const user = await this.usersService.findOne(userId);
-    const bodyWithSignature = appendSignature(body.body, user?.emailSignature);
-
-    // Send the email
-    const result = await provider.sendEmail(userId, {
-      to: body.to,
-      subject: body.subject,
-      body: bodyWithSignature,
-      cc: body.cc,
-      bcc: body.bcc,
-      attachments,
-    });
-
-    // Track contact frequency for each recipient
-    const allRecipients = [...body.to, ...(body.cc || []), ...(body.bcc || [])];
-    await this.emailAdminService.trackEmailRecipients(userId, allRecipients);
-
-    return {
-      success: true,
-      messageId: result.messageId,
-      threadId: result.threadId,
-    };
-  }
-
-  @Post(":id/accelerate")
-  async accelerateEmail(@Request() req, @Param("id") id: string) {
-    // Accelerate processing for a specific email (user is viewing it)
-    // Cancel existing jobs and requeue with highest priority
-    const { userId } = req.user;
-
-    const email = await this.emailsService.getEmailById(userId, id);
-    if (!email) return { message: ERROR_MESSAGES.EMAIL_NOT_FOUND };
-
-    const queued: string[] = [];
-    const cancelled: string[] = [];
-
-    // Cancel existing jobs for this email before requeuing
-    // Use raw SQL to find and cancel jobs matching the emailId
-    // Cast to extended interface to access internal pg-boss db methods
-    const { db } = this.boss as unknown as PgBossWithInternals;
-
-    // Cancel existing refine-priority jobs for this email
-    const priorityCancelResult = await db.executeSql(
-      `UPDATE pgboss.job
-       SET state = 'cancelled'
-       WHERE name = 'refine-priority'
-       AND state IN ('created', 'retry')
-       AND data->>'emailId' = $1
-       AND data->>'userId' = $2`,
-      [id, userId],
-    );
-    if (priorityCancelResult?.rowCount > 0) {
-      cancelled.push(`refine-priority (${priorityCancelResult.rowCount})`);
-    }
-
-    // Cancel existing generate-summary jobs for this email
-    const summaryCancelResult = await db.executeSql(
-      `UPDATE pgboss.job
-       SET state = 'cancelled'
-       WHERE name = 'generate-summary'
-       AND state IN ('created', 'retry')
-       AND data->>'emailId' = $1
-       AND data->>'userId' = $2`,
-      [id, userId],
-    );
-    if (summaryCancelResult?.rowCount > 0) {
-      cancelled.push(`generate-summary (${summaryCancelResult.rowCount})`);
-    }
-
-    // If summary is processing or missing, queue with highest priority
-    if (email.isProcessingSummary || !email.summary) {
-      await this.boss.send(
-        JOB_NAMES.GENERATE_SUMMARY,
-        { userId, emailId: id },
-        {
-          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY, true),
-          // User-triggered = high priority
-          singletonKey: `summary-${id}`,
-        },
-      );
-      queued.push(JOB_NAMES.GENERATE_SUMMARY);
-    }
-
-    // If priority is default, queue refinement with highest priority
-    const priorityScore = email.getPriorityScore();
-
-    // Get thread to check isProcessingPriority (priority is thread-level)
-    let thread = null;
-    if (email.emailThreadId) {
-      thread = await this.emailAdminService.getEmailThreadById(
-        userId,
-        email.emailThreadId,
-      );
-    }
-
-    // Detect score=0 with no breakdown — email stuck after a failed batch run
-    const hasNoBreakdown =
-      !thread?.priorityExplanation?.breakdown ||
-      thread.priorityExplanation.breakdown.length === 0;
-
-    if (
-      priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE ||
-      thread?.isProcessingPriority ||
-      (priorityScore === 0 && hasNoBreakdown)
-    ) {
-      await this.boss.send(
-        JOB_NAMES.REFINE_PRIORITY,
-        { userId, emailId: id },
-        {
-          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
-          // User-triggered = high priority
-          singletonKey: `priority-${id}`,
-        },
-      );
-      queued.push(JOB_NAMES.REFINE_PRIORITY);
-    }
-
-    return {
-      message: "Accelerated processing",
-      queued,
-      cancelled: cancelled.length > 0 ? cancelled : undefined,
-    };
-  }
-
 }

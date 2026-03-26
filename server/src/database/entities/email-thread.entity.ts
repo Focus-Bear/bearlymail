@@ -286,6 +286,12 @@ export class EmailThread {
   @JoinColumn({ name: "assigneeId" })
   assignee: User | null;
 
+  @Column({
+    default: false,
+    comment: "True when AI processing was skipped because user was inactive",
+  })
+  aiProcessingDeferred: boolean;
+
   @OneToMany(() => Email, (email) => email.thread)
   emails: Email[];
 }

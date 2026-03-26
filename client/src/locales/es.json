@@ -1537,7 +1537,9 @@
       "high": "Prioridad alta",
       "medium": "Prioridad media",
       "low": "Prioridad baja"
-    }
+    },
+    "catchingUp": "Procesando {{remaining}} hilo(s) de correo pendiente(s) de cuando estabas ausente...",
+    "catchingUpTooltip": "El procesamiento de IA se pausó mientras estabas inactivo. Procesando ahora en segundo plano."
   },
   "landing": {
     "bearlyMailIcon": "Icono de correo Bearly",

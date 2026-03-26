@@ -3,8 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { JOB_NAMES } from "../constants/job-names";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -619,7 +619,10 @@ export class LLMPriorityBatchService {
           JOB_NAMES.REFINE_PRIORITY,
           { userId, emailId: email.id, isRetry: true },
           {
-            priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
+            priority: getJobPriority(
+              JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
+              false,
+            ),
             singletonKey: `refine-priority-retry-${email.id}`,
             startAfter: new Date(
               Date.now() + PRIORITY_RETRY_DELAY_SECONDS * MILLISECONDS.SECOND,

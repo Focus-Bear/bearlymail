@@ -345,6 +345,7 @@ export class LLMSummaryProcessorService {
         { id: email.emailThreadId },
         {
           lastSummarizedAt: new Date(),
+          aiProcessingDeferred: false,
           ...(category
             ? { categoryExplanation: categoryExplanation ?? undefined }
             : {}),

@@ -116,6 +116,13 @@ export class EmailLifecycleService {
       });
     }
 
+    const deferredEmail = await this.maybeDeferInactiveUser(
+      userId,
+      thread,
+      email,
+    );
+    if (deferredEmail) return deferredEmail;
+
     thread.isProcessingPriority = true;
     await this.emailThreadRepository.save(thread);
     email.isProcessingSummary = true;
@@ -143,6 +150,24 @@ export class EmailLifecycleService {
       queueBatchPriorityRefinement,
     );
 
+    return savedEmail;
+  }
+
+  private async maybeDeferInactiveUser(
+    userId: string,
+    thread: EmailThread,
+    email: Email,
+  ): Promise<Email | null> {
+    const isActive = await this.usersService.isUserActive(userId);
+    if (isActive) return null;
+    thread.aiProcessingDeferred = true;
+    thread.isProcessingPriority = false;
+    await this.emailThreadRepository.save(thread);
+    email.isProcessingSummary = false;
+    const savedEmail = await this.emailRepository.save(email);
+    this.logger.log(
+      `Skipping AI processing for user ${userId} (inactive >${process.env.AI_INACTIVITY_THRESHOLD_DAYS ?? "3"} days), thread ${thread.id}`,
+    );
     return savedEmail;
   }
 
@@ -535,14 +560,11 @@ export class EmailLifecycleService {
       "immediate",
       "time-sensitive",
     ];
+    const normalizeWord = (word: string) => word.replace(/[^a-z0-9]/g, "");
     const subjectLower = (email.subject || "").toLowerCase();
-    const subjectWords = subjectLower.split(/\s+/);
-    return urgentKeywords.some(
-      (keyword) =>
-        subjectWords.includes(keyword) ||
-        subjectLower.includes(` ${keyword} `) ||
-        subjectLower.startsWith(`${keyword} `) ||
-        subjectLower.endsWith(` ${keyword}`),
+    const subjectWords = subjectLower.split(/\s+/).map(normalizeWord);
+    return urgentKeywords.some((keyword) =>
+      subjectWords.includes(normalizeWord(keyword)),
     );
   }
 

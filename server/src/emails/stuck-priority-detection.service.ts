@@ -91,8 +91,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
 
     // Filter out threads that have exceeded the retry limit
     const eligible = allStuck.filter(
-      (thread) =>
-        (thread.priorityRetryCount ?? 0) < MAX_PRIORITY_RETRIES,
+      (thread) => (thread.priorityRetryCount ?? 0) < MAX_PRIORITY_RETRIES,
     );
 
     const toRequeue = eligible.slice(
@@ -160,10 +159,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
         order: { createdAt: "ASC" },
       });
     } catch (err) {
-      this.logger.error(
-        "Failed to query for stuck-priority threads",
-        err,
-      );
+      this.logger.error("Failed to query for stuck-priority threads", err);
       return [];
     }
   }
@@ -250,10 +246,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
         source: "stuck-priority-detection",
       },
       {
-        priority: getJobPriority(
-          JOB_NAMES.REFINE_PRIORITY_BACKGROUND,
-          false,
-        ),
+        priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
         singletonKey: `stuck-priority-retry-${email.id}`,
       },
     );

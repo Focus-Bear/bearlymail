@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 
 import { User } from "../database/entities/user.entity";
 import { Waitlist } from "../database/entities/waitlist.entity";
+import { EmailBacklogService } from "../emails/email-backlog.service";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
@@ -24,6 +25,7 @@ describe("AuthService", () => {
   let jwtService: jest.Mocked<JwtService>;
   let boss: jest.Mocked<PgBoss>;
   let waitlistService: jest.Mocked<WaitlistService>;
+  let emailBacklogService: jest.Mocked<EmailBacklogService>;
 
   const mockUser: User = {
     id: "user-1",
@@ -55,6 +57,8 @@ describe("AuthService", () => {
       update: jest.fn(),
       findOne: jest.fn(),
       findAll: jest.fn(),
+      wasUserInactive: jest.fn().mockResolvedValue(false),
+      updateLastActivity: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockJwtService = {
@@ -67,6 +71,10 @@ describe("AuthService", () => {
 
     const mockWaitlistService = {
       findByEmail: jest.fn().mockResolvedValue(null),
+    };
+
+    const mockEmailBacklogService = {
+      queueBacklogProcessing: jest.fn().mockResolvedValue({ threadCount: 0 }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -88,6 +96,10 @@ describe("AuthService", () => {
           provide: WaitlistService,
           useValue: mockWaitlistService,
         },
+        {
+          provide: EmailBacklogService,
+          useValue: mockEmailBacklogService,
+        },
       ],
     }).compile();
 
@@ -96,6 +108,7 @@ describe("AuthService", () => {
     jwtService = module.get(JwtService);
     boss = module.get("PG_BOSS");
     waitlistService = module.get(WaitlistService);
+    emailBacklogService = module.get(EmailBacklogService);
 
     // Mock bcrypt.compare
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -418,6 +431,38 @@ describe("AuthService", () => {
       expect(result.user.hasSeenTour).toBe(true);
       expect(result.user.hasScannedHistory).toBe(true);
       expect(result.user.isAdmin).toBe(true);
+    });
+
+    it("should queue backlog processing when user was inactive", async () => {
+      jwtService.sign.mockReturnValue("jwt-token");
+      usersService.wasUserInactive.mockResolvedValue(true);
+      usersService.updateLastActivity.mockResolvedValue(undefined);
+      emailBacklogService.queueBacklogProcessing.mockResolvedValue({
+        threadCount: 3,
+      });
+
+      await service.login(mockUser);
+
+      // Allow the fire-and-forget promise to settle
+      await Promise.resolve();
+
+      expect(usersService.wasUserInactive).toHaveBeenCalledWith(mockUser.id);
+      expect(usersService.updateLastActivity).toHaveBeenCalledWith(mockUser.id);
+      expect(emailBacklogService.queueBacklogProcessing).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+    });
+
+    it("should not queue backlog processing when user was active", async () => {
+      jwtService.sign.mockReturnValue("jwt-token");
+      usersService.wasUserInactive.mockResolvedValue(false);
+      usersService.updateLastActivity.mockResolvedValue(undefined);
+
+      await service.login(mockUser);
+
+      await Promise.resolve();
+
+      expect(emailBacklogService.queueBacklogProcessing).not.toHaveBeenCalled();
     });
   });
 

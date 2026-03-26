@@ -257,6 +257,13 @@ export class User {
   })
   emailSignature: string;
 
+  @Column({
+    nullable: true,
+    comment: "When user last accessed BearlyMail (login, API call, etc.)",
+  })
+  @Index()
+  lastActivityAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

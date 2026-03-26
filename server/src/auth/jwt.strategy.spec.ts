@@ -10,9 +10,11 @@ describe("JwtStrategy", () => {
   let _usersService: UsersService;
   let _configService: ConfigService;
 
-  const mockUsersService = {
+  const mockUsersService: Record<string, jest.Mock> = {
     findOne: jest.fn(),
     findOneForAuth: jest.fn(),
+    findOneActivityTimestamp: jest.fn().mockResolvedValue(new Date()),
+    updateLastActivity: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockConfigService = {

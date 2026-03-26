@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
@@ -109,6 +110,8 @@ const HelpArticle: React.FC = () => {
                 ← {t('help.backToHelp')}
               </Link>
             </div>
+
+            <HelpFeedbackBanner />
 
             <h1
               style={{

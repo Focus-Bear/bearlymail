@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
-import { FeedbackModal } from 'components/feedback/FeedbackModal';
+import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
-import { COLOR_WHITE } from 'constants/colors';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
 
@@ -21,8 +20,6 @@ const Help: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState();
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-
   const articles: HelpArticle[] = [
     {
       id: 'context',
@@ -119,6 +116,8 @@ const Help: React.FC = () => {
               {t('help.description')}
             </p>
 
+            <HelpFeedbackBanner />
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
               {articles.map(article => (
                 <Link
@@ -166,57 +165,9 @@ const Help: React.FC = () => {
               ))}
             </div>
 
-            {/* Feedback section */}
-            <div
-              style={{
-                marginTop: theme.spacing.xl,
-                padding: theme.spacing.lg,
-                backgroundColor: theme.colors.background.paper,
-                border: `1px solid ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.lg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: theme.spacing.md,
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.xl,
-                    marginBottom: theme.spacing.xs,
-                    fontWeight: theme.typography.fontWeight.semibold,
-                  }}
-                >
-                  {t('contactFeedback.title')}
-                </h2>
-                <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.base, margin: 0 }}>
-                  {t('contactFeedback.description')}
-                </p>
-              </div>
-              <button
-                onClick={() => setIsFeedbackOpen(true)}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: theme.colors.primary.main,
-                  border: 'none',
-                  borderRadius: theme.borderRadius.md,
-                  color: COLOR_WHITE,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.base,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('contactFeedback.sendFeedbackButton')}
-              </button>
-            </div>
           </div>
         </div>
       </div>
-      {isFeedbackOpen && <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />}
     </div>
   );
 };

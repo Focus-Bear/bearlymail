@@ -111,8 +111,6 @@ const HelpArticle: React.FC = () => {
               </Link>
             </div>
 
-            <HelpFeedbackBanner />
-
             <h1
               style={{
                 color: theme.colors.text.primary,
@@ -123,6 +121,8 @@ const HelpArticle: React.FC = () => {
             >
               {article.title}
             </h1>
+
+            <HelpFeedbackBanner />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xl }}>
               {article.sections.map((section, index) => {

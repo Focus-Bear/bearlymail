@@ -102,6 +102,12 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
           )}
         </div>
         <div>
+          <strong>{t('debug.emailDetail.to')}:</strong> {emailData.to || t('debug.emailDetail.notAvailable')}
+        </div>
+        <div>
+          <strong>{t('debug.emailDetail.cc')}:</strong> {emailData.cc || t('debug.emailDetail.notAvailable')}
+        </div>
+        <div>
           <strong>{t('debug.emailDetail.labels')}:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}
         </div>
         <div>

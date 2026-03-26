@@ -1980,6 +1980,8 @@
       "notAvailable": "N/A",
       "threadEmails": "Thread Emails ({{count}})",
       "threadEmailItem": "[{{idx}}] MsgID: {{messageId}} | Labels: {{labels}} | Received: {{receivedAt}}",
+      "to": "To",
+      "cc": "CC",
       "true": "true",
       "false": "false"
     },

@@ -393,6 +393,8 @@ ${closing}`;
         messageId: sentMessage.messageId,
         from: userEmail,
         fromName: user.name || undefined,
+        to: replyToAddress || undefined,
+        cc: cc || undefined,
         subject: replySubject,
         body: bodyWithSignature,
         isRead: true,

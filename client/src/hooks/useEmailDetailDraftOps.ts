@@ -6,50 +6,12 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { REPLY_MODE_FORWARD, REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
+import { buildReplyAllRecipients, IsCurrentUserFn } from './buildReplyAllRecipients';
 import { EmailDetailState } from './useEmailDetailOperations.types';
 import { useEmailDraftCrud } from './useEmailDraftCrud';
 
-type IsCurrentUserFn = (addr: string) => boolean;
-
-// Pure helper: builds recipients for reply-all mode.
-function buildReplyAllRecipients(
-  latestEmail: any,
-  isCurrentUser: IsCurrentUserFn,
-  isLatestFromCurrentUser: boolean | '' | undefined
-): { recipients: string; cc: string | null } {
-  const recipients: string[] = [];
-  if (isLatestFromCurrentUser) {
-    if (latestEmail.to) {
-      const toRecipients = latestEmail.to
-        .split(',')
-        .map((recipientStr: string) => recipientStr.trim())
-        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
-      recipients.push(...toRecipients);
-    }
-  } else {
-    const replyToAddress = latestEmail.replyTo || latestEmail.from;
-    recipients.push(replyToAddress);
-    if (latestEmail.to) {
-      const toRecipients = latestEmail.to
-        .split(',')
-        .map((recipientStr: string) => recipientStr.trim())
-        .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
-      recipients.push(...toRecipients);
-    }
-  }
-  const uniqueRecipients = [...new Set(recipients)];
-  let cc: string | null = null;
-  if (latestEmail.cc) {
-    const ccRecipients = latestEmail.cc
-      .split(',')
-      .map((recipientStr: string) => recipientStr.trim())
-      .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
-    if (ccRecipients.length > 0) {
-      cc = ccRecipients.join(', ');
-    }
-  }
-  return { recipients: uniqueRecipients.join(', '), cc };
-}
+export type { IsCurrentUserFn } from './buildReplyAllRecipients';
+export { buildReplyAllRecipients } from './buildReplyAllRecipients';
 
 // Pure helper: builds reply recipients given the reply mode and email context.
 // Returns { recipients, cc } to be applied to state.

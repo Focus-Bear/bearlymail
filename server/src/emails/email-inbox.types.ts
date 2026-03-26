@@ -62,6 +62,7 @@ export interface RawEmailRow {
   phishingConfidence: "low" | "medium" | "high" | null;
   phishingReason: string | null;
   priorityScore: number | null;
+  to: string | null;
   cc: string | null;
   latestFrom?: string | null;
   /** Aggregated encrypted labels from all emails in the thread (used for blocked-mode app-level filter). */

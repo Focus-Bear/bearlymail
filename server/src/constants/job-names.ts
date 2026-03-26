@@ -71,6 +71,9 @@ export const JOB_NAMES = {
 
   // GitHub metadata
   FETCH_GITHUB_METADATA: "fetch-github-metadata",
+
+  // Automated email workflows (#1483)
+  EVALUATE_WORKFLOWS: "evaluate-workflows",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

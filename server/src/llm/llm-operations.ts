@@ -102,6 +102,13 @@ export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 // Phishing-only check (used when summarisation uses a custom prompt)
 export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
 
+// Workflows: evaluate natural-language condition against an email
+export const LLM_OP_EVALUATE_WORKFLOW_CONDITION =
+  "evaluate_workflow_condition";
+
+// Workflows: resolve {{ai:...}} template variables from email context
+export const LLM_OP_RESOLVE_WORKFLOW_VARIABLES = "resolve_workflow_variables";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -109,6 +116,8 @@ export const LLM_OP_UNKNOWN = "unknown";
  * Type for all valid LLM operation values
  */
 export type LLMOperation =
+  | typeof LLM_OP_EVALUATE_WORKFLOW_CONDITION
+  | typeof LLM_OP_RESOLVE_WORKFLOW_VARIABLES
   | typeof LLM_OP_ANALYZE_EMAIL_PATTERNS
   | typeof LLM_OP_SUMMARIZE_EMAIL
   | typeof LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING
@@ -147,6 +156,8 @@ export type LLMOperation =
  * Human-readable labels for operations (used in admin UI)
  */
 export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
+  [LLM_OP_EVALUATE_WORKFLOW_CONDITION]: "Evaluate Workflow Condition",
+  [LLM_OP_RESOLVE_WORKFLOW_VARIABLES]: "Resolve Workflow Variables",
   [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
   [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",

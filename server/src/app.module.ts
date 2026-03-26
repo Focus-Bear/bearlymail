@@ -31,6 +31,7 @@ import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { LLMModule } from "./llm/llm.module";
+import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
@@ -48,6 +49,7 @@ import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.mo
 import { SummarizationModule } from "./summarization/summarization.module";
 import { UsersModule } from "./users/users.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
+import { WorkflowsModule } from "./workflows/workflows.module";
 import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 
 const ONE_HOUR_MS = 3_600_000;
@@ -155,6 +157,8 @@ const DEFAULT_POLLING_LIMIT = 3000;
     PusherModule,
     ScheduledEmailsModule,
     ProtoCategoriesModule,
+    WorkflowsModule,
+    MCPModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: UserThrottlerGuard }],

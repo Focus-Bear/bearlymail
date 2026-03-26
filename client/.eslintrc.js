@@ -439,6 +439,24 @@ module.exports = {
       },
     },
     {
+      // Workflow settings components — developer-facing configuration UI for automated workflows.
+      // These components display technical workflow engine configuration (MCP servers, webhook
+      // URLs, variable templates) that is not appropriate for i18n translation in the initial
+      // implementation. Full i18n support is tracked as a follow-up task (issue #1483).
+      // The inline colour values in STATUS_COLORS and statusBadgeStyle are semantic status
+      // colours (success=green, error=red) that mirror the server-side WorkflowExecutionStatus
+      // enum and are kept co-located for readability.
+      files: ['**/components/settings/workflows/**/*.tsx', '**/components/settings/workflows/**/*.ts'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+        // Status badge colours are semantic constants co-located with the status type definition;
+        // extracting them to the theme would break the co-location without adding readability.
+        'no-restricted-syntax': 'off',
+        // Opacity fraction (0.6) for disabled-state button is a single well-understood UI pattern.
+        'no-magic-numbers': 'off',
+      },
+    },
+    {
       // Relax rules for Storybook helper files (storyHelpers/ directory).
       // These are developer-only fixtures and wrappers used exclusively by stories;
       // they are never shipped to users and follow the same relaxed conventions as

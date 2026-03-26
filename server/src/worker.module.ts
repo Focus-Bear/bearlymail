@@ -16,6 +16,7 @@ import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { GitHubModule } from "./github/github.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { LLMModule } from "./llm/llm.module";
+import { MCPModule } from "./mcp/mcp.module";
 import { NotesModule } from "./notes/notes.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
@@ -31,6 +32,7 @@ import { SnoozeModule } from "./snooze/snooze.module";
 import { SuggestedRepliesModule } from "./suggested-replies/suggested-replies.module";
 import { SummarizationModule } from "./summarization/summarization.module";
 import { UsersModule } from "./users/users.module";
+import { WorkflowsModule } from "./workflows/workflows.module";
 import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 
 @Module({
@@ -74,6 +76,8 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     PusherModule,
     ContactsModule,
     ScheduledEmailsModule,
+    WorkflowsModule,
+    MCPModule,
   ],
 })
 export class WorkerModule {}

@@ -16,6 +16,7 @@ import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { TroubleshootingSection } from 'components/settings/TroubleshootingSection';
 import { VersionFooter } from 'components/settings/VersionFooter';
+import { WorkflowsSection } from 'components/settings/workflows';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
 import { useAuth } from 'contexts/AuthContext';
@@ -178,6 +179,8 @@ const Settings: React.FC = () => {
           loading={autoResponder.loading}
           userName={user?.name}
         />
+
+        <WorkflowsSection />
 
         <GuideOurAISection
           contexts={settingsData.contexts}

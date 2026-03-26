@@ -49,6 +49,7 @@ export const JobTypePriority: Partial<Record<JobName, JobPriority>> = {
   [JOB_NAMES.ARCHIVE_EMAIL_PROVIDER_SYNC]: JobPriority.HIGH,
   [JOB_NAMES.SYNC_CONTACTS]: JobPriority.LOW,
   [JOB_NAMES.SCHEDULE_CONTACT_SYNC_JOBS]: JobPriority.LOW,
+  [JOB_NAMES.EVALUATE_WORKFLOWS]: JobPriority.LOW,
 };
 
 /**

@@ -500,6 +500,33 @@ export class EmailLifecycleService {
           err,
         ),
       );
+
+    // Queue workflow evaluation (#1483) — delayed 60s to allow summary/priority to complete
+    this.boss
+      .send(
+        JOB_NAMES.EVALUATE_WORKFLOWS,
+        { userId, emailThreadId: savedEmail.emailThreadId },
+        {
+          priority: getJobPriority(JOB_NAMES.EVALUATE_WORKFLOWS),
+          retryLimit: 3,
+          retryDelay: 30,
+          expireInMinutes: MINUTES.HOUR,
+          startAfter: 60,
+          singletonKey: `workflow-eval-${savedEmail.emailThreadId}`,
+        },
+      )
+      .then((jobId) => {
+        if (jobId)
+          this.logger.debug(
+            `Queued evaluate-workflows job ${jobId} for thread ${savedEmail.emailThreadId}`,
+          );
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Failed to queue evaluate-workflows job for email ${savedEmail.id}:`,
+          err,
+        ),
+      );
   }
 
   async saveBlockedEmail(options: {

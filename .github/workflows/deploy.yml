@@ -270,10 +270,16 @@ jobs:
       - name: Install AWS CDK CLI
         run: npm install -g aws-cdk
 
+      - name: Build batch-analyzer Lambda
+        working-directory: lambda/batch-analyzer
+        run: |
+          npm ci
+          npm run build
+
       - name: CDK Deploy Application Stack
         working-directory: infrastructure
         run: |
-          cdk deploy BearlyMailStack \
+          cdk deploy BearlyMailStack BearlyMailContextAnalysisStack \
             --require-approval never \
             --outputs-file cdk-outputs.json
 

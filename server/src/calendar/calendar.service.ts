@@ -43,6 +43,7 @@ function getErrCode(err: unknown): string | number | undefined {
 
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
+const HTTP_NOT_FOUND = 404;
 
 export interface TimeSlot {
   start: string;
@@ -653,7 +654,12 @@ Manage this booking:
   async checkEventExists(
     userId: string,
     eventData: IcsEventData,
-  ): Promise<{ exists: boolean; calendarEventId?: string }> {
+  ): Promise<{
+    exists: boolean;
+    calendarEventId?: string;
+    userResponseStatus?: "accepted" | "declined" | "tentative" | "needsAction";
+    htmlLink?: string;
+  }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       return { exists: false };
@@ -707,7 +713,33 @@ Manage this booking:
       });
 
       if (match) {
-        return { exists: true, calendarEventId: match.id ?? undefined };
+        // Extract user's RSVP status from event attendees
+        // user.email is auto-decrypted by TypeORM transformer
+        const userEmail = user.email;
+        const userAttendee = match.attendees?.find(
+          (att) => att.email?.toLowerCase() === userEmail?.toLowerCase(),
+        );
+        // If user is the organizer and not in attendees, check organizer field
+        const isOrganizer =
+          !userAttendee &&
+          match.organizer?.email?.toLowerCase() === userEmail?.toLowerCase();
+        const userResponseStatus:
+          | "accepted"
+          | "declined"
+          | "tentative"
+          | "needsAction" =
+          (userAttendee?.responseStatus as
+            | "accepted"
+            | "declined"
+            | "tentative"
+            | "needsAction") ?? (isOrganizer ? "accepted" : "needsAction");
+
+        return {
+          exists: true,
+          calendarEventId: match.id ?? undefined,
+          userResponseStatus,
+          htmlLink: match.htmlLink ?? undefined,
+        };
       }
       return { exists: false };
     } catch {
@@ -832,11 +864,16 @@ Manage this booking:
 
     let exists = false;
     let calendarEventId: string | undefined;
+    let userResponseStatus:
+      | "accepted"
+      | "declined"
+      | "tentative"
+      | "needsAction"
+      | undefined;
+    let htmlLink: string | undefined;
     try {
-      ({ exists, calendarEventId } = await this.checkEventExists(
-        userId,
-        event,
-      ));
+      ({ exists, calendarEventId, userResponseStatus, htmlLink } =
+        await this.checkEventExists(userId, event));
     } catch (err) {
       // checkEventExists failing should not block the user from seeing event
       // details — log and continue with exists=false.
@@ -846,7 +883,105 @@ Manage this booking:
       );
     }
 
-    return { event, alreadyInCalendar: exists, calendarEventId };
+    return {
+      event,
+      alreadyInCalendar: exists,
+      calendarEventId,
+      userResponseStatus,
+      htmlLink,
+    };
+  }
+
+  /**
+   * Update the user's RSVP status on a Google Calendar event by its event ID.
+   * Uses the same pattern as respondToInvitation but bypasses email-based
+   * event lookup since we already have the calendarEventId.
+   */
+  async rsvpByEventId(
+    userId: string,
+    calendarEventId: string,
+    response: "accepted" | "declined" | "tentative",
+  ): Promise<{
+    userResponseStatus: "accepted" | "declined" | "tentative";
+    htmlLink?: string;
+  }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new BadRequestException(
+        ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED,
+      );
+    }
+
+    const oauth2Client = this.createOAuth2Client(user);
+    const calendar = google.calendar({
+      version: "v3",
+      auth: oauth2Client,
+    });
+
+    // user.email is auto-decrypted by TypeORM transformer
+    const userEmail = user.email;
+
+    try {
+      const eventResponse = await calendar.events.get({
+        calendarId: "primary",
+        eventId: calendarEventId,
+      });
+
+      const event = eventResponse.data;
+
+      if (!event.attendees || event.attendees.length === 0) {
+        throw new BadRequestException(
+          "Event has no attendees — RSVP is not applicable",
+        );
+      }
+
+      const attendeeIndex = event.attendees.findIndex(
+        (attendee) =>
+          attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+      );
+
+      if (attendeeIndex === -1) {
+        throw new BadRequestException("User is not an attendee of this event");
+      }
+
+      const updatedAttendees = [...event.attendees];
+      updatedAttendees[attendeeIndex] = {
+        ...updatedAttendees[attendeeIndex],
+        responseStatus: response,
+      };
+
+      await calendar.events.patch({
+        calendarId: "primary",
+        eventId: calendarEventId,
+        requestBody: {
+          attendees: updatedAttendees,
+        },
+      });
+
+      this.logger.log(
+        `Successfully updated RSVP for event ${calendarEventId} to ${response}`,
+      );
+
+      return {
+        userResponseStatus: response,
+        htmlLink: event.htmlLink ?? undefined,
+      };
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+      const code = getErrCode(err);
+      if (code === HTTP_NOT_FOUND) {
+        throw new NotFoundException(
+          "Calendar event not found — it may have been deleted",
+        );
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `[RSVP] Unexpected error for event ${calendarEventId}: ${message}`,
+      );
+      throw new BadRequestException("Failed to update RSVP. Please try again.");
+    }
   }
 
   /** Map ICS PARTSTAT to Google Calendar responseStatus */

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { IcsEventData, IcsInfoResponse } from 'types/ics-event';
+import { GoogleResponseStatus, IcsEventData, IcsInfoResponse } from 'types/ics-event';
 import { isValidIANATimezone } from 'utils/timezoneUtils';
 
 import { API_URL } from 'config/api';
@@ -91,6 +91,9 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [eventLink, setEventLink] = useState<string | null>(null);
+  const [rsvpStatus, setRsvpStatus] = useState<GoogleResponseStatus | undefined>();
+  const [rsvpPending, setRsvpPending] = useState<string | null>(null);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   // Find the ICS attachment
   const icsAttachment = email.attachments?.find(
@@ -110,6 +113,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
         `${API_URL}/calendar/ics-info/${email.id}/${icsAttachment.attachmentId}`,
       );
       setInfo(response.data);
+      setRsvpStatus(response.data.userResponseStatus);
     } catch (err) {
       console.error('[IcsInviteCard] Failed to fetch ICS info:', err);
       const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
@@ -150,6 +154,30 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
       );
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleRsvp = async (response: 'accepted' | 'declined' | 'tentative') => {
+    if (!info?.calendarEventId) {
+      return;
+    }
+    setRsvpPending(response);
+    setRsvpError(null);
+    try {
+      const result = await axios.post<{ userResponseStatus: string; htmlLink?: string }>(
+        `${API_URL}/calendar/event/${info.calendarEventId}/rsvp`,
+        { response },
+      );
+      setRsvpStatus(result.data.userResponseStatus as GoogleResponseStatus);
+      if (result.data.htmlLink && info) {
+        setInfo({ ...info, htmlLink: result.data.htmlLink });
+      }
+    } catch (err) {
+      console.error('[IcsInviteCard] Failed to update RSVP:', err);
+      const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      setRsvpError(serverMessage ?? t('emailDetail.icsInvite.rsvpError'));
+    } finally {
+      setRsvpPending(null);
     }
   };
 
@@ -316,26 +344,120 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
           {/* Calendar action */}
           <div style={{ marginTop: theme.spacing.md }}>
             {info.alreadyInCalendar || added ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.sm,
-                  color: theme.colors.success.main,
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium,
-                }}
-              >
-                <span>✅</span>
-                <span>{added ? t('emailDetail.icsInvite.added') : t('emailDetail.icsInvite.alreadyAdded')}</span>
-                {eventLink && (
+              <div>
+                {/* RSVP status badge */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing.sm,
+                    color: theme.colors.success.main,
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    marginBottom: theme.spacing.sm,
+                  }}
+                >
+                  <span>✅</span>
+                  <span>{added ? t('emailDetail.icsInvite.added') : t('emailDetail.icsInvite.alreadyAdded')}</span>
+                  {rsvpStatus && (
+                    <span
+                      style={{
+                        marginLeft: theme.spacing.xs,
+                        padding: `2px ${theme.spacing.sm}`,
+                        borderRadius: theme.borderRadius.sm,
+                        backgroundColor: theme.colors.background.default,
+                        border: `1px solid ${theme.colors.border.light}`,
+                        fontSize: theme.typography.fontSize.xs,
+                        color: theme.colors.text.secondary,
+                      }}
+                      data-testid="rsvp-status-badge"
+                    >
+                      {rsvpStatus === 'accepted' && <span>✅ </span>}
+                      {rsvpStatus === 'declined' && <span>❌ </span>}
+                      {rsvpStatus === 'tentative' && <span>❓ </span>}
+                      {rsvpStatus === 'needsAction' && <span>⏳ </span>}
+                      <span>{t(`emailDetail.icsInvite.rsvpStatus.${rsvpStatus}`)}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* RSVP action buttons */}
+                {info.calendarEventId && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: theme.spacing.sm,
+                      marginBottom: theme.spacing.sm,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {(['accepted', 'tentative', 'declined'] as const).map((response) => {
+                      const isActive = rsvpStatus === response;
+                      const isThisPending = rsvpPending === response;
+                      const isAnyPending = rsvpPending !== null;
+                      const RSVP_DISABLED_OPACITY = 0.6;
+                      const labelKey = response === 'accepted'
+                        ? 'emailDetail.icsInvite.rsvpAccept'
+                        : response === 'tentative'
+                          ? 'emailDetail.icsInvite.rsvpTentative'
+                          : 'emailDetail.icsInvite.rsvpDecline';
+                      return (
+                        <button
+                          key={response}
+                          onClick={() => handleRsvp(response)}
+                          disabled={isActive || isAnyPending}
+                          data-testid={`rsvp-btn-${response}`}
+                          style={{
+                            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                            backgroundColor: isActive
+                              ? theme.colors.primary.main
+                              : theme.colors.background.paper,
+                            color: isActive
+                              ? theme.colors.common.white
+                              : theme.colors.text.primary,
+                            border: `1px solid ${isActive ? theme.colors.primary.main : theme.colors.border.medium}`,
+                            borderRadius: theme.borderRadius.md,
+                            cursor: isActive || isAnyPending ? 'not-allowed' : 'pointer',
+                            fontSize: theme.typography.fontSize.sm,
+                            fontWeight: theme.typography.fontWeight.medium,
+                            opacity: isAnyPending && !isThisPending ? RSVP_DISABLED_OPACITY : 1,
+                          }}
+                        >
+                          {isThisPending ? t('emailDetail.icsInvite.rsvpUpdating') : t(labelKey)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* RSVP error */}
+                {rsvpError && (
+                  <div
+                    style={{
+                      color: theme.colors.accent.error,
+                      fontSize: theme.typography.fontSize.sm,
+                      marginBottom: theme.spacing.sm,
+                    }}
+                    data-testid="rsvp-error"
+                  >
+                    {rsvpError}
+                  </div>
+                )}
+
+                {/* View in Calendar link */}
+                {(eventLink || info.htmlLink) && (
                   <a
-                    href={eventLink}
+                    href={eventLink || info.htmlLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: theme.colors.primary.main, fontSize: theme.typography.fontSize.sm }}
+                    style={{
+                      color: theme.colors.primary.main,
+                      fontSize: theme.typography.fontSize.sm,
+                      textDecoration: 'none',
+                    }}
+                    data-testid="view-in-calendar-link"
                   >
-                    {t('emailDetail.icsInvite.viewEvent')}
+                    {t('emailDetail.icsInvite.viewInCalendar')}
                   </a>
                 )}
               </div>

@@ -10,9 +10,15 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
+import { IsIn } from "class-validator";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DAYS } from "../constants/time-constants";
+
+class RsvpRequestDto {
+  @IsIn(["accepted", "declined", "tentative"])
+  response!: "accepted" | "declined" | "tentative";
+}
 import { CalendarService } from "./calendar.service";
 
 /**
@@ -68,6 +74,34 @@ export class CalendarController {
       body.response,
     );
     return { success: true };
+  }
+
+  /**
+   * Update the user's RSVP status on a Google Calendar event by its event ID.
+   * POST /calendar/event/:calendarEventId/rsvp
+   */
+  @Post("event/:calendarEventId/rsvp")
+  async rsvpToEvent(
+    @Request() req,
+    @Param("calendarEventId") calendarEventId: string,
+    @Body() body: RsvpRequestDto,
+  ) {
+    try {
+      return await this.calendarService.rsvpByEventId(
+        req.user.userId,
+        calendarEventId,
+        body.response,
+      );
+    } catch (err) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[RSVP] rsvpToEvent unexpected error: ${message}`);
+      throw new InternalServerErrorException(
+        "An unexpected error occurred while updating RSVP",
+      );
+    }
   }
 
   /**

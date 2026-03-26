@@ -64,6 +64,7 @@ describe("CalendarService", () => {
         query: jest.fn(),
       },
       events: {
+        get: jest.fn(),
         insert: jest.fn(),
         list: jest.fn(),
         patch: jest.fn(),
@@ -1379,6 +1380,8 @@ describe("CalendarService", () => {
       expect(result).toEqual({
         exists: true,
         calendarEventId: "gcal-event-123",
+        userResponseStatus: "needsAction",
+        htmlLink: undefined,
       });
       expect(mockCalendar.events.list).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1435,6 +1438,186 @@ describe("CalendarService", () => {
 
       const result = await service.checkEventExists("user-1", baseEventData);
       expect(result).toEqual({ exists: false });
+    });
+
+    it("returns userResponseStatus and htmlLink when event has attendees", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "gcal-event-123",
+              summary: "Team Standup",
+              htmlLink: "https://calendar.google.com/event?eid=abc123",
+              attendees: [
+                { email: "user@example.com", responseStatus: "accepted" },
+                { email: "other@example.com", responseStatus: "tentative" },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+      expect(result).toEqual({
+        exists: true,
+        calendarEventId: "gcal-event-123",
+        userResponseStatus: "accepted",
+        htmlLink: "https://calendar.google.com/event?eid=abc123",
+      });
+    });
+
+    it("returns needsAction when user is not in attendees list", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "gcal-event-456",
+              summary: "Team Standup",
+              htmlLink: "https://calendar.google.com/event?eid=def456",
+              attendees: [
+                { email: "other@example.com", responseStatus: "accepted" },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+      expect(result.userResponseStatus).toBe("needsAction");
+    });
+
+    it("returns accepted when user is the organizer but not in attendees", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.list.mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "gcal-event-789",
+              summary: "Team Standup",
+              htmlLink: "https://calendar.google.com/event?eid=ghi789",
+              organizer: { email: "user@example.com" },
+              attendees: [
+                { email: "other@example.com", responseStatus: "accepted" },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await service.checkEventExists("user-1", baseEventData);
+      expect(result.userResponseStatus).toBe("accepted");
+    });
+
+    it.each(["declined", "tentative", "needsAction"] as const)(
+      "returns %s responseStatus correctly",
+      async (status) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        usersService.findOne.mockResolvedValue(mockUser as any);
+        mockCalendar.events.list.mockResolvedValue({
+          data: {
+            items: [
+              {
+                id: "gcal-event-status",
+                summary: "Team Standup",
+                attendees: [
+                  { email: "user@example.com", responseStatus: status },
+                ],
+              },
+            ],
+          },
+        });
+
+        const result = await service.checkEventExists("user-1", baseEventData);
+        expect(result.userResponseStatus).toBe(status);
+      },
+    );
+  });
+
+  describe("rsvpByEventId", () => {
+    it("updates RSVP and returns new status", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.get.mockResolvedValue({
+        data: {
+          id: "gcal-event-123",
+          htmlLink: "https://calendar.google.com/event?eid=abc123",
+          attendees: [
+            { email: "user@example.com", responseStatus: "needsAction" },
+            { email: "other@example.com", responseStatus: "accepted" },
+          ],
+        },
+      });
+      mockCalendar.events.patch.mockResolvedValue({});
+
+      const result = await service.rsvpByEventId(
+        "user-1",
+        "gcal-event-123",
+        "accepted",
+      );
+
+      expect(result).toEqual({
+        userResponseStatus: "accepted",
+        htmlLink: "https://calendar.google.com/event?eid=abc123",
+      });
+      expect(mockCalendar.events.patch).toHaveBeenCalledWith({
+        calendarId: "primary",
+        eventId: "gcal-event-123",
+        requestBody: {
+          attendees: [
+            { email: "user@example.com", responseStatus: "accepted" },
+            { email: "other@example.com", responseStatus: "accepted" },
+          ],
+        },
+      });
+    });
+
+    it("throws BadRequestException when calendar not connected", async () => {
+      usersService.findOne.mockResolvedValue({
+        ...mockUser,
+        googleCalendarAccessToken: null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      await expect(
+        service.rsvpByEventId("user-1", "gcal-event-123", "accepted"),
+      ).rejects.toThrow("Google Calendar");
+    });
+
+    it("throws BadRequestException when user is not an attendee", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.get.mockResolvedValue({
+        data: {
+          id: "gcal-event-123",
+          attendees: [
+            { email: "other@example.com", responseStatus: "needsAction" },
+          ],
+        },
+      });
+
+      await expect(
+        service.rsvpByEventId("user-1", "gcal-event-123", "accepted"),
+      ).rejects.toThrow("not an attendee");
+    });
+
+    it("throws BadRequestException when event has no attendees", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.get.mockResolvedValue({
+        data: {
+          id: "gcal-event-123",
+          attendees: [],
+        },
+      });
+
+      await expect(
+        service.rsvpByEventId("user-1", "gcal-event-123", "accepted"),
+      ).rejects.toThrow("no attendees");
     });
   });
 });

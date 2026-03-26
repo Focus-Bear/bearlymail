@@ -145,6 +145,121 @@ describe('IcsInviteCard — error handling (#1116)', () => {
     });
   });
 
+  describe('RSVP status and actions (#1493)', () => {
+    const makeIcsInfoWithRsvp = (
+      rsvpStatus: string = 'needsAction',
+      htmlLink?: string,
+    ) => ({
+      event: {
+        uid: 'rsvp-uid',
+        title: 'RSVP Meeting',
+        startAt: '2026-03-20T09:00:00Z',
+        endAt: '2026-03-20T09:30:00Z',
+        allDay: false,
+        attendees: [],
+        isRecurring: false,
+      },
+      alreadyInCalendar: true,
+      calendarEventId: 'gcal-123',
+      userResponseStatus: rsvpStatus,
+      htmlLink,
+    });
+
+    it('renders RSVP status badge when alreadyInCalendar is true', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('accepted') });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rsvp-status-badge')).toBeInTheDocument();
+        expect(screen.getByText('emailDetail.icsInvite.rsvpStatus.accepted')).toBeInTheDocument();
+      });
+    });
+
+    it('renders RSVP action buttons', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('needsAction') });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rsvp-btn-accepted')).toBeInTheDocument();
+        expect(screen.getByTestId('rsvp-btn-tentative')).toBeInTheDocument();
+        expect(screen.getByTestId('rsvp-btn-declined')).toBeInTheDocument();
+      });
+    });
+
+    it('disables the button matching current RSVP status', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('accepted') });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rsvp-btn-accepted')).toBeDisabled();
+        expect(screen.getByTestId('rsvp-btn-tentative')).not.toBeDisabled();
+        expect(screen.getByTestId('rsvp-btn-declined')).not.toBeDisabled();
+      });
+    });
+
+    it('calls RSVP endpoint when clicking Accept', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('needsAction') });
+      mockedAxios.post.mockResolvedValue({
+        data: { userResponseStatus: 'accepted', htmlLink: 'https://calendar.google.com/event?eid=abc' },
+      });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      const acceptBtn = await screen.findByTestId('rsvp-btn-accepted');
+      await userEvent.click(acceptBtn);
+
+      await waitFor(() => {
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          expect.stringContaining('/calendar/event/gcal-123/rsvp'),
+          { response: 'accepted' },
+        );
+      });
+    });
+
+    it('shows error on RSVP failure', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('needsAction') });
+      const err = makeAxiosError('Event not found');
+      mockedAxios.post.mockRejectedValue(err);
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      const declineBtn = await screen.findByTestId('rsvp-btn-declined');
+      await userEvent.click(declineBtn);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rsvp-error')).toBeInTheDocument();
+      });
+    });
+
+    it('renders "View in Calendar" link when htmlLink is available', async () => {
+      mockedAxios.get.mockResolvedValue({
+        data: makeIcsInfoWithRsvp('accepted', 'https://calendar.google.com/event?eid=abc'),
+      });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      await waitFor(() => {
+        const link = screen.getByTestId('view-in-calendar-link');
+        expect(link).toBeInTheDocument();
+        expect(link).toHaveAttribute('href', 'https://calendar.google.com/event?eid=abc');
+      });
+    });
+
+    it('does not render "View in Calendar" link when htmlLink is absent', async () => {
+      mockedAxios.get.mockResolvedValue({ data: makeIcsInfoWithRsvp('accepted') });
+
+      render(<IcsInviteCard email={makeEmailWithIcs()} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rsvp-status-badge')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('view-in-calendar-link')).not.toBeInTheDocument();
+    });
+  });
+
   describe('handleAddToCalendar error handling', () => {
     it('shows server message when Axios error has response.data.message', async () => {
       const icsInfo = {

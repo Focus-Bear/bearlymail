@@ -554,7 +554,20 @@
       "noCalendarConnected": "Connect Google Calendar to add events",
       "viewEvent": "View in Google Calendar",
       "error": "Could not load calendar invite",
-      "recurring": "🔁 Recurring"
+      "recurring": "🔁 Recurring",
+      "rsvpStatus": {
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "tentative": "Tentative",
+        "needsAction": "No response yet"
+      },
+      "rsvpAccept": "Accept",
+      "rsvpTentative": "Tentative",
+      "rsvpDecline": "Decline",
+      "rsvpUpdating": "Updating...",
+      "rsvpUpdated": "RSVP updated",
+      "rsvpError": "Failed to update RSVP",
+      "viewInCalendar": "View in Calendar"
     },
     "autoSendingIn": "Sending in {{seconds}}s…",
     "sendNow": "Send Now",

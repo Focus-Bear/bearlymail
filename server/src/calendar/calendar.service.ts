@@ -113,7 +113,10 @@ export class CalendarService {
     options?: { limit?: number; afterDate?: Date },
   ): Promise<TimeSlot[]> {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    if (!user) {
+      throw new Error("User not found");
+    }
+    if (!user.googleCalendarAccessToken) {
       throw new Error(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
     }
 
@@ -162,6 +165,12 @@ export class CalendarService {
         "Error fetching calendar",
         error instanceof Error ? error : new Error(String(error)),
       );
+      if (this.isTokenExpiredError(error)) {
+        await this.usersService.update(userId, { needsRelogin: true });
+        throw new Error(
+          "Google Calendar access has expired. The calendar owner needs to reconnect their Google account.",
+        );
+      }
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       if (

@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -52,6 +53,35 @@ export class PublicCalendarController {
       this.logger.warn(
         `Public calendar slots unavailable for user ${userId}: ${message}`,
       );
+      if (message.includes("User not found")) {
+        this.logger.warn(
+          `Public calendar slots: user_not_found for userId=${userId}`,
+        );
+        throw new NotFoundException("User not found");
+      }
+      if (
+        message.includes("not connected") ||
+        message.includes("Google Calendar not connected")
+      ) {
+        this.logger.warn(
+          `Public calendar slots: not_connected for userId=${userId}`,
+        );
+        throw new ServiceUnavailableException(
+          "Calendar is temporarily unavailable",
+        );
+      }
+      if (
+        message.includes("expired") ||
+        message.includes("not authorized") ||
+        message.includes("reconnect")
+      ) {
+        this.logger.warn(
+          `Public calendar slots: auth_expired for userId=${userId}`,
+        );
+        throw new ServiceUnavailableException(
+          "Calendar is temporarily unavailable",
+        );
+      }
       throw new ServiceUnavailableException(
         "Calendar is temporarily unavailable",
       );

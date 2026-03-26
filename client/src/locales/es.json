@@ -327,6 +327,10 @@
       "duplicateEmail": "Este correo ya fue agregado.",
       "invalidEmail": "Por favor ingresa un correo electrónico válido.",
       "alsoInvited": "También invitados: {{emails}}"
+    },
+    "error": {
+      "headline": "Algo salió mal",
+      "detail": "No podemos cargar esta página de reservas en este momento. Por favor, contacta a la persona que te envió este enlace de reserva."
     }
   },
   "calendar": {

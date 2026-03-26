@@ -1800,6 +1800,10 @@
       "duplicateEmail": "This email has already been added.",
       "invalidEmail": "Please enter a valid email address.",
       "alsoInvited": "Also invited: {{emails}}"
+    },
+    "error": {
+      "headline": "Something went wrong",
+      "detail": "We're unable to load this booking page right now. Please contact the person who sent you this booking link."
     }
   },
   "consent": {

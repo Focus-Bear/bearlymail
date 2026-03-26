@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { BookingErrorState } from 'components/booking/BookingErrorState';
 import { BookingForm } from 'components/booking/BookingForm';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { BookingSuccessState } from 'components/booking/BookingSuccessState';
@@ -135,6 +136,10 @@ const BookingPage: React.FC = () => {
 
   if (loading) {
     return <BookingLoadingState />;
+  }
+
+  if (error && slots.length === 0) {
+    return <BookingErrorState />;
   }
 
   if (bookingStatus === BOOKING_STATUS_SUCCESS) {

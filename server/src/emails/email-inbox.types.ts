@@ -6,7 +6,7 @@
 import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
-export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true`;
+export const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true AND thread."hasBlockedLabel" = true`;
 
 /**
  * Returns the SQL WHERE fragment for thread filtering based on inbox mode.

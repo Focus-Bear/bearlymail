@@ -546,6 +546,7 @@ export class EmailLifecycleService {
       `📛 Email from ${blockReason} - auto-archiving and skipping LLM processing`,
     );
     thread.isProcessingPriority = false;
+    thread.hasBlockedLabel = true;
     await this.emailThreadRepository.save(thread);
     email.isProcessingSummary = false;
     email.summary = isSenderBlocked ? "[Blocked sender]" : "[Blocked keyword]";

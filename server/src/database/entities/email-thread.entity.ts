@@ -300,6 +300,14 @@ export class EmailThread {
   })
   aiProcessingDeferred: boolean;
 
+  @Column({
+    default: false,
+    comment:
+      "Denormalized flag: true when any email in this thread has the BearlyMail-Blocked label. " +
+      "Enables O(1) SQL filtering for the blocked-emails view without decrypting labels at query time.",
+  })
+  hasBlockedLabel: boolean;
+
   @OneToMany(() => Email, (email) => email.thread)
   emails: Email[];
 }

@@ -63,7 +63,12 @@ export function useInboxContentState({
     updateDraft, bulkSend, fetchThreadsWithDrafts,
   });
 
-  const filteredEmails = useMemo(() => emails.filter(email => !email.isArchived), [emails]);
+  // Blocked-mode emails are archived by definition (isArchived=true), so we must
+  // skip the isArchived filter when in blocked mode or the list would always be empty.
+  const filteredEmails = useMemo(
+    () => mode === 'blocked' ? emails : emails.filter(email => !email.isArchived),
+    [emails, mode]
+  );
   const emailCategoryMap = useMemo(
     () => buildEmailCategoryMap(filteredEmails, mode, categorySummary),
     [filteredEmails, mode, categorySummary]

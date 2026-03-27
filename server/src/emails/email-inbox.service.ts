@@ -116,7 +116,8 @@ export class EmailInboxService {
        WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
          AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
          AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
-       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC`,
+       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC
+       ${mode === INBOX_MODES.BLOCKED ? "LIMIT 200" : ""}`,
       queryParams,
     )) as {
       categoryName: string | null;

@@ -316,7 +316,7 @@ describe("EmailDebugService", () => {
       expect(result.email.subject).toBe("Test email subject");
       expect(result.email.bodyPreview).toBeTruthy();
 
-      expect(result.thread.categoryId).toBe("ctx-1");
+      expect(result.thread.category).toBe("PR Bot Comments");
       expect(result.thread.categoryExplanation).toBe(
         "Automated PR comment from a bot",
       );
@@ -367,7 +367,7 @@ describe("EmailDebugService", () => {
 
       const result = await service.getCategoryDebugData(userId, emailId);
 
-      expect(result.thread.categoryId).toBeNull();
+      expect(result.thread.category).toBeNull();
       expect(result.thread.categoryExplanation).toBeNull();
       expect(result.emailCategories).toHaveLength(0);
       expect(result.protoCategories).toHaveLength(0);

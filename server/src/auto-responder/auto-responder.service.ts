@@ -20,6 +20,7 @@ import {
 import { AutoResponderContextService } from "./auto-responder-context.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
+import { parseCategoryName } from "../utils/category-name.util";
 import {
   AutoresponderDecisionContext,
   autoresponderLogger,
@@ -456,7 +457,7 @@ export class AutoResponderService {
       },
       select: ["contextValue"],
     });
-    return categoryCtx ? categoryCtx.contextValue.split(" - ")[0].trim() : null;
+    return categoryCtx ? parseCategoryName(categoryCtx.contextValue) : null;
   }
 
   private async buildPreparedResponse(options: {

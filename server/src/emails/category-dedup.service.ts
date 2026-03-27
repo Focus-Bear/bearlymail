@@ -7,6 +7,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { parseCategoryName } from "../utils/category-name.util";
 
 /**
  * CategoryDedupService — startup repair for duplicate EMAIL_CATEGORY rows.
@@ -66,10 +67,7 @@ export class CategoryDedupService {
       const byName = new Map<string, UserContext[]>();
       for (const ctx of contexts) {
         try {
-          const displayName = ctx.contextValue
-            .split(" - ")[0]
-            .trim()
-            .toLowerCase();
+          const displayName = parseCategoryName(ctx.contextValue).toLowerCase();
           const group = byName.get(displayName) ?? [];
           group.push(ctx);
           byName.set(displayName, group);

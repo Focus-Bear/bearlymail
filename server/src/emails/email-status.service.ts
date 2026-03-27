@@ -11,6 +11,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { parseCategoryName } from "../utils/category-name.util";
 import { UsersService } from "../users/users.service";
 
 @Injectable()
@@ -141,7 +142,7 @@ export class EmailStatusService {
       select: ["contextValue"],
     });
     const names = ctxs
-      .map((ctx) => ctx.contextValue.split(" - ")[0].trim())
+      .map((ctx) => parseCategoryName(ctx.contextValue))
       .filter((name) => name !== "");
     return Array.from(new Set<string>(names)).sort();
   }

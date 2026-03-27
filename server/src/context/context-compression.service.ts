@@ -13,6 +13,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
+import { parseCategoryName } from "../utils/category-name.util";
 import { ContextCategoryService } from "./context-category.service";
 
 @Injectable()
@@ -247,16 +248,16 @@ export class ContextCompressionService {
     });
     const userEditedNames = new Set(
       userEditedCategories.map((ctx) =>
-        ctx.contextValue.split(" - ")[0].trim().toLowerCase(),
+        parseCategoryName(ctx.contextValue).toLowerCase(),
       ),
     );
 
     return items.filter((item) => {
       if ((item.key as ContextKey) !== ContextKey.EMAIL_CATEGORY) return true;
-      const name = item.value.split(" - ")[0].trim().toLowerCase();
+      const name = parseCategoryName(item.value).toLowerCase();
       if (userEditedNames.has(name)) {
         this.logger.warn(
-          `[compressContextItems] Skipping EMAIL_CATEGORY "${item.value.split(" - ")[0].trim()}" for user ${userId} — name collision with user-edited entry`,
+          `[compressContextItems] Skipping EMAIL_CATEGORY "${parseCategoryName(item.value)}" for user ${userId} — name collision with user-edited entry`,
         );
         return false;
       }

@@ -10,6 +10,7 @@ import {
   EmailClassification,
   QASearchResult,
 } from "./types/auto-responder.types";
+import { parseCategoryName } from "../utils/category-name.util";
 
 type AutoRespondedThread = {
   id: string;
@@ -392,7 +393,7 @@ export class AutoResponderAnalyticsService {
   ): AutoRespondedThread {
     // categoryName comes from user_contexts JOIN — plain text, no decryption needed.
     const category = row.categoryName
-      ? row.categoryName.split(" - ")[0].trim()
+      ? parseCategoryName(row.categoryName)
       : null;
     const categoryExplanation = row.categoryExplanation
       ? EncryptionHelper.decrypt(row.categoryExplanation)

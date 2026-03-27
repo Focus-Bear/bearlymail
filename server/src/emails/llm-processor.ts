@@ -6,7 +6,11 @@ import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { JOB_NAMES } from "../constants/job-names";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import {
+  BODY_PREVIEW_LENGTHS,
+  QA_KEYWORD_REGEX,
+  QA_KEYWORD_SCAN,
+} from "../constants/llm-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -196,13 +200,21 @@ export class LLMProcessor implements OnModuleInit {
       `[Worker ${workerId}] Analyzing priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}..., subject: ${email.subject?.substring(0, ORCHESTRATOR_CONSTANTS.SUBJECT_PREVIEW_LENGTH)}...)`,
     );
 
-    const bodyForPriority = email.summary?.trim()
-      ? email.summary
-      : cleanEmailContent(
-          email.body,
-          email.htmlBody,
-          BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-        );
+    // For QA-related emails, always use raw body so the categorisation LLM sees
+    // the actual pass/fail verdict — summaries may strip it out (fixes #1453 Bug 1).
+    const isQaRelated =
+      QA_KEYWORD_REGEX.test(email.subject || "") ||
+      QA_KEYWORD_REGEX.test(
+        email.body?.substring(0, QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS) || "",
+      );
+    const bodyForPriority =
+      !isQaRelated && email.summary?.trim()
+        ? email.summary
+        : cleanEmailContent(
+            email.body,
+            email.htmlBody,
+            BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+          );
 
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");

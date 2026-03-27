@@ -15,6 +15,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { parseCategoryName } from "../utils/category-name.util";
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -229,7 +230,7 @@ export class ProtoCategoriesService {
 
     for (const category of categories) {
       // contextValue can be "Category Name" or "Category Name - Description"
-      const categoryName = category.contextValue.split(" - ")[0].trim();
+      const categoryName = parseCategoryName(category.contextValue);
       const normalizedName = categoryName.toLowerCase().trim();
       const nameWithoutEmoji = normalizedName
         .replace(/[\p{Emoji}]/gu, "")

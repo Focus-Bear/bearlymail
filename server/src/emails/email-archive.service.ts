@@ -12,6 +12,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { getJobPriority } from "../queue/job-priorities";
+import { parseCategoryName } from "../utils/category-name.util";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailReadService } from "./email-read.service";
@@ -263,10 +264,10 @@ export class EmailArchiveService {
       select: ["contextId", "contextValue"],
     });
 
-    const resolveCategoryName = (categoryId: string | null): string | null => {
+    const resolveLocalCategoryName = (categoryId: string | null): string | null => {
       if (!categoryId) return null;
       const found = allCtxs.find((ctx) => ctx.contextId === categoryId);
-      return found ? found.contextValue.split(" - ")[0].trim() : null;
+      return found ? parseCategoryName(found.contextValue) : null;
     };
 
     // Resolve to a UUID for the DB update.
@@ -280,7 +281,7 @@ export class EmailArchiveService {
     } else if (newCategory && newCategory !== "Other") {
       const matched = allCtxs.find(
         (ctx) =>
-          ctx.contextValue.split(" - ")[0].trim().toLowerCase() ===
+          parseCategoryName(ctx.contextValue).toLowerCase() ===
           newCategory.toLowerCase().trim(),
       );
       newCategoryId = matched?.contextId ?? null;
@@ -293,7 +294,7 @@ export class EmailArchiveService {
 
     const originalCategoryId = thread.categoryId;
     // Resolve human-readable name for audit log — category_overrides.originalCategory is a text field.
-    const originalCategoryName = resolveCategoryName(originalCategoryId);
+    const originalCategoryName = resolveLocalCategoryName(originalCategoryId);
 
     const categoryOverride = this.categoryOverrideRepository.create({
       emailThreadId: thread.id,

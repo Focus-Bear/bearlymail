@@ -4,7 +4,11 @@ import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
 import { JOB_NAMES } from "../constants/job-names";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import {
+  BODY_PREVIEW_LENGTHS,
+  QA_KEYWORD_REGEX,
+  QA_KEYWORD_SCAN,
+} from "../constants/llm-constants";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -22,6 +26,7 @@ import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { parseCategoryValue } from "../utils/category-name.util";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
@@ -292,13 +297,21 @@ export class LLMPriorityBatchService {
     preComputedSentimentScore?: number;
   }> {
     return emailsToProcess.map((email) => {
-      const bodyForBatch = email.summary?.trim()
-        ? email.summary
-        : cleanEmailContent(
-            email.body,
-            email.htmlBody,
-            BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-          );
+      // For QA-related emails, always use raw body so the categorisation LLM sees
+      // the actual pass/fail verdict — summaries may strip it out (fixes #1453 Bug 1).
+      const isQaRelated =
+        QA_KEYWORD_REGEX.test(email.subject || "") ||
+        QA_KEYWORD_REGEX.test(
+          email.body?.substring(0, QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS) || "",
+        );
+      const bodyForBatch =
+        !isQaRelated && email.summary?.trim()
+          ? email.summary
+          : cleanEmailContent(
+              email.body,
+              email.htmlBody,
+              BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+            );
       return {
         emailKey: email.id,
         from: email.from || "",
@@ -427,12 +440,8 @@ export class LLMPriorityBatchService {
       emailCategories: contexts
         .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
         .map((category) => {
-          const parts = category.contextValue.split(" - ");
-          return {
-            name: parts[0].trim(),
-            description:
-              parts.length > 1 ? parts.slice(1).join(" - ").trim() : undefined,
-          };
+          const { name, description } = parseCategoryValue(category.contextValue);
+          return { name, description: description ?? undefined };
         }),
       protoCategories: protoCategories.map((pc) => ({
         name: pc.name,

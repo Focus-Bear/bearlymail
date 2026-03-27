@@ -203,15 +203,25 @@ function findYamlFiles(changedPromptsOnly = false) {
   return Array.from(yamlFiles).sort();
 }
 
+/**
+ * Check if output indicates a 429 rate-limit error from OpenAI.
+ */
 function is429Error(output) {
-  const text = (output || '').toLowerCase();
-  return text.includes('429') || text.includes('rate limit') || text.includes('too many requests');
+  return /429|rate.?limit|too many requests/i.test(output);
 }
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Sleep for the given number of milliseconds.
+ */
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Run a single promptfoo evaluation, with exponential backoff retry on 429 errors.
+ * Promptfoo's OpenAI provider already retries at the HTTP level (maxRetries defaults to 4),
+ * but if the whole eval process exits with a 429-related failure we retry at the process level too.
+ */
 function runEvaluationOnce(configPath, index, total) {
   const configName = path.basename(configPath);
 
@@ -231,20 +241,10 @@ function runEvaluationOnce(configPath, index, total) {
       stats.exitCode = code;
       stats.configName = configName;
       stats.output = output;
-
-      if (stats.failed > 0) {
-        log(`[${index}/${total}] ${configName}... ${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
-      } else if (stats.total > 0) {
-        log(`[${index}/${total}] ${configName}... ${colors.green}PASS${colors.reset} (${stats.passed}/${stats.total})`);
-      } else {
-        log(`[${index}/${total}] ${configName}... ${colors.yellow}NO TESTS${colors.reset}`);
-      }
-
       resolve(stats);
     });
 
     child.on('error', (err) => {
-      log(`[${index}/${total}] ${configName}... ${colors.red}ERROR${colors.reset} - ${err.message}`);
       resolve({
         configName,
         total: 0,
@@ -258,17 +258,38 @@ function runEvaluationOnce(configPath, index, total) {
   });
 }
 
+const MAX_RETRIES = 4;
+const RETRY_BASE_DELAY_MS = 5000; // 5 s, doubles each attempt
+
 async function runEvaluation(configPath, index, total) {
-  const delays = [5000, 10000, 20000, 40000];
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    const result = await runEvaluationOnce(configPath, index, total);
-    if (result.exitCode === 0 || !is429Error(result.output)) return result;
-    if (attempt < delays.length) {
-      log(`Rate limited, retrying in ${delays[attempt]/1000}s...`, colors.yellow);
-      await sleep(delays[attempt]);
+  const configName = path.basename(configPath);
+
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    const stats = await runEvaluationOnce(configPath, index, total);
+
+    const hitRateLimit = stats.exitCode !== 0 && is429Error(stats.output);
+
+    if (!hitRateLimit || attempt > MAX_RETRIES) {
+      // Final result — log and return
+      if (stats.failed > 0) {
+        log(`[${index}/${total}] ${configName}... ${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
+      } else if (stats.total > 0) {
+        log(`[${index}/${total}] ${configName}... ${colors.green}PASS${colors.reset} (${stats.passed}/${stats.total})`);
+      } else {
+        log(`[${index}/${total}] ${configName}... ${colors.yellow}NO TESTS${colors.reset}`);
+      }
+      return stats;
     }
+
+    // 429 detected — back off and retry
+    const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+    log(
+      `[${index}/${total}] ${configName}... ${colors.yellow}RATE LIMITED (429)${colors.reset} — ` +
+      `retrying in ${delayMs / 1000}s (attempt ${attempt}/${MAX_RETRIES})`,
+      colors.yellow,
+    );
+    await sleep(delayMs);
   }
-  return await runEvaluationOnce(configPath, index, total);
 }
 
 function parseEvaluationOutput(output, configName) {
@@ -443,7 +464,9 @@ async function main() {
   log(`Running with concurrency: 5 tests at a time`, colors.cyan);
   log('');
 
-  // Run tests in parallel
+  // Run tests in parallel with concurrency 5.
+  // 429 rate-limit errors are handled by exponential backoff retry inside runEvaluation(),
+  // so we don't need to reduce concurrency as a workaround.
   const results = await runTestsInParallel(yamlFiles, 5);
 
   const allPassed = printSummary(results);

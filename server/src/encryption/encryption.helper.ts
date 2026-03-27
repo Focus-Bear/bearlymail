@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
+import { parseCategoryName } from "../utils/category-name.util";
 import { logError } from "../utils/logger";
 
 /**
@@ -178,7 +179,7 @@ export function decryptContextValue(
   if (!raw) return null;
   const decrypted = EncryptionHelper.decrypt(raw);
   if (!decrypted) return null;
-  return decrypted.split(" - ")[0].trim();
+  return parseCategoryName(decrypted);
 }
 
 export { EncryptionHelper };

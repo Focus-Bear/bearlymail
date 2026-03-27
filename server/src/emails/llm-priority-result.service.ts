@@ -18,6 +18,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
+import { parseCategoryName } from "../utils/category-name.util";
 
 type PriorityLlmResult = {
   urgencyScore: number;
@@ -117,7 +118,7 @@ export class LLMPriorityResultService {
 
       const knownCategoryNames = contexts
         .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
-        .map((ctx) => ctx.contextValue.split(" - ")[0].trim());
+        .map((ctx) => parseCategoryName(ctx.contextValue));
 
       const { finalCategory, protoCategoryId, categoryId } =
         await this.resolveCategoryAndProtoCategory({
@@ -492,10 +493,7 @@ export class LLMPriorityResultService {
       const nameLower = name.toLowerCase().trim();
       const exact = contexts.find((context) => {
         if (context.contextKey !== ContextKey.EMAIL_CATEGORY) return false;
-        const ctxName = context.contextValue
-          .split(" - ")[0]
-          .trim()
-          .toLowerCase();
+        const ctxName = parseCategoryName(context.contextValue).toLowerCase();
         return ctxName === nameLower;
       });
       return exact?.contextId ?? null;

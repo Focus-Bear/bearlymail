@@ -18,6 +18,7 @@ import { GitHubApiService } from "../github/github-api.service";
 import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { parseCategoryName } from "../utils/category-name.util";
 
 type GitHubLinkInfo = {
   type: string;
@@ -237,7 +238,7 @@ export class SuggestedActionsService {
           select: ["contextValue"],
         });
         emailCategory = categoryCtx
-          ? categoryCtx.contextValue.split(" - ")[0].trim()
+          ? parseCategoryName(categoryCtx.contextValue)
           : undefined;
       }
       const defaultRepo = hasGithubToken

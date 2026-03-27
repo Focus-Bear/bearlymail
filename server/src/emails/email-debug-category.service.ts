@@ -10,6 +10,10 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
+import {
+  parseCategoryValue,
+  resolveCategoryName,
+} from "../utils/category-name.util";
 
 export interface CategoryDebugData {
   email: {
@@ -20,8 +24,8 @@ export interface CategoryDebugData {
     bodyPreview: string;
   };
   thread: {
-    // source of truth after denorm removal (fixes #1293)
-    categoryId: string | null;
+    // human-readable category name resolved from categoryId (fixes #1453 Bug 2)
+    category: string | null;
     categoryExplanation: string | null;
     categorySource: "summary" | "priority" | null;
   };
@@ -90,6 +94,10 @@ export class EmailDebugCategoryService {
       BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
     );
 
+    // Resolve categoryId → display name using already-fetched contexts (fixes #1453 Bug 2).
+    // No extra DB query needed.
+    const categoryName = resolveCategoryName(thread?.categoryId, contexts);
+
     return {
       email: {
         from: email.from || "",
@@ -99,8 +107,7 @@ export class EmailDebugCategoryService {
         bodyPreview,
       },
       thread: {
-        // source of truth (fixes #1293)
-        categoryId: thread?.categoryId || null,
+        category: categoryName,
         categoryExplanation: thread?.categoryExplanation || null,
         categorySource: thread?.categorySource || null,
       },
@@ -119,12 +126,8 @@ export class EmailDebugCategoryService {
     return contexts
       .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
       .map((category) => {
-        const parts = category.contextValue.split(" - ");
-        return {
-          name: parts[0].trim(),
-          description:
-            parts.length > 1 ? parts.slice(1).join(" - ").trim() : undefined,
-        };
+        const { name, description } = parseCategoryValue(category.contextValue);
+        return { name, description: description ?? undefined };
       });
   }
 

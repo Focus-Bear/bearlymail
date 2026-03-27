@@ -1,3 +1,5 @@
+import { parseCategoryName } from "../utils/category-name.util";
+
 /**
  * Unit tests for the category-filter logic in applyPostQueryFilters (fix #1114, #1293, #1337).
  *
@@ -83,7 +85,7 @@ function buildCategoryCountMap(
   const map = new Map<string, number>();
   for (const row of rawRows) {
     const decrypted = decryptFn(row.categoryName);
-    const name = decrypted ? decrypted.split(" - ")[0].trim() : OTHER;
+    const name = decrypted ? parseCategoryName(decrypted) : OTHER;
     map.set(name, (map.get(name) ?? 0) + row.count);
   }
   return map;

@@ -23,6 +23,15 @@ export const QA_EXTRACTION = {
   MIN_FREQUENCY: 3,
 } as const;
 
+// QA keyword scanning constants
+export const QA_KEYWORD_SCAN = {
+  // Number of chars from the start of the body to scan for QA-related keywords
+  QA_KEYWORD_BODY_SCAN_CHARS: 500,
+} as const;
+
+// Shared regex for detecting QA-related keywords in subject/body
+export const QA_KEYWORD_REGEX = /QA\s*(Status|pass|fail|result)/i;
+
 // Body preview lengths for different contexts
 export const BODY_PREVIEW_LENGTHS = {
   // Body preview length for batch explanations (slightly shorter)

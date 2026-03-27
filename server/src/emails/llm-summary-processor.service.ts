@@ -18,6 +18,7 @@ import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { SummarizationService } from "../summarization/summarization.service";
+import { parseCategoryName } from "../utils/category-name.util";
 import { EmailsService } from "./emails.service";
 
 type SummaryJobEntry = {
@@ -553,7 +554,7 @@ export class LLMSummaryProcessorService {
       ? userContexts.find((ctx) => ctx.contextId === thread.categoryId)
       : null;
     const resolvedCategory = categoryCtx
-      ? categoryCtx.contextValue.split(" - ")[0].trim()
+      ? parseCategoryName(categoryCtx.contextValue)
       : null;
     const existingState = {
       priorityScore: threadPriorityExplanation?.score || 0,

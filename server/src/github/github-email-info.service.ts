@@ -13,6 +13,7 @@ import {
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
+import { parseCategoryName } from "../utils/category-name.util";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
 import {
   GitHubApiService,
@@ -324,7 +325,7 @@ export class GitHubEmailInfoService {
         select: ["contextValue"],
       });
       categoryName = categoryCtx
-        ? categoryCtx.contextValue.split(" - ")[0].trim()
+        ? parseCategoryName(categoryCtx.contextValue)
         : undefined;
     }
     return { links, category: categoryName };

@@ -21,6 +21,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
+import { parseCategoryName } from "../utils/category-name.util";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
   buildSummaryFiltersAndParams,
@@ -280,9 +281,12 @@ export class EmailInboxService {
       const decryptedCategoryName = row.categoryName
         ? EncryptionHelper.decrypt(row.categoryName)
         : null;
-      const category = row.categoryId
-        ? (decryptedCategoryName?.split(" - ")[0].trim() ?? OTHER_CATEGORY_NAME)
-        : OTHER_CATEGORY_NAME;
+      let category: string;
+      if (row.categoryId && decryptedCategoryName != null) {
+        category = parseCategoryName(decryptedCategoryName);
+      } else {
+        category = OTHER_CATEGORY_NAME;
+      }
       if (!categoryOrder.includes(category)) {
         categoryOrder.push(category);
         categoryThreadIds[category] = [];
@@ -463,13 +467,13 @@ export class EmailInboxService {
     if (!deduplicateWithWarning) {
       const map = new Map<string, string>();
       for (const ctx of ctxs)
-        map.set(ctx.contextValue.split(" - ")[0].trim(), ctx.contextId);
+        map.set(parseCategoryName(ctx.contextValue), ctx.contextId);
       return map;
     }
     // Fix #1258: deduplicate — keep oldest UUID as canonical.
     const byName = new Map<string, UserContext[]>();
     for (const ctx of ctxs) {
-      const categoryName = ctx.contextValue.split(" - ")[0].trim();
+      const categoryName = parseCategoryName(ctx.contextValue);
       const existing = byName.get(categoryName) ?? [];
       existing.push(ctx);
       byName.set(categoryName, existing);
@@ -648,7 +652,7 @@ export class EmailInboxService {
       });
       const idToName = new Map<string, string>();
       for (const ctx of ctxs)
-        idToName.set(ctx.contextId, ctx.contextValue.split(" - ")[0].trim());
+        idToName.set(ctx.contextId, parseCategoryName(ctx.contextValue));
       const requestedNames = new Set(
         realIds
           .map((id) => idToName.get(id))
@@ -744,8 +748,8 @@ export class EmailInboxService {
       // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
       // EncryptionHelper.decrypt() has internal error handling; it never throws.
       category: row.categoryName
-        ? (EncryptionHelper.decrypt(row.categoryName)?.split(" - ")[0].trim() ??
-          OTHER_CATEGORY_NAME)
+        ? parseCategoryName(EncryptionHelper.decrypt(row.categoryName) ?? "") ||
+          OTHER_CATEGORY_NAME
         : OTHER_CATEGORY_NAME,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.decrypt(row.categoryExplanation)

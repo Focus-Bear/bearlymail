@@ -30,6 +30,12 @@ export interface BearlyMailContextAnalysisStackProps extends cdk.StackProps {
   database: rds.IDatabaseInstance;
   dbSecret: secretsmanager.ISecret;
   appSecrets: secretsmanager.ISecret;
+  /** RDS Proxy created in DatabaseStack */
+  rdsProxy: rds.DatabaseProxy;
+  /** RDS Proxy endpoint from DatabaseStack */
+  rdsProxyEndpoint: string;
+  /** RDS Proxy security group from DatabaseStack — Lambda SG adds ingress to this */
+  rdsProxySecurityGroup: ec2.SecurityGroup;
   /** ARN of the ECS task role — grants it SQS send permissions */
   ecsTaskRoleArn: string;
   /** SNS topic ARN for DLQ depth alarms (optional) */
@@ -50,7 +56,9 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
   ) {
     super(scope, id, props);
 
-    const { vpc, database, dbSecret, appSecrets, ecsTaskRoleArn } = props;
+    const { vpc, database, dbSecret, appSecrets, ecsTaskRoleArn, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup } = props;
+
+    this.rdsProxyEndpoint = rdsProxyEndpoint;
 
     // ============================================
     // Dead Letter Queue (FIFO — must match main queue type)
@@ -135,37 +143,6 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     });
 
     // ============================================
-    // RDS Proxy
-    // ============================================
-    const proxySecurityGroup = new ec2.SecurityGroup(
-      this,
-      "RdsProxySecurityGroup",
-      {
-        vpc,
-        description: "Security group for RDS Proxy (Lambda → RDS)",
-        allowAllOutbound: true,
-      },
-    );
-
-    const rdsProxy = new rds.DatabaseProxy(this, "RdsProxy", {
-      proxyTarget: rds.ProxyTarget.fromInstance(
-        database as rds.DatabaseInstance,
-      ),
-      secrets: [dbSecret],
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [proxySecurityGroup],
-      dbProxyName: "bearlymail-rds-proxy",
-      requireTLS: true,
-      // Keep idle connections for warm Lambda invocations
-      idleClientTimeout: cdk.Duration.minutes(10),
-      maxConnectionsPercent: 50, // Reserve 50% of max_connections for the proxy pool
-      maxIdleConnectionsPercent: 25,
-    });
-
-    this.rdsProxyEndpoint = rdsProxy.endpoint;
-
-    // ============================================
     // Lambda Security Group
     // ============================================
     const lambdaSecurityGroup = new ec2.SecurityGroup(
@@ -178,8 +155,8 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       },
     );
 
-    // Allow Lambda to connect to RDS Proxy
-    proxySecurityGroup.addIngressRule(
+    // Allow Lambda to connect to RDS Proxy (SG lives in DatabaseStack)
+    rdsProxySecurityGroup.addIngressRule(
       lambdaSecurityGroup,
       ec2.Port.tcp(5432),
       "Allow Lambda to connect via RDS Proxy",
@@ -262,7 +239,7 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       role: lambdaRole,
       environment: {
         NODE_ENV: "production",
-        RDS_PROXY_ENDPOINT: rdsProxy.endpoint,
+        RDS_PROXY_ENDPOINT: rdsProxyEndpoint,
         DB_SECRET_NAME: "bearlymail/lambda/db",
         LLM_SECRET_NAME: "bearlymail/lambda/llm",
         PROMPT_TEMPLATE_PATH: "/var/task/prompts/analyze-email-patterns.md",
@@ -339,7 +316,7 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, "RdsProxyEndpoint", {
-      value: rdsProxy.endpoint,
+      value: rdsProxyEndpoint,
       description: "RDS Proxy endpoint for Lambda DB connections",
       exportName: "BearlyMailRdsProxyEndpoint",
     });

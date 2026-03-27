@@ -13,6 +13,13 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
   public readonly database: rds.IDatabaseInstance;
   public readonly dbSecret: secretsmanager.ISecret;
 
+  /** RDS Proxy for connection pooling (used by Lambda in ContextAnalysisStack) */
+  public readonly rdsProxy: rds.DatabaseProxy;
+  /** RDS Proxy endpoint — use as DB_HOST for Lambda */
+  public readonly rdsProxyEndpoint: string;
+  /** Security group for the RDS Proxy — other stacks add ingress rules to this */
+  public readonly rdsProxySecurityGroup: ec2.SecurityGroup;
+
   constructor(scope: Construct, id: string, props: BearlyMailDatabaseStackProps) {
     super(scope, id, props);
 
@@ -72,6 +79,36 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     this.database.connections.allowDefaultPortFromAnyIpv4();
 
     // ============================================
+    // RDS Proxy (lives here to avoid cyclic dependency with ContextAnalysisStack)
+    // ============================================
+    this.rdsProxySecurityGroup = new ec2.SecurityGroup(
+      this,
+      'RdsProxySecurityGroup',
+      {
+        vpc,
+        description: 'Security group for RDS Proxy (Lambda → RDS)',
+        allowAllOutbound: true,
+      },
+    );
+
+    this.rdsProxy = new rds.DatabaseProxy(this, 'RdsProxy', {
+      proxyTarget: rds.ProxyTarget.fromInstance(
+        this.database as rds.DatabaseInstance,
+      ),
+      secrets: [this.dbSecret],
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [this.rdsProxySecurityGroup],
+      dbProxyName: 'bearlymail-rds-proxy',
+      requireTLS: true,
+      idleClientTimeout: cdk.Duration.minutes(10),
+      maxConnectionsPercent: 50,
+      maxIdleConnectionsPercent: 25,
+    });
+
+    this.rdsProxyEndpoint = this.rdsProxy.endpoint;
+
+    // ============================================
     // Outputs
     // ============================================
     new cdk.CfnOutput(this, 'DatabaseSecretArn', {
@@ -96,6 +133,12 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       value: 'bearlymail',
       description: 'RDS database name',
       exportName: 'BearlyMail-DB-Name',
+    });
+
+    new cdk.CfnOutput(this, 'RdsProxyEndpoint', {
+      value: this.rdsProxy.endpoint,
+      description: 'RDS Proxy endpoint for Lambda DB connections',
+      exportName: 'BearlyMail-RdsProxy-Endpoint',
     });
   }
 }

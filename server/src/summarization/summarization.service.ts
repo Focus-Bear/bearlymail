@@ -389,6 +389,7 @@ export class SummarizationService {
     emailId: string,
     rule: SummarizationRule,
     prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
+    emailCategories?: Array<{ name: string; description?: string }>,
   ): Promise<{
     summary: string;
     phishingSignal: PhishingSignal | null;
@@ -484,6 +485,7 @@ export class SummarizationService {
       isUserSender,
       from,
       fromName,
+      emailCategories,
     });
   }
 
@@ -515,6 +517,7 @@ export class SummarizationService {
       from?: string;
       fromName?: string;
       existingActions?: string[];
+      emailCategories?: Array<{ name: string; description?: string }>;
     },
   ): Promise<{
     summary: string;
@@ -541,6 +544,7 @@ export class SummarizationService {
       from = "",
       fromName = "",
       existingActions = [],
+      emailCategories,
     } = options;
     try {
       const result = await this.runLLMSummarize({
@@ -556,6 +560,7 @@ export class SummarizationService {
         from,
         fromName,
         existingActions,
+        emailCategories,
       });
 
       const phishingSignal = this.resolvePhishingSignalFromLLM(result.phishing);
@@ -606,6 +611,7 @@ export class SummarizationService {
     from: string;
     fromName: string;
     existingActions: string[];
+    emailCategories?: Array<{ name: string; description?: string }>;
   }) {
     if (params.rule.type === SUMMARY_TYPES.CUSTOM) {
       if (!params.rule.customPrompt) {
@@ -639,6 +645,7 @@ export class SummarizationService {
       from: params.from,
       fromName: params.fromName,
       existingActions: params.existingActions,
+      emailCategories: params.emailCategories,
     });
   }
 
@@ -857,6 +864,7 @@ export class SummarizationService {
     emailId: string,
     prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
     prefetchedRules?: SummarizationRuleEntity[],
+    emailCategories?: Array<{ name: string; description?: string }>,
   ): Promise<{
     summary: string;
     phishingSignal: PhishingSignal | null;
@@ -894,8 +902,15 @@ export class SummarizationService {
       rule = { type: SUMMARY_TYPES.TLDR };
     }
 
-    // Pass prefetched email to avoid re-fetching; return both summary and phishing signal
-    return this.summarizeEmailWithPhishing(userId, emailId, rule, email);
+    // Pass prefetched email and user categories to avoid re-fetching;
+    // return both summary and phishing signal.
+    return this.summarizeEmailWithPhishing(
+      userId,
+      emailId,
+      rule,
+      email,
+      emailCategories,
+    );
   }
 
   async createSummarizationRule(

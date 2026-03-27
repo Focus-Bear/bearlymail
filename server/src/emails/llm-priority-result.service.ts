@@ -151,29 +151,47 @@ export class LLMPriorityResultService {
             ? { categoryId }
             : {}),
           categoryExplanation: resolvedCategoryExplanation,
+          // Track which step last set the category (debug field for issue #1509)
+          ...(finalCategory && finalCategory !== "Other"
+            ? { categorySource: "priority" as const }
+            : {}),
           protoCategoryId,
           isProcessingPriority: false,
           aiProcessingDeferred: false,
         },
       );
 
-      if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
-        await this.emailThreadRepository.update(
-          { id: email.emailThreadId, userId },
-          {
-            isBatched: false,
-            batchReleaseAt: null,
-            wasDeliveredEarly: true,
-            batchDecisionReason: `Emergency delivery (score ${finalScore})`,
-          },
-        );
-        this.logger.log(
-          `[Worker ${workerId}] Emergency delivery: Un-batched thread ${email.emailThreadId} due to high priority score: ${finalScore}`,
-        );
-      }
+      await this.maybeApplyEmergencyDelivery(
+        email.emailThreadId,
+        userId,
+        finalScore,
+        workerId,
+      );
 
       this.logger.log(
         `[Worker ${workerId}] Updated thread ${email.emailThreadId.substring(0, PRIORITY_RESULT_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... priorityScore: ${finalScore}`,
+      );
+    }
+  }
+
+  private async maybeApplyEmergencyDelivery(
+    emailThreadId: string,
+    userId: string,
+    finalScore: number,
+    workerId: string,
+  ): Promise<void> {
+    if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
+      await this.emailThreadRepository.update(
+        { id: emailThreadId, userId },
+        {
+          isBatched: false,
+          batchReleaseAt: null,
+          wasDeliveredEarly: true,
+          batchDecisionReason: `Emergency delivery (score ${finalScore})`,
+        },
+      );
+      this.logger.log(
+        `[Worker ${workerId}] Emergency delivery: Un-batched thread ${emailThreadId} due to high priority score: ${finalScore}`,
       );
     }
   }
@@ -516,6 +534,30 @@ export class LLMPriorityResultService {
         lookupCategoryContextId,
       });
       ({ finalCategory, protoCategoryId, categoryId } = resolved);
+    }
+
+    // Priority-over-Other guard (fix #1509):
+    // If the summary step wrote "Other" to the thread (leaving categoryId null)
+    // but the priority step returns a real category, always prefer the priority result.
+    // This is a safety net in case finalCategory is still "Other" after all resolution
+    // but the original priority LLM returned a valid non-Other category.
+    if (
+      (!finalCategory || finalCategory === "Other") &&
+      llmResult.category &&
+      llmResult.category !== "Other"
+    ) {
+      const canonicalised = this.canonicaliseCategoryName(
+        llmResult.category,
+        knownCategoryNames,
+      );
+      if (canonicalised && canonicalised !== "Other") {
+        finalCategory = canonicalised;
+        categoryId = lookupCategoryContextId(finalCategory);
+        protoCategoryId = null;
+        this.logger.debug(
+          `[Worker ${workerId}] Priority-over-Other guard: preferring priority category "${finalCategory}" over summary "Other" for thread ${email.emailThreadId}`,
+        );
+      }
     }
 
     return { finalCategory, protoCategoryId, categoryId };

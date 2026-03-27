@@ -146,6 +146,7 @@ export class LLMService {
     from?: string;
     fromName?: string;
     existingActions?: string[];
+    emailCategories?: Array<{ name: string; description?: string }>;
   }): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
@@ -165,6 +166,7 @@ export class LLMService {
       from = "",
       fromName = "",
       existingActions = [],
+      emailCategories,
     } = options;
     return this.llmSummarizationService.summarizeEmailWithPhishingCheck(
       emailBody,
@@ -177,6 +179,7 @@ export class LLMService {
       from,
       fromName,
       existingActions,
+      emailCategories,
     );
   }
 

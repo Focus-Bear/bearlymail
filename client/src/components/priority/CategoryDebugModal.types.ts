@@ -9,6 +9,7 @@ export interface CategoryDebugData {
   thread: {
     category: string | null;
     categoryExplanation: string | null;
+    categorySource: "summary" | "priority" | null;
   };
   emailCategories: Array<{ name: string; description?: string }>;
   protoCategories: Array<{ name: string; description?: string }>;

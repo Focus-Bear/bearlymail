@@ -59,7 +59,7 @@ Return a JSON object (no markdown fences) with exactly these fields:
   "summary": "<your action items here>",
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
-  "category": "<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>",
+  "category": "{% if hasUserCategories %}<one of the available categories listed below>{% else %}<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>{% endif %}",
   "categoryExplanation": "<one sentence explaining why this category was chosen>",
   "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
 }
@@ -80,6 +80,11 @@ SENTIMENT ANALYSIS — score guidelines:
 - 0.6 to 1.0: strongly positive (excited, grateful, celebratory)
 
 CATEGORY GUIDELINES:
+{% if hasUserCategories %}
+Available categories (choose one exactly as written):
+{{ userCategories }}
+- Other: use only if none of the above categories fit
+{% else %}
 - Newsletters: regular newsletters, digests, announcements to a broad audience
 - Sales & Marketing: sales outreach, promotions, marketing emails
 - Customer Support: support requests, tickets, bug reports from customers
@@ -89,6 +94,7 @@ CATEGORY GUIDELINES:
 - GitHub & Code: code reviews, CI/CD, issue trackers, deployment notices
 - Personal: personal correspondence, not business-related
 - Other: use only if none of the above categories fit
+{% endif %}
 {% if phishingSignals %}
 
 Keyword analysis context (use as signals to inform your judgement, not as a verdict):

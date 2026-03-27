@@ -203,7 +203,16 @@ function findYamlFiles(changedPromptsOnly = false) {
   return Array.from(yamlFiles).sort();
 }
 
-function runEvaluation(configPath, index, total) {
+function is429Error(output) {
+  const text = (output || '').toLowerCase();
+  return text.includes('429') || text.includes('rate limit') || text.includes('too many requests');
+}
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function runEvaluationOnce(configPath, index, total) {
   const configName = path.basename(configPath);
 
   return new Promise((resolve) => {
@@ -247,6 +256,19 @@ function runEvaluation(configPath, index, total) {
       });
     });
   });
+}
+
+async function runEvaluation(configPath, index, total) {
+  const delays = [5000, 10000, 20000, 40000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    const result = await runEvaluationOnce(configPath, index, total);
+    if (result.exitCode === 0 || !is429Error(result.output)) return result;
+    if (attempt < delays.length) {
+      log(`Rate limited, retrying in ${delays[attempt]/1000}s...`, colors.yellow);
+      await sleep(delays[attempt]);
+    }
+  }
+  return await runEvaluationOnce(configPath, index, total);
 }
 
 function parseEvaluationOutput(output, configName) {

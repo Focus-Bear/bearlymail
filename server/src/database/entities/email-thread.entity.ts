@@ -232,6 +232,14 @@ export class EmailThread {
   categoryExplanation: string | null;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Which processing step last set the category: 'summary' (from summarization step) or 'priority' (from priority analysis step). Useful for debugging mis-categorisation.",
+  })
+  categorySource: "summary" | "priority" | null;
+
+  @Column({
     type: "uuid",
     nullable: true,
     comment:

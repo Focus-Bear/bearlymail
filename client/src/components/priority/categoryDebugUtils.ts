@@ -17,6 +17,9 @@ function appendEmailSection(lines: string[], email: CategoryDebugData['email']):
 
 function appendCategorySection(lines: string[], thread: CategoryDebugData['thread']): void {
   lines.push('### Current Category', `- **Category**: ${thread.category ?? 'None'}`);
+  if (thread.categorySource) {
+    lines.push(`- **Set by step**: ${thread.categorySource}`);
+  }
   if (thread.categoryExplanation) {
     lines.push(`- **Explanation**: ${thread.categoryExplanation}`);
   }

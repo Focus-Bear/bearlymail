@@ -12,6 +12,7 @@ import {
 } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ContextKey } from "../database/entities/user-context.entity";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
@@ -226,6 +227,39 @@ export class LLMSummaryProcessorService {
     return rulesMap;
   }
 
+  /**
+   * Fetch EMAIL_CATEGORY context items for each unique user in the batch.
+   * Returns a map of userId → parsed category list for use in summarization prompts.
+   */
+  private async fetchEmailCategoriesForJobs(
+    jobsToProcess: SummaryJobEntry[],
+  ): Promise<Map<string, Array<{ name: string; description?: string }>>> {
+    const uniqueUserIds = [...new Set(jobsToProcess.map((j) => j.userId))];
+    const categoriesMap = new Map<
+      string,
+      Array<{ name: string; description?: string }>
+    >();
+    await Promise.all(
+      uniqueUserIds.map(async (uid) => {
+        const contexts = await this.priorityCacheService.getUserContexts(uid);
+        const categories = contexts
+          .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
+          .map((ctx) => {
+            const parts = ctx.contextValue.split(" - ");
+            return {
+              name: parts[0].trim(),
+              description:
+                parts.length > 1
+                  ? parts.slice(1).join(" - ").trim()
+                  : undefined,
+            };
+          });
+        categoriesMap.set(uid, categories);
+      }),
+    );
+    return categoriesMap;
+  }
+
   private async fireSummaryLlmCalls(
     batchId: string,
     jobsToProcess: SummaryJobEntry[],
@@ -237,16 +271,22 @@ export class LLMSummaryProcessorService {
   ): Promise<SummaryLlmCallResult[]> {
     tracker.startPhase("llmCall");
 
+    // Load user email categories for dynamic category injection into summary prompts.
+    // This fixes issue #1509: summary step was using hardcoded categories, ignoring user-defined ones.
+    const categoriesMap = await this.fetchEmailCategoriesForJobs(jobsToProcess);
+
     const summaryPromises = jobsToProcess.map(
       async ({ userId, emailId, email }) => {
         try {
           const userRules = rulesMap.get(userId) || [];
+          const emailCategories = categoriesMap.get(userId) || [];
           const result =
             await this.summarizationService.summarizeEmailWithAutoRule(
               userId,
               emailId,
               email,
               userRules,
+              emailCategories,
             );
           return {
             emailId,
@@ -347,7 +387,10 @@ export class LLMSummaryProcessorService {
           lastSummarizedAt: new Date(),
           aiProcessingDeferred: false,
           ...(category
-            ? { categoryExplanation: categoryExplanation ?? undefined }
+            ? {
+                categoryExplanation: categoryExplanation ?? undefined,
+                categorySource: "summary",
+              }
             : {}),
           ...(matchedCategoryId !== null
             ? { categoryId: matchedCategoryId }

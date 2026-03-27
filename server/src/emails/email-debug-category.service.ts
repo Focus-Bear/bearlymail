@@ -23,6 +23,7 @@ export interface CategoryDebugData {
     // source of truth after denorm removal (fixes #1293)
     categoryId: string | null;
     categoryExplanation: string | null;
+    categorySource: "summary" | "priority" | null;
   };
   emailCategories: Array<{ name: string; description?: string }>;
   protoCategories: Array<{ name: string; description?: string }>;
@@ -101,6 +102,7 @@ export class EmailDebugCategoryService {
         // source of truth (fixes #1293)
         categoryId: thread?.categoryId || null,
         categoryExplanation: thread?.categoryExplanation || null,
+        categorySource: thread?.categorySource || null,
       },
       emailCategories,
       protoCategories: protoCategories.map((pc) => ({

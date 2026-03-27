@@ -20,6 +20,7 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as sns from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 import * as path from "path";
@@ -261,14 +262,17 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       role: lambdaRole,
       environment: {
         NODE_ENV: "production",
-        AWS_REGION: this.region,
         RDS_PROXY_ENDPOINT: rdsProxy.endpoint,
         DB_SECRET_NAME: "bearlymail/lambda/db",
         LLM_SECRET_NAME: "bearlymail/lambda/llm",
         PROMPT_TEMPLATE_PATH: "/var/task/prompts/analyze-email-patterns.md",
       },
       // Structured logging
-      logRetention: cdk.aws_logs.RetentionDays.ONE_MONTH,
+      logGroup: new logs.LogGroup(this, "BatchAnalyzerFnLogGroup", {
+        logGroupName: "/aws/lambda/bearlymail-batch-analyzer",
+        retention: logs.RetentionDays.ONE_MONTH,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
     });
 
     // SQS trigger: batch size 1 — one Lambda per batch job

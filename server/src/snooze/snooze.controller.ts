@@ -21,12 +21,15 @@ export class SnoozeController {
     @Request() req,
     @Param("id") id: string,
     @Body() body: { duration: string },
-  ) {
+  ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
     return this.snoozeService.snoozeEmail(req.user.userId, id, body.duration);
   }
 
   @Delete(":id")
-  async unsnoozeEmail(@Request() req, @Param("id") id: string) {
+  async unsnoozeEmail(
+    @Request() req,
+    @Param("id") id: string,
+  ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date | null }> {
     return this.snoozeService.unsnoozeEmail(req.user.userId, id);
   }
 }

@@ -27,7 +27,7 @@ export class SnoozeService {
     userId: string,
     emailId: string,
     duration: string,
-  ): Promise<Email> {
+  ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date }> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });
@@ -38,21 +38,111 @@ export class SnoozeService {
 
     const snoozeUntil = this.parseDuration(duration);
 
-    // Snooze at the thread level - use emailThreadId (UUID FK) for reliable lookup
-    // This is more reliable than threadId (Gmail thread ID) because it uses the actual FK relationship
+    const thread = await this.findThreadForEmail(email, emailId);
+
+    thread.isSnoozed = true;
+    thread.snoozeUntil = snoozeUntil;
+    thread.lastUserOperationAt = new Date();
+    thread.syncStatus = "unsynced";
+    thread.syncStatusUpdatedAt = new Date();
+    await this.emailThreadRepository.save(thread);
+
+    email.isSnoozed = true;
+    email.snoozeUntil = snoozeUntil;
+    await this.emailRepository.save(email);
+
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider) {
+        await provider.snoozeThread(userId, email.threadId, snoozeUntil);
+        thread.syncStatus = "synced";
+        thread.syncStatusUpdatedAt = new Date();
+        await this.emailThreadRepository.save(thread);
+        this.logger.log(
+          `Snoozed and synced thread ${thread.id} (Gmail: ${email.threadId}) until ${snoozeUntil.toISOString()}`,
+        );
+      } else {
+        this.logger.warn(
+          `No email provider for user ${userId}, skipping provider sync for snooze`,
+        );
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to sync snooze to email provider for email ${emailId}:`,
+        error,
+      );
+    }
+
+    return { id: thread.id, isSnoozed: thread.isSnoozed, snoozeUntil };
+  }
+
+  async unsnoozeEmail(
+    userId: string,
+    emailId: string,
+  ): Promise<{ id: string; isSnoozed: boolean; snoozeUntil: Date | null }> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+
+    if (!email) {
+      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    }
+
+    const thread = await this.findThreadForEmail(email, emailId);
+
+    thread.isSnoozed = false;
+    thread.snoozeUntil = null;
+    thread.lastUserOperationAt = new Date();
+    thread.syncStatus = "unsynced";
+    thread.syncStatusUpdatedAt = new Date();
+    await this.emailThreadRepository.save(thread);
+
+    email.isSnoozed = false;
+    email.snoozeUntil = null;
+    await this.emailRepository.save(email);
+
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider) {
+        await provider.unsnoozeThread(userId, email.threadId);
+        thread.syncStatus = "synced";
+        thread.syncStatusUpdatedAt = new Date();
+        await this.emailThreadRepository.save(thread);
+        this.logger.log(
+          `Unsnoozed and synced thread ${thread.id} (Gmail: ${email.threadId})`,
+        );
+      } else {
+        this.logger.warn(
+          `No email provider for user ${userId}, skipping provider sync for unsnooze`,
+        );
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to sync unsnooze to email provider for email ${emailId}:`,
+        error,
+      );
+    }
+
+    return { id: thread.id, isSnoozed: thread.isSnoozed, snoozeUntil: null };
+  }
+
+  private async findThreadForEmail(
+    email: Email,
+    emailId: string,
+  ): Promise<EmailThread> {
     let thread: EmailThread | null = null;
 
-    // First try to find by emailThreadId (the UUID foreign key) - most reliable
     if (email.emailThreadId) {
       thread = await this.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId, userId },
+        where: { id: email.emailThreadId, userId: email.userId },
       });
     }
 
-    // Fallback to threadId (Gmail thread ID) if emailThreadId lookup failed
     if (!thread && email.threadId) {
       thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
+        where: { userId: email.userId, threadId: email.threadId },
       });
       if (thread) {
         this.logger.warn(
@@ -62,62 +152,23 @@ export class SnoozeService {
       }
     }
 
-    if (thread) {
-      thread.isSnoozed = true;
-      thread.snoozeUntil = snoozeUntil;
-      thread.lastUserOperationAt = new Date();
-      await this.emailThreadRepository.save(thread);
-      this.logger.log(
-        `Snoozed thread ${thread.id} (Gmail: ${email.threadId}) until ${snoozeUntil.toISOString()} (user operation)`,
-      );
-    } else {
-      // Log error - this should not happen in normal operation
-      this.logger.error(
-        `Failed to find thread for email ${emailId}. emailThreadId=${email.emailThreadId}, threadId=${email.threadId}. ` +
-          `Snooze will only be applied to email, not thread. Email may still appear in inbox!`,
+    if (!thread) {
+      throw new Error(
+        `Cannot snooze email ${emailId}: thread not found. emailThreadId=${email.emailThreadId}, threadId=${email.threadId}`,
       );
     }
 
-    // Also update the email for backward compatibility
-    email.isSnoozed = true;
-    email.snoozeUntil = snoozeUntil;
-    const savedEmail = await this.emailRepository.save(email);
-
-    // Sync to email provider (Gmail, Office365, etc.)
-    try {
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider) {
-        await provider.snoozeThread(userId, email.threadId, snoozeUntil);
-        this.logger.log(
-          `Successfully synced snooze to provider for email ${emailId}, thread ${email.threadId}`,
-        );
-      } else {
-        this.logger.warn(
-          `No email provider connected for user ${userId}, skipping provider sync for snooze`,
-        );
-      }
-    } catch (error: unknown) {
-      // Log error but don't fail the request - database update succeeded
-      this.logger.error(
-        `Failed to sync snooze to email provider for email ${emailId}:`,
-        error,
-      );
-    }
-
-    return savedEmail;
+    return thread;
   }
 
   private parseDuration(duration: string): Date {
     const normalized = duration.toLowerCase().trim();
 
-    // Parse with chrono for natural language dates
     const parsed = chrono.parseDate(normalized);
     if (parsed) {
       return parsed;
     }
 
-    // Manual parsing for simple formats
     const now = new Date();
     const regex = /^(\d+)\s*(m|min|h|hr|d|w)$/;
     const match = normalized.match(regex);
@@ -143,7 +194,6 @@ export class SnoozeService {
       }
     }
 
-    // Try day names (mon, tue, wed, etc.)
     const dayMap: { [key: string]: number } = {
       sun: 0,
       mon: 1,
@@ -160,95 +210,16 @@ export class SnoozeService {
       let daysUntil = targetDay - currentDay;
 
       if (daysUntil <= 0) {
-        // Next week
         daysUntil += SNOOZE_CONSTANTS.DAYS_IN_WEEK;
       }
 
       const nextDate = new Date(now);
       nextDate.setDate(now.getDate() + daysUntil);
-      // Default to 9 AM
       nextDate.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
 
       return nextDate;
     }
 
-    // Default to 1 hour if parsing fails
     return new Date(now.getTime() + MILLISECONDS.HOUR);
-  }
-
-  async unsnoozeEmail(userId: string, emailId: string): Promise<Email> {
-    const email = await this.emailRepository.findOne({
-      where: { id: emailId, userId },
-    });
-
-    if (!email) {
-      throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
-    }
-
-    // Unsnooze at the thread level - use emailThreadId (UUID FK) for reliable lookup
-    let thread: EmailThread | null = null;
-
-    // First try to find by emailThreadId (the UUID foreign key) - most reliable
-    if (email.emailThreadId) {
-      thread = await this.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId, userId },
-      });
-    }
-
-    // Fallback to threadId (Gmail thread ID) if emailThreadId lookup failed
-    if (!thread && email.threadId) {
-      thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
-      if (thread) {
-        this.logger.warn(
-          `Thread found by Gmail threadId but not by emailThreadId for email ${emailId}. ` +
-            `emailThreadId=${email.emailThreadId}, threadId=${email.threadId}, thread.id=${thread.id}`,
-        );
-      }
-    }
-
-    if (thread) {
-      thread.isSnoozed = false;
-      thread.snoozeUntil = null;
-      await this.emailThreadRepository.save(thread);
-      this.logger.log(
-        `Unsnoozed thread ${thread.id} (Gmail: ${email.threadId})`,
-      );
-    } else {
-      this.logger.warn(
-        `Failed to find thread for email ${emailId} during unsnooze. ` +
-          `emailThreadId=${email.emailThreadId}, threadId=${email.threadId}`,
-      );
-    }
-
-    // Also update the email for backward compatibility
-    email.isSnoozed = false;
-    email.snoozeUntil = null;
-    const savedEmail = await this.emailRepository.save(email);
-
-    // Sync to email provider (Gmail, Office365, etc.)
-    try {
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider) {
-        await provider.unsnoozeThread(userId, email.threadId);
-        this.logger.log(
-          `Successfully synced unsnooze to provider for email ${emailId}, thread ${email.threadId}`,
-        );
-      } else {
-        this.logger.warn(
-          `No email provider connected for user ${userId}, skipping provider sync for unsnooze`,
-        );
-      }
-    } catch (error: unknown) {
-      // Log error but don't fail the request - database update succeeded
-      this.logger.error(
-        `Failed to sync unsnooze to email provider for email ${emailId}:`,
-        error,
-      );
-    }
-
-    return savedEmail;
   }
 }

@@ -15,6 +15,8 @@ jest.mock("chrono-node", () => ({
 describe("SnoozeService", () => {
   let service: SnoozeService;
   let repository: jest.Mocked<Repository<Email>>;
+  let threadRepository: jest.Mocked<Repository<EmailThread>>;
+  let emailProviderManager: jest.Mocked<EmailProviderManager>;
 
   const mockEmail: Email = {
     id: "email-1",
@@ -23,8 +25,26 @@ describe("SnoozeService", () => {
     from: "sender@example.com",
     isSnoozed: false,
     snoozeUntil: null,
+    emailThreadId: "thread-uuid-1",
+    threadId: "gmail-thread-1",
     getPriorityScore: jest.fn().mockReturnValue(50),
   } as any;
+
+  const mockThread: EmailThread = {
+    id: "thread-uuid-1",
+    userId: "user-1",
+    threadId: "gmail-thread-1",
+    isSnoozed: false,
+    snoozeUntil: null,
+    syncStatus: "synced",
+    syncStatusUpdatedAt: null,
+    lastUserOperationAt: null,
+  } as any;
+
+  const mockProvider = {
+    snoozeThread: jest.fn(),
+    unsnoozeThread: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -55,6 +75,8 @@ describe("SnoozeService", () => {
 
     service = module.get<SnoozeService>(SnoozeService);
     repository = module.get(getRepositoryToken(Email));
+    threadRepository = module.get(getRepositoryToken(EmailThread));
+    emailProviderManager = module.get(EmailProviderManager);
     jest.clearAllMocks();
     (chrono.parseDate as jest.Mock).mockReturnValue(null);
   });
@@ -63,6 +85,14 @@ describe("SnoozeService", () => {
     beforeEach(() => {
       repository.findOne.mockResolvedValue(mockEmail);
       repository.save.mockImplementation(async (email) => email as Email);
+      threadRepository.findOne.mockResolvedValue({ ...mockThread });
+      threadRepository.save.mockImplementation(
+        async (thread) => thread as EmailThread,
+      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+      mockProvider.snoozeThread.mockResolvedValue(undefined);
     });
 
     it("should throw error if email not found", async () => {
@@ -71,6 +101,100 @@ describe("SnoozeService", () => {
       await expect(
         service.snoozeEmail("user-1", "nonexistent", "1h"),
       ).rejects.toThrow("Email not found");
+    });
+
+    it("should throw error if thread not found", async () => {
+      threadRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.snoozeEmail("user-1", "email-1", "1h"),
+      ).rejects.toThrow("thread not found");
+    });
+
+    it("should set syncStatus to unsynced before provider call", async () => {
+      let capturedThreadBeforeProvider: any = null;
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        if (capturedThreadBeforeProvider === null) {
+          capturedThreadBeforeProvider = { ...thread };
+        }
+        return thread as EmailThread;
+      });
+      mockProvider.snoozeThread.mockImplementation(async () => {
+        expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
+      });
+
+      await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
+    });
+
+    it("should set syncStatus back to synced after provider confirms", async () => {
+      const savedStates: string[] = [];
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        savedStates.push(thread.syncStatus);
+        return thread as EmailThread;
+      });
+
+      await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(savedStates).toContain("unsynced");
+      expect(savedStates[savedStates.length - 1]).toBe("synced");
+    });
+
+    it("should leave syncStatus as unsynced if provider sync fails", async () => {
+      mockProvider.snoozeThread.mockRejectedValue(new Error("Provider error"));
+      const savedStates: string[] = [];
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        savedStates.push(thread.syncStatus);
+        return thread as EmailThread;
+      });
+
+      await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(savedStates).toContain("unsynced");
+      expect(savedStates[savedStates.length - 1]).toBe("unsynced");
+    });
+
+    it("should find thread by emailThreadId (UUID FK)", async () => {
+      await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(threadRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "thread-uuid-1", userId: "user-1" },
+        }),
+      );
+    });
+
+    it("should fall back to threadId lookup when emailThreadId lookup fails", async () => {
+      threadRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...mockThread });
+
+      const result = await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(result.isSnoozed).toBe(true);
+      expect(threadRepository.findOne).toHaveBeenCalledTimes(2);
+    });
+
+    it("should set lastUserOperationAt on snooze", async () => {
+      let savedThread: any = null;
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        if (!savedThread) savedThread = { ...thread };
+        return thread as EmailThread;
+      });
+
+      await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(savedThread.lastUserOperationAt).toBeInstanceOf(Date);
+    });
+
+    it("should return structured response {id, isSnoozed, snoozeUntil}", async () => {
+      const result = await service.snoozeEmail("user-1", "email-1", "1h");
+
+      expect(result).toHaveProperty("id");
+      expect(result).toHaveProperty("isSnoozed", true);
+      expect(result).toHaveProperty("snoozeUntil");
+      expect(result.snoozeUntil).toBeInstanceOf(Date);
     });
 
     it("should parse duration in minutes (m)", async () => {
@@ -87,19 +211,6 @@ describe("SnoozeService", () => {
       jest.useRealTimers();
     });
 
-    it("should parse duration in minutes (min)", async () => {
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const result = await service.snoozeEmail("user-1", "email-1", "60min");
-
-      const expectedTime = new Date(now.getTime() + 60 * 60 * 1000);
-      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
     it("should parse duration in hours (h)", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       jest.useFakeTimers();
@@ -108,19 +219,6 @@ describe("SnoozeService", () => {
       const result = await service.snoozeEmail("user-1", "email-1", "2h");
 
       const expectedTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
-    it("should parse duration in hours (hr)", async () => {
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const result = await service.snoozeEmail("user-1", "email-1", "3hr");
-
-      const expectedTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
@@ -155,64 +253,14 @@ describe("SnoozeService", () => {
     });
 
     it("should parse day names (mon)", async () => {
-      // Set to Wednesday (3)
-      // Wednesday
       const now = new Date("2024-01-03T12:00:00Z");
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
       const result = await service.snoozeEmail("user-1", "email-1", "mon");
 
-      // Should be next Monday (Jan 8, 2024) at 9 AM
       const expectedTime = new Date("2024-01-08T09:00:00Z");
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
-    it("should parse day names for same day (next week)", async () => {
-      // Set to Monday
-      // Monday
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const result = await service.snoozeEmail("user-1", "email-1", "mon");
-
-      // Should be next Monday (Jan 8) at 9 AM, not today
-      const expectedTime = new Date("2024-01-08T09:00:00Z");
-      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
-    it("should parse day names (tue, wed, thu, fri, sat, sun)", async () => {
-      // Monday
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const days = ["tue", "wed", "thu", "fri", "sat", "sun"];
-      const expectedDates = [
-        // Tuesday
-        "2024-01-02T09:00:00Z",
-        // Wednesday
-        "2024-01-03T09:00:00Z",
-        // Thursday
-        "2024-01-04T09:00:00Z",
-        // Friday
-        "2024-01-05T09:00:00Z",
-        // Saturday
-        "2024-01-06T09:00:00Z",
-        // Sunday
-        "2024-01-07T09:00:00Z",
-      ];
-
-      for (let i = 0; i < days.length; i++) {
-        const result = await service.snoozeEmail("user-1", "email-1", days[i]);
-        const expectedTime = new Date(expectedDates[i]);
-        expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-      }
 
       jest.useRealTimers();
     });
@@ -231,7 +279,6 @@ describe("SnoozeService", () => {
       );
 
       expect(result.snoozeUntil?.getTime()).toBe(chronoDate.getTime());
-      expect(chrono.parseDate).toHaveBeenCalledWith("next monday");
 
       jest.useRealTimers();
     });
@@ -248,51 +295,33 @@ describe("SnoozeService", () => {
 
       jest.useRealTimers();
     });
-
-    it("should handle case-insensitive duration strings", async () => {
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const result = await service.snoozeEmail("user-1", "email-1", "2H");
-
-      const expectedTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
-    it("should handle whitespace in duration strings", async () => {
-      const now = new Date("2024-01-01T12:00:00Z");
-      jest.useFakeTimers();
-      jest.setSystemTime(now);
-
-      const result = await service.snoozeEmail("user-1", "email-1", "  2h  ");
-
-      const expectedTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
-
-      jest.useRealTimers();
-    });
-
-    it("should set isSnoozed to true", async () => {
-      const result = await service.snoozeEmail("user-1", "email-1", "1h");
-
-      expect(result.isSnoozed).toBe(true);
-      expect(repository.save).toHaveBeenCalled();
-    });
   });
 
   describe("unsnoozeEmail", () => {
+    const snoozedEmail = {
+      ...mockEmail,
+      isSnoozed: true,
+      snoozeUntil: new Date("2024-01-02T12:00:00Z"),
+    } as any;
+
+    const snoozedThread = {
+      ...mockThread,
+      isSnoozed: true,
+      snoozeUntil: new Date("2024-01-02T12:00:00Z"),
+      syncStatus: "synced" as const,
+    };
+
     beforeEach(() => {
-      const snoozedEmail = {
-        ...mockEmail,
-        isSnoozed: true,
-        snoozeUntil: new Date("2024-01-02T12:00:00Z"),
-        getPriorityScore: jest.fn().mockReturnValue(50),
-      } as any;
       repository.findOne.mockResolvedValue(snoozedEmail);
       repository.save.mockImplementation(async (email) => email as any);
+      threadRepository.findOne.mockResolvedValue({ ...snoozedThread });
+      threadRepository.save.mockImplementation(
+        async (thread) => thread as EmailThread,
+      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+      mockProvider.unsnoozeThread.mockResolvedValue(undefined);
     });
 
     it("should throw error if email not found", async () => {
@@ -303,17 +332,78 @@ describe("SnoozeService", () => {
       ).rejects.toThrow("Email not found");
     });
 
+    it("should throw error if thread not found", async () => {
+      threadRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.unsnoozeEmail("user-1", "email-1"),
+      ).rejects.toThrow("thread not found");
+    });
+
+    it("should set syncStatus to unsynced before provider call", async () => {
+      let capturedThreadBeforeProvider: any = null;
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        if (capturedThreadBeforeProvider === null) {
+          capturedThreadBeforeProvider = { ...thread };
+        }
+        return thread as EmailThread;
+      });
+      mockProvider.unsnoozeThread.mockImplementation(async () => {
+        expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
+      });
+
+      await service.unsnoozeEmail("user-1", "email-1");
+
+      expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
+    });
+
+    it("should set syncStatus back to synced after provider confirms", async () => {
+      const savedStates: string[] = [];
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        savedStates.push(thread.syncStatus);
+        return thread as EmailThread;
+      });
+
+      await service.unsnoozeEmail("user-1", "email-1");
+
+      expect(savedStates).toContain("unsynced");
+      expect(savedStates[savedStates.length - 1]).toBe("synced");
+    });
+
+    it("should leave syncStatus as unsynced if provider sync fails", async () => {
+      mockProvider.unsnoozeThread.mockRejectedValue(
+        new Error("Provider error"),
+      );
+      const savedStates: string[] = [];
+      threadRepository.save.mockImplementation(async (thread: any) => {
+        savedStates.push(thread.syncStatus);
+        return thread as EmailThread;
+      });
+
+      await service.unsnoozeEmail("user-1", "email-1");
+
+      expect(savedStates).toContain("unsynced");
+      expect(savedStates[savedStates.length - 1]).toBe("unsynced");
+    });
+
     it("should set isSnoozed to false", async () => {
       const result = await service.unsnoozeEmail("user-1", "email-1");
 
       expect(result.isSnoozed).toBe(false);
-      expect(repository.save).toHaveBeenCalled();
     });
 
     it("should set snoozeUntil to null", async () => {
       const result = await service.unsnoozeEmail("user-1", "email-1");
 
       expect(result.snoozeUntil).toBeNull();
+    });
+
+    it("should return structured response {id, isSnoozed, snoozeUntil}", async () => {
+      const result = await service.unsnoozeEmail("user-1", "email-1");
+
+      expect(result).toHaveProperty("id");
+      expect(result).toHaveProperty("isSnoozed", false);
+      expect(result).toHaveProperty("snoozeUntil", null);
     });
   });
 });

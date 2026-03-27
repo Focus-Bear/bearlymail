@@ -103,8 +103,7 @@ export const LLM_OP_COMPRESS_CONTEXT = "compress_context";
 export const LLM_OP_CHECK_PHISHING_ONLY = "check_phishing_only";
 
 // Workflows: evaluate natural-language condition against an email
-export const LLM_OP_EVALUATE_WORKFLOW_CONDITION =
-  "evaluate_workflow_condition";
+export const LLM_OP_EVALUATE_WORKFLOW_CONDITION = "evaluate_workflow_condition";
 
 // Workflows: resolve {{ai:...}} template variables from email context
 export const LLM_OP_RESOLVE_WORKFLOW_VARIABLES = "resolve_workflow_variables";

@@ -364,3 +364,81 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 - Use CloudFront price class 100 (cheapest)
 - Consider Reserved Instances for RDS if long-term
 - Monitor and right-size instances
+
+---
+
+## Lambda Context Analysis Stack
+
+The `BearlyMailContextAnalysisStack` deploys the SQS + Lambda architecture for parallel batch context analysis (issue #1445).
+
+### Post-Deploy Checklist (MANDATORY)
+
+After deploying the context analysis stack, you **must** complete these steps before the Lambda will function:
+
+#### 1. Populate Secrets Manager
+
+The stack creates placeholder secrets that must be filled in manually:
+
+```bash
+# Populate DB secret (replace values with actual RDS Proxy endpoint/credentials)
+aws secretsmanager put-secret-value \
+  --secret-id bearlymail/lambda/db \
+  --secret-string '{
+    "host": "<RDS_PROXY_ENDPOINT>",
+    "port": "5432",
+    "username": "<DB_USERNAME>",
+    "password": "<DB_PASSWORD>",
+    "database": "bearlymail"
+  }'
+
+# Populate LLM secret (use the same provider/key as ECS)
+aws secretsmanager put-secret-value \
+  --secret-id bearlymail/lambda/llm \
+  --secret-string '{
+    "LLM_PROVIDER": "anthropic",
+    "ANTHROPIC_API_KEY": "<YOUR_ANTHROPIC_KEY>"
+  }'
+```
+
+> ⚠️ If this step is skipped, every Lambda invocation will fail immediately with a clear error:
+> `Error: DB/LLM secret still has placeholder values`
+
+#### 2. Enable Lambda path on ECS
+
+Set these environment variables on the ECS task definition:
+
+```
+LAMBDA_CONTEXT_ANALYSIS_ENABLED=true
+CONTEXT_ANALYSIS_SQS_QUEUE_URL=<value from CDK output: BearlyMailContextAnalysisQueueUrl>
+```
+
+#### 3. Smoke Test
+
+Manually invoke the Lambda to confirm it starts cleanly:
+
+```bash
+aws lambda invoke \
+  --function-name bearlymail-batch-analyzer \
+  --payload '{"Records":[{"messageId":"smoke-test","body":"{\"userId\":\"test\",\"batchIndex\":0,\"batch\":[],\"sentPayload\":[],\"currentContextForPrompt\":[],\"analysisRecordId\":\"smoke-test\",\"totalBatches\":1}","attributes":{}}]}' \
+  /tmp/lambda-response.json && cat /tmp/lambda-response.json
+```
+
+Expected response (no secrets errors, empty batch handled gracefully):
+```json
+{"batchItemFailures":[{"itemIdentifier":"smoke-test"}]}
+```
+(The smoke test batch is empty so it will fail with "no thread payloads" — that's expected. What matters is no `placeholder values` error.)
+
+#### 4. Verify DLQ Alarm
+
+Confirm the CloudWatch alarm `BearlyMail-ContextAnalysis-DLQ-NonEmpty` exists and is linked to an SNS topic if you passed `alarmSnsTopicArn` to the stack.
+
+### Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| `Error: DB secret still has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/db` |
+| `Error: LLM secret ... has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/llm` |
+| Lambda never invoked | `LAMBDA_CONTEXT_ANALYSIS_ENABLED` not set | Step 2 |
+| DB connection refused | Lambda SG not allowed on RDS Proxy SG port 5432 | Fix security group inbound rule |
+| Analysis stuck at X% forever | All batches failed, DLQ has messages | Check CloudWatch logs for batch analyzer function |

@@ -14,7 +14,45 @@ import { randomUUID } from "crypto";
 
 import { saveBatchResult, saveBatchFailure } from "./db";
 import { analyzeEmailPatterns, ThreadPayload, SentPayload, ContextItem } from "./llm";
+import { getDbSecrets, getLlmSecrets } from "./secrets";
 import type { ContextBatchPayload } from "./types";
+
+// Cold-start secrets validation: validated once per container lifetime.
+// Prevents cryptic DB/API errors when Secrets Manager placeholders aren't replaced.
+let secretsValidated = false;
+
+async function validateSecrets(): Promise<void> {
+  if (secretsValidated) return;
+
+  const [dbSecrets, llmSecrets] = await Promise.all([
+    getDbSecrets(),
+    getLlmSecrets(),
+  ]);
+
+  const DB_PLACEHOLDERS = ["REPLACE_WITH_RDS_PROXY_ENDPOINT", "REPLACE_WITH_", "REPLACE"];
+  if (DB_PLACEHOLDERS.some((p) => dbSecrets.host?.includes(p) || dbSecrets.password?.includes(p))) {
+    throw new Error(
+      "DB secret still has placeholder values — run the steps in infrastructure/DEPLOYMENT.md (Lambda Context Analysis section)",
+    );
+  }
+
+  const provider = llmSecrets.LLM_PROVIDER || "anthropic";
+  const apiKey =
+    provider === "openai"
+      ? llmSecrets.OPENAI_API_KEY
+      : provider === "gemini"
+        ? llmSecrets.GEMINI_API_KEY
+        : llmSecrets.ANTHROPIC_API_KEY;
+
+  if (!apiKey || apiKey.includes("REPLACE")) {
+    throw new Error(
+      `LLM secret (provider: ${provider}) still has placeholder values — run the steps in infrastructure/DEPLOYMENT.md (Lambda Context Analysis section)`,
+    );
+  }
+
+  secretsValidated = true;
+  console.log("[LAMBDA] Secrets validated ✅");
+}
 
 const cloudwatch = new CloudWatchClient({
   region: process.env.AWS_REGION || "ap-southeast-2",
@@ -183,6 +221,9 @@ export const handler = async (
   event: SQSEvent,
   _context: Context,
 ): Promise<SQSBatchResponse> => {
+  // Validate secrets on cold start — fail fast with a clear error if placeholders remain.
+  await validateSecrets();
+
   const records: SQSRecord[] = event.Records;
   console.log(`[LAMBDA] Processing ${records.length} SQS record(s)`);
 

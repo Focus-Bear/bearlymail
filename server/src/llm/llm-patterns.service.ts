@@ -320,8 +320,10 @@ export class LLMPatternsService {
 
     return renderPrompt(promptTemplate, {
       userEmail: userEmail || "",
-      receivedStats,
-      sentStats,
+      // matches {{receivedEmails}} in analyze-email-patterns.md
+      receivedEmails: receivedStats,
+      // matches {{sentEmails}} in analyze-email-patterns.md
+      sentEmails: sentStats,
       receivedHours: timeAnalysis.receivedHours || "",
       replyHours: timeAnalysis.replyHours || "",
       currentContext: currentContextText,

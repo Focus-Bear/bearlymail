@@ -49,7 +49,10 @@ describe("assertSafeOutboundUrl", () => {
       ["https://172.16.0.1/api", "172.16.0.1"],
       ["https://172.31.255.255/api", "172.31.255.255"],
       ["https://192.168.1.1/router", "192.168.1.1"],
-      ["https://169.254.169.254/latest/meta-data/", "169.254.169.254 (AWS metadata)"],
+      [
+        "https://169.254.169.254/latest/meta-data/",
+        "169.254.169.254 (AWS metadata)",
+      ],
       ["https://[::1]/admin", "::1 (IPv6 loopback)"],
     ] as [string, string][];
 
@@ -90,9 +93,9 @@ describe("assertSafeOutboundUrl", () => {
 
   describe("invalid URL — should throw", () => {
     it("rejects non-URL strings", () => {
-      expect(() =>
-        assertSafeOutboundUrl("not-a-url", "webhook URL"),
-      ).toThrow("invalid URL");
+      expect(() => assertSafeOutboundUrl("not-a-url", "webhook URL")).toThrow(
+        "invalid URL",
+      );
     });
 
     it("rejects empty string", () => {

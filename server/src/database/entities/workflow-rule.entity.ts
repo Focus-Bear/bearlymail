@@ -9,7 +9,10 @@ import {
 } from "typeorm";
 
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
-import { WorkflowAction, WorkflowCondition } from "../../workflows/types/workflow.types";
+import {
+  WorkflowAction,
+  WorkflowCondition,
+} from "../../workflows/types/workflow.types";
 import { User } from "./user.entity";
 
 /**

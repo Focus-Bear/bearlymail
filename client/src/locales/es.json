@@ -1968,7 +1968,11 @@
     "aiRefining": "Refinando con IA...",
     "searchingMore": "Buscando con consultas alternativas...",
     "title": "Buscar correos electrónicos",
-    "stillSearching": "Aún buscando..."
+    "stillSearching": "Aún buscando...",
+    "enrichmentFailed": "❌ No se pudieron cargar los detalles del correo — intenta buscar de nuevo",
+    "enrichmentLoading": "✨ Cargando detalles completos…",
+    "enrichmentProgress": "{{enriched}}/{{total}} correos procesados",
+    "pendingResultLoading": "⏳ Cargando detalles…"
   },
   "settings": {
     "addContext": {

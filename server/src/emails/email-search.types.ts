@@ -6,6 +6,99 @@
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 
+// ---------------------------------------------------------------------------
+// Instant search types (metadata-only + background enrichment)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight result returned immediately from a metadata-only Gmail fetch.
+ * Contains everything needed to render a search result card without syncing
+ * the full message body.
+ */
+export interface GmailSearchResult {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  fromName?: string;
+  // ISO 8601 date string
+  date: string;
+  snippet: string;
+  isRead: boolean;
+  labelIds: string[];
+  enrichmentStatus: "pending" | "enriched" | "failed";
+}
+
+/**
+ * Full result after DB sync + AI processing completes in the background.
+ */
+export interface EnrichedSearchResult extends GmailSearchResult {
+  // BearlyMail DB ID
+  id: string;
+  body: string;
+  htmlBody?: string;
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
+  starCount?: number;
+  priorityScore?: number | null;
+  priorityExplanation?: string;
+  relevanceScore?: number;
+  searchExplanation?: string;
+  enrichmentStatus: "enriched";
+}
+
+/**
+ * Combined search response when INSTANT_SEARCH_ENABLED=true.
+ * The `results` array contains a mix of GmailSearchResult (pending) and
+ * EnrichedSearchResult (already synced to DB).
+ */
+export interface InstantSearchResponse {
+  results: Array<GmailSearchResult | EnrichedSearchResult>;
+  enrichmentJobId: string | null;
+  query: string;
+  queriesTried: QueryTried[];
+  totalGmailResults: number;
+}
+
+/**
+ * Status response returned by GET /emails/search/enrichment/:jobId.
+ * The frontend polls this endpoint and merges enriched results in-place.
+ */
+export interface EnrichmentStatusResponse {
+  jobId: string;
+  status: "in-progress" | "complete" | "failed";
+  progress: {
+    total: number;
+    enriched: number;
+    failed: number;
+  };
+  /**
+   * All enriched results available at the time of polling.
+   * Every poll returns the full set — no cursor, no incremental drain.
+   * Clients should merge into a Map keyed by email ID for idempotent deduplication.
+   */
+  enrichedResults: EnrichedSearchResult[];
+}
+
+/** Internal job state held by SearchEnrichmentService. */
+export interface EnrichmentJob {
+  id: string;
+  userId: string;
+  messageIds: string[];
+  status: "in-progress" | "complete" | "failed";
+  enrichedResults: EnrichedSearchResult[];
+  progress: {
+    total: number;
+    enriched: number;
+    failed: number;
+  };
+  createdAt: Date;
+}
+
 export type EmailWithMetadata = Email & {
   searchExplanation?: string;
   relevanceScore?: number;

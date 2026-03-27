@@ -5,6 +5,7 @@ import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
+import { GmailSearchResult } from "../email-search.types";
 import { EmailsService } from "../emails.service";
 import {
   EmailAttachmentData,
@@ -18,7 +19,10 @@ import {
   lookupGmailMessageByIds,
   lookupGmailThreadByIds,
 } from "./gmail/gmail-lookup";
-import { parseGmailMessage } from "./gmail/gmail-message-parser";
+import {
+  parseGmailMessage,
+  parseGmailMetadata,
+} from "./gmail/gmail-message-parser";
 import {
   archiveThreadInGmail,
   ensureLabelExists,
@@ -424,6 +428,66 @@ export class GmailProvider implements EmailProvider {
       return results;
     } catch (error) {
       this.logger.error(`Failed to search emails for user ${userId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Metadata-only Gmail search — ~10x faster than searchEmails.
+   *
+   * Fetches headers (Subject, From, To, Date) + snippet without downloading the
+   * full MIME body.  Used by the instant search path when INSTANT_SEARCH_ENABLED=true.
+   *
+   * NOTE: Gmail API supports batch requests (up to 100 per batch) which could
+   * reduce this to a single HTTP round-trip.  Worth exploring as a follow-up.
+   *
+   * TODO: For multi-instance deployments the enrichment job store should move to
+   * Redis.  BearlyMail currently runs single-instance so in-memory is fine.
+   */
+  async searchEmailsMetadataOnly(
+    userId: string,
+    query: string,
+    maxResults: number = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
+  ): Promise<GmailSearchResult[]> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) return [];
+
+    try {
+      const response = await gmail.users.messages.list({
+        userId: "me",
+        maxResults: Math.min(100, maxResults),
+        q: query,
+      });
+
+      const messages = response.data.messages || [];
+
+      // Cap concurrent Gmail API calls to 10 to avoid rate-limit errors on large result sets.
+      // Process messages in sequential batches of METADATA_FETCH_CONCURRENCY.
+      const METADATA_FETCH_CONCURRENCY = 10;
+      const allResults: Array<GmailSearchResult | null> = [];
+      for (let i = 0; i < messages.length; i += METADATA_FETCH_CONCURRENCY) {
+        const batch = messages.slice(i, i + METADATA_FETCH_CONCURRENCY);
+        const batchResults = await Promise.all(
+          batch.map(async (msg) => {
+            if (!msg.id) return null;
+            const detail = await gmail.users.messages.get({
+              userId: "me",
+              id: msg.id,
+              format: "metadata",
+              metadataHeaders: ["Subject", "From", "To", "Date"],
+            });
+            return parseGmailMetadata(detail.data);
+          }),
+        );
+        allResults.push(...batchResults);
+      }
+
+      return allResults.filter((result): result is GmailSearchResult => result !== null);
+    } catch (error) {
+      this.logger.error(
+        `Failed metadata search for user ${userId}:`,
+        error,
+      );
       return [];
     }
   }

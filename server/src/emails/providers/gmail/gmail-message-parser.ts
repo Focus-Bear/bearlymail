@@ -1,5 +1,6 @@
 import { gmail_v1 } from "googleapis";
 
+import { GmailSearchResult } from "../../email-search.types";
 import {
   EmailAttachment,
   RawEmailMessage,
@@ -155,4 +156,59 @@ export function extractAttachmentsFromPayload(
   findAttachments(payload);
 
   return attachments.length > 0 ? attachments : undefined;
+}
+
+/**
+ * Parse a Gmail message fetched with format:"metadata" into a GmailSearchResult.
+ * This is ~10x faster than parseGmailMessage because it skips body/attachment parsing.
+ *
+ * @param messageData - The Gmail API message resource (metadata format)
+ * @returns GmailSearchResult or null if messageId / threadId are missing
+ */
+export function parseGmailMetadata(
+  messageData: gmail_v1.Schema$Message,
+): GmailSearchResult | null {
+  if (!messageData.id || !messageData.threadId) return null;
+
+  const headers = messageData.payload?.headers || [];
+
+  const getHeader = (name: string): string =>
+    headers.find(
+      (header: { name?: string; value?: string }) =>
+        header.name?.toLowerCase() === name.toLowerCase(),
+    )?.value ?? "";
+
+  const subject = getHeader("Subject") || "(No Subject)";
+  const from = getHeader("From");
+  const dateHeader = getHeader("Date");
+
+  // Parse "Name <email>" or plain email
+  const fromMatch = from.match(/(.*)<(.+)>/);
+  const fromName = fromMatch ? fromMatch[1].trim() : undefined;
+  const fromEmail = fromMatch ? fromMatch[2].trim() : from;
+
+  const labelIds = messageData.labelIds || [];
+
+  // Parse date — prefer internalDate (epoch ms) over the Date header string
+  let date: string;
+  if (messageData.internalDate) {
+    date = new Date(parseInt(messageData.internalDate, 10)).toISOString();
+  } else if (dateHeader) {
+    date = new Date(dateHeader).toISOString();
+  } else {
+    date = new Date().toISOString();
+  }
+
+  return {
+    messageId: messageData.id,
+    threadId: messageData.threadId,
+    subject,
+    from: fromEmail,
+    fromName: fromName || undefined,
+    date,
+    snippet: messageData.snippet || "",
+    isRead: !labelIds.includes("UNREAD"),
+    labelIds,
+    enrichmentStatus: "pending",
+  };
 }

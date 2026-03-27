@@ -6,12 +6,23 @@
  * previously fetched independently are replaced by the shared cache.
  *
  * Part of: plan #1225 / PR #1236 — Wave 1 (static endpoints)
+ *
+ * Instant search support added in #1464:
+ * When the backend returns an InstantSearchResponse shape (has `results` +
+ * `enrichmentJobId`), Phase 1 results are shown immediately and a background
+ * polling loop merges enriched results in-place.
  */
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useConnectedAccountsQuery } from 'queries/useConnectedAccountsQuery';
-import { Email } from 'types/email';
+import {
+  Email,
+  EnrichedSearchResult,
+  EnrichmentStatusResponse,
+  GmailSearchResult,
+  InstantSearchResponse,
+} from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { captureEvent } from 'utils/posthog';
 
@@ -28,7 +39,20 @@ interface ConnectedAccount {
   isActive: boolean;
 }
 
-// Pure helpers extracted to reduce handleSearch statement count.
+// ---------------------------------------------------------------------------
+// Enrichment progress state (exposed by useSearch for EnrichmentProgress bar)
+// ---------------------------------------------------------------------------
+
+export interface EnrichmentProgressState {
+  total: number;
+  enriched: number;
+  /** True when the enrichment poll failed — the UI should show an error indicator. */
+  failed?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Pure helpers
+// ---------------------------------------------------------------------------
 
 function createNoResultsMarker(query: string, message: string): Email {
   return {
@@ -52,6 +76,95 @@ function buildSearchParams(
   }
   return params;
 }
+
+/**
+ * Type-guard: checks whether the server returned the instant search shape.
+ */
+function isInstantSearchResponse(data: unknown): data is InstantSearchResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'results' in data &&
+    Array.isArray((data as any).results) &&
+    'enrichmentJobId' in data
+  );
+}
+
+/** Merge newly-enriched results into the existing results array (in-place update). */
+function mergeEnrichedResults(
+  current: Array<GmailSearchResult | Email>,
+  enriched: EnrichedSearchResult[]
+): Array<GmailSearchResult | Email> {
+  const enrichedMap = new Map(enriched.map((enrichedItem) => [enrichedItem.messageId, enrichedItem]));
+  return current.map((result) => {
+    const messageId = (result as GmailSearchResult).messageId;
+    if (!messageId) {
+      return result;
+    }
+    const enrichedVersion = enrichedMap.get(messageId);
+    return enrichedVersion ?? result;
+  });
+}
+
+const POLL_INTERVAL_MS = 2500;
+const MAX_POLLS = 15;
+
+async function pollEnrichmentUpdates(options: {
+  jobId: string;
+  currentSession: number;
+  searchSessionRef: MutableRefObject<number>;
+  setInstantResults: React.Dispatch<React.SetStateAction<Array<GmailSearchResult | Email>>>;
+  setEnrichmentProgress: React.Dispatch<React.SetStateAction<EnrichmentProgressState | null>>;
+}): Promise<void> {
+  const { jobId, currentSession, searchSessionRef, setInstantResults, setEnrichmentProgress } = options;
+
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+    // Bail if user started a new search
+    if (currentSession !== searchSessionRef.current) {
+      return;
+    }
+
+    try {
+      const response = await axios.get<EnrichmentStatusResponse>(
+        `${API_URL}/emails/search/enrichment/${jobId}`
+      );
+      const { enrichedResults, status, progress } = response.data;
+
+      if (currentSession !== searchSessionRef.current) {
+        return;
+      }
+
+      if (enrichedResults.length > 0) {
+        setInstantResults((prev) => mergeEnrichedResults(prev, enrichedResults) as Array<GmailSearchResult | Email>);
+      }
+
+      setEnrichmentProgress({ total: progress.total, enriched: progress.enriched });
+
+      if (status === 'complete' || status === 'failed') {
+        break;
+      }
+    } catch (pollError) {
+      console.error('[Search] Enrichment poll failed:', pollError);
+      // Show a failed state so the UI can display "details could not be loaded"
+      // rather than silently leaving partial results with no indication of failure.
+      if (currentSession === searchSessionRef.current) {
+        setEnrichmentProgress({ total: 0, enriched: 0, failed: true });
+      }
+      return;
+    }
+  }
+
+  // Clear progress bar when done
+  if (currentSession === searchSessionRef.current) {
+    setEnrichmentProgress(null);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy search path helpers (unchanged)
+// ---------------------------------------------------------------------------
 
 interface SearchStateSetters {
   setSearchResults: (results: Email[]) => void;
@@ -191,6 +304,10 @@ async function processSearchResults(options: {
   }
 }
 
+// ---------------------------------------------------------------------------
+// useConnectedAccounts
+// ---------------------------------------------------------------------------
+
 /**
  * Manages the list of connected accounts and the per-provider selection filter.
  * Extracted from useSearch to keep that hook under the max-lines-per-function limit.
@@ -224,6 +341,10 @@ function useConnectedAccounts() {
   return { connectedAccounts, selectedAccountTypes, handleAccountToggle };
 }
 
+// ---------------------------------------------------------------------------
+// useSearch
+// ---------------------------------------------------------------------------
+
 export const useSearch = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -235,6 +356,14 @@ export const useSearch = () => {
   const [queriesTried, setQueriesTried] = useState<Array<{ query: string; resultCount: number; accountType?: string }>>(
     []
   );
+
+  // Instant search state
+  const [instantResults, setInstantResults] = useState<Array<GmailSearchResult | Email>>([]);
+  const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgressState | null>(null);
+  const [isInstantSearch, setIsInstantSearch] = useState(false);
+  /** True when the instant search path returned zero results (distinct from a non-instant empty). */
+  const [isInstantEmpty, setIsInstantEmpty] = useState(false);
+
   const searchSessionRef = useRef(0);
 
   const { connectedAccounts, selectedAccountTypes, handleAccountToggle } = useConnectedAccounts();
@@ -252,6 +381,10 @@ export const useSearch = () => {
       setIsRefining(false);
       setHasSearched(true);
       setQueriesTried([]);
+      setInstantResults([]);
+      setEnrichmentProgress(null);
+      setIsInstantSearch(false);
+      setIsInstantEmpty(false);
 
       const progressInterval = setInterval(() => {
         setProgressStep('Searching for emails...');
@@ -273,6 +406,51 @@ export const useSearch = () => {
         const params = buildSearchParams(query, selectedAccountTypes, connectedAccounts);
         const response = await axios.get(`${API_URL}/emails/search`, { params });
         stopProgress();
+
+        // -----------------------------------------------------------------------
+        // Instant search path: backend returned InstantSearchResponse
+        // -----------------------------------------------------------------------
+        if (isInstantSearchResponse(response.data)) {
+          const { results, enrichmentJobId, totalGmailResults } = response.data;
+
+          setIsInstantSearch(true);
+          setLoading(false);
+
+          if (results.length === 0) {
+            setIsInstantEmpty(true);
+            setInstantResults([]);
+            return;
+          }
+
+          setIsInstantEmpty(false);
+          setInstantResults(results);
+          setEnrichmentProgress({ total: totalGmailResults, enriched: 0 });
+
+          captureEvent(ANALYTICS_EVENTS.SEARCH_PERFORMED, {
+            query_length: query.trim().length,
+            has_query: !!query.trim(),
+            result_count: results.length,
+            selected_accounts: selectedAccountTypes.length,
+            phase: 'instant',
+            duration_ms: Date.now() - searchStartMs,
+          });
+
+          // Start background polling if enrichment job was created
+          if (enrichmentJobId) {
+            pollEnrichmentUpdates({
+              jobId: enrichmentJobId,
+              currentSession,
+              searchSessionRef,
+              setInstantResults,
+              setEnrichmentProgress,
+            });
+          }
+          return;
+        }
+
+        // -----------------------------------------------------------------------
+        // Legacy path: backend returned Email[]
+        // -----------------------------------------------------------------------
         if (!response.data?.length) {
           setSearchResults([createNoResultsMarker(query, 'Backend returned empty array - check server logs')]);
           setLoading(false);
@@ -305,6 +483,7 @@ export const useSearch = () => {
   return {
     query,
     setQuery,
+    // Legacy results (Email[]) — populated by the legacy search path
     searchResults,
     loading,
     isRefining,
@@ -315,5 +494,10 @@ export const useSearch = () => {
     selectedAccountTypes,
     handleAccountToggle,
     queriesTried,
+    // Instant search results — populated by the instant search path
+    instantResults,
+    enrichmentProgress,
+    isInstantSearch,
+    isInstantEmpty,
   };
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
-import { Email, getEmailPriorityScore } from 'types/email';
+import { Email, EnrichedSearchResult, getEmailPriorityScore, GmailSearchResult } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
@@ -32,7 +32,63 @@ interface SearchResultsProps {
   getScoreColor: (score: number) => string;
   getPriorityBadge: (score?: number) => { label: string; color: string; bg: string };
   queriesTried?: Array<{ query: string; resultCount: number; accountType?: string }>;
+  /** Instant search results (mix of pending GmailSearchResult and enriched Email). */
+  instantResults?: Array<GmailSearchResult | Email>;
+  /** True when the instant search path completed but returned zero results. */
+  isInstantEmpty?: boolean;
 }
+
+/**
+ * Card for a pending (metadata-only) instant search result.
+ * Shows subject, sender, date, snippet and a subtle "Loading details…" indicator.
+ * Navigation is disabled until the result is enriched (messageId is a Gmail hex string,
+ * not a DB UUID — clicking would 404).
+ */
+const PendingResultCard: React.FC<{ result: GmailSearchResult }> = ({ result }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      key={result.messageId}
+      title={t('search.pendingResultLoading', 'Opening available once details are loaded')}
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        border: `1px solid ${theme.colors.border.light}`,
+        cursor: 'not-allowed',
+        opacity: 0.75,
+        transition: theme.transitions.default,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+        <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
+          {result.fromName || result.from}
+        </span>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
+          {humanizeTimestamp(result.date)}
+        </span>
+      </div>
+      <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }}>
+        {result.subject}
+      </div>
+      <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
+        {result.snippet}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+        <span style={{ fontSize: theme.typography.fontSize.xs }}>⏳</span>
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+            fontStyle: 'italic',
+          }}
+        >
+          {t('search.pendingResultLoading', 'Opening available once details are loaded')}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
   searchResults,
@@ -43,9 +99,108 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   getScoreColor,
   getPriorityBadge,
   queriesTried,
+  instantResults,
+  isInstantEmpty,
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  // ---------------------------------------------------------------------------
+  // Instant search path — render mixed pending/enriched results
+  // ---------------------------------------------------------------------------
+
+  // Empty state for instant search (no Email marker needed — just a flag)
+  if (isInstantEmpty) {
+    return (
+      <div
+        style={{
+          textAlign: 'center',
+          padding: theme.spacing['3xl'],
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          border: `1px dashed ${theme.colors.border.medium}`,
+        }}
+      >
+        <div style={{ fontSize: '3rem', marginBottom: theme.spacing.md }}>🔍</div>
+        <h3 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.sm }}>
+          {t('search.noResults')}
+        </h3>
+        <p style={{ color: theme.colors.text.secondary }}>{t('search.noResultsHint')}</p>
+      </div>
+    );
+  }
+
+  if (instantResults && instantResults.length > 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+        {instantResults.map((result, index) => {
+          const gmailResult = result as GmailSearchResult;
+          // Pending card (metadata only)
+          if (gmailResult.enrichmentStatus === 'pending') {
+            return <PendingResultCard key={gmailResult.messageId} result={gmailResult} />;
+          }
+          // Enriched card — result is an EnrichedSearchResult; access priorityScore directly
+          // rather than double-casting through Email → SearchEmail which is fragile and unsafe.
+          const enriched = result as EnrichedSearchResult;
+          const email = result as Email;
+          const emailPriorityScore = enriched.priorityScore != null
+            ? enriched.priorityScore
+            : getEmailPriorityScore(email);
+          const priority = getPriorityBadge(emailPriorityScore);
+          return (
+            <div
+              key={email.id || gmailResult.messageId}
+              onClick={() => {
+                captureEvent(ANALYTICS_EVENTS.SEARCH_RESULT_CLICKED, {
+                  result_index: index,
+                  email_id: email.id,
+                });
+                navigate(`/email/${email.id}`);
+              }}
+              style={{
+                backgroundColor: theme.colors.background.paper,
+                borderRadius: theme.borderRadius.lg,
+                padding: theme.spacing.lg,
+                border: `1px solid ${theme.colors.border.light}`,
+                cursor: 'pointer',
+                transition: theme.transitions.default,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+                <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
+                  {email.fromName || email.from}
+                </span>
+                <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
+                  {humanizeTimestamp(email.receivedAt)}
+                </span>
+              </div>
+              <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }}>
+                {email.subject}
+              </div>
+              <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                {email.body?.slice(0, MAX_SEARCH_RESULT_LENGTH)}
+              </div>
+              {priority && (
+                <div style={{ marginTop: theme.spacing.xs }}>
+                  <span
+                    style={{
+                      fontSize: theme.typography.fontSize.xs,
+                      color: priority.color,
+                      backgroundColor: priority.bg,
+                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                      borderRadius: theme.borderRadius.full,
+                    }}
+                  >
+                    {priority.label}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   const hasNoResults =
     searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);

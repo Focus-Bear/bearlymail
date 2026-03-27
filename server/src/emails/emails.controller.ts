@@ -1,3 +1,18 @@
+/**
+ * EmailsController
+ *
+ * Core email CRUD, inbox views, and instant search.
+ *
+ * Endpoint groups that live in dedicated controllers:
+ *   - /emails/send, /emails/:id/accelerate, /emails/recategorize-triage
+ *       → EmailSendController (email-send.controller.ts)
+ *   - /emails/search/rank, /emails/search/expand
+ *       → EmailSearchOpsController (email-search-ops.controller.ts)
+ *   - /emails/debug/*, /emails/admin/*
+ *       → EmailDebugController (email-debug.controller.ts)
+ *       → EmailDebugAdminController (email-debug-admin.controller.ts)
+ */
+
 import {
   BadRequestException,
   Body,
@@ -26,19 +41,19 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
 import { getJobPriority } from "../queue/job-priorities";
-import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
 } from "./email-controller.helpers";
-import { EmailProviderManager } from "./email-provider-manager.service";
 import {
   CategoryOverrideBody,
   InboxQuery,
   InboxSummaryQuery,
 } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
+import { GmailProvider } from "./providers/gmail.provider";
+import { SearchEnrichmentService } from "./search-enrichment.service";
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)
@@ -47,12 +62,16 @@ export class EmailsController {
 
   constructor(
     private readonly emailsService: EmailsService,
-    private readonly emailProviderManager: EmailProviderManager,
     private readonly batchScheduleService: BatchScheduleService,
-    private readonly usersService: UsersService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
     private readonly emailAdminService: EmailAdminService,
+    private readonly gmailProvider: GmailProvider,
+    private readonly searchEnrichmentService: SearchEnrichmentService,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
+
+  // ---------------------------------------------------------------------------
+  // Inbox
+  // ---------------------------------------------------------------------------
 
   @Get("inbox")
   async getInbox(@Request() req, @Query() query: InboxQuery) {
@@ -68,7 +87,6 @@ export class EmailsController {
       offset: offsetParam,
       assigneeId,
     } = query;
-    // Parse filter parameters
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
       : undefined;
@@ -78,12 +96,10 @@ export class EmailsController {
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
     const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
 
-    // Parse pagination parameters
     const pageSize = limitParam
       ? Math.max(1, parseInt(limitParam, 10))
       : QUERY_LIMITS.INBOX_PAGE_SIZE;
     const pageNum = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
-    // Support explicit offset override (useful when in-memory filtering means page boundaries don't align)
     const offset =
       offsetParam !== undefined
         ? Math.max(0, parseInt(offsetParam, 10))
@@ -114,7 +130,6 @@ export class EmailsController {
 
   @Get("connected-accounts")
   async getConnectedAccounts(@Request() req) {
-    // Return list of user's connected email accounts for filtering
     return this.emailsService.getConnectedAccounts(req.user.userId);
   }
 
@@ -131,7 +146,6 @@ export class EmailsController {
    *
    * Fix #1452 bug 3: accepts optional `mode` query param (triage|action|follow-up).
    * Defaults to "triage" to match the primary use case (progressive unlock prompt).
-   * Passing the correct mode ensures bucket counts match the inbox tab total.
    */
   @Get("priority-counts")
   async getPriorityCounts(@Request() req, @Query("mode") mode?: string) {
@@ -144,9 +158,7 @@ export class EmailsController {
   }
 
   /**
-   * Returns prioritisation status for the inbox gate:
-   * how many threads are prioritised vs total, and whether analysis is still running.
-   * Used by the client to decide whether to show the prioritisation interstitial.
+   * Returns prioritisation status for the inbox gate.
    */
   @Get("prioritisation-status")
   async getPrioritisationStatus(@Request() req) {
@@ -190,14 +202,10 @@ export class EmailsController {
     const perf = new BatchStatusPerformanceTracker();
 
     try {
-      // Get next delivery time from the batch schedule, not from batched emails
-      // Use getNextScheduledDeliveryTime to always show the next scheduled time
-      // regardless of whether batching is enabled (for display purposes)
       const schedule = await this.batchScheduleService.getSchedule(
         req.user.userId,
       );
       if (!schedule) {
-        // Use default schedule for new users
         const defaults = this.batchScheduleService.getDefaultSchedule();
         const tempSchedule = {
           ...defaults,
@@ -250,10 +258,6 @@ export class EmailsController {
         }
       : undefined;
 
-    // Use getInboxSummary() for all modes - the same lightweight query used by the inbox display.
-    // This ensures tab counts are always consistent with what the inbox shows.
-    // Previously used getInbox() which applies heavier in-memory filtering (blocked senders,
-    // user-sent-last checks) that can diverge from the inbox-summary query results.
     const [triageSummary, actionSummary, followUpSummary] = await Promise.all([
       this.emailsService.getInboxSummary(userId, "triage", filters),
       this.emailsService.getInboxSummary(userId, "action", filters),
@@ -266,6 +270,11 @@ export class EmailsController {
       followUp: followUpSummary.total,
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // Search (instant path + legacy)
+  // search/rank and search/expand live in EmailSearchOpsController
+  // ---------------------------------------------------------------------------
 
   @Get("search")
   async searchEmails(
@@ -285,10 +294,66 @@ export class EmailsController {
       ? accountTypes.split(",")
       : undefined;
     const skipLlmRanking = skipLlm === "true";
+
+    // ---------------------------------------------------------------------------
+    // Instant search path (INSTANT_SEARCH_ENABLED=true)
+    // Phase 1: return metadata-only results immediately (< 500 ms)
+    // Phase 2: background enrichment, polled via GET /emails/search/enrichment/:jobId
+    //
+    // NOTE: Instant search is Gmail-only. Office365 and Zoho do not expose a
+    // metadata-only fetch equivalent, so they always return empty results on
+    // this path. Users with Office365 or Zoho accounts should disable
+    // INSTANT_SEARCH_ENABLED — they will be served by the legacy path below.
+    // ---------------------------------------------------------------------------
+    if (process.env.INSTANT_SEARCH_ENABLED === "true") {
+      try {
+        const { userId } = req.user;
+
+        const gmailResults = await this.gmailProvider.searchEmailsMetadataOnly(
+          userId,
+          query,
+          max,
+        );
+
+        if (gmailResults.length === 0) {
+          return {
+            results: [],
+            enrichmentJobId: null,
+            query,
+            queriesTried: [],
+            totalGmailResults: 0,
+          };
+        }
+
+        const enrichmentJobId =
+          await this.searchEnrichmentService.startEnrichmentJob(
+            userId,
+            gmailResults,
+          );
+
+        return {
+          results: gmailResults,
+          enrichmentJobId,
+          query,
+          queriesTried: [],
+          totalGmailResults: gmailResults.length,
+        };
+      } catch (error) {
+        this.logger.error(`Error in instant searchEmails:`, error);
+        return {
+          results: [],
+          enrichmentJobId: null,
+          query,
+          queriesTried: [],
+          totalGmailResults: 0,
+        };
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Legacy search path (INSTANT_SEARCH_ENABLED not set or false)
+    // ---------------------------------------------------------------------------
     try {
-      // When skipLlm=true (Phase 1 fast path), skip LLM fallback query
-      // generation but allow sync so unsynced Gmail results can be fetched.
-      // maxSyncThreads: 5 caps the sync work to keep Phase 1 within budget.
       return await this.emailsService.searchEmails(req.user.userId, query, {
         maxResults: max,
         accountTypes: selectedAccountTypes,
@@ -299,7 +364,6 @@ export class EmailsController {
       });
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
-      // Return no-results marker with error info so UI can show what happened
       return [
         {
           id: "no-results",
@@ -317,6 +381,31 @@ export class EmailsController {
       ];
     }
   }
+
+  /**
+   * Poll the status of a background search enrichment job.
+   * Returns the full set of enriched results on every poll (not incremental).
+   *
+   * GET /emails/search/enrichment/:jobId
+   */
+  @Get("search/enrichment/:jobId")
+  async getSearchEnrichmentStatus(
+    @Request() req,
+    @Param("jobId") jobId: string,
+  ) {
+    const status = this.searchEnrichmentService.getStatus(
+      jobId,
+      req.user.userId,
+    );
+    if (!status) {
+      throw new NotFoundException(`Enrichment job ${jobId} not found`);
+    }
+    return status;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stats
+  // ---------------------------------------------------------------------------
 
   @Get("stats")
   async getEmailStats(@Request() req, @Query("days") daysParam?: string) {
@@ -336,6 +425,10 @@ export class EmailsController {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Core email CRUD
+  // ---------------------------------------------------------------------------
+
   @Get(":id/priority-explanation")
   async getPriorityExplanation(@Request() req, @Param("id") id: string) {
     return this.emailsService.getPriorityExplanation(req.user.userId, id);
@@ -343,8 +436,6 @@ export class EmailsController {
 
   private async getEmailOrThrow(userId: string, id: string): Promise<Email> {
     // Fix #1296: reject non-UUID ids immediately to prevent PostgreSQL cast errors.
-    // Gmail thread IDs are hex strings without dashes (e.g. "19d03cdabc72da73");
-    // internal email IDs are UUIDs (e.g. "04547756-9d11-42b4-beae-227d52377fcd").
     if (!isUuid(id))
       throw new NotFoundException(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     const email = await this.emailsService.getEmailById(userId, id);
@@ -364,14 +455,12 @@ export class EmailsController {
   async getEmail(@Request() req, @Param("id") id: string) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
 
-    // Include thread's githubMetadata if available
     if (email.emailThreadId) {
       const thread = await this.emailAdminService.getEmailThreadById(
         req.user.userId,
         email.emailThreadId,
       );
       if (thread && thread.githubMetadata && thread.githubMetadata.links) {
-        // Deduplicate links by URL to prevent duplicate cards in UI
         const seenUrls = new Set<string>();
         const uniqueLinks = thread.githubMetadata.links.filter((link) => {
           const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
@@ -416,7 +505,6 @@ export class EmailsController {
       attachmentId,
     );
 
-    // Set appropriate headers for file download
     return {
       base64Content: attachment.attachmentBuffer.toString("base64"),
       filename: attachment.filename,
@@ -481,8 +569,6 @@ export class EmailsController {
       `[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`,
     );
     try {
-      // Archive email - DB update happens first for immediate UI effect,
-      // then Gmail sync happens (but doesn't block the response)
       await this.emailsService.archiveEmail(req.user.userId, id);
       this.logger.log(
         `[Archive] Archive completed: emailId: ${id}, userId: ${req.user.userId}`,
@@ -525,7 +611,6 @@ export class EmailsController {
   ) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
 
-    // Block the sender
     await this.emailAdminService.blockEmailSender(
       req.user.userId,
       email.from,
@@ -534,7 +619,6 @@ export class EmailsController {
       body?.blockDomain,
     );
 
-    // Archive the thread
     await this.emailsService.archiveEmail(req.user.userId, id);
 
     return {
@@ -563,28 +647,20 @@ export class EmailsController {
 
   @Post("force-check")
   async forceCheck(@Request() req) {
-    // Add sync job to queue with singletonKey to prevent duplicates
-    // Only one sync job per user can be queued at a time
     await this.boss.send(
       JOB_NAMES.FETCH_USER_EMAILS,
       { userId: req.user.userId },
       {
         priority: getJobPriority(JOB_NAMES.FETCH_USER_EMAILS, true),
-        // User-triggered = high priority
         singletonKey: `fetch-user-emails-${req.user.userId}`,
-        // Don't allow another fetch for same user within 5 minutes
         singletonMinutes: 5,
       },
     );
-    // Immediately unbatch everything and return
     return this.emailsService.forceCheckNewEmails(req.user.userId);
   }
 
   @Post("check-urgent")
   async checkUrgent(@Request() req) {
-    // DON'T queue a sync job here - this is called on every page load!
-    // Just check for urgent emails in the existing data
-    // Syncing is handled by the cron job and force-check button
     return this.emailsService.checkForUrgentEmails(req.user.userId);
   }
 }

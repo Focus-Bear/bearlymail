@@ -1,3 +1,74 @@
+// ---------------------------------------------------------------------------
+// Instant search types (metadata-only + background enrichment)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight result returned by the instant search path (INSTANT_SEARCH_ENABLED=true).
+ * Contains only Gmail metadata — subject, from, date, snippet — but NOT the full body.
+ */
+export interface GmailSearchResult {
+  messageId: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  fromName?: string;
+  date: string; // ISO 8601
+  snippet: string;
+  isRead: boolean;
+  labelIds: string[];
+  enrichmentStatus: 'pending' | 'enriched' | 'failed';
+}
+
+/**
+ * Full result returned by the enrichment polling endpoint once the backend has
+ * synced the full body and run AI scoring.
+ */
+export interface EnrichedSearchResult extends GmailSearchResult {
+  id: string;
+  body: string;
+  htmlBody?: string;
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
+  starCount?: number;
+  priorityScore?: number | null;
+  relevanceScore?: number;
+  searchExplanation?: string;
+  enrichmentStatus: 'enriched';
+}
+
+/**
+ * Combined instant search response shape (when INSTANT_SEARCH_ENABLED=true on backend).
+ * The `results` array holds GmailSearchResult items initially; enriched items are
+ * merged in-place via polling.
+ */
+export interface InstantSearchResponse {
+  results: Array<GmailSearchResult | EnrichedSearchResult>;
+  enrichmentJobId: string | null;
+  query: string;
+  queriesTried: Array<{ query: string; resultCount: number; accountType?: string }>;
+  totalGmailResults: number;
+}
+
+/**
+ * Enrichment status response returned by GET /emails/search/enrichment/:jobId.
+ */
+export interface EnrichmentStatusResponse {
+  jobId: string;
+  status: 'in-progress' | 'complete' | 'failed';
+  progress: {
+    total: number;
+    enriched: number;
+    failed: number;
+  };
+  enrichedResults: EnrichedSearchResult[];
+}
+
+// ---------------------------------------------------------------------------
+
 export interface GitHubLinkStatus {
   state: 'open' | 'closed' | 'merged';
   title?: string;

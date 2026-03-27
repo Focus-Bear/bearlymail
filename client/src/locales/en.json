@@ -2114,7 +2114,11 @@
     "finalScoreDescription": "Base relevance + recency adjustment (capped at 0-100)",
     "close": "Close",
     "searchAccounts": "Search in",
-    "stillSearching": "Still searching..."
+    "stillSearching": "Still searching...",
+    "enrichmentFailed": "❌ Failed to load email details — try searching again",
+    "enrichmentLoading": "✨ Loading full details…",
+    "enrichmentProgress": "{{enriched}}/{{total}} emails processed",
+    "pendingResultLoading": "⏳ Loading details…"
   },
   "priority": {
     "veryHigh": "Very High",

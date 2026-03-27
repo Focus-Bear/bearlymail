@@ -12,7 +12,7 @@ import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptContextValue } from "../encryption/encryption.helper";
 import { getJobPriority } from "../queue/job-priorities";
-import { PgBossWithInternals } from "./email-controller.helpers";
+import { EMAIL_CONTROLLER_DEFAULTS, PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 
@@ -418,5 +418,95 @@ export class EmailAdminService {
     );
 
     return { total, completed, failed, pending };
+  }
+
+  /**
+   * Accelerate processing for a specific email.
+   * Cancels pending jobs for the email and requeues them with highest priority.
+   * Called by EmailsController when a user opens an email that is still processing.
+   */
+  async accelerateEmailProcessing(
+    userId: string,
+    emailId: string,
+  ): Promise<{ message: string; queued: string[]; cancelled?: string[] }> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      return { message: "Email not found", queued: [] };
+    }
+
+    const queued: string[] = [];
+    const cancelled: string[] = [];
+    const { db } = this.boss as unknown as PgBossWithInternals;
+
+    const priorityCancelResult = await db.executeSql(
+      `UPDATE pgboss.job
+       SET state = 'cancelled'
+       WHERE name = 'refine-priority'
+       AND state IN ('created', 'retry')
+       AND data->>'emailId' = $1
+       AND data->>'userId' = $2`,
+      [emailId, userId],
+    );
+    if (priorityCancelResult?.rowCount > 0) {
+      cancelled.push(`refine-priority (${priorityCancelResult.rowCount})`);
+    }
+
+    const summaryCancelResult = await db.executeSql(
+      `UPDATE pgboss.job
+       SET state = 'cancelled'
+       WHERE name = 'generate-summary'
+       AND state IN ('created', 'retry')
+       AND data->>'emailId' = $1
+       AND data->>'userId' = $2`,
+      [emailId, userId],
+    );
+    if (summaryCancelResult?.rowCount > 0) {
+      cancelled.push(`generate-summary (${summaryCancelResult.rowCount})`);
+    }
+
+    if (email.isProcessingSummary || !email.summary) {
+      await this.boss.send(
+        JOB_NAMES.GENERATE_SUMMARY,
+        { userId, emailId },
+        {
+          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY, true),
+          singletonKey: `summary-${emailId}`,
+        },
+      );
+      queued.push(JOB_NAMES.GENERATE_SUMMARY);
+    }
+
+    const priorityScore = email.getPriorityScore();
+
+    let thread = null;
+    if (email.emailThreadId) {
+      thread = await this.getEmailThreadById(userId, email.emailThreadId);
+    }
+
+    const hasNoBreakdown =
+      !thread?.priorityExplanation?.breakdown ||
+      thread.priorityExplanation.breakdown.length === 0;
+
+    if (
+      priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE ||
+      thread?.isProcessingPriority ||
+      (priorityScore === 0 && hasNoBreakdown)
+    ) {
+      await this.boss.send(
+        JOB_NAMES.REFINE_PRIORITY,
+        { userId, emailId },
+        {
+          priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY, true),
+          singletonKey: `priority-${emailId}`,
+        },
+      );
+      queued.push(JOB_NAMES.REFINE_PRIORITY);
+    }
+
+    return {
+      message: "Accelerated processing",
+      queued,
+      cancelled: cancelled.length > 0 ? cancelled : undefined,
+    };
   }
 }

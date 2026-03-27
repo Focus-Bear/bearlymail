@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+import { EnrichmentProgress } from 'components/search/EnrichmentProgress';
 import { SearchForm } from 'components/search/SearchForm';
 import { SearchHeader } from 'components/search/SearchHeader';
 import { SearchProgress } from 'components/search/SearchProgress';
@@ -372,16 +373,27 @@ const Search: React.FC = () => {
             {search.loading ? (
               <SearchProgress progressStep={search.progressStep} />
             ) : (
-              <SearchResults
-                searchResults={search.searchResults}
-                isRefining={search.isRefining}
-                refiningMessage={search.progressStep || undefined}
-                onSelectScoreBreakdown={handleSelectScoreBreakdown}
-                getScoreBackgroundColor={getScoreBackgroundColor}
-                getScoreColor={getScoreColor}
-                getPriorityBadge={getPriorityBadge}
-                queriesTried={search.queriesTried}
-              />
+              <>
+                {search.enrichmentProgress && (
+                  <EnrichmentProgress
+                    enriched={search.enrichmentProgress.enriched}
+                    total={search.enrichmentProgress.total}
+                    failed={search.enrichmentProgress.failed}
+                  />
+                )}
+                <SearchResults
+                  searchResults={search.searchResults}
+                  isRefining={search.isRefining}
+                  refiningMessage={search.progressStep || undefined}
+                  onSelectScoreBreakdown={handleSelectScoreBreakdown}
+                  getScoreBackgroundColor={getScoreBackgroundColor}
+                  getScoreColor={getScoreColor}
+                  getPriorityBadge={getPriorityBadge}
+                  queriesTried={search.queriesTried}
+                  instantResults={search.isInstantSearch ? search.instantResults : undefined}
+                  isInstantEmpty={search.isInstantSearch ? search.isInstantEmpty : undefined}
+                />
+              </>
             )}
           </div>
         )}

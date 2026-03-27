@@ -1,22 +1,20 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
-import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
-import { ContactsService } from "../contacts/contacts.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
-import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
+import { GmailProvider } from "./providers/gmail.provider";
+import { SearchEnrichmentService } from "./search-enrichment.service";
 
 describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
+  let searchEnrichmentService: SearchEnrichmentService;
 
   const mockEmailsService = {
     getInbox: jest.fn(),
@@ -36,23 +34,11 @@ describe("EmailsController", () => {
     getPriorityCounts: jest.fn(),
   };
 
-  const mockEmailProviderManager = {
-    getPrimaryProvider: jest.fn(),
-  };
-
-  const mockContactsService = {};
-
-  const mockBlockedSendersService = {};
-
   const mockBatchScheduleService = {
     getSchedule: jest.fn(),
     getDefaultSchedule: jest.fn(),
     getNextBatchReleaseTime: jest.fn(),
     getNextScheduledDeliveryTime: jest.fn(),
-  };
-
-  const mockEmailThreadRepository = {
-    findOne: jest.fn(),
   };
 
   const mockBoss = {
@@ -69,17 +55,12 @@ describe("EmailsController", () => {
       .mockResolvedValue({ googleCalendarAccessToken: "token" }),
   };
 
-  const mockScheduledEmailsService = {
-    createScheduledEmail: jest.fn(),
-    getSuggestedTimes: jest.fn(),
-    checkSendTimeAppropriate: jest.fn(),
-    cancelScheduledEmail: jest.fn(),
-  };
-
   const mockEmailAdminService = {
     getSystemStats: jest.fn(),
     getUserEmailStats: jest.fn(),
     getEmailThreadById: jest.fn(),
+    getEmailStats: jest.fn(),
+    blockEmailSender: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -91,24 +72,8 @@ describe("EmailsController", () => {
           useValue: mockEmailsService,
         },
         {
-          provide: EmailProviderManager,
-          useValue: mockEmailProviderManager,
-        },
-        {
-          provide: ContactsService,
-          useValue: mockContactsService,
-        },
-        {
-          provide: BlockedSendersService,
-          useValue: mockBlockedSendersService,
-        },
-        {
           provide: BatchScheduleService,
           useValue: mockBatchScheduleService,
-        },
-        {
-          provide: getRepositoryToken(EmailThread),
-          useValue: mockEmailThreadRepository,
         },
         {
           provide: "PG_BOSS",
@@ -123,18 +88,28 @@ describe("EmailsController", () => {
           useValue: mockUsersService,
         },
         {
-          provide: ScheduledEmailsService,
-          useValue: mockScheduledEmailsService,
-        },
-        {
           provide: EmailAdminService,
           useValue: mockEmailAdminService,
+        },
+        {
+          provide: GmailProvider,
+          useValue: {
+            searchEmailsMetadataOnly: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: SearchEnrichmentService,
+          useValue: {
+            startEnrichmentJob: jest.fn().mockResolvedValue("mock-job-id"),
+            getStatus: jest.fn().mockReturnValue(null),
+          },
         },
       ],
     }).compile();
 
     controller = module.get<EmailsController>(EmailsController);
     emailsService = module.get<EmailsService>(EmailsService);
+    searchEnrichmentService = module.get<SearchEnrichmentService>(SearchEnrichmentService);
   });
 
   afterEach(() => {
@@ -983,7 +958,82 @@ describe("EmailsController", () => {
     });
   });
 
-  // rankSearchResults and expandSearchResults tests have been moved to
-  // email-search-ops.controller.spec.ts after those methods were extracted
-  // to EmailSearchOpsController (issue #1460).
+  // rankSearchResults and expandSearchResults tests live in email-search-ops.controller.spec.ts
+  // (methods extracted to EmailSearchOpsController)
+
+  describe("getSearchEnrichmentStatus", () => {
+    it("should return 404 when job does not exist", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+      jest.spyOn(searchEnrichmentService, "getStatus").mockReturnValue(null);
+
+      await expect(
+        controller.getSearchEnrichmentStatus(mockRequest, "non-existent-job-id"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(searchEnrichmentService.getStatus).toHaveBeenCalledWith(
+        "non-existent-job-id",
+        "user-123",
+      );
+    });
+
+    it("should return 404 when job belongs to a different user", async () => {
+      // getStatus returns null for both missing jobs AND wrong-owner jobs to avoid
+      // leaking job existence to unauthorised callers.
+      const mockRequest = { user: { userId: "attacker-user" } };
+      jest.spyOn(searchEnrichmentService, "getStatus").mockReturnValue(null);
+
+      await expect(
+        controller.getSearchEnrichmentStatus(mockRequest, "victim-job-id"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(searchEnrichmentService.getStatus).toHaveBeenCalledWith(
+        "victim-job-id",
+        "attacker-user",
+      );
+    });
+
+    it("should return 200 with correct progress and results shape", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+      const mockStatusResponse = {
+        jobId: "job-abc-123",
+        status: "in-progress" as const,
+        progress: { total: 10, enriched: 3, failed: 0 },
+        enrichedResults: [
+          {
+            messageId: "msg-1",
+            threadId: "thread-1",
+            subject: "Test Subject",
+            from: "sender@example.com",
+            date: new Date().toISOString(),
+            snippet: "Test snippet",
+            isRead: false,
+            labelIds: [],
+            enrichmentStatus: "enriched" as const,
+            id: "db-id-1",
+            body: "Full body text",
+            priorityScore: 75,
+          },
+        ],
+      };
+
+      jest
+        .spyOn(searchEnrichmentService, "getStatus")
+        .mockReturnValue(mockStatusResponse);
+
+      const result = await controller.getSearchEnrichmentStatus(
+        mockRequest,
+        "job-abc-123",
+      );
+
+      expect(result).toEqual(mockStatusResponse);
+      expect(result.progress.total).toBe(10);
+      expect(result.progress.enriched).toBe(3);
+      expect(result.enrichedResults).toHaveLength(1);
+      expect(result.enrichedResults[0].messageId).toBe("msg-1");
+      expect(searchEnrichmentService.getStatus).toHaveBeenCalledWith(
+        "job-abc-123",
+        "user-123",
+      );
+    });
+  });
 });

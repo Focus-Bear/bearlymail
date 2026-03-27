@@ -50,6 +50,7 @@ export const REPLY_PROMPT_IDS = {
 export const CLASSIFICATION_PROMPT_IDS = {
   CLASSIFY_EMAIL_TYPE: "classify_email_type",
   CLASSIFY_CONTACT_TYPE: "classify_contact_type",
+  CHECK_CUSTOM_EXCLUSION_RULES: "check_custom_exclusion_rules",
 } as const;
 
 /**
@@ -173,6 +174,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "classify-contact-type.md",
     key: CLASSIFICATION_PROMPT_IDS.CLASSIFY_CONTACT_TYPE,
+  },
+  {
+    file: "check-custom-exclusion-rules.md",
+    key: CLASSIFICATION_PROMPT_IDS.CHECK_CUSTOM_EXCLUSION_RULES,
   },
   {
     file: "compress-user-context.md",

@@ -248,16 +248,15 @@ export class AutoResponderService {
       subject: string;
       body: string;
     },
+    classification?: EmailClassification,
+    headers?: Record<string, string>,
   ): Promise<{ sent: boolean; reason: string } | null> {
     if (!config.customExclusionRules?.length) return null;
     const result = await this.contextService.checkCustomExclusionRules(
-      {
-        from: latestEmail.from,
-        fromName: latestEmail.fromName || undefined,
-        subject: latestEmail.subject,
-        body: latestEmail.body,
-      },
+      { ...latestEmail, fromName: latestEmail.fromName ?? undefined },
       config.customExclusionRules,
+      classification,
+      headers,
     );
     if (!result.matched) return null;
     const reason = `Custom exclusion rule matched: ${result.matchedRule} (${result.reason})`;
@@ -358,6 +357,8 @@ export class AutoResponderService {
       logContext,
       config,
       latestEmail,
+      classification,
+      headers,
     );
     if (customSkip) return { skip: customSkip, classification: null };
 
@@ -424,9 +425,8 @@ export class AutoResponderService {
     receivedAt: Date,
     logContext: AutoresponderDecisionContext,
   ): { sent: boolean; reason: string } | null {
-    const now = new Date();
     const ageInHours =
-      (now.getTime() - receivedAt.getTime()) / MILLISECONDS.HOUR;
+      (new Date().getTime() - receivedAt.getTime()) / MILLISECONDS.HOUR;
 
     if (ageInHours > EMAIL_AGE_CONFIG.MAX_EMAIL_AGE_HOURS) {
       const roundedAge = Math.round(ageInHours * 10) / 10;

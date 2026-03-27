@@ -5,7 +5,7 @@ import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
-import { QueueStats } from "./types/auto-responder.types";
+import { EmailClassification, QueueStats } from "./types/auto-responder.types";
 
 /**
  * Groups email classification, queue stats, suppression, and Q&A services
@@ -41,8 +41,15 @@ export class AutoResponderContextService {
   checkCustomExclusionRules(
     email: { from: string; fromName?: string; subject: string; body: string },
     rules: string[],
+    classification?: EmailClassification,
+    headers?: Record<string, string>,
   ) {
-    return this.emailClassifierService.checkCustomExclusionRules(email, rules);
+    return this.emailClassifierService.checkCustomExclusionRules(
+      email,
+      rules,
+      classification,
+      headers,
+    );
   }
 
   generateQAAnswer(

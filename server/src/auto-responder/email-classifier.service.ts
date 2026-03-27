@@ -522,10 +522,64 @@ export class EmailClassifierService {
     );
   }
 
+  private buildRelevantHeadersText(
+    headers: Record<string, string>,
+  ): string | null {
+    const RELEVANT_HEADER_KEYS = [
+      "list-unsubscribe",
+      "list-id",
+      "precedence",
+      "x-mailer",
+      "x-auto-response-suppress",
+      "auto-submitted",
+      "x-google-dkim",
+      "feedback-id",
+    ];
+    const normalizedHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      normalizedHeaders[key.toLowerCase()] = value;
+    }
+    const lines = RELEVANT_HEADER_KEYS.filter(
+      (key) => normalizedHeaders[key],
+    ).map((key) => `${key}: ${normalizedHeaders[key]}`);
+    return lines.length > 0 ? lines.join("\n") : null;
+  }
+
+  private buildCustomExclusionPromptVars(
+    email: { from: string; fromName?: string; subject: string },
+    customRules: string[],
+    cleanedBody: string,
+    classification?: EmailClassification,
+    relevantHeadersText?: string | null,
+  ): Record<string, unknown> {
+    return {
+      rules: customRules,
+      from: email.from,
+      fromName: email.fromName || email.from,
+      subject: email.subject,
+      body: cleanedBody,
+      hasClassification: !!classification,
+      isAutomated: classification ? String(classification.isAutomated) : "",
+      isNewsletter: classification ? String(classification.isNewsletter) : "",
+      isColdOutreach: classification
+        ? String(classification.isColdOutreach)
+        : "",
+      isBounce: classification ? String(classification.isBounce) : "",
+      isOutOfOffice: classification ? String(classification.isOutOfOffice) : "",
+      classificationReasons: classification
+        ? classification.reasons.join(", ") || "none"
+        : "",
+      hasHeaders: !!relevantHeadersText,
+      relevantHeaders: relevantHeadersText || "",
+    };
+  }
+
   /**
    * Check if an email matches any custom exclusion rules using AI
    * @param email Email content and metadata
    * @param customRules Array of custom exclusion rule descriptions
+   * @param classification Optional pre-computed email classification
+   * @param headers Optional email headers for richer context
    * @returns The matched rule description if any, or null if no rules match
    */
   async checkCustomExclusionRules(
@@ -536,6 +590,8 @@ export class EmailClassifierService {
       body: string;
     },
     customRules: string[],
+    classification?: EmailClassification,
+    headers?: Record<string, string>,
   ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
     if (!customRules || customRules.length === 0) {
       return {
@@ -552,39 +608,37 @@ export class EmailClassifierService {
         BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
       );
 
-      const rulesText = customRules
-        .map((rule, index) => `${index + 1}. ${rule}`)
-        .join("\n");
+      const relevantHeadersText = headers
+        ? this.buildRelevantHeadersText(headers)
+        : null;
 
-      const prompt = `You are an email classification assistant. Analyze the following email and determine if it matches ANY of the user's custom exclusion rules.
+      const promptConfig = getPrompt(
+        CLASSIFICATION_PROMPT_IDS.CHECK_CUSTOM_EXCLUSION_RULES,
+      );
+      if (!promptConfig) {
+        this.logger.error(
+          "check_custom_exclusion_rules prompt not found, falling back to inline prompt",
+        );
+        return this.checkCustomExclusionRulesFallback(
+          email,
+          customRules,
+          cleanedBody,
+        );
+      }
 
-CUSTOM EXCLUSION RULES:
-${rulesText}
-
-EMAIL TO ANALYZE:
-From: ${email.fromName || email.from} <${email.from}>
-Subject: ${email.subject}
-Body:
-${cleanedBody}
-
-INSTRUCTIONS:
-- Carefully read each exclusion rule and the email content
-- Determine if the email matches ANY of the rules
-- Be reasonably flexible in interpretation (e.g., "Automated emails" should match system notifications, auto-replies, etc.)
-- If the email matches a rule, explain why
-
-Respond with a JSON object in this exact format:
-{
-  "matched": true/false,
-  "matchedRule": "the exact rule text that matched" or null if no match,
-  "reason": "brief explanation of why it matched or didn't match"
-}`;
+      const promptVars = this.buildCustomExclusionPromptVars(
+        email,
+        customRules,
+        cleanedBody,
+        classification,
+        relevantHeadersText,
+      );
+      const prompt = renderPrompt(promptConfig.prompt || "", promptVars);
 
       const response = await this.llmService.generateText(
         {
           prompt,
-          systemPrompt:
-            "You are an email classification assistant. Analyze emails against user-defined exclusion rules and provide structured results.",
+          systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.THIRTY_PERCENT,
           maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
         },
@@ -625,5 +679,69 @@ Respond with a JSON object in this exact format:
         reason: `Error: ${(error as Error).message}`,
       };
     }
+  }
+
+  private async checkCustomExclusionRulesFallback(
+    email: { from: string; fromName?: string; subject: string },
+    customRules: string[],
+    cleanedBody: string,
+  ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
+    const rulesText = customRules
+      .map((rule, index) => `${index + 1}. ${rule}`)
+      .join("\n");
+    const prompt = `You are an email classification assistant. Analyze the following email and determine if it matches ANY of the user's custom exclusion rules.
+
+CUSTOM EXCLUSION RULES:
+${rulesText}
+
+EMAIL TO ANALYZE:
+From: ${email.fromName || email.from} <${email.from}>
+Subject: ${email.subject}
+Body:
+${cleanedBody}
+
+INSTRUCTIONS:
+- Carefully read each exclusion rule and the email content
+- Determine if the email matches ANY of the rules
+- Be reasonably flexible in interpretation (e.g., "Automated emails" should match system notifications, auto-replies, etc.)
+- If the email matches a rule, explain why
+
+Respond with a JSON object in this exact format:
+{
+  "matched": true/false,
+  "matchedRule": "the exact rule text that matched" or null if no match,
+  "reason": "brief explanation of why it matched or didn't match"
+}`;
+    const response = await this.llmService.generateText(
+      {
+        prompt,
+        systemPrompt:
+          "You are an email classification assistant. Analyze emails against user-defined exclusion rules and provide structured results.",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
+      },
+      LLMProvider.OPENAI,
+      undefined,
+      LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
+    );
+    const jsonString = response
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        matched: parsed.matched || false,
+        matchedRule: parsed.matchedRule || null,
+        reason: parsed.reason || "No reason provided",
+      };
+    }
+    return {
+      matched: false,
+      matchedRule: null,
+      reason: "Failed to parse LLM response",
+    };
   }
 }

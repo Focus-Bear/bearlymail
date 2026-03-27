@@ -108,6 +108,9 @@ export const LLM_OP_EVALUATE_WORKFLOW_CONDITION = "evaluate_workflow_condition";
 // Workflows: resolve {{ai:...}} template variables from email context
 export const LLM_OP_RESOLVE_WORKFLOW_VARIABLES = "resolve_workflow_variables";
 
+// Booking meeting title generation from agenda
+export const LLM_OP_GENERATE_BOOKING_TITLE = "generate_booking_title";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -149,6 +152,7 @@ export type LLMOperation =
   | typeof LLM_OP_CLASSIFY_CONTACT_TYPE
   | typeof LLM_OP_COMPRESS_CONTEXT
   | typeof LLM_OP_CHECK_PHISHING_ONLY
+  | typeof LLM_OP_GENERATE_BOOKING_TITLE
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -189,5 +193,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CLASSIFY_CONTACT_TYPE]: "Classify Contact Type",
   [LLM_OP_COMPRESS_CONTEXT]: "Compress Context",
   [LLM_OP_CHECK_PHISHING_ONLY]: "Check Phishing Only",
+  [LLM_OP_GENERATE_BOOKING_TITLE]: "Generate Booking Title",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

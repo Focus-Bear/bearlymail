@@ -43,6 +43,7 @@ const BookingPage: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
+  const [agenda, setAgenda] = useState('');
   const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -122,6 +123,7 @@ const BookingPage: React.FC = () => {
         guestName,
         duration: selectedSlot.duration,
         additionalGuests,
+        agenda: agenda.trim() || undefined,
       });
       if (bookingResponse.data?.meetLink) {
         setMeetLink(bookingResponse.data.meetLink);
@@ -205,9 +207,11 @@ const BookingPage: React.FC = () => {
               selectedSlot={selectedSlot}
               guestEmail={guestEmail}
               guestName={guestName}
+              agenda={agenda}
               bookingStatus={bookingStatus}
               onGuestEmailChange={setGuestEmail}
               onGuestNameChange={setGuestName}
+              onAgendaChange={setAgenda}
               onSubmit={handleBook}
               additionalGuests={additionalGuests}
               onAddGuest={handleAddGuest}

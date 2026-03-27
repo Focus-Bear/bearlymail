@@ -64,6 +64,13 @@ export const CONTEXT_PROMPT_IDS = {
 } as const;
 
 /**
+ * Named constants for calendar/booking prompt IDs.
+ */
+export const CALENDAR_PROMPT_IDS = {
+  GENERATE_BOOKING_TITLE: "generate_booking_title",
+} as const;
+
+/**
  * Named constants for miscellaneous utility prompt IDs.
  */
 export const UTILITY_PROMPT_IDS = {
@@ -174,6 +181,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "check-phishing-only.md",
     key: SUMMARY_PROMPT_IDS.CHECK_PHISHING_ONLY,
+  },
+  {
+    file: "generate-booking-title.md",
+    key: CALENDAR_PROMPT_IDS.GENERATE_BOOKING_TITLE,
   },
 ];
 

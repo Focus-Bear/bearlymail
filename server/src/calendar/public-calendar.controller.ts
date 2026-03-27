@@ -17,6 +17,7 @@ import { CalendarService } from "./calendar.service";
 
 const DEFAULT_SLOTS_LIMIT = 8;
 const MAX_SLOTS_LIMIT = 50;
+const MAX_AGENDA_LENGTH = 500;
 
 @Controller("public/calendar")
 export class PublicCalendarController {
@@ -98,6 +99,7 @@ export class PublicCalendarController {
       guestName: string;
       duration?: number;
       additionalGuests?: string[];
+      agenda?: string;
     },
   ) {
     if (!body.startTime || !body.guestEmail) {
@@ -119,13 +121,24 @@ export class PublicCalendarController {
       }
     }
 
-    return this.calendarService.createEvent({
+    if (body.agenda !== undefined && body.agenda.length > MAX_AGENDA_LENGTH) {
+      throw new BadRequestException(
+        `Agenda must be ${MAX_AGENDA_LENGTH} characters or fewer.`,
+      );
+    }
+
+    const sanitisedAgenda = body.agenda
+      ? body.agenda.replace(/<[^>]*>/g, "").trim()
+      : undefined;
+
+    return this.calendarService.bookSlotWithAgenda({
       userId,
       startTime: body.startTime,
       durationMinutes: body.duration || MINUTES.THIRTY,
       guestEmail: body.guestEmail,
       guestName: body.guestName,
       additionalGuests,
+      agenda: sanitisedAgenda,
     });
   }
 

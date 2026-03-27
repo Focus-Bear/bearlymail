@@ -8,6 +8,8 @@ import { SchedulingPreferencesModule } from "../scheduling-preferences/schedulin
 import { UsersModule } from "../users/users.module";
 import { CalendarController } from "./calendar.controller";
 import { CalendarService } from "./calendar.service";
+import { CalendarAgendaService } from "./calendar-agenda.service";
+import { CalendarIcsService } from "./calendar-ics.service";
 import { PublicCalendarController } from "./public-calendar.controller";
 
 @Module({
@@ -19,7 +21,7 @@ import { PublicCalendarController } from "./public-calendar.controller";
     SchedulingPreferencesModule,
   ],
   controllers: [CalendarController, PublicCalendarController],
-  providers: [CalendarService],
-  exports: [CalendarService],
+  providers: [CalendarService, CalendarAgendaService, CalendarIcsService],
+  exports: [CalendarService, CalendarAgendaService, CalendarIcsService],
 })
 export class CalendarModule {}

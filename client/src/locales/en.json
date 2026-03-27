@@ -1802,6 +1802,10 @@
       "failedToCancel": "Failed to cancel the booking. Please try again.",
       "alreadyCancelled": "This booking has already been cancelled."
     },
+    "agenda": {
+      "label": "What's the purpose of this meeting? (optional)",
+      "placeholder": "e.g. Discuss Q3 roadmap priorities and align on next steps..."
+    },
     "meetLink": "Video call link:",
     "joinMeetingAriaLabel": "Join video call via Google Meet",
     "guests": {

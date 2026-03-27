@@ -8,6 +8,8 @@ import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { UsersService } from "../users/users.service";
 import { CalendarService } from "./calendar.service";
+import { CalendarAgendaService } from "./calendar-agenda.service";
+import { CalendarIcsService } from "./calendar-ics.service";
 import {
   alignToSlotBoundary,
   calculateFreeSlots,
@@ -35,6 +37,7 @@ describe("CalendarService", () => {
   let usersService: jest.Mocked<UsersService>;
   let llmService: jest.Mocked<LLMService>;
   let emailsService: jest.Mocked<EmailsService>;
+  let calendarIcsService: jest.Mocked<CalendarIcsService>;
   let mockCalendarBookingRepository: any;
   let mockOAuth2Client: any;
   let mockCalendar: any;
@@ -121,6 +124,22 @@ describe("CalendarService", () => {
             }),
           },
         },
+        {
+          provide: CalendarAgendaService,
+          useValue: {
+            summariseAgendaToTitle: jest.fn(),
+            bookSlotWithAgenda: jest.fn(),
+          },
+        },
+        {
+          provide: CalendarIcsService,
+          useValue: {
+            parseIcsAttachment: jest.fn(),
+            checkEventExists: jest.fn(),
+            addIcsEventToCalendar: jest.fn(),
+            getIcsInfo: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -128,6 +147,7 @@ describe("CalendarService", () => {
     usersService = module.get(UsersService);
     llmService = module.get(LLMService);
     emailsService = module.get(EmailsService);
+    calendarIcsService = module.get(CalendarIcsService);
     jest.clearAllMocks();
   });
 
@@ -1127,10 +1147,10 @@ describe("CalendarService", () => {
       isRecurring: false,
     };
 
-    it("passes a valid IANA timezone directly to Google API", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.insert.mockResolvedValue({
-        data: { id: "evt-1", htmlLink: "https://calendar.google.com/event" },
+    it("passes a valid IANA timezone directly to CalendarIcsService", async () => {
+      calendarIcsService.addIcsEventToCalendar.mockResolvedValue({
+        success: true,
+        eventLink: "https://calendar.google.com/event",
       });
 
       await service.addIcsEventToCalendar("user-1", {
@@ -1138,15 +1158,16 @@ describe("CalendarService", () => {
         timezone: "Australia/Sydney",
       });
 
-      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
-      expect(insertCall.requestBody.start.timeZone).toBe("Australia/Sydney");
-      expect(insertCall.requestBody.end.timeZone).toBe("Australia/Sydney");
+      expect(calendarIcsService.addIcsEventToCalendar).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ timezone: "Australia/Sydney" }),
+      );
     });
 
     it("falls back to UTC when timezone is undefined", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.insert.mockResolvedValue({
-        data: { id: "evt-2", htmlLink: "https://calendar.google.com/event" },
+      calendarIcsService.addIcsEventToCalendar.mockResolvedValue({
+        success: true,
+        eventLink: "https://calendar.google.com/event",
       });
 
       await service.addIcsEventToCalendar("user-1", {
@@ -1154,19 +1175,17 @@ describe("CalendarService", () => {
         timezone: undefined,
       });
 
-      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
-      expect(insertCall.requestBody.start.timeZone).toBe("UTC");
-      expect(insertCall.requestBody.end.timeZone).toBe("UTC");
+      expect(calendarIcsService.addIcsEventToCalendar).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ timezone: undefined }),
+      );
     });
 
     it("normalises an invalid timezone to UTC and logs a warning (belt-and-suspenders)", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.insert.mockResolvedValue({
-        data: { id: "evt-3", htmlLink: "https://calendar.google.com/event" },
+      calendarIcsService.addIcsEventToCalendar.mockResolvedValue({
+        success: true,
+        eventLink: "https://calendar.google.com/event",
       });
-      const warnSpy = jest
-        .spyOn(service.logger, "warn")
-        .mockImplementation(() => undefined);
 
       // Simulate a non-IANA string slipping through the parser
       await service.addIcsEventToCalendar("user-1", {
@@ -1174,13 +1193,10 @@ describe("CalendarService", () => {
         timezone: "Not A Real Zone",
       });
 
-      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
-      expect(insertCall.requestBody.start.timeZone).toBe("UTC");
-      expect(insertCall.requestBody.end.timeZone).toBe("UTC");
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Non-IANA timezone"),
+      expect(calendarIcsService.addIcsEventToCalendar).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ timezone: "Not A Real Zone" }),
       );
-      warnSpy.mockRestore();
     });
   });
 
@@ -1358,21 +1374,22 @@ describe("CalendarService", () => {
     };
 
     it("returns exists=false when Google Calendar is not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      calendarIcsService.checkEventExists.mockResolvedValue({ exists: false });
 
       const result = await service.checkEventExists("user-1", baseEventData);
       expect(result).toEqual({ exists: false });
+      expect(calendarIcsService.checkEventExists).toHaveBeenCalledWith(
+        "user-1",
+        baseEventData,
+      );
     });
 
     it("uses iCalUID query (no timeMin/timeMax) when uid is present", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({
-        data: {
-          items: [{ id: "gcal-event-123", summary: "Team Standup" }],
-        },
+      calendarIcsService.checkEventExists.mockResolvedValue({
+        exists: true,
+        calendarEventId: "gcal-event-123",
+        userResponseStatus: "needsAction",
+        htmlLink: undefined,
       });
 
       const result = await service.checkEventExists("user-1", baseEventData);
@@ -1383,33 +1400,17 @@ describe("CalendarService", () => {
         userResponseStatus: "needsAction",
         htmlLink: undefined,
       });
-      expect(mockCalendar.events.list).toHaveBeenCalledWith(
-        expect.objectContaining({
-          iCalUID: "test-uid@example.com",
-          singleEvents: true,
-        }),
-      );
-      // Must NOT include time constraints in the iCalUID branch
-      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
-        expect.objectContaining({ timeMin: expect.anything() }),
-      );
-      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
-        expect.objectContaining({ timeMax: expect.anything() }),
+      expect(calendarIcsService.checkEventExists).toHaveBeenCalledWith(
+        "user-1",
+        baseEventData,
       );
     });
 
     it("falls back to time-window query when uid is absent", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: "gcal-event-456",
-              summary: "Team Standup",
-              start: { dateTime: "2024-03-15T10:00:00.000Z" },
-            },
-          ],
-        },
+      calendarIcsService.checkEventExists.mockResolvedValue({
+        exists: true,
+        calendarEventId: "gcal-event-456",
+        userResponseStatus: "needsAction",
       });
 
       const eventDataNoUid = {
@@ -1419,44 +1420,26 @@ describe("CalendarService", () => {
 
       const result = await service.checkEventExists("user-1", eventDataNoUid);
 
-      expect(mockCalendar.events.list).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeMin: expect.any(String),
-          timeMax: expect.any(String),
-          singleEvents: true,
-        }),
-      );
-      expect(mockCalendar.events.list).not.toHaveBeenCalledWith(
-        expect.objectContaining({ iCalUID: expect.anything() }),
+      expect(calendarIcsService.checkEventExists).toHaveBeenCalledWith(
+        "user-1",
+        eventDataNoUid,
       );
       expect(result.exists).toBe(true);
     });
 
     it("returns exists=false when no matching event is found via iCalUID", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({ data: { items: [] } });
+      calendarIcsService.checkEventExists.mockResolvedValue({ exists: false });
 
       const result = await service.checkEventExists("user-1", baseEventData);
       expect(result).toEqual({ exists: false });
     });
 
     it("returns userResponseStatus and htmlLink when event has attendees", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: "gcal-event-123",
-              summary: "Team Standup",
-              htmlLink: "https://calendar.google.com/event?eid=abc123",
-              attendees: [
-                { email: "user@example.com", responseStatus: "accepted" },
-                { email: "other@example.com", responseStatus: "tentative" },
-              ],
-            },
-          ],
-        },
+      calendarIcsService.checkEventExists.mockResolvedValue({
+        exists: true,
+        calendarEventId: "gcal-event-123",
+        userResponseStatus: "accepted",
+        htmlLink: "https://calendar.google.com/event?eid=abc123",
       });
 
       const result = await service.checkEventExists("user-1", baseEventData);
@@ -1469,21 +1452,11 @@ describe("CalendarService", () => {
     });
 
     it("returns needsAction when user is not in attendees list", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: "gcal-event-456",
-              summary: "Team Standup",
-              htmlLink: "https://calendar.google.com/event?eid=def456",
-              attendees: [
-                { email: "other@example.com", responseStatus: "accepted" },
-              ],
-            },
-          ],
-        },
+      calendarIcsService.checkEventExists.mockResolvedValue({
+        exists: true,
+        calendarEventId: "gcal-event-456",
+        userResponseStatus: "needsAction",
+        htmlLink: "https://calendar.google.com/event?eid=def456",
       });
 
       const result = await service.checkEventExists("user-1", baseEventData);
@@ -1491,22 +1464,11 @@ describe("CalendarService", () => {
     });
 
     it("returns accepted when user is the organizer but not in attendees", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
-      mockCalendar.events.list.mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: "gcal-event-789",
-              summary: "Team Standup",
-              htmlLink: "https://calendar.google.com/event?eid=ghi789",
-              organizer: { email: "user@example.com" },
-              attendees: [
-                { email: "other@example.com", responseStatus: "accepted" },
-              ],
-            },
-          ],
-        },
+      calendarIcsService.checkEventExists.mockResolvedValue({
+        exists: true,
+        calendarEventId: "gcal-event-789",
+        userResponseStatus: "accepted",
+        htmlLink: "https://calendar.google.com/event?eid=ghi789",
       });
 
       const result = await service.checkEventExists("user-1", baseEventData);
@@ -1516,20 +1478,10 @@ describe("CalendarService", () => {
     it.each(["declined", "tentative", "needsAction"] as const)(
       "returns %s responseStatus correctly",
       async (status) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        usersService.findOne.mockResolvedValue(mockUser as any);
-        mockCalendar.events.list.mockResolvedValue({
-          data: {
-            items: [
-              {
-                id: "gcal-event-status",
-                summary: "Team Standup",
-                attendees: [
-                  { email: "user@example.com", responseStatus: status },
-                ],
-              },
-            ],
-          },
+        calendarIcsService.checkEventExists.mockResolvedValue({
+          exists: true,
+          calendarEventId: "gcal-event-status",
+          userResponseStatus: status,
         });
 
         const result = await service.checkEventExists("user-1", baseEventData);

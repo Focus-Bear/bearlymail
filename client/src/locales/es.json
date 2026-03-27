@@ -316,6 +316,10 @@
       "failedToCancel": "No se pudo cancelar la reserva. Por favor inténtelo de nuevo.",
       "alreadyCancelled": "Esta reserva ya ha sido cancelada."
     },
+    "agenda": {
+      "label": "¿Cuál es el propósito de esta reunión? (opcional)",
+      "placeholder": "ej. Discutir las prioridades del plan Q3 y alinear los próximos pasos..."
+    },
     "meetLink": "Enlace de videollamada:",
     "joinMeetingAriaLabel": "Unirse a la videollamada a través de Google Meet",
     "guests": {

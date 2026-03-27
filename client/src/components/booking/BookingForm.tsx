@@ -28,13 +28,17 @@ interface TimeSlot {
   duration: number;
 }
 
+const AGENDA_MAX_LENGTH = 500;
+
 interface BookingFormProps {
   selectedSlot: TimeSlot | null;
   guestEmail: string;
   guestName: string;
+  agenda: string;
   bookingStatus: 'idle' | 'submitting' | 'success' | 'error';
   onGuestEmailChange: (email: string) => void;
   onGuestNameChange: (name: string) => void;
+  onAgendaChange: (agenda: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   additionalGuests: string[];
   onAddGuest: (email: string) => void;
@@ -71,9 +75,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   selectedSlot,
   guestEmail,
   guestName,
+  agenda,
   bookingStatus,
   onGuestEmailChange,
   onGuestNameChange,
+  onAgendaChange,
   onSubmit,
   additionalGuests,
   onAddGuest,
@@ -244,6 +250,37 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        <div style={{ marginBottom: theme.spacing.lg }}>
+          <label htmlFor="booking-agenda" style={labelStyle}>
+            {t('booking.agenda.label')}
+          </label>
+          <textarea
+            id="booking-agenda"
+            value={agenda}
+            onChange={event => onAgendaChange(event.target.value)}
+            maxLength={AGENDA_MAX_LENGTH}
+            placeholder={t('booking.agenda.placeholder')}
+            rows={4}
+            style={{
+              ...inputStyle,
+              resize: 'vertical',
+              fontFamily: 'inherit',
+            }}
+          />
+          <p
+            style={{
+              textAlign: 'right',
+              fontSize: theme.typography.fontSize.sm,
+              color: agenda.length >= AGENDA_MAX_LENGTH
+                ? theme.colors.accent.error
+                : theme.colors.text.secondary,
+              marginTop: theme.spacing.xs,
+            }}
+          >
+            {agenda.length}/{AGENDA_MAX_LENGTH}
+          </p>
         </div>
 
         <button

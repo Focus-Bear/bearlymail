@@ -117,6 +117,16 @@ export class ContextAnalysisOrchestratorService {
       this.logger.log(
         "[CONTEXT-ANALYSIS] 🚀 Lambda dispatch ENABLED (LAMBDA_CONTEXT_ANALYSIS_ENABLED=true)",
       );
+
+      const sqsQueueUrl = this.configService.get<string>(
+        "CONTEXT_ANALYSIS_SQS_QUEUE_URL",
+      );
+      if (!sqsQueueUrl) {
+        this.logger.warn(
+          "[CONTEXT-ANALYSIS] ⚠️ LAMBDA_CONTEXT_ANALYSIS_ENABLED=true but CONTEXT_ANALYSIS_SQS_QUEUE_URL is not set. " +
+            "Lambda dispatch will fail. Falling back to PgBoss until the env var is configured.",
+        );
+      }
     }
   }
 

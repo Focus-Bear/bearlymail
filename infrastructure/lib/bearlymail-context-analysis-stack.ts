@@ -109,40 +109,6 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     queue.grantSendMessages(ecsTaskRole);
 
     // ============================================
-    // Secrets Manager: DB credentials for Lambda
-    // (separate secret with only Lambda-needed fields)
-    // ============================================
-    const lambdaDbSecret = new secretsmanager.Secret(this, "LambdaDbSecret", {
-      secretName: "bearlymail/lambda/db",
-      description: "RDS credentials for context analysis Lambda (via RDS Proxy)",
-      secretObjectValue: {
-        // Values will be set post-deployment; this creates the secret shell
-        // In practice, copy from dbSecret or provision via CDK cfnSecret
-        host: cdk.SecretValue.unsafePlainText("REPLACE_WITH_RDS_PROXY_ENDPOINT"),
-        port: cdk.SecretValue.unsafePlainText("5432"),
-        username: cdk.SecretValue.secretsManager(dbSecret.secretArn, {
-          jsonField: "username",
-        }),
-        password: cdk.SecretValue.secretsManager(dbSecret.secretArn, {
-          jsonField: "password",
-        }),
-        database: cdk.SecretValue.unsafePlainText("bearlymail"),
-      },
-    });
-
-    const lambdaLlmSecret = new secretsmanager.Secret(this, "LambdaLlmSecret", {
-      secretName: "bearlymail/lambda/llm",
-      description: "LLM API keys for context analysis Lambda",
-      secretObjectValue: {
-        // Populate via AWS Console or CDK after deploying
-        ANTHROPIC_API_KEY: cdk.SecretValue.unsafePlainText("REPLACE_WITH_KEY"),
-        OPENAI_API_KEY: cdk.SecretValue.unsafePlainText("REPLACE_WITH_KEY"),
-        GEMINI_API_KEY: cdk.SecretValue.unsafePlainText("REPLACE_WITH_KEY"),
-        LLM_PROVIDER: cdk.SecretValue.unsafePlainText("anthropic"),
-      },
-    });
-
-    // ============================================
     // Lambda Security Group
     // ============================================
     const lambdaSecurityGroup = new ec2.SecurityGroup(
@@ -174,9 +140,11 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       ],
     });
 
-    // Secrets Manager read access
-    lambdaDbSecret.grantRead(lambdaRole);
-    lambdaLlmSecret.grantRead(lambdaRole);
+    // Secrets Manager read access — use the same secrets the ECS app already reads.
+    // dbSecret (DatabaseStack) holds RDS username/password used via RDS Proxy.
+    // appSecrets (SecretsStack) holds LLM API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, etc.).
+    dbSecret.grantRead(lambdaRole);
+    appSecrets.grantRead(lambdaRole);
 
     // CloudWatch metrics
     lambdaRole.addToPolicy(
@@ -240,8 +208,10 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       environment: {
         NODE_ENV: "production",
         RDS_PROXY_ENDPOINT: rdsProxyEndpoint,
-        DB_SECRET_NAME: "bearlymail/lambda/db",
-        LLM_SECRET_NAME: "bearlymail/lambda/llm",
+        // Reference the same secrets used by the ECS app (no duplication of values).
+        // The Lambda reads username/password from dbSecret and LLM keys from appSecrets.
+        DB_SECRET_ARN: dbSecret.secretArn,
+        APP_SECRET_ARN: appSecrets.secretArn,
         PROMPT_TEMPLATE_PATH: "/var/task/prompts/analyze-email-patterns.md",
       },
       // Structured logging
@@ -325,6 +295,12 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       value: batchAnalyzerFn.functionArn,
       description: "Batch analyzer Lambda function ARN",
       exportName: "BearlyMailBatchAnalyzerArn",
+    });
+
+    new cdk.CfnOutput(this, "BatchAnalyzerFunctionName", {
+      value: batchAnalyzerFn.functionName,
+      description: "Batch analyzer Lambda function name (used by CI smoke test)",
+      exportName: "BearlyMailBatchAnalyzerFunctionName",
     });
   }
 }

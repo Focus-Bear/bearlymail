@@ -212,7 +212,12 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
     highPriority: true,
     lowPriority: false,
   },
-  customExclusionRules: [],
+  customExclusionRules: [
+    "Emails from automated systems (e.g., no-reply addresses, system notifications)",
+    "Marketing newsletters and promotional emails",
+    "Cold outreach that lacks genuine personalisation",
+    "Obvious spam or unsolicited bulk messages",
+  ],
   templates: DEFAULT_TEMPLATES,
   qaContextEnabled: true,
   qaMinConfidence: 0.7,

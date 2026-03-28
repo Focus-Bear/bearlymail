@@ -90,11 +90,9 @@ describe("EmailClassifierService.checkCustomExclusionRules", () => {
     expect(result.reason).toBe("No custom rules defined");
   });
 
-  it("should match 'automated emails' rule when classification.isAutomated is true", async () => {
-    llmService.generateText.mockResolvedValue(
-      matchedResponse("automated emails"),
-    );
-
+  it("should match 'automated emails' rule deterministically when classification.isAutomated is true (no LLM call)", async () => {
+    // With our deterministic pre-check: if isAutomated=true AND rule matches /automat/i,
+    // we return matched:true immediately without calling the LLM.
     const result = await service.checkCustomExclusionRules(
       SAMPLE_EMAIL,
       ["automated emails"],
@@ -103,9 +101,9 @@ describe("EmailClassifierService.checkCustomExclusionRules", () => {
 
     expect(result.matched).toBe(true);
     expect(result.matchedRule).toBe("automated emails");
-    const callArgs = llmService.generateText.mock.calls[0][0];
-    expect(callArgs.prompt).toContain("Automated: true");
-    expect(callArgs.prompt).toContain("Automated sender pattern");
+    expect(result.reason).toContain("automated");
+    // LLM should NOT be called — deterministic pre-check handles it
+    expect(llmService.generateText).not.toHaveBeenCalled();
   });
 
   it("should match 'newsletters' rule when classification.isNewsletter is true", async () => {

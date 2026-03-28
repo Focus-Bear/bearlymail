@@ -601,6 +601,12 @@ export class EmailClassifierService {
       };
     }
 
+    const deterministicMatch = this.matchDeterministicAutomatedRule(
+      customRules,
+      classification,
+    );
+    if (deterministicMatch) return deterministicMatch;
+
     try {
       const cleanedBody = cleanEmailContent(
         email.body,
@@ -679,6 +685,30 @@ export class EmailClassifierService {
         reason: `Error: ${(error as Error).message}`,
       };
     }
+  }
+
+  /**
+   * Deterministic pre-check: if the email is already classified as automated
+   * and the user has a rule mentioning "automat*", match it immediately
+   * without an LLM call. This avoids silent failures when the LLM errors out
+   * (timeout/rate-limit) and ensures the user's exclusion config is respected.
+   */
+  private matchDeterministicAutomatedRule(
+    customRules: string[],
+    classification?: EmailClassification,
+  ): { matched: boolean; matchedRule: string | null; reason: string } | null {
+    if (!classification?.isAutomated) return null;
+    const automatedRule = customRules.find((rule) => /automat/i.test(rule));
+    if (!automatedRule) return null;
+    this.logger.debug(
+      `Deterministic pre-check matched automated rule: "${automatedRule}"`,
+    );
+    return {
+      matched: true,
+      matchedRule: automatedRule,
+      reason:
+        "Email was classified as automated and user has an automated-email exclusion rule",
+    };
   }
 
   private async checkCustomExclusionRulesFallback(

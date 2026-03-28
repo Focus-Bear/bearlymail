@@ -213,7 +213,11 @@ describe("AutoResponderService", () => {
               confidence: 0.9,
               requiresResponse: false,
             }),
-            checkCustomExclusionRules: jest.fn().mockResolvedValue(false),
+            checkCustomExclusionRules: jest.fn().mockResolvedValue({
+              matched: false,
+              matchedRule: null,
+              reason: "No match",
+            }),
             getQueueStats: jest.fn().mockResolvedValue({
               avgResponseTime: "2 hours",
               actionCount: 37,
@@ -360,7 +364,7 @@ describe("AutoResponderService", () => {
       expect(result.reason).toBe("Auto-responder disabled");
     });
 
-    it("should handle automated emails based on settings", async () => {
+    it("should not send when email is automated and customExclusionRules includes an automated rule", async () => {
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue(undefined),
       };
@@ -369,13 +373,16 @@ describe("AutoResponderService", () => {
         autoResponderSettings: {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
-          excludeAutomated: true,
+          customExclusionRules: [
+            "Emails from automated systems (e.g., no-reply addresses, system notifications)",
+          ],
         },
       } as any);
       emailProviderManager.getPrimaryProvider.mockResolvedValue(
         mockProvider as any,
       );
-      emailClassifierService.classifyEmail.mockResolvedValue({
+      const contextService = module.get(AutoResponderContextService);
+      jest.spyOn(contextService, "classifyEmail").mockResolvedValue({
         isAutomated: true,
         isNewsletter: false,
         isColdOutreach: false,
@@ -386,6 +393,14 @@ describe("AutoResponderService", () => {
         urgencyLevel: "low",
         reasons: ["Automated email"],
       });
+      // checkCustomExclusionRules should match via deterministic pre-check (no LLM needed)
+      jest.spyOn(contextService, "checkCustomExclusionRules").mockResolvedValue({
+        matched: true,
+        matchedRule:
+          "Emails from automated systems (e.g., no-reply addresses, system notifications)",
+        reason:
+          "Email was classified as automated and user has an automated-email exclusion rule",
+      });
       autoResponseLogRepository.save.mockResolvedValue({} as any);
       autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
 
@@ -394,8 +409,8 @@ describe("AutoResponderService", () => {
         "thread-1",
       );
 
-      // The implementation may or may not send based on other factors
-      expect(result.reason).toBeDefined();
+      expect(result.sent).toBe(false);
+      expect(result.reason).toContain("Custom exclusion rule matched");
     });
 
     it("should not send when thread already has auto-response", async () => {

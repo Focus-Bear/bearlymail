@@ -7,10 +7,11 @@ import { theme } from 'theme/theme';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
 import { ProtoCategoriesModal } from 'components/settings/guide-ai/ProtoCategoriesModal';
+import { QAndASection } from 'components/settings/guide-ai/QAndASection';
 import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
 import { API_URL } from 'config/api';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
+import { CONTEXT_KEY_EMAIL_CATEGORY, CONTEXT_KEY_Q_AND_A, STRING_NONE } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
 import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 
@@ -91,9 +92,9 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
     tooltipKey: 'settings.contextTypes.tooltip.notImportant',
   },
   {
-    title: 'Q&A',
-    contextKey: 'Q_AND_A',
-    addLabel: 'Add common Q&A',
+    titleKey: 'settings.contextSections.qanda',
+    contextKey: CONTEXT_KEY_Q_AND_A,
+    addLabelKey: 'settings.addContext.qa',
     tooltipKey: 'settings.contextTypes.tooltip.qanda',
   },
 ];
@@ -463,7 +464,21 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         const contextKeyStr = Array.isArray(config.contextKey) ? config.contextKey.join('-') : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
         const isEmailCategory = contextKeyStr === CONTEXT_KEY_EMAIL_CATEGORY;
+        const isQAndA = contextKeyStr === CONTEXT_KEY_Q_AND_A;
         const isAnchoredMatch = Boolean(config.anchorId && window.location.hash === `#${config.anchorId}`);
+
+        if (isQAndA) {
+          return (
+            <QAndASection
+              key={key}
+              tooltipContent={t(config.tooltipKey)}
+              isInitiallyExpanded={isAnchoredMatch}
+              onRefresh={onRefreshContexts}
+              {...commonProps}
+            />
+          );
+        }
+
         const sectionElement = (
           <ContextSection
             key={key}

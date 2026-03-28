@@ -187,6 +187,7 @@ export const CONTEXT_EXPLANATION_VIP_CONTACT_STARRED = 'vipContactStarredExplana
 
 // Context source additional values
 export const CONTEXT_SOURCE_USER_EDITED = 'USER_EDITED' as const;
+export const CONTEXT_SOURCE_UNAPPROVED = 'UNAPPROVED' as const;
 
 // Context key additional values
 export const CONTEXT_KEY_WORKING_ON = 'WORKING_ON' as const;

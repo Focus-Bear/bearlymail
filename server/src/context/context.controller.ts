@@ -3,9 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Logger,
+  NotFoundException,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -519,6 +523,34 @@ export class ContextController {
   @Delete(":id")
   async deleteContext(@Param("id") id: string, @Request() req) {
     return this.contextService.deleteContext(id, req.user.userId);
+  }
+
+  @Patch(":id/approve")
+  async approveQA(@Param("id") id: string, @Request() req) {
+    const result = await this.contextService.approveQA(id, req.user.userId);
+    if (!result) {
+      throw new NotFoundException(
+        "Q&A item not found or not pending approval",
+      );
+    }
+    return result;
+  }
+
+  @Patch(":id/reject")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async rejectQA(@Param("id") id: string, @Request() req) {
+    const deleted = await this.contextService.rejectQA(id, req.user.userId);
+    if (!deleted) {
+      throw new NotFoundException(
+        "Q&A item not found or not pending approval",
+      );
+    }
+  }
+
+  @Patch("approve-all-qa")
+  async approveAllQA(@Request() req) {
+    const count = await this.contextService.approveAllQA(req.user.userId);
+    return { approved: count };
   }
 
   @Post("compress")

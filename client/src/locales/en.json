@@ -645,7 +645,8 @@
       "urgent": "What I Consider Urgent",
       "notImportant": "What I Don't Consider Important",
       "emailCategories": "Email Categories",
-      "other": "Other Context"
+      "other": "Other Context",
+      "qanda": "Q&A"
     },
     "addContext": {
       "vip": "Add VIP Contact",
@@ -654,6 +655,7 @@
       "projects": "Add Topic/Project",
       "urgent": "Add Urgent Item",
       "notImportant": "Add Not Important Item",
+      "qa": "Add Q&A",
       "placeholder": "Enter value..."
     },
     "contextTypes": {
@@ -1023,7 +1025,22 @@
       "compressing": "Compressing…",
       "compressSuccess": "Context compressed successfully",
       "compressError": "Failed to compress context",
-      "compressBannerMessage": "Your context has grown large and may affect AI quality."
+      "compressBannerMessage": "Your context has grown large and may affect AI quality.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveAll": "Approve All",
+      "approvingAll": "Approving…",
+      "approved": "Approved",
+      "pendingReview": "Pending Review",
+      "pendingCount": "{{count}} pending",
+      "approveSuccess": "Q&A approved",
+      "approveError": "Failed to approve Q&A",
+      "rejectSuccess": "Q&A rejected",
+      "rejectError": "Failed to reject Q&A",
+      "approveAllSuccess": "{{count}} Q&A items approved",
+      "approveAllError": "Failed to approve all Q&A",
+      "noPendingQA": "No Q&A items pending review",
+      "noApprovedQA": "No approved Q&A items yet"
     },
     "guideAI": {
       "title": "Guide Our AI",

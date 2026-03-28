@@ -100,6 +100,21 @@ export class ContextService {
     return this.crudService.deleteContext(contextId, userId);
   }
 
+  async approveQA(
+    contextId: string,
+    userId: string,
+  ): Promise<UserContext | null> {
+    return this.crudService.approveQA(contextId, userId);
+  }
+
+  async rejectQA(contextId: string, userId: string): Promise<boolean> {
+    return this.crudService.rejectQA(contextId, userId);
+  }
+
+  async approveAllQA(userId: string): Promise<number> {
+    return this.crudService.approveAllQA(userId);
+  }
+
   async getAnalysisRecordById(
     analysisRecordId: string,
   ): Promise<ContextAnalysis | null> {

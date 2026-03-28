@@ -1986,7 +1986,8 @@
       "urgent": "Agregar artículo urgente",
       "userInfo": "Agregar información personal",
       "vip": "Agregar contacto VIP",
-      "emailCategories": "Agregar Categoría de Correo"
+      "emailCategories": "Agregar Categoría de Correo",
+      "qa": "Agregar P&R"
     },
     "addRule": "Agregar regla",
     "addRulePlaceholder": "Agregar una nueva regla (por ejemplo, \"Sea profesional\")",
@@ -2061,7 +2062,22 @@
       "compressing": "Comprimiendo…",
       "compressSuccess": "Contexto comprimido exitosamente",
       "compressError": "Error al comprimir el contexto",
-      "compressBannerMessage": "Tu contexto ha crecido mucho y puede afectar la calidad de la IA."
+      "compressBannerMessage": "Tu contexto ha crecido mucho y puede afectar la calidad de la IA.",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "approveAll": "Aprobar todo",
+      "approvingAll": "Aprobando…",
+      "approved": "Aprobado",
+      "pendingReview": "Pendiente de revisión",
+      "pendingCount": "{{count}} pendiente(s)",
+      "approveSuccess": "P&R aprobado",
+      "approveError": "Error al aprobar P&R",
+      "rejectSuccess": "P&R rechazado",
+      "rejectError": "Error al rechazar P&R",
+      "approveAllSuccess": "{{count}} elementos P&R aprobados",
+      "approveAllError": "Error al aprobar todos los P&R",
+      "noPendingQA": "No hay P&R pendientes de revisión",
+      "noApprovedQA": "Aún no hay elementos P&R aprobados"
     },
     "contextAboutMe": {
       "description1": "Ayude a BearlyMail a comprender sus prioridades brindándole información sobre usted y su trabajo.",
@@ -2100,7 +2116,8 @@
       "urgent": "Lo que considero urgente",
       "userInfo": "Información sobre mí",
       "vip": "Contactos VIP",
-      "emailCategories": "Categorías de Correo"
+      "emailCategories": "Categorías de Correo",
+      "qanda": "P&R"
     },
     "contextTypes": {
       "tooltip": {

@@ -66,7 +66,6 @@ export class ContextCompressionService {
       ContextKey.USER_INFO,
       ContextKey.URGENT,
       ContextKey.NOT_IMPORTANT,
-      ContextKey.Q_AND_A,
       ContextKey.PROJECT_NAME,
       ContextKey.CURRENT_TOPIC,
       ContextKey.OTHER,

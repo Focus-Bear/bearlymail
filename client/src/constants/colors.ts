@@ -19,6 +19,8 @@ export const COLOR_ERROR_WEB_ALT = '#d32f2f' as const; // MUI red-700
 // ── Semantic: Warning ──────────────────────────────────────────────────────
 export const COLOR_WARNING_DARK = '#F57C00' as const; // orange-700
 export const COLOR_WARNING_MED = '#D97706' as const; // amber-600
+export const COLOR_WARNING_TEXT = '#92400E' as const; // amber-800 — dark text on warning badge
+export const COLOR_BG_WARNING_AMBER = '#FEF3C7' as const; // amber-100 — pending badge background
 
 // ── Semantic: Info / Brand ─────────────────────────────────────────────────
 export const COLOR_INFO_PURPLE = '#7C3AED' as const; // violet-600

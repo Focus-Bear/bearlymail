@@ -705,7 +705,8 @@
       "linkText": "O copia y pega este enlace en tu navegador:",
       "message": "¡Buenas noticias! Tu solicitud en la lista de espera ha sido aprobada. Ya estás listo para configurar tu cuenta de BearlyMail.",
       "subject": "Bienvenido a BearlyMail - Configura tu cuenta"
-    }
+    },
+    "categoryMatchFailed": "La IA sugirió una categoría que no existe en tu configuración"
   },
   "emailActions": {
     "archive": "Archivar",

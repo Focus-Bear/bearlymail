@@ -137,8 +137,11 @@ export class LLMPriorityResultService {
         );
       }
 
-      const resolvedCategoryExplanation =
-        llmResult.categoryExplanation || thread.categoryExplanation || null;
+      const resolvedCategoryExplanation = this.buildHonestCategoryExplanation(
+        llmResult.categoryExplanation || thread.categoryExplanation || null,
+        finalCategory,
+        categoryId,
+      );
 
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
@@ -688,5 +691,26 @@ export class LLMPriorityResultService {
     const match = from.match(/<([^>]+)>/);
     if (match) return match[1].toLowerCase().trim();
     return from.toLowerCase().trim();
+  }
+
+  /**
+   * Build an honest categoryExplanation: when the priority path resolved
+   * a non-Other category but categoryId is still null (no matching UserContext),
+   * append a disambiguation note so the debug panel shows why this email is in Other.
+   */
+  buildHonestCategoryExplanation(
+    explanation: string | null,
+    finalCategory: string | null,
+    categoryId: string | null,
+  ): string | null {
+    if (
+      categoryId === null &&
+      finalCategory &&
+      finalCategory !== "Other" &&
+      explanation
+    ) {
+      return `${explanation} (Note: category "${finalCategory}" not found in your category list — email placed in Other)`;
+    }
+    return explanation;
   }
 }

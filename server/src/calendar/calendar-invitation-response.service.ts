@@ -1,3 +1,4 @@
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { calendar_v3, google } from "googleapis";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
@@ -364,5 +365,90 @@ ${schedulingLinkUrl}
 Looking forward to it!
 
 Best regards`;
+  }
+}
+
+const HTTP_NOT_FOUND = 404;
+
+function getErrCodeForRsvp(err: unknown): string | number | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  if ("code" in err) return (err as { code?: string | number }).code;
+  if ("status" in err) return (err as { status?: number }).status;
+  return undefined;
+}
+
+export async function rsvpByEventId(
+  service: CalendarService,
+  userId: string,
+  calendarEventId: string,
+  response: "accepted" | "declined" | "tentative",
+): Promise<{
+  userResponseStatus: "accepted" | "declined" | "tentative";
+  htmlLink?: string;
+}> {
+  const user = await service.usersService.findOne(userId);
+  if (!user?.googleCalendarAccessToken) {
+    throw new BadRequestException(ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED);
+  }
+
+  const oauth2Client = service.createOAuth2Client(user);
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const userEmail = user.email;
+
+  try {
+    const eventResponse = await calendar.events.get({
+      calendarId: "primary",
+      eventId: calendarEventId,
+    });
+    const event = eventResponse.data;
+
+    if (!event.attendees || event.attendees.length === 0) {
+      throw new BadRequestException(
+        "Event has no attendees — RSVP is not applicable",
+      );
+    }
+
+    const attendeeIndex = event.attendees.findIndex(
+      (attendee) =>
+        attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+    );
+
+    if (attendeeIndex === -1) {
+      throw new BadRequestException("User is not an attendee of this event");
+    }
+
+    const updatedAttendees = [...event.attendees];
+    updatedAttendees[attendeeIndex] = {
+      ...updatedAttendees[attendeeIndex],
+      responseStatus: response,
+    };
+
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: calendarEventId,
+      requestBody: { attendees: updatedAttendees },
+    });
+
+    service.logger.log(
+      `Successfully updated RSVP for event ${calendarEventId} to ${response}`,
+    );
+
+    return {
+      userResponseStatus: response,
+      htmlLink: event.htmlLink ?? undefined,
+    };
+  } catch (err) {
+    if (err instanceof BadRequestException) throw err;
+    const code = getErrCodeForRsvp(err);
+    if (code === HTTP_NOT_FOUND) {
+      throw new NotFoundException(
+        "Calendar event not found — it may have been deleted",
+      );
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    service.logger.error(
+      `[RSVP] Unexpected error for event ${calendarEventId}: ${message}`,
+    );
+    throw new BadRequestException("Failed to update RSVP. Please try again.");
   }
 }

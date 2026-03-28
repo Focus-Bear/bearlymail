@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { LLMService } from "../llm/llm.service";
@@ -31,6 +32,10 @@ describe("SummarizationService", () => {
     delete: jest.fn(),
   };
 
+  const mockUserContextRepository = {
+    find: jest.fn().mockResolvedValue([]),
+  };
+
   const mockErrorTrackingService = {
     captureException: jest.fn(),
     captureMessage: jest.fn(),
@@ -55,6 +60,10 @@ describe("SummarizationService", () => {
         {
           provide: getRepositoryToken(SummarizationRuleEntity),
           useValue: mockSummarizationRuleRepository,
+        },
+        {
+          provide: getRepositoryToken(UserContext),
+          useValue: mockUserContextRepository,
         },
         {
           provide: ErrorTrackingService,
@@ -462,6 +471,10 @@ describe("matchRuleDeterministic", () => {
         {
           provide: getRepositoryToken(SummarizationRuleEntity),
           useValue: mockRepoLocal,
+        },
+        {
+          provide: getRepositoryToken(UserContext),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
         },
       ],
     }).compile();

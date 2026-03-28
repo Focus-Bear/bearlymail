@@ -1,8 +1,6 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
-  NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
@@ -31,22 +29,13 @@ import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
 import {
   generateMeetingReply,
   respondToInvitation,
+  rsvpByEventId,
 } from "./calendar-invitation-response.service";
 import { IcsEventData, IcsInfoResponse } from "./ics-event.types";
 
-/**
- * Safely extracts an error code from an unknown error value.
- */
-function getErrCode(err: unknown): string | number | undefined {
-  if (typeof err !== "object" || err === null) return undefined;
-  if ("code" in err) return (err as { code?: string | number }).code;
-  if ("status" in err) return (err as { status?: number }).status;
-  return undefined;
-}
-
 const BOOKING_TOKEN_BYTES = 32;
 const MEET_REQUEST_ID_BYTES = 8;
-const HTTP_NOT_FOUND = 404;
+const _HTTP_NOT_FOUND = 404;
 
 export interface TimeSlot {
   start: string;
@@ -638,11 +627,6 @@ Manage this booking:
     return this.calendarIcsService.getIcsInfo(userId, emailId, attachmentId);
   }
 
-  /**
-   * Update the user's RSVP status on a Google Calendar event by its event ID.
-   * Uses the same pattern as respondToInvitation but bypasses email-based
-   * event lookup since we already have the calendarEventId.
-   */
   async rsvpByEventId(
     userId: string,
     calendarEventId: string,
@@ -651,83 +635,7 @@ Manage this booking:
     userResponseStatus: "accepted" | "declined" | "tentative";
     htmlLink?: string;
   }> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
-      throw new BadRequestException(
-        ERROR_MESSAGES.GOOGLE_CALENDAR_NOT_CONNECTED,
-      );
-    }
-
-    const oauth2Client = this.createOAuth2Client(user);
-    const calendar = google.calendar({
-      version: "v3",
-      auth: oauth2Client,
-    });
-
-    // user.email is auto-decrypted by TypeORM transformer
-    const userEmail = user.email;
-
-    try {
-      const eventResponse = await calendar.events.get({
-        calendarId: "primary",
-        eventId: calendarEventId,
-      });
-
-      const event = eventResponse.data;
-
-      if (!event.attendees || event.attendees.length === 0) {
-        throw new BadRequestException(
-          "Event has no attendees — RSVP is not applicable",
-        );
-      }
-
-      const attendeeIndex = event.attendees.findIndex(
-        (attendee) =>
-          attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-      );
-
-      if (attendeeIndex === -1) {
-        throw new BadRequestException("User is not an attendee of this event");
-      }
-
-      const updatedAttendees = [...event.attendees];
-      updatedAttendees[attendeeIndex] = {
-        ...updatedAttendees[attendeeIndex],
-        responseStatus: response,
-      };
-
-      await calendar.events.patch({
-        calendarId: "primary",
-        eventId: calendarEventId,
-        requestBody: {
-          attendees: updatedAttendees,
-        },
-      });
-
-      this.logger.log(
-        `Successfully updated RSVP for event ${calendarEventId} to ${response}`,
-      );
-
-      return {
-        userResponseStatus: response,
-        htmlLink: event.htmlLink ?? undefined,
-      };
-    } catch (err) {
-      if (err instanceof BadRequestException) {
-        throw err;
-      }
-      const code = getErrCode(err);
-      if (code === HTTP_NOT_FOUND) {
-        throw new NotFoundException(
-          "Calendar event not found — it may have been deleted",
-        );
-      }
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(
-        `[RSVP] Unexpected error for event ${calendarEventId}: ${message}`,
-      );
-      throw new BadRequestException("Failed to update RSVP. Please try again.");
-    }
+    return rsvpByEventId(this, userId, calendarEventId, response);
   }
 
   /** Map ICS PARTSTAT to Google Calendar responseStatus */

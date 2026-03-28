@@ -16,6 +16,10 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
   // NULL categoryId means "Other" — source of truth after denorm removal (fixes #1293).
   const isOtherCategory = !email.category_id || email.category === CATEGORY_OTHER;
   const hasCategoryExplanation = isOtherCategory && email.categoryExplanation;
+  // Detect when the explanation reveals a category mismatch (LLM suggested X but it didn't match).
+  const isMatchFailExplanation =
+    hasCategoryExplanation &&
+    email.categoryExplanation?.includes('not found in your category list');
 
   return (
     <div style={{ marginBottom: theme.spacing.sm }}>
@@ -113,7 +117,9 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
       {hasCategoryExplanation && (
         <div
           style={{
-            color: theme.colors.text.tertiary,
+            color: isMatchFailExplanation
+              ? theme.colors.text.secondary
+              : theme.colors.text.tertiary,
             fontSize: theme.typography.fontSize.sm,
             marginTop: theme.spacing.xs,
             fontStyle: 'italic',
@@ -121,8 +127,15 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
             alignItems: 'center',
             gap: theme.spacing.xs,
           }}
+          title={
+            isMatchFailExplanation
+              ? t('email.categoryMatchFailed', {
+                  defaultValue: 'The AI suggested a category that does not exist in your settings',
+                })
+              : undefined
+          }
         >
-          <span>💡</span>
+          <span>{isMatchFailExplanation ? '⚠️' : '💡'}</span>
           <span>{email.categoryExplanation}</span>
         </div>
       )}

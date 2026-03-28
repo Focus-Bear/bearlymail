@@ -4,6 +4,7 @@
  */
 
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { PhishingSignal } from "./phishing-detection.service";
 import { LLMProvider } from "../llm/llm.service";
 import { SummaryType } from "../llm/prompts";
 
@@ -37,4 +38,15 @@ export interface EmailWithHtmlBody {
   fromName?: string;
   threadId?: string;
   receivedAt?: Date | string;
+}
+
+/** Shared return type for summarize-with-phishing operations. */
+export interface SummarizeWithPhishingResult {
+  summary: string;
+  phishingSignal: PhishingSignal | null;
+  sentimentScore: number | null;
+  sentimentExplanation: string | null;
+  category: string | null;
+  categoryExplanation: string | null;
+  actionItems: Array<{ description: string; confidence: number }> | null;
 }

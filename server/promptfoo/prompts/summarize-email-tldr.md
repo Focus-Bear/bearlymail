@@ -76,7 +76,7 @@ Return a JSON object (no markdown fences) with exactly these fields:
   "summary": "<your TL;DR here>",
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
-  "category": "{% if hasUserCategories %}<one of the available categories listed below>{% else %}<one of: Newsletters, Sales & Marketing, Customer Support, HR & Admin, Finance, Partnerships, GitHub & Code, Personal, Other>{% endif %}",
+  "category": "<choose from the available categories listed below, or Other if none fit>",
   "categoryExplanation": "<one sentence explaining why this category was chosen>",
   "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
 }
@@ -97,10 +97,11 @@ SENTIMENT ANALYSIS — score guidelines:
 - 0.6 to 1.0: strongly positive (excited, grateful, celebratory)
 
 CATEGORY GUIDELINES:
-{% if hasUserCategories %}
-Available categories (choose one exactly as written):
-{{ userCategories }}
-- Other: use only if none of the above categories fit
+Return the category name EXACTLY as listed (same spelling, capitalisation, punctuation). Use "Other" only when no listed category fits.
+
+**Available categories:**
+{% if emailCategories %}
+{{emailCategories}}
 {% else %}
 - Newsletters: regular newsletters, digests, announcements to a broad audience
 - Sales & Marketing: sales outreach, promotions, marketing emails

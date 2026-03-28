@@ -290,6 +290,7 @@ async function runEvaluation(configPath, index, total) {
     );
     await sleep(delayMs);
   }
+  return runEvaluationOnce(configPath, index, total);
 }
 
 function parseEvaluationOutput(output, configName) {

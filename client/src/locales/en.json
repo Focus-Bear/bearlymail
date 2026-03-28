@@ -146,7 +146,8 @@
     "processingPriority": "Processing Priority...",
     "generatingSummary": "Generating Summary...",
     "calculating": "Calculating...",
-    "batched": "Batched"
+    "batched": "Batched",
+    "categoryMatchFailed": "The AI suggested a category that does not exist in your settings"
   },
   "emailActions": {
     "archive": "Archive",

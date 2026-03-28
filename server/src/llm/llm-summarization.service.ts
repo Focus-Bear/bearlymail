@@ -133,7 +133,7 @@ export class LLMSummarizationService {
     from: string = "",
     fromName: string = "",
     existingActions: string[] = [],
-    emailCategories?: Array<{ name: string; description?: string }>,
+    emailCategories: string = "",
   ): Promise<{
     summary: string;
     phishing: PhishingLLMResult | null;
@@ -180,18 +180,6 @@ export class LLMSummarizationService {
       QUERY_LIMITS.LLM_EXISTING_ACTIONS_CAP,
     );
 
-    // Build dynamic user category list for the prompt template.
-    // When present, the template renders these instead of the hardcoded default 9 categories.
-    const userCategoriesText =
-      emailCategories && emailCategories.length > 0
-        ? emailCategories
-            .map(
-              (cat) =>
-                `- "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-            )
-            .join("\n")
-        : "";
-
     const prompt = renderPrompt(promptConfig.prompt || "", {
       isThread,
       subject: emailSubject,
@@ -206,8 +194,7 @@ export class LLMSummarizationService {
         cappedExistingActions.length > 0
           ? cappedExistingActions.join("\n")
           : "",
-      userCategories: userCategoriesText,
-      hasUserCategories: userCategoriesText.length > 0,
+      emailCategories,
     });
 
     const PHISHING_JSON_TOKEN_OVERHEAD = 150;

@@ -85,6 +85,17 @@ export const colors = {
     secondary: '#333333', // 700
     tertiary: '#666666', // 600
     disabled: '#CCCCCC', // 400
+    inverse: '#FFFFFF', // White — for text on dark/filled backgrounds (e.g. selected "All" pill)
+  },
+
+  // Priority bucket colors — single source of truth for the visual filter slider track.
+  // Replacing hardcoded literals in PriorityRangeSelector.tsx (fix #1526 bug 1).
+  priorityBuckets: {
+    veryLow: '#64748B', // Slate
+    low: '#3B82F6', // Blue
+    medium: '#F59E0B', // Amber
+    high: '#F97316', // Orange
+    veryHigh: '#EF4444', // Red
   },
 
   // Greyscale

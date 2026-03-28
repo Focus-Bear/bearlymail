@@ -387,18 +387,20 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           alignItems: 'flex-start',
         }}
       >
-        {/* Category Filter — visual pill-based multi-select */}
+        {/* Category Filter — visual pill-based multi-select.
+            Fix #1526 bug 5: always render VisualCategoryFilter; pass loading=true while
+            categories are fetching so the component can show skeleton pills instead of
+            flashing in fully-formed all at once. This avoids the brief blank gap when the
+            filter bar first opens and fetchCategories is in-flight. */}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined }}>
-          {!loadingCategories && (
-            <VisualCategoryFilter
-              categories={availableCategories}
-              selectedIds={filters.categories}
-              onChange={handleCategoryChange}
-              categoryCounts={categoryCounts}
-              loading={isSummaryLoading}
-              compact={isMobile}
-            />
-          )}
+          <VisualCategoryFilter
+            categories={loadingCategories ? [] : availableCategories}
+            selectedIds={filters.categories}
+            onChange={handleCategoryChange}
+            categoryCounts={categoryCounts}
+            loading={loadingCategories || isSummaryLoading}
+            compact={isMobile}
+          />
         </div>
 
         {/* Priority Filter — dual-thumb range slider */}

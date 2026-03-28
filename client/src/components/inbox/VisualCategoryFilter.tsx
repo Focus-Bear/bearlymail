@@ -15,7 +15,7 @@
  * UI-only component — no state management, localStorage, or API concerns.
  * Wires to `categories` in `useInboxFilters`.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -53,7 +53,8 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
 
   const textColor = isSelected
     ? isAll
-      ? '#FFFFFF'
+      // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
+      ? theme.colors.text.inverse
       : theme.colors.text.primary
     : theme.colors.text.secondary;
 
@@ -143,7 +144,13 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
   compact = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  /**
+   * Fix #1526 bug 2: detect if the dropdown panel would overflow the right edge of the viewport.
+   * When it would, align the panel to the right of the trigger instead of the left.
+   */
+  const [alignRight, setAlignRight] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
   const hasSelectedOverflow = categories.some(cat => selectedIds.includes(cat.id));
@@ -157,6 +164,16 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fix #1526 bug 2: after the panel mounts, check if it overflows the viewport right edge.
+  useLayoutEffect(() => {
+    if (isOpen && panelRef.current) {
+      const rect = panelRef.current.getBoundingClientRect();
+      setAlignRight(rect.right > window.innerWidth);
+    } else if (!isOpen) {
+      setAlignRight(false);
+    }
+  }, [isOpen]);
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -193,12 +210,16 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
 
       {isOpen && (
         <div
+          ref={panelRef}
           role="listbox"
           aria-multiselectable="true"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
-            left: 0,
+            // Fix #1526 bug 2: when the panel would overflow the right viewport edge,
+            // anchor to the right of the trigger instead of the left.
+            left: alignRight ? undefined : 0,
+            right: alignRight ? 0 : undefined,
             minWidth: '200px',
             backgroundColor: theme.colors.background.paper,
             border: `1px solid ${theme.colors.border.medium}`,
@@ -316,6 +337,14 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
   const overflowCategories = categories.slice(MAX_VISIBLE_PILLS);
   const isAllSelected = selectedIds.length === 0;
 
+  /**
+   * Fix #1526 bug 5: when categories haven't loaded yet (loading=true, categories=[]),
+   * show skeleton placeholder pills so the filter bar appears immediately without a blank
+   * gap, and without flashing in count-less pills after the fetch completes.
+   */
+  const SKELETON_PILL_COUNT = 4;
+  const showSkeleton = loading && categories.length === 0;
+
   const handleAllClick = useCallback(() => {
     onChange([]);
   }, [onChange]);
@@ -402,6 +431,24 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
           compact={compact}
           onClick={handleAllClick}
         />
+
+        {/* Fix #1526 bug 5: skeleton placeholder pills while categories load */}
+        {showSkeleton && Array.from({ length: SKELETON_PILL_COUNT }).map((_, i) => (
+          <div
+            key={`skeleton-${i}`}
+            aria-hidden="true"
+            style={{
+              display: 'inline-flex',
+              width: compact ? '60px' : '80px',
+              height: compact ? '44px' : '32px',
+              borderRadius: theme.borderRadius.full,
+              backgroundColor: theme.colors.background.subtle,
+              border: `1.5px solid ${theme.colors.border.light}`,
+              animation: 'bearlymail-skeleton-pulse 1.2s ease-in-out infinite',
+              opacity: 0.7,
+            }}
+          />
+        ))}
 
         {/* Visible category pills — suppress counts while summary is refetching (fix #1466) */}
         {visibleCategories.map(cat => (

@@ -45,16 +45,25 @@ export interface PriorityBucket {
  * Visual bucket config for the range slider.
  * Min/max boundaries are sourced from PRIORITY_BUCKET_RANGES (constants/priorityBuckets.ts)
  * — single source of truth. Only display properties (trackColor, dotColor) are added here.
+ *
+ * Fix #1526 bug 1: track colors now come from theme.colors.priorityBuckets instead of
+ * hardcoded literals, so they participate in the theme system.
  */
 export const PRIORITY_BUCKETS: PriorityBucket[] = PRIORITY_BUCKET_RANGES.map((bucketDef, index) => {
-  const TRACK_COLORS = ['#64748B', '#3B82F6', '#F59E0B', '#F97316', '#EF4444'];
+  const TRACK_COLORS = [
+    theme.colors.priorityBuckets.veryLow,
+    theme.colors.priorityBuckets.low,
+    theme.colors.priorityBuckets.medium,
+    theme.colors.priorityBuckets.high,
+    theme.colors.priorityBuckets.veryHigh,
+  ];
   return {
     label: bucketDef.label,
     // Visual slider positions: Very Low has score min=null → visual position 0 (VISUAL_SLIDER_MIN)
     min: bucketDef.min ?? VISUAL_SLIDER_MIN,
     max: bucketDef.max,
-    trackColor: TRACK_COLORS[index] ?? '#64748B',
-    dotColor: TRACK_COLORS[index] ?? '#64748B',
+    trackColor: TRACK_COLORS[index] ?? theme.colors.priorityBuckets.veryLow,
+    dotColor: TRACK_COLORS[index] ?? theme.colors.priorityBuckets.veryLow,
   };
 });
 
@@ -159,9 +168,11 @@ interface ThumbProps {
   onDrag: (newValue: number) => void;
   trackRef: React.RefObject<HTMLDivElement | null>;
   color: string;
+  /** Fix #1526 bug 3: max thumb sits above min thumb so it's reachable when they overlap. */
+  isMaxThumb?: boolean;
 }
 
-const Thumb: React.FC<ThumbProps> = ({ value, ariaLabel, ariaValueText, onDrag, trackRef, color }) => {
+const Thumb: React.FC<ThumbProps> = ({ value, ariaLabel, ariaValueText, onDrag, trackRef, color, isMaxThumb = false }) => {
   const isDragging = useRef(false);
 
   const getValueFromEvent = useCallback((clientX: number): number => {
@@ -248,11 +259,14 @@ return;
         width: '20px',
         height: '20px',
         borderRadius: '50%',
-        backgroundColor: '#FFFFFF',
+        // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
+        backgroundColor: theme.colors.common.white,
         border: `2px solid ${color}`,
         boxShadow: `0 1px 4px rgba(0,0,0,0.2), 0 0 0 3px ${color}22`,
         cursor: 'grab',
-        zIndex: 2,
+        // Fix #1526 bug 3: max thumb (isMaxThumb=true) stacks above min thumb so it remains
+        // draggable when thumbs overlap on a single-bucket selection.
+        zIndex: isMaxThumb ? 3 : 2,
         transition: 'box-shadow 0.1s ease',
         outline: 'none',
         touchAction: 'none',
@@ -472,7 +486,7 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
           color={thumbColor}
         />
 
-        {/* Max thumb */}
+        {/* Max thumb — isMaxThumb ensures it sits on top when thumbs overlap (fix #1526 bug 3) */}
         <Thumb
           value={maxVal}
           ariaLabel={t('inbox.filters.priorityMaxHandle', 'Maximum priority')}
@@ -480,6 +494,7 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
           onDrag={handleMaxDrag}
           trackRef={trackRef}
           color={thumbColor}
+          isMaxThumb
         />
       </div>
 

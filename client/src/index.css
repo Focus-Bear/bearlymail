@@ -11,3 +11,9 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Fix #1526 bug 5: skeleton loading pulse animation for VisualCategoryFilter placeholder pills */
+@keyframes bearlymail-skeleton-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.4; }
+}

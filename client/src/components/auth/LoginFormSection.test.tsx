@@ -1,4 +1,5 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 
 import { LoginFormSection } from './LoginFormSection';
@@ -46,15 +47,18 @@ describe('LoginFormSection accessibility', () => {
     jest.clearAllMocks();
   });
 
+  const renderInRouter = (ui: React.ReactElement) =>
+    render(<MemoryRouter>{ui}</MemoryRouter>);
+
   it('email label has htmlFor linking to email input id', () => {
-    render(<LoginFormSection {...defaultProps} />);
+    renderInRouter(<LoginFormSection {...defaultProps} />);
     const emailInput = screen.getByRole('textbox', { name: /auth\.email/i });
     expect(emailInput).toBeInTheDocument();
     expect(emailInput).toHaveAttribute('id', 'login-email');
   });
 
   it('password label has htmlFor linking to password input id', () => {
-    render(<LoginFormSection {...defaultProps} />);
+    renderInRouter(<LoginFormSection {...defaultProps} />);
     // password inputs don't have role textbox, use getByLabelText
     const passwordInput = screen.getByLabelText(/auth\.password/i);
     expect(passwordInput).toBeInTheDocument();
@@ -62,14 +66,14 @@ describe('LoginFormSection accessibility', () => {
   });
 
   it('email input has correct name and autoComplete attributes', () => {
-    render(<LoginFormSection {...defaultProps} />);
+    renderInRouter(<LoginFormSection {...defaultProps} />);
     const emailInput = screen.getByRole('textbox', { name: /auth\.email/i });
     expect(emailInput).toHaveAttribute('name', 'email');
     expect(emailInput).toHaveAttribute('autocomplete', 'email');
   });
 
   it('password input has correct name and autoComplete attributes', () => {
-    render(<LoginFormSection {...defaultProps} />);
+    renderInRouter(<LoginFormSection {...defaultProps} />);
     const passwordInput = screen.getByLabelText(/auth\.password/i);
     expect(passwordInput).toHaveAttribute('name', 'password');
     expect(passwordInput).toHaveAttribute('autocomplete', 'current-password');
@@ -77,13 +81,13 @@ describe('LoginFormSection accessibility', () => {
   });
 
   it('email label is programmatically linked to email input via getByLabelText', () => {
-    render(<LoginFormSection {...defaultProps} />);
+    renderInRouter(<LoginFormSection {...defaultProps} />);
     // getByLabelText will throw if label is not properly linked to input
     expect(screen.getByLabelText(/auth\.email/i)).toBeInTheDocument();
   });
 
   it('error div has role=alert and aria-live=polite when error is present', () => {
-    render(<LoginFormSection {...defaultProps} error="Invalid email or password" />);
+    renderInRouter(<LoginFormSection {...defaultProps} error="Invalid email or password" />);
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
     expect(alert).toHaveAttribute('aria-live', 'polite');
@@ -91,7 +95,14 @@ describe('LoginFormSection accessibility', () => {
   });
 
   it('error div is not rendered when error is empty', () => {
-    render(<LoginFormSection {...defaultProps} error="" />);
+    renderInRouter(<LoginFormSection {...defaultProps} error="" />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('"Forgot password?" link renders and points to /forgot-password', () => {
+    renderInRouter(<LoginFormSection {...defaultProps} />);
+    const forgotLink = screen.getByRole('link', { name: /auth\.forgotPasswordLink/i });
+    expect(forgotLink).toBeInTheDocument();
+    expect(forgotLink).toHaveAttribute('href', '/forgot-password');
   });
 });

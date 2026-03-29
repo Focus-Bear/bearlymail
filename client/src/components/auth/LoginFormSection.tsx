@@ -116,7 +116,19 @@ const EmailPasswordForm: React.FC<EmailPasswordFormProps> = ({
     </div>
 
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <label htmlFor="login-password" style={fieldLabelStyle}>{t('auth.password')}</label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
+        <label htmlFor="login-password" style={{ ...fieldLabelStyle, marginBottom: 0 }}>{t('auth.password')}</label>
+        <Link
+          to="/forgot-password"
+          style={{
+            color: theme.colors.primary.main,
+            fontSize: theme.typography.fontSize.sm,
+            textDecoration: 'none',
+          }}
+        >
+          {t('auth.forgotPasswordLink')}
+        </Link>
+      </div>
       <input
         id="login-password"
         name="password"

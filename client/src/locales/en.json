@@ -41,6 +41,7 @@
     "password": "Password",
     "name": "Name",
     "signIn": "Sign In",
+    "forgotPasswordLink": "Forgot password?",
     "signUp": "Sign Up",
     "haveAccount": "Already have an account? Sign in",
     "noAccount": "Don't have an account? Sign up",

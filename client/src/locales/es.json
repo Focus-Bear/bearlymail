@@ -195,6 +195,7 @@
     "setupAccountTitle": "Configurar tu cuenta",
     "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
     "signIn": "Iniciar sesión",
+    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
     "signUp": "Registrarse",
     "joinWaitlist": "Unirse a la lista de espera",
     "backToLogin": "Volver al inicio de sesión",

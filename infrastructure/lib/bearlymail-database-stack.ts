@@ -94,7 +94,7 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       'RdsProxySecurityGroup',
       {
         vpc,
-        description: 'Security group for RDS Proxy (Lambda → RDS)',
+        description: 'Security group for RDS Proxy (Lambda to RDS)',
         allowAllOutbound: true,
       },
     );

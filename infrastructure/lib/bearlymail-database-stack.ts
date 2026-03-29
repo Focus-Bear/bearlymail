@@ -20,6 +20,14 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
   /** Security group for the RDS Proxy — other stacks add ingress rules to this */
   public readonly rdsProxySecurityGroup: ec2.SecurityGroup;
 
+  /**
+   * Security group for the context analysis Lambda.
+   * Created here (alongside rdsProxySecurityGroup) so the ingress rule
+   * `rdsProxySecurityGroup.addIngressRule(lambdaSecurityGroup, ...)` stays
+   * within a single stack and avoids a cross-stack cyclic reference.
+   */
+  public readonly lambdaSecurityGroup: ec2.SecurityGroup;
+
   constructor(scope: Construct, id: string, props: BearlyMailDatabaseStackProps) {
     super(scope, id, props);
 
@@ -107,6 +115,28 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     });
 
     this.rdsProxyEndpoint = this.rdsProxy.endpoint;
+
+    // ============================================
+    // Lambda Security Group (for ContextAnalysisStack)
+    //
+    // Both this SG and rdsProxySecurityGroup live in DatabaseStack, so the
+    // ingress rule below produces no cross-stack reference and no cyclic dep.
+    // ============================================
+    this.lambdaSecurityGroup = new ec2.SecurityGroup(
+      this,
+      'LambdaSecurityGroup',
+      {
+        vpc,
+        description: 'Security group for context analysis Lambda',
+        allowAllOutbound: true,
+      },
+    );
+
+    this.rdsProxySecurityGroup.addIngressRule(
+      this.lambdaSecurityGroup,
+      ec2.Port.tcp(5432),
+      'Allow Lambda to connect via RDS Proxy',
+    );
 
     // ============================================
     // Outputs

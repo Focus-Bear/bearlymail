@@ -115,6 +115,7 @@ const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMail
   rdsProxy: databaseStack.rdsProxy,
   rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
   rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
+  lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
   ecsTaskRoleArn: appStack.ecsTaskRole.roleArn,
 });
 

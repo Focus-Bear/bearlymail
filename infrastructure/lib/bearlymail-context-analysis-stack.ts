@@ -36,6 +36,11 @@ export interface BearlyMailContextAnalysisStackProps extends cdk.StackProps {
   rdsProxyEndpoint: string;
   /** RDS Proxy security group from DatabaseStack — Lambda SG adds ingress to this */
   rdsProxySecurityGroup: ec2.SecurityGroup;
+  /**
+   * Lambda security group created in DatabaseStack (alongside rdsProxySecurityGroup)
+   * to avoid a cyclic cross-stack reference.
+   */
+  lambdaSecurityGroup: ec2.ISecurityGroup;
   /** ARN of the ECS task role — grants it SQS send permissions */
   ecsTaskRoleArn: string;
   /** SNS topic ARN for DLQ depth alarms (optional) */
@@ -56,7 +61,7 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
   ) {
     super(scope, id, props);
 
-    const { vpc, database, dbSecret, appSecrets, ecsTaskRoleArn, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup } = props;
+    const { vpc, database, dbSecret, appSecrets, ecsTaskRoleArn, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup, lambdaSecurityGroup } = props;
 
     this.rdsProxyEndpoint = rdsProxyEndpoint;
 
@@ -109,27 +114,9 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     queue.grantSendMessages(ecsTaskRole);
 
     // ============================================
-    // Lambda Security Group
-    // ============================================
-    const lambdaSecurityGroup = new ec2.SecurityGroup(
-      this,
-      "LambdaSecurityGroup",
-      {
-        vpc,
-        description: "Security group for context analysis Lambda",
-        allowAllOutbound: true,
-      },
-    );
-
-    // Allow Lambda to connect to RDS Proxy (SG lives in DatabaseStack)
-    rdsProxySecurityGroup.addIngressRule(
-      lambdaSecurityGroup,
-      ec2.Port.tcp(5432),
-      "Allow Lambda to connect via RDS Proxy",
-    );
-
-    // ============================================
     // Lambda IAM Role
+    // Note: lambdaSecurityGroup is provided via props (created in DatabaseStack
+    // alongside rdsProxySecurityGroup to avoid a cyclic cross-stack reference).
     // ============================================
     const lambdaRole = new iam.Role(this, "LambdaRole", {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),

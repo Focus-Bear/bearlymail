@@ -170,7 +170,9 @@ const ResetPassword: React.FC = () => {
                 </label>
                 <input
                   id="reset-password-new"
+                  name="password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   required
@@ -211,7 +213,9 @@ const ResetPassword: React.FC = () => {
                 </label>
                 <input
                   id="reset-password-confirm"
+                  name="confirm-password"
                   type="password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={event => setConfirmPassword(event.target.value)}
                   required

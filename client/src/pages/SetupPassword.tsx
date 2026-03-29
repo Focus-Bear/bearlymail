@@ -64,11 +64,14 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
     )}
     <form onSubmit={onSubmit}>
       <div style={{ marginBottom: theme.spacing.md }}>
-        <label style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
+        <label htmlFor="setup-password-new" style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
           {t('auth.password')}
         </label>
         <input
+          id="setup-password-new"
+          name="password"
           type="password"
+          autoComplete="new-password"
           value={password}
           onChange={event => onPasswordChange(event.target.value)}
           required
@@ -80,11 +83,14 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
         </p>
       </div>
       <div style={{ marginBottom: theme.spacing.lg }}>
-        <label style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
+        <label htmlFor="setup-password-confirm" style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
           {t('auth.confirmPassword')}
         </label>
         <input
+          id="setup-password-confirm"
+          name="confirm-password"
           type="password"
+          autoComplete="new-password"
           value={confirmPassword}
           onChange={event => onConfirmChange(event.target.value)}
           required

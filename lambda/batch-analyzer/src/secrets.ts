@@ -56,9 +56,9 @@ export interface LlmSecrets {
 }
 
 const DB_SECRET_NAME =
-  process.env.DB_SECRET_NAME || "bearlymail/lambda/db";
+  process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME || "bearlymail/lambda/db";
 const LLM_SECRET_NAME =
-  process.env.LLM_SECRET_NAME || "bearlymail/lambda/llm";
+  process.env.APP_SECRET_ARN || process.env.LLM_SECRET_NAME || "bearlymail/lambda/llm";
 
 export async function getDbSecrets(): Promise<DbSecrets> {
   const raw = await getSecret(DB_SECRET_NAME);

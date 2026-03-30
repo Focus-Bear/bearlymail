@@ -30,9 +30,13 @@ interface ReplyContext {
   emailExamples: string[];
 }
 
+const FOLLOW_UP_THREAD_WINDOW = 10;
+
 interface FollowUpContext {
   recipientName: string;
   daysSinceLastEmail: number;
+  lastOtherPartyMessage: string;
+  userLastMessage: string;
   threadMessages: Array<{
     from: string;
     fromName: string | undefined;
@@ -222,24 +226,43 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     threadId: string,
     userId: string,
     userEmail: string,
-    latestEmail: Email,
   ): Promise<FollowUpContext> {
+    // Fetch more messages (10 instead of 5) to capture other party's last reply
+    // in long threads where the user has sent multiple follow-ups.
     const threadEmails = await this.emailRepository.find({
       where: { emailThreadId: threadId, userId },
       order: { receivedAt: "ASC" },
-      take: 5,
+      take: FOLLOW_UP_THREAD_WINDOW,
     });
 
-    const recipientName =
-      threadEmails.find(
-        (emailEntry) => emailEntry.from?.toLowerCase() !== userEmail,
-      )?.fromName || "there";
-
-    const now = new Date();
-    const daysSinceLastEmail = Math.floor(
-      (now.getTime() - new Date(latestEmail.receivedAt).getTime()) /
-        MILLISECONDS.DAY,
+    // Find the most recent email from the OTHER party — this is what we're following up on.
+    const otherPartyEmails = threadEmails.filter(
+      (email) => email.from?.toLowerCase() !== userEmail,
     );
+    const lastOtherPartyEmail =
+      otherPartyEmails.length > 0
+        ? otherPartyEmails[otherPartyEmails.length - 1]
+        : null;
+
+    const recipientName = lastOtherPartyEmail?.fromName || "there";
+
+    // Measure wait time from when the OTHER party last replied, not from the user's email.
+    const now = new Date();
+    const referenceDate = lastOtherPartyEmail
+      ? new Date(lastOtherPartyEmail.receivedAt)
+      : now;
+    const daysSinceLastEmail = Math.floor(
+      (now.getTime() - referenceDate.getTime()) / MILLISECONDS.DAY,
+    );
+
+    // Extract message bodies for the enriched prompt context.
+    const lastOtherPartyMessage = lastOtherPartyEmail?.body || "";
+    const userEmails = threadEmails.filter(
+      (email) => email.from?.toLowerCase() === userEmail,
+    );
+    const lastUserEmail =
+      userEmails.length > 0 ? userEmails[userEmails.length - 1] : null;
+    const userLastMessage = lastUserEmail?.body || "";
 
     const threadMessages = threadEmails.map((emailEntry) => ({
       from: emailEntry.from || "",
@@ -249,7 +272,13 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
       isFromUser: emailEntry.from?.toLowerCase() === userEmail,
     }));
 
-    return { recipientName, daysSinceLastEmail, threadMessages };
+    return {
+      recipientName,
+      daysSinceLastEmail,
+      lastOtherPartyMessage,
+      userLastMessage,
+      threadMessages,
+    };
   }
 
   private async generateReplySuggestions(
@@ -271,7 +300,6 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         threadId,
         userId,
         userEmail,
-        latestEmail,
       );
 
       const followUpText = await this.llmService.generateFollowUpDraft({
@@ -285,6 +313,8 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         },
         userId,
         calendarBookingUrl: userContext.calendarLink,
+        lastOtherPartyMessage: followUpCtx.lastOtherPartyMessage,
+        userLastMessage: followUpCtx.userLastMessage,
       });
 
       return [{ label: "Follow Up", text: followUpText }];

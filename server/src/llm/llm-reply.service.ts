@@ -313,6 +313,8 @@ export class LLMReplyService {
       greetingStyle?: string | null;
     },
     calendarBookingUrl?: string | null,
+    lastOtherPartyMessage?: string,
+    userLastMessage?: string,
   ): Promise<string> {
     const promptConfig = getPrompt(REPLY_PROMPT_IDS.GENERATE_FOLLOW_UP);
     if (!promptConfig) {
@@ -341,6 +343,21 @@ export class LLMReplyService {
     const preferredName = threadStyleInfo?.preferredName || null;
     const greetingStyle = threadStyleInfo?.greetingStyle || null;
 
+    const cleanedLastOtherPartyMessage = lastOtherPartyMessage
+      ? cleanEmailContent(
+          lastOtherPartyMessage,
+          null,
+          QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+        )
+      : "";
+    const cleanedUserLastMessage = userLastMessage
+      ? cleanEmailContent(
+          userLastMessage,
+          null,
+          QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+        )
+      : "";
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone: userCommunicationStyle?.tone || "",
       commonPhrases: userCommunicationStyle?.commonPhrases?.join(", ") || "",
@@ -354,6 +371,10 @@ export class LLMReplyService {
       daysLabel: businessDaysWaiting === 1 ? "day" : "days",
       skipGreeting,
       calendarLink: calendarBookingUrl || "",
+      lastOtherPartyMessage: cleanedLastOtherPartyMessage,
+      userLastMessage: cleanedUserLastMessage,
+      hasOtherPartyMessage: cleanedLastOtherPartyMessage.length > 0,
+      hasUserLastMessage: cleanedUserLastMessage.length > 0,
     });
 
     return await this.generateText(

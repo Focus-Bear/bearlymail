@@ -482,6 +482,8 @@ export class LLMService {
       greetingStyle?: string | null;
     };
     calendarBookingUrl?: string | null;
+    lastOtherPartyMessage?: string;
+    userLastMessage?: string;
   }): Promise<string> {
     const {
       subject,
@@ -493,6 +495,8 @@ export class LLMService {
       userId,
       threadStyleInfo,
       calendarBookingUrl,
+      lastOtherPartyMessage,
+      userLastMessage,
     } = options;
     return this.llmReplyService.generateFollowUpDraft(
       subject,
@@ -504,6 +508,8 @@ export class LLMService {
       userId,
       threadStyleInfo,
       calendarBookingUrl,
+      lastOtherPartyMessage,
+      userLastMessage,
     );
   }
 

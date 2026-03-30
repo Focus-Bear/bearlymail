@@ -153,7 +153,6 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
   });
 
   it("should pass thread messages to generateReplyOptions when the other party sent the last email", async () => {
-    // Access the private method via type cast for testing
     const generateFn = (processor as any).generateReplySuggestions.bind(
       processor,
     );
@@ -179,9 +178,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
       latestEmail,
     );
 
-    // Repository should have been queried for thread messages.
-    // Fetched newest-first (DESC) so `take: 5` captures the most recent messages,
-    // then reversed to chronological order before being passed to the LLM prompt.
+    // Repository should have been queried for thread messages (DESC for recency, take: 5).
     expect(mockEmailRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { emailThreadId: "thread-1", userId: "user-1" },
@@ -197,7 +194,6 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
         subject: latestEmail.subject,
         body: latestEmail.body,
       }),
-      // userContext
       expect.any(Object),
       undefined,
       "user-1",
@@ -205,6 +201,161 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
         expect.objectContaining({ from: "sarah@example.com" }),
         expect.objectContaining({ from: "alex@example.com" }),
       ]),
+    );
+  });
+
+  it("should use follow-up window of 10 when building follow-up context", async () => {
+    const buildFollowUpCtx = (processor as any).buildFollowUpContext.bind(
+      processor,
+    );
+
+    // Mock 10-message thread: sarah sent last (the one we're following up on)
+    const tenMessages: Partial<Email>[] = [
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: `email-${i}`,
+        emailThreadId: "thread-1",
+        userId: "user-1",
+        from: i % 2 === 0 ? "alex@example.com" : "sarah@example.com",
+        fromName: i % 2 === 0 ? "Alex" : "Sarah Chen",
+        body: `Message ${i}`,
+        receivedAt: new Date(`2026-01-${String(i + 1).padStart(2, "0")}T10:00:00Z`),
+      })),
+      {
+        id: "email-8",
+        emailThreadId: "thread-1",
+        userId: "user-1",
+        from: "sarah@example.com",
+        fromName: "Sarah Chen",
+        body: "Please send the updated report.",
+        receivedAt: new Date("2026-01-09T10:00:00Z"),
+      },
+      {
+        id: "email-9",
+        emailThreadId: "thread-1",
+        userId: "user-1",
+        from: "alex@example.com",
+        fromName: "Alex",
+        body: "Will do, sending today.",
+        receivedAt: new Date("2026-01-10T10:00:00Z"),
+      },
+    ];
+
+    mockEmailRepository.find.mockResolvedValue(tenMessages);
+
+    const ctx = await buildFollowUpCtx("thread-1", "user-1", "alex@example.com");
+
+    // Should fetch with window of 10
+    expect(mockEmailRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { emailThreadId: "thread-1", userId: "user-1" },
+        order: { receivedAt: "ASC" },
+        take: 10,
+      }),
+    );
+
+    // recipientName comes from last other-party email (sarah@example.com)
+    expect(ctx.recipientName).toBe("Sarah Chen");
+
+    // lastOtherPartyMessage should be Sarah's last email body
+    expect(ctx.lastOtherPartyMessage).toBe("Please send the updated report.");
+
+    // userLastMessage should be Alex's last email body
+    expect(ctx.userLastMessage).toBe("Will do, sending today.");
+  });
+
+  it("should use daysSinceLastEmail based on other party's last email, not user's own", async () => {
+    const buildFollowUpCtx = (processor as any).buildFollowUpContext.bind(
+      processor,
+    );
+
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
+
+    const followUpThread: Partial<Email>[] = [
+      {
+        id: "e1",
+        emailThreadId: "thread-2",
+        userId: "user-1",
+        from: "sarah@example.com",
+        fromName: "Sarah",
+        body: "Any update?",
+        receivedAt: threeDaysAgo,
+      },
+      {
+        id: "e2",
+        emailThreadId: "thread-2",
+        userId: "user-1",
+        from: "alex@example.com",
+        fromName: "Alex",
+        body: "Working on it.",
+        receivedAt: yesterday,
+      },
+    ];
+
+    mockEmailRepository.find.mockResolvedValue(followUpThread);
+
+    const ctx = await buildFollowUpCtx("thread-2", "user-1", "alex@example.com");
+
+    // Days should be ~3 (based on Sarah's email), not ~1 (based on Alex's email)
+    expect(ctx.daysSinceLastEmail).toBeGreaterThanOrEqual(2);
+    expect(ctx.daysSinceLastEmail).toBeLessThanOrEqual(4);
+  });
+
+  it("should pass lastOtherPartyMessage and userLastMessage to generateFollowUpDraft", async () => {
+    const generateFn = (processor as any).generateReplySuggestions.bind(
+      processor,
+    );
+
+    const followUpThread: Partial<Email>[] = [
+      {
+        id: "e1",
+        emailThreadId: "thread-1",
+        userId: "user-1",
+        from: "sarah@example.com",
+        fromName: "Sarah Chen",
+        body: "Did you get my last message?",
+        receivedAt: new Date("2026-01-10T10:00:00Z"),
+      },
+      {
+        id: "e2",
+        emailThreadId: "thread-1",
+        userId: "user-1",
+        from: "alex@example.com",
+        fromName: "Alex",
+        body: "Yes, working on it now.",
+        receivedAt: new Date("2026-01-11T09:00:00Z"),
+      },
+    ];
+
+    mockEmailRepository.find.mockResolvedValue(followUpThread);
+
+    const replyContext = {
+      userEmail: "alex@example.com",
+      userSentLast: true,
+      userContext: {
+        tone: "professional",
+        userName: "Alex",
+        userJobTitle: "Engineer",
+        emailExamples: [],
+        calendarLink: null,
+      },
+      emailExamples: [],
+    };
+
+    const userEmail: Partial<Email> = {
+      ...latestEmail,
+      from: "alex@example.com",
+    };
+
+    await generateFn("worker-1", "thread-1", "user-1", replyContext, userEmail);
+
+    expect(mockLLMService.generateFollowUpDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastOtherPartyMessage: expect.stringContaining(
+          "Did you get my last message?",
+        ),
+        userLastMessage: expect.stringContaining("Yes, working on it now."),
+      }),
     );
   });
 });

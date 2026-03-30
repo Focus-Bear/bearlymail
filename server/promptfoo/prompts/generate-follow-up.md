@@ -16,17 +16,25 @@ CRITICAL: NEVER propose specific dates, times, or availability. You do not have 
 If relevant, include this booking link: {{calendarLink}}
 {% endif %}
 
-I need to follow up on an email thread.
+I need to follow up on an email thread. I sent the most recent message and am waiting for a response.
 
 Subject: {{subject}}
 
 Thread context (last {{threadMessageCount}} messages in chronological order):
 {{threadContext}}
+{% if hasOtherPartyMessage %}
+The other party's most recent message (what I'm following up on):
+{{lastOtherPartyMessage}}
+{% endif %}
+{% if hasUserLastMessage %}
+My most recent message (what I sent last):
+{{userLastMessage}}
+{% endif %}
 
 Recipient: {{recipientName}}
 {% if preferredName %}Recipient's preferred name (how they sign off): {{preferredName}}{% endif %}
 {% if greetingStyle %}Greeting style used in this thread: "{{greetingStyle}}"{% endif %}
-Business days since my last message: {{businessDaysWaiting}} {{daysLabel}}
+Business days since the other party last replied: {{businessDaysWaiting}} {{daysLabel}}
 
 Generate a brief, friendly follow-up message. {% if skipGreeting %}Don't include a greeting - start directly with the message.{% else %}Start with a brief greeting that matches the conversational style of this thread:
 - Use the recipient's preferred name ({% if preferredName %}{{preferredName}}{% else %}{{recipientName}}{% endif %}) rather than their full formal name

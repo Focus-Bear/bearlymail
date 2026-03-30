@@ -99,6 +99,15 @@ export class EmailDebugController {
     return this.emailsService.fixStaleUnsyncedThreads(req.user.userId);
   }
 
+  /**
+   * Fix #1571 Item 3: Priority debug info endpoint.
+   * Returns per-mode bucket counts, priority score histogram, and fetch timestamp.
+   */
+  @Get("debug/priority-info")
+  async getPriorityDebugInfo(@Request() req) {
+    return this.emailsService.getPriorityDebugInfo(req.user.userId);
+  }
+
   @Get("debug/thread-lookup/:threadId")
   async lookupThread(@Request() req, @Param("threadId") threadId: string) {
     const gmailUrlPattern = /^https?:\/\/mail\.google\.com\/mail\//i;

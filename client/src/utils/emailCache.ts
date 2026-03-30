@@ -6,14 +6,18 @@
  * - On archive: remove the email from cache optimistically.
  * - TTL: 5 minutes. After that the cache is treated as stale but still shown while
  *   a background refresh runs.
+ *
+ * Fix #1571 Bug 1: cache keys now include a filter hash so that stale-while-revalidate
+ * never serves data from a different filter configuration. Bump CACHE_VERSION to v3
+ * to force-invalidate all v2 entries written without filter hashes.
  */
 import { Email } from 'types/email';
 
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
-// Bump to v2 to force-invalidate all localStorage caches written before fix #1114.
-// Those caches may contain stale/wrong UUIDs that trigger the silent-skip bug.
-export const CACHE_VERSION = 'v2';
+// Bump to v3 to force-invalidate v2 caches that lack filter-hash segments (#1571).
+// v2 → v3: add filterHash to summary and category keys.
+export const CACHE_VERSION = 'v3';
 const MAX_EMAILS_PER_CATEGORY = 100;
 
 interface CachedEntry<T> {
@@ -22,42 +26,38 @@ interface CachedEntry<T> {
 }
 
 /**
- * Serialise filter params into a stable, URL-safe string for use in a cache key.
- * Only includes fields that affect the server query (minPriority, maxPriority,
- * categories, accountIds). Fields are sorted so key order is deterministic.
+ * Produce a stable short hash string from the active filter state.
+ * Used to scope cache keys so stale-while-revalidate never serves data from a
+ * different filter configuration (fix #1571 Bug 1).
+ *
+ * Only priority filters affect the email set returned by the server, so we
+ * only hash minPriority and maxPriority. Category and account filters are
+ * applied client-side (they don't change the top-level email fetch result).
  */
-export function serialiseFilterParams(params?: {
+export interface FilterHashParams {
   minPriority?: number | null;
   maxPriority?: number | null;
-  categories?: string[];
-  accountIds?: string[];
-}): string {
-  if (!params) {
-    return 'default';
-  }
-  const parts: string[] = [];
-  if (params.minPriority !== null && params.minPriority !== undefined) {
-    parts.push(`min${params.minPriority}`);
-  }
-  if (params.maxPriority !== null && params.maxPriority !== undefined) {
-    parts.push(`max${params.maxPriority}`);
-  }
-  if (params.categories?.length) {
-    parts.push(`cats${[...params.categories].sort().join('_')}`);
-  }
-  if (params.accountIds?.length) {
-    parts.push(`accs${[...params.accountIds].sort().join('_')}`);
-  }
-  return parts.length > 0 ? parts.join('__') : 'default';
 }
 
-function summaryKey(mode: string, filterKey = 'default'): string {
-  return `bearlymail_${CACHE_VERSION}_summary_${mode}_${filterKey}`;
+export function filterHash(params: FilterHashParams): string {
+  const min = params.minPriority ?? 'null';
+  const max = params.maxPriority ?? 'null';
+  return `p${min}_p${max}`;
 }
 
-function categoryKey(mode: string, key: string): string {
+function summaryKey(mode: string, hash?: string): string {
+  if (hash) {
+    return `bearlymail_${CACHE_VERSION}_summary_${mode}_${hash}`;
+  }
+  return `bearlymail_${CACHE_VERSION}_summary_${mode}`;
+}
+
+function categoryKey(mode: string, key: string, hash?: string): string {
   // Sanitise the key so it's safe to use in a storage key
   const safe = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (hash) {
+    return `bearlymail_${CACHE_VERSION}_cat_${mode}_${safe}_${hash}`;
+  }
   return `bearlymail_${CACHE_VERSION}_cat_${mode}_${safe}`;
 }
 
@@ -100,14 +100,12 @@ export interface SummaryCacheParams {
  * returned a cached value, allowing stale UUIDs to persist indefinitely and
  * trigger the backend's silent-skip bug.
  *
- * Fix #1571: cache key now includes filter params so changing priority/category
- * filters invalidates the stale-while-revalidate path instead of serving a
- * cached summary built with different filter values.
+ * Fix #1571 Bug 1: accepts optional `hash` to scope the cache key to the
+ * current filter configuration. Pass `filterHash(filters)` at the call site.
  */
-export function getCachedSummary(mode: string, maxAgeMs = Infinity, filterParams?: SummaryCacheParams): CategorySummaryItem[] | null {
+export function getCachedSummary(mode: string, maxAgeMs = Infinity, hash?: string): CategorySummaryItem[] | null {
   try {
-    const filterKey = serialiseFilterParams(filterParams);
-    const raw = localStorage.getItem(summaryKey(mode, filterKey));
+    const raw = localStorage.getItem(summaryKey(mode, hash));
     if (!raw) {
       return null;
     }
@@ -121,28 +119,29 @@ export function getCachedSummary(mode: string, maxAgeMs = Infinity, filterParams
   }
 }
 
-export function setCachedSummary(mode: string, summary: CategorySummaryItem[], filterParams?: SummaryCacheParams): void {
-  const filterKey = serialiseFilterParams(filterParams);
-  safeSet(summaryKey(mode, filterKey), summary);
+export function setCachedSummary(mode: string, summary: CategorySummaryItem[], hash?: string): void {
+  safeSet(summaryKey(mode, hash), summary);
 }
 
 /**
  * Invalidate the triage/action summary cache for a given mode.
  * Call this after prioritisation actions that move emails between modes
  * so that category counts are refetched on next render.
+ *
+ * Fix #1571 Bug 1: clears ALL filter variants for the given mode by iterating
+ * localStorage keys with the mode prefix, not just a single key.
  */
 export function invalidateSummaryCache(mode: string): void {
   try {
-    // Remove all filter variants for this mode
-    const prefix = `bearlymail_${CACHE_VERSION}_summary_${mode}_`;
+    const prefix = `bearlymail_${CACHE_VERSION}_summary_${mode}`;
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith(prefix)) {
-        keysToRemove.push(key);
+      const storageKey = localStorage.key(i);
+      if (storageKey?.startsWith(prefix)) {
+        keysToRemove.push(storageKey);
       }
     }
-    keysToRemove.forEach(storageKey => localStorage.removeItem(storageKey));
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   } catch {
     // Fail silently
   }
@@ -150,14 +149,14 @@ export function invalidateSummaryCache(mode: string): void {
 
 // ─── Category emails ───────────────────────────────────────────────────────────
 
-export function getCachedCategoryEmails(mode: string, key: string): Email[] | null {
-  return safeGet<Email[]>(categoryKey(mode, key));
+export function getCachedCategoryEmails(mode: string, key: string, hash?: string): Email[] | null {
+  return safeGet<Email[]>(categoryKey(mode, key, hash));
 }
 
-export function setCachedCategoryEmails(mode: string, key: string, emails: Email[]): void {
+export function setCachedCategoryEmails(mode: string, key: string, emails: Email[], hash?: string): void {
   // Cap to avoid blowing up localStorage on large inboxes
   const capped = emails.slice(0, MAX_EMAILS_PER_CATEGORY);
-  safeSet(categoryKey(mode, key), capped);
+  safeSet(categoryKey(mode, key, hash), capped);
 }
 
 // ─── Invalidation ─────────────────────────────────────────────────────────────
@@ -191,7 +190,9 @@ export function removeEmailFromCache(emailId: string): void {
 
 /**
  * Clear all inbox cache entries for a given mode (e.g. when switching modes or changing filters).
- * Removes all summary filter variants and all per-category email caches.
+ *
+ * Fix #1571 Bug 1: iterates all localStorage keys and removes any that belong to this mode,
+ * including filter-hash variants (e.g. `…_summary_triage_pnull_pnull`).
  */
 export function clearCacheForMode(mode: string): void {
   try {
@@ -199,19 +200,18 @@ export function clearCacheForMode(mode: string): void {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key?.startsWith(prefix) && key.includes(`_${mode}_`)) {
+      // Match `_cat_<mode>_*` and `_summary_<mode>` (exact, no hash) or `_summary_<mode>_*` (with hash).
+      // The trailing-delimited check avoids hypothetical `_summary_triage2_` false-positives.
+      if (
+        key?.startsWith(prefix) &&
+        (key.includes(`_cat_${mode}_`) ||
+          key.includes(`_summary_${mode}_`) ||
+          key.endsWith(`_summary_${mode}`))
+      ) {
         keysToRemove.push(key);
       }
     }
-    // Also remove all summary filter variants for this mode
-    const summaryPrefix = `bearlymail_${CACHE_VERSION}_summary_${mode}_`;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith(summaryPrefix) && !keysToRemove.includes(key)) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(storKey => localStorage.removeItem(storKey));
+    keysToRemove.forEach(storageKey => localStorage.removeItem(storageKey));
   } catch {
     // Fail silently
   }

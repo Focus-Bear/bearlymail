@@ -428,6 +428,10 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
       style={{
         flex: '1',
         minWidth: '280px',
+        // Fix #1571 Bug 2: flex column layout so this card fills its parent height when
+        // InboxFilters uses alignItems: 'stretch' for equal-height side-by-side cards.
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: theme.colors.background.paper,
         border: `1px solid ${theme.colors.border.light}`,
         borderRadius: theme.borderRadius.md,

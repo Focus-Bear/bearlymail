@@ -20,8 +20,7 @@ import { EMOJI_BUG, EMOJI_SYNC } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, STRING_NONE } from 'constants/strings';
 import { ThreadLookupResult } from 'hooks/useDebugPanel';
-import { InboxFilter } from 'hooks/useInboxFilters';
-import { PriorityCounts } from 'hooks/usePriorityCounts';
+import type { InboxFilter } from 'hooks/useInboxFilters';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugOrphanData {
@@ -83,10 +82,10 @@ interface DebugPanelProps {
   loadedCategoryNames?: string[];
   loadingCategoryNames?: string[];
   expandedCategories?: Set<string>;
-  /** Current priority filter state — passed to DebugPrioritySection. */
-  priorityFilters?: InboxFilter;
-  /** Priority bucket counts — passed to DebugPrioritySection. */
-  priorityCounts?: PriorityCounts | null;
+  /** Fix #1571 Item 3: current filter state for the priority debug section. */
+  filters?: InboxFilter;
+  /** Fix #1571 Item 3: computed priorityTotalCount from Inbox.tsx bucket overlap logic. */
+  priorityTotalCount?: number;
 }
 export const DebugPanel: React.FC<DebugPanelProps> = ({
   mode,
@@ -116,8 +115,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   loadedCategoryNames,
   loadingCategoryNames,
   expandedCategories,
-  priorityFilters,
-  priorityCounts,
+  filters,
+  priorityTotalCount,
 }) => {
   const { t } = useTranslation();
   const threadCount = (() => {
@@ -203,13 +202,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             emails={emails}
           />
 
-          {priorityFilters && (
-            <DebugPrioritySection
-              mode={mode}
-              filters={priorityFilters}
-              priorityCounts={priorityCounts ?? null}
-            />
-          )}
+          {/* Fix #1571 Item 3: Priority debug section */}
+          <DebugPrioritySection filters={filters} priorityTotalCount={priorityTotalCount} />
 
           <DebugStarredSection
             debugStarredData={debugStarredData}

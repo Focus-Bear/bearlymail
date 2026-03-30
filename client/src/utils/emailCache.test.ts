@@ -9,6 +9,7 @@ import { Email } from 'types/email';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 import {
+  CACHE_VERSION,
   clearCacheForMode,
   getCachedCategoryEmails,
   getCachedSummary,
@@ -64,7 +65,7 @@ describe('getCachedSummary / setCachedSummary', () => {
     setCachedSummary('inbox', summary);
 
     // Backdate the stored timestamp by 2 minutes so the 60 s TTL has elapsed
-    const key = 'bearlymail_v2_summary_inbox_default';
+    const key = `bearlymail_${CACHE_VERSION}_summary_inbox`;
     const raw = localStorage.getItem(key);
     expect(raw).not.toBeNull();
     const entry = JSON.parse(raw!);

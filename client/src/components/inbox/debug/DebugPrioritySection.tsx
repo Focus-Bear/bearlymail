@@ -1,198 +1,155 @@
 /**
- * DebugPrioritySection — shows current priority filter state, bucket distribution,
- * unprioritised count, and localStorage cache state for the active inbox mode.
+ * DebugPrioritySection — priority debug panel for the inbox debug view.
  *
- * Rendered inside DebugPanel; has no side effects (read-only display).
- *
- * Author: Captain Codebeard (AI)
- * Implements: #1571 Feature — Priority debug section (P3)
+ * Implements #1571 Item 3. Displays:
+ * - Per-mode bucket counts (triage / action / follow-up)
+ * - Current filter state (minPriority, maxPriority from props + localStorage raw value)
+ * - Computed priorityTotalCount as shown in the header
+ * - Cache state (exists, age, CACHE_VERSION key prefix)
+ * - Priority score histogram (10-point bands)
+ * - Refresh button to re-fetch
  */
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import { theme } from 'theme/theme';
-import { InboxMode } from 'types/email';
-import { CACHE_VERSION, serialiseFilterParams } from 'utils/emailCache';
+import { CACHE_VERSION } from 'utils/emailCache';
 
-import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
-import { InboxFilter } from 'hooks/useInboxFilters';
-import { PriorityCounts } from 'hooks/usePriorityCounts';
+import { API_URL } from 'config/api';
+import type { InboxFilter } from 'hooks/useInboxFilters';
 
-export interface DebugPrioritySectionProps {
-  /** Current active inbox mode. */
-  mode: InboxMode;
-  /** Current priority filter values from useInboxFilters. */
-  filters: InboxFilter;
-  /** Priority bucket counts from usePriorityCounts. null while loading. */
-  priorityCounts: PriorityCounts | null;
+interface PriorityBuckets {
+  veryHigh: number;
+  high: number;
+  medium: number;
+  low: number;
+  veryLow: number;
+  unprioritised: number;
 }
 
-// ── Color constants ───────────────────────────────────────────────────────────
-// Named constants for colors not yet represented in theme/theme.ts.
-// These replace raw hex/rgba magic strings and serve as a single point of truth.
-
-/** Subtle indigo tint used as the debug panel container background. */
-const DEBUG_PANEL_BG = 'rgba(99,102,241,0.05)';
-/** Indigo border used around the debug panel container. */
-const DEBUG_PANEL_BORDER = 'rgba(99,102,241,0.2)';
-/** Very light dark overlay used as the sub-section box background. */
-const SECTION_BOX_BG = 'rgba(0,0,0,0.04)';
-/** Colour applied to the cache-hit indicator. */
-const CACHE_HIT_COLOR = theme.colors.success.main;
-/** Colour applied to the cache-miss indicator. */
-const CACHE_MISS_COLOR = theme.colors.error.dark;
-/** Colour applied to the unprioritised count warning badge. */
-const UNPRIORITISED_WARN_COLOR = theme.colors.warning.main;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const MS_PER_SECOND = 1000;
-const SECONDS_PER_MINUTE = 60;
-
-function describePriorityRange(min: number | null, max: number | null): string {
-  if (min === null && max === null) {
-    return 'All priorities';
-  }
-  if (min !== null && max === null) {
-    return `≥ ${min} (min only)`;
-  }
-  if (min === null && max !== null) {
-    return `≤ ${max} (max only)`;
-  }
-  return `${min} – ${max}`;
+interface PriorityDebugInfo {
+  bucketsByMode: {
+    triage: PriorityBuckets;
+    action: PriorityBuckets;
+    followUp: PriorityBuckets;
+  };
+  histogram: Array<{ band: string; count: number }>;
+  nullPriorityCount: number;
+  fetchedAt: string;
 }
 
-function bucketLabelForRange(min: number | null, max: number | null): string {
-  const matched = PRIORITY_BUCKET_DEFS.find(def => def.min === min && def.max === max);
-  return matched?.label ?? 'Custom';
+interface DebugPrioritySectionProps {
+  /** Active inbox filter state — used to show current minPriority / maxPriority. */
+  filters?: InboxFilter;
+  /** The computed total shown in the priority filter header (from Inbox.tsx bucket overlap logic). */
+  priorityTotalCount?: number;
 }
 
-interface CacheInfo {
-  exists: boolean;
-  ageMs: number | null;
-  filterKey: string;
-}
+const LABEL_STYLE = {
+  fontWeight: theme.typography.fontWeight.semibold,
+  color: theme.colors.text.primary,
+  marginRight: '4px',
+} as const;
 
-function readSummaryCacheInfo(mode: InboxMode, filters: InboxFilter): CacheInfo {
-  const filterKey = serialiseFilterParams({
-    minPriority: filters.minPriority,
-    maxPriority: filters.maxPriority,
-    categories: filters.categories,
-    accountIds: filters.accountIds,
-  });
-  const storageKey = `bearlymail_${CACHE_VERSION}_summary_${mode}_${filterKey}`;
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) {
-      return { exists: false, ageMs: null, filterKey };
-    }
-    const entry = JSON.parse(raw) as { timestamp?: number };
-    const ageMs = entry.timestamp !== undefined ? Date.now() - entry.timestamp : null;
-    return { exists: true, ageMs, filterKey };
-  } catch {
-    return { exists: false, ageMs: null, filterKey };
-  }
-}
+const VALUE_STYLE = {
+  color: theme.colors.text.secondary,
+  fontFamily: 'monospace',
+} as const;
 
-function formatAge(ageMs: number | null): string {
-  if (ageMs === null) {
-    return 'unknown age';
-  }
-  const secs = Math.round(ageMs / MS_PER_SECOND);
-  if (secs < SECONDS_PER_MINUTE) {
-    return `${secs}s old`;
-  }
-  return `${Math.round(secs / SECONDS_PER_MINUTE)}m old`;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-const Row: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: '2px' }}>
-    <span style={{ color: theme.colors.text.tertiary, minWidth: '120px' }}>{label}:</span>
-    <span style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>{value}</span>
-  </div>
-);
-
-const SectionBox: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div
-    style={{
-      marginBottom: theme.spacing.sm,
-      padding: theme.spacing.sm,
-      backgroundColor: SECTION_BOX_BG,
-      borderRadius: theme.borderRadius.sm,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}
-  >
-    <div
-      style={{
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.xs,
-        fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}
-    >
-      {title}
-    </div>
-    {children}
-  </div>
-);
-
-interface BucketRowDef {
-  label: string;
-  count: number;
-  color: string;
-}
-
-const BucketBar: React.FC<{ counts: PriorityCounts }> = ({ counts }) => {
-  const buckets: BucketRowDef[] = useMemo(
-    () => [
-      { label: 'Very High', count: counts.veryHigh, color: theme.colors.priorityBuckets.veryHigh },
-      { label: 'High', count: counts.high, color: theme.colors.priorityBuckets.high },
-      { label: 'Medium', count: counts.medium, color: theme.colors.priorityBuckets.medium },
-      { label: 'Low', count: counts.low, color: theme.colors.priorityBuckets.low },
-      { label: 'Very Low', count: counts.veryLow, color: theme.colors.priorityBuckets.veryLow },
-    ],
-    [counts]
-  );
-
-  return (
-    <div>
-      {buckets.map(bucket => (
-        <Row
-          key={bucket.label}
-          label={bucket.label}
-          value={
-            <span>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: bucket.color,
-                  marginRight: '4px',
-                  verticalAlign: 'middle',
-                }}
-              />
-              {bucket.count}
-            </span>
-          }
-        />
-      ))}
-    </div>
-  );
+const TABLE_CELL: React.CSSProperties = {
+  padding: '2px 8px',
+  textAlign: 'right' as const,
+  borderBottom: `1px solid ${theme.colors.border.light}`,
+};
+const TABLE_HEADER_CELL: React.CSSProperties = {
+  ...TABLE_CELL,
+  fontWeight: theme.typography.fontWeight.semibold,
+  color: theme.colors.text.secondary,
+  textAlign: 'right' as const,
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60_000;
+const LOADING_OPACITY = 0.5;
+/** Debug panel accent colours — purple tones not in the main design system. */
+const DEBUG_PANEL_BG = '#F3E5F5';
+const DEBUG_PANEL_BORDER = '#CE93D8';
+
+function getCacheAgeMs(cacheKey: string): number | null {
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) {
+      return null;
+    }
+    const entry = JSON.parse(raw) as { timestamp?: number };
+    if (!entry.timestamp) {
+      return null;
+    }
+    return Date.now() - entry.timestamp;
+  } catch {
+    return null;
+  }
+}
+
+function formatMs(ms: number): string {
+  if (ms < MS_PER_SECOND) {
+    return `${ms}ms`;
+  }
+  if (ms < MS_PER_MINUTE) {
+    return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
+  }
+  return `${(ms / MS_PER_MINUTE).toFixed(1)}min`;
+}
+
+function getCacheDebugInfo(): Array<{ key: string; ageMs: number | null }> {
+  const CACHE_PREFIX = `bearlymail_${CACHE_VERSION}_summary_`;
+  const results: Array<{ key: string; ageMs: number | null }> = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(CACHE_PREFIX)) {
+        results.push({ key, ageMs: getCacheAgeMs(key) });
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return results;
+}
 
 export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
-  mode,
   filters,
-  priorityCounts,
+  priorityTotalCount,
 }) => {
-  const cacheInfo = useMemo(() => readSummaryCacheInfo(mode, filters), [mode, filters]);
-  const rangeLabel = bucketLabelForRange(filters.minPriority, filters.maxPriority);
+  const [data, setData] = useState<PriorityDebugInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await axios.get<PriorityDebugInfo>(`${API_URL}/emails/debug/priority-info`);
+      setData(resp.data);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const cacheEntries = getCacheDebugInfo();
+
+  const rawLocalStorage = (() => {
+    try {
+      return localStorage.getItem('inbox_filters');
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <div
@@ -202,62 +159,145 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
         backgroundColor: DEBUG_PANEL_BG,
         borderRadius: theme.borderRadius.sm,
         border: `1px solid ${DEBUG_PANEL_BORDER}`,
-        fontSize: theme.typography.fontSize.xs,
-        fontFamily: 'monospace',
       }}
     >
-      <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0`, color: theme.colors.text.primary }}>
-        🔢 Priority Debug
-      </h4>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        <h4 style={{ margin: 0 }}>🔢 Priority Debug</h4>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: theme.colors.primary.main,
+            color: theme.colors.common.white,
+            border: 'none',
+            borderRadius: theme.borderRadius.sm,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? LOADING_OPACITY : 1,
+            fontSize: theme.typography.fontSize.xs,
+          }}
+        >
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
 
-      <SectionBox title="Active Filter">
-        <Row label="Range" value={describePriorityRange(filters.minPriority, filters.maxPriority)} />
-        <Row label="Bucket" value={rangeLabel} />
-        <Row label="minPriority" value={filters.minPriority === null ? 'null' : String(filters.minPriority)} />
-        <Row label="maxPriority" value={filters.maxPriority === null ? 'null' : String(filters.maxPriority)} />
-        {filters.categories.length > 0 && (
-          <Row label="Categories" value={filters.categories.join(', ')} />
-        )}
-        {filters.accountIds.length > 0 && (
-          <Row label="Accounts" value={filters.accountIds.join(', ')} />
-        )}
-      </SectionBox>
+      {/* Current filter state */}
+      <div style={{ marginBottom: theme.spacing.sm }}>
+        <strong>Current filter:</strong>{' '}
+        <span style={VALUE_STYLE}>
+          minPriority={String(filters?.minPriority ?? 'null')}, maxPriority={String(filters?.maxPriority ?? 'null')}
+        </span>
+        {' | '}
+        <span style={LABEL_STYLE}>priorityTotalCount:</span>
+        <span style={VALUE_STYLE}>{String(priorityTotalCount ?? 'n/a')}</span>
+      </div>
 
-      <SectionBox title="Priority Distribution">
-        {priorityCounts !== null ? (
-          <>
-            <BucketBar counts={priorityCounts} />
-            <Row
-              label="Unprioritised"
-              value={
-                <span style={{ color: priorityCounts.unprioritised > 0 ? UNPRIORITISED_WARN_COLOR : 'inherit' }}>
-                  {priorityCounts.unprioritised}
-                  {priorityCounts.unprioritised > 0 ? ' ⏳' : ''}
-                </span>
-              }
-            />
-          </>
+      <div style={{ marginBottom: theme.spacing.sm, fontSize: theme.typography.fontSize.xs, wordBreak: 'break-all' }}>
+        <strong>localStorage raw:</strong>{' '}
+        <span style={VALUE_STYLE}>{rawLocalStorage ?? '(not set)'}</span>
+      </div>
+
+      {/* Cache state */}
+      <div style={{ marginBottom: theme.spacing.sm }}>
+        <strong>Cache entries (bearlymail_{CACHE_VERSION}_summary_*):</strong>{' '}
+        {cacheEntries.length === 0 ? (
+          <span style={VALUE_STYLE}>(none)</span>
         ) : (
-          <span style={{ color: theme.colors.text.tertiary }}>Loading…</span>
+          cacheEntries.map(entry => (
+            <span key={entry.key} style={{ ...VALUE_STYLE, display: 'inline-block', marginRight: '8px' }}>
+              {entry.key.replace(`bearlymail_${CACHE_VERSION}_summary_`, '')}:{' '}
+              {entry.ageMs !== null ? formatMs(entry.ageMs) + ' old' : 'no timestamp'}
+            </span>
+          ))
         )}
-      </SectionBox>
+      </div>
 
-      <SectionBox title="Summary Cache">
-        <Row label="Mode" value={mode} />
-        <Row label="Filter key" value={cacheInfo.filterKey} />
-        <Row
-          label="Cached"
-          value={
-            cacheInfo.exists ? (
-              <span style={{ color: CACHE_HIT_COLOR }}>
-                ✓ hit ({formatAge(cacheInfo.ageMs)})
-              </span>
-            ) : (
-              <span style={{ color: CACHE_MISS_COLOR }}>✗ miss</span>
-            )
-          }
-        />
-      </SectionBox>
+      {error && (
+        <div style={{ color: theme.colors.error?.main ?? 'red', marginBottom: theme.spacing.sm }}>
+          Error: {error}
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* Per-mode bucket counts */}
+          <div style={{ marginBottom: theme.spacing.sm }}>
+            <strong>Bucket counts by mode:</strong>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '4px', fontSize: '11px' }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TABLE_HEADER_CELL, textAlign: 'left' as const }}>Mode</th>
+                  <th style={TABLE_HEADER_CELL}>VH</th>
+                  <th style={TABLE_HEADER_CELL}>H</th>
+                  <th style={TABLE_HEADER_CELL}>M</th>
+                  <th style={TABLE_HEADER_CELL}>L</th>
+                  <th style={TABLE_HEADER_CELL}>VL</th>
+                  <th style={TABLE_HEADER_CELL}>Unpri</th>
+                  <th style={TABLE_HEADER_CELL}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(['triage', 'action', 'followUp'] as const).map(modeKey => {
+                  const buckets = data.bucketsByMode[modeKey];
+                  const total = buckets.veryHigh + buckets.high + buckets.medium + buckets.low + buckets.veryLow + buckets.unprioritised;
+                  return (
+                    <tr key={modeKey}>
+                      <td style={{ ...TABLE_CELL, textAlign: 'left' as const }}>{modeKey}</td>
+                      <td style={TABLE_CELL}>{buckets.veryHigh}</td>
+                      <td style={TABLE_CELL}>{buckets.high}</td>
+                      <td style={TABLE_CELL}>{buckets.medium}</td>
+                      <td style={TABLE_CELL}>{buckets.low}</td>
+                      <td style={TABLE_CELL}>{buckets.veryLow}</td>
+                      <td style={TABLE_CELL}>{buckets.unprioritised}</td>
+                      <td style={{ ...TABLE_CELL, fontWeight: theme.typography.fontWeight.semibold }}>{total}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Priority score histogram */}
+          <div style={{ marginBottom: theme.spacing.sm }}>
+            <strong>Score histogram (10-point bands):</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+              {data.histogram.length === 0 ? (
+                <span style={VALUE_STYLE}>(no scored threads)</span>
+              ) : (
+                data.histogram.map(row => (
+                  <span
+                    key={row.band}
+                    style={{
+                      ...VALUE_STYLE,
+                      backgroundColor: theme.colors.background.subtle,
+                      padding: '2px 6px',
+                      borderRadius: theme.borderRadius.sm,
+                      border: `1px solid ${theme.colors.border.light}`,
+                      fontSize: '11px',
+                    }}
+                  >
+                    {row.band}: {row.count}
+                  </span>
+                ))
+              )}
+            </div>
+            <div style={{ marginTop: '4px', fontSize: '11px', color: theme.colors.text.tertiary }}>
+              NULL priority: {data.nullPriorityCount} threads
+            </div>
+          </div>
+
+          <div style={{ fontSize: '10px', color: theme.colors.text.tertiary }}>
+            Fetched at: {new Date(data.fetchedAt).toLocaleTimeString()}
+          </div>
+        </>
+      )}
     </div>
   );
 };

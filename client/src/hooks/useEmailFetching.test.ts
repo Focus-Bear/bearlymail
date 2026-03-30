@@ -18,6 +18,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 jest.mock('utils/emailCache', () => ({
   clearCacheForMode: jest.fn(),
+  filterHash: jest.fn((filters) => `hash_${filters?.minPriority ?? 'none'}_${filters?.maxPriority ?? 'none'}`),
   getCachedCategoryEmails: jest.fn().mockReturnValue(null),
   getCachedSummary: jest.fn().mockReturnValue(null),
   invalidateSummaryCache: jest.fn(),

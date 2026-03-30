@@ -384,6 +384,8 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
           gap: theme.spacing.md,
+          // Fix #1571 Bug 2: stretch makes both cards equal height on desktop/tablet;
+          // keep flex-start on mobile (stacked) so cards don't stretch vertically.
           alignItems: isMobile ? 'flex-start' : 'stretch',
         }}
       >

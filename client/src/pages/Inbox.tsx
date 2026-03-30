@@ -18,7 +18,7 @@ import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
-import { PRIORITY_BUCKET_DEFS } from 'constants/priorityBuckets';
+import { PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
@@ -166,6 +166,24 @@ const InboxView: React.FC = () => {
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.minPriority !== null ? 1 : 0);
 
+  // Fix #1571 Item 3: extract priorityTotalCount so it can be passed to the debug panel.
+  // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
+  const priorityTotalCount = priorityCounts
+    ? PRIORITY_BUCKET_DEFS
+        .filter(bucket => bucket.label !== 'All')
+        .filter(bucket => {
+          const bucketMin = bucket.min ?? -Infinity;
+          const bucketMax = bucket.max ?? Infinity;
+          const filterMin = filters.minPriority ?? -Infinity;
+          const filterMax = filters.maxPriority ?? Infinity;
+          return bucketMin < filterMax && bucketMax > filterMin;
+        })
+        .reduce((sum, bucket) => {
+          const key = PRIORITY_LABEL_TO_KEY[bucket.label];
+          return sum + (key ? (priorityCounts[key] ?? 0) : 0);
+        }, 0)
+    : undefined;
+
   // When the prioritisation gate lifts for the first time, auto-switch to VH filter
   // so new users get the focused experience after initial analysis completes.
   useEffect(() => {
@@ -247,35 +265,7 @@ const InboxView: React.FC = () => {
             'High': priorityCounts.high,
             'Very High': priorityCounts.veryHigh,
           } : undefined}
-          priorityTotalCount={priorityCounts ? (() => {
-            // Fix #1466 (P1): use score-based bucket boundaries from PRIORITY_BUCKET_DEFS
-            // instead of hardcoded visual positions (0-20-40-60-80-100). The old code
-            // compared score values (e.g. minPriority=50) against visual boundaries,
-            // which caused wrong bucket overlap — e.g. "Very High" (score≥50) incorrectly
-            // included "Medium" (visual max=60 > score 50).
-            const LABEL_TO_KEY: Record<string, keyof typeof priorityCounts> = {
-              'Very Low': 'veryLow',
-              'Low': 'low',
-              'Medium': 'medium',
-              'High': 'high',
-              'Very High': 'veryHigh',
-            };
-            const minScore = filters.minPriority;
-            const maxScore = filters.maxPriority;
-            return PRIORITY_BUCKET_DEFS
-              .filter(bucket => bucket.label !== 'All')
-              .filter(bucket => {
-                const bucketMin = bucket.min ?? -Infinity;
-                const bucketMax = bucket.max ?? Infinity;
-                const filterMin = minScore ?? -Infinity;
-                const filterMax = maxScore ?? Infinity;
-                return bucketMin < filterMax && bucketMax > filterMin;
-              })
-              .reduce((sum, bucket) => {
-                const key = LABEL_TO_KEY[bucket.label];
-                return sum + (key ? (priorityCounts[key] ?? 0) : 0);
-              }, 0);
-          })() : undefined}
+          priorityTotalCount={priorityTotalCount}
           isSummaryLoading={isSummaryLoading}
         />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
@@ -293,8 +283,7 @@ const InboxView: React.FC = () => {
             onLookupThread={debugPanel.lookupThread} categorySummary={categorySummary}
             loadedCategoryNames={loadedCategoryNames} loadingCategoryNames={loadingCategoryNames}
             expandedCategories={expandedCategories}
-            priorityFilters={filters}
-            priorityCounts={priorityCounts}
+            filters={filters} priorityTotalCount={priorityTotalCount}
           />
         )}
         <BulkOperationsBar selectedCount={selectedEmailIds.size} onBulkArchive={emailActions.handleBulkArchive} onClearSelection={() => setSelectedEmailIds(new Set())} />

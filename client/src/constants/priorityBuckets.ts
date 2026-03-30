@@ -52,6 +52,19 @@ export const PRIORITY_BUCKET_RANGES = PRIORITY_BUCKET_DEFS.filter(
 );
 
 /**
+ * Maps each PriorityBucketDef label to the corresponding PriorityCounts key.
+ * Derived from PRIORITY_BUCKET_DEFS so the two don't drift independently.
+ * The 'All' sentinel has no counts key and is excluded.
+ */
+export const PRIORITY_LABEL_TO_KEY: Record<string, 'veryLow' | 'low' | 'medium' | 'high' | 'veryHigh'> = {
+  'Very Low':  'veryLow',
+  'Low':       'low',
+  'Medium':    'medium',
+  'High':      'high',
+  'Very High': 'veryHigh',
+};
+
+/**
  * Visual slider: even spacing (5 buckets × 20 = 100 units).
  * Maps visual position 0-100 to/from actual score values.
  *

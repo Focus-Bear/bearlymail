@@ -6,6 +6,7 @@ import { Email, InboxMode } from 'types/email';
 import { devLog } from 'utils/dev-logger';
 import {
   clearCacheForMode,
+  filterHash,
   getCachedCategoryEmails,
   getCachedSummary,
   setCachedCategoryEmails,
@@ -196,6 +197,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       buildSummaryParams: buildSummaryParamsWithOverride,
       buildAutoRespondedParams: buildAutoRespondedParamsWithOverride,
       buildAutoRespondedSummary,
+      // Fix #1571 Bug 1: pass effective filters so the cache key is scoped to the filter hash.
+      activeFilters: effectiveFilters,
     });
   }, [mode, dispatch, filters, buildAutoRespondedSummary]);
 
@@ -258,6 +261,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       buildAutoRespondedParams,
       buildAutoRespondedSummary,
       loadedCategoryNamesRef,
+      // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
+      activeFilters: filters,
     });
   }, [mode, dispatch, filters, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
@@ -477,6 +482,7 @@ async function refreshInPlaceImpl({
   buildAutoRespondedParams,
   buildAutoRespondedSummary,
   loadedCategoryNamesRef,
+  activeFilters,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -486,6 +492,8 @@ async function refreshInPlaceImpl({
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
+  /** Fix #1571 Bug 1: filters used to scope the cache write-back to the filter hash. */
+  activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
 }) {
   if (mode === MODE_AUTORESPONDED) {
     try {
@@ -496,6 +504,9 @@ async function refreshInPlaceImpl({
     return;
   }
 
+  // Fix #1571 Bug 1: compute filter hash once for all cache write-backs in this refresh.
+  const hash = activeFilters ? filterHash(activeFilters) : undefined;
+
   try {
     const summaryParams = buildSummaryParams();
     const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
@@ -503,13 +514,7 @@ async function refreshInPlaceImpl({
     dispatch(setCategorySummary(freshCategories));
     dispatch(setSummaryLoading(false));
     dispatch(setTotalCount(summaryResponse.data.total));
-    const cacheFilterParams: SummaryCacheParams = {
-      minPriority: filters?.minPriority,
-      maxPriority: filters?.maxPriority,
-      categories: filters?.categories,
-      accountIds: filters?.accountIds,
-    };
-    setCachedSummary(mode, freshCategories, cacheFilterParams);
+    setCachedSummary(mode, freshCategories, hash);
   } catch (err) {
     console.warn('[refreshInPlace] Summary fetch failed:', err);
     return;
@@ -525,6 +530,9 @@ async function refreshInPlaceImpl({
         const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
         // Emails now include category_id (UUID) from the server; no normalization needed.
         const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
+        // Write category emails without a filter hash so fetchCategoryEmailsImpl (which reads
+        // without a hash) can serve them. Summary uses the hash to scope to the active filter;
+        // category keys are already per-category so a separate hash scope isn't needed here.
         setCachedCategoryEmails(mode, categoryKey, emails);
         return { categoryKey, emails };
       } catch (err) {
@@ -627,12 +635,15 @@ function serveSummaryFromCacheAndRefresh({
   dispatch,
   filterParams,
   buildSummaryParams,
+  hash,
 }: {
   cachedSummary: CategorySummaryItem[];
   mode: InboxMode;
   dispatch: AppDispatch;
   filterParams?: SummaryCacheParams;
   buildSummaryParams: () => URLSearchParams;
+  /** Fix #1571 Bug 1: filter hash to scope the write-back to the same key. */
+  hash?: string;
 }): void {
   dispatch(setFetchError(null));
   dispatch(clearCategoryState());
@@ -649,7 +660,7 @@ function serveSummaryFromCacheAndRefresh({
   fetchInboxSummary(dispatch, buildSummaryParams)
     .then(freshSummary => {
       if (freshSummary) {
-        setCachedSummary(mode, freshSummary, filterParams);
+        setCachedSummary(mode, freshSummary, hash);
       }
     })
     .catch(err => console.warn('[fetchEmails] Background refresh failed:', err));
@@ -674,6 +685,7 @@ async function fetchEmailsImpl({
   buildSummaryParams,
   buildAutoRespondedParams,
   buildAutoRespondedSummary,
+  activeFilters,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -681,24 +693,21 @@ async function fetchEmailsImpl({
   buildSummaryParams: () => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
+  /** Fix #1571 Bug 1: filters used to compute the cache key hash. */
+  activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
 }) {
   // Stale-while-revalidate: if we have cached summary data AND it is within the
   // TTL window, serve it immediately (no spinner) then refresh in the background.
   // Fix #1114: enforce INBOX_CACHE_TTL_MS so stale UUIDs do not persist past 60 s
   // and trigger the backend silent-skip bug.
-  // Fix #1571: pass filter params to cache lookup so we only serve a cached summary
-  // that was built with the same filter values (avoids stale cross-filter data).
-  const filterParams: SummaryCacheParams = {
-    minPriority: filters?.minPriority,
-    maxPriority: filters?.maxPriority,
-    categories: filters?.categories,
-    accountIds: filters?.accountIds,
-  };
-  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode, INBOX_CACHE_TTL_MS, filterParams) : null;
+  // Fix #1571 Bug 1: scope cache key to the active filter hash so stale-while-revalidate
+  // never serves data from a different filter configuration.
+  const hash = activeFilters ? filterHash(activeFilters) : undefined;
+  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode, INBOX_CACHE_TTL_MS, hash) : null;
   const hasCachedData = cachedSummary !== null && cachedSummary.length > 0;
 
   if (hasCachedData) {
-    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, filterParams, buildSummaryParams });
+    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, buildSummaryParams, hash });
     return;
   }
 
@@ -717,7 +726,7 @@ async function fetchEmailsImpl({
     } else {
       const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams);
       if (freshSummary) {
-        setCachedSummary(mode, freshSummary, filterParams);
+        setCachedSummary(mode, freshSummary, hash);
       }
     }
     dispatch(setDecrypting(false));

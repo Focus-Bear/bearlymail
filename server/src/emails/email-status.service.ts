@@ -211,6 +211,78 @@ export class EmailStatusService {
   }
 
   /**
+   * Returns priority debug info for the debug panel (#1571 Item 3).
+   * Provides per-mode bucket counts, a 10-point histogram of priority scores,
+   * count of threads with NULL priority, and a fetch timestamp.
+   *
+   * NOTE: This method is intentionally uncached — it fires 5 DB queries (3× getPriorityCounts
+   * + histogram + nullCount) on every call. It is debug-only and not on any hot path,
+   * so the overhead is acceptable. Do NOT add caching without consulting the debug panel UX.
+   */
+  async getPriorityDebugInfo(userId: string): Promise<{
+    bucketsByMode: {
+      triage: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
+      action: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
+      followUp: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
+    };
+    histogram: Array<{ band: string; count: number }>;
+    nullPriorityCount: number;
+    fetchedAt: string;
+  }> {
+    const [triage, action, followUp] = await Promise.all([
+      this.getPriorityCounts(userId, "triage"),
+      this.getPriorityCounts(userId, "action"),
+      this.getPriorityCounts(userId, "follow-up"),
+    ]);
+
+    // Build a 10-point histogram for threads with priorityScore 0–100
+    const HISTOGRAM_BUCKET_SIZE = 10;
+    const histogramRows = await this.emailThreadRepository.query(
+      `SELECT
+         CONCAT(
+           (FLOOR("priorityScore" / ${HISTOGRAM_BUCKET_SIZE}) * ${HISTOGRAM_BUCKET_SIZE})::int, '-',
+           (FLOOR("priorityScore" / ${HISTOGRAM_BUCKET_SIZE}) * ${HISTOGRAM_BUCKET_SIZE} + ${HISTOGRAM_BUCKET_SIZE})::int
+         ) AS band,
+         COUNT(*)::int AS count
+       FROM email_threads
+       WHERE "userId" = $1
+         AND "isArchived" = false
+         AND "isBatched" = false
+         AND "isSnoozed" = false
+         AND "priorityScore" IS NOT NULL
+         AND "priorityScore" >= 0
+       GROUP BY FLOOR("priorityScore" / ${HISTOGRAM_BUCKET_SIZE})
+       ORDER BY FLOOR("priorityScore" / ${HISTOGRAM_BUCKET_SIZE})`,
+      [userId],
+    );
+
+    const nullRows = await this.emailThreadRepository.query(
+      `SELECT COUNT(*)::int AS count
+       FROM email_threads
+       WHERE "userId" = $1
+         AND "isArchived" = false
+         AND "isBatched" = false
+         AND "isSnoozed" = false
+         AND "priorityScore" IS NULL`,
+      [userId],
+    );
+
+    return {
+      bucketsByMode: {
+        triage,
+        action,
+        followUp,
+      },
+      histogram: histogramRows.map((row: { band: string; count: number }) => ({
+        band: row.band,
+        count: parseInt(String(row.count), 10) || 0,
+      })),
+      nullPriorityCount: parseInt(String(nullRows[0]?.count ?? 0), 10) || 0,
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Returns the prioritisation status for the inbox gate:
    * how many threads are prioritised vs total, and whether analysis is active.
    * "Prioritised" means priorityScore IS NOT NULL.

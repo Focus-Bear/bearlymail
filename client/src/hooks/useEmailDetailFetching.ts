@@ -18,6 +18,12 @@ interface Email {
   githubMetadata?: {
     links: any[];
   };
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> | null;
 }
 
 async function fetchThreadEmailsForId(

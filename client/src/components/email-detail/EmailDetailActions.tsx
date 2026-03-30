@@ -165,11 +165,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   // not via LLM. Takes priority over the generic SchedulingRequestCard.
   const hasIcsAttachment = useMemo(
     () =>
-      email.attachments?.some(
+      Array.isArray(email.attachments) &&
+      email.attachments.some(
         (att) =>
           att.mimeType === 'text/calendar' ||
           att.filename?.toLowerCase().endsWith('.ics'),
-      ) ?? false,
+      ),
     [email.attachments],
   );
 

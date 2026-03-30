@@ -93,8 +93,14 @@ export class EmailsController {
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
-    const minPriorityValue = minPriority !== undefined && minPriority !== '' ? parseFloat(minPriority) : undefined;
-    const maxPriorityValue = maxPriority !== undefined && maxPriority !== '' ? parseFloat(maxPriority) : undefined;
+    const minPriorityValue =
+      minPriority !== undefined && minPriority !== ""
+        ? parseFloat(minPriority)
+        : undefined;
+    const maxPriorityValue =
+      maxPriority !== undefined && maxPriority !== ""
+        ? parseFloat(maxPriority)
+        : undefined;
 
     const pageSize = limitParam
       ? Math.max(1, parseInt(limitParam, 10))
@@ -182,8 +188,14 @@ export class EmailsController {
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
-    const minPriorityValue = minPriority !== undefined && minPriority !== '' ? parseFloat(minPriority) : undefined;
-    const maxPriorityValue = maxPriority !== undefined && maxPriority !== '' ? parseFloat(maxPriority) : undefined;
+    const minPriorityValue =
+      minPriority !== undefined && minPriority !== ""
+        ? parseFloat(minPriority)
+        : undefined;
+    const maxPriorityValue =
+      maxPriority !== undefined && maxPriority !== ""
+        ? parseFloat(maxPriority)
+        : undefined;
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
       : undefined;
@@ -446,14 +458,45 @@ export class EmailsController {
   @Get(":id/thread")
   async getThread(@Request() req, @Param("id") id: string) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
-    return this.emailsService.getThreadEmails(req.user.userId, email.threadId, {
-      order: "DESC",
+    const threadEmails = await this.emailsService.getThreadEmails(
+      req.user.userId,
+      email.threadId,
+      { order: "DESC" },
+    );
+    // Defence-in-depth: normalise attachments to null if not an array (see #1589)
+    return threadEmails.map((threadEmail) => {
+      if (
+        threadEmail.attachments !== null &&
+        threadEmail.attachments !== undefined &&
+        !Array.isArray(threadEmail.attachments)
+      ) {
+        console.warn(
+          `[getThread] email ${threadEmail.id} has non-array attachments (type=${typeof threadEmail.attachments}). Normalising to null.`,
+        );
+        return { ...threadEmail, attachments: null };
+      }
+      return threadEmail;
     });
   }
 
   @Get(":id")
   async getEmail(@Request() req, @Param("id") id: string) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
+
+    // Defence-in-depth: ensure attachments is always null or an Array.
+    // encryptedJsonTransformer returns `unknown` at runtime; if bad data is stored
+    // (e.g. a plain object instead of an array), normalise to null here so clients
+    // never receive a non-array value that would cause `?.some is not a function`.
+    if (
+      email.attachments !== null &&
+      email.attachments !== undefined &&
+      !Array.isArray(email.attachments)
+    ) {
+      console.warn(
+        `[getEmail] email ${id} has non-array attachments (type=${typeof email.attachments}). Normalising to null.`,
+      );
+      (email as unknown as Record<string, unknown>).attachments = null;
+    }
 
     if (email.emailThreadId) {
       const thread = await this.emailAdminService.getEmailThreadById(

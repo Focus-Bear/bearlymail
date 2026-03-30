@@ -21,6 +21,12 @@ interface EmailDetailEmail {
   githubMetadata?: {
     links: any[];
   };
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> | null;
 }
 
 export function useEmailDetailState() {

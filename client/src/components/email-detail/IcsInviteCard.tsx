@@ -96,11 +96,13 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
   const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   // Find the ICS attachment
-  const icsAttachment = email.attachments?.find(
-    (att) =>
-      att.mimeType === 'text/calendar' ||
-      att.filename?.toLowerCase().endsWith('.ics'),
-  );
+  const icsAttachment = Array.isArray(email.attachments)
+    ? email.attachments.find(
+        (att) =>
+          att.mimeType === 'text/calendar' ||
+          att.filename?.toLowerCase().endsWith('.ics'),
+      )
+    : undefined;
 
   const fetchIcsInfo = useCallback(async () => {
     if (!icsAttachment) {

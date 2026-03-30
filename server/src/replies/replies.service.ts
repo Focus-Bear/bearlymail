@@ -702,7 +702,7 @@ ${closing}`;
     const user = await this.usersService.findOne(userId);
     if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
 
-    const userEmail = EncryptionHelper.decrypt(user.email);
+    const userEmail = EncryptionHelper.tryDecrypt(user.email);
 
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (!provider) {

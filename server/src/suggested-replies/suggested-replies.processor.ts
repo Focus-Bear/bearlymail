@@ -198,7 +198,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
   }
 
   private buildReplyContext(user: User, latestEmail: Email): ReplyContext {
-    const userEmail = EncryptionHelper.decrypt(user.email)?.toLowerCase() ?? "";
+    const userEmail = EncryptionHelper.tryDecrypt(user.email)?.toLowerCase() ?? "";
     const lastEmailFrom = latestEmail.from?.toLowerCase() || "";
     const userSentLast = Boolean(userEmail && lastEmailFrom === userEmail);
 

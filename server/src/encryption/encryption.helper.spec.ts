@@ -26,6 +26,22 @@ describe("EncryptionHelper", () => {
     (EncryptionHelper as any).keyCache = null;
   });
 
+  describe("getKey", () => {
+    it("should throw FATAL error when ENCRYPTION_KEY is not set", () => {
+      delete process.env.ENCRYPTION_KEY;
+      expect(() => EncryptionHelper.encrypt("test")).toThrow(
+        "FATAL: ENCRYPTION_KEY environment variable is not set.",
+      );
+    });
+
+    it("should throw FATAL error when ENCRYPTION_KEY is empty string", () => {
+      process.env.ENCRYPTION_KEY = "";
+      expect(() => EncryptionHelper.encrypt("test")).toThrow(
+        "FATAL: ENCRYPTION_KEY environment variable is not set.",
+      );
+    });
+  });
+
   describe("encrypt", () => {
     it("should encrypt a string value", () => {
       const plaintext = "Hello, World!";
@@ -135,12 +151,11 @@ describe("EncryptionHelper", () => {
       expect(result).toBe(invalidFormat);
     });
 
-    it("should return original if decryption fails (malformed data)", () => {
-      // Create invalid encrypted data
-      const invalidEncrypted = "invalid:auth:tag";
-      const result = EncryptionHelper.decrypt(invalidEncrypted);
-      // Should return original value on decryption failure
-      expect(result).toBe(invalidEncrypted);
+    it("should throw when decryption fails (malformed data)", () => {
+      // Create invalid encrypted data with correct IV length but bad auth tag
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const invalidEncrypted = `${fakeIvHex}:invalid:data`;
+      expect(() => EncryptionHelper.decrypt(invalidEncrypted)).toThrow();
     });
 
     it("should return plaintext when 3-part value has wrong IV length (e.g. time strings)", () => {
@@ -153,13 +168,11 @@ describe("EncryptionHelper", () => {
       expect(result).toBe(timeString);
     });
 
-    it("should return plaintext when 3-part value has correct IV length but is not encrypted data", () => {
+    it("should throw when 3-part value has correct IV length but is not encrypted data", () => {
       // Construct a value where the first part is the right hex length but random data
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const fakeValue = `${fakeIvHex}:fakeauth:fakedata`;
-      const result = EncryptionHelper.decrypt(fakeValue);
-      // Should return original value when GCM auth tag verification fails
-      expect(result).toBe(fakeValue);
+      expect(() => EncryptionHelper.decrypt(fakeValue)).toThrow();
     });
 
     it("should handle decrypting text encrypted with different IV", () => {

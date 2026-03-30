@@ -55,7 +55,7 @@ export class SuggestedActionsController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     return this.githubApiService.createIssue(token, {
       owner: body.owner,
       repo: body.repo,
@@ -89,7 +89,7 @@ export class SuggestedActionsController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     if (!token) {
       throw new BadRequestException("GitHub token decryption failed");
     }
@@ -122,7 +122,7 @@ export class SuggestedActionsController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     return this.githubApiService.updateIssueStatus(
       token,
       body.owner,
@@ -149,7 +149,7 @@ export class SuggestedActionsController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     return this.githubApiService.addIssueComment(
       token,
       body.owner,
@@ -173,7 +173,7 @@ export class SuggestedActionsController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     return this.githubApiService.searchIssues(token, body.query);
   }
 

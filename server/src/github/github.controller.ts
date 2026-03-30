@@ -76,7 +76,7 @@ export class GitHubController {
       return { options: [] };
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     if (!token) {
       return { options: [] };
     }
@@ -115,7 +115,7 @@ export class GitHubController {
       throw new BadRequestException(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     if (!token) {
       throw new BadRequestException("GitHub token decryption failed");
     }
@@ -237,7 +237,7 @@ export class GitHubController {
       return { hasToken: false };
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     if (!token) {
       return {
         hasToken: true,
@@ -446,7 +446,7 @@ export class GitHubController {
 
     for (const row of (result?.rows ?? []) as ThreadMetadataRow[]) {
       try {
-        const decrypted = EncryptionHelper.decrypt(row.githubMetadata);
+        const decrypted = EncryptionHelper.tryDecrypt(row.githubMetadata);
         if (!decrypted) continue;
         const metadata = JSON.parse(decrypted) as {
           links?: Array<{
@@ -500,7 +500,7 @@ export class GitHubController {
       return { hasToken: false, valid: false };
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     if (!token) {
       return { hasToken: true, valid: false, error: "Token decryption failed" };
     }

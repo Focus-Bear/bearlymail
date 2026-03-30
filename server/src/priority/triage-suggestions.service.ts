@@ -489,7 +489,7 @@ Respond with ONLY a JSON object:
     let priorityExplanation: unknown = null;
     if (row.priorityExplanation) {
       try {
-        const decryptedExplanation = EncryptionHelper.decrypt(
+        const decryptedExplanation = EncryptionHelper.tryDecrypt(
           row.priorityExplanation,
         );
         if (decryptedExplanation) {
@@ -509,9 +509,9 @@ Respond with ONLY a JSON object:
       userId: row.userId,
       threadId: row.threadId,
       emailThreadId: row.emailThreadId,
-      from: EncryptionHelper.decrypt(row.from) ?? "",
-      fromName: EncryptionHelper.decrypt(row.fromName ?? "") ?? null,
-      subject: EncryptionHelper.decrypt(row.subject) ?? "",
+      from: EncryptionHelper.tryDecrypt(row.from) ?? "",
+      fromName: EncryptionHelper.tryDecrypt(row.fromName ?? "") ?? null,
+      subject: EncryptionHelper.tryDecrypt(row.subject) ?? "",
       priorityExplanation,
       receivedAt: row.receivedAt,
       starCount: row.starCount ?? 0,
@@ -542,9 +542,9 @@ Respond with ONLY a JSON object:
     return rawContexts.map((ctx) => ({
       ...ctx,
       contextValue:
-        EncryptionHelper.decrypt(ctx.contextValue) ?? ctx.contextValue,
+        EncryptionHelper.tryDecrypt(ctx.contextValue) ?? ctx.contextValue,
       explanation: ctx.explanation
-        ? (EncryptionHelper.decrypt(ctx.explanation) ?? ctx.explanation)
+        ? (EncryptionHelper.tryDecrypt(ctx.explanation) ?? ctx.explanation)
         : ctx.explanation,
     }));
   }

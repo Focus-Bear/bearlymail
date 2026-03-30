@@ -252,7 +252,7 @@ export async function respondToInvitation(
     auth: oauth2Client,
   });
 
-  const userEmail = EncryptionHelper.decrypt(user.email);
+  const userEmail = EncryptionHelper.tryDecrypt(user.email);
   const subject = email.subject || "";
   const body = email.body || email.htmlBody || "";
   const organizerEmail = email.from;

@@ -33,7 +33,7 @@ export class EmailFollowUpService {
     try {
       const user = await this.usersService.findOne(userId);
       if (user) {
-        const userEmail = EncryptionHelper.decrypt(user.email)?.toLowerCase();
+        const userEmail = EncryptionHelper.tryDecrypt(user.email)?.toLowerCase();
         if (userEmail) {
           const before = emails.length;
           const result = emails.filter(
@@ -102,7 +102,7 @@ export class EmailFollowUpService {
   }> {
     const user = await this.usersService.findOne(userId);
     if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
-    const userEmail = EncryptionHelper.decrypt(user.email);
+    const userEmail = EncryptionHelper.tryDecrypt(user.email);
 
     try {
       const threadEmails = await this.emailThreadService.getThreadEmails(

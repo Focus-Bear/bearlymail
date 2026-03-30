@@ -396,21 +396,21 @@ export class AutoResponderAnalyticsService {
       ? parseCategoryName(row.categoryName)
       : null;
     const categoryExplanation = row.categoryExplanation
-      ? EncryptionHelper.decrypt(row.categoryExplanation)
+      ? EncryptionHelper.tryDecrypt(row.categoryExplanation)
       : null;
 
     return {
       id: row.id,
       threadId: row.threadId,
       emailThreadId: row.emailThreadId,
-      from: row.from ? EncryptionHelper.decrypt(row.from) : "",
-      fromName: row.fromName ? EncryptionHelper.decrypt(row.fromName) : null,
-      subject: row.subject ? EncryptionHelper.decrypt(row.subject) : "",
+      from: row.from ? EncryptionHelper.tryDecrypt(row.from) : "",
+      fromName: row.fromName ? EncryptionHelper.tryDecrypt(row.fromName) : null,
+      subject: row.subject ? EncryptionHelper.tryDecrypt(row.subject) : "",
       isRead: row.isRead,
       isSnoozed: row.isSnoozed,
       snoozeUntil: row.snoozeUntil,
       receivedAt: row.receivedAt,
-      summary: row.summary ? EncryptionHelper.decrypt(row.summary) : null,
+      summary: row.summary ? EncryptionHelper.tryDecrypt(row.summary) : null,
       isProcessingSummary: row.isProcessingSummary,
       priorityScore: row.priorityScore,
       priorityExplanation: this.decryptEncryptedJsonField<
@@ -430,10 +430,10 @@ export class AutoResponderAnalyticsService {
         row.githubMetadata,
       ),
       correspondentEmail: row.correspondentEmail
-        ? EncryptionHelper.decrypt(row.correspondentEmail)
+        ? EncryptionHelper.tryDecrypt(row.correspondentEmail)
         : null,
       correspondentName: row.correspondentName
-        ? EncryptionHelper.decrypt(row.correspondentName)
+        ? EncryptionHelper.tryDecrypt(row.correspondentName)
         : null,
       autoRespondedAt: row.autoRespondedAt,
       autoResponseCount: Number(row.autoResponseCount || 0),
@@ -444,7 +444,7 @@ export class AutoResponderAnalyticsService {
     if (!encrypted) return null;
 
     try {
-      const decrypted = EncryptionHelper.decrypt(encrypted);
+      const decrypted = EncryptionHelper.tryDecrypt(encrypted);
       return decrypted ? (JSON.parse(decrypted) as T) : null;
     } catch (error) {
       this.logger.warn("Failed to decrypt auto-responder JSON field", error);
@@ -456,7 +456,7 @@ export class AutoResponderAnalyticsService {
     if (!labels) return [];
 
     try {
-      const decrypted = EncryptionHelper.decrypt(labels);
+      const decrypted = EncryptionHelper.tryDecrypt(labels);
       const parsed = decrypted ? JSON.parse(decrypted) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch {

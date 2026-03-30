@@ -274,9 +274,9 @@ export class FollowUpsService {
     try {
       const user = await this.usersService.findOne(userId);
       if (user?.email) {
-        const userEmail = EncryptionHelper.decrypt(user.email);
-        const emailFrom = EncryptionHelper.decrypt(email.from);
-        return emailFrom.toLowerCase() === userEmail.toLowerCase();
+        const userEmail = EncryptionHelper.tryDecrypt(user.email);
+        const emailFrom = EncryptionHelper.tryDecrypt(email.from);
+        return (emailFrom ?? "").toLowerCase() === (userEmail ?? "").toLowerCase();
       }
     } catch (error) {
       this.logger.warn(`Error checking if email is from user: ${error}`);

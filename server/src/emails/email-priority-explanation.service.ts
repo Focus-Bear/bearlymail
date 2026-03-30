@@ -513,7 +513,7 @@ export class EmailPriorityExplanationService {
           const previousEmails = previousEmailsRaw.map(
             (row: { id: string; from: string; receivedAt: Date }) => ({
               id: row.id,
-              from: EncryptionHelper.decrypt(row.from),
+              from: EncryptionHelper.tryDecrypt(row.from),
               receivedAt: row.receivedAt,
             }),
           );

@@ -123,7 +123,7 @@ export class EmailGmailService {
 
     if (emailWithLabels?.length > 0 && emailWithLabels[0].labels) {
       try {
-        const decryptedLabels = EncryptionHelper.decrypt(
+        const decryptedLabels = EncryptionHelper.tryDecrypt(
           emailWithLabels[0].labels,
         );
         if (decryptedLabels) {

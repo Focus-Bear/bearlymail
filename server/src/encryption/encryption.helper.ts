@@ -18,9 +18,14 @@ class EncryptionHelper {
       return this.keyCache;
     }
 
-    const keyString =
-      process.env.ENCRYPTION_KEY ||
-      "default-key-change-in-production-32chars!!";
+    const keyString = process.env.ENCRYPTION_KEY;
+    if (!keyString) {
+      throw new Error(
+        "FATAL: ENCRYPTION_KEY environment variable is not set. " +
+          "All data at rest is encrypted — the app cannot function without it. " +
+          "Set ENCRYPTION_KEY in your environment or Secrets Manager.",
+      );
+    }
     this.keyCache = crypto.scryptSync(
       keyString,
       "salt",
@@ -32,8 +37,8 @@ class EncryptionHelper {
   static encrypt(text: string | null | undefined): string | null {
     if (!text) return null;
 
+    const key = this.getKey();
     try {
-      const key = this.getKey();
       const iv = crypto.randomBytes(this.ivLength);
       const cipher = crypto.createCipheriv(
         this.algorithm,
@@ -60,19 +65,20 @@ class EncryptionHelper {
   static decrypt(encryptedText: string | null | undefined): string | null {
     if (!encryptedText) return null;
 
+    // Check if this is already decrypted (for backwards compatibility during migration)
+    if (!encryptedText.includes(":")) {
+      return encryptedText;
+    }
+
+    const parts = encryptedText.split(":");
+    if (parts.length !== 3) {
+      // Not in expected format, might be plaintext
+      return encryptedText;
+    }
+
+    const key = this.getKey();
+
     try {
-      // Check if this is already decrypted (for backwards compatibility during migration)
-      if (!encryptedText.includes(":")) {
-        return encryptedText;
-      }
-
-      const parts = encryptedText.split(":");
-      if (parts.length !== 3) {
-        // Not in expected format, might be plaintext
-        return encryptedText;
-      }
-
-      const key = this.getKey();
       const [ivHex, authTagHex, encrypted] = parts;
       const iv = Buffer.from(ivHex, "hex");
       // Validate IV length matches expected size — strings with 2 colons (e.g. timestamps
@@ -99,8 +105,28 @@ class EncryptionHelper {
         "Decryption error",
         error instanceof Error ? error : new Error(String(error)),
       );
-      // Return original if decryption fails (might be plaintext from before encryption)
-      return encryptedText;
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  /**
+   * Safe decrypt — catches errors and returns the raw ciphertext instead of throwing.
+   * Use this in data-mapping contexts (TypeORM transformers, row mappers, processors)
+   * where a single corrupted row should not crash the entire request or worker.
+   *
+   * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
+   */
+  static tryDecrypt(
+    encryptedText: string | null | undefined,
+  ): string | null {
+    try {
+      return EncryptionHelper.decrypt(encryptedText);
+    } catch (error) {
+      logError(
+        "tryDecrypt: decryption failed — returning raw ciphertext",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      return encryptedText ?? null;
     }
   }
 
@@ -114,30 +140,34 @@ class EncryptionHelper {
 }
 
 /**
- * TypeORM transformer for encrypted columns
+ * TypeORM transformer for encrypted columns.
+ * Uses tryDecrypt on read so a single corrupted column does not crash entity hydration.
  */
 export const encryptedColumnTransformer = {
   to: (value: string | null | undefined): string | null =>
     EncryptionHelper.encrypt(value),
   from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.decrypt(value),
+    EncryptionHelper.tryDecrypt(value),
 };
 
 /**
  * For email addresses - we need to query by them, so we store:
  * - emailHash: SHA-256 hash for querying (not encrypted)
  * - email: encrypted actual email
+ *
+ * Uses tryDecrypt on read so a corrupted email column does not crash entity hydration.
  */
 export const emailTransformer = {
   to: (value: string | null | undefined): string | null =>
     EncryptionHelper.encrypt(value),
   from: (value: string | null | undefined): string | null =>
-    EncryptionHelper.decrypt(value),
+    EncryptionHelper.tryDecrypt(value),
 };
 
 /**
  * TypeORM transformer for encrypted JSON fields.
  * Encrypts arbitrary JSON data on write, decrypts on read.
+ * Uses tryDecrypt on read so a corrupted JSON column does not crash entity hydration.
  */
 export const encryptedJsonTransformer = {
   to: (value: unknown): string | null => {
@@ -146,7 +176,7 @@ export const encryptedJsonTransformer = {
     return EncryptionHelper.encrypt(stringified);
   },
   from: (value: string | null | undefined): unknown => {
-    const decrypted = EncryptionHelper.decrypt(value);
+    const decrypted = EncryptionHelper.tryDecrypt(value);
     if (!decrypted) return null;
     try {
       return JSON.parse(decrypted);
@@ -177,7 +207,7 @@ export function decryptContextValue(
   raw: string | null | undefined,
 ): string | null {
   if (!raw) return null;
-  const decrypted = EncryptionHelper.decrypt(raw);
+  const decrypted = EncryptionHelper.tryDecrypt(raw);
   if (!decrypted) return null;
   return parseCategoryName(decrypted);
 }

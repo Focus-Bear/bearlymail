@@ -129,7 +129,7 @@ export function threadHasBlockedLabel(
   if (!allThreadLabels || allThreadLabels.length === 0) return false;
   return allThreadLabels.some((encryptedLabels) => {
     try {
-      const decrypted = EncryptionHelper.decrypt(encryptedLabels) || "[]";
+      const decrypted = EncryptionHelper.tryDecrypt(encryptedLabels) || "[]";
       const parsed: unknown = JSON.parse(decrypted);
       return Array.isArray(parsed) && parsed.includes("BearlyMail-Blocked");
     } catch {

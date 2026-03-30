@@ -184,7 +184,7 @@ export class EmailInboxService {
     try {
       const user = await this.usersService.findOne(userId);
       if (user)
-        return EncryptionHelper.decrypt(user.email)?.toLowerCase() || null;
+        return EncryptionHelper.tryDecrypt(user.email)?.toLowerCase() || null;
     } catch (error) {
       this.logger.warn(
         "Failed to get user email for summary sent-last filter:",
@@ -207,11 +207,7 @@ export class EmailInboxService {
     }
     if (mode !== INBOX_MODES.BLOCKED && row.latestFrom) {
       let fromEmail = "";
-      try {
-        fromEmail = EncryptionHelper.decrypt(row.latestFrom) || "";
-      } catch {
-        /* include on error */
-      }
+      fromEmail = EncryptionHelper.tryDecrypt(row.latestFrom) || "";
       if (
         fromEmail &&
         (await this.blockedSendersService.isSenderBlocked(userId, fromEmail))
@@ -219,15 +215,11 @@ export class EmailInboxService {
         return true;
     }
     if (needsUserSentLastFilter && userEmailLower && row.latestFrom) {
-      try {
-        const fromLower =
-          EncryptionHelper.decrypt(row.latestFrom)?.toLowerCase() || "";
-        const userSentLast = fromLower.includes(userEmailLower);
-        if (mode === INBOX_MODES.ACTION && userSentLast) return true;
-        if (mode === INBOX_MODES.FOLLOW_UP && !userSentLast) return true;
-      } catch {
-        /* include on error */
-      }
+      const fromLower =
+        EncryptionHelper.tryDecrypt(row.latestFrom)?.toLowerCase() || "";
+      const userSentLast = fromLower.includes(userEmailLower);
+      if (mode === INBOX_MODES.ACTION && userSentLast) return true;
+      if (mode === INBOX_MODES.FOLLOW_UP && !userSentLast) return true;
     }
     return false;
   }
@@ -281,10 +273,9 @@ export class EmailInboxService {
       // categoryName comes from a raw SQL query — TypeORM's encryptedColumnTransformer does NOT
       // run for raw .query() results, so contextValue is returned as encrypted ciphertext.
       // Decrypt it here before use. NULL categoryId → "Other" bucket.
-      // EncryptionHelper.decrypt() has internal error handling and returns the original string
-      // on failure — it never throws, so no try/catch is needed.
+      // Use tryDecrypt so a corrupted row falls back to "Other" instead of crashing the request.
       const decryptedCategoryName = row.categoryName
-        ? EncryptionHelper.decrypt(row.categoryName)
+        ? EncryptionHelper.tryDecrypt(row.categoryName)
         : null;
       let category: string;
       if (row.categoryId && decryptedCategoryName != null) {
@@ -655,10 +646,10 @@ export class EmailInboxService {
       googleAccountId: row.googleAccountId,
       office365AccountId: row.office365AccountId,
       zohoAccountId: row.zohoAccountId,
-      from: EncryptionHelper.decrypt(row.from),
-      fromName: EncryptionHelper.decrypt(row.fromName),
-      senderJobTitle: EncryptionHelper.decrypt(row.senderJobTitle),
-      subject: EncryptionHelper.decrypt(row.subject),
+      from: EncryptionHelper.tryDecrypt(row.from),
+      fromName: EncryptionHelper.tryDecrypt(row.fromName),
+      senderJobTitle: EncryptionHelper.tryDecrypt(row.senderJobTitle),
+      subject: EncryptionHelper.tryDecrypt(row.subject),
       priorityExplanation,
       isSnoozed: row.isSnoozed,
       snoozeUntil: row.snoozeUntil,
@@ -667,7 +658,7 @@ export class EmailInboxService {
       wasDeliveredEarly: row.wasDeliveredEarly,
       batchDecisionReason: row.batchDecisionReason,
       isRead: row.isRead,
-      summary: EncryptionHelper.decrypt(row.summary),
+      summary: EncryptionHelper.tryDecrypt(row.summary),
       isProcessingPriority: row.isProcessingPriority,
       isProcessingSummary: row.isProcessingSummary,
       receivedAt: row.receivedAt,
@@ -678,25 +669,25 @@ export class EmailInboxService {
       githubMetadata,
       threadUpdatedAt: row.threadUpdatedAt,
       // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
-      // EncryptionHelper.decrypt() has internal error handling; it never throws.
+      // Use tryDecrypt so a corrupted row falls back to OTHER_CATEGORY_NAME instead of crashing.
       category: row.categoryName
-        ? parseCategoryName(EncryptionHelper.decrypt(row.categoryName) ?? "") ||
+        ? parseCategoryName(EncryptionHelper.tryDecrypt(row.categoryName) ?? "") ||
           OTHER_CATEGORY_NAME
         : OTHER_CATEGORY_NAME,
       categoryExplanation: row.categoryExplanation
-        ? EncryptionHelper.decrypt(row.categoryExplanation)
+        ? EncryptionHelper.tryDecrypt(row.categoryExplanation)
         : null,
       protoCategoryName: row.protoCategoryName
-        ? EncryptionHelper.decrypt(row.protoCategoryName)
+        ? EncryptionHelper.tryDecrypt(row.protoCategoryName)
         : null,
       protoCategoryDescription: row.protoCategoryDescription
-        ? EncryptionHelper.decrypt(row.protoCategoryDescription)
+        ? EncryptionHelper.tryDecrypt(row.protoCategoryDescription)
         : null,
       correspondentEmail: row.correspondentEmail
-        ? EncryptionHelper.decrypt(row.correspondentEmail)
+        ? EncryptionHelper.tryDecrypt(row.correspondentEmail)
         : null,
       correspondentName: row.correspondentName
-        ? EncryptionHelper.decrypt(row.correspondentName)
+        ? EncryptionHelper.tryDecrypt(row.correspondentName)
         : null,
       phishingConfidence: row.phishingConfidence,
       phishingReason: row.phishingReason,
@@ -705,15 +696,15 @@ export class EmailInboxService {
       // user_context was deleted. Null out categoryId so this email is treated as
       // truly uncategorized downstream (fixes #1404 — stale-UUID category mismatch).
       categoryId: row.categoryName ? row.categoryId : null,
-      to: row.to ? EncryptionHelper.decrypt(row.to) : null,
-      cc: row.cc ? EncryptionHelper.decrypt(row.cc) : null,
+      to: row.to ? EncryptionHelper.tryDecrypt(row.to) : null,
+      cc: row.cc ? EncryptionHelper.tryDecrypt(row.cc) : null,
     } as InboxEmail;
   }
 
   private decryptEmailLabels(row: RawEmailRow): string[] {
     if (!row.labels) return [];
     try {
-      const decrypted = EncryptionHelper.decrypt(row.labels);
+      const decrypted = EncryptionHelper.tryDecrypt(row.labels);
       if (!decrypted) return [];
       const parsed = JSON.parse(decrypted);
       return Array.from(
@@ -734,7 +725,7 @@ export class EmailInboxService {
   ): T | null {
     if (!encrypted) return null;
     try {
-      const decrypted = EncryptionHelper.decrypt(encrypted);
+      const decrypted = EncryptionHelper.tryDecrypt(encrypted);
       return decrypted ? JSON.parse(decrypted) : null;
     } catch {
       this.logger.warn(`Failed to decrypt/parse ${fieldDesc}`);

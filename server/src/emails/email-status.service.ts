@@ -268,7 +268,7 @@ export class EmailStatusService {
       isPrimary: boolean;
       isActive: boolean;
     }> = [];
-    const decrypt = (enc: string) => EncryptionHelper.decrypt(enc);
+    const decrypt = (enc: string) => EncryptionHelper.tryDecrypt(enc);
 
     const googleAccounts = await this.emailRepository.query(
       `SELECT id, email, "isPrimary", "isActive" FROM google_accounts WHERE "userId" = $1`,

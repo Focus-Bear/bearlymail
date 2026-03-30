@@ -13,10 +13,13 @@ export class EncryptionService {
   private readonly ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
 
   constructor(private configService: ConfigService) {
-    // Get encryption key from environment, or generate a default (should be set in production!)
-    const keyString =
-      this.configService.get<string>("ENCRYPTION_KEY") ||
-      "default-key-change-in-production-32chars!!";
+    const keyString = this.configService.get<string>("ENCRYPTION_KEY");
+    if (!keyString) {
+      throw new Error(
+        "FATAL: ENCRYPTION_KEY is not configured. " +
+          "All data at rest is encrypted — the app cannot function without it.",
+      );
+    }
 
     // Ensure key is 32 bytes (256 bits) for AES-256
     this.key = crypto.scryptSync(
@@ -98,8 +101,7 @@ export class EncryptionService {
         "Decryption error",
         error instanceof Error ? error : new Error(String(error)),
       );
-      // Return original if decryption fails (might be plaintext from before encryption)
-      return encryptedText;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

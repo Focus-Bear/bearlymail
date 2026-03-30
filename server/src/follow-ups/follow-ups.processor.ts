@@ -90,7 +90,7 @@ export class FollowUpsProcessor implements OnModuleInit {
   ): Promise<FollowUpContext> {
     const user = await this.usersService.findOne(userId);
     if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
-    const userEmail = EncryptionHelper.decrypt(user.email);
+    const userEmail = EncryptionHelper.tryDecrypt(user.email);
 
     const threadEmails = await this.emailRepository.find({
       where: { userId, threadId },
@@ -103,14 +103,14 @@ export class FollowUpsProcessor implements OnModuleInit {
       lastMessages.map(async (email) => {
         const isFromUser =
           email.labels?.includes("SENT") ||
-          EncryptionHelper.decrypt(email.from).toLowerCase() ===
-            userEmail.toLowerCase();
+          (EncryptionHelper.tryDecrypt(email.from) ?? "").toLowerCase() ===
+            (userEmail ?? "").toLowerCase();
         return {
-          from: EncryptionHelper.decrypt(email.from),
+          from: EncryptionHelper.tryDecrypt(email.from),
           fromName: email.fromName
-            ? EncryptionHelper.decrypt(email.fromName)
+            ? EncryptionHelper.tryDecrypt(email.fromName)
             : undefined,
-          body: EncryptionHelper.decrypt(email.body),
+          body: EncryptionHelper.tryDecrypt(email.body),
           receivedAt: email.receivedAt,
           isFromUser,
         };
@@ -136,7 +136,7 @@ export class FollowUpsProcessor implements OnModuleInit {
     )?.contextValue;
     const commonPhrases = contexts
       .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
-      .map((item) => EncryptionHelper.decrypt(item.contextValue));
+      .map((item) => EncryptionHelper.tryDecrypt(item.contextValue));
 
     const recipientMessages = threadMessages
       .filter((message) => !message.isFromUser)
@@ -150,7 +150,7 @@ export class FollowUpsProcessor implements OnModuleInit {
       lastTheirMessage?.fromName || lastTheirMessage?.from || "there";
 
     const userDisplayName = user.displayName
-      ? EncryptionHelper.decrypt(user.displayName)
+      ? EncryptionHelper.tryDecrypt(user.displayName)
       : undefined;
     const threadStyleInfo = analyzeThreadStyle(
       recipientMessages,
@@ -374,16 +374,16 @@ export class FollowUpsProcessor implements OnModuleInit {
         throw new Error(ERROR_MESSAGES.THREAD_NOT_FOUND);
 
       const lastEmail = threadEmails[0];
-      const recipient = EncryptionHelper.decrypt(lastEmail.from);
+      const recipient = EncryptionHelper.tryDecrypt(lastEmail.from);
       const rawSubject =
         followUp.subject ||
-        EncryptionHelper.decrypt(lastEmail.subject) ||
+        EncryptionHelper.tryDecrypt(lastEmail.subject) ||
         "Follow up";
       const subject = rawSubject.toLowerCase().startsWith("re:")
         ? rawSubject
         : `Re: ${rawSubject}`;
 
-      const draft = EncryptionHelper.decrypt(followUp.draftFollowUp);
+      const draft = EncryptionHelper.tryDecrypt(followUp.draftFollowUp);
       await this.sendFollowUpWithRetry(
         userId,
         followUp,

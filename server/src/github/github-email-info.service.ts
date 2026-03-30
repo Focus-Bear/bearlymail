@@ -206,7 +206,7 @@ export class GitHubEmailInfoService {
       return { links: [], hasToken: false };
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     const uniqueLinks = await this.parseThreadGitHubLinks(
       userId,
       email.emailThreadId,
@@ -255,7 +255,7 @@ export class GitHubEmailInfoService {
       throw new Error(ERROR_MESSAGES.GITHUB_TOKEN_NOT_CONFIGURED);
     }
 
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     const uniqueLinks = await this.parseThreadGitHubLinks(
       userId,
       email.emailThreadId,
@@ -282,7 +282,7 @@ export class GitHubEmailInfoService {
   async getUserGitHubToken(userId: string): Promise<string | null> {
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) return null;
-    const token = EncryptionHelper.decrypt(user.githubToken);
+    const token = EncryptionHelper.tryDecrypt(user.githubToken);
     return token || null;
   }
 
@@ -342,9 +342,9 @@ export class GitHubEmailInfoService {
       where: { id: emailId, userId },
     });
     if (!email) return [];
-    const body = email.body ? EncryptionHelper.decrypt(email.body) : "";
+    const body = email.body ? EncryptionHelper.tryDecrypt(email.body) : "";
     const htmlBody = email.htmlBody
-      ? EncryptionHelper.decrypt(email.htmlBody)
+      ? EncryptionHelper.tryDecrypt(email.htmlBody)
       : undefined;
     return this.githubService.parseGitHubLinks(body || "", htmlBody);
   }

@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MinLength,
   Max,
   Min,
   validateSync,
@@ -11,6 +12,9 @@ import {
 
 /** Maximum allowed DB pool size per process. Above this, connection budget maths break. */
 const DB_POOL_SIZE_MAX = 50;
+
+/** Minimum acceptable ENCRYPTION_KEY length (AES-256 needs ≥16 chars for scrypt input). */
+const ENCRYPTION_KEY_MIN_LENGTH = 16;
 
 /**
  * Environment variable validation schema.
@@ -23,6 +27,18 @@ const DB_POOL_SIZE_MAX = 50;
  * at runtime if absent. Optional vars should remain optional here.
  */
 export class EnvironmentVariables {
+  /**
+   * AES-256 encryption key for all data at rest.
+   * Required — the app will refuse to start without a valid key.
+   * Must be at least 16 characters. Use a strong random value in production
+   * and store it in Secrets Manager (never in source control).
+   */
+  @IsString()
+  @MinLength(ENCRYPTION_KEY_MIN_LENGTH, {
+    message: `ENCRYPTION_KEY must be at least ${ENCRYPTION_KEY_MIN_LENGTH} characters`,
+  })
+  ENCRYPTION_KEY: string;
+
   /**
    * S3 bucket name for feedback screenshot uploads.
    * Optional — if absent, presigned URL generation will fail at runtime but

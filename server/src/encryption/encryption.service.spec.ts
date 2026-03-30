@@ -27,6 +27,40 @@ describe("EncryptionService", () => {
     service = module.get<EncryptionService>(EncryptionService);
   });
 
+  describe("constructor", () => {
+    it("should throw FATAL error when ENCRYPTION_KEY is not set", async () => {
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            EncryptionService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn(() => undefined),
+              },
+            },
+          ],
+        }).compile(),
+      ).rejects.toThrow("FATAL: ENCRYPTION_KEY is not configured.");
+    });
+
+    it("should throw FATAL error when ENCRYPTION_KEY is empty string", async () => {
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            EncryptionService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn(() => ""),
+              },
+            },
+          ],
+        }).compile(),
+      ).rejects.toThrow("FATAL: ENCRYPTION_KEY is not configured.");
+    });
+  });
+
   describe("encrypt", () => {
     it("should encrypt a string value", () => {
       const plaintext = "Hello, World!";
@@ -136,12 +170,9 @@ describe("EncryptionService", () => {
       expect(decrypted2).toBe(plaintext);
     });
 
-    it("should return original text if decryption fails (for backwards compatibility)", () => {
-      // Create invalid encrypted format
+    it("should throw when decryption fails (malformed data)", () => {
       const invalidEncrypted = "invalid:format:data";
-      // This should fail to decrypt and return original
-      const result = service.decrypt(invalidEncrypted);
-      expect(result).toBe(invalidEncrypted);
+      expect(() => service.decrypt(invalidEncrypted)).toThrow();
     });
 
     it("should decrypt special characters correctly", () => {

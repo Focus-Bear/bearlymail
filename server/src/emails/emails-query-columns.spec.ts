@@ -17,7 +17,7 @@ describe("getInbox raw SQL query column coverage", () => {
 
   beforeAll(() => {
     source = fs.readFileSync(
-      path.join(__dirname, "email-inbox.service.ts"),
+      path.join(__dirname, "email-inbox-query.helpers.ts"),
       "utf-8",
     );
   });

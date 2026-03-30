@@ -31,4 +31,7 @@ export default new DataSource({
   synchronize: false,
   ssl: useSsl,
   logging: ["error", "warn", "migration"],
+  // Allow individual migrations to override transaction mode (e.g. ALTER TYPE ... ADD VALUE
+  // cannot run inside a PostgreSQL transaction, so those migrations set transaction = false)
+  migrationsTransactionMode: "each",
 });

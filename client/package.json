@@ -88,7 +88,7 @@
     "jscodeshift": "^17.3.0",
     "prettier": "^3.8.1",
     "storybook": "^8.6.17",
-    "vite": "^8.0.1",
+    "vite": "^8.0.3",
     "vite-tsconfig-paths": "^6.0.3"
   },
   "jest": {

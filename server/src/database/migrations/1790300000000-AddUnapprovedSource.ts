@@ -2,6 +2,9 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddUnapprovedSource1790300000000 implements MigrationInterface {
   name = "AddUnapprovedSource1790300000000";
+  // PostgreSQL doesn't allow using a newly added enum value within the same
+  // transaction that created it, so we disable the transaction wrapper here.
+  transaction = false as const;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

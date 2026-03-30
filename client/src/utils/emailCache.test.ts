@@ -11,6 +11,7 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 import {
   CACHE_VERSION,
   clearCacheForMode,
+  filterHash,
   getCachedCategoryEmails,
   getCachedSummary,
   removeEmailFromCache,
@@ -229,4 +230,50 @@ describe('clearCacheForMode — filter change invalidation', () => {
     expect(getCachedCategoryEmails('action', 'uuid-nl-0003')).toEqual(actionEmails);
   });
 
+});
+
+// ─── filterHash ───────────────────────────────────────────────────────────────
+
+describe('filterHash', () => {
+  it('returns the same hash for identical filter values', () => {
+    const hashA = filterHash({ minPriority: 2, maxPriority: 5 });
+    const hashB = filterHash({ minPriority: 2, maxPriority: 5 });
+    expect(hashA).toBe(hashB);
+  });
+
+  it('returns different hashes for different filter values', () => {
+    const hashA = filterHash({ minPriority: 1, maxPriority: 5 });
+    const hashB = filterHash({ minPriority: 2, maxPriority: 5 });
+    expect(hashA).not.toBe(hashB);
+  });
+
+  it('treats null and undefined as equivalent (both map to "null")', () => {
+    const withNull = filterHash({ minPriority: null, maxPriority: null });
+    const withUndefined = filterHash({ minPriority: undefined, maxPriority: undefined });
+    expect(withNull).toBe(withUndefined);
+  });
+
+  it('treats omitted fields as equivalent to undefined', () => {
+    const omitted = filterHash({});
+    const explicit = filterHash({ minPriority: undefined, maxPriority: undefined });
+    expect(omitted).toBe(explicit);
+  });
+
+  it('treats zero as a valid, distinct priority value (not coerced to null)', () => {
+    const withZero = filterHash({ minPriority: 0, maxPriority: 0 });
+    const withNull = filterHash({ minPriority: null, maxPriority: null });
+    expect(withZero).not.toBe(withNull);
+  });
+
+  it('produces different hashes when only maxPriority differs', () => {
+    const hashA = filterHash({ minPriority: 1, maxPriority: 3 });
+    const hashB = filterHash({ minPriority: 1, maxPriority: 10 });
+    expect(hashA).not.toBe(hashB);
+  });
+
+  it('produces different hashes when only minPriority differs', () => {
+    const hashA = filterHash({ minPriority: 1, maxPriority: 5 });
+    const hashB = filterHash({ minPriority: 3, maxPriority: 5 });
+    expect(hashA).not.toBe(hashB);
+  });
 });

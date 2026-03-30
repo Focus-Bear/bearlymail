@@ -85,13 +85,6 @@ function safeSet<T>(storageKey: string, value: T): void {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
-export interface SummaryCacheParams {
-  minPriority?: number | null;
-  maxPriority?: number | null;
-  categories?: string[];
-  accountIds?: string[];
-}
-
 /**
  * Return the cached summary only if it was stored within the last `maxAgeMs`
  * milliseconds. Pass `Infinity` (or omit) to skip TTL enforcement.

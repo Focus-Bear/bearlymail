@@ -11,7 +11,6 @@ import {
   getCachedSummary,
   setCachedCategoryEmails,
   setCachedSummary,
-  SummaryCacheParams,
 } from 'utils/emailCache';
 import { getAxiosErrorMessage } from 'utils/errors';
 
@@ -633,14 +632,12 @@ function serveSummaryFromCacheAndRefresh({
   cachedSummary,
   mode,
   dispatch,
-  filterParams,
   buildSummaryParams,
   hash,
 }: {
   cachedSummary: CategorySummaryItem[];
   mode: InboxMode;
   dispatch: AppDispatch;
-  filterParams?: SummaryCacheParams;
   buildSummaryParams: () => URLSearchParams;
   /** Fix #1571 Bug 1: filter hash to scope the write-back to the same key. */
   hash?: string;

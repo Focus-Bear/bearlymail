@@ -41,6 +41,7 @@ type InlineImage = {
 
 type ReplyPayload = {
   bodyWithSignature: string;
+  htmlBodyWithSignature: string;
   replySubject: string;
   replyToAddress: string;
   allAttachments: ReplyAttachment[];
@@ -461,6 +462,53 @@ ${closing}`;
   }
 
   /**
+   * Build the plain-text body for a reply, appending the original message as a
+   * quoted block with standard "> " indentation and an "On [date], [sender] wrote:" header.
+   */
+  private buildReplyQuotedBody(userText: string, originalEmail: Email): string {
+    const originalBody = originalEmail.body;
+    if (!originalBody) {
+      return userText;
+    }
+
+    const fromDisplay = originalEmail.fromName
+      ? `${originalEmail.fromName} <${originalEmail.from}>`
+      : originalEmail.from;
+    const dateStr = originalEmail.receivedAt.toUTCString();
+
+    const quotedHeader = `On ${dateStr}, ${fromDisplay} wrote:`;
+    const quotedBody = originalBody
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n");
+
+    return `${userText}\n\n${quotedHeader}\n${quotedBody}`;
+  }
+
+  /**
+   * Build the HTML body for a reply, appending the original message inside a
+   * standard <blockquote> element styled to match Gmail/Outlook/Apple Mail conventions.
+   */
+  private buildReplyQuotedHtmlBody(
+    userHtml: string,
+    originalEmail: Email,
+  ): string {
+    const originalHtml = originalEmail.htmlBody || originalEmail.body;
+    if (!originalHtml) {
+      return userHtml;
+    }
+
+    const fromDisplay = originalEmail.fromName
+      ? `${originalEmail.fromName} &lt;${originalEmail.from}&gt;`
+      : originalEmail.from;
+    const dateStr = originalEmail.receivedAt.toUTCString();
+
+    const quotedBlock = `<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${fromDisplay} wrote:</div>${originalHtml}</blockquote>`;
+
+    return `${userHtml}${quotedBlock}`;
+  }
+
+  /**
    * Build the body for a forwarded email, prepending the conventional
    * "---------- Forwarded message ---------" header block with the original
    * email's metadata and content.
@@ -524,12 +572,20 @@ ${closing}`;
       isForward = false,
     } = options;
 
-    // Bug 4 fix: append original email content for forwards
     const bodyForSending = isForward
       ? this.buildForwardBody(body, email)
-      : body;
+      : this.buildReplyQuotedBody(body, email);
+
+    const htmlBodyForSending = isForward
+      ? this.buildForwardBody(body, email)
+      : this.buildReplyQuotedHtmlBody(body, email);
+
     const bodyWithSignature = this.appendSignature(
       bodyForSending,
+      user.emailSignature,
+    );
+    const htmlBodyWithSignature = this.appendSignature(
+      htmlBodyForSending,
       user.emailSignature,
     );
 
@@ -552,6 +608,7 @@ ${closing}`;
 
     return {
       bodyWithSignature,
+      htmlBodyWithSignature,
       replySubject,
       replyToAddress,
       allAttachments: [...(attachments || []), ...forwardedAttachments],
@@ -574,6 +631,7 @@ ${closing}`;
     const { cc, bcc, isForward = false } = options;
     const {
       bodyWithSignature,
+      htmlBodyWithSignature,
       replySubject,
       replyToAddress,
       allAttachments,
@@ -613,7 +671,7 @@ ${closing}`;
       options: {
         attachments:
           attachmentsWithInline.length > 0 ? attachmentsWithInline : undefined,
-        htmlBody: bodyWithSignature,
+        htmlBody: htmlBodyWithSignature,
         cc: cc || undefined,
         bcc: bcc || undefined,
       },

@@ -457,6 +457,7 @@ describe("RepliesService", () => {
       body: "Test body",
       from: "sender@example.com",
       threadId: "thread1",
+      receivedAt: new Date("2024-01-15T10:00:00Z"),
     };
     let usersService: jest.Mocked<UsersService>;
     let emailRepository: any;
@@ -509,17 +510,20 @@ describe("RepliesService", () => {
 
       await service.sendReply(userId, emailId, "Reply body");
 
+      const dateStr = email.receivedAt.toUTCString();
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+      const expectedHtmlBody = `Reply body<br><blockquote style="margin:0 0 0 0.8ex;border-left:1px solid #cccccc;padding-left:1ex"><div>On ${dateStr}, ${email.from} wrote:</div>Test body</blockquote>\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
         to: email.from,
         subject: "Re: Test Subject",
-        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        body: expectedPlainBody,
         options: {
           attachments: undefined,
           bcc: undefined,
           cc: undefined,
-          htmlBody:
-            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+          htmlBody: expectedHtmlBody,
         },
       });
     });
@@ -540,19 +544,19 @@ describe("RepliesService", () => {
 
       await service.sendReply(userId, emailId, "Reply body");
 
-      // Should not double add Re:
+      const dateStr = email.receivedAt.toUTCString();
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
         to: email.from,
         subject: "Re: Test Subject",
-        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        options: {
+        body: expectedPlainBody,
+        options: expect.objectContaining({
           attachments: undefined,
           bcc: undefined,
           cc: undefined,
-          htmlBody:
-            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        },
+        }),
       });
     });
 
@@ -570,18 +574,19 @@ describe("RepliesService", () => {
         cc: "cc@example.com",
       });
 
+      const dateStr = email.receivedAt.toUTCString();
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
         to: replyAllRecipients,
         subject: "Re: Test Subject",
-        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        options: {
+        body: expectedPlainBody,
+        options: expect.objectContaining({
           attachments: undefined,
           bcc: undefined,
           cc: "cc@example.com",
-          htmlBody:
-            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        },
+        }),
       });
     });
 
@@ -597,18 +602,19 @@ describe("RepliesService", () => {
         recipients: "",
       });
 
+      const dateStr = email.receivedAt.toUTCString();
+      const expectedPlainBody = `Reply body\n\nOn ${dateStr}, ${email.from} wrote:\n> Test body\n\nSent from BearlyMail (anti inbox overwhelm system)`;
+
       expect(mockProvider.sendReply).toHaveBeenCalledWith(userId, {
         threadId: email.threadId,
         to: email.from,
         subject: "Re: Test Subject",
-        body: "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        options: {
+        body: expectedPlainBody,
+        options: expect.objectContaining({
           attachments: undefined,
           bcc: undefined,
           cc: undefined,
-          htmlBody:
-            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        },
+        }),
       });
     });
 
@@ -648,6 +654,135 @@ describe("RepliesService", () => {
         // STAR_COUNTS.LOW
         1,
       );
+    });
+  });
+
+  describe("quoted reply body (buildReplyQuotedBody / buildReplyQuotedHtmlBody)", () => {
+    const userId = "user1";
+    const emailId = "email1";
+    let usersService: jest.Mocked<UsersService>;
+    let emailRepository: any;
+    let emailThreadRepository: any;
+    let writingStyleLearningService: any;
+
+    beforeEach(() => {
+      usersService = module.get(UsersService);
+      emailRepository = module.get(getRepositoryToken(Email));
+      emailThreadRepository = module.get(getRepositoryToken(EmailThread));
+      writingStyleLearningService = module.get(WritingStyleLearningService);
+      usersService.findOne.mockResolvedValue({
+        id: userId,
+        email: "encrypted_user@example.com",
+        name: "Test User",
+        emailSignature: null,
+      } as any);
+      emailRepository.create.mockReturnValue({});
+      emailRepository.save.mockResolvedValue({});
+      emailThreadRepository.findOne.mockResolvedValue({ id: "thread-uuid" });
+      writingStyleLearningService.learnFromSentEmailBodies.mockResolvedValue(
+        undefined,
+      );
+    });
+
+    it("should append quoted original body to plain-text reply", async () => {
+      const receivedAt = new Date("2024-03-01T12:00:00Z");
+      const originalEmail = {
+        id: emailId,
+        userId,
+        subject: "Hello there",
+        body: "Original message line 1\nOriginal message line 2",
+        htmlBody: null,
+        from: "alice@example.com",
+        fromName: "Alice",
+        threadId: "thread-abc",
+        receivedAt,
+      };
+      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      await service.sendReply(userId, emailId, "My reply");
+
+      const dateStr = receivedAt.toUTCString();
+      const callBody: string = mockProvider.sendReply.mock.calls[0][1]
+        .body as string;
+      expect(callBody).toContain("My reply");
+      expect(callBody).toContain(
+        `On ${dateStr}, Alice <alice@example.com> wrote:`,
+      );
+      expect(callBody).toContain("> Original message line 1");
+      expect(callBody).toContain("> Original message line 2");
+    });
+
+    it("should append quoted HTML body to HTML reply when htmlBody is available", async () => {
+      const receivedAt = new Date("2024-03-01T12:00:00Z");
+      const originalEmail = {
+        id: emailId,
+        userId,
+        subject: "Hello",
+        body: "Plain fallback",
+        htmlBody: "<p>Rich content</p>",
+        from: "bob@example.com",
+        fromName: null,
+        threadId: "thread-def",
+        receivedAt,
+      };
+      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-2" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      await service.sendReply(userId, emailId, "My reply");
+
+      const htmlBody: string = mockProvider.sendReply.mock.calls[0][1].options
+        .htmlBody as string;
+      expect(htmlBody).toContain("My reply");
+      expect(htmlBody).toContain("<blockquote");
+      expect(htmlBody).toContain("<p>Rich content</p>");
+      expect(htmlBody).toContain("bob@example.com");
+    });
+
+    it("should handle gracefully when original email has no body", async () => {
+      const receivedAt = new Date("2024-03-01T12:00:00Z");
+      const originalEmail = {
+        id: emailId,
+        userId,
+        subject: "Empty",
+        body: null,
+        htmlBody: null,
+        from: "carol@example.com",
+        fromName: "Carol",
+        threadId: "thread-ghi",
+        receivedAt,
+      };
+      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-3" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      await expect(
+        service.sendReply(userId, emailId, "My reply"),
+      ).resolves.not.toThrow();
+
+      const callBody: string = mockProvider.sendReply.mock.calls[0][1]
+        .body as string;
+      expect(callBody).toContain("My reply");
+      // No attribution line should be rendered when original body is null
+      expect(callBody).not.toContain("wrote:");
+      expect(callBody).not.toContain("On ");
     });
   });
 });

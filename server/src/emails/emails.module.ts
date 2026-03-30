@@ -48,6 +48,8 @@ import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailInboxService } from "./email-inbox.service";
+import { EmailInboxCategoryService } from "./email-inbox-category.service";
+import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
 import { EmailLifecycleService } from "./email-lifecycle.service";
 import { EmailMigrationService } from "./email-migration.service";
 import { EmailPriorityExplanationService } from "./email-priority-explanation.service";
@@ -144,6 +146,8 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailGmailService,
     EmailStatusService,
     EmailFollowUpService,
+    EmailInboxCategoryService,
+    EmailInboxDecryptService,
     EmailInboxService,
     EmailPriorityExplanationService,
     EmailLifecycleService,

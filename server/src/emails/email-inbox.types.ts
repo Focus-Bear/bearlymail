@@ -149,8 +149,8 @@ export function buildSummaryFiltersAndParams(
     maxPriority?: number;
     accountIds?: string[];
   },
-): { additionalFilters: string; queryParams: unknown[] } {
-  const queryParams: unknown[] = [userId];
+): { additionalFilters: string; queryParams: (string | number)[] } {
+  const queryParams: (string | number)[] = [userId];
   let additionalFilters = "";
   let paramIndex = 2;
 

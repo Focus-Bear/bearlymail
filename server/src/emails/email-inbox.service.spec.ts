@@ -173,3 +173,91 @@ describe("category sort order — fix #1550", () => {
     expect(order[order.length - 1]).toBe("Newsletters");
   });
 });
+
+// ─── fix(#1554): getInboxSummary SQL must scope lateral joins to userId ───────
+//
+// The root cause of #1554: getInboxSummary() used LEFT JOIN LATERAL without
+// AND em."userId" = $1, so threads whose latest email belonged to a different
+// user were still counted. This inflated the tab count vs getInbox which uses
+// CROSS JOIN LATERAL with the userId filter.
+//
+// We verify the generated SQL by inspecting the query string passed to
+// emailThreadRepository.query(). This avoids a full NestJS DI bootstrap.
+
+/**
+ * Minimal mock of the repository .query() call — captures the SQL string and
+ * returns an empty array (we only care about the SQL, not the result).
+ */
+function makeMockThreadRepository(): {
+  query: jest.Mock;
+  find: jest.Mock;
+} {
+  return {
+    query: jest.fn().mockResolvedValue([]),
+    find: jest.fn().mockResolvedValue([]),
+  };
+}
+
+/**
+ * Minimal stubs for EmailInboxService constructor dependencies.
+ * Only the properties exercised by getInboxSummary are populated.
+ */
+function buildServiceDeps() {
+  const emailThreadRepository = makeMockThreadRepository();
+  return { emailThreadRepository };
+}
+
+describe("getInboxSummary SQL — fix #1554", () => {
+  it("latest_email lateral uses CROSS JOIN with em.userId = $1", async () => {
+    // Arrange: build a partial EmailInboxService with just enough stubs to
+    // reach the SQL generation inside getInboxSummary().
+    const { emailThreadRepository } = buildServiceDeps();
+
+    const blockedSendersService = {
+      getBlockedEmailHashes: jest.fn().mockResolvedValue(undefined),
+      isSenderBlocked: jest.fn().mockResolvedValue(false),
+    };
+    const emailInboxCategoryService = {
+      resolveUserEmailLower: jest.fn().mockResolvedValue(null),
+      countRowsByCategory: jest.fn().mockResolvedValue({
+        categoryOrder: [],
+        categoryCounts: {},
+        categoryThreadIds: {},
+        categoryUuidByName: new Map(),
+      }),
+      filterVisibleCategoriesByIds: jest.fn().mockReturnValue([]),
+    };
+    const emailInboxDecryptService = {};
+    const emailFollowUpService = {};
+    const userContextRepository = { find: jest.fn().mockResolvedValue([]) };
+
+    // Construct the service instance bypassing NestJS DI.
+    const { EmailInboxService } = await import("./email-inbox.service");
+    // emailRepository, emailThreadRepository, userContextRepository,
+    // blockedSendersService, emailFollowUpService,
+    // emailInboxCategoryService, emailInboxDecryptService, cloudWatchService
+    const service = new (EmailInboxService as any)(
+      {},
+      emailThreadRepository,
+      userContextRepository,
+      blockedSendersService,
+      emailFollowUpService,
+      emailInboxCategoryService,
+      emailInboxDecryptService,
+      undefined,
+    );
+
+    // Act
+    await service.getInboxSummary("user-123", "action");
+
+    // Assert: the SQL passed to .query() must include the userId filter in the
+    // lateral join for latest_email, and must use CROSS JOIN LATERAL.
+    expect(emailThreadRepository.query).toHaveBeenCalledTimes(1);
+    const [sql] = emailThreadRepository.query.mock.calls[0] as [string];
+
+    expect(sql).toMatch(/CROSS JOIN LATERAL/i);
+    expect(sql).toMatch(/em\."userId"\s*=\s*\$1/);
+    // The old (broken) form must NOT appear.
+    expect(sql).not.toMatch(/LEFT JOIN LATERAL[\s\S]*?latest_email/i);
+  });
+});

@@ -1,10 +1,4 @@
-import {
-  forwardRef,
-  Inject,
-  Injectable,
-  Logger,
-  Optional,
-} from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -19,8 +13,6 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
@@ -28,11 +20,11 @@ import {
   buildThreadFilter,
   lookupCategoryIdByName,
   RawEmailRow,
-  SYSTEM_LABELS,
   threadHasBlockedLabel,
 } from "./email-inbox.types";
+import { EmailInboxCategoryService } from "./email-inbox-category.service";
+import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
 import { runInboxQuery } from "./email-inbox-query.helpers";
-import { EmailProviderManager } from "./email-provider-manager.service";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { PerformanceTracker } from "./performance-tracker";
 
@@ -49,6 +41,8 @@ const OTHER_CATEGORY_NAME = "Other";
  * Extracted from EmailsService (Phase 1 — lowest risk, read-only methods).
  *
  * Follow-up / action-mode filtering is delegated to EmailFollowUpService.
+ * Category counting/filtering is delegated to EmailInboxCategoryService.
+ * Decryption/label conversion is delegated to EmailInboxDecryptService.
  */
 @Injectable()
 export class EmailInboxService {
@@ -62,10 +56,9 @@ export class EmailInboxService {
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
     private blockedSendersService: BlockedSendersService,
-    private usersService: UsersService,
     private emailFollowUpService: EmailFollowUpService,
-    @Inject(forwardRef(() => EmailProviderManager))
-    private emailProviderManager: EmailProviderManager,
+    private emailInboxCategoryService: EmailInboxCategoryService,
+    private emailInboxDecryptService: EmailInboxDecryptService,
     @Optional() private cloudWatchService?: CloudWatchService,
   ) {}
 
@@ -100,41 +93,20 @@ export class EmailInboxService {
       ? ', thread."threadId"'
       : "";
 
-    const rows = (await this.emailThreadRepository.query(
-      `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
-              latest_email."latestFrom",
-              thread_labels."allLabels",
-              thread."priorityScore"${threadIdSelect}
-       FROM email_threads thread
-       LEFT JOIN user_contexts uc
-         ON uc."contextId" = thread."categoryId"
-       LEFT JOIN LATERAL (
-         SELECT em."from" AS "latestFrom" FROM emails em
-         WHERE em."emailThreadId" = thread.id ORDER BY em."receivedAt" DESC LIMIT 1
-       ) latest_email ON true
-       LEFT JOIN LATERAL (
-         SELECT array_agg(em.labels) AS "allLabels" FROM emails em
-         WHERE em."emailThreadId" = thread.id AND em.labels IS NOT NULL
-       ) thread_labels ON true
-       WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
-         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
-         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
-       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC
-       ${mode === INBOX_MODES.BLOCKED ? "LIMIT 200" : ""}`,
-      queryParams,
-    )) as {
-      categoryName: string | null;
-      categoryId: string | null;
-      threadId?: string;
-      latestFrom?: string;
-      allLabels?: string[] | null;
-      priorityScore?: number | null;
-    }[];
-
-    const userEmailLower = await this.resolveUserEmailLower(
+    const rows = await this.querySummaryRows({
       userId,
-      needsUserSentLastFilter,
-    );
+      mode,
+      threadFilter,
+      additionalFilters,
+      queryParams,
+      threadIdSelect,
+    });
+
+    const userEmailLower =
+      await this.emailInboxCategoryService.resolveUserEmailLower(
+        userId,
+        needsUserSentLastFilter,
+      );
     const categoryNameToId = await this.getCategoryNameToIdMap(userId, true);
     await this.blockedSendersService.getBlockedEmailHashes(userId);
 
@@ -143,7 +115,7 @@ export class EmailInboxService {
       categoryCounts,
       categoryThreadIds,
       categoryUuidByName,
-    } = await this.countRowsByCategory({
+    } = await this.emailInboxCategoryService.countRowsByCategory({
       userId,
       mode,
       rows,
@@ -152,13 +124,14 @@ export class EmailInboxService {
       userEmailLower,
     });
 
-    const visibleCategories = await this.filterVisibleCategoriesByIds(
-      userId,
-      categoryOrder,
-      categoryUuidByName,
-      categoryNameToId,
-      filters?.categoryIds,
-    );
+    const visibleCategories =
+      this.emailInboxCategoryService.filterVisibleCategoriesByIds(
+        userId,
+        categoryOrder,
+        categoryUuidByName,
+        categoryNameToId,
+        filters?.categoryIds,
+      );
 
     if (visibleCategories === null) return { total: 0, categories: [] };
 
@@ -176,186 +149,73 @@ export class EmailInboxService {
     return { total, categories };
   }
 
-  private async resolveUserEmailLower(
-    userId: string,
-    needsFilter: boolean,
-  ): Promise<string | null> {
-    if (!needsFilter) return null;
-    try {
-      const user = await this.usersService.findOne(userId);
-      if (user)
-        return EncryptionHelper.tryDecrypt(user.email)?.toLowerCase() || null;
-    } catch (error) {
-      this.logger.warn(
-        "Failed to get user email for summary sent-last filter:",
-        error,
-      );
-    }
-    return null;
-  }
-
-  private async shouldSkipSummaryRow(
-    userId: string,
-    mode: string,
-    row: { latestFrom?: string; allLabels?: string[] | null },
-    needsUserSentLastFilter: boolean,
-    userEmailLower: string | null,
-  ): Promise<boolean> {
-    if (mode === INBOX_MODES.BLOCKED) {
-      // Use threadHasBlockedLabel to check all emails in the thread (not just the latest).
-      return !threadHasBlockedLabel(row.allLabels);
-    }
-    if (mode !== INBOX_MODES.BLOCKED && row.latestFrom) {
-      let fromEmail = "";
-      fromEmail = EncryptionHelper.tryDecrypt(row.latestFrom) || "";
-      if (
-        fromEmail &&
-        (await this.blockedSendersService.isSenderBlocked(userId, fromEmail))
-      )
-        return true;
-    }
-    if (needsUserSentLastFilter && userEmailLower && row.latestFrom) {
-      const fromLower =
-        EncryptionHelper.tryDecrypt(row.latestFrom)?.toLowerCase() || "";
-      const userSentLast = fromLower.includes(userEmailLower);
-      if (mode === INBOX_MODES.ACTION && userSentLast) return true;
-      if (mode === INBOX_MODES.FOLLOW_UP && !userSentLast) return true;
-    }
-    return false;
-  }
-
-  private async countRowsByCategory(options: {
+  /**
+   * Executes the raw SQL for getInboxSummary.
+   *
+   * Extracted to keep getInboxSummary under the max-lines-per-function limit.
+   *
+   * fix(#1554): both lateral subqueries use CROSS JOIN LATERAL with
+   * em."userId" = $1 so that only the current user's emails are considered —
+   * matching the behaviour of runInboxQuery() and preventing tab-count inflation
+   * in action mode when threads contain emails from multiple users.
+   */
+  private async querySummaryRows(opts: {
     userId: string;
     mode: string;
-    rows: {
+    threadFilter: string;
+    additionalFilters: string;
+    queryParams: (string | number)[];
+    threadIdSelect: string;
+  }): Promise<
+    {
       categoryName: string | null;
       categoryId: string | null;
       threadId?: string;
       latestFrom?: string;
       allLabels?: string[] | null;
       priorityScore?: number | null;
-    }[];
-    includeThreadIds: boolean;
-    needsUserSentLastFilter: boolean;
-    userEmailLower: string | null;
-  }): Promise<{
-    categoryOrder: string[];
-    categoryCounts: Record<string, number>;
-    categoryThreadIds: Record<string, string[]>;
-    categoryUuidByName: Map<string, string>;
-  }> {
+    }[]
+  > {
     const {
-      userId,
       mode,
-      rows,
-      includeThreadIds,
-      needsUserSentLastFilter,
-      userEmailLower,
-    } = options;
-    const categoryOrder: string[] = [];
-    const categoryCounts: Record<string, number> = {};
-    const categoryThreadIds: Record<string, string[]> = {};
-    const categoryUuidByName = new Map<string, string>();
-    const categoryMaxPriority: Record<string, number> = {};
-
-    for (const row of rows) {
-      if (
-        await this.shouldSkipSummaryRow(
-          userId,
-          mode,
-          row,
-          needsUserSentLastFilter,
-          userEmailLower,
-        )
-      )
-        continue;
-
-      // categoryName comes from a raw SQL query — TypeORM's encryptedColumnTransformer does NOT
-      // run for raw .query() results, so contextValue is returned as encrypted ciphertext.
-      // Decrypt it here before use. NULL categoryId → "Other" bucket.
-      // Use tryDecrypt so a corrupted row falls back to "Other" instead of crashing the request.
-      const decryptedCategoryName = row.categoryName
-        ? EncryptionHelper.tryDecrypt(row.categoryName)
-        : null;
-      let category: string;
-      if (row.categoryId && decryptedCategoryName != null) {
-        category = parseCategoryName(decryptedCategoryName);
-      } else {
-        category = OTHER_CATEGORY_NAME;
-      }
-      const threadPriority = row.priorityScore ?? 0;
-      if (!categoryOrder.includes(category)) {
-        categoryOrder.push(category);
-        categoryThreadIds[category] = [];
-        categoryMaxPriority[category] = threadPriority;
-      } else {
-        categoryMaxPriority[category] = Math.max(
-          categoryMaxPriority[category],
-          threadPriority,
-        );
-      }
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-      if (row.threadId && includeThreadIds)
-        categoryThreadIds[category].push(row.threadId);
-      if (row.categoryId && !categoryUuidByName.has(category))
-        categoryUuidByName.set(category, row.categoryId);
-    }
-
-    // Sort categories by their max thread priority descending so that high-priority
-    // categories always appear first, regardless of SQL row insertion order.
-    // This prevents low-priority categories (e.g. Newsletters, max priority -1)
-    // from appearing above higher-priority ones in the action tab.
-    categoryOrder.sort(
-      (catA, catB) =>
-        (categoryMaxPriority[catB] ?? 0) - (categoryMaxPriority[catA] ?? 0),
-    );
-
-    return {
-      categoryOrder,
-      categoryCounts,
-      categoryThreadIds,
-      categoryUuidByName,
-    };
-  }
-
-  private async filterVisibleCategoriesByIds(
-    userId: string,
-    categoryOrder: string[],
-    categoryUuidByName: Map<string, string>,
-    categoryNameToId: Map<string, string>,
-    categoryIds?: string[],
-  ): Promise<string[] | null> {
-    if (!categoryIds || categoryIds.length === 0) return categoryOrder;
-
-    // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
-    const requestedOther =
-      categoryIds.includes(OTHER_CATEGORY_NAME) ||
-      categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
-    const realIds = categoryIds.filter(
-      (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
-    );
-    const requestedUuids = new Set(realIds);
-    const idToName = new Map<string, string>();
-    categoryNameToId.forEach((id, name) => idToName.set(id, name));
-    const namesFromIds = new Set(
-      realIds
-        .map((id) => idToName.get(id))
-        .filter((name): name is string => name !== undefined),
-    );
-
-    if (realIds.length > 0 && namesFromIds.size === 0) {
-      this.logger.warn(
-        `getInboxSummary: none of the requested UUIDs resolved to a known category (userId=${userId})`,
-      );
-      return null;
-    }
-
-    return categoryOrder.filter((cat) => {
-      if (requestedOther && cat === OTHER_CATEGORY_NAME) return true;
-      const uuid = categoryUuidByName.get(cat);
-      if (uuid) return requestedUuids.has(uuid);
-      return namesFromIds.has(cat);
-    });
+      threadFilter,
+      additionalFilters,
+      queryParams,
+      threadIdSelect,
+    } = opts;
+    return this.emailThreadRepository.query(
+      `SELECT thread."categoryId", uc."contextValue" AS "categoryName",
+              latest_email."latestFrom",
+              thread_labels."allLabels",
+              thread."priorityScore"${threadIdSelect}
+       FROM email_threads thread
+       LEFT JOIN user_contexts uc
+         ON uc."contextId" = thread."categoryId"
+       CROSS JOIN LATERAL (
+         SELECT em."from" AS "latestFrom" FROM emails em
+         WHERE em."emailThreadId" = thread.id AND em."userId" = $1
+         ORDER BY em."receivedAt" DESC, em.id DESC LIMIT 1
+       ) latest_email
+       LEFT JOIN LATERAL (
+         SELECT array_agg(em.labels) AS "allLabels" FROM emails em
+         WHERE em."emailThreadId" = thread.id AND em."userId" = $1 AND em.labels IS NOT NULL
+       ) thread_labels ON true
+       WHERE thread."userId" = $1 ${threadFilter} ${additionalFilters}
+         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
+         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
+       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC
+       ${mode === INBOX_MODES.BLOCKED ? "LIMIT 200" : ""}`,
+      queryParams,
+    ) as Promise<
+      {
+        categoryName: string | null;
+        categoryId: string | null;
+        threadId?: string;
+        latestFrom?: string;
+        allLabels?: string[] | null;
+        priorityScore?: number | null;
+      }[]
+    >;
   }
 
   async getInbox(options: {
@@ -422,7 +282,8 @@ export class EmailInboxService {
       PERFORMANCE_BUDGETS.DECRYPTION,
     );
     const threadRepresentatives: InboxEmail[] = filteredRawEmails.map(
-      (row: RawEmailRow) => this.decryptRawEmailRow(row),
+      (row: RawEmailRow) =>
+        this.emailInboxDecryptService.decryptRawEmailRow(row),
     );
     endDecrypt();
 
@@ -439,9 +300,9 @@ export class EmailInboxService {
         filters,
       );
 
-    this.convertEmailLabels(userId, filteredEmails).catch((err) =>
-      this.logger.error("Error converting labels:", err),
-    );
+    this.emailInboxDecryptService
+      .convertEmailLabels(userId, filteredEmails)
+      .catch((err) => this.logger.error("Error converting labels:", err));
 
     const allFiltered = filteredEmails.slice(0, maxResults);
     const total = allFiltered.length;
@@ -450,22 +311,13 @@ export class EmailInboxService {
     const finalEmails = allFiltered.slice(qOffset, qOffset + qLimit);
     const hasMore = qOffset + finalEmails.length < total;
 
-    this.assignCategoryIds(finalEmails);
+    this.emailInboxDecryptService.assignCategoryIds(finalEmails);
 
     this.logger.log(
       `getInbox(${mode}): Returning ${finalEmails.length}/${total} threads (from ${rawEmails.length} matching, ${blockedCount} blocked)`,
     );
     perf.finish(mode);
     return { emails: finalEmails, total, hasMore };
-  }
-
-  private assignCategoryIds(emails: InboxEmail[]): void {
-    // categoryId is already the UUID from the JOIN in runInboxQuery.
-    // Propagate it to category_id for client compatibility.
-    for (const email of emails) {
-      const em = email as InboxEmail & { category_id?: string | null };
-      em.category_id = em.categoryId ?? null;
-    }
   }
 
   async getCategoryNameToIdMap(
@@ -625,164 +477,8 @@ export class EmailInboxService {
     return { emails: filteredEmails, blockedCount: blockedEmailIds.length };
   }
 
+  /** Expose decrypt for consumers that receive raw query rows (e.g. email-debug). */
   decryptRawEmailRow(row: RawEmailRow): InboxEmail {
-    const labels = this.decryptEmailLabels(row);
-    const priorityExplanation = this.decryptEncryptedJsonField<
-      Record<string, unknown>
-    >(
-      row.priorityExplanation,
-      `priorityExplanation for thread ${row.emailThreadId}`,
-    );
-    const githubMetadata = this.decryptEncryptedJsonField<unknown>(
-      row.githubMetadata as string | undefined,
-      `githubMetadata for thread ${row.emailThreadId}`,
-    );
-    return {
-      id: row.id,
-      userId: row.userId,
-      threadId: row.threadId,
-      emailThreadId: row.emailThreadId,
-      messageId: row.messageId,
-      googleAccountId: row.googleAccountId,
-      office365AccountId: row.office365AccountId,
-      zohoAccountId: row.zohoAccountId,
-      from: EncryptionHelper.tryDecrypt(row.from),
-      fromName: EncryptionHelper.tryDecrypt(row.fromName),
-      senderJobTitle: EncryptionHelper.tryDecrypt(row.senderJobTitle),
-      subject: EncryptionHelper.tryDecrypt(row.subject),
-      priorityExplanation,
-      isSnoozed: row.isSnoozed,
-      snoozeUntil: row.snoozeUntil,
-      isBatched: row.isBatched,
-      batchReleaseAt: row.batchReleaseAt,
-      wasDeliveredEarly: row.wasDeliveredEarly,
-      batchDecisionReason: row.batchDecisionReason,
-      isRead: row.isRead,
-      summary: EncryptionHelper.tryDecrypt(row.summary),
-      isProcessingPriority: row.isProcessingPriority,
-      isProcessingSummary: row.isProcessingSummary,
-      receivedAt: row.receivedAt,
-      labels: labels || [],
-      starCount: row.starCount,
-      isArchived: row.isArchived,
-      urgencyScore: row.urgencyScore,
-      githubMetadata,
-      threadUpdatedAt: row.threadUpdatedAt,
-      // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
-      // Use tryDecrypt so a corrupted row falls back to OTHER_CATEGORY_NAME instead of crashing.
-      category: row.categoryName
-        ? parseCategoryName(EncryptionHelper.tryDecrypt(row.categoryName) ?? "") ||
-          OTHER_CATEGORY_NAME
-        : OTHER_CATEGORY_NAME,
-      categoryExplanation: row.categoryExplanation
-        ? EncryptionHelper.tryDecrypt(row.categoryExplanation)
-        : null,
-      protoCategoryName: row.protoCategoryName
-        ? EncryptionHelper.tryDecrypt(row.protoCategoryName)
-        : null,
-      protoCategoryDescription: row.protoCategoryDescription
-        ? EncryptionHelper.tryDecrypt(row.protoCategoryDescription)
-        : null,
-      correspondentEmail: row.correspondentEmail
-        ? EncryptionHelper.tryDecrypt(row.correspondentEmail)
-        : null,
-      correspondentName: row.correspondentName
-        ? EncryptionHelper.tryDecrypt(row.correspondentName)
-        : null,
-      phishingConfidence: row.phishingConfidence,
-      phishingReason: row.phishingReason,
-      priorityScore: row.priorityScore ?? null,
-      // Orphaned UUID: if the LEFT JOIN returned no categoryName, the referenced
-      // user_context was deleted. Null out categoryId so this email is treated as
-      // truly uncategorized downstream (fixes #1404 — stale-UUID category mismatch).
-      categoryId: row.categoryName ? row.categoryId : null,
-      to: row.to ? EncryptionHelper.tryDecrypt(row.to) : null,
-      cc: row.cc ? EncryptionHelper.tryDecrypt(row.cc) : null,
-    } as InboxEmail;
-  }
-
-  private decryptEmailLabels(row: RawEmailRow): string[] {
-    if (!row.labels) return [];
-    try {
-      const decrypted = EncryptionHelper.tryDecrypt(row.labels);
-      if (!decrypted) return [];
-      const parsed = JSON.parse(decrypted);
-      return Array.from(
-        new Set(parsed.filter((label: string) => !SYSTEM_LABELS.has(label))),
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Failed to decrypt/parse labels for email ${row.id}:`,
-        error,
-      );
-      return [];
-    }
-  }
-
-  private decryptEncryptedJsonField<T>(
-    encrypted: string | undefined,
-    fieldDesc: string,
-  ): T | null {
-    if (!encrypted) return null;
-    try {
-      const decrypted = EncryptionHelper.tryDecrypt(encrypted);
-      return decrypted ? JSON.parse(decrypted) : null;
-    } catch {
-      this.logger.warn(`Failed to decrypt/parse ${fieldDesc}`);
-      return null;
-    }
-  }
-
-  private async convertEmailLabels(
-    userId: string,
-    emails: InboxEmail[],
-  ): Promise<void> {
-    const allLabelIds = new Set<string>();
-    for (const email of emails) {
-      if (email.labels && Array.isArray(email.labels))
-        email.labels.forEach((id) => allLabelIds.add(id));
-    }
-    if (allLabelIds.size === 0) return;
-
-    const labelNames = await this.emailProviderManager.convertLabelIdsToNames(
-      userId,
-      Array.from(allLabelIds),
-    );
-    const labelIdToName = new Map<string, string>();
-    Array.from(allLabelIds).forEach((id, index) => {
-      if (labelNames[index]) labelIdToName.set(id, labelNames[index]);
-    });
-
-    for (const email of emails) {
-      if (!email.labels || !Array.isArray(email.labels)) continue;
-      const converted = email.labels
-        .map((idOrName) => {
-          if (SYSTEM_LABELS.has(idOrName)) return null;
-          if (labelIdToName.has(idOrName)) {
-            const name = labelIdToName.get(idOrName)!;
-            return SYSTEM_LABELS.has(name) ? null : name;
-          }
-          if (idOrName.startsWith("Label_") || idOrName.startsWith("label_"))
-            return null;
-          return idOrName;
-        })
-        .filter((label): label is string => label !== null);
-
-      const unique = Array.from(new Set(converted));
-      if (JSON.stringify(unique) !== JSON.stringify(email.labels)) {
-        this.logger.debug(
-          `[EmailInboxService] Updating labels for email ${email.id}`,
-        );
-        email.labels = unique;
-        this.emailRepository
-          .update(email.id, { labels: unique })
-          .catch((err) =>
-            this.logger.warn(
-              `Failed to update labels for email ${email.id}`,
-              err,
-            ),
-          );
-      }
-    }
+    return this.emailInboxDecryptService.decryptRawEmailRow(row);
   }
 }

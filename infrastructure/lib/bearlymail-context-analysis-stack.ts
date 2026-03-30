@@ -41,13 +41,15 @@ export interface BearlyMailContextAnalysisStackProps extends cdk.StackProps {
    * to avoid a cyclic cross-stack reference.
    */
   lambdaSecurityGroup: ec2.ISecurityGroup;
-  /** ARN of the ECS task role — grants it SQS send permissions */
-  ecsTaskRoleArn: string;
   /** SNS topic ARN for DLQ depth alarms (optional) */
   alarmSnsTopicArn?: string;
 }
 
 export class BearlyMailContextAnalysisStack extends cdk.Stack {
+  /** SQS FIFO queue — passed to AppStack to wire up grantSendMessages and env var */
+  public readonly queue: sqs.Queue;
+  /** Dead-letter queue for failed context analysis batches */
+  public readonly dlq: sqs.Queue;
   /** Queue URL to set as CONTEXT_ANALYSIS_SQS_QUEUE_URL env var on ECS tasks */
   public readonly queueUrl: string;
 
@@ -61,57 +63,39 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
   ) {
     super(scope, id, props);
 
-    const { vpc, database, dbSecret, appSecrets, ecsTaskRoleArn, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup, lambdaSecurityGroup } = props;
+    const { vpc, database, dbSecret, appSecrets, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup, lambdaSecurityGroup } = props;
 
     this.rdsProxyEndpoint = rdsProxyEndpoint;
 
     // ============================================
-    // Dead Letter Queue (FIFO — must match main queue type)
+    // SQS FIFO Queue + DLQ (owned by this stack)
     // ============================================
-    const dlq = new sqs.Queue(this, "ContextAnalysisDLQ", {
-      // FIFO DLQ must have the .fifo suffix
+    this.dlq = new sqs.Queue(this, "ContextAnalysisDLQ", {
       queueName: "bearlymail-context-analysis-dlq.fifo",
       fifo: true,
       retentionPeriod: cdk.Duration.days(7),
       encryption: sqs.QueueEncryption.SQS_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // ============================================
-    // Main SQS Queue (FIFO — enables MessageDeduplicationId for retry safety)
-    //
-    // Why FIFO: the orchestrator sends MessageDeduplicationId per batch so that
-    // an ECS task crash-and-restart cannot double-enqueue the same batch.
-    // AWS silently ignores deduplication IDs on Standard queues — FIFO is required.
-    //
-    // contentBasedDeduplication: false — we supply explicit MessageDeduplicationId
-    // values (hash of analysisRecordId + batchIndex) for precise control.
-    // ============================================
-    const queue = new sqs.Queue(this, "ContextAnalysisQueue", {
-      // FIFO queues must have the .fifo suffix
+    this.queue = new sqs.Queue(this, "ContextAnalysisQueue", {
       queueName: "bearlymail-context-analysis.fifo",
       fifo: true,
       contentBasedDeduplication: false,
-      // 2× Lambda timeout (90s) → 180s visibility timeout
       visibilityTimeout: cdk.Duration.seconds(180),
-      // Messages expire after 4 hours — well within analysis window
       retentionPeriod: cdk.Duration.hours(4),
       encryption: sqs.QueueEncryption.SQS_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
       deadLetterQueue: {
-        queue: dlq,
-        // Move to DLQ after 3 failed receives
+        queue: this.dlq,
         maxReceiveCount: 3,
       },
     });
 
-    this.queueUrl = queue.queueUrl;
+    const queue = this.queue;
+    const dlq = this.dlq;
 
-    // Grant ECS task role permission to send messages to this queue
-    const ecsTaskRole = iam.Role.fromRoleArn(
-      this,
-      "EcsTaskRole",
-      ecsTaskRoleArn,
-    );
-    queue.grantSendMessages(ecsTaskRole);
+    this.queueUrl = queue.queueUrl;
 
     // ============================================
     // Lambda IAM Role
@@ -171,23 +155,16 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       memorySize: 512,
       // Timeout: 90s = 60s LLM budget + 30s retry headroom
       timeout: cdk.Duration.seconds(90),
-      // Reserve concurrency: cap at 30 to match the FIFO queue's per-MessageGroup
-      // parallelism model (one Lambda per MessageGroupId = one per batch).
+      // Reserve concurrency: 60 — Lambda is now the only path for all context
+      // analysis (no PgBoss fallback, no isNewUserOnboarding gate).  Raising
+      // from 30 to 60 accommodates concurrent multi-user bursts.
       //
       // ⚠️ FIFO throttle interaction: FIFO queues stop delivering messages from a
-      // MessageGroup when the consumer is throttled. With reservedConcurrency=30 and
-      // multi-user onboarding, a burst of >30 simultaneous batches (e.g., 2 users × 30
-      // batches each) will cause SQS to throttle → retry (up to maxReceiveCount=3) →
-      // if retries exhaust, messages land in the DLQ and the finalization job times out
-      // waiting for batches that will never complete.
-      //
-      // Current mitigation: isNewUserOnboarding gate limits Lambda dispatch to new-user
-      // flows only (not every analysis), keeping burst rate low in practice.
-      //
-      // If concurrent new-user onboarding becomes common, consider raising this to
-      // 60–100 and adjusting the SQS visibility timeout and finalization delay
-      // (LAMBDA_FINALIZATION_DELAY_MS) proportionally.
-      reservedConcurrentExecutions: 30,
+      // MessageGroup when the consumer is throttled. If a burst of >60 simultaneous
+      // batches occurs, SQS will throttle → retry (up to maxReceiveCount=3) →
+      // if retries exhaust, messages land in the DLQ. Monitor the DLQ alarm and
+      // raise this value or implement per-user MessageGroupId bucketing if needed.
+      reservedConcurrentExecutions: 60,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
@@ -260,13 +237,13 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
     // ============================================
     // Outputs
     // ============================================
-    new cdk.CfnOutput(this, "QueueUrl", {
+    new cdk.CfnOutput(this, "ContextAnalysisQueueUrl", {
       value: queue.queueUrl,
       description: "Set as CONTEXT_ANALYSIS_SQS_QUEUE_URL on ECS tasks",
       exportName: "BearlyMailContextAnalysisQueueUrl",
     });
 
-    new cdk.CfnOutput(this, "DlqUrl", {
+    new cdk.CfnOutput(this, "ContextAnalysisDlqUrl", {
       value: dlq.queueUrl,
       description: "Dead letter queue for failed context analysis batches",
       exportName: "BearlyMailContextAnalysisDlqUrl",

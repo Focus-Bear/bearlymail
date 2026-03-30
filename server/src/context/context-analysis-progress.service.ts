@@ -1,18 +1,20 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import PgBoss from "pg-boss";
 import { MoreThan, Repository } from "typeorm";
 
-import { JOB_NAMES } from "../constants/job-names";
-import { MILLISECONDS } from "../constants/time-constants";
+import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
-import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { writeAnalysisLog } from "./context-analysis-logger";
+import { BatchPayloadItem } from "./context-batch-payload.service";
+import {
+  ContextSqsDispatchService,
+  SqsEnqueueJobContext,
+} from "./context-sqs-dispatch.service";
 
 /**
  * Service for managing context analysis progress tracking and job synchronization.
- * Handles analysis progress queries, batch completion checks, and PgBoss job syncing.
+ * Handles analysis progress queries, batch completion checks, and SQS job syncing.
  */
 @Injectable()
 export class ContextAnalysisProgressService {
@@ -21,7 +23,7 @@ export class ContextAnalysisProgressService {
   constructor(
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    private readonly sqsDispatchService: ContextSqsDispatchService,
   ) {}
 
   /**
@@ -111,8 +113,8 @@ export class ContextAnalysisProgressService {
   }
 
   /**
-   * Check and sync jobs between DB and PgBoss
-   * Logs the difference and re-queues missing jobs
+   * Check and sync jobs between DB and SQS.
+   * Finds missing batches and re-queues them via SQS → Lambda.
    */
   async checkAndSyncJobs(userId: string, analysisId?: string): Promise<void> {
     const analysis = await this.findActiveAnalysis(userId, analysisId);
@@ -130,21 +132,7 @@ export class ContextAnalysisProgressService {
     const batchJobIds =
       (stats.batchJobIds as Record<number, string | null>) || {};
     const batchPayloadsForRetry =
-      (stats.batchPayloadsForRetry as Record<
-        number,
-        Array<{
-          threadId?: string;
-          from: string;
-          fromName?: string;
-          subject: string;
-          body: string;
-          receivedAt: string;
-          isRead?: boolean;
-          timeToReply?: number | null;
-          starCount?: number;
-          isArchived?: boolean;
-        }>
-      >) || {};
+      (stats.batchPayloadsForRetry as Record<number, BatchPayloadItem[]>) || {};
     const totalBatches = stats.totalBatches as number;
 
     if (!this.validateTotalBatches(totalBatches, batchResults)) {
@@ -156,11 +144,6 @@ export class ContextAnalysisProgressService {
     const remainingBatchesInDb =
       totalBatches - completedBatchesInDb - failedBatchesInDb;
 
-    const queuedJobsInPgBoss = await this.getQueuedJobCount();
-    if (queuedJobsInPgBoss === null) {
-      return;
-    }
-
     this.logSyncState({
       analysisId: analysis.id,
       userId,
@@ -169,7 +152,6 @@ export class ContextAnalysisProgressService {
       failedBatchesInDb,
       remainingBatchesInDb,
       batchJobIds,
-      queuedJobsInPgBoss,
     });
 
     const missingBatchIndices = this.findMissingBatchIndices(
@@ -215,22 +197,7 @@ export class ContextAnalysisProgressService {
   }
 
   /**
-   * Get the current size of the analyze-context-batch queue.
-   * Returns null if the call fails (caller should abort).
-   */
-  private async getQueuedJobCount(): Promise<number | null> {
-    try {
-      return await this.boss.getQueueSize(JOB_NAMES.ANALYZE_CONTEXT_BATCH);
-    } catch (error) {
-      this.logger.error(
-        `[PROGRESS-CHECK] Failed to get PgBoss queue size: ${getErrorMessage(error)}`,
-      );
-      return null;
-    }
-  }
-
-  /**
-   * Log the current DB vs PgBoss state comparison.
+   * Log the current DB state for diagnostics.
    */
   private logSyncState(state: {
     analysisId: string;
@@ -240,7 +207,6 @@ export class ContextAnalysisProgressService {
     failedBatchesInDb: number;
     remainingBatchesInDb: number;
     batchJobIds: Record<number, string | null>;
-    queuedJobsInPgBoss: number;
   }): void {
     const {
       analysisId,
@@ -250,12 +216,10 @@ export class ContextAnalysisProgressService {
       failedBatchesInDb,
       remainingBatchesInDb,
       batchJobIds,
-      queuedJobsInPgBoss,
     } = state;
     const batchesWithJobIdsInDb = Object.keys(batchJobIds).filter(
       (key) => batchJobIds[parseInt(key, 10)] !== null,
     ).length;
-    const missingJobs = Math.max(0, remainingBatchesInDb - queuedJobsInPgBoss);
 
     this.logger.debug(
       `\n[PROGRESS-CHECK] =========================================\n` +
@@ -266,21 +230,13 @@ export class ContextAnalysisProgressService {
         `  • Failed in DB: ${failedBatchesInDb}\n` +
         `  • Remaining in DB: ${remainingBatchesInDb}\n` +
         `  • Batches with job IDs: ${batchesWithJobIdsInDb}\n` +
-        `\n📦 PgBoss State:\n` +
-        `  • Queued jobs (pending + active): ${queuedJobsInPgBoss}\n` +
-        `\n🔍 Difference:\n` +
-        `  • Expected remaining: ${remainingBatchesInDb}\n` +
-        `  • Actually queued: ${queuedJobsInPgBoss}\n` +
-        `  • Missing jobs: ${missingJobs}\n` +
         `=========================================\n`,
     );
 
     this.logger.log(
       `[PROGRESS-CHECK] Analysis ${analysisId} (user ${userId}): ` +
         `DB: ${completedBatchesInDb}/${totalBatches} completed, ` +
-        `${failedBatchesInDb} failed, ${remainingBatchesInDb} remaining | ` +
-        `PgBoss: ${queuedJobsInPgBoss} queued | ` +
-        `Missing: ${missingJobs}`,
+        `${failedBatchesInDb} failed, ${remainingBatchesInDb} remaining`,
     );
   }
 
@@ -305,7 +261,8 @@ export class ContextAnalysisProgressService {
   }
 
   /**
-   * Re-queue batches that are missing from PgBoss, updating batchJobIds in the DB.
+   * Re-queue missing batches via SQS → Lambda, updating batchJobIds in the DB.
+   * SQS deduplication IDs prevent double-processing of batches already in-flight.
    */
   private async requeueMissingBatches(options: {
     userId: string;
@@ -313,21 +270,7 @@ export class ContextAnalysisProgressService {
     stats: Record<string, unknown>;
     missingBatchIndices: number[];
     batchJobIds: Record<number, string | null>;
-    batchPayloadsForRetry: Record<
-      number,
-      Array<{
-        threadId?: string;
-        from: string;
-        fromName?: string;
-        subject: string;
-        body: string;
-        receivedAt: string;
-        isRead?: boolean;
-        timeToReply?: number | null;
-        starCount?: number;
-        isArchived?: boolean;
-      }>
-    >;
+    batchPayloadsForRetry: Record<number, BatchPayloadItem[]>;
   }): Promise<void> {
     const {
       userId,
@@ -344,40 +287,40 @@ export class ContextAnalysisProgressService {
     let requeuedCount = 0;
     let requeueFailedCount = 0;
 
-    for (const batchIndex of missingBatchIndices) {
-      const shouldSkip = await this.checkExistingJobStillActive(
-        batchIndex,
-        batchJobIds[batchIndex] ?? null,
-      );
-      if (shouldSkip) {
-        continue;
-      }
+    const sqsCtx: SqsEnqueueJobContext = {
+      userId,
+      analysisRecordId: analysisId,
+      sentPayload: [],
+      currentContextForPrompt: [],
+      twelveDaysAgo: new Date(Date.now() - DAYS.TWELVE * MILLISECONDS.DAY),
+      fiveDaysAgo: new Date(Date.now() - 5 * MILLISECONDS.DAY),
+      userEmail: null,
+      totalThreadIds: (stats.totalBatches as number) || 0,
+      analysisBatchSize: 0,
+    };
 
+    for (const batchIndex of missingBatchIndices) {
       const batchPayload = batchPayloadsForRetry[batchIndex];
       if (batchPayload && batchPayload.length > 0) {
+        const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
         try {
-          const jobId = await this.boss.send(
-            JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-            {
-              userId,
-              batchIndex,
-              batch: batchPayload,
-              analysisRecordId: analysisId,
-              totalBatches: (stats.totalBatches as number) || 0,
-              sentPayload: [],
-              currentContextForPrompt: [],
-            },
-            {
-              priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH),
-              singletonKey: `context-batch-${analysisId}-${batchIndex}`,
-            },
+          const result = await this.sqsDispatchService.enqueueSingleBatchViaSqs(
+            batchIndex,
+            batchPayload,
+            sqsCtx,
+            enqueueErrors,
           );
 
-          if (jobId) {
-            batchJobIds[batchIndex] = jobId;
+          if (result.jobId) {
+            batchJobIds[batchIndex] = result.jobId;
             requeuedCount++;
             this.logger.log(
-              `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex} with job ID ${jobId}`,
+              `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex} via SQS, message ID: ${result.jobId}`,
+            );
+          } else {
+            requeueFailedCount++;
+            this.logger.error(
+              `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex} via SQS: ${enqueueErrors.map((err) => err.error).join(", ") || "no message ID returned"}`,
             );
           }
         } catch (error) {
@@ -404,44 +347,9 @@ export class ContextAnalysisProgressService {
         },
       );
       this.logger.log(
-        `[PROGRESS-CHECK] Re-queued ${requeuedCount} batches, ${requeueFailedCount} failed`,
+        `[PROGRESS-CHECK] Re-queued ${requeuedCount} batches via SQS, ${requeueFailedCount} failed`,
       );
     }
-  }
-
-  /**
-   * Check whether an existing job for a batch is still active in PgBoss.
-   * Returns true if the job is still running (caller should skip re-queuing).
-   */
-  private async checkExistingJobStillActive(
-    batchIndex: number,
-    existingJobId: string | null,
-  ): Promise<boolean> {
-    if (!existingJobId) {
-      return false;
-    }
-    try {
-      const jobDetails = await this.boss.getJobById(existingJobId);
-      if (
-        jobDetails &&
-        (jobDetails.state === "created" ||
-          jobDetails.state === "active" ||
-          jobDetails.state === "retry")
-      ) {
-        this.logger.debug(
-          `[PROGRESS-CHECK] Batch ${batchIndex} has job ID ${existingJobId} with state '${jobDetails.state}' - still processing, skipping re-queue`,
-        );
-        return true;
-      }
-      this.logger.warn(
-        `[PROGRESS-CHECK] ⚠️ Batch ${batchIndex} has job ID ${existingJobId} but job is ${jobDetails ? `in state '${jobDetails.state}'` : "not found in PgBoss"} - will re-queue`,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `[PROGRESS-CHECK] ⚠️ Failed to check job ${existingJobId} for batch ${batchIndex}: ${getErrorMessage(error)} - will attempt re-queue`,
-      );
-    }
-    return false;
   }
 
   /**

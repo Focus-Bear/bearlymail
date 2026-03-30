@@ -44,33 +44,35 @@ aws secretsmanager put-secret-value \
   }'
 ```
 
-## 3. Enable the Lambda path
+## 3. Verify Lambda env on ECS
 
-Set the following environment variables on the ECS server task definition (via CDK or console):
+`CONTEXT_ANALYSIS_SQS_QUEUE_URL` is injected automatically by CDK from
+`BearlyMailDatabaseStack`. No manual env var step required.
 
-| Variable | Value |
-|---|---|
-| `LAMBDA_CONTEXT_ANALYSIS_ENABLED` | `true` |
-| `CONTEXT_ANALYSIS_SQS_QUEUE_URL` | (from CDK output `BearlyMailContextAnalysisQueueUrl`) |
+After `cdk deploy`, confirm the ECS task definition environment contains:
 
-Get the queue URL:
+```
+CONTEXT_ANALYSIS_SQS_QUEUE_URL=https://sqs.ap-southeast-2.amazonaws.com/<account>/bearlymail-context-analysis.fifo
+```
+
+Get the queue URL from the DatabaseStack output:
 
 ```bash
 aws cloudformation describe-stacks \
-  --stack-name BearlyMailContextAnalysisStack \
-  --query "Stacks[0].Outputs[?OutputKey=='QueueUrl'].OutputValue" \
+  --stack-name BearlyMailDatabaseStack \
+  --query "Stacks[0].Outputs[?OutputKey=='ContextAnalysisQueueUrl'].OutputValue" \
   --output text
 ```
 
 ## 4. Verify
 
-After enabling, monitor:
+After deploying, monitor:
 
 - **DLQ depth** — CloudWatch alarm `BearlyMail-ContextAnalysis-DLQ-NonEmpty`
 - **Lambda errors** — CloudWatch alarm `BearlyMail-BatchAnalyzer-Errors`
 - **Lambda invocations** — CloudWatch metrics for `bearlymail-batch-analyzer`
 
-Feature flag defaults to `false` — safe to deploy the stack before enabling.
+All context analysis now routes through Lambda + SQS — there is no feature flag or fallback path.
 
 ## 5. CI/CD: Add Lambda build + CDK deploy to deploy.yml
 

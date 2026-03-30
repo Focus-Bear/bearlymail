@@ -1,17 +1,13 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { JOB_NAMES } from "../constants/job-names";
-import {
-  BODY_PREVIEW_LENGTHS,
-  CONTEXT_ANALYSIS,
-} from "../constants/llm-constants";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS, MINUTES, MS_PER_SECOND } from "../constants/time-constants";
+import { DAYS, MINUTES } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { getJobPriority } from "../queue/job-priorities";
@@ -26,7 +22,6 @@ import { ContextCrudService } from "./context-crud.service";
 import { ContextEnqueueService } from "./context-enqueue.service";
 import { classifyContextAnalysisError } from "./context-error-handler";
 import { ContextGmailDataService } from "./context-gmail-data.service";
-import { ContextSqsDispatchService } from "./context-sqs-dispatch.service";
 
 type SentPayloadItem = {
   emailId: string;
@@ -61,8 +56,6 @@ type EnqueueBatchesArgs = {
   twelveDaysAgo: Date;
   fiveDaysAgo: Date;
   userEmail: string | null;
-  /** When true, dispatch via SQS → Lambda instead of PgBoss */
-  useLambda?: boolean;
 };
 
 type EnqueueBatchesResult = {
@@ -79,8 +72,6 @@ type FinalizationParams = {
   analysisStats: AnalysisStats;
   userEmail: string | null;
   successfulEnqueues: number;
-  /** When true, use shorter startAfter delay — Lambda completes faster than PgBoss */
-  isLambdaDispatched?: boolean;
 };
 
 const EMPTY_ANALYSIS_STATS: AnalysisStats = {
@@ -95,8 +86,6 @@ const EMPTY_ANALYSIS_STATS: AnalysisStats = {
 export class ContextAnalysisOrchestratorService {
   private readonly logger = new Logger(ContextAnalysisOrchestratorService.name);
 
-  private readonly lambdaEnabled: boolean;
-
   constructor(
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,
@@ -105,35 +94,12 @@ export class ContextAnalysisOrchestratorService {
     private crudService: ContextCrudService,
     private batchPayloadService: ContextBatchPayloadService,
     @Inject("PG_BOSS") private boss: PgBoss,
-    private configService: ConfigService,
-    private contextSqsDispatchService: ContextSqsDispatchService,
     private contextEnqueueService: ContextEnqueueService,
-  ) {
-    this.lambdaEnabled =
-      this.configService.get<boolean>("LAMBDA_CONTEXT_ANALYSIS_ENABLED") ===
-      true;
-
-    if (this.lambdaEnabled) {
-      this.logger.log(
-        "[CONTEXT-ANALYSIS] 🚀 Lambda dispatch ENABLED (LAMBDA_CONTEXT_ANALYSIS_ENABLED=true)",
-      );
-
-      const sqsQueueUrl = this.configService.get<string>(
-        "CONTEXT_ANALYSIS_SQS_QUEUE_URL",
-      );
-      if (!sqsQueueUrl) {
-        this.logger.warn(
-          "[CONTEXT-ANALYSIS] ⚠️ LAMBDA_CONTEXT_ANALYSIS_ENABLED=true but CONTEXT_ANALYSIS_SQS_QUEUE_URL is not set. " +
-            "Lambda dispatch will fail. Falling back to PgBoss until the env var is configured.",
-        );
-      }
-    }
-  }
+  ) {}
 
   async analyzeAndLearnFromEmails(
     userId: string,
     analysisId?: string,
-    options?: { isNewUserOnboarding?: boolean },
   ): Promise<void> {
     const logSuffix = analysisId ? ` with analysis ID ${analysisId}` : "";
     this.logger.log(
@@ -150,7 +116,7 @@ export class ContextAnalysisOrchestratorService {
     );
 
     try {
-      await this.runAnalysisPipeline(userId, analysisRecord, options);
+      await this.runAnalysisPipeline(userId, analysisRecord);
     } catch (pipelineError) {
       await this.handleAnalysisError(userId, analysisRecord, pipelineError);
       throw pipelineError;
@@ -218,7 +184,6 @@ export class ContextAnalysisOrchestratorService {
   private async runAnalysisPipeline(
     userId: string,
     analysisRecord: ContextAnalysis,
-    options?: { isNewUserOnboarding?: boolean },
   ): Promise<void> {
     await this.usersService.update(userId, { scanProgress: 0, scanTotal: 100 });
     analysisRecord.progress = 0;
@@ -258,15 +223,9 @@ export class ContextAnalysisOrchestratorService {
     const currentContextForPrompt =
       await this.buildCurrentContextPrompt(userId);
 
-    // Route to Lambda (SQS) if feature flag is enabled and this is a new user onboarding
-    const useLambda =
-      this.lambdaEnabled && (options?.isNewUserOnboarding ?? false);
-
-    if (useLambda) {
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] 🚀 Routing to Lambda via SQS for new user onboarding (userId: ${userId})`,
-      );
-    }
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] 🚀 Dispatching all batches via SQS → Lambda (userId: ${userId})`,
+    );
 
     const { allProcessedBatches, jobResults, enqueueErrors, totalBatches } =
       await this.enqueueAnalysisBatches({
@@ -278,7 +237,6 @@ export class ContextAnalysisOrchestratorService {
         twelveDaysAgo,
         fiveDaysAgo,
         userEmail,
-        useLambda,
       });
 
     if (enqueueErrors.length > 0) {
@@ -303,7 +261,6 @@ export class ContextAnalysisOrchestratorService {
       analysisStats,
       userEmail,
       successfulEnqueues,
-      isLambdaDispatched: useLambda,
     });
 
     this.logger.log(
@@ -466,23 +423,12 @@ export class ContextAnalysisOrchestratorService {
       args.analysisRecord,
     );
 
-    if (!args.useLambda) {
-      // PgBoss path: verify queue depth
-      await new Promise((resolve) => setTimeout(resolve, MS_PER_SECOND));
-      const queuedCount = await this.boss.getQueueSize(
-        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Queue verification: ${queuedCount} jobs queued`,
-      );
-    } else {
-      const successCount = jobResults.filter(
-        (jobResult) => jobResult.jobId !== null,
-      ).length;
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] [SQS] ${successCount}/${totalBatches} batches dispatched to Lambda`,
-      );
-    }
+    const successCount = jobResults.filter(
+      (jobResult) => jobResult.jobId !== null,
+    ).length;
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] [SQS] ${successCount}/${totalBatches} batches dispatched to Lambda`,
+    );
 
     return { allProcessedBatches, jobResults, enqueueErrors, totalBatches };
   }
@@ -584,16 +530,10 @@ export class ContextAnalysisOrchestratorService {
       analysisStats,
       userEmail,
       successfulEnqueues,
-      isLambdaDispatched,
     } = params;
 
-    // Lambda processes all batches concurrently — expect completion in ~30-60s
-    // PgBoss processes sequentially at 6-10 concurrent — expect 5-15 minutes
     // 30 seconds — Lambda processes all batches concurrently; enough headroom before timeout.
-    const LAMBDA_FINALIZATION_DELAY_MS = 30_000;
-    const finalizationDelayMs = isLambdaDispatched
-      ? LAMBDA_FINALIZATION_DELAY_MS
-      : CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS;
+    const finalizationDelayMs = 30_000;
 
     if (totalBatches <= 0 || successfulEnqueues <= 0) {
       this.logger.error(

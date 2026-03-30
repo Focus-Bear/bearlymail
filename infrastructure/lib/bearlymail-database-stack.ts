@@ -170,5 +170,6 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       description: 'RDS Proxy endpoint for Lambda DB connections',
       exportName: 'BearlyMail-RdsProxy-Endpoint',
     });
+
   }
 }

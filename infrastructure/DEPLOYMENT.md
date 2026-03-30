@@ -403,13 +403,15 @@ aws secretsmanager put-secret-value \
 > ⚠️ If this step is skipped, every Lambda invocation will fail immediately with a clear error:
 > `Error: DB/LLM secret still has placeholder values`
 
-#### 2. Enable Lambda path on ECS
+#### 2. Verify Lambda env on ECS
 
-Set these environment variables on the ECS task definition:
+`CONTEXT_ANALYSIS_SQS_QUEUE_URL` is now injected automatically by CDK from
+`BearlyMailDatabaseStack.contextAnalysisQueueUrl` — no manual step required.
+
+After `cdk deploy`, confirm the ECS task definition environment contains:
 
 ```
-LAMBDA_CONTEXT_ANALYSIS_ENABLED=true
-CONTEXT_ANALYSIS_SQS_QUEUE_URL=<value from CDK output: BearlyMailContextAnalysisQueueUrl>
+CONTEXT_ANALYSIS_SQS_QUEUE_URL=https://sqs.ap-southeast-2.amazonaws.com/<account>/bearlymail-context-analysis.fifo
 ```
 
 #### 3. Smoke Test
@@ -439,6 +441,6 @@ Confirm the CloudWatch alarm `BearlyMail-ContextAnalysis-DLQ-NonEmpty` exists an
 |---------|-------------|-----|
 | `Error: DB secret still has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/db` |
 | `Error: LLM secret ... has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/llm` |
-| Lambda never invoked | `LAMBDA_CONTEXT_ANALYSIS_ENABLED` not set | Step 2 |
+| Lambda never invoked | `CONTEXT_ANALYSIS_SQS_QUEUE_URL` missing from ECS env | Re-run `cdk deploy BearlyMailDatabaseStack BearlyMailStack` |
 | DB connection refused | Lambda SG not allowed on RDS Proxy SG port 5432 | Fix security group inbound rule |
 | Analysis stuck at X% forever | All batches failed, DLQ has messages | Check CloudWatch logs for batch analyzer function |

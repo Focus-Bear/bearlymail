@@ -63,12 +63,10 @@ export class ContextService {
   async analyzeAndLearnFromEmails(
     userId: string,
     analysisId?: string,
-    options?: { isNewUserOnboarding?: boolean },
   ): Promise<void> {
     return this.orchestratorService.analyzeAndLearnFromEmails(
       userId,
       analysisId,
-      options,
     );
   }
 

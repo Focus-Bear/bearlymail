@@ -382,10 +382,9 @@ export class ContextController {
   @Post("analyze")
   async analyzeEmails(
     @Request() req: { user: { userId: string } },
-    @Body() body: { isNewUserOnboarding?: boolean } = {},
+    @Body() _body: Record<string, unknown> = {},
   ) {
     const { userId } = req.user;
-    const { isNewUserOnboarding = false } = body;
     this.logger.log(
       `[CONTEXT-CONTROLLER] POST /context/analyze received for user ${userId}`,
     );
@@ -439,10 +438,9 @@ export class ContextController {
       "debug",
     );
 
-    // Send job to queue with analysis ID and onboarding flag
     await this.boss.send(
       JOB_NAMES.ANALYZE_CONTEXT,
-      { userId, analysisId: analysisRecord.id, isNewUserOnboarding },
+      { userId, analysisId: analysisRecord.id },
       { priority },
     );
 

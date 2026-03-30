@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
@@ -38,6 +39,11 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   database: rds.IDatabaseInstance;
   dbSecret: secretsmanager.ISecret;
   appSecrets: secretsmanager.ISecret;
+  /**
+   * Context analysis SQS queue (from BearlyMailContextAnalysisStack).
+   * AppStack calls grantSendMessages(taskRole) and injects queueUrl into container environments.
+   */
+  contextAnalysisQueue: sqs.Queue;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -117,6 +123,9 @@ export class BearlyMailStack extends cdk.Stack {
       resources: ['*'],
     }));
 
+    // Grant SQS send permissions for context analysis queue
+    props.contextAnalysisQueue.grantSendMessages(taskRole);
+
     // ============================================
     // Log Groups
     // ============================================
@@ -175,6 +184,7 @@ export class BearlyMailStack extends cdk.Stack {
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
+        CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
@@ -288,6 +298,7 @@ export class BearlyMailStack extends cdk.Stack {
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
+        CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),

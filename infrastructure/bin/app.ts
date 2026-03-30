@@ -79,7 +79,27 @@ const databaseStack = new BearlyMailDatabaseStack(app, 'BearlyMailDatabaseStack'
 databaseStack.addDependency(networkingStack);
 
 // ============================================
-// 4. Application Stack (ECS, S3, CloudFront)
+// 4. Context Analysis Stack (SQS + Lambda + RDS Proxy) — BEFORE AppStack
+// ============================================
+const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMailContextAnalysisStack', {
+  env,
+  description: 'BearlyMail - Context Analysis (SQS + Lambda + RDS Proxy for parallel processing)',
+  vpc: networkingStack.vpc,
+  database: databaseStack.database,
+  dbSecret: databaseStack.dbSecret,
+  appSecrets: secretsStack.appSecrets,
+  rdsProxy: databaseStack.rdsProxy,
+  rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
+  rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
+  lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
+});
+
+contextAnalysisStack.addDependency(networkingStack);
+contextAnalysisStack.addDependency(databaseStack);
+contextAnalysisStack.addDependency(secretsStack);
+
+// ============================================
+// 5. Application Stack (ECS, S3, CloudFront) — depends on ContextAnalysisStack
 // ============================================
 const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   env,
@@ -95,34 +115,13 @@ const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   database: databaseStack.database,
   dbSecret: databaseStack.dbSecret,
   appSecrets: secretsStack.appSecrets,
+  contextAnalysisQueue: contextAnalysisStack.queue,
 });
 
-// Application depends on all other stacks
 appStack.addDependency(networkingStack);
 appStack.addDependency(secretsStack);
 appStack.addDependency(databaseStack);
-
-// ============================================
-// 5. Context Analysis Stack (SQS + Lambda + RDS Proxy)
-// ============================================
-const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMailContextAnalysisStack', {
-  env,
-  description: 'BearlyMail - Context Analysis (SQS + Lambda + RDS Proxy for parallel processing)',
-  vpc: networkingStack.vpc,
-  database: databaseStack.database,
-  dbSecret: databaseStack.dbSecret,
-  appSecrets: secretsStack.appSecrets,
-  rdsProxy: databaseStack.rdsProxy,
-  rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
-  rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
-  lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
-  ecsTaskRoleArn: appStack.ecsTaskRole.roleArn,
-});
-
-contextAnalysisStack.addDependency(networkingStack);
-contextAnalysisStack.addDependency(databaseStack);
-contextAnalysisStack.addDependency(secretsStack);
-contextAnalysisStack.addDependency(appStack);
+appStack.addDependency(contextAnalysisStack);
 
 // ============================================
 // 6. GitHub Actions Stack (OIDC Provider + Deployment Role)

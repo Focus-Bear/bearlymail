@@ -1,10 +1,6 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import PgBoss from "pg-boss";
+import { Injectable, Logger } from "@nestjs/common";
 
-import { JOB_NAMES } from "../constants/job-names";
-import { MINUTES } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
-import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import {
   BatchPayloadItem,
@@ -16,18 +12,6 @@ import {
   ContextSqsDispatchService,
   SentPayloadItem,
 } from "./context-sqs-dispatch.service";
-
-type EnqueueJobContext = {
-  userId: string;
-  analysisRecord: ContextAnalysis;
-  sentPayload: SentPayloadItem[];
-  currentContextForPrompt: ContextPromptItem[];
-  twelveDaysAgo: Date;
-  fiveDaysAgo: Date;
-  userEmail: string | null;
-  totalThreadIds: number;
-  analysisBatchSize: number;
-};
 
 type BatchQueueResult = {
   allProcessedBatches: BatchPayloadItem[][];
@@ -45,7 +29,6 @@ type BuildAndQueueArgs = {
   twelveDaysAgo: Date;
   fiveDaysAgo: Date;
   userEmail: string | null;
-  useLambda?: boolean;
 };
 
 @Injectable()
@@ -53,7 +36,6 @@ export class ContextEnqueueService {
   private readonly logger = new Logger(ContextEnqueueService.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
     private gmailDataService: ContextGmailDataService,
     private batchPayloadService: ContextBatchPayloadService,
     private contextSqsDispatchService: ContextSqsDispatchService,
@@ -64,17 +46,7 @@ export class ContextEnqueueService {
     fetchBatchSize: number,
     analysisBatchSize: number,
   ): Promise<BatchQueueResult> {
-    const {
-      userId,
-      analysisRecord,
-      threadIds,
-      sentPayload,
-      currentContextForPrompt,
-      twelveDaysAgo,
-      fiveDaysAgo,
-      userEmail,
-      useLambda,
-    } = args;
+    const { userId, threadIds, userEmail } = args;
 
     this.logger.log(
       `[CONTEXT-ANALYSIS] Fetching threads progressively (${fetchBatchSize} at a time)...`,
@@ -82,24 +54,11 @@ export class ContextEnqueueService {
 
     const allProcessedBatches: BatchPayloadItem[][] = [];
     let globalBatchIndex = 0;
-    let jobPromises: Promise<{ jobId: string | null; batchNum: number }>[] = [];
     const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
     const lambdaBatches: Array<{
       batchNum: number;
       batchPayload: BatchPayloadItem[];
     }> = [];
-
-    const jobCtx: EnqueueJobContext = {
-      userId,
-      analysisRecord,
-      sentPayload,
-      currentContextForPrompt,
-      twelveDaysAgo,
-      fiveDaysAgo,
-      userEmail,
-      totalThreadIds: threadIds.length,
-      analysisBatchSize,
-    };
 
     for (let start = 0; start < threadIds.length; start += fetchBatchSize) {
       const batchIds = threadIds.slice(
@@ -129,33 +88,19 @@ export class ContextEnqueueService {
           continue;
         }
         const batchNum = globalBatchIndex++;
-
-        if (useLambda) {
-          lambdaBatches.push({ batchNum, batchPayload });
-        } else {
-          jobPromises.push(
-            this.enqueueSingleBatchJob(
-              batchNum,
-              batchPayload,
-              jobCtx,
-              enqueueErrors,
-            ),
-          );
-        }
+        lambdaBatches.push({ batchNum, batchPayload });
       }
 
       allProcessedBatches.push(...processedBatches);
     }
 
-    if (useLambda) {
-      jobPromises = await this.dispatchViaSqs(
-        args,
-        lambdaBatches,
-        threadIds.length,
-        analysisBatchSize,
-        enqueueErrors,
-      );
-    }
+    const jobPromises = await this.dispatchViaSqs(
+      args,
+      lambdaBatches,
+      threadIds.length,
+      analysisBatchSize,
+      enqueueErrors,
+    );
 
     return {
       allProcessedBatches,
@@ -208,53 +153,4 @@ export class ContextEnqueueService {
     }
   }
 
-  private async enqueueSingleBatchJob(
-    batchNum: number,
-    batchPayload: BatchPayloadItem[],
-    ctx: EnqueueJobContext,
-    enqueueErrors: Array<{ batchNum: number; error: string }>,
-  ): Promise<{ jobId: string | null; batchNum: number }> {
-    const singletonKey = `analyze-context-batch-${ctx.analysisRecord.id}-${batchNum}`;
-    try {
-      const jobId = await this.boss.send(
-        JOB_NAMES.ANALYZE_CONTEXT_BATCH,
-        {
-          userId: ctx.userId,
-          batchIndex: batchNum,
-          batch: batchPayload,
-          sentPayload: batchNum === 0 ? ctx.sentPayload : [],
-          userEmail: ctx.userEmail || undefined,
-          currentContextForPrompt: ctx.currentContextForPrompt,
-          analysisRecordId: ctx.analysisRecord.id,
-          totalBatches: Math.ceil(ctx.totalThreadIds / ctx.analysisBatchSize),
-          after: ctx.twelveDaysAgo.toISOString(),
-          before: ctx.fiveDaysAgo.toISOString(),
-        },
-        {
-          priority: getJobPriority(JOB_NAMES.ANALYZE_CONTEXT_BATCH, false),
-          singletonKey,
-          singletonMinutes: MINUTES.HOUR,
-        },
-      );
-
-      if (jobId) {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Enqueued batch ${batchNum + 1} with job ID: ${jobId}`,
-        );
-      } else {
-        this.logger.warn(
-          `[CONTEXT-ANALYSIS] Batch ${batchNum + 1} returned null job ID (may be singleton duplicate)`,
-        );
-      }
-
-      return { jobId, batchNum };
-    } catch (enqueueError) {
-      const errorMessage = getErrorMessage(enqueueError);
-      this.logger.error(
-        `[CONTEXT-ANALYSIS] ERROR: Failed to enqueue batch ${batchNum + 1}: ${errorMessage}`,
-      );
-      enqueueErrors.push({ batchNum: batchNum + 1, error: errorMessage });
-      return { jobId: null, batchNum };
-    }
-  }
 }

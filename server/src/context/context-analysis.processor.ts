@@ -51,10 +51,9 @@ export class ContextAnalysisProcessor implements OnModuleInit {
       JOB_NAMES.ANALYZE_CONTEXT,
       { teamSize: this.contextConcurrency } as { teamSize: number },
       async (job) => {
-        const { userId, analysisId, isNewUserOnboarding } = job.data as {
+        const { userId, analysisId } = job.data as {
           userId: string;
           analysisId?: string;
-          isNewUserOnboarding?: boolean;
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
@@ -80,19 +79,10 @@ export class ContextAnalysisProcessor implements OnModuleInit {
             `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
             "log",
           );
-          if (analysisId) {
-            await this.contextService.analyzeAndLearnFromEmails(
-              userId,
-              analysisId,
-              { isNewUserOnboarding: isNewUserOnboarding ?? false },
-            );
-          } else {
-            await this.contextService.analyzeAndLearnFromEmails(
-              userId,
-              undefined,
-              { isNewUserOnboarding: isNewUserOnboarding ?? false },
-            );
-          }
+          await this.contextService.analyzeAndLearnFromEmails(
+            userId,
+            analysisId,
+          );
           this.logger.log(
             `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}. Analysis will complete when all batches finish.`,
           );

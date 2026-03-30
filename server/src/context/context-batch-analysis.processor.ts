@@ -100,6 +100,8 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
       `===== Batch Analysis Worker Registered ===== (concurrency: ${this.batchConcurrency})`,
       "log",
     );
+    // TODO: Remove after SQS migration is confirmed stable and no in-flight PgBoss
+    // ANALYZE_CONTEXT_BATCH jobs remain. New batches go exclusively via SQS → Lambda.
     await this.boss.work(
       JOB_NAMES.ANALYZE_CONTEXT_BATCH,
       { teamSize: this.batchConcurrency },

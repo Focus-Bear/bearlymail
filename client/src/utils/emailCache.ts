@@ -13,7 +13,7 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 // Bump to v2 to force-invalidate all localStorage caches written before fix #1114.
 // Those caches may contain stale/wrong UUIDs that trigger the silent-skip bug.
-const CACHE_VERSION = 'v2';
+export const CACHE_VERSION = 'v2';
 const MAX_EMAILS_PER_CATEGORY = 100;
 
 interface CachedEntry<T> {
@@ -21,8 +21,38 @@ interface CachedEntry<T> {
   timestamp: number;
 }
 
-function summaryKey(mode: string): string {
-  return `bearlymail_${CACHE_VERSION}_summary_${mode}`;
+/**
+ * Serialise filter params into a stable, URL-safe string for use in a cache key.
+ * Only includes fields that affect the server query (minPriority, maxPriority,
+ * categories, accountIds). Fields are sorted so key order is deterministic.
+ */
+export function serialiseFilterParams(params?: {
+  minPriority?: number | null;
+  maxPriority?: number | null;
+  categories?: string[];
+  accountIds?: string[];
+}): string {
+  if (!params) {
+    return 'default';
+  }
+  const parts: string[] = [];
+  if (params.minPriority !== null && params.minPriority !== undefined) {
+    parts.push(`min${params.minPriority}`);
+  }
+  if (params.maxPriority !== null && params.maxPriority !== undefined) {
+    parts.push(`max${params.maxPriority}`);
+  }
+  if (params.categories?.length) {
+    parts.push(`cats${[...params.categories].sort().join('_')}`);
+  }
+  if (params.accountIds?.length) {
+    parts.push(`accs${[...params.accountIds].sort().join('_')}`);
+  }
+  return parts.length > 0 ? parts.join('__') : 'default';
+}
+
+function summaryKey(mode: string, filterKey = 'default'): string {
+  return `bearlymail_${CACHE_VERSION}_summary_${mode}_${filterKey}`;
 }
 
 function categoryKey(mode: string, key: string): string {
@@ -55,6 +85,13 @@ function safeSet<T>(storageKey: string, value: T): void {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
+export interface SummaryCacheParams {
+  minPriority?: number | null;
+  maxPriority?: number | null;
+  categories?: string[];
+  accountIds?: string[];
+}
+
 /**
  * Return the cached summary only if it was stored within the last `maxAgeMs`
  * milliseconds. Pass `Infinity` (or omit) to skip TTL enforcement.
@@ -62,10 +99,15 @@ function safeSet<T>(storageKey: string, value: T): void {
  * Fix #1114: previously this function ignored the stored timestamp and always
  * returned a cached value, allowing stale UUIDs to persist indefinitely and
  * trigger the backend's silent-skip bug.
+ *
+ * Fix #1571: cache key now includes filter params so changing priority/category
+ * filters invalidates the stale-while-revalidate path instead of serving a
+ * cached summary built with different filter values.
  */
-export function getCachedSummary(mode: string, maxAgeMs = Infinity): CategorySummaryItem[] | null {
+export function getCachedSummary(mode: string, maxAgeMs = Infinity, filterParams?: SummaryCacheParams): CategorySummaryItem[] | null {
   try {
-    const raw = localStorage.getItem(summaryKey(mode));
+    const filterKey = serialiseFilterParams(filterParams);
+    const raw = localStorage.getItem(summaryKey(mode, filterKey));
     if (!raw) {
       return null;
     }
@@ -79,8 +121,9 @@ export function getCachedSummary(mode: string, maxAgeMs = Infinity): CategorySum
   }
 }
 
-export function setCachedSummary(mode: string, summary: CategorySummaryItem[]): void {
-  safeSet(summaryKey(mode), summary);
+export function setCachedSummary(mode: string, summary: CategorySummaryItem[], filterParams?: SummaryCacheParams): void {
+  const filterKey = serialiseFilterParams(filterParams);
+  safeSet(summaryKey(mode, filterKey), summary);
 }
 
 /**
@@ -90,7 +133,16 @@ export function setCachedSummary(mode: string, summary: CategorySummaryItem[]): 
  */
 export function invalidateSummaryCache(mode: string): void {
   try {
-    localStorage.removeItem(summaryKey(mode));
+    // Remove all filter variants for this mode
+    const prefix = `bearlymail_${CACHE_VERSION}_summary_${mode}_`;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(storageKey => localStorage.removeItem(storageKey));
   } catch {
     // Fail silently
   }
@@ -138,7 +190,8 @@ export function removeEmailFromCache(emailId: string): void {
 }
 
 /**
- * Clear all inbox cache entries for a given mode (e.g. when switching modes).
+ * Clear all inbox cache entries for a given mode (e.g. when switching modes or changing filters).
+ * Removes all summary filter variants and all per-category email caches.
  */
 export function clearCacheForMode(mode: string): void {
   try {
@@ -150,8 +203,14 @@ export function clearCacheForMode(mode: string): void {
         keysToRemove.push(key);
       }
     }
-    // Also remove summary key
-    keysToRemove.push(summaryKey(mode));
+    // Also remove all summary filter variants for this mode
+    const summaryPrefix = `bearlymail_${CACHE_VERSION}_summary_${mode}_`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(summaryPrefix) && !keysToRemove.includes(key)) {
+        keysToRemove.push(key);
+      }
+    }
     keysToRemove.forEach(storKey => localStorage.removeItem(storKey));
   } catch {
     // Fail silently

@@ -7,6 +7,7 @@ import {
   DebugCategorySummarySection,
   DebugEmailList,
   DebugOrphanSection,
+  DebugPrioritySection,
   DebugStarredSection,
   DebugStatsSection,
   DebugSyncHistorySection,
@@ -19,6 +20,8 @@ import { EMOJI_BUG, EMOJI_SYNC } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { MODE_ACTION, MODE_FOLLOW_UP, STRING_NONE } from 'constants/strings';
 import { ThreadLookupResult } from 'hooks/useDebugPanel';
+import { InboxFilter } from 'hooks/useInboxFilters';
+import { PriorityCounts } from 'hooks/usePriorityCounts';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugOrphanData {
@@ -80,6 +83,10 @@ interface DebugPanelProps {
   loadedCategoryNames?: string[];
   loadingCategoryNames?: string[];
   expandedCategories?: Set<string>;
+  /** Current priority filter state — passed to DebugPrioritySection. */
+  priorityFilters?: InboxFilter;
+  /** Priority bucket counts — passed to DebugPrioritySection. */
+  priorityCounts?: PriorityCounts | null;
 }
 export const DebugPanel: React.FC<DebugPanelProps> = ({
   mode,
@@ -109,6 +116,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   loadedCategoryNames,
   loadingCategoryNames,
   expandedCategories,
+  priorityFilters,
+  priorityCounts,
 }) => {
   const { t } = useTranslation();
   const threadCount = (() => {
@@ -193,6 +202,14 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             expandedCategories={expandedCategories ?? new Set()}
             emails={emails}
           />
+
+          {priorityFilters && (
+            <DebugPrioritySection
+              mode={mode}
+              filters={priorityFilters}
+              priorityCounts={priorityCounts ?? null}
+            />
+          )}
 
           <DebugStarredSection
             debugStarredData={debugStarredData}

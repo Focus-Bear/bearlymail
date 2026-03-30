@@ -133,7 +133,7 @@ const SegmentTrack: React.FC<SegmentTrackProps> = ({ minVal, maxVal }) => (
       top: '50%',
       left: 0,
       right: 0,
-      height: '6px',
+      height: '8px',
       transform: 'translateY(-50%)',
       borderRadius: theme.borderRadius.full,
       overflow: 'hidden',
@@ -256,8 +256,8 @@ return;
         top: '50%',
         left: pct(value),
         transform: 'translate(-50%, -50%)',
-        width: '20px',
-        height: '20px',
+        width: '24px',
+        height: '24px',
         borderRadius: '50%',
         // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
         backgroundColor: theme.colors.common.white,
@@ -325,7 +325,7 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
           />
           <span
             style={{
-              fontSize: theme.typography.fontSize.sm,
+              fontSize: theme.typography.fontSize.md,
               fontWeight: theme.typography.fontWeight.medium,
               color: theme.colors.text.secondary,
               whiteSpace: 'nowrap',
@@ -468,13 +468,30 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
         ref={trackRef}
         style={{
           position: 'relative',
-          height: '24px',
+          height: '28px',
           cursor: 'pointer',
           userSelect: 'none',
         }}
       >
         {/* Background segments */}
         <SegmentTrack minVal={minVal} maxVal={maxVal} />
+
+        {/* Filled range overlay between thumbs */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: pct(minVal),
+            width: `calc(${pct(maxVal)} - ${pct(minVal)})`,
+            height: '8px',
+            transform: 'translateY(-50%)',
+            backgroundColor: thumbColor,
+            opacity: 0.25,
+            pointerEvents: 'none',
+            borderRadius: theme.borderRadius.full,
+          }}
+        />
 
         {/* Min thumb */}
         <Thumb

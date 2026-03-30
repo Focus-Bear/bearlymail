@@ -293,6 +293,8 @@ const InboxView: React.FC = () => {
             onLookupThread={debugPanel.lookupThread} categorySummary={categorySummary}
             loadedCategoryNames={loadedCategoryNames} loadingCategoryNames={loadingCategoryNames}
             expandedCategories={expandedCategories}
+            priorityFilters={filters}
+            priorityCounts={priorityCounts}
           />
         )}
         <BulkOperationsBar selectedCount={selectedEmailIds.size} onBulkArchive={emailActions.handleBulkArchive} onClearSelection={() => setSelectedEmailIds(new Set())} />

@@ -3,6 +3,7 @@ export { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsG
 export { DebugCategorySummarySection } from 'components/inbox/debug/DebugCategorySummarySection';
 export { DebugEmailList } from 'components/inbox/debug/DebugEmailList';
 export { DebugOrphanSection } from 'components/inbox/debug/DebugOrphanSection';
+export { DebugPrioritySection } from 'components/inbox/debug/DebugPrioritySection';
 export { DebugStarredSection } from 'components/inbox/debug/DebugStarredSection';
 export { DebugStatsSection } from 'components/inbox/debug/DebugStatsSection';
 export { DebugSyncHistorySection } from 'components/inbox/debug/DebugSyncHistorySection';

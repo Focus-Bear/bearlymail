@@ -10,6 +10,7 @@ import {
   getCachedSummary,
   setCachedCategoryEmails,
   setCachedSummary,
+  SummaryCacheParams,
 } from 'utils/emailCache';
 import { getAxiosErrorMessage } from 'utils/errors';
 
@@ -191,6 +192,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);
     await fetchEmailsImpl({
       mode, dispatch,
+      filters: effectiveFilters,
       buildSummaryParams: buildSummaryParamsWithOverride,
       buildAutoRespondedParams: buildAutoRespondedParamsWithOverride,
       buildAutoRespondedSummary,
@@ -250,13 +252,14 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     await refreshInPlaceImpl({
       mode,
       dispatch,
+      filters,
       buildSummaryParams,
       buildCategoryParams,
       buildAutoRespondedParams,
       buildAutoRespondedSummary,
       loadedCategoryNamesRef,
     });
-  }, [mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
+  }, [mode, dispatch, filters, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }
@@ -468,6 +471,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
 async function refreshInPlaceImpl({
   mode,
   dispatch,
+  filters,
   buildSummaryParams,
   buildCategoryParams,
   buildAutoRespondedParams,
@@ -476,6 +480,7 @@ async function refreshInPlaceImpl({
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
+  filters?: InboxFilter;
   buildSummaryParams: () => URLSearchParams;
   buildCategoryParams: (categoryKey: string) => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams;
@@ -498,7 +503,13 @@ async function refreshInPlaceImpl({
     dispatch(setCategorySummary(freshCategories));
     dispatch(setSummaryLoading(false));
     dispatch(setTotalCount(summaryResponse.data.total));
-    setCachedSummary(mode, freshCategories);
+    const cacheFilterParams: SummaryCacheParams = {
+      minPriority: filters?.minPriority,
+      maxPriority: filters?.maxPriority,
+      categories: filters?.categories,
+      accountIds: filters?.accountIds,
+    };
+    setCachedSummary(mode, freshCategories, cacheFilterParams);
   } catch (err) {
     console.warn('[refreshInPlace] Summary fetch failed:', err);
     return;
@@ -614,11 +625,13 @@ function serveSummaryFromCacheAndRefresh({
   cachedSummary,
   mode,
   dispatch,
+  filterParams,
   buildSummaryParams,
 }: {
   cachedSummary: CategorySummaryItem[];
   mode: InboxMode;
   dispatch: AppDispatch;
+  filterParams?: SummaryCacheParams;
   buildSummaryParams: () => URLSearchParams;
 }): void {
   dispatch(setFetchError(null));
@@ -636,7 +649,7 @@ function serveSummaryFromCacheAndRefresh({
   fetchInboxSummary(dispatch, buildSummaryParams)
     .then(freshSummary => {
       if (freshSummary) {
-        setCachedSummary(mode, freshSummary);
+        setCachedSummary(mode, freshSummary, filterParams);
       }
     })
     .catch(err => console.warn('[fetchEmails] Background refresh failed:', err));
@@ -657,12 +670,14 @@ function dispatchFetchStart(dispatch: AppDispatch) {
 async function fetchEmailsImpl({
   mode,
   dispatch,
+  filters,
   buildSummaryParams,
   buildAutoRespondedParams,
   buildAutoRespondedSummary,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
+  filters?: InboxFilter;
   buildSummaryParams: () => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams;
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
@@ -671,11 +686,19 @@ async function fetchEmailsImpl({
   // TTL window, serve it immediately (no spinner) then refresh in the background.
   // Fix #1114: enforce INBOX_CACHE_TTL_MS so stale UUIDs do not persist past 60 s
   // and trigger the backend silent-skip bug.
-  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode, INBOX_CACHE_TTL_MS) : null;
+  // Fix #1571: pass filter params to cache lookup so we only serve a cached summary
+  // that was built with the same filter values (avoids stale cross-filter data).
+  const filterParams: SummaryCacheParams = {
+    minPriority: filters?.minPriority,
+    maxPriority: filters?.maxPriority,
+    categories: filters?.categories,
+    accountIds: filters?.accountIds,
+  };
+  const cachedSummary = mode !== MODE_AUTORESPONDED ? getCachedSummary(mode, INBOX_CACHE_TTL_MS, filterParams) : null;
   const hasCachedData = cachedSummary !== null && cachedSummary.length > 0;
 
   if (hasCachedData) {
-    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, buildSummaryParams });
+    serveSummaryFromCacheAndRefresh({ cachedSummary, mode, dispatch, filterParams, buildSummaryParams });
     return;
   }
 
@@ -694,7 +717,7 @@ async function fetchEmailsImpl({
     } else {
       const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams);
       if (freshSummary) {
-        setCachedSummary(mode, freshSummary);
+        setCachedSummary(mode, freshSummary, filterParams);
       }
     }
     dispatch(setDecrypting(false));

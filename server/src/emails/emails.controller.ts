@@ -93,8 +93,8 @@ export class EmailsController {
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
-    const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
-    const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
+    const minPriorityValue = minPriority !== undefined && minPriority !== '' ? parseFloat(minPriority) : undefined;
+    const maxPriorityValue = maxPriority !== undefined && maxPriority !== '' ? parseFloat(maxPriority) : undefined;
 
     const pageSize = limitParam
       ? Math.max(1, parseInt(limitParam, 10))
@@ -182,8 +182,8 @@ export class EmailsController {
     const categoryIdList = categoryIds
       ? categoryIds.split(",").filter(Boolean)
       : undefined;
-    const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
-    const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
+    const minPriorityValue = minPriority !== undefined && minPriority !== '' ? parseFloat(minPriority) : undefined;
+    const maxPriorityValue = maxPriority !== undefined && maxPriority !== '' ? parseFloat(maxPriority) : undefined;
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
       : undefined;

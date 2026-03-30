@@ -53,7 +53,7 @@ describe('getCachedSummary / setCachedSummary', () => {
   });
 
   it('returns null if localStorage is corrupted', () => {
-    localStorage.setItem('bearlymail_v1_summary_inbox', 'not-json{{{');
+    localStorage.setItem('bearlymail_v2_summary_inbox_default', 'not-json{{{');
     expect(getCachedSummary('inbox')).toBeNull();
   });
 
@@ -64,7 +64,7 @@ describe('getCachedSummary / setCachedSummary', () => {
     setCachedSummary('inbox', summary);
 
     // Backdate the stored timestamp by 2 minutes so the 60 s TTL has elapsed
-    const key = 'bearlymail_v2_summary_inbox';
+    const key = 'bearlymail_v2_summary_inbox_default';
     const raw = localStorage.getItem(key);
     expect(raw).not.toBeNull();
     const entry = JSON.parse(raw!);

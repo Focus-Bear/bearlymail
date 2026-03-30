@@ -384,7 +384,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
           gap: theme.spacing.md,
-          alignItems: 'flex-start',
+          alignItems: isMobile ? 'flex-start' : 'stretch',
         }}
       >
         {/* Category Filter — visual pill-based multi-select.

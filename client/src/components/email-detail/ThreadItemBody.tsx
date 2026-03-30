@@ -10,21 +10,10 @@ interface ThreadItemBodyProps {
 }
 
 export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }) => {
-  if (htmlBody) {
-    const processedContent = sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)));
-    return (
-      <div
-        style={{
-          padding: theme.spacing.md,
-          backgroundColor: theme.colors.background.paper,
-          borderTop: `1px solid ${theme.colors.border.light}`,
-          overflowX: 'auto',
-        }}
-      >
-        <EmailBodyIframe html={processedContent} />
-      </div>
-    );
-  }
+  const isHtml = Boolean(htmlBody);
+  const processedContent = htmlBody
+    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))
+    : removeSignature(body || '');
 
   // Plain-text path: use whiteSpace: pre-wrap to preserve \n newlines
   return (
@@ -36,16 +25,20 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }
         overflowX: 'auto',
       }}
     >
-      <div
-        style={{
-          color: theme.colors.text.primary,
-          lineHeight: 1.8,
-          whiteSpace: 'pre-wrap',
-          overflowX: 'auto',
-        }}
-      >
-        {removeSignature(body || '', false)}
-      </div>
+      {isHtml ? (
+        <EmailBodyIframe html={processedContent} />
+      ) : (
+        <div
+          style={{
+            color: theme.colors.text.primary,
+            lineHeight: 1.8,
+            whiteSpace: 'pre-wrap',
+            overflowX: 'auto',
+          }}
+        >
+          {processedContent}
+        </div>
+      )}
     </div>
   );
 };

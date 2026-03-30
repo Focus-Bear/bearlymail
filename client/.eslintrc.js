@@ -162,10 +162,10 @@ module.exports = {
     // Limit JSX depth (too deep = hard to read) - relaxed
     'react/jsx-max-depth': ['warn', { max: 8 }],
 
-    // Disabled: all HTML rendering goes through SanitizedHTML.tsx with DOMPurify. See issue #939.
-    // The project's architecture explicitly channels all dangerouslySetInnerHTML through
-    // that single auditable wrapper, so the rule adds no safety value here.
-    'react/no-danger': 'off',
+    // Ban dangerouslySetInnerHTML across the codebase.
+    // Approved alternatives: EmailBodyIframe for HTML email content, plain text as children.
+    // The single legitimate exception (SanitizedHTML.tsx with DOMPurify) is carved out below.
+    'react/no-danger': 'error',
 
     // ===========================================
     // REACT HOOK IMPORT ENFORCEMENT
@@ -431,8 +431,9 @@ module.exports = {
       },
     },
     {
-      // SanitizedHTML intentionally uses dangerouslySetInnerHTML after DOMPurify sanitization.
-      // This is the single auditable location for HTML rendering in the app — see the component's JSDoc.
+      // SanitizedHTML.tsx is the single auditable location that may use dangerouslySetInnerHTML.
+      // It wraps every call with DOMPurify.sanitize() — see the component's JSDoc.
+      // All other HTML rendering must go through EmailBodyIframe or plain-text children.
       files: ['**/components/common/SanitizedHTML.tsx'],
       rules: {
         'react/no-danger': 'off',

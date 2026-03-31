@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "./users.service";
 
 jest.mock("../encryption/encryption.helper", () => ({
@@ -257,7 +258,7 @@ describe("UsersService", () => {
         hasScannedHistory: false,
       };
       repository.findOne.mockResolvedValue(userComplete);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.incrementScanProgress("user-1");
 
@@ -322,7 +323,7 @@ describe("UsersService", () => {
         privacyAcceptedAt: new Date(),
         privacyVersion: "2.0.0",
       };
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       repository.findOne.mockResolvedValue(userWithConsent);
 
       const result = await service.acceptConsent("user-1", true, true);
@@ -345,7 +346,7 @@ describe("UsersService", () => {
         termsAcceptedAt: new Date(),
         termsVersion: "2.0.0",
       };
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       repository.findOne.mockResolvedValue(userWithTerms);
 
       await service.acceptConsent("user-1", true, false);
@@ -371,7 +372,7 @@ describe("UsersService", () => {
         privacyAcceptedAt: new Date(),
         privacyVersion: "2.0.0",
       };
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       repository.findOne.mockResolvedValue(userWithPrivacy);
 
       await service.acceptConsent("user-1", false, true);

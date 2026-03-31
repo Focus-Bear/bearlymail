@@ -13,6 +13,7 @@ import { Email } from "../database/entities/email.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { SuggestedRepliesProcessor } from "./suggested-replies.processor";
 import { SuggestedRepliesService } from "./suggested-replies.service";
@@ -26,7 +27,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
     displayName: "Alex",
     name: "Alex",
     jobTitle: "Engineer",
-    toneSettings: { rules: [] } as any,
+    toneSettings: mockPartial({ rules: [] }),
     calendarBookingUrl: null,
   };
 
@@ -153,9 +154,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
   });
 
   it("should pass thread messages to generateReplyOptions when the other party sent the last email", async () => {
-    const generateFn = (processor as any).generateReplySuggestions.bind(
-      processor,
-    );
+    const generateFn = processor.generateReplySuggestions.bind(processor);
 
     const replyContext = {
       userEmail: "alex@example.com",
@@ -205,9 +204,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
   });
 
   it("should use follow-up window of 10 when building follow-up context", async () => {
-    const buildFollowUpCtx = (processor as any).buildFollowUpContext.bind(
-      processor,
-    );
+    const buildFollowUpCtx = processor.buildFollowUpContext.bind(processor);
 
     // Mock 10-message thread: sarah sent last (the one we're following up on)
     const tenMessages: Partial<Email>[] = [
@@ -270,9 +267,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
   });
 
   it("should use daysSinceLastEmail based on other party's last email, not user's own", async () => {
-    const buildFollowUpCtx = (processor as any).buildFollowUpContext.bind(
-      processor,
-    );
+    const buildFollowUpCtx = processor.buildFollowUpContext.bind(processor);
 
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
@@ -312,9 +307,7 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
   });
 
   it("should pass lastOtherPartyMessage and userLastMessage to generateFollowUpDraft", async () => {
-    const generateFn = (processor as any).generateReplySuggestions.bind(
-      processor,
-    );
+    const generateFn = processor.generateReplySuggestions.bind(processor);
 
     const followUpThread: Partial<Email>[] = [
       {

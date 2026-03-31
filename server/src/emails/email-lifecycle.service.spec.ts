@@ -10,6 +10,7 @@ import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { EmailLifecycleService } from "./email-lifecycle.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -29,7 +30,7 @@ describe("EmailLifecycleService", () => {
   let emailRepository: jest.Mocked<Repository<Email>>;
   let emailThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let actionItemRepository: jest.Mocked<Repository<ActionItem>>;
-  let contactRepository: jest.Mocked<any>;
+  let contactRepository: jest.Mocked<Repository<Contact>>;
   let blockedSendersService: jest.Mocked<BlockedSendersService>;
   let blockedKeywordsService: jest.Mocked<BlockedKeywordsService>;
   let batchScheduleService: jest.Mocked<BatchScheduleService>;
@@ -225,10 +226,12 @@ describe("EmailLifecycleService", () => {
     });
 
     it("returns not batched when schedule is disabled", async () => {
-      batchScheduleService.getSchedule.mockResolvedValue({
-        isEnabled: false,
-        urgentBypassSchedule: false,
-      } as any);
+      batchScheduleService.getSchedule.mockResolvedValue(
+        mockPartial({
+          isEnabled: false,
+          urgentBypassSchedule: false,
+        }),
+      );
 
       const thread = {} as EmailThread;
       const result = await service.determineBatchDecision(
@@ -242,10 +245,12 @@ describe("EmailLifecycleService", () => {
     });
 
     it("returns not batched when getNextBatchReleaseTime returns null", async () => {
-      batchScheduleService.getSchedule.mockResolvedValue({
-        isEnabled: true,
-        urgentBypassSchedule: false,
-      } as any);
+      batchScheduleService.getSchedule.mockResolvedValue(
+        mockPartial({
+          isEnabled: true,
+          urgentBypassSchedule: false,
+        }),
+      );
       batchScheduleService.getNextBatchReleaseTime.mockReturnValue(null);
 
       const thread = {} as EmailThread;
@@ -261,10 +266,12 @@ describe("EmailLifecycleService", () => {
 
     it("returns batched with release time when schedule has next release", async () => {
       const releaseAt = new Date(Date.now() + 60_000);
-      batchScheduleService.getSchedule.mockResolvedValue({
-        isEnabled: true,
-        urgentBypassSchedule: false,
-      } as any);
+      batchScheduleService.getSchedule.mockResolvedValue(
+        mockPartial({
+          isEnabled: true,
+          urgentBypassSchedule: false,
+        }),
+      );
       batchScheduleService.getNextBatchReleaseTime.mockReturnValue(releaseAt);
 
       const thread = { batchReleaseAt: null } as EmailThread;
@@ -281,10 +288,12 @@ describe("EmailLifecycleService", () => {
     it("uses earlier existing release time when valid", async () => {
       const futureTime = new Date(Date.now() + 120_000);
       const earlierExisting = new Date(Date.now() + 60_000);
-      batchScheduleService.getSchedule.mockResolvedValue({
-        isEnabled: true,
-        urgentBypassSchedule: false,
-      } as any);
+      batchScheduleService.getSchedule.mockResolvedValue(
+        mockPartial({
+          isEnabled: true,
+          urgentBypassSchedule: false,
+        }),
+      );
       batchScheduleService.getNextBatchReleaseTime.mockReturnValue(futureTime);
 
       const thread = { batchReleaseAt: earlierExisting } as EmailThread;
@@ -322,7 +331,11 @@ describe("EmailLifecycleService", () => {
         id: "thread-1",
         isProcessingPriority: true,
       } as EmailThread;
-      const email = { id: "email-1", labels: [], threadId: "thread-1" } as any;
+      const email = mockPartial({
+        id: "email-1",
+        labels: [],
+        threadId: "thread-1",
+      });
 
       emailThreadRepository.save.mockResolvedValue(thread);
       emailRepository.save.mockResolvedValue({
@@ -353,7 +366,11 @@ describe("EmailLifecycleService", () => {
         id: "thread-1",
         isProcessingPriority: true,
       } as EmailThread;
-      const email = { id: "email-1", labels: [], threadId: "thread-1" } as any;
+      const email = mockPartial({
+        id: "email-1",
+        labels: [],
+        threadId: "thread-1",
+      });
 
       emailThreadRepository.save.mockResolvedValue(thread);
       emailRepository.save.mockResolvedValue({
@@ -384,12 +401,12 @@ describe("EmailLifecycleService", () => {
         batchReleaseAt: null,
       } as EmailThread;
 
-      const emailObj = {
+      const emailObj = mockPartial({
         id: "email-1",
         isProcessingSummary: false,
         labels: null,
         emailThreadId: "thread-1",
-      } as any;
+      });
 
       emailThreadService.getOrCreateEmailThread.mockResolvedValue(thread);
       blockedSendersService.isSenderBlocked.mockResolvedValue(false);
@@ -429,12 +446,12 @@ describe("EmailLifecycleService", () => {
         priorityScore: 0,
       } as EmailThread;
 
-      const emailObj = {
+      const emailObj = mockPartial({
         id: "email-1",
         isProcessingSummary: false,
         labels: null,
         emailThreadId: "thread-1",
-      } as any;
+      });
 
       emailThreadService.getOrCreateEmailThread.mockResolvedValue(thread);
       blockedSendersService.isSenderBlocked.mockResolvedValue(false);

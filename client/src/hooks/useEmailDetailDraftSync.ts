@@ -18,7 +18,7 @@ interface UseEmailDetailDraftSyncParams {
   setReplyRecipients: (recipients: string) => void;
   setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   setShowReplyComposer: (show: boolean) => void;
-  setReplyOptions: (options: unknown) => void;
+  setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
   setToneCheckResult: (result: null) => void;
   handleGenerateDraft: () => void;
 }

@@ -379,24 +379,23 @@ describe("EmailDebugService", () => {
     const threadId1 = "thread-aaa";
     const threadId2 = "thread-bbb";
 
-    const makeQueryBuilderMock = () =>
-      ({
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
-      }) as any;
+    const makeQueryBuilderMock = () => ({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    });
 
     beforeEach(() => {
-      (mockGmailProvider as any).getStarredInboxThreadIds = jest
+      mockGmailProvider.getStarredInboxThreadIds = jest
         .fn()
         .mockResolvedValue([threadId1, threadId2]);
       /*
        * threadId1 is in inbox, threadId2 is archived in Gmail.
        * Used to verify isInGmailInbox and archiveStatusConflict logic.
        */
-      (mockGmailProvider as any).getInboxThreadIds = jest
+      mockGmailProvider.getInboxThreadIds = jest
         .fn()
         .mockResolvedValue([threadId1]);
     });
@@ -558,7 +557,7 @@ describe("EmailDebugService", () => {
        * Gmail reports the thread as in-inbox, so shouldBeArchived resolves
        * to false.
        */
-      (mockGmailProvider as any).getInboxThreadIds = jest
+      mockGmailProvider.getInboxThreadIds = jest
         .fn()
         .mockResolvedValue(["stale-thread-aaa"]);
 
@@ -589,7 +588,7 @@ describe("EmailDebugService", () => {
         .fn()
         .mockResolvedValue({ affected: 1 });
 
-      (mockGmailProvider as any).getInboxThreadIds = jest
+      mockGmailProvider.getInboxThreadIds = jest
         .fn()
         .mockRejectedValue(new Error("Gmail auth expired"));
 

@@ -22,6 +22,7 @@ export const SUMMARY_PROMPT_IDS = {
   ACTIONS: "summarize_email_actions",
   CHECK_PHISHING_ONLY: "check_phishing_only",
   BATCH: "summarize_email_batch",
+  CUSTOM: "summarize_email_custom",
 } as const;
 
 /**
@@ -186,6 +187,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "check-phishing-only.md",
     key: SUMMARY_PROMPT_IDS.CHECK_PHISHING_ONLY,
+  },
+  {
+    file: "summarize-email-custom.md",
+    key: SUMMARY_PROMPT_IDS.CUSTOM,
   },
   {
     file: "generate-booking-title.md",

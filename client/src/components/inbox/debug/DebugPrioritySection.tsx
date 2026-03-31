@@ -213,7 +213,7 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
           cacheEntries.map(entry => (
             <span key={entry.key} style={{ ...VALUE_STYLE, display: 'inline-block', marginRight: '8px' }}>
               {entry.key.replace(`bearlymail_${CACHE_VERSION}_summary_`, '')}:{' '}
-              {entry.ageMs !== null ? formatMs(entry.ageMs) + ' old' : 'no timestamp'}
+              {entry.ageMs !== null ? `${formatMs(entry.ageMs)} old` : 'no timestamp'}
             </span>
           ))
         )}

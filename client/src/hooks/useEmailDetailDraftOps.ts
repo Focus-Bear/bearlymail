@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import axios from 'axios';
+import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -17,8 +18,8 @@ export { buildReplyAllRecipients } from './buildReplyAllRecipients';
 // Returns { recipients, cc } to be applied to state.
 function buildReplyRecipientsForMode(
   mode: string,
-  latestEmail: any,
-  threadEmails: any[],
+  latestEmail: Email,
+  threadEmails: Email[],
   userEmail: string | undefined
 ): { recipients: string; cc: string | null } {
   const normalizedUserEmail = userEmail?.toLowerCase();
@@ -40,7 +41,7 @@ function buildReplyRecipientsForMode(
 
   // Regular reply
   if (isLatestFromCurrentUser) {
-    const otherPersonEmail = threadEmails.find((event: any) => !isCurrentUser(event.from));
+    const otherPersonEmail = threadEmails.find(event => !isCurrentUser(event.from));
     if (otherPersonEmail) {
       return { recipients: otherPersonEmail.from, cc: null };
     }
@@ -88,7 +89,7 @@ type DraftOpsState = Pick<
 // Sub-hook: encapsulates draft generation logic with its own abort-controller refs.
 function useDraftGenerationCallback(
   id: string | undefined,
-  email: any,
+  email: Email | null,
   setLoadingReplies: (v: boolean) => void,
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
   setSelectedReplyOption: (i: number) => void

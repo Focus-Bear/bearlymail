@@ -1,19 +1,9 @@
 import React from 'react';
+import { PriorityExplanation } from 'types/email';
 
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
 import { PriorityTooltipLoading } from 'components/priority/tooltip/PriorityTooltipLoading';
-
-interface PriorityExplanation {
-  score: number;
-  dimensions?: {
-    urgency: { score: number; reasons: string[] };
-    goalAlignment: { score: number; reasons: string[] };
-    vipContact: { score: number; reasons: string[] };
-    sentiment: { score: number; type: string; reasons: string[] };
-  };
-  breakdown: Array<{ factor: string; value: number; description: string }>;
-}
 
 interface PriorityTooltipProps {
   emailId: string;

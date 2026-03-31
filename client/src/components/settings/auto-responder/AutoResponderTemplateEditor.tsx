@@ -19,6 +19,12 @@ interface AutoResponderTemplateEditorProps {
 
 type TemplateType = 'standard' | 'highPriority' | 'lowPriority';
 
+declare global {
+  interface WindowEventMap {
+    'insert-merge-tag': CustomEvent<string>;
+  }
+}
+
 const TEMPLATE_LABELS: Record<TemplateType, { label: string; emoji: string; description: string }> = {
   standard: { label: 'Standard Priority', emoji: '📬', description: 'Sent for medium priority emails' },
   highPriority: { label: 'High Priority', emoji: '🔥', description: 'Sent for urgent/high priority emails' },
@@ -188,8 +194,8 @@ function useTemplateEditorState({ config, queueStats, userName, onTemplateChange
   };
 
   useEffect(() => {
-    const handler = (event: any) => {
-      const tag = event.detail as string;
+    const handler = (event: CustomEvent<string>) => {
+      const tag = event.detail;
       const textarea = document.getElementById('template-editor') as HTMLTextAreaElement | null;
       if (textarea) {
         const start = textarea.selectionStart;
@@ -204,8 +210,8 @@ function useTemplateEditorState({ config, queueStats, userName, onTemplateChange
         setEditedTemplate(prev => prev + tag);
       }
     };
-    window.addEventListener('insert-merge-tag', handler as EventListener);
-    return () => window.removeEventListener('insert-merge-tag', handler as EventListener);
+    window.addEventListener('insert-merge-tag', handler);
+    return () => window.removeEventListener('insert-merge-tag', handler);
   }, [editedTemplate]);
 
   const currentTemplate = getCurrentTemplate();

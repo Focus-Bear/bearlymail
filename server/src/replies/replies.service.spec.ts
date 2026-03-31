@@ -11,6 +11,7 @@ import { EmailsService } from "../emails/emails.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { LLMService } from "../llm/llm.service";
 import { SnoozeService } from "../snooze/snooze.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { RepliesService } from "./replies.service";
 
@@ -121,7 +122,7 @@ describe("RepliesService", () => {
         fromName: "Sender",
       };
 
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
       contextService.getUserContext.mockResolvedValue([]);
       llmService.generateReplyDraft.mockResolvedValue("Generated reply");
 
@@ -156,13 +157,13 @@ describe("RepliesService", () => {
         fromName: "John Doe",
       };
 
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
       contextService.getUserContext.mockResolvedValue([
         {
           contextKey: "WRITING_STYLE_TONE",
           contextValue: "professional",
         },
-      ] as any);
+      ]);
 
       // Create rule
       await service.createReplyRule(userId, {
@@ -190,7 +191,7 @@ describe("RepliesService", () => {
         fromName: "John Doe",
       };
 
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
 
       // Test casual tone
       contextService.getUserContext.mockResolvedValue([
@@ -198,7 +199,7 @@ describe("RepliesService", () => {
           contextKey: "WRITING_STYLE_TONE",
           contextValue: "casual",
         },
-      ] as any);
+      ]);
 
       await service.createReplyRule(userId, {
         trigger: "subject contains 'test'",
@@ -215,7 +216,7 @@ describe("RepliesService", () => {
           contextKey: "WRITING_STYLE_TONE",
           contextValue: "formal",
         },
-      ] as any);
+      ]);
 
       await service.createReplyRule(userId, {
         trigger: "subject contains 'test'",
@@ -357,13 +358,13 @@ describe("RepliesService", () => {
     };
 
     beforeEach(() => {
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
       contextService.getUserContext.mockResolvedValue([
         {
           contextKey: "WRITING_STYLE_TONE",
           contextValue: "professional",
         },
-      ] as any);
+      ]);
     });
 
     it("should throw error when email not found", async () => {
@@ -418,7 +419,7 @@ describe("RepliesService", () => {
     };
 
     beforeEach(() => {
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
     });
 
     it("should create rule from modification", async () => {
@@ -460,22 +461,24 @@ describe("RepliesService", () => {
       receivedAt: new Date("2024-01-15T10:00:00Z"),
     };
     let usersService: jest.Mocked<UsersService>;
-    let emailRepository: any;
-    let emailThreadRepository: any;
-    let writingStyleLearningService: any;
+    let emailRepository: Record<string, unknown>;
+    let emailThreadRepository: Record<string, unknown>;
+    let writingStyleLearningService: Record<string, unknown>;
 
     beforeEach(() => {
-      emailsService.getEmailById.mockResolvedValue(email as any);
+      emailsService.getEmailById.mockResolvedValue(email);
       usersService = module.get(UsersService);
       emailRepository = module.get(getRepositoryToken(Email));
       emailThreadRepository = module.get(getRepositoryToken(EmailThread));
       writingStyleLearningService = module.get(WritingStyleLearningService);
       // Mock user for sendReply tests
-      usersService.findOne.mockResolvedValue({
-        id: userId,
-        email: "encrypted_user@example.com",
-        name: "Test User",
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          id: userId,
+          email: "encrypted_user@example.com",
+          name: "Test User",
+        }),
+      );
       emailRepository.create.mockReturnValue({});
       emailRepository.save.mockResolvedValue({});
       emailThreadRepository.findOne.mockResolvedValue({ id: "thread-uuid" });
@@ -504,9 +507,7 @@ describe("RepliesService", () => {
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await service.sendReply(userId, emailId, "Reply body");
 
@@ -533,14 +534,12 @@ describe("RepliesService", () => {
         ...email,
         subject: "Re: Test Subject",
       };
-      emailsService.getEmailById.mockResolvedValue(emailWithRe as any);
+      emailsService.getEmailById.mockResolvedValue(emailWithRe);
 
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await service.sendReply(userId, emailId, "Reply body");
 
@@ -564,9 +563,7 @@ describe("RepliesService", () => {
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       const replyAllRecipients = "sender@example.com, other@example.com";
       await service.sendReply(userId, emailId, "Reply body", {
@@ -594,9 +591,7 @@ describe("RepliesService", () => {
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await service.sendReply(userId, emailId, "Reply body", {
         recipients: "",
@@ -628,9 +623,7 @@ describe("RepliesService", () => {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
         syncStarStatusToGmail,
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       const snoozeService = module.get(SnoozeService);
       const followUpsService = module.get(FollowUpsService);
@@ -661,21 +654,23 @@ describe("RepliesService", () => {
     const userId = "user1";
     const emailId = "email1";
     let usersService: jest.Mocked<UsersService>;
-    let emailRepository: any;
-    let emailThreadRepository: any;
-    let writingStyleLearningService: any;
+    let emailRepository: Record<string, unknown>;
+    let emailThreadRepository: Record<string, unknown>;
+    let writingStyleLearningService: Record<string, unknown>;
 
     beforeEach(() => {
       usersService = module.get(UsersService);
       emailRepository = module.get(getRepositoryToken(Email));
       emailThreadRepository = module.get(getRepositoryToken(EmailThread));
       writingStyleLearningService = module.get(WritingStyleLearningService);
-      usersService.findOne.mockResolvedValue({
-        id: userId,
-        email: "encrypted_user@example.com",
-        name: "Test User",
-        emailSignature: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          id: userId,
+          email: "encrypted_user@example.com",
+          name: "Test User",
+          emailSignature: null,
+        }),
+      );
       emailRepository.create.mockReturnValue({});
       emailRepository.save.mockResolvedValue({});
       emailThreadRepository.findOne.mockResolvedValue({ id: "thread-uuid" });
@@ -697,14 +692,12 @@ describe("RepliesService", () => {
         threadId: "thread-abc",
         receivedAt,
       };
-      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+      emailsService.getEmailById.mockResolvedValue(originalEmail);
 
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-1" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await service.sendReply(userId, emailId, "My reply");
 
@@ -732,14 +725,12 @@ describe("RepliesService", () => {
         threadId: "thread-def",
         receivedAt,
       };
-      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+      emailsService.getEmailById.mockResolvedValue(originalEmail);
 
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-2" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await service.sendReply(userId, emailId, "My reply");
 
@@ -764,14 +755,12 @@ describe("RepliesService", () => {
         threadId: "thread-ghi",
         receivedAt,
       };
-      emailsService.getEmailById.mockResolvedValue(originalEmail as any);
+      emailsService.getEmailById.mockResolvedValue(originalEmail);
 
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "msg-quoted-3" }),
       };
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       await expect(
         service.sendReply(userId, emailId, "My reply"),

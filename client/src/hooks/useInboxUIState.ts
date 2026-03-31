@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InboxMode } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MODE_FOLLOW_UP } from 'constants/strings';
+import { User } from 'contexts/AuthContext';
 import { useDebugPanel } from 'hooks/useDebugPanel';
 import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
 import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
@@ -17,13 +18,13 @@ import { useSplitView } from 'hooks/useSplitView';
 import { useUrgentNotification } from 'hooks/useUrgentNotification';
 
 interface UIStateParams {
-  user: any;
+  user: User | null;
   authLoading: boolean;
   refreshUser: () => Promise<void>;
   fetchEmails: () => void;
   refreshInPlace: () => Promise<void>;
   mode: InboxMode;
-  emails: any[];
+  emails: Email[];
   loading: boolean;
 }
 

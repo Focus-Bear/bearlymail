@@ -486,7 +486,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
-            actionButton={isEmailCategory ? <EmailCategoryControls actions={actionsWithConsolidate as any} /> : undefined}
+            actionButton={isEmailCategory ? <EmailCategoryControls actions={actionsWithConsolidate as CategoryActionsState} /> : undefined}
             isInitiallyExpanded={isAnchoredMatch}
             {...commonProps}
           />

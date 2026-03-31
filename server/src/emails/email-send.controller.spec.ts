@@ -109,7 +109,7 @@ describe("EmailSendController", () => {
 
       mockScheduledEmailsService.scheduleEmail.mockResolvedValue(mockScheduled);
 
-      const result = await controller.sendEmail(mockRequest, body as any);
+      const result = await controller.sendEmail(mockRequest, body);
 
       expect(result).toEqual({
         success: true,
@@ -144,7 +144,7 @@ describe("EmailSendController", () => {
       mockUsersService.findOne.mockResolvedValue(mockUser);
       mockEmailAdminService.trackEmailRecipients.mockResolvedValue(undefined);
 
-      const result = await controller.sendEmail(mockRequest, body as any);
+      const result = await controller.sendEmail(mockRequest, body);
 
       expect(result).toEqual({
         success: true,
@@ -167,9 +167,9 @@ describe("EmailSendController", () => {
 
       mockEmailProviderManager.getPrimaryProvider.mockResolvedValue(null);
 
-      await expect(
-        controller.sendEmail(mockRequest, body as any),
-      ).rejects.toThrow("No email provider connected");
+      await expect(controller.sendEmail(mockRequest, body)).rejects.toThrow(
+        "No email provider connected",
+      );
     });
   });
 

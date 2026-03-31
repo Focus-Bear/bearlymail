@@ -8,6 +8,7 @@ import { ScanEmail } from "../database/entities/scan-email.entity";
 import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { ScanEmailService } from "../emails/scan-email.service";
 import { LLMService } from "../llm/llm.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { ScanAnalysisService } from "./scan-analysis.service";
 
@@ -29,7 +30,7 @@ describe("ScanAnalysisService", () => {
   let scanEmailService: jest.Mocked<ScanEmailService>;
   let contextService: jest.Mocked<ContextService>;
   let usersService: jest.Mocked<UsersService>;
-  let mockGmail: any;
+  let mockGmail: Record<string, unknown>;
 
   const mockScanEmail: ScanEmail = {
     id: "scan-email-1",
@@ -115,7 +116,7 @@ describe("ScanAnalysisService", () => {
   describe("analyzeScanResults", () => {
     it("should analyze scan results and create context", async () => {
       scanEmailService.findAllForUser.mockResolvedValue([mockScanEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
           messages: [
@@ -127,9 +128,9 @@ describe("ScanAnalysisService", () => {
           ],
         },
       });
-      scanEmailRepository.save.mockResolvedValue(mockScanEmail as any);
+      scanEmailRepository.save.mockResolvedValue(mockScanEmail);
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
 
       await service.analyzeScanResults("user-1");
 
@@ -179,7 +180,7 @@ describe("ScanAnalysisService", () => {
       };
 
       scanEmailService.findAllForUser.mockResolvedValue([emailWithReply]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       const originalDate = new Date("2024-01-01T10:00:00Z");
       // 1 hour later
@@ -202,8 +203,8 @@ describe("ScanAnalysisService", () => {
         },
       });
 
-      scanEmailRepository.save.mockResolvedValue(emailWithReply as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(emailWithReply);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -217,7 +218,7 @@ describe("ScanAnalysisService", () => {
 
     it("should mark emails as archived when not in INBOX", async () => {
       scanEmailService.findAllForUser.mockResolvedValue([mockScanEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
@@ -232,8 +233,8 @@ describe("ScanAnalysisService", () => {
         },
       });
 
-      scanEmailRepository.save.mockResolvedValue(mockScanEmail as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(mockScanEmail);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -258,7 +259,7 @@ describe("ScanAnalysisService", () => {
         { ...quickReplyEmail, messageId: "msg-2" },
       ]);
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
@@ -272,8 +273,8 @@ describe("ScanAnalysisService", () => {
         },
       });
 
-      scanEmailRepository.save.mockResolvedValue(quickReplyEmail as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(quickReplyEmail);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -301,7 +302,7 @@ describe("ScanAnalysisService", () => {
         { ...starredEmail, messageId: "msg-3" },
       ]);
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
@@ -315,8 +316,8 @@ describe("ScanAnalysisService", () => {
         },
       });
 
-      scanEmailRepository.save.mockResolvedValue(starredEmail as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(starredEmail);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -351,7 +352,7 @@ describe("ScanAnalysisService", () => {
       ];
 
       scanEmailService.findAllForUser.mockResolvedValue(repliedEmails);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
@@ -365,8 +366,8 @@ describe("ScanAnalysisService", () => {
         },
       });
 
-      scanEmailRepository.save.mockResolvedValue(repliedEmails[0] as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(repliedEmails[0]);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -382,16 +383,18 @@ describe("ScanAnalysisService", () => {
 
     it("should skip enrichment when user not connected", async () => {
       scanEmailService.findAllForUser.mockResolvedValue([mockScanEmail]);
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       const loggerWarnSpy = jest
         .spyOn(service["logger"], "warn")
         .mockImplementation();
 
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");
@@ -406,7 +409,7 @@ describe("ScanAnalysisService", () => {
 
     it("should handle thread enrichment errors gracefully", async () => {
       scanEmailService.findAllForUser.mockResolvedValue([mockScanEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockGmail.users.threads.get.mockRejectedValue(
         new Error("Gmail API error"),
@@ -416,8 +419,8 @@ describe("ScanAnalysisService", () => {
         .spyOn(service["logger"], "warn")
         .mockImplementation();
 
-      scanEmailRepository.save.mockResolvedValue(mockScanEmail as any);
-      contextService.createOrUpdateContext.mockResolvedValue({} as any);
+      scanEmailRepository.save.mockResolvedValue(mockScanEmail);
+      contextService.createOrUpdateContext.mockResolvedValue(mockPartial({}));
       scanEmailService.deleteAllForUser.mockResolvedValue(undefined);
 
       await service.analyzeScanResults("user-1");

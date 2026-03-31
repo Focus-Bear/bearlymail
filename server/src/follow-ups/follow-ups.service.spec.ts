@@ -12,6 +12,7 @@ import {
 } from "../database/entities/follow-up.entity";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { FollowUpsService } from "./follow-ups.service";
 
@@ -52,7 +53,7 @@ describe("FollowUpsService", () => {
     threadId: "thread-1",
   } as EmailThread;
 
-  const mockEmail: Email = {
+  const mockEmail: Email = mockPartial({
     id: "email-1",
     userId: "user-1",
     threadId: "thread-1",
@@ -63,7 +64,7 @@ describe("FollowUpsService", () => {
     receivedAt: new Date("2024-01-01"),
     labels: [],
     getPriorityScore: jest.fn().mockReturnValue(50),
-  } as any;
+  });
 
   const mockUser = {
     id: "user-1",
@@ -147,7 +148,7 @@ describe("FollowUpsService", () => {
     it("should create a follow-up with email context", async () => {
       emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
       emailRepository.find.mockResolvedValue([mockEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
       followUpRepository.save.mockResolvedValue(mockFollowUp);
 
@@ -173,7 +174,7 @@ describe("FollowUpsService", () => {
       };
       emailThreadRepository.findOne.mockResolvedValue(null);
       emailRepository.find.mockResolvedValue([mockEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       followUpRepository.create.mockReturnValue(
         followUpWithoutThread as FollowUp,
       );
@@ -187,7 +188,7 @@ describe("FollowUpsService", () => {
     it("should calculate followUpDueAt correctly", async () => {
       emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
       emailRepository.find.mockResolvedValue([mockEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
       followUpRepository.save.mockResolvedValue(mockFollowUp);
 
@@ -207,23 +208,23 @@ describe("FollowUpsService", () => {
     });
 
     it("should capture last their reply and last my reply", async () => {
-      const theirEmail = {
+      const theirEmail = mockPartial({
         ...mockEmail,
         from: "them@example.com",
         labels: [],
         getPriorityScore: jest.fn().mockReturnValue(50),
-      } as any;
-      const myEmail = {
+      });
+      const myEmail = mockPartial({
         ...mockEmail,
         id: "email-2",
         from: "user@example.com",
         labels: ["SENT"],
         getPriorityScore: jest.fn().mockReturnValue(50),
-      } as any;
+      });
 
       emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
       emailRepository.find.mockResolvedValue([theirEmail, myEmail]);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
       followUpRepository.save.mockResolvedValue(mockFollowUp);
 
@@ -292,7 +293,7 @@ describe("FollowUpsService", () => {
 
   describe("markAsReplied", () => {
     it("should update follow-up status to completed", async () => {
-      followUpRepository.update.mockResolvedValue({ affected: 1 } as any);
+      followUpRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.markAsReplied("user-1", "thread-1");
 
@@ -416,7 +417,7 @@ describe("FollowUpsService", () => {
 
   describe("completeFollowUp", () => {
     it("should mark follow-up as completed", async () => {
-      followUpRepository.update.mockResolvedValue({ affected: 1 } as any);
+      followUpRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.completeFollowUp("follow-up-1", "user-1", false);
 
@@ -427,7 +428,7 @@ describe("FollowUpsService", () => {
     });
 
     it("should mark follow-up as cancelled when cancelled is true", async () => {
-      followUpRepository.update.mockResolvedValue({ affected: 1 } as any);
+      followUpRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.completeFollowUp("follow-up-1", "user-1", true);
 
@@ -440,7 +441,7 @@ describe("FollowUpsService", () => {
 
   describe("cancelFollowUp", () => {
     it("should cancel follow-up", async () => {
-      followUpRepository.update.mockResolvedValue({ affected: 1 } as any);
+      followUpRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.cancelFollowUp("follow-up-1", "user-1");
 
@@ -494,16 +495,16 @@ describe("FollowUpsService", () => {
 
   describe("calculateWaitingDuration", () => {
     it("should calculate business days since last user message", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       // 5 days ago
-      const userEmail = {
+      const userEmail = mockPartial({
         ...mockEmail,
         from: "user@example.com",
         labels: ["SENT"],
         receivedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         getPriorityScore: jest.fn().mockReturnValue(50),
-      } as any;
+      });
 
       emailRepository.find.mockResolvedValue([userEmail]);
 
@@ -518,14 +519,14 @@ describe("FollowUpsService", () => {
     });
 
     it("should return 0 when no user messages found", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       emailRepository.find.mockResolvedValue([
-        {
+        mockPartial({
           ...mockEmail,
           from: "them@example.com",
           labels: [],
           getPriorityScore: jest.fn().mockReturnValue(50),
-        } as any,
+        }),
       ]);
 
       const result = await service.calculateWaitingDuration(
@@ -537,10 +538,12 @@ describe("FollowUpsService", () => {
     });
 
     it("should throw error when user not connected to Gmail", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(
         service.calculateWaitingDuration("user-1", "thread-1"),

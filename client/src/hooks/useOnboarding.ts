@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { User } from 'contexts/AuthContext';
+
 interface ScanProgress {
   current: number;
   total: number;
 }
 
 interface UseOnboardingProps {
-  user: any;
+  user: User | null;
   authLoading: boolean;
   refreshUser: () => Promise<void>;
   onScanComplete?: () => void;

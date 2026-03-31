@@ -7,6 +7,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
 
@@ -81,12 +82,12 @@ describe("ContextQaExtractionService", () => {
     mockContextRepository.save.mockResolvedValue(createdContext);
 
     await service.extractQAndAFromSentEmails("user1", [
-      {
+      mockPartial({
         subject: "Re: Return",
         body: "30 days no questions asked.",
         htmlBody: null,
         receivedAt: new Date(),
-      } as any,
+      }),
     ]);
 
     expect(mockContextRepository.create).toHaveBeenCalledWith(
@@ -100,12 +101,12 @@ describe("ContextQaExtractionService", () => {
     ]);
 
     await service.extractQAndAFromSentEmails("user1", [
-      {
+      mockPartial({
         subject: "Test",
         body: "Rare answer.",
         htmlBody: null,
         receivedAt: new Date(),
-      } as any,
+      }),
     ]);
 
     expect(mockContextRepository.create).not.toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Email } from 'types/email';
 
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, KEY_TAB } from 'constants/strings';
@@ -9,7 +9,7 @@ interface UseInboxKeyboardNavigationProps {
   selectedEmailIndex: number;
   setSelectedEmailIndex: (index: number) => void;
   splitView: ReturnType<typeof useSplitView>;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   emailListRef: React.RefObject<HTMLDivElement | null>;
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -105,7 +105,7 @@ export function useInboxKeyboardNavigation({
           }, 0);
         } else if (event.key === KEY_ENTER && selectedEmailIndex >= 0 && visibleEmails[selectedEmailIndex]) {
           event.preventDefault();
-          onEmailSelect(visibleEmails[selectedEmailIndex].id, event as any);
+          onEmailSelect(visibleEmails[selectedEmailIndex].id, event);
         }
       }
     };

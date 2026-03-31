@@ -1,20 +1,22 @@
 import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { Email } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { SUMMARY_TYPE_TLDR } from 'constants/strings';
+import { SummarizationRule } from 'hooks/settings/useSummarizationRules';
 
 // Pure helper: applies the best-matching summarization rule (or fallback) for an email.
 function applyMatchedRule(options: {
-  matchedRule: any;
-  rulesList: any[];
+  matchedRule: SummarizationRule | null;
+  rulesList: SummarizationRule[];
   id: string;
   initializedRef: MutableRefObject<string | null>;
-  handleUseCustomRule: (rule: any) => void;
+  handleUseCustomRule: (rule: SummarizationRule) => void;
   handleSummarize: (type: string) => void;
 }): void {
   const { matchedRule, rulesList, id, initializedRef, handleUseCustomRule, handleSummarize } = options;
-  const validRule = (rule: any) => rule?.ruleId && rule?.whenToUse && rule?.howToSummarize;
+  const validRule = (rule: SummarizationRule | null) => rule?.ruleId && rule?.whenToUse && rule?.howToSummarize;
   const ruleToApply = validRule(matchedRule) ? matchedRule : rulesList.find(validRule);
   initializedRef.current = id;
   if (ruleToApply) {
@@ -26,28 +28,28 @@ function applyMatchedRule(options: {
 
 interface UseEmailDetailInitializationProps {
   id: string | undefined;
-  email: any;
+  email: Email | null;
   isGeneratingSummary: boolean;
   summaryType: string;
   summary: string | null;
-  fetchCustomRules: () => Promise<any[]>;
-  fetchEmail: () => Promise<any>;
+  fetchCustomRules: () => Promise<SummarizationRule[]>;
+  fetchEmail: () => Promise<Email | null>;
   fetchGithubInfo: () => Promise<void>;
   fetchSuggestedActions: () => Promise<void>;
   fetchNote: () => Promise<void>;
   fetchThreadEmails: () => Promise<void>;
-  handleUseCustomRule: (rule: any) => Promise<void>;
+  handleUseCustomRule: (rule: SummarizationRule) => Promise<void>;
   handleSummarize: (type: string) => Promise<void>;
   setSummary: (summary: string | null) => void;
   setSummaryType: (type: string) => void;
   setSummaryCollapsed: (collapsed: boolean) => void;
-  setActionItems: (items: any[]) => void;
+  setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void;
   setExpandedThreadItems: (items: Set<string>) => void;
-  setThreadEmails: (emails: any[]) => void;
+  setThreadEmails: (emails: Email[]) => void;
   setLoading: (loading: boolean) => void;
-  setEmail: (email: any) => void;
-  threadEmails: any[];
-  actionItems: any[];
+  setEmail: (email: Email | null) => void;
+  threadEmails: Email[];
+  actionItems: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>;
 }
 
 // Sub-hook: fetches thread-level data (note, thread emails, action items) when the email's
@@ -58,10 +60,10 @@ function useEmailThreadFetcher({
   fetchThreadEmails,
   setActionItems,
 }: {
-  email: any;
+  email: Email | null;
   fetchNote: () => Promise<void>;
   fetchThreadEmails: () => Promise<void>;
-  setActionItems: (items: any[]) => void;
+  setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void;
 }) {
   const fetchedThreadIdRef = useRef<string | null>(null);
 
@@ -217,14 +219,14 @@ function useThreadEmailsInit({
   setExpandedThreadItems,
   setActionItems,
 }: {
-  threadEmails: any[];
-  email: any;
-  actionItems: any[];
+  threadEmails: Email[];
+  email: Email | null;
+  actionItems: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>;
   expandedItemsSetRef: MutableRefObject<string | null>;
   autoExtractedRef: MutableRefObject<string | null>;
   setExpandedThreadItems: (items: Set<string>) => void;
-  setActionItems: (items: any[]) => void;
-}) {
+  setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void;
+}): void {
   useEffect(() => {
     if (threadEmails.length === 0) {
       return;
@@ -246,23 +248,25 @@ function useThreadEmailsInit({
   }, [threadEmails, setExpandedThreadItems, email, actionItems, setActionItems, expandedItemsSetRef, autoExtractedRef]);
 }
 
-async function autoExtractActions(email: any, setActionItems: (items: any[]) => void, existingActions: any[] = []) {
+async function autoExtractActions(email: Email, setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void, existingActions: Array<{ id?: string; description: string; isCompleted: boolean; source: string }> = []) {
   try {
     const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
       emailBody: email.body,
       subject: email.subject,
       senderInfo: { from: email.from, fromName: email.fromName },
-      existingActions: existingActions.map((item: any) => item.description).filter(Boolean),
-      isSentEmail: email.labelIds?.includes('SENT') ?? false,
+      existingActions: existingActions.map(item => item.description).filter(Boolean),
+      // Bug fix: old code used `any` and accessed `labelIds`, but the server populates `labels` on the Email object (not `labelIds`)
+      isSentEmail: email.labels?.includes('SENT') ?? false,
     });
     if (extractResponse.data && extractResponse.data.length > 0) {
-      const newItems = extractResponse.data.map((item: any) => ({
-        description: item.description,
-        isCompleted: false,
-        source: 'llm',
-      }));
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
+        extractResponse.data.map((item: { description: string; source?: string }) => ({
+          description: item.description,
+          isCompleted: false,
+          source: 'llm',
+        }));
       await Promise.all(
-        newItems.map((item: any) =>
+        newItems.map((item) =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );
@@ -292,9 +296,9 @@ async function initializeEmailSummary({
   isGeneratingSummary: boolean;
   summaryType: string;
   summary: string | null;
-  fetchCustomRules: () => Promise<any[]>;
-  fetchEmail: () => Promise<any>;
-  handleUseCustomRule: (rule: any) => Promise<void>;
+  fetchCustomRules: () => Promise<SummarizationRule[]>;
+  fetchEmail: () => Promise<Email | null>;
+  handleUseCustomRule: (rule: SummarizationRule) => Promise<void>;
   handleSummarize: (type: string) => Promise<void>;
   setSummary: (s: string | null) => void;
   setSummaryType: (t: string) => void;

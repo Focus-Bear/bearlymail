@@ -3,12 +3,13 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
 import { GoogleAccount } from "../database/entities/google-account.entity";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { GoogleAccountsService } from "./google-accounts.service";
 
 describe("GoogleAccountsService", () => {
   let service: GoogleAccountsService;
-  let repository: any;
+  let repository: Record<string, unknown>;
 
   const mockGoogleAccount: GoogleAccount = {
     id: "account-1",
@@ -54,7 +55,7 @@ describe("GoogleAccountsService", () => {
 
   describe("create", () => {
     it("should create a new Google account", async () => {
-      repository.update.mockResolvedValue({ affected: 0 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 0 }));
       repository.create.mockReturnValue(mockGoogleAccount as GoogleAccount);
       repository.save.mockResolvedValue(mockGoogleAccount);
 
@@ -84,7 +85,7 @@ describe("GoogleAccountsService", () => {
     });
 
     it("should unset other primary accounts when creating primary account", async () => {
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       const primaryAccount = { ...mockGoogleAccount, isPrimary: true };
       repository.create.mockReturnValue(primaryAccount as GoogleAccount);
       repository.save.mockResolvedValue(primaryAccount);
@@ -109,7 +110,7 @@ describe("GoogleAccountsService", () => {
     });
 
     it("should create account with default isPrimary false", async () => {
-      repository.update.mockResolvedValue({ affected: 0 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 0 }));
       repository.create.mockReturnValue(mockGoogleAccount as GoogleAccount);
       repository.save.mockResolvedValue(mockGoogleAccount);
 
@@ -316,7 +317,7 @@ describe("GoogleAccountsService", () => {
   describe("setPrimary", () => {
     it("should set account as primary and unset others", async () => {
       repository.findOne.mockResolvedValue(mockGoogleAccount);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       const primaryAccount = { ...mockGoogleAccount, isPrimary: true };
       repository.save.mockResolvedValue(primaryAccount);
 
@@ -341,7 +342,7 @@ describe("GoogleAccountsService", () => {
 
     it("should unset other primary accounts before setting new primary", async () => {
       repository.findOne.mockResolvedValue(mockGoogleAccount);
-      repository.update.mockResolvedValue({ affected: 2 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 2 }));
       repository.save.mockResolvedValue({
         ...mockGoogleAccount,
         isPrimary: true,

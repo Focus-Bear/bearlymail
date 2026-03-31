@@ -487,7 +487,7 @@ describe("AuthService", () => {
         passwordSetupTokenExpiresAt: futureDate,
       };
       // Mock findAll to return array with the user
-      usersService.findAll.mockResolvedValue([userWithToken] as any);
+      usersService.findAll.mockResolvedValue([userWithToken]);
       usersService.update.mockResolvedValue({
         ...userWithToken,
         password: "hashed-password",

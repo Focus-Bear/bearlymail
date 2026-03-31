@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { MODE_FOLLOW_UP } from 'constants/strings';
-import { useFollowUps } from 'hooks/useFollowUps';
+import { FollowUpData, ThreadWithFollowUp, useFollowUps } from 'hooks/useFollowUps';
 
 type InboxMode = string;
 
@@ -20,7 +20,7 @@ export function useInboxFollowUpData(mode: InboxMode, userId: string | undefined
     fetchThreadsWithDrafts,
   } = useFollowUps();
 
-  const [followUpDataMap, setFollowUpDataMap] = useState<Map<string, any>>(new Map());
+  const [followUpDataMap, setFollowUpDataMap] = useState<Map<string, FollowUpData>>(new Map());
 
   useEffect(() => {
     if (mode === MODE_FOLLOW_UP && userId && !authLoading) {
@@ -30,8 +30,8 @@ export function useInboxFollowUpData(mode: InboxMode, userId: string | undefined
 
   useEffect(() => {
     if (mode === MODE_FOLLOW_UP && followUpThreads.length > 0) {
-      const map = new Map<string, any>();
-      followUpThreads.forEach((thread: any) => {
+      const map = new Map<string, FollowUpData>();
+      followUpThreads.forEach((thread: ThreadWithFollowUp) => {
         if (thread.followUp) {
           map.set(thread.threadId, thread.followUp);
         }

@@ -1,9 +1,11 @@
+import { Email } from 'types/email';
+
 export type IsCurrentUserFn = (addr: string) => boolean;
 
 // Pure helper: builds recipients for reply-all mode.
 // No Vite/import.meta dependencies — safe for use in Jest tests.
 export function buildReplyAllRecipients(
-  latestEmail: any,
+  latestEmail: Pick<Email, 'from' | 'to' | 'cc' | 'replyTo'>,
   isCurrentUser: IsCurrentUserFn,
   isLatestFromCurrentUser: boolean | '' | undefined
 ): { recipients: string; cc: string | null } {

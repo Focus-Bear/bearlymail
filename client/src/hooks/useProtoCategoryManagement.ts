@@ -4,12 +4,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
-
-interface ProtoCategory {
-  id: string;
-  name: string;
-  description: string | null;
-}
+import { ProtoCategory } from 'hooks/useProtoCategories';
 
 interface UseProtoCategoryManagementResult {
   protoCategories: ProtoCategory[];
@@ -32,16 +27,8 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
 
   const fetchProtoCategories = useCallback(async () => {
     try {
-      const response = await axios.get<
-        Array<{ id: string; name: string; description: string | null; emailCount: number }>
-      >(`${API_URL}/proto-categories`);
-      setProtoCategories(
-        response.data.map((cat: { id: string; name: string; description: string | null; emailCount: number }) => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description,
-        }))
-      );
+      const response = await axios.get<ProtoCategory[]>(`${API_URL}/proto-categories`);
+      setProtoCategories(response.data);
     } catch (error) {
       console.error('Error fetching proto categories:', error);
     }

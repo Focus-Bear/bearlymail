@@ -58,7 +58,7 @@ describe("priority.utils", () => {
 
     it("should handle breakdown items with undefined values", () => {
       const input = {
-        breakdown: [{ value: 10 }, { value: undefined as any }, { value: 20 }],
+        breakdown: [{ value: 10 }, { value: undefined }, { value: 20 }],
       };
       const result = calculateScoreFromBreakdown(input);
       expect(result).toBe(30);
@@ -66,7 +66,7 @@ describe("priority.utils", () => {
 
     it("should handle breakdown items with null values", () => {
       const input = {
-        breakdown: [{ value: 10 }, { value: null as any }, { value: 20 }],
+        breakdown: [{ value: 10 }, { value: null }, { value: 20 }],
       };
       const result = calculateScoreFromBreakdown(input);
       expect(result).toBe(30);

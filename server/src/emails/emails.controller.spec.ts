@@ -956,7 +956,7 @@ describe("EmailsController", () => {
       );
 
       expect(result).toHaveLength(1);
-      expect((result as any[])[0].id).toBe("no-results");
+      expect((result as { id: string }[])[0].id).toBe("no-results");
     });
   });
 

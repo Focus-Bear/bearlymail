@@ -21,6 +21,7 @@ import {
   ROUTE_STATS,
   STRING_NONE,
 } from 'constants/strings';
+import { User } from 'contexts/AuthContext';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
@@ -220,7 +221,7 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
 };
 
 interface SidebarProps {
-  user: any;
+  user: User | null;
   logout: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;

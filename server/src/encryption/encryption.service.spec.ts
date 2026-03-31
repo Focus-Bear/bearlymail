@@ -198,8 +198,8 @@ describe("EncryptionService", () => {
     });
 
     it("should return empty string for null/undefined email", () => {
-      expect(service.hashEmail(null as any)).toBe("");
-      expect(service.hashEmail(undefined as any)).toBe("");
+      expect(service.hashEmail(null)).toBe("");
+      expect(service.hashEmail(undefined)).toBe("");
     });
 
     it("should normalize email to lowercase before hashing", () => {

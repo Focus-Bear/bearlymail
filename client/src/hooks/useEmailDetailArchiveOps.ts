@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -21,7 +22,7 @@ import { AppDispatch } from 'store/store';
 import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetailOperations.types';
 
 // Pure helper: performs the optimistic archive update and background API call.
-async function executeArchiveRequest(id: string, emailToArchive: any, dispatch: AppDispatch) {
+async function executeArchiveRequest(id: string, emailToArchive: Email | null, dispatch: AppDispatch) {
   dispatch(removeEmail(id));
   dispatch(addOptimisticArchive(id));
   try {
@@ -37,7 +38,7 @@ async function executeArchiveRequest(id: string, emailToArchive: any, dispatch: 
 }
 
 // Pure helper: performs the optimistic snooze update and background API call.
-async function executeSnoozeRequest(id: string, duration: string, emailToSnooze: any, dispatch: AppDispatch) {
+async function executeSnoozeRequest(id: string, duration: string, emailToSnooze: Email | null, dispatch: AppDispatch) {
   dispatch(removeEmail(id));
   dispatch(addOptimisticSnooze(id));
   try {
@@ -56,7 +57,7 @@ async function executeSnoozeRequest(id: string, duration: string, emailToSnooze:
 async function executeSnoozeOp(params: {
   id: string;
   duration: string;
-  emailToSnooze: any;
+  emailToSnooze: Email | null;
   dispatch: AppDispatch;
   options: EmailDetailOperationsOptions;
   navigate: ReturnType<typeof useNavigate>;
@@ -96,7 +97,7 @@ async function executeSnoozeOp(params: {
 
 interface PostReplyOpsParams {
   id: string | undefined;
-  emails: any[];
+  emails: Email[];
   dispatch: AppDispatch;
   options: EmailDetailOperationsOptions;
   navigate: ReturnType<typeof useNavigate>;
@@ -192,7 +193,7 @@ export function useEmailDetailArchiveOps({
       return;
     }
     captureEvent(ANALYTICS_EVENTS.EMAIL_ARCHIVE_CLICKED, { email_id: id });
-    const emailToArchive = emails.find(event => event.id === id);
+    const emailToArchive = emails.find(event => event.id === id) ?? null;
     if (options.onArchiveComplete) {
       if (emailToArchive) {
         dispatch(removeEmail(id));
@@ -228,11 +229,11 @@ export function useEmailDetailArchiveOps({
         return;
       }
       captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CONFIRMED, { email_id: id, snooze_input_length: duration.length });
-      const emailToSnooze = emails.find(event => event.id === id);
+      const emailToSnooze = emails.find(event => event.id === id) ?? null;
       await executeSnoozeOp({
         id,
         duration,
-        emailToSnooze,
+        emailToSnooze: emailToSnooze,
         dispatch,
         options,
         navigate,

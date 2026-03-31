@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, PriorityExplanation } from 'types/email';
 
 import { EmailHeaderLeft } from 'components/inbox/header/EmailHeaderLeft';
 import { EmailHeaderRight } from 'components/inbox/header/EmailHeaderRight';
@@ -9,7 +9,7 @@ interface EmailCardHeaderProps {
   email: Email;
   priorityTooltip: {
     hoveredPriorityEmailId: string | null;
-    priorityExplanation: any;
+    priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;

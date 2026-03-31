@@ -9,6 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
+import { EditorView } from '@tiptap/pm/view';
 import { EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { theme } from 'theme/theme';
@@ -62,7 +63,7 @@ function buildPasteHandler(
   onInlineImage?: (cid: string, file: File) => void,
   trackBlobUrl?: (url: string) => void,
 ) {
-  return (_view: any, event: ClipboardEvent): boolean => {
+  return (_view: EditorView, event: ClipboardEvent): boolean => {
     const items = event.clipboardData?.items;
     if (!items) {
       return false;

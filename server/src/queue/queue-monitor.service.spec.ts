@@ -13,7 +13,7 @@ jest.mock("path");
 describe("QueueMonitorService", () => {
   let service: QueueMonitorService;
   let dataSource: jest.Mocked<DataSource>;
-  let mockBoss: any;
+  let mockBoss: Record<string, unknown>;
 
   const mockMetricsLogFile = "/mock/path/logs/queue-metrics.log";
 

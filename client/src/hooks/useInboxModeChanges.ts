@@ -1,24 +1,25 @@
 import { useEffect, useRef } from 'react';
-import { InboxMode } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 import { clearCacheForMode } from 'utils/emailCache';
 
 import { MODE_TRIAGE } from 'constants/strings';
+import { User } from 'contexts/AuthContext';
 import { InboxFilter } from 'hooks/useInboxFilters';
 
 interface UseInboxModeChangesProps {
   mode: InboxMode;
   hasInitiallyLoaded: boolean;
-  user: any;
+  user: User | null;
   authLoading: boolean;
   fetchEmails: () => Promise<void>;
   fetchBatchStatus: () => Promise<void>;
   fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null) => Promise<void>;
   filters?: Partial<InboxFilter> | null;
-  setEmails: React.Dispatch<React.SetStateAction<any[]>>;
+  setEmails: React.Dispatch<React.SetStateAction<Email[]>>;
   setLoadingModeSwitch: (loading: boolean) => void;
   clearSuggestionsCache: () => void;
-  fetchTriageSuggestions: (emails: any[]) => void;
-  emails: any[];
+  fetchTriageSuggestions: (emails: Email[]) => void;
+  emails: Email[];
   loadingSuggestions: boolean;
 }
 

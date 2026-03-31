@@ -1,5 +1,6 @@
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { plainTextToHtml } from 'utils/emailUtils';
 
@@ -8,13 +9,19 @@ import { STRING_STALE } from 'constants/strings';
 
 const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];
 
+interface SuggestedReplyResponse {
+  options: Array<{ label: string; text: string }>;
+  isGenerating: boolean;
+  lastEmailId: string | null;
+}
+
 interface ResolveGeneratedOptionsParams {
-  email: { id: string; emailThreadId?: string; from: string; fromName?: string; subject: string; body: string };
+  email: Email;
   currentEmailId: string;
   currentGenerationEmailIdRef: MutableRefObject<string | null>;
   controller: AbortController;
-  fetchPreGenerated: (threadId: string, signal: AbortSignal) => Promise<any>;
-  generateOnDemand: (emailArg: any, signal: AbortSignal) => Promise<any>;
+  fetchPreGenerated: (threadId: string, signal: AbortSignal) => Promise<SuggestedReplyResponse | null>;
+  generateOnDemand: (emailArg: Email, signal: AbortSignal) => Promise<Array<{ label: string; text: string }> | null>;
   setIsGeneratingInBackground: (active: boolean) => void;
 }
 
@@ -73,23 +80,8 @@ function applyGeneratedOptions(
   setSelectedReplyOption(0);
 }
 
-interface Email {
-  id: string;
-  emailThreadId?: string;
-  from: string;
-  fromName?: string;
-  subject: string;
-  body: string;
-}
-
 interface UseReplyDraftGenerationOptions {
   autoGenerate?: boolean;
-}
-
-interface SuggestedReplyResponse {
-  options: Array<{ label: string; text: string }>;
-  isGenerating: boolean;
-  lastEmailId: string | null;
 }
 
 export interface ReplyGenerationDebugInfo {

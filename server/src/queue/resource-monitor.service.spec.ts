@@ -108,14 +108,14 @@ describe("ResourceMonitorService", () => {
 
   describe("calculateCpuUsage", () => {
     it("should return 0 on first call", () => {
-      const usage = (service as any).calculateCpuUsage();
+      const usage = service.calculateCpuUsage();
 
       expect(usage).toBe(0);
     });
 
     it("should calculate CPU usage correctly on subsequent calls", () => {
       // First call to initialize
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       // Mock second CPU reading (higher usage)
       mockCpus.mockReturnValue([
@@ -152,7 +152,7 @@ describe("ResourceMonitorService", () => {
       // Advance time
       jest.spyOn(Date, "now").mockReturnValue(1000);
 
-      const usage = (service as any).calculateCpuUsage();
+      const usage = service.calculateCpuUsage();
 
       expect(usage).toBeGreaterThan(0);
       expect(usage).toBeLessThanOrEqual(100);
@@ -160,7 +160,7 @@ describe("ResourceMonitorService", () => {
 
     it("should clamp CPU usage to 0-100 range", () => {
       // First call to initialize
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       // Mock extreme values
       mockCpus.mockReturnValue([
@@ -179,7 +179,7 @@ describe("ResourceMonitorService", () => {
 
       jest.spyOn(Date, "now").mockReturnValue(1000);
 
-      const usage = (service as any).calculateCpuUsage();
+      const usage = service.calculateCpuUsage();
 
       expect(usage).toBeGreaterThanOrEqual(0);
       expect(usage).toBeLessThanOrEqual(100);
@@ -196,7 +196,7 @@ describe("ResourceMonitorService", () => {
         },
       ]);
 
-      const metrics = await (service as any).getDatabaseMetrics();
+      const metrics = await service.getDatabaseMetrics();
 
       expect(dataSource.query).toHaveBeenCalled();
       expect(metrics).toEqual({
@@ -213,7 +213,7 @@ describe("ResourceMonitorService", () => {
         .spyOn(service["logger"], "warn")
         .mockImplementation();
 
-      const metrics = await (service as any).getDatabaseMetrics();
+      const metrics = await service.getDatabaseMetrics();
 
       expect(metrics).toEqual({
         activeConnections: 0,
@@ -227,7 +227,7 @@ describe("ResourceMonitorService", () => {
     it("should handle missing result data", async () => {
       dataSource.query.mockResolvedValue([]);
 
-      const metrics = await (service as any).getDatabaseMetrics();
+      const metrics = await service.getDatabaseMetrics();
 
       expect(metrics).toEqual({
         activeConnections: 0,
@@ -245,7 +245,7 @@ describe("ResourceMonitorService", () => {
         },
       ]);
 
-      const metrics = await (service as any).getDatabaseMetrics();
+      const metrics = await service.getDatabaseMetrics();
 
       expect(metrics.activeConnections).toBe(0);
       expect(metrics.idleConnections).toBe(0);
@@ -264,7 +264,7 @@ describe("ResourceMonitorService", () => {
       ]);
 
       // Initialize CPU usage calculation
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       await service.collectMetrics();
 
@@ -290,11 +290,11 @@ describe("ResourceMonitorService", () => {
       ]);
 
       // Initialize CPU usage
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       // Mock high CPU usage
       jest
-        .spyOn(service as any, "calculateCpuUsage")
+        .spyOn(service, "calculateCpuUsage")
         .mockReturnValue(RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL + 10);
 
       const loggerWarnSpy = jest
@@ -321,7 +321,7 @@ describe("ResourceMonitorService", () => {
       // 10MB (90% used)
       mockFreemem.mockReturnValue(10 * 1024 * 1024);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       const loggerWarnSpy = jest
         .spyOn(service["logger"], "warn")
@@ -345,7 +345,7 @@ describe("ResourceMonitorService", () => {
         },
       ]);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       const loggerWarnSpy = jest
         .spyOn(service["logger"], "warn")
@@ -368,7 +368,7 @@ describe("ResourceMonitorService", () => {
         throw new Error("File write error");
       });
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       const loggerErrorSpy = jest
         .spyOn(service["logger"], "error")
@@ -414,7 +414,7 @@ describe("ResourceMonitorService", () => {
         },
       ]);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       const metrics = await service.getCurrentMetrics();
 
@@ -437,7 +437,7 @@ describe("ResourceMonitorService", () => {
       mockTotalmem.mockReturnValue(8 * 1024 * 1024 * 1024);
       mockFreemem.mockReturnValue(4 * 1024 * 1024 * 1024);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       const metrics = await service.getCurrentMetrics();
 
@@ -453,7 +453,7 @@ describe("ResourceMonitorService", () => {
         { active: "0", idle: "0", total: "0" },
       ]);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       await service.onModuleInit();
 
@@ -474,7 +474,7 @@ describe("ResourceMonitorService", () => {
         { active: "0", idle: "0", total: "0" },
       ]);
 
-      (service as any).calculateCpuUsage();
+      service.calculateCpuUsage();
 
       await service.onModuleInit();
 

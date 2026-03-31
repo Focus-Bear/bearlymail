@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { Email, InboxMode } from 'types/email';
+import { Email, InboxMode, TriageSuggestion } from 'types/email';
 
 import { ResizableDivider } from 'components/inbox/ResizableDivider';
 import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
+import { FollowUpData } from 'hooks/useFollowUps';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
+import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from './inbox.types';
 import { InboxEmailListPanel } from './InboxContentParts';
 import { useInboxContentState } from './useInboxContentState';
 
@@ -19,20 +21,20 @@ export interface InboxContentProps {
   fetchError: string | null;
   selectedEmailIndex: number;
   selectedEmailIds: Set<string>;
-  triageSuggestions: Map<string, any>;
-  followUpDataMap: Map<string, any>;
+  triageSuggestions: Map<string, TriageSuggestion>;
+  followUpDataMap: Map<string, FollowUpData>;
   isGeneratingDrafts: boolean;
   followUpsError: string | null;
-  priorityTooltip: any;
-  keyboardHint: any;
-  snoozeInput: any;
-  emailActions: any;
-  modals: any;
+  priorityTooltip: InboxPriorityTooltip;
+  keyboardHint: InboxKeyboardHint;
+  snoozeInput: InboxSnoozeInput;
+  emailActions: InboxEmailActions;
+  modals: InboxModals;
   splitView: ReturnType<typeof useSplitView>;
   nextDelivery: Date | null;
   lastUrgentCheck: Date | null;
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   onGenerateDrafts: () => Promise<void>;
   onRetry: () => void;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;

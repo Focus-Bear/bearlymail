@@ -8,7 +8,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
+import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types/email';
 import { devLog, devWarn } from 'utils/dev-logger';
 import { ACCORDION_BUDGETS } from 'utils/performanceBudget';
 
@@ -32,11 +32,14 @@ import {
 } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
+import { FollowUpData } from 'hooks/useFollowUps';
 import { usePerformanceBudget } from 'hooks/usePerformanceBudget';
+import { ProtoCategory } from 'hooks/useProtoCategories';
 import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
 
+import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from './inbox.types';
 import {
   computeCanRenderCategories,
   computeEmailListBorderRight,
@@ -54,16 +57,16 @@ export interface InboxEmailItemProps {
   mode: InboxMode;
   selectedEmailIds: Set<string>;
   selectedEmailIndex: number;
-  triageSuggestions: Map<string, any>;
-  followUpDataMap: Map<string, any>;
-  priorityTooltip: any;
-  keyboardHint: any;
-  snoozeInput: any;
-  emailActions: any;
-  modals: any;
+  triageSuggestions: Map<string, TriageSuggestion>;
+  followUpDataMap: Map<string, FollowUpData>;
+  priorityTooltip: InboxPriorityTooltip;
+  keyboardHint: InboxKeyboardHint;
+  snoozeInput: InboxSnoozeInput;
+  emailActions: InboxEmailActions;
+  modals: InboxModals;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   onSendFollowUp: (followUpId: string, draft: string, recipientName?: string) => Promise<void>;
   recipientName?: string;
 }
@@ -131,7 +134,7 @@ export const InboxEmailItem: React.FC<InboxEmailItemProps> = ({
 
 export interface InboxOtherCategoryContentProps {
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
-  protoCategories: any[];
+  protoCategories: ProtoCategory[];
   uncategorizedOtherEmails: Email[];
   globalIndex: number;
   convertingProtoCategoryId: string | null | undefined;
@@ -195,7 +198,7 @@ export interface InboxCategoryItemProps {
   group: CategoryGroup | undefined;
   globalIndex: number;
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
-  protoCategories: any[];
+  protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;
   deletingProtoCategoryId: string | null | undefined;
@@ -332,7 +335,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
       params.append('offset', '0');
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       const fetchedEmails = response.data?.emails || [];
-      const fetchedIds = fetchedEmails.map((email: any) => email.id).filter(Boolean);
+      const fetchedIds = fetchedEmails.map((email: { id?: string }) => email.id).filter(Boolean);
       if (fetchedIds.length > 0) {
         await onBulkArchive(fetchedIds);
         // Mark the category as loaded and decrement the summary count so the ghost accordion
@@ -400,7 +403,7 @@ interface InboxCategoryListProps {
   displayCategories: Array<{ id: string | null; name: string; count: number }>;
   emailCategoryMap: Map<string, CategoryGroup>;
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
-  protoCategories: any[];
+  protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;
   deletingProtoCategoryId: string | null | undefined;
@@ -576,7 +579,7 @@ export interface InboxEmailListPanelProps {
   displayCategories: Array<{ id: string | null; name: string; count: number }>;
   emailCategoryMap: Map<string, CategoryGroup>;
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
-  protoCategories: any[];
+  protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null | undefined;
   deletingProtoCategoryId: string | null | undefined;
@@ -585,16 +588,16 @@ export interface InboxEmailListPanelProps {
   hasMore?: boolean;
   selectedEmailIds: Set<string>;
   selectedEmailIndex: number;
-  triageSuggestions: Map<string, any>;
-  followUpDataMap: Map<string, any>;
-  priorityTooltip: any;
-  keyboardHint: any;
-  snoozeInput: any;
-  emailActions: any;
-  modals: any;
+  triageSuggestions: Map<string, TriageSuggestion>;
+  followUpDataMap: Map<string, FollowUpData>;
+  priorityTooltip: InboxPriorityTooltip;
+  keyboardHint: InboxKeyboardHint;
+  snoozeInput: InboxSnoozeInput;
+  emailActions: InboxEmailActions;
+  modals: InboxModals;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   onSendFollowUp: (followUpId: string, draft: string, recipientName?: string) => Promise<void>;
   onGenerateDrafts: () => Promise<void>;
   onRetry: () => void;
@@ -658,7 +661,7 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
       onEmailClick={onEmailClick}
       onEmailSelect={onEmailSelect}
       onSendFollowUp={onSendFollowUp}
-      recipientName={(email as any).otherPersonName}
+      recipientName={email.otherPersonName ?? undefined}
     />
   );
 

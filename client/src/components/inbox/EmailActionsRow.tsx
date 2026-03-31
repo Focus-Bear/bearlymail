@@ -24,7 +24,7 @@ interface UnsubscribeOrBlockProps {
   onBlockSender: (emailId: string, event: React.MouseEvent) => void;
 }
 const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlockSender }) => {
-  const unsubscribeLink = extractUnsubscribeLink((email as any).htmlBody, email.body);
+  const unsubscribeLink = extractUnsubscribeLink(email.htmlBody, email.body);
   const btnStyle = {
     background: 'transparent',
     border: 'none',

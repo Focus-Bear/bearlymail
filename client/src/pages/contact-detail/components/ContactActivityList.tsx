@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { ContactDetail, ContactNote } from 'types/contact';
+import { ContactDealSummary, ContactDetail, ContactNote } from 'types/contact';
 
 import { OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 
@@ -139,7 +139,7 @@ const ContactDealsList: React.FC<ContactDealsListProps> = ({
       </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {contact.deals.map((deal: any) => (
+        {contact.deals.map((deal: ContactDealSummary) => (
           <div
             key={deal.id}
             onClick={dealsOnView}

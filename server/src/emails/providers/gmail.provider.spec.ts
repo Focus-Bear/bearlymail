@@ -270,11 +270,11 @@ describe("GmailProvider — pagination retry & auth failures", () => {
   });
 
   it("throws GmailRateLimitError immediately on 429 — does NOT retry", async () => {
-    const fakeGmail: any = {
+    const fakeGmail: Record<string, unknown> = {
       users: {
         threads: {
           list: jest.fn().mockImplementation(() => {
-            const err: any = new Error("Rate limited");
+            const err: Error = new Error("Rate limited");
             err.response = { status: 429, headers: { "retry-after": "60" } };
             return Promise.reject(err);
           }),
@@ -283,7 +283,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     };
 
     await expect(
-      (gmailSyncService as any).fetchAllThreadsWithPagination(
+      gmailSyncService.fetchAllThreadsWithPagination(
         fakeGmail,
         "is:starred",
         100,
@@ -300,11 +300,11 @@ describe("GmailProvider — pagination retry & auth failures", () => {
   });
 
   it("GmailRateLimitError preserves Retry-After seconds from response header", async () => {
-    const fakeGmail: any = {
+    const fakeGmail: Record<string, unknown> = {
       users: {
         threads: {
           list: jest.fn().mockImplementation(() => {
-            const err: any = new Error("Rate limited");
+            const err: Error = new Error("Rate limited");
             err.response = { status: 429, headers: { "retry-after": "120" } };
             return Promise.reject(err);
           }),
@@ -314,7 +314,7 @@ describe("GmailProvider — pagination retry & auth failures", () => {
 
     let thrown: GmailRateLimitError | undefined;
     try {
-      await (gmailSyncService as any).fetchAllThreadsWithPagination(
+      await gmailSyncService.fetchAllThreadsWithPagination(
         fakeGmail,
         "is:starred",
         100,
@@ -329,13 +329,13 @@ describe("GmailProvider — pagination retry & auth failures", () => {
 
   it("retries on 5xx transient error and succeeds", async () => {
     let callCount = 0;
-    const fakeGmail: any = {
+    const fakeGmail: Record<string, unknown> = {
       users: {
         threads: {
           list: jest.fn().mockImplementation(() => {
             callCount++;
             if (callCount < 3) {
-              const err: any = new Error("Server error");
+              const err: Error = new Error("Server error");
               err.response = { status: 503, headers: {} };
               return Promise.reject(err);
             }
@@ -347,9 +347,11 @@ describe("GmailProvider — pagination retry & auth failures", () => {
       },
     };
 
-    const result = await (
-      gmailSyncService as any
-    ).fetchAllThreadsWithPagination(fakeGmail, "is:starred", 100);
+    const result = await gmailSyncService.fetchAllThreadsWithPagination(
+      fakeGmail,
+      "is:starred",
+      100,
+    );
 
     expect(result).toEqual(["t1"]);
     // Should have retried (called more than once)
@@ -362,10 +364,10 @@ describe("GmailProvider — pagination retry & auth failures", () => {
   });
 
   it("throws after exhausting 5xx retries", async () => {
-    const serverErr: any = new Error("Server error");
+    const serverErr: Error = new Error("Server error");
     serverErr.response = { status: 500, headers: {} };
 
-    const fakeGmail: any = {
+    const fakeGmail: Record<string, unknown> = {
       users: {
         threads: {
           list: jest.fn().mockRejectedValue(serverErr),
@@ -376,14 +378,14 @@ describe("GmailProvider — pagination retry & auth failures", () => {
     // Replace setTimeout with an immediate no-op for this test so exponential
     // backoff sleeps complete instantly (avoids ~30s of real waiting).
     const realSetTimeout = global.setTimeout;
-    global.setTimeout = ((fn: () => void) => {
+    global.setTimeout = (fn: () => void) => {
       fn();
-      return 0 as any;
-    }) as any;
+      return 0;
+    };
     try {
       let thrown: unknown;
       try {
-        await (gmailSyncService as any).fetchAllThreadsWithPagination(
+        await gmailSyncService.fetchAllThreadsWithPagination(
           fakeGmail,
           "is:starred",
           100,

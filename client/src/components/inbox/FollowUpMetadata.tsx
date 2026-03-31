@@ -6,11 +6,7 @@ import { Email } from 'types/email';
 import { MS_PER_DAY } from 'constants/numbers';
 
 interface FollowUpMetadataProps {
-  email: Email & {
-    otherPersonName?: string;
-    lastTheirReplyAt?: string;
-    lastMyReplyAt?: string;
-  };
+  email: Email;
 }
 
 export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => {

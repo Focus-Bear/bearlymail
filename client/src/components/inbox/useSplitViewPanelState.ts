@@ -37,7 +37,7 @@ export function useSplitViewPanelState({
   onPrioritySet,
 }: UseSplitViewPanelStateParams): UseSplitViewPanelStateResult {
   const emailDetailComponentRef = useRef<EmailDetailRef | null>(null);
-  const [starCount, setStarCount] = useState<number>((selectedEmail as any)?.starCount ?? 0);
+  const [starCount, setStarCount] = useState<number>(selectedEmail?.starCount ?? 0);
   const [correspondentName, setCorrespondentName] = useState<string>('');
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
@@ -47,7 +47,7 @@ export function useSplitViewPanelState({
   }, []);
 
   useEffect(() => {
-    setStarCount((selectedEmail as any)?.starCount ?? 0);
+    setStarCount(selectedEmail?.starCount ?? 0);
     setCorrespondentName('');
   }, [selectedEmailId, selectedEmail]);
 

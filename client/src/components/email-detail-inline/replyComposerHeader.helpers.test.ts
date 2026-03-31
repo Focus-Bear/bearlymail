@@ -2,6 +2,9 @@
  * Unit tests for ReplyComposerHeader helpers
  * Issue #769 — backfill unit tests for frontend business logic helpers
  */
+import { mockPartial } from 'test/mockUtils';
+import { Email } from 'types/email';
+
 import { buildReplyAllRecipients } from 'hooks/buildReplyAllRecipients';
 
 import { getHeaderTitle } from './replyComposerHeader.helpers';
@@ -32,11 +35,11 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
   };
 
   it('includes CC recipients when replying to an email with CC', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'me@example.com',
       cc: 'cc1@example.com, cc2@example.com',
-    };
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { recipients, cc } = buildReplyAllRecipients(email, isCurrentUser, false);
     expect(recipients).toContain('sender@example.com');
@@ -46,11 +49,11 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
 
 
   it('excludes the current user from CC in reply-all', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'me@example.com',
       cc: 'cc1@example.com, me@example.com',
-    };
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { cc } = buildReplyAllRecipients(email, isCurrentUser, false);
     expect(cc).toContain('cc1@example.com');
@@ -58,33 +61,33 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
   });
 
   it('returns null cc when email has no CC field', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'me@example.com',
-      cc: null,
-    };
+      cc: undefined,
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { cc } = buildReplyAllRecipients(email, isCurrentUser, false);
     expect(cc).toBeNull();
   });
 
   it('returns null cc when CC field is empty string', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'me@example.com',
       cc: '',
-    };
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { cc } = buildReplyAllRecipients(email, isCurrentUser, false);
     expect(cc).toBeNull();
   });
 
   it('handles CC with "Name <email>" format, stripping self', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'me@example.com',
       cc: 'Alice <alice@example.com>, Me <me@example.com>',
-    };
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { cc } = buildReplyAllRecipients(email, isCurrentUser, false);
     expect(cc).toContain('Alice <alice@example.com>');
@@ -92,11 +95,11 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
   });
 
   it('when current user is the sender (reply-all on sent email), includes To recipients', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'me@example.com',
       to: 'recipient@example.com, cc@example.com',
       cc: 'someone@example.com',
-    };
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { recipients, cc } = buildReplyAllRecipients(email, isCurrentUser, true);
     expect(recipients).toContain('recipient@example.com');
@@ -105,11 +108,11 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
   });
 
   it('deduplicates recipients in reply-all', () => {
-    const email = {
+    const email = mockPartial<Email>({
       from: 'sender@example.com',
       to: 'sender@example.com, other@example.com',
-      cc: null,
-    };
+      cc: undefined,
+    });
     const isCurrentUser = makeIsCurrentUser('me@example.com');
     const { recipients } = buildReplyAllRecipients(email, isCurrentUser, false);
     const parts = recipients.split(',').map((str: string) => str.trim());

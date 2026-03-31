@@ -20,10 +20,14 @@ export type { SummarizationRule } from 'hooks/settings/useSummarizationRules';
 export type { BatchSchedule };
 export type { AnalyzeProgress };
 
+type GoogleAccount = { id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean };
+type Office365Account = { id: string; email: string; name?: string; isPrimary?: boolean };
+type ZohoAccount = { id: string; email: string; name?: string; isPrimary?: boolean };
+
 interface AccountSetters {
-  setGoogleAccounts: (v: any[]) => void;
-  setOffice365Accounts: (v: any[]) => void;
-  setZohoAccounts: (v: any[]) => void;
+  setGoogleAccounts: (v: GoogleAccount[]) => void;
+  setOffice365Accounts: (v: Office365Account[]) => void;
+  setZohoAccounts: (v: ZohoAccount[]) => void;
   setDisplayName: (v: string | undefined) => void;
   setJobTitle: (v: string | undefined) => void;
   setCalendarBookingUrl: (v: string) => void;
@@ -60,9 +64,9 @@ async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
  * Extracted from useSettingsData to keep that hook under the max-lines-per-function limit.
  */
 function useAccountsList() {
-  const [googleAccounts, setGoogleAccounts] = useState<any[]>([]);
-  const [office365Accounts, setOffice365Accounts] = useState<any[]>([]);
-  const [zohoAccounts, setZohoAccounts] = useState<any[]>([]);
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
+  const [office365Accounts, setOffice365Accounts] = useState<Office365Account[]>([]);
+  const [zohoAccounts, setZohoAccounts] = useState<ZohoAccount[]>([]);
   return { googleAccounts, setGoogleAccounts, office365Accounts, setOffice365Accounts, zohoAccounts, setZohoAccounts };
 }
 

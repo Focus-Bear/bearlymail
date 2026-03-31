@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { TFunction } from 'i18next';
 import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
@@ -52,7 +53,7 @@ interface SchedulingFormProps {
   onCopyLink: () => void;
   labelStyle: React.CSSProperties;
   selectStyle: React.CSSProperties;
-  t: (tKey: string, opts?: any) => string;
+  t: TFunction;
 }
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({

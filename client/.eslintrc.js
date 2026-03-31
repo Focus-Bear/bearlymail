@@ -295,6 +295,12 @@ module.exports = {
     ],
 
     // ===========================================
+    // TYPE SAFETY
+    // ===========================================
+    // Enforce no explicit `any` in production code. Test files are excluded via override below.
+    '@typescript-eslint/no-explicit-any': 'error',
+
+    // ===========================================
     // VITE ENVIRONMENT VARIABLES
     // ===========================================
     // Disallow process.env in client code - this is a Vite project, not CRA.
@@ -380,6 +386,8 @@ module.exports = {
         '**/debug/**/*.ts',
         '**/components/inbox/DebugPanel.tsx',
         '**/components/email-detail-inline/ReplyComposerDebugPanel.tsx',
+        '**/components/email-detail-inline/EmailDetailDebugPanel.tsx',
+        '**/components/email-detail/EmailDetailDebugInfo.tsx',
       ],
       rules: {
         'i18next/no-literal-string': 'off',
@@ -389,6 +397,8 @@ module.exports = {
         'no-restricted-syntax': 'off',
         'max-lines-per-function': 'off',
         'react/no-array-index-key': 'off',
+        // Debug panels display raw internal state — `any` is acceptable here.
+        '@typescript-eslint/no-explicit-any': 'off',
       },
     },
     {
@@ -428,6 +438,8 @@ module.exports = {
         'no-restricted-syntax': 'off',
         'prefer-template': 'off',
         'id-denylist': 'off',
+        // Stories are developer-only fixtures — `any` is acceptable here.
+        '@typescript-eslint/no-explicit-any': 'off',
       },
     },
     {

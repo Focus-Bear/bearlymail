@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { GitHubLink } from 'types/email';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
 import { API_URL } from 'config/api';
@@ -16,7 +17,7 @@ interface Email {
   htmlBody?: string;
   receivedAt: string;
   githubMetadata?: {
-    links: any[];
+    links: GitHubLink[];
   };
   attachments?: Array<{
     attachmentId: string;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email, getEmailPriorityScore, isEmailPriorityCalculating } from 'types/email';
+import { Email, getEmailPriorityScore, isEmailPriorityCalculating, PriorityExplanation } from 'types/email';
 import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
@@ -11,7 +11,7 @@ interface PriorityBadgeProps {
   email: Email;
   priorityTooltip: {
     hoveredPriorityEmailId: string | null;
-    priorityExplanation: any;
+    priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;

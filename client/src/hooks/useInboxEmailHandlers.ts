@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { InboxMode } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -9,11 +9,11 @@ import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
 import { useSplitView } from 'hooks/useSplitView';
 
 interface EmailHandlerParams {
-  emails: any[];
+  emails: Email[];
   selectedEmailIndex: number;
   selectedEmailIds: Set<string>;
   setSelectedEmailIndex: (index: number) => void;
-  handleEmailClickBase: (emailId: string, index: number, event: React.MouseEvent, emails: any[]) => void;
+  handleEmailClickBase: (emailId: string, index: number, event: React.MouseEvent, emails: Email[]) => void;
   handleArchiveBase: (emailId: string, event: React.MouseEvent) => void;
   handleSetStarCountBase: (emailId: string, count: number) => void;
   handleMarkAsRead: (emailId: string) => void;
@@ -90,7 +90,7 @@ export function useInboxEmailHandlers({
   );
 
   const handleEmailSelect = useCallback(
-    (emailId: string, event: React.MouseEvent) => {
+    (emailId: string, _event: React.MouseEvent | KeyboardEvent) => {
       captureEvent(ANALYTICS_EVENTS.EMAIL_CLICKED, { email_id: emailId, mode });
       if (splitView.isMobile) {
         handleMarkAsRead(emailId);

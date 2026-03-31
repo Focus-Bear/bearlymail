@@ -15,7 +15,7 @@ describe("EncryptionHelper", () => {
     // Re-initialize the provider with the test key
     encryptionKeyProvider.initialize();
     // Reset the consecutive failure counter
-    (EncryptionHelper as any).consecutiveFailures = 0;
+    EncryptionHelper.consecutiveFailures = 0;
   });
 
   afterEach(() => {
@@ -28,7 +28,7 @@ describe("EncryptionHelper", () => {
 
   describe("getKey (via encryptionKeyProvider)", () => {
     it("should throw FATAL error when provider is not initialized", () => {
-      const provider = encryptionKeyProvider as any;
+      const provider = encryptionKeyProvider;
       const originalInitialized = provider.initialized;
       const originalDerivedKey = provider.derivedKey;
       provider.initialized = false;
@@ -47,7 +47,7 @@ describe("EncryptionHelper", () => {
   describe("encryptionKeyProvider.initialize()", () => {
     it("should throw FATAL error when ENCRYPTION_KEY is not set", () => {
       delete process.env.ENCRYPTION_KEY;
-      const provider = new (encryptionKeyProvider.constructor as any)();
+      const provider = new encryptionKeyProvider.constructor();
       expect(() => provider.initialize()).toThrow(
         "FATAL: ENCRYPTION_KEY environment variable is not set.",
       );
@@ -55,7 +55,7 @@ describe("EncryptionHelper", () => {
 
     it("should throw FATAL error when ENCRYPTION_KEY is empty string", () => {
       process.env.ENCRYPTION_KEY = "";
-      const provider = new (encryptionKeyProvider.constructor as any)();
+      const provider = new encryptionKeyProvider.constructor();
       expect(() => provider.initialize()).toThrow(
         "FATAL: ENCRYPTION_KEY environment variable is not set.",
       );
@@ -208,19 +208,19 @@ describe("EncryptionHelper", () => {
     it("should reset consecutive failure counter on success", () => {
       const plaintext = "hello";
       const encrypted = EncryptionHelper.encrypt(plaintext);
-      (EncryptionHelper as any).consecutiveFailures = 5;
+      EncryptionHelper.consecutiveFailures = 5;
       EncryptionHelper.tryDecrypt(encrypted);
-      expect((EncryptionHelper as any).consecutiveFailures).toBe(0);
+      expect(EncryptionHelper.consecutiveFailures).toBe(0);
     });
 
     it("should increment consecutive failure counter on each failure", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      (EncryptionHelper as any).consecutiveFailures = 0;
+      EncryptionHelper.consecutiveFailures = 0;
       EncryptionHelper.tryDecrypt(badCiphertext);
-      expect((EncryptionHelper as any).consecutiveFailures).toBe(1);
+      expect(EncryptionHelper.consecutiveFailures).toBe(1);
       EncryptionHelper.tryDecrypt(badCiphertext);
-      expect((EncryptionHelper as any).consecutiveFailures).toBe(2);
+      expect(EncryptionHelper.consecutiveFailures).toBe(2);
     });
 
     it("should throw FATAL after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures", () => {
@@ -237,7 +237,7 @@ describe("EncryptionHelper", () => {
     it("should return raw ciphertext on failure below threshold", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      (EncryptionHelper as any).consecutiveFailures = 0;
+      EncryptionHelper.consecutiveFailures = 0;
       const result = EncryptionHelper.tryDecrypt(badCiphertext);
       expect(result).toBe(badCiphertext);
     });
@@ -258,8 +258,8 @@ describe("EncryptionHelper", () => {
     });
 
     it("should return empty string for null/undefined", () => {
-      expect(EncryptionHelper.hashEmail(null as any)).toBe("");
-      expect(EncryptionHelper.hashEmail(undefined as any)).toBe("");
+      expect(EncryptionHelper.hashEmail(null)).toBe("");
+      expect(EncryptionHelper.hashEmail(undefined)).toBe("");
     });
 
     it("should normalize email to lowercase", () => {

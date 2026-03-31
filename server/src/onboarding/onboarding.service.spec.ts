@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { OnboardingService } from "./onboarding.service";
 
@@ -66,7 +67,7 @@ describe("OnboardingService", () => {
 
   describe("startHistoricalScan", () => {
     it("should queue historical email scan job", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       const result = await service.startHistoricalScan("user-1");
 
@@ -90,10 +91,12 @@ describe("OnboardingService", () => {
     });
 
     it("should throw error when Google account not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(service.startHistoricalScan("user-1")).rejects.toThrow(
         "Google account not connected",
@@ -102,10 +105,12 @@ describe("OnboardingService", () => {
     });
 
     it("should throw error when access token is missing", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: undefined,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: undefined,
+        }),
+      );
 
       await expect(service.startHistoricalScan("user-1")).rejects.toThrow(
         "Google account not connected",
@@ -115,11 +120,13 @@ describe("OnboardingService", () => {
 
   describe("getScanProgress", () => {
     it("should return progress when scan is in progress", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: 50,
-        scanTotal: 100,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: 50,
+          scanTotal: 100,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 
@@ -133,11 +140,13 @@ describe("OnboardingService", () => {
     });
 
     it("should return null when no scan progress", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: null,
-        scanTotal: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: null,
+          scanTotal: null,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 
@@ -145,11 +154,13 @@ describe("OnboardingService", () => {
     });
 
     it("should return null when scanProgress is null", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: null,
-        scanTotal: 100,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: null,
+          scanTotal: 100,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 
@@ -157,11 +168,13 @@ describe("OnboardingService", () => {
     });
 
     it("should return null when scanTotal is null", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: 50,
-        scanTotal: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: 50,
+          scanTotal: null,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 
@@ -177,11 +190,13 @@ describe("OnboardingService", () => {
     });
 
     it("should handle completed scan (progress equals total)", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: 100,
-        scanTotal: 100,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: 100,
+          scanTotal: 100,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 
@@ -194,11 +209,13 @@ describe("OnboardingService", () => {
     });
 
     it("should handle scan at 0%", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        scanProgress: 0,
-        scanTotal: 100,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          scanProgress: 0,
+          scanTotal: 100,
+        }),
+      );
 
       const result = await service.getScanProgress("user-1");
 

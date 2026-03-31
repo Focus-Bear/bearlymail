@@ -2,6 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
+import { mockPartial } from "../../test/helpers/mock-utils";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
@@ -128,13 +129,13 @@ describe("Office365Provider", () => {
     });
 
     it("should skip existing scan emails", async () => {
-      office365AccountsService.findPrimary.mockResolvedValue(
-        mockAccount as any,
+      office365AccountsService.findPrimary.mockResolvedValue(mockAccount);
+      scanEmailService.findByMessageId.mockResolvedValue(
+        mockPartial({
+          id: "existing-123",
+          messageId: "msg-123",
+        }),
       );
-      scanEmailService.findByMessageId.mockResolvedValue({
-        id: "existing-123",
-        messageId: "msg-123",
-      } as any);
 
       await provider.processScanEmail("user-123", "msg-123");
 
@@ -142,9 +143,7 @@ describe("Office365Provider", () => {
     });
 
     it("should check for existing scan email before processing", async () => {
-      office365AccountsService.findPrimary.mockResolvedValue(
-        mockAccount as any,
-      );
+      office365AccountsService.findPrimary.mockResolvedValue(mockAccount);
       scanEmailService.findByMessageId.mockResolvedValue(null);
 
       // The actual API call will fail but we're testing the flow
@@ -171,11 +170,13 @@ describe("Office365Provider", () => {
     });
 
     it("should handle missing refresh token", async () => {
-      office365AccountsService.findPrimary.mockResolvedValue({
-        ...mockAccount,
-        refreshToken: null,
-      } as any);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      office365AccountsService.findPrimary.mockResolvedValue(
+        mockPartial({
+          ...mockAccount,
+          refreshToken: null,
+        }),
+      );
+      usersService.findOne.mockResolvedValue(mockUser);
 
       // The implementation throws an error when refresh token is missing
       await expect(provider.syncEmails("user-123")).rejects.toThrow();

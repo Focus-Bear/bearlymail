@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Email, GitHubLink } from 'types/email';
 import { extractCleanBody, extractCleanBodyWithMeta, extractCleanHtmlBody, extractCleanHtmlBodyWithMeta, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
@@ -226,7 +227,7 @@ export function useEmailDetailOperations(
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
   const previousIdRef = useRef<string | null>(null);
   const summaryRef = useRef<string | null>(summary);
-  const emailRef = useRef<any>(email);
+  const emailRef = useRef<Email | null>(email);
   const timezoneRef = useRef<string | undefined>(undefined);
   const lastAcceleratedRef = useRef<string | null>(null);
 
@@ -403,7 +404,7 @@ export function useEmailDetailOperations(
       if (emailData.githubMetadata?.links) {
         // Deduplicate links by URL before setting state
         const seen = new Set<string>();
-        const uniqueLinks = emailData.githubMetadata.links.filter((link: any) => {
+        const uniqueLinks = emailData.githubMetadata.links.filter((link: GitHubLink) => {
           const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
           if (seen.has(key)) {
             return false;
@@ -515,7 +516,7 @@ export function useEmailDetailOperations(
       if (githubFetchedRef.current === id) {
         const links = response.data.links || [];
         const seen = new Set<string>();
-        const uniqueLinks = links.filter((link: any) => {
+        const uniqueLinks = links.filter((link: GitHubLink) => {
           const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
           if (seen.has(key)) {
             return false;
@@ -547,7 +548,7 @@ export function useEmailDetailOperations(
       // Deduplicate links by URL before setting state
       const links = response.data.links || [];
       const seen = new Set<string>();
-      const uniqueLinks = links.filter((link: any) => {
+      const uniqueLinks = links.filter((link: GitHubLink) => {
         const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
         if (seen.has(key)) {
           return false;
@@ -639,16 +640,18 @@ export function useEmailDetailOperations(
           from: email.from,
           fromName: email.fromName,
         },
-        existingActions: actionItems.map((item: any) => item.description).filter(Boolean),
-        isSentEmail: email.labelIds?.includes('SENT') ?? false,
+        existingActions: actionItems.map(item => item.description).filter(Boolean),
+        // Bug fix: old code used `any` and accessed `labelIds`, but the server populates `labels` on the Email object (not `labelIds`)
+        isSentEmail: email.labels?.includes('SENT') ?? false,
       });
-      const newItems = response.data.map((item: any) => ({
-        description: item.description,
-        isCompleted: false,
-        source: ACTION_ITEM_SOURCE_LLM,
-      }));
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
+        response.data.map((item: { description: string; source?: string }) => ({
+          description: item.description,
+          isCompleted: false,
+          source: ACTION_ITEM_SOURCE_LLM,
+        }));
       await Promise.all(
-        newItems.map((item: any) =>
+        newItems.map((item) =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );
@@ -721,15 +724,17 @@ export function useEmailDetailOperations(
           from: email.from,
           fromName: email.fromName,
         },
-        isSentEmail: email.labelIds?.includes('SENT') ?? false,
+        // Bug fix: old code used `any` and accessed `labelIds`, but the server populates `labels` on the Email object (not `labelIds`)
+        isSentEmail: email.labels?.includes('SENT') ?? false,
       });
-      const newItems = response.data.map((item: any) => ({
-        description: item.description,
-        isCompleted: false,
-        source: ACTION_ITEM_SOURCE_LLM,
-      }));
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
+        response.data.map((item: { description: string; source?: string }) => ({
+          description: item.description,
+          isCompleted: false,
+          source: ACTION_ITEM_SOURCE_LLM,
+        }));
       await Promise.all(
-        newItems.map((item: any) =>
+        newItems.map((item) =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );
@@ -987,7 +992,7 @@ export function useEmailDetailOperations(
     async (emailId: string, starCount: number) => {
       captureEvent(ANALYTICS_EVENTS.EMAIL_STAR_COUNT_CHANGED, { email_id: emailId, star_count: starCount });
 
-      const currentStarCount = (emailRef.current as any)?.starCount ?? 0;
+      const currentStarCount = emailRef.current?.starCount ?? 0;
       const isTriageToAction = currentStarCount === 0 && starCount > 0;
 
       await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount }).catch(error => {

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { Email } from 'types/email';
 
 import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
@@ -31,7 +32,7 @@ import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 
 function navigateToNextEmailAfterAction(
   removedEmailId: string,
-  emails: any[],
+  emails: Email[],
   splitView: { openEmail: (id: string) => void; closeEmail: () => void },
   setSelectedEmailIndex: (index: number) => void,
 ): void {

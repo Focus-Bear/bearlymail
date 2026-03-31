@@ -35,12 +35,12 @@ export const useToolbarHandlers = (editor: Editor | null) => {
     toggleBulletList: useCallback(() => exec(ed => ed.chain().focus().toggleBulletList().run()), [exec]),
     toggleOrderedList: useCallback(() => exec(ed => ed.chain().focus().toggleOrderedList().run()), [exec]),
     setTextAlign: useCallback(
-      (align: string) =>
+      (align: 'left' | 'center' | 'right' | 'justify') =>
         exec(ed =>
           ed
             .chain()
             .focus()
-            .setTextAlign(align as any)
+            .setTextAlign(align)
             .run()
         ),
       [exec]

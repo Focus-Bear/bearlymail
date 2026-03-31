@@ -7,6 +7,7 @@ import { Repository } from "typeorm";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailService } from "../email/email.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "./waitlist.service";
 
@@ -123,7 +124,7 @@ describe("WaitlistService", () => {
       repository.create.mockReturnValue(autoApprovedEntry);
       repository.save.mockResolvedValue(autoApprovedEntry);
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       configService.get.mockReturnValue(undefined);
 
       const result = await service.create(
@@ -149,7 +150,7 @@ describe("WaitlistService", () => {
       };
       repository.create.mockReturnValue(autoApprovedEntry);
       repository.save.mockResolvedValue(autoApprovedEntry);
-      const existingUser = { id: "user-1", isAdmin: false } as any;
+      const existingUser = mockPartial({ id: "user-1", isAdmin: false });
       usersService.findByEmail.mockResolvedValue(existingUser);
       usersService.update.mockResolvedValue(existingUser);
       configService.get.mockReturnValue(undefined);
@@ -287,9 +288,9 @@ describe("WaitlistService", () => {
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       emailService.sendWaitlistApprovalEmail.mockResolvedValue(undefined);
 
       const result = await service.approve("waitlist-1");
@@ -315,11 +316,11 @@ describe("WaitlistService", () => {
     });
 
     it("should approve entry and update existing user with setup token", async () => {
-      const existingUser = { id: "user-1" } as any;
+      const existingUser = mockPartial({ id: "user-1" });
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(existingUser);
       usersService.update.mockResolvedValue(existingUser);
       emailService.sendWaitlistApprovalEmail.mockResolvedValue(undefined);
@@ -342,9 +343,9 @@ describe("WaitlistService", () => {
       repository.findOne
         .mockResolvedValueOnce(jeremyEntry)
         .mockResolvedValueOnce({ ...jeremyEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       emailService.sendWaitlistApprovalEmail.mockResolvedValue(undefined);
 
       await service.approve("waitlist-1");
@@ -367,9 +368,9 @@ describe("WaitlistService", () => {
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       emailService.sendWaitlistApprovalEmail.mockResolvedValue(undefined);
 
       await service.approve("waitlist-1");
@@ -388,9 +389,9 @@ describe("WaitlistService", () => {
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       emailService.sendWaitlistApprovalEmail.mockRejectedValue(
         new Error("Email failed"),
       );
@@ -406,9 +407,9 @@ describe("WaitlistService", () => {
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       usersService.findByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: "user-1" } as any);
+      usersService.create.mockResolvedValue(mockPartial({ id: "user-1" }));
       emailService.sendWaitlistApprovalEmail.mockResolvedValue(undefined);
 
       await service.approve("waitlist-1");

@@ -16,6 +16,7 @@ import { Sidebar } from 'components/inbox/Sidebar';
 // ─── Mock user ───────────────────────────────────────────────────────────────
 
 const mockUser = {
+  id: 'demo-user-1',
   email: 'demo@bearlymail.com',
   isAdmin: false,
 };

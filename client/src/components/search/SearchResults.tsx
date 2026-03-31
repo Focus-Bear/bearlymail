@@ -10,6 +10,12 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
 import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
 
+interface SearchDebugInfo {
+  message?: string;
+  queriesTried?: Array<{ query: string; resultCount: number; accountType?: string }>;
+  [key: string]: unknown;
+}
+
 interface SearchEmail extends Email {
   starCount?: number;
   searchExplanation?: string;
@@ -20,7 +26,7 @@ interface SearchEmail extends Email {
     finalScore: number;
     rejectionReason?: string;
   };
-  debugInfo?: any;
+  debugInfo?: SearchDebugInfo;
 }
 
 interface SearchResultsProps {

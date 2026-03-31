@@ -101,6 +101,7 @@ export interface Email {
   fromName?: string;
   to?: string;
   cc?: string;
+  replyTo?: string;
   subject: string;
   body?: string;
   htmlBody?: string; // HTML content of the email (may not be available in list view for performance)
@@ -171,6 +172,10 @@ export interface Email {
   // Pre-calculated thread-level priority score from the backend (single source of truth).
   // Use this instead of recalculating from priorityExplanation.breakdown to avoid divergence.
   priorityScore?: number | null;
+  // Search-specific debug metadata (populated only on no-results markers and search enrichment).
+  debugInfo?: Record<string, unknown>;
+  // Follow-up thread metadata (populated server-side for follow-up mode).
+  otherPersonName?: string;
 }
 
 export interface TriageSuggestion {
@@ -182,10 +187,11 @@ export interface TriageSuggestion {
 
 export interface PriorityExplanation {
   score: number;
-  dimensions: {
+  dimensions?: {
     urgency: { score: number; reasons: string[] };
     goalAlignment: { score: number; reasons: string[] };
     vipContact: { score: number; reasons: string[] };
+    sentiment?: { score: number; type: string; reasons: string[] };
   };
   breakdown: Array<{ factor: string; value: number; description: string }>;
 }

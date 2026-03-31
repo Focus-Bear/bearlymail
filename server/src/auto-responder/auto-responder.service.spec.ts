@@ -29,6 +29,7 @@ jest.mock("../emails/email-provider-manager.service", () => ({
 
 // Import after mocking
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { AutoResponderService } from "./auto-responder.service";
 
 describe("AutoResponderService", () => {
@@ -279,10 +280,12 @@ describe("AutoResponderService", () => {
 
   describe("getConfig", () => {
     it("should return default config when user has no settings", async () => {
-      userRepository.findOne.mockResolvedValue({
-        ...mockUser,
-        autoResponderSettings: null,
-      } as any);
+      userRepository.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          autoResponderSettings: null,
+        }),
+      );
 
       const config = await service.getConfig("user-1");
 
@@ -295,10 +298,12 @@ describe("AutoResponderService", () => {
         enabled: true,
         qaMinConfidence: 0.8,
       };
-      userRepository.findOne.mockResolvedValue({
-        ...mockUser,
-        autoResponderSettings: customConfig,
-      } as any);
+      userRepository.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          autoResponderSettings: customConfig,
+        }),
+      );
 
       const config = await service.getConfig("user-1");
 
@@ -309,8 +314,8 @@ describe("AutoResponderService", () => {
 
   describe("updateConfig", () => {
     it("should update user config", async () => {
-      userRepository.findOne.mockResolvedValue(mockUser as any);
-      userRepository.update.mockResolvedValue({} as any);
+      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.update.mockResolvedValue(mockPartial({}));
 
       const config = await service.updateConfig("user-1", { enabled: true });
 
@@ -323,8 +328,8 @@ describe("AutoResponderService", () => {
 
   describe("processEmailForAutoResponse", () => {
     beforeEach(() => {
-      userRepository.findOne.mockResolvedValue(mockUser as any);
-      emailThreadRepository.findOne.mockResolvedValue(mockThread as any);
+      userRepository.findOne.mockResolvedValue(mockUser);
+      emailThreadRepository.findOne.mockResolvedValue(mockThread);
       autoResponseLogRepository.findOne.mockResolvedValue(null);
       autoResponseSuppressionRepository.findOne.mockResolvedValue(null);
       emailClassifierService.classifyEmail.mockResolvedValue({
@@ -353,7 +358,7 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: false,
         },
-      } as any);
+      });
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -377,10 +382,8 @@ describe("AutoResponderService", () => {
             "Emails from automated systems (e.g., no-reply addresses, system notifications)",
           ],
         },
-      } as any);
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      });
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
       const contextService = module.get(AutoResponderContextService);
       jest.spyOn(contextService, "classifyEmail").mockResolvedValue({
         isAutomated: true,
@@ -403,8 +406,8 @@ describe("AutoResponderService", () => {
           reason:
             "Email was classified as automated and user has an automated-email exclusion rule",
         });
-      autoResponseLogRepository.save.mockResolvedValue({} as any);
-      autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
+      autoResponseLogRepository.save.mockResolvedValue(mockPartial({}));
+      autoResponseSuppressionRepository.save.mockResolvedValue(mockPartial({}));
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -417,18 +420,20 @@ describe("AutoResponderService", () => {
 
     it("should not send when thread already has auto-response", async () => {
       const analyticsService = module.get(AutoResponderAnalyticsService);
-      jest.spyOn(analyticsService, "hasExistingResponse").mockResolvedValue({
-        id: "log-1",
-        userId: "user-1",
-        emailThreadId: "thread-1",
-      } as any);
+      jest.spyOn(analyticsService, "hasExistingResponse").mockResolvedValue(
+        mockPartial({
+          id: "log-1",
+          userId: "user-1",
+          emailThreadId: "thread-1",
+        }),
+      );
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         autoResponderSettings: {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
+      });
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -441,17 +446,19 @@ describe("AutoResponderService", () => {
 
     it("should not send to suppressed senders", async () => {
       const contextService = module.get(AutoResponderContextService);
-      jest.spyOn(contextService, "checkSuppression").mockResolvedValue({
-        id: "suppression-1",
-        reason: "opt_out",
-      } as any);
+      jest.spyOn(contextService, "checkSuppression").mockResolvedValue(
+        mockPartial({
+          id: "suppression-1",
+          reason: "opt_out",
+        }),
+      );
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         autoResponderSettings: {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
+      });
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -476,10 +483,8 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      });
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -503,10 +508,8 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      });
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
       emailThreadRepository.update = jest.fn().mockResolvedValue({});
 
       const result = await service.processEmailForAutoResponse(
@@ -532,7 +535,7 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: false,
         },
-      } as any);
+      });
       emailThreadRepository.update = jest.fn().mockResolvedValue({});
 
       const result = await service.processEmailForAutoResponse(
@@ -573,8 +576,8 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      emailThreadRepository.findOne.mockResolvedValue(oldEmailThread as any);
+      });
+      emailThreadRepository.findOne.mockResolvedValue(oldEmailThread);
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -620,11 +623,9 @@ describe("AutoResponderService", () => {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      emailThreadRepository.findOne.mockResolvedValue(recentEmailThread as any);
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      });
+      emailThreadRepository.findOne.mockResolvedValue(recentEmailThread);
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -657,7 +658,7 @@ describe("AutoResponderService", () => {
 
   describe("previewAutoResponse", () => {
     it("should generate preview with sample data", async () => {
-      userRepository.findOne.mockResolvedValue(mockUser as any);
+      userRepository.findOne.mockResolvedValue(mockUser);
       queueStatsService.getQueueStats.mockResolvedValue({
         actionCount: 37,
         triageCount: 21,

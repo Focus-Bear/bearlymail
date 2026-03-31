@@ -71,7 +71,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
       const map = new Map<string, CleanBodyResult>();
       for (const threadEmail of threadEmails) {
         const rawBody = threadEmail.body || '';
-        const rawHtmlBody = (threadEmail as any).htmlBody || '';
+        const rawHtmlBody = threadEmail.htmlBody || '';
         if (rawBody) {
           map.set(threadEmail.id, extractCleanBodyWithMeta(rawBody, rawHtmlBody));
         } else {
@@ -85,7 +85,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
     const cleanHtmlByEmailId = useMemo(() => {
       const map = new Map<string, CleanHtmlResult>();
       for (const threadEmail of threadEmails) {
-        const rawHtmlBody = (threadEmail as any).htmlBody || '';
+        const rawHtmlBody = threadEmail.htmlBody || '';
         if (rawHtmlBody) {
           map.set(threadEmail.id, extractCleanHtmlBodyWithMeta(rawHtmlBody));
         }
@@ -95,7 +95,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
 
     // Pre-compute single-email view results (hooks must be called unconditionally,
     // even though these values are only used in the single-email branch below).
-    const singleEmailHtmlBody = (email as any).htmlBody || '';
+    const singleEmailHtmlBody = email.htmlBody || '';
     const singleCleanHtmlResult = useMemo(
       () => (singleEmailHtmlBody ? extractCleanHtmlBodyWithMeta(singleEmailHtmlBody) : null),
       [singleEmailHtmlBody, extractCleanHtmlBodyWithMeta]
@@ -122,7 +122,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
           {threadEmails.map(threadEmail => {
             const isExpanded = expandedThreadItems.has(threadEmail.id);
             const isCurrentEmail = threadEmail.id === email.id;
-            const rawHtmlBody = (threadEmail as any).htmlBody || '';
+            const rawHtmlBody = threadEmail.htmlBody || '';
             const cleanBodyResult = cleanBodiesByEmailId.get(threadEmail.id) ?? { text: '', wasTruncated: false };
             const cleanBody = cleanBodyResult.text;
             const cleanHtmlResult = cleanHtmlByEmailId.get(threadEmail.id);

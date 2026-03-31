@@ -10,7 +10,7 @@ export interface SuggestedAction {
   type: string;
   confidence: number;
   reason: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface QuickActionsMenuProps {

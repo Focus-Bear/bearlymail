@@ -25,7 +25,7 @@ interface SearchEmail extends Email {
     finalScore: number;
     rejectionReason?: string;
   };
-  debugInfo?: any;
+  debugInfo?: Record<string, unknown>;
 }
 
 const getPriorityBadge = (score?: number) => {

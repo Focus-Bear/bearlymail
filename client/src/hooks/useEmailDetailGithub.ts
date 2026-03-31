@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
+import { GitHubLink } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
 
-const deduplicateLinks = (links: any[]): any[] => {
+const deduplicateLinks = (links: GitHubLink[]): GitHubLink[] => {
   const seen = new Set<string>();
   return links.filter(link => {
     const key = link.url || `${link.owner}-${link.repo}-${link.number}`.toLowerCase();
@@ -39,7 +40,7 @@ function useEmailChangeReset(
 
 export function useEmailDetailGithub(emailId: string) {
   const { data: userProfile } = useUserProfileQuery();
-  const [githubLinks, setGithubLinks] = useState<any[]>([]);
+  const [githubLinks, setGithubLinks] = useState<GitHubLink[]>([]);
   const [loadingGithub, setLoadingGithub] = useState(true);
   const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
   const fetchedRef = useRef<string | null>(null);
@@ -135,7 +136,7 @@ export function useEmailDetailGithub(emailId: string) {
   }, [emailId]);
 
   const setGithubLinksWithDedup = useCallback(
-    (links: any[]) => {
+    (links: GitHubLink[]) => {
       setGithubLinks(deduplicateLinks(links));
       fetchedRef.current = emailId;
     },

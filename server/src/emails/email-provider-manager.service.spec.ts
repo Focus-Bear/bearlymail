@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { mockPartial } from "../test/helpers/mock-utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { Office365Provider } from "./providers/office365.provider";
@@ -12,21 +13,21 @@ describe("EmailProviderManager", () => {
   let zohoProvider: jest.Mocked<ZohoProvider>;
 
   beforeEach(async () => {
-    gmailProvider = {
+    gmailProvider = mockPartial({
       isConnected: jest.fn(),
       syncEmails: jest.fn(),
       convertLabelIdsToNames: jest.fn(),
-    } as any;
+    });
 
-    office365Provider = {
+    office365Provider = mockPartial({
       isConnected: jest.fn().mockResolvedValue(false),
       syncEmails: jest.fn(),
-    } as any;
+    });
 
-    zohoProvider = {
+    zohoProvider = mockPartial({
       isConnected: jest.fn().mockResolvedValue(false),
       syncEmails: jest.fn(),
-    } as any;
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

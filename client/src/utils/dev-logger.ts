@@ -32,7 +32,7 @@ function isLocalhost(): boolean {
 /**
  * Log a message to console (only on localhost, with [DEV] prefix)
  */
-export function devLog(message: string, ...args: any[]): void {
+export function devLog(message: string, ...args: unknown[]): void {
   const isLocal = isLocalhost();
   // Always log the first call to verify logger is working
   if (!devLog._initialized) {
@@ -51,7 +51,7 @@ devLog._initialized = false;
 /**
  * Log an error to console (only on localhost, with [DEV ERROR] prefix)
  */
-export function devError(message: string, ...args: any[]): void {
+export function devError(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
     console.error(`[DEV ERROR] ${message}`, ...args);
   }
@@ -60,7 +60,7 @@ export function devError(message: string, ...args: any[]): void {
 /**
  * Log a warning to console (only on localhost, with [DEV WARN] prefix)
  */
-export function devWarn(message: string, ...args: any[]): void {
+export function devWarn(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
     console.warn(`[DEV WARN] ${message}`, ...args);
   }
@@ -69,7 +69,7 @@ export function devWarn(message: string, ...args: any[]): void {
 /**
  * Log debug info to console (only on localhost, with [DEV DEBUG] prefix)
  */
-export function devDebug(message: string, ...args: any[]): void {
+export function devDebug(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
     console.debug(`[DEV DEBUG] ${message}`, ...args);
   }

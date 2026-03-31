@@ -11,6 +11,15 @@ import { SearchIssuesForm } from 'components/quick-actions/modals/github/SearchI
 import { API_URL } from 'config/api';
 import { MODAL_WIDTH_LARGE, VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
+interface IssueResult {
+  url: string;
+  title: string;
+  repository: string;
+  number: number;
+  state: string;
+  body?: string;
+}
+
 interface GitHubSearchIssuesModalProps {
   email: {
     subject: string;
@@ -23,7 +32,7 @@ export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = (
   const [query, setQuery] = useState(email.subject || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<IssueResult[]>([]);
 
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault();

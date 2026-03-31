@@ -7,7 +7,7 @@ interface ReplyDraftTextareaProps {
   loadingReplies: boolean;
   hasToneError: boolean;
   onDraftChange: (draft: string) => void;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onPasteFiles?: (files: File[]) => void;
   /** Called when a pasted image is registered as a CID inline attachment. */
   onInlineImage?: (cid: string, file: File) => void;

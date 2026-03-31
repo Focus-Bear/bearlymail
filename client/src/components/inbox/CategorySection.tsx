@@ -1,12 +1,15 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
+import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types/email';
 
 import { CategoryAccordion } from 'components/inbox/CategoryAccordion';
 import { EmailListItem } from 'components/inbox/EmailListItem';
+import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from 'components/inbox/inbox.types';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
+import { FollowUpData } from 'hooks/useFollowUps';
+import { ProtoCategory } from 'hooks/useProtoCategories';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface CategorySectionProps {
@@ -19,21 +22,21 @@ interface CategorySectionProps {
   mode: InboxMode;
   selectedEmailIds: Set<string>;
   selectedEmailIndex: number;
-  triageSuggestions: Map<string, any>;
-  followUpDataMap: Map<string, any>;
-  priorityTooltip: any;
-  keyboardHint: any;
-  snoozeInput: any;
-  emailActions: any;
-  modals: any;
+  triageSuggestions: Map<string, TriageSuggestion>;
+  followUpDataMap: Map<string, FollowUpData>;
+  priorityTooltip: InboxPriorityTooltip;
+  keyboardHint: InboxKeyboardHint;
+  snoozeInput: InboxSnoozeInput;
+  emailActions: InboxEmailActions;
+  modals: InboxModals;
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
   handleSendFollowUp: (followUpId: string, draft: string, recipientName?: string) => Promise<void>;
   onBulkArchive: (emailIds: string[]) => Promise<void>;
   onToggleCategory: (category: string) => void;
   otherProtoGroups: Array<{ name: string; emails: Email[] }>;
-  protoCategories: any[];
+  protoCategories: ProtoCategory[];
   isReanalysingOther: boolean;
   convertingProtoCategoryId: string | null;
   deletingProtoCategoryId: string | null;
@@ -135,9 +138,9 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
         followUpData={followUpData}
         onUpdateDraft={updateDraft}
         onSendFollowUp={(followUpId: string, draft: string) =>
-          handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)
+          handleSendFollowUp(followUpId, draft, email.otherPersonName ?? undefined)
         }
-        recipientName={(email as any).otherPersonName}
+        recipientName={email.otherPersonName ?? undefined}
       />
     );
   };
@@ -174,7 +177,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
                 {otherProtoGroups.map(grp => {
                   const groupStart = offset;
                   offset += grp.emails.length;
-                  const protoCategory = protoCategories.find((pc: any) => pc.name === grp.name);
+                  const protoCategory = protoCategories.find(pc => pc.name === grp.name);
                   return (
                     <ProtoCategorySubAccordion
                       key={grp.name}

@@ -110,7 +110,7 @@ describe("BatchScheduleService", () => {
       const userId = "user-123";
       const scheduleData = {
         // strings as would come from DB round-trip
-        deliveryDays: ["1", "2", "3"] as any,
+        deliveryDays: ["1", "2", "3"],
         deliveryTimes: ["09:00"],
         timezone: "UTC",
         isEnabled: true,
@@ -143,7 +143,7 @@ describe("BatchScheduleService", () => {
       const userId = "user-123";
       // Corrupted data with duplicates (strings and numbers mixed)
       const scheduleData = {
-        deliveryDays: ["1", "1", 1, "2", "2", 2, "3", "3", 3] as any,
+        deliveryDays: ["1", "1", 1, "2", "2", 2, "3", "3", 3],
         deliveryTimes: ["11:00", "15:00"],
         timezone: "UTC",
         isEnabled: true,
@@ -179,7 +179,7 @@ describe("BatchScheduleService", () => {
       const userId = "user-123";
       const scheduleData = {
         // 7, -1, 8 are invalid (0-6 only)
-        deliveryDays: [1, 2, 7, -1, 8, 3] as any,
+        deliveryDays: [1, 2, 7, -1, 8, 3],
         deliveryTimes: ["09:00"],
         timezone: "UTC",
         isEnabled: true,
@@ -466,7 +466,7 @@ describe("BatchScheduleService", () => {
       const schedule = {
         isEnabled: true,
         // Strings from DB
-        deliveryDays: ["1", "2", "3", "4", "5"] as any,
+        deliveryDays: ["1", "2", "3", "4", "5"],
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;
@@ -486,7 +486,7 @@ describe("BatchScheduleService", () => {
       const schedule = {
         isEnabled: true,
         // Mon-Fri as strings
-        deliveryDays: ["1", "2", "3", "4", "5"] as any,
+        deliveryDays: ["1", "2", "3", "4", "5"],
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;
@@ -873,7 +873,7 @@ describe("BatchScheduleService", () => {
       const schedule = {
         isEnabled: true,
         // Stored as strings in DB
-        deliveryDays: ["1", "2", "3", "4", "5"] as any,
+        deliveryDays: ["1", "2", "3", "4", "5"],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
@@ -894,7 +894,7 @@ describe("BatchScheduleService", () => {
       const schedule = {
         isEnabled: true,
         // Mixed types
-        deliveryDays: [1, "2", 3, "4", 5] as any,
+        deliveryDays: [1, "2", 3, "4", 5],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,

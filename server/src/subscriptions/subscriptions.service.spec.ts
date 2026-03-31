@@ -8,6 +8,7 @@ import { Repository } from "typeorm";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
+import { mockPartial } from "../test/helpers/mock-utils";
 import {
   EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT,
   SubscriptionsService,
@@ -209,7 +210,7 @@ describe("SubscriptionsService", () => {
         billingCycleStart: futureStart,
       };
       orgRepository.findOne.mockResolvedValue(orgWithBilling);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.activateTeamSeat("user-1", "org-1");
 
@@ -225,7 +226,7 @@ describe("SubscriptionsService", () => {
     it("should activate team seat without expiry when billingCycleStart is null", async () => {
       const orgNoBilling = { ...mockOrg, billingCycleStart: null };
       orgRepository.findOne.mockResolvedValue(orgNoBilling);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.activateTeamSeat("user-1", "org-1");
 
@@ -239,7 +240,7 @@ describe("SubscriptionsService", () => {
       const oldStart = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
       const orgOldBilling = { ...mockOrg, billingCycleStart: oldStart };
       orgRepository.findOne.mockResolvedValue(orgOldBilling);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const before = new Date();
       await service.activateTeamSeat("user-1", "org-1");
@@ -267,7 +268,7 @@ describe("SubscriptionsService", () => {
     it("should set subscriptionStatus to expired", async () => {
       const user = { ...mockUser, revenueCatUserId: null };
       userRepository.findOne.mockResolvedValue(user);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.deactivateTeamSeat("user-1");
 
@@ -314,7 +315,7 @@ describe("SubscriptionsService", () => {
       const rcUser = { ...mockUser, revenueCatUserId: "rc-123" };
       userRepository.findOne.mockResolvedValue(rcUser);
       mockedAxios.get.mockRejectedValue(new Error("RC API down"));
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.deactivateTeamSeat("user-1");
 
@@ -420,7 +421,7 @@ describe("SubscriptionsService", () => {
         });
       orgRepository.save.mockResolvedValue(orgWithOwner as Organization);
       memberRepository.find.mockResolvedValue([activeMember]);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
       // activateTeamSeat does a second orgRepository.findOne for the member's org
       orgRepository.findOne.mockResolvedValue({
         ...orgWithOwner,
@@ -466,7 +467,7 @@ describe("SubscriptionsService", () => {
       orgRepository.findOne.mockResolvedValueOnce(orgWithVolume);
       orgRepository.save.mockResolvedValue(orgWithVolume as Organization);
       memberRepository.find.mockResolvedValue([activeMember]);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.handleWebhook({
         event: {
@@ -562,7 +563,7 @@ describe("SubscriptionsService", () => {
 
   describe("trackEmailProcessed", () => {
     it("should increment and return allowed=true when under limit", async () => {
-      orgRepository.increment.mockResolvedValue({} as any);
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
       orgRepository.findOne.mockResolvedValue({
         ...mockOrg,
         emailsUsedThisCycle: 100,
@@ -582,7 +583,7 @@ describe("SubscriptionsService", () => {
     });
 
     it("should return allowed=false when at or over limit", async () => {
-      orgRepository.increment.mockResolvedValue({} as any);
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
       orgRepository.findOne.mockResolvedValue({
         ...mockOrg,
         emailsUsedThisCycle: 3001,
@@ -595,7 +596,7 @@ describe("SubscriptionsService", () => {
     });
 
     it("should emit warning when percent used >= threshold", async () => {
-      orgRepository.increment.mockResolvedValue({} as any);
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
       const used = Math.ceil(
         (EMAIL_VOLUME_WARNING_THRESHOLD_PERCENT / 100) * 3000,
       );
@@ -613,7 +614,7 @@ describe("SubscriptionsService", () => {
     });
 
     it("should return percentUsed=0 when emailVolumeLimit is 0", async () => {
-      orgRepository.increment.mockResolvedValue({} as any);
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
       orgRepository.findOne.mockResolvedValue({
         ...mockOrg,
         emailsUsedThisCycle: 100,
@@ -626,7 +627,7 @@ describe("SubscriptionsService", () => {
     });
 
     it("should return allowed=true and percentUsed=0 when org is not found", async () => {
-      orgRepository.increment.mockResolvedValue({} as any);
+      orgRepository.increment.mockResolvedValue(mockPartial({}));
       orgRepository.findOne.mockResolvedValue(null);
 
       const result = await service.trackEmailProcessed("missing-org");
@@ -643,7 +644,7 @@ describe("SubscriptionsService", () => {
         ...mockUser,
         revenueCatUserId: null,
       });
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.grantComplimentaryAccess("user-1", 30);
 
@@ -666,7 +667,7 @@ describe("SubscriptionsService", () => {
       // RevenueCat promotional entitlement call is stubbed until product IDs are configured
       const rcUser = { ...mockUser, revenueCatUserId: "rc-123" };
       userRepository.findOne.mockResolvedValue(rcUser);
-      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.grantComplimentaryAccess("user-1", 14);
 
@@ -757,7 +758,7 @@ describe("SubscriptionsService", () => {
 
   describe("linkOrgRevenueCat", () => {
     it("should update org revenueCatOrgSubscriptionId", async () => {
-      orgRepository.update.mockResolvedValue({ affected: 1 } as any);
+      orgRepository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.linkOrgRevenueCat("org-1", "rc-sub-abc");
 
@@ -773,7 +774,7 @@ describe("SubscriptionsService", () => {
     it("should start a 7-day trial for user without subscription", async () => {
       const userWithoutSubscription = { ...mockUser, subscriptionStatus: null };
       repository.findOne.mockResolvedValue(userWithoutSubscription);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.startTrial("user-1");
 
@@ -852,7 +853,7 @@ describe("SubscriptionsService", () => {
           ...expiredUser,
           subscriptionStatus: "expired",
         });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.checkSubscriptionStatus("user-1");
 
@@ -882,8 +883,8 @@ describe("SubscriptionsService", () => {
             },
           },
         },
-      } as any);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      });
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.checkSubscriptionStatus("user-1");
 
@@ -976,7 +977,7 @@ describe("SubscriptionsService", () => {
           },
         },
       });
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const payload = {
         event: {
@@ -1000,7 +1001,7 @@ describe("SubscriptionsService", () => {
     it("should handle CANCELLATION event", async () => {
       const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
       repository.findOne.mockResolvedValue(user);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const payload = {
         event: {
@@ -1019,7 +1020,7 @@ describe("SubscriptionsService", () => {
     it("should handle EXPIRATION event", async () => {
       const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
       repository.findOne.mockResolvedValue(user);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const payload = {
         event: {
@@ -1064,7 +1065,7 @@ describe("SubscriptionsService", () => {
 
   describe("linkRevenueCatUser", () => {
     it("should link RevenueCat user ID to user", async () => {
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       await service.linkRevenueCatUser("user-1", "rc-user-123");
 
@@ -1084,7 +1085,7 @@ describe("SubscriptionsService", () => {
         subscriptionExpiresAt: futureDate,
       };
       repository.findOne.mockResolvedValue(trialUser);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.extendTrial("user-1", 7);
 
@@ -1112,7 +1113,7 @@ describe("SubscriptionsService", () => {
         subscriptionExpiresAt: new Date("2020-01-01"),
       };
       repository.findOne.mockResolvedValue(expiredUser);
-      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.update.mockResolvedValue(mockPartial({ affected: 1 }));
 
       const result = await service.extendTrial("user-1", 7);
 

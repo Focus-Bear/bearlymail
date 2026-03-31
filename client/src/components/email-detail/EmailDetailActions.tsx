@@ -144,8 +144,6 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const { isMobile } = useResponsiveBreakpoints();
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
-  const emailWithStarCount = email as any;
-
   const overflowMenuItems = useMemo(
     () => [
       {
@@ -157,7 +155,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     ],
     [t]
   );
-  const starCount = emailWithStarCount?.starCount ?? 0;
+  const starCount = email?.starCount ?? 0;
 
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 

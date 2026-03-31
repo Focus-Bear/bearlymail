@@ -24,6 +24,7 @@ import { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import {
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
@@ -43,6 +44,7 @@ import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
 /**
  * Controls how `EmailDetail` renders.
@@ -58,7 +60,7 @@ export const EMAIL_DETAIL_VARIANT_COMPACT: EmailDetailVariant = 'compact';
 export const EMAIL_DETAIL_VARIANT_INLINE: EmailDetailVariant = 'inline';
 
 // Module-level constants: stable across renders, no need to include in useMemo deps.
-const GITHUB_ACTION_TYPES = new Set([
+const GITHUB_ACTION_TYPES = new Set<string>([
   ACTION_TYPE_GITHUB_ADD_COMMENT,
   ACTION_TYPE_GITHUB_CREATE_ISSUE,
   ACTION_TYPE_GITHUB_SEARCH_ISSUES,
@@ -68,7 +70,7 @@ const GITHUB_ACTION_TYPES = new Set([
 // Scheduling/calendar action types that belong in SchedulingRequestCard, not QuickActionsSection.
 // Both types are included because the LLM sometimes returns calendar_create_invite for the same
 // scheduling intent — keeping them here prevents duplication in the Quick Actions dropdown.
-const SCHEDULING_ACTION_TYPES = new Set([
+const SCHEDULING_ACTION_TYPES = new Set<string>([
   ACTION_TYPE_SCHEDULING_REQUEST,
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
 ]);
@@ -229,7 +231,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
             ops.handleSetStarCount(email.id, count);
           }
         },
-        getStarCount: () => (email as any)?.starCount ?? 0,
+        getStarCount: () => email?.starCount ?? 0,
       }),
       [ops, email]
     );
@@ -265,7 +267,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
       setReplyRecipients: state.setReplyRecipients,
       setReplyMode: state.setReplyMode,
       setShowReplyComposer: state.setShowReplyComposer,
-      setReplyOptions: (options: unknown) => state.setReplyOptions(options as any),
+      setReplyOptions: state.setReplyOptions,
       setToneCheckResult: state.setToneCheckResult,
       handleGenerateDraft: ops.handleGenerateDraft,
     });
@@ -357,7 +359,7 @@ interface EmailDetailFullLayoutProps {
   onCreateCustomRule: () => Promise<void>;
   showTimePicker: boolean;
   scheduledSendAt: Date | null;
-  timeSuggestions: any[];
+  timeSuggestions: TimeSuggestion[];
   timeWarning: string | undefined;
   suggestedTime: Date | undefined;
   onTimeSelect: (time: Date) => void;
@@ -423,8 +425,35 @@ const EmailDetailFullLayout: React.FC<EmailDetailFullLayoutProps> = ({
   </>
 );
 
+type EmailDetailStateType = ReturnType<typeof useEmailDetailState>;
+type EmailDetailOpsType = ReturnType<typeof useEmailDetailOperations>;
+
+interface EmailDetailContentProps {
+  state: EmailDetailStateType;
+  ops: EmailDetailOpsType;
+  scheduledSendAt: Date | null;
+  effectiveVariant: string;
+  isMobile: boolean;
+  id: string | undefined;
+  user: ReturnType<typeof useAuth>['user'];
+  replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  replyComposerRef: React.RefObject<HTMLDivElement | null>;
+  handleOpenTimePicker: () => void;
+  handleClearSchedule: () => void;
+  onClose?: () => void;
+}
+
+interface EmailDetailNotesAndActionsProps {
+  state: EmailDetailStateType;
+  ops: EmailDetailOpsType;
+  effectiveVariant: string;
+  isMobile: boolean;
+  githubActions?: SuggestedAction[];
+  emailContext?: { subject: string; body?: string; from: string; fromName?: string } | null;
+}
+
 // Extracted to reduce main component line count
-const EmailDetailContent: React.FC<any> = ({
+const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   state: st,
   ops,
   scheduledSendAt,
@@ -457,12 +486,12 @@ const EmailDetailContent: React.FC<any> = ({
   //   otherActions     → EmailDetailActions → QuickActionsSection
   // Constants are defined at module level — stable references, no deps needed.
   const { githubActions, schedulingActions, otherActions } = useMemo(() => {
-    const all: any[] = st.suggestedActions ?? [];
+    const all = st.suggestedActions ?? [];
     return {
-      githubActions: all.filter((action: any) => GITHUB_ACTION_TYPES.has(action.type)),
-      schedulingActions: all.filter((action: any) => SCHEDULING_ACTION_TYPES.has(action.type)),
+      githubActions: all.filter(action => GITHUB_ACTION_TYPES.has(action.type)),
+      schedulingActions: all.filter(action => SCHEDULING_ACTION_TYPES.has(action.type)),
       otherActions: all.filter(
-        (action: any) => !GITHUB_ACTION_TYPES.has(action.type) && !SCHEDULING_ACTION_TYPES.has(action.type)
+        action => !GITHUB_ACTION_TYPES.has(action.type) && !SCHEDULING_ACTION_TYPES.has(action.type)
       ),
     };
   }, [st.suggestedActions]);
@@ -481,7 +510,7 @@ const EmailDetailContent: React.FC<any> = ({
       st.setShowRuleModal(true);
     } else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
       const ruleId = type.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
-      const rule = st.customRules.find((rule: any) => rule.ruleId === ruleId);
+      const rule = st.customRules.find(rule => rule.ruleId === ruleId);
       if (rule) {
         ops.handleUseCustomRule(rule);
       } else {
@@ -505,18 +534,21 @@ const EmailDetailContent: React.FC<any> = ({
         {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
         {!isInline && (
           <div style={{ marginBottom: theme.spacing.xl }}>
-            <EmailDetailHeader
-              email={st.email as any}
-              threadEmails={st.threadEmails as Email[]}
-              priorityExplanation={st.priorityExplanation}
-              showPriorityExplanation={st.showPriorityExplanation}
-              onFetchPriorityExplanation={ops.handleFetchPriorityExplanation}
-              onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)}
-            />
+            {st.email && (
+              <EmailDetailHeader
+                email={st.email}
+                threadEmails={st.threadEmails as Email[]}
+                priorityExplanation={st.priorityExplanation}
+                showPriorityExplanation={st.showPriorityExplanation}
+                onFetchPriorityExplanation={ops.handleFetchPriorityExplanation}
+                onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)}
+              />
+            )}
           </div>
         )}
+        {st.email && (
         <EmailDetailActions
-          email={st.email as any}
+          email={st.email}
           threadEmails={st.threadEmails as Email[]}
           suggestedActions={otherActions}
           schedulingActions={schedulingActions}
@@ -540,6 +572,7 @@ const EmailDetailContent: React.FC<any> = ({
           }}
           hideActionButtons={isCompactOrInline && !isInline}
         />
+        )}
         {st.showReplyComposer && (
           <div ref={replyComposerRef}>
             <ReplyComposer
@@ -579,7 +612,10 @@ const EmailDetailContent: React.FC<any> = ({
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);
               }}
-              onDispute={ops.disputeToneCheck}
+              onDispute={async (emailText: string, _suggestions: string[], argument: string) => {
+                await ops.disputeToneCheck(emailText, argument);
+                return null;
+              }}
               disputing={st.disputing}
               disputeResult={st.disputeResult}
               autoSendCountdown={st.autoSendCountdown}
@@ -590,7 +626,7 @@ const EmailDetailContent: React.FC<any> = ({
               onClearSchedule={handleClearSchedule}
               currentEmailId={id}
               currentEmailObjectId={st.email?.id}
-              currentEmailThreadId={(st.email as any)?.emailThreadId}
+              currentEmailThreadId={st.email?.emailThreadId}
             />
           </div>
         )}
@@ -651,7 +687,7 @@ const EmailDetailContent: React.FC<any> = ({
   );
 };
 
-const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, effectiveVariant, isMobile, githubActions = [], emailContext = null }) => (
+const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({ state: st, ops, effectiveVariant, isMobile, githubActions = [], emailContext = null }) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
     <PrivateNotesSection
       noteContent={st.noteContent}

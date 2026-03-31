@@ -160,7 +160,7 @@ interface UseEmailManagementReturn {
   handleMarkAsUnread: (emailId: string) => Promise<void>;
   handleBulkMarkAsRead: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread: (emailIds: string[]) => Promise<void>;
-  handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
+  handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: Email[] }>;
 }
 
 export function useEmailManagement(props: UseEmailManagementProps): UseEmailManagementReturn {

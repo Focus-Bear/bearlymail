@@ -59,10 +59,12 @@ function createNoResultsMarker(query: string, message: string): Email {
     id: 'no-results',
     subject: '',
     from: '',
-    body: '',
     receivedAt: new Date().toISOString(),
     debugInfo: { originalQuery: query, queriesTried: [], message },
-  } as any as Email;
+    isRead: true,
+    isSnoozed: false,
+    threadId: '',
+  };
 }
 
 function buildSearchParams(
@@ -85,7 +87,7 @@ function isInstantSearchResponse(data: unknown): data is InstantSearchResponse {
     typeof data === 'object' &&
     data !== null &&
     'results' in data &&
-    Array.isArray((data as any).results) &&
+    Array.isArray((data as Record<string, unknown>).results) &&
     'enrichmentJobId' in data
   );
 }
@@ -257,7 +259,7 @@ async function runPhase3Expansion(
 const SEARCH_SLOW_THRESHOLD_MS = 2000;
 
 async function processSearchResults(options: {
-  responseData: any[];
+  responseData: Email[];
   query: string;
   currentSession: number;
   searchSessionRef: MutableRefObject<number>;
@@ -266,8 +268,9 @@ async function processSearchResults(options: {
   searchStartMs: number;
 }): Promise<void> {
   const { responseData, query, currentSession, searchSessionRef, selectedAccountTypes, setters, searchStartMs } = options;
-  if (responseData[0]?.debugInfo?.queriesTried) {
-    setters.setQueriesTried(responseData[0].debugInfo.queriesTried);
+  const queriesTried = responseData[0]?.debugInfo?.queriesTried;
+  if (Array.isArray(queriesTried)) {
+    setters.setQueriesTried(queriesTried as Array<{ query: string; resultCount: number; accountType?: string }>);
   }
   setters.setSearchResults(responseData);
   setters.setLoading(false);
@@ -395,7 +398,7 @@ export const useSearch = () => {
       };
       const stateSetters: SearchStateSetters = {
         setSearchResults,
-        setSearchResultsUpdater: setSearchResults as any,
+        setSearchResultsUpdater: (updater: (prev: Email[]) => Email[]) => setSearchResults(updater),
         setIsRefining,
         setProgressStep,
         setLoading,

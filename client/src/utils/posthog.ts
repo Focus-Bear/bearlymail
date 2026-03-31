@@ -30,7 +30,7 @@ export const initPostHog = () => {
 };
 
 // Helper function to identify user (NO PII - no email, no names)
-export const identifyUser = (userId: string, properties?: Record<string, any>) => {
+export const identifyUser = (userId: string, properties?: Record<string, unknown>) => {
   try {
     if (!isPostHogLoaded()) {
       return;
@@ -49,7 +49,7 @@ export const identifyUser = (userId: string, properties?: Record<string, any>) =
 };
 
 // Helper function to capture events with validation
-export const captureEvent = (eventName: string, properties?: Record<string, any>) => {
+export const captureEvent = (eventName: string, properties?: Record<string, unknown>) => {
   try {
     if (!isPostHogLoaded()) {
       return;
@@ -84,7 +84,7 @@ export const resetPostHog = () => {
 // Helper function to capture exceptions (errors) with stack traces
 // Uses posthog.captureException() which sends the $exception_list format
 // required by PostHog's Error Tracking dashboard.
-export const captureException = (error: Error, additionalContext?: Record<string, any>) => {
+export const captureException = (error: Error, additionalContext?: Record<string, unknown>) => {
   try {
     if (!isPostHogLoaded()) {
       console.error('PostHog not loaded, exception not tracked:', error.name, error.message);

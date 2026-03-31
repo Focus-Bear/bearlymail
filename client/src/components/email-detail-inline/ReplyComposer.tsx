@@ -83,7 +83,7 @@ interface ReplyComposerProps {
     inlineImages?: Map<string, File>;
   }) => void;
   onUseRevisedText: (text: string) => void;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
   disputing?: boolean;
   disputeResult?: DisputeResult | null;
@@ -300,7 +300,7 @@ interface ReplyComposerBodyProps {
   currentEmailObjectId?: string;
   currentEmailThreadId?: string;
   isAdmin: boolean;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onDispute?: ReplyComposerProps['onDispute'];
   disputing?: boolean;
   disputeResult?: DisputeResult | null;

@@ -13,7 +13,7 @@ describe("ErrorTrackingService", () => {
     // Spy on the internal PostHog client's captureException method
     // (not .capture — we must use the SDK's native captureException for $exception events)
     mockCaptureException = jest.fn();
-    (service as any).posthog = { captureException: mockCaptureException };
+    service.posthog = { captureException: mockCaptureException };
   });
 
   afterEach(() => {
@@ -76,8 +76,8 @@ describe("ErrorTrackingService", () => {
     });
 
     it("does nothing when PostHog is disabled", () => {
-      (service as any).isEnabled = false;
-      (service as any).posthog = null;
+      service.isEnabled = false;
+      service.posthog = null;
 
       service.captureException(new Error("silent"));
 

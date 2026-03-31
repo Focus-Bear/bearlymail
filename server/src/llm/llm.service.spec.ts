@@ -418,7 +418,7 @@ describe("LLMService", () => {
     beforeEach(() => {
       // parseSummaryWithPhishing is a pure synchronous method — LLMCoreService
       // is never called, so null is safe here.
-      summarizationService = new LLMSummarizationService(null as any);
+      summarizationService = new LLMSummarizationService(null);
     });
 
     it("sanitises a plain-text summary in the success path", () => {
@@ -429,9 +429,7 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = (summarizationService as any).parseSummaryWithPhishing(
-        response,
-      );
+      const result = summarizationService.parseSummaryWithPhishing(response);
       expect(result.summary).toBe(
         "This email asks you to review the attached proposal.",
       );
@@ -447,9 +445,7 @@ describe("LLMService", () => {
         category: null,
         categoryExplanation: null,
       });
-      const result = (summarizationService as any).parseSummaryWithPhishing(
-        response,
-      );
+      const result = summarizationService.parseSummaryWithPhishing(response);
       // extractPlainSummary should extract the value, not return raw JSON
       expect(result.summary).not.toContain("{");
       expect(result.summary).not.toContain("}");
@@ -458,7 +454,7 @@ describe("LLMService", () => {
 
     it("fallback path sanitises correctly (regression guard)", () => {
       // Non-JSON input — exercises the fallback path.
-      const result = (summarizationService as any).parseSummaryWithPhishing(
+      const result = summarizationService.parseSummaryWithPhishing(
         "  plain fallback summary  ",
       );
       expect(result.summary).toBe("plain fallback summary");

@@ -1,6 +1,7 @@
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { mockPartial } from "../../test/helpers/mock-utils";
 import { UsersService } from "../../users/users.service";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { EmailsService } from "../emails.service";
@@ -128,11 +129,13 @@ describe("ZohoProvider", () => {
     });
 
     it("should skip existing scan emails", async () => {
-      zohoAccountsService.findPrimary.mockResolvedValue(mockAccount as any);
-      scanEmailService.findByMessageId.mockResolvedValue({
-        id: "existing-123",
-        messageId: "msg-123",
-      } as any);
+      zohoAccountsService.findPrimary.mockResolvedValue(mockAccount);
+      scanEmailService.findByMessageId.mockResolvedValue(
+        mockPartial({
+          id: "existing-123",
+          messageId: "msg-123",
+        }),
+      );
 
       await provider.processScanEmail("user-123", "msg-123");
 
@@ -140,7 +143,7 @@ describe("ZohoProvider", () => {
     });
 
     it("should check for existing scan email before processing", async () => {
-      zohoAccountsService.findPrimary.mockResolvedValue(mockAccount as any);
+      zohoAccountsService.findPrimary.mockResolvedValue(mockAccount);
       scanEmailService.findByMessageId.mockResolvedValue(null);
 
       // The actual API call will fail but we're testing the flow
@@ -167,11 +170,13 @@ describe("ZohoProvider", () => {
     });
 
     it("should handle missing refresh token", async () => {
-      zohoAccountsService.findPrimary.mockResolvedValue({
-        ...mockAccount,
-        refreshToken: null,
-      } as any);
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      zohoAccountsService.findPrimary.mockResolvedValue(
+        mockPartial({
+          ...mockAccount,
+          refreshToken: null,
+        }),
+      );
+      usersService.findOne.mockResolvedValue(mockUser);
 
       // The implementation throws an error when refresh token is missing
       await expect(provider.syncEmails("user-123")).rejects.toThrow();

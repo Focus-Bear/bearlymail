@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { Email, InboxMode, TriageSuggestion } from 'types/email';
+import { Email, InboxMode, PriorityExplanation, TriageSuggestion } from 'types/email';
 
 import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY } from 'constants/strings';
 import { selectAnimatingOut } from 'store/selectors/emailSelectors';
@@ -15,7 +15,7 @@ interface EmailListItemProps {
   suggestion: TriageSuggestion | null;
   priorityTooltip: {
     hoveredPriorityEmailId: string | null;
-    priorityExplanation: any;
+    priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;
@@ -33,7 +33,7 @@ interface EmailListItemProps {
     clearSnooze: (emailId: string) => void;
   };
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
   onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
   onBlockSender: (emailId: string, event: React.MouseEvent) => void;

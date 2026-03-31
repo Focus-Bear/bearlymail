@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { Email } from 'types/email';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
 
@@ -117,7 +118,7 @@ async function executeSendReply(params: SendReplyParams): Promise<void> {
 // Pure helper: builds recipient/cc addresses based on reply mode.
 function buildReplyAddresses(
   mode: string,
-  email: any,
+  email: Email,
   userEmail: string | undefined
 ): { recipients: string; cc: string | null; showCc: boolean } {
   const normalizedUserEmail = userEmail?.toLowerCase();
@@ -248,18 +249,6 @@ interface EmailAttachment {
   filename: string;
   mimeType: string;
   size: number;
-}
-
-interface Email {
-  id: string;
-  from: string;
-  fromName?: string;
-  to?: string;
-  cc?: string;
-  replyTo?: string;
-  subject: string;
-  body: string;
-  attachments?: EmailAttachment[];
 }
 
 // Sub-hook: manages all reply composer UI state plus scheduling handlers.

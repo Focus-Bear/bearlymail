@@ -194,7 +194,7 @@ describe("QueueAutoscalingService", () => {
       // 11 queues with 50 each = 550
       dataSource.query.mockResolvedValue([{ pending: "50" }]);
 
-      await (service as any).checkAndPublishMetrics();
+      await service.checkAndPublishMetrics();
 
       expect(cloudWatchService.putMetrics).toHaveBeenCalledWith([
         {
@@ -216,11 +216,11 @@ describe("QueueAutoscalingService", () => {
       // Mock very low queue depth
       dataSource.query.mockResolvedValue([{ pending: "0" }]);
 
-      await (service as any).checkAndPublishMetrics();
+      await service.checkAndPublishMetrics();
 
       const metricsCall = cloudWatchService.putMetrics.mock.calls[0][0];
       const desiredWorkersMetric = metricsCall.find(
-        (metric: any) => metric.name === "DesiredWorkers",
+        (metric: Record<string, unknown>) => metric.name === "DesiredWorkers",
       );
 
       // minWorkers = 1
@@ -232,11 +232,11 @@ describe("QueueAutoscalingService", () => {
       // 10 queues * 100 = 1000
       dataSource.query.mockResolvedValue([{ pending: "100" }]);
 
-      await (service as any).checkAndPublishMetrics();
+      await service.checkAndPublishMetrics();
 
       const metricsCall = cloudWatchService.putMetrics.mock.calls[0][0];
       const desiredWorkersMetric = metricsCall.find(
-        (metric: any) => metric.name === "DesiredWorkers",
+        (metric: Record<string, unknown>) => metric.name === "DesiredWorkers",
       );
 
       // maxWorkers = 10
@@ -252,7 +252,7 @@ describe("QueueAutoscalingService", () => {
         .spyOn(service["logger"], "warn")
         .mockImplementation();
 
-      await (service as any).checkAndPublishMetrics();
+      await service.checkAndPublishMetrics();
 
       // Should continue processing other queues
       expect(loggerWarnSpy).toHaveBeenCalled();
@@ -270,7 +270,7 @@ describe("QueueAutoscalingService", () => {
         .spyOn(service["logger"], "error")
         .mockImplementation();
 
-      await (service as any).checkAndPublishMetrics();
+      await service.checkAndPublishMetrics();
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         "Error checking queue depth:",
@@ -285,7 +285,7 @@ describe("QueueAutoscalingService", () => {
     it("should sum queue depth across all queues", async () => {
       dataSource.query.mockResolvedValue([{ pending: "10" }]);
 
-      const depth = await (service as any).getTotalQueueDepth();
+      const depth = await service.getTotalQueueDepth();
 
       // 11 queues * 10 pending = 110
       expect(depth).toBe(110);
@@ -296,7 +296,7 @@ describe("QueueAutoscalingService", () => {
     it("should handle missing pending count", async () => {
       dataSource.query.mockResolvedValue([{}]);
 
-      const depth = await (service as any).getTotalQueueDepth();
+      const depth = await service.getTotalQueueDepth();
 
       expect(depth).toBe(0);
     });
@@ -304,7 +304,7 @@ describe("QueueAutoscalingService", () => {
     it("should handle null/undefined pending count", async () => {
       dataSource.query.mockResolvedValue([{ pending: null }]);
 
-      const depth = await (service as any).getTotalQueueDepth();
+      const depth = await service.getTotalQueueDepth();
 
       expect(depth).toBe(0);
     });
@@ -318,7 +318,7 @@ describe("QueueAutoscalingService", () => {
         .spyOn(service["logger"], "warn")
         .mockImplementation();
 
-      const depth = await (service as any).getTotalQueueDepth();
+      const depth = await service.getTotalQueueDepth();
 
       // Should continue processing other queues
       expect(depth).toBeGreaterThanOrEqual(0);
@@ -331,21 +331,21 @@ describe("QueueAutoscalingService", () => {
   describe("calculateDesiredWorkers", () => {
     it("should calculate workers based on queue depth per worker", () => {
       // 150 jobs / 50 per worker = 3 workers
-      const workers = (service as any).calculateDesiredWorkers(150);
+      const workers = service.calculateDesiredWorkers(150);
 
       expect(workers).toBe(3);
     });
 
     it("should round up fractional workers", () => {
       // 125 jobs / 50 per worker = 2.5, should round up to 3
-      const workers = (service as any).calculateDesiredWorkers(125);
+      const workers = service.calculateDesiredWorkers(125);
 
       expect(workers).toBe(3);
     });
 
     it("should not exceed maximum workers", () => {
       // 1000 jobs / 50 per worker = 20, but max is 10
-      const workers = (service as any).calculateDesiredWorkers(1000);
+      const workers = service.calculateDesiredWorkers(1000);
 
       // maxWorkers
       expect(workers).toBe(10);
@@ -353,7 +353,7 @@ describe("QueueAutoscalingService", () => {
 
     it("should not go below minimum workers", () => {
       // 0 jobs / 50 per worker = 0, but min is 1
-      const workers = (service as any).calculateDesiredWorkers(0);
+      const workers = service.calculateDesiredWorkers(0);
 
       // minWorkers
       expect(workers).toBe(1);
@@ -361,11 +361,11 @@ describe("QueueAutoscalingService", () => {
 
     it("should handle edge case at boundary", () => {
       // Exactly 50 jobs = 1 worker
-      const workers1 = (service as any).calculateDesiredWorkers(50);
+      const workers1 = service.calculateDesiredWorkers(50);
       expect(workers1).toBe(1);
 
       // 51 jobs = 2 workers (rounded up)
-      const workers2 = (service as any).calculateDesiredWorkers(51);
+      const workers2 = service.calculateDesiredWorkers(51);
       expect(workers2).toBe(2);
     });
   });

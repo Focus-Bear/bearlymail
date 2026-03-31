@@ -55,7 +55,14 @@ export const renderFormattedText = (text: string): React.ReactNode => {
   return parts.length > 0 ? parts : text;
 };
 
-export const renderPreviewWithMergeTags = (template: string, userName: string, stats: any): string => {
+interface TemplateStats {
+  actionCount: number;
+  triageCount: number;
+  avgResponseTime: string;
+  urgentResponseTime: string;
+}
+
+export const renderPreviewWithMergeTags = (template: string, userName: string, stats: TemplateStats): string => {
   let result = template;
 
   result = result.replace(/\{\{userName\}\}/g, userName);

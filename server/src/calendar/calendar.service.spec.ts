@@ -6,6 +6,7 @@ import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { CalendarService } from "./calendar.service";
 import { CalendarAgendaService } from "./calendar-agenda.service";
@@ -38,9 +39,9 @@ describe("CalendarService", () => {
   let llmService: jest.Mocked<LLMService>;
   let emailsService: jest.Mocked<EmailsService>;
   let calendarIcsService: jest.Mocked<CalendarIcsService>;
-  let mockCalendarBookingRepository: any;
-  let mockOAuth2Client: any;
-  let mockCalendar: any;
+  let mockCalendarBookingRepository: Record<string, unknown>;
+  let mockOAuth2Client: Record<string, unknown>;
+  let mockCalendar: Record<string, unknown>;
 
   const mockUser = {
     id: "user-1",
@@ -80,9 +81,7 @@ describe("CalendarService", () => {
       save: jest.fn(),
     };
 
-    (google.auth as any).OAuth2 = jest
-      .fn()
-      .mockImplementation(() => mockOAuth2Client);
+    google.auth.OAuth2 = jest.fn().mockImplementation(() => mockOAuth2Client);
     (google.calendar as jest.Mock).mockReturnValue(mockCalendar);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -153,7 +152,7 @@ describe("CalendarService", () => {
 
   describe("getAvailableTimeSlots", () => {
     it("should return available time slots", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -178,10 +177,12 @@ describe("CalendarService", () => {
     });
 
     it("should throw error when Google Calendar not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(
         service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY),
@@ -189,7 +190,7 @@ describe("CalendarService", () => {
     });
 
     it("should handle calendar API errors", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockRejectedValue(new Error("API Error"));
 
       await expect(
@@ -198,7 +199,7 @@ describe("CalendarService", () => {
     });
 
     it("should throw specific error for Insufficient Permission from Google", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockRejectedValue(
         new Error("Insufficient Permission"),
       );
@@ -209,7 +210,7 @@ describe("CalendarService", () => {
     });
 
     it("should throw specific error for insufficientPermissions from Google", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockRejectedValue(
         new Error(
           "Request failed with status code 403: insufficientPermissions",
@@ -228,7 +229,7 @@ describe("CalendarService", () => {
       const busyEnd = new Date(now);
       busyEnd.setHours(11, 0, 0, 0);
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -264,7 +265,7 @@ describe("CalendarService", () => {
         end: { dateTime: "2024-01-15T11:00:00Z" },
       };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
@@ -310,7 +311,7 @@ describe("CalendarService", () => {
 
     it("should include reschedule and cancel links in description", async () => {
       const mockEvent = { id: "event-1" };
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
@@ -332,7 +333,7 @@ describe("CalendarService", () => {
 
     it("should use default title when not provided", async () => {
       const mockEvent = { id: "event-1" };
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
@@ -356,10 +357,12 @@ describe("CalendarService", () => {
     });
 
     it("should throw error when Google Calendar not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(
         service.createEvent({
@@ -372,7 +375,7 @@ describe("CalendarService", () => {
     });
 
     it("should handle calendar API errors", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockRejectedValue(new Error("API Error"));
 
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
@@ -404,7 +407,7 @@ describe("CalendarService", () => {
         },
       };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockResolvedValue({
         data: mockEventWithConference,
       });
@@ -425,7 +428,7 @@ describe("CalendarService", () => {
         summary: "Meeting without conferenceData",
       };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockResolvedValue({
         data: mockEventWithoutConference,
       });
@@ -452,7 +455,7 @@ describe("CalendarService", () => {
         },
       };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockResolvedValue({
         data: mockEventPhoneOnly,
       });
@@ -470,7 +473,7 @@ describe("CalendarService", () => {
     it("should include conferenceDataVersion: 1 in the insert call to trigger Meet creation", async () => {
       const mockEvent = { id: "event-conf-version-1" };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
       await service.createEvent({
@@ -498,7 +501,7 @@ describe("CalendarService", () => {
     it("should generate a unique requestId for each createEvent call", async () => {
       const mockEvent = { id: "event-req-id-1" };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
       await service.createEvent({
@@ -548,7 +551,7 @@ describe("CalendarService", () => {
         },
       };
 
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.list.mockResolvedValue(mockEvents);
 
       const result = await service.findEventsWithAttendee(
@@ -564,7 +567,7 @@ describe("CalendarService", () => {
     });
 
     it("should return empty array when no events found", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.list.mockResolvedValue({
         data: { items: [] },
       });
@@ -578,7 +581,7 @@ describe("CalendarService", () => {
     });
 
     it("should filter events by attendee email (case insensitive)", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.list.mockResolvedValue({
         data: {
           items: [
@@ -599,10 +602,12 @@ describe("CalendarService", () => {
     });
 
     it("should throw error when Google Calendar not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(
         service.findEventsWithAttendee("user-1", "attendee@example.com"),
@@ -610,7 +615,7 @@ describe("CalendarService", () => {
     });
 
     it("should handle calendar API errors", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.list.mockRejectedValue(new Error("API Error"));
 
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
@@ -628,8 +633,8 @@ describe("CalendarService", () => {
 
     it("returns config prompt when schedulingLinkUrl is null (no profile URL, no env var)", async () => {
       const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: null };
-      usersService.findOne.mockResolvedValue(userWithoutBookingUrl as any);
-      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      usersService.findOne.mockResolvedValue(userWithoutBookingUrl);
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
       delete process.env.CALENDAR_BOOKING_URL;
 
       const result = await service.generateMeetingReply("user-1", "email-1");
@@ -643,8 +648,8 @@ describe("CalendarService", () => {
         ...mockUser,
         calendarBookingUrl: BOOKING_URL,
       };
-      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
-      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      usersService.findOne.mockResolvedValue(userWithBookingUrl);
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
       llmService.generateMeetingReply.mockResolvedValue(
         "Here is my booking link...",
       );
@@ -670,8 +675,8 @@ describe("CalendarService", () => {
         ...mockUser,
         calendarBookingUrl: "",
       };
-      usersService.findOne.mockResolvedValue(userWithEmptyBookingUrl as any);
-      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      usersService.findOne.mockResolvedValue(userWithEmptyBookingUrl);
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
       process.env.CALENDAR_BOOKING_URL = BOOKING_URL;
       llmService.generateMeetingReply.mockResolvedValue(
         "Booking via env var link...",
@@ -693,8 +698,8 @@ describe("CalendarService", () => {
 
     it("returns null when neither profile URL nor env var is set", async () => {
       const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: "" };
-      usersService.findOne.mockResolvedValue(userWithoutBookingUrl as any);
-      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      usersService.findOne.mockResolvedValue(userWithoutBookingUrl);
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
       delete process.env.CALENDAR_BOOKING_URL;
 
       const result = await service.generateMeetingReply("user-1", "email-1");
@@ -707,7 +712,7 @@ describe("CalendarService", () => {
         ...mockUser,
         calendarBookingUrl: BOOKING_URL,
       };
-      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
+      usersService.findOne.mockResolvedValue(userWithBookingUrl);
       emailsService.getEmailById.mockResolvedValue(null);
 
       await expect(
@@ -720,8 +725,8 @@ describe("CalendarService", () => {
         ...mockUser,
         calendarBookingUrl: BOOKING_URL,
       };
-      usersService.findOne.mockResolvedValue(userWithBookingUrl as any);
-      emailsService.getEmailById.mockResolvedValue(mockEmail as any);
+      usersService.findOne.mockResolvedValue(userWithBookingUrl);
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
       llmService.generateMeetingReply.mockRejectedValue(new Error("LLM error"));
 
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
@@ -869,7 +874,7 @@ describe("CalendarService", () => {
 
   describe("getAvailableSlotsWithTimezone", () => {
     it("should return slots, timezone, and hasMore", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -891,7 +896,7 @@ describe("CalendarService", () => {
     });
 
     it("should use UTC as default timezone", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -908,7 +913,7 @@ describe("CalendarService", () => {
     });
 
     it("should paginate slots using afterDate and limit", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       // Use a wide range so many slots are generated
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
@@ -950,7 +955,7 @@ describe("CalendarService", () => {
     });
 
     it("should set hasMore=true when more slots exist beyond current page", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -974,7 +979,7 @@ describe("CalendarService", () => {
     });
 
     it("should set hasMore=false when all slots have been returned", async () => {
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.freebusy.query.mockResolvedValue({
         data: {
           calendars: {
@@ -1247,7 +1252,7 @@ describe("CalendarService", () => {
       mockCalendarBookingRepository.findOne.mockResolvedValue({
         ...mockBooking,
       });
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       mockCalendar.events.patch.mockResolvedValue({ data: mockEvent });
 
@@ -1292,10 +1297,12 @@ describe("CalendarService", () => {
       mockCalendarBookingRepository.findOne.mockResolvedValue({
         ...mockBooking,
       });
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(
         service.rescheduleBooking("test-token", "2024-01-16T14:00:00Z"),
@@ -1316,7 +1323,7 @@ describe("CalendarService", () => {
       mockCalendarBookingRepository.findOne.mockResolvedValue({
         ...mockBooking,
       });
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.delete.mockResolvedValue({});
 
       const result = await service.cancelBooking("test-token");
@@ -1351,10 +1358,12 @@ describe("CalendarService", () => {
       mockCalendarBookingRepository.findOne.mockResolvedValue({
         ...mockBooking,
       });
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+        }),
+      );
 
       await expect(service.cancelBooking("test-token")).rejects.toThrow(
         "Google Calendar not connected",
@@ -1493,7 +1502,7 @@ describe("CalendarService", () => {
   describe("rsvpByEventId", () => {
     it("updates RSVP and returns new status", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {
           id: "gcal-event-123",
@@ -1529,11 +1538,13 @@ describe("CalendarService", () => {
     });
 
     it("throws BadRequestException when calendar not connected", async () => {
-      usersService.findOne.mockResolvedValue({
-        ...mockUser,
-        googleCalendarAccessToken: null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      usersService.findOne.mockResolvedValue(
+        mockPartial({
+          ...mockUser,
+          googleCalendarAccessToken: null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }),
+      );
 
       await expect(
         service.rsvpByEventId("user-1", "gcal-event-123", "accepted"),
@@ -1542,7 +1553,7 @@ describe("CalendarService", () => {
 
     it("throws BadRequestException when user is not an attendee", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {
           id: "gcal-event-123",
@@ -1559,7 +1570,7 @@ describe("CalendarService", () => {
 
     it("throws BadRequestException when event has no attendees", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      usersService.findOne.mockResolvedValue(mockUser as any);
+      usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {
           id: "gcal-event-123",

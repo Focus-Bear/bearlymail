@@ -155,15 +155,16 @@ const Compose: React.FC = () => {
       navigate('/inbox');
     }, DELAY_1_5_SECONDS_MS);
 
-    axios.post(`${API_URL}/emails/send`, payload).catch((err: any) => {
+    axios.post(`${API_URL}/emails/send`, payload).catch((err: unknown) => {
       console.error('Error sending email:', err);
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
         navigationTimeoutRef.current = null;
       }
       setSendSuccess(false);
-      setError(err.response?.data?.message || t('compose.errorSendFailed'));
-      showError(err.response?.data?.message || t('compose.errorSendFailed'));
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
+      showError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
     });
   };
 

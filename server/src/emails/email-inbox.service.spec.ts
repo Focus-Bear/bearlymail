@@ -236,7 +236,7 @@ describe("getInboxSummary SQL — fix #1554", () => {
     // emailRepository, emailThreadRepository, userContextRepository,
     // blockedSendersService, emailFollowUpService,
     // emailInboxCategoryService, emailInboxDecryptService, cloudWatchService
-    const service = new (EmailInboxService as any)(
+    const service = new EmailInboxService(
       {},
       emailThreadRepository,
       userContextRepository,

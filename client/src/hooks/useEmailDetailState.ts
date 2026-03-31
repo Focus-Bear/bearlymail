@@ -1,41 +1,16 @@
 import { useState } from 'react';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
+import { Email, GitHubLink } from 'types/email';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-
-interface EmailDetailEmail {
-  id: string;
-  threadId?: string;
-  subject: string;
-  from: string;
-  fromName?: string;
-  to?: string;
-  cc?: string;
-  body?: string;
-  htmlBody?: string;
-  receivedAt: string;
-  summary?: string;
-  isProcessingSummary?: boolean;
-  phishingConfidence?: 'low' | 'medium' | 'high' | null;
-  phishingReason?: string | null;
-  githubMetadata?: {
-    links: any[];
-  };
-  attachments?: Array<{
-    attachmentId: string;
-    filename: string;
-    mimeType: string;
-    size: number;
-  }> | null;
-}
 
 export function useEmailDetailState() {
   // Seed GitHub token presence from TanStack Query cache (populated by auth/settings)
   const { data: userProfile } = useUserProfileQuery();
 
   // Email data state
-  const [email, setEmail] = useState<EmailDetailEmail | null>(null);
-  const [threadEmails, setThreadEmails] = useState<EmailDetailEmail[]>([]);
+  const [email, setEmail] = useState<Email | null>(null);
+  const [threadEmails, setThreadEmails] = useState<Email[]>([]);
   const [expandedThreadItems, setExpandedThreadItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +87,7 @@ export function useEmailDetailState() {
   // async fetch completes — prevents the false "no links" flash.
   // hasGithubToken is seeded from the TanStack Query cache so the UI never shows
   // the "Connect to GitHub" prompt during the ~200ms–1s fetch window (#1347).
-  const [githubLinks, setGithubLinks] = useState<any[]>([]);
+  const [githubLinks, setGithubLinks] = useState<GitHubLink[]>([]);
   const [loadingGithub, setLoadingGithub] = useState(true);
   const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
 

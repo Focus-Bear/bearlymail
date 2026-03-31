@@ -102,7 +102,7 @@ export function computeBackoffDelay(retryCount: number): number {
  * Always enforces RETRY_AFTER_MIN_MS floor.
  */
 export function parseRetryAfterMs(error: unknown): number | null {
-  const headers = (error as any)?.response?.headers;
+  const headers = (error as { response?: { headers?: Record<string, string> } })?.response?.headers;
   if (!headers) {
 return null;
 }
@@ -170,7 +170,7 @@ export function usePollingWithBackoff({ maxRetries }: UsePollingWithBackoffOptio
       const exhausted = newRetryCount >= maxRetries;
 
       // Respect Retry-After header for 429 responses; fall back to exponential backoff
-      const is429 = (error as any)?.response?.status === HTTP_TOO_MANY_REQUESTS;
+      const is429 = (error as { response?: { status?: number } })?.response?.status === HTTP_TOO_MANY_REQUESTS;
       let delayMs: number;
       if (is429) {
         delayMs = parseRetryAfterMs(error) ?? Math.max(computeBackoffDelay(newRetryCount), RETRY_AFTER_MIN_MS);

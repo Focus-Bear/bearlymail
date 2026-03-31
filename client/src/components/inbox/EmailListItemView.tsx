@@ -10,7 +10,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email, InboxMode, TriageSuggestion } from 'types/email';
+import { Email, InboxMode, PriorityExplanation, TriageSuggestion } from 'types/email';
 
 import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
 import { EmailActionsRow } from 'components/inbox/EmailActionsRow';
@@ -35,7 +35,7 @@ export interface EmailListItemViewProps {
   animatingOutStarCount?: number;
   priorityTooltip: {
     hoveredPriorityEmailId: string | null;
-    priorityExplanation: any;
+    priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;
@@ -53,7 +53,7 @@ export interface EmailListItemViewProps {
     clearSnooze: (emailId: string) => void;
   };
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
   onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
   onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
   onBlockSender: (emailId: string, event: React.MouseEvent) => void;
@@ -144,7 +144,7 @@ export const EmailListItemView: React.FC<EmailListItemViewProps> = ({
         <EmailSubject email={email} />
         <EmailPreview email={email} />
         <MetadataIndicators email={email} />
-        {mode === MODE_FOLLOW_UP && <FollowUpMetadata email={email as any} />}
+        {mode === MODE_FOLLOW_UP && <FollowUpMetadata email={email} />}
         {mode === MODE_FOLLOW_UP && followUpData && (
           <FollowUpDraft followUpData={followUpData} onUpdateDraft={onUpdateDraft} onSendFollowUp={onSendFollowUp} />
         )}

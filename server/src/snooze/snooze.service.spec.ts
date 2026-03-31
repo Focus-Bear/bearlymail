@@ -7,6 +7,7 @@ import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { mockPartial } from "../test/helpers/mock-utils";
 import { SnoozeService } from "./snooze.service";
 
 jest.mock("chrono-node", () => ({
@@ -19,7 +20,7 @@ describe("SnoozeService", () => {
   let threadRepository: jest.Mocked<Repository<EmailThread>>;
   let emailProviderManager: jest.Mocked<EmailProviderManager>;
 
-  const mockEmail: Email = {
+  const mockEmail: Email = mockPartial({
     id: "email-1",
     userId: "user-1",
     subject: "Test Email",
@@ -29,9 +30,9 @@ describe("SnoozeService", () => {
     emailThreadId: "thread-uuid-1",
     threadId: "gmail-thread-1",
     getPriorityScore: jest.fn().mockReturnValue(50),
-  } as any;
+  });
 
-  const mockThread: EmailThread = {
+  const mockThread: EmailThread = mockPartial({
     id: "thread-uuid-1",
     userId: "user-1",
     threadId: "gmail-thread-1",
@@ -40,7 +41,7 @@ describe("SnoozeService", () => {
     syncStatus: "synced",
     syncStatusUpdatedAt: null,
     lastUserOperationAt: null,
-  } as any;
+  });
 
   const mockProvider = {
     snoozeThread: jest.fn(),
@@ -90,9 +91,7 @@ describe("SnoozeService", () => {
       threadRepository.save.mockImplementation(
         async (thread) => thread as EmailThread,
       );
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
       mockProvider.snoozeThread.mockResolvedValue(undefined);
     });
 
@@ -113,13 +112,15 @@ describe("SnoozeService", () => {
     });
 
     it("should set syncStatus to unsynced before provider call", async () => {
-      let capturedThreadBeforeProvider: any = null;
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        if (capturedThreadBeforeProvider === null) {
-          capturedThreadBeforeProvider = { ...thread };
-        }
-        return thread as EmailThread;
-      });
+      let capturedThreadBeforeProvider: unknown = null;
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          if (capturedThreadBeforeProvider === null) {
+            capturedThreadBeforeProvider = { ...thread };
+          }
+          return thread as EmailThread;
+        },
+      );
       mockProvider.snoozeThread.mockImplementation(async () => {
         expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
       });
@@ -131,10 +132,12 @@ describe("SnoozeService", () => {
 
     it("should set syncStatus back to synced after provider confirms", async () => {
       const savedStates: string[] = [];
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        savedStates.push(thread.syncStatus);
-        return thread as EmailThread;
-      });
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          savedStates.push(thread.syncStatus);
+          return thread as EmailThread;
+        },
+      );
 
       await service.snoozeEmail("user-1", "email-1", "1h");
 
@@ -145,10 +148,12 @@ describe("SnoozeService", () => {
     it("should leave syncStatus as unsynced if provider sync fails", async () => {
       mockProvider.snoozeThread.mockRejectedValue(new Error("Provider error"));
       const savedStates: string[] = [];
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        savedStates.push(thread.syncStatus);
-        return thread as EmailThread;
-      });
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          savedStates.push(thread.syncStatus);
+          return thread as EmailThread;
+        },
+      );
 
       await service.snoozeEmail("user-1", "email-1", "1h");
 
@@ -178,11 +183,13 @@ describe("SnoozeService", () => {
     });
 
     it("should set lastUserOperationAt on snooze", async () => {
-      let savedThread: any = null;
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        if (!savedThread) savedThread = { ...thread };
-        return thread as EmailThread;
-      });
+      let savedThread: unknown = null;
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          if (!savedThread) savedThread = { ...thread };
+          return thread as EmailThread;
+        },
+      );
 
       await service.snoozeEmail("user-1", "email-1", "1h");
 
@@ -308,11 +315,11 @@ describe("SnoozeService", () => {
   });
 
   describe("unsnoozeEmail", () => {
-    const snoozedEmail = {
+    const snoozedEmail = mockPartial({
       ...mockEmail,
       isSnoozed: true,
       snoozeUntil: new Date("2024-01-02T12:00:00Z"),
-    } as any;
+    });
 
     const snoozedThread = {
       ...mockThread,
@@ -323,14 +330,12 @@ describe("SnoozeService", () => {
 
     beforeEach(() => {
       repository.findOne.mockResolvedValue(snoozedEmail);
-      repository.save.mockImplementation(async (email) => email as any);
+      repository.save.mockImplementation(async (email) => email);
       threadRepository.findOne.mockResolvedValue({ ...snoozedThread });
       threadRepository.save.mockImplementation(
         async (thread) => thread as EmailThread,
       );
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(
-        mockProvider as any,
-      );
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
       mockProvider.unsnoozeThread.mockResolvedValue(undefined);
     });
 
@@ -351,13 +356,15 @@ describe("SnoozeService", () => {
     });
 
     it("should set syncStatus to unsynced before provider call", async () => {
-      let capturedThreadBeforeProvider: any = null;
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        if (capturedThreadBeforeProvider === null) {
-          capturedThreadBeforeProvider = { ...thread };
-        }
-        return thread as EmailThread;
-      });
+      let capturedThreadBeforeProvider: unknown = null;
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          if (capturedThreadBeforeProvider === null) {
+            capturedThreadBeforeProvider = { ...thread };
+          }
+          return thread as EmailThread;
+        },
+      );
       mockProvider.unsnoozeThread.mockImplementation(async () => {
         expect(capturedThreadBeforeProvider.syncStatus).toBe("unsynced");
       });
@@ -369,10 +376,12 @@ describe("SnoozeService", () => {
 
     it("should set syncStatus back to synced after provider confirms", async () => {
       const savedStates: string[] = [];
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        savedStates.push(thread.syncStatus);
-        return thread as EmailThread;
-      });
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          savedStates.push(thread.syncStatus);
+          return thread as EmailThread;
+        },
+      );
 
       await service.unsnoozeEmail("user-1", "email-1");
 
@@ -385,10 +394,12 @@ describe("SnoozeService", () => {
         new Error("Provider error"),
       );
       const savedStates: string[] = [];
-      threadRepository.save.mockImplementation(async (thread: any) => {
-        savedStates.push(thread.syncStatus);
-        return thread as EmailThread;
-      });
+      threadRepository.save.mockImplementation(
+        async (thread: Record<string, unknown>) => {
+          savedStates.push(thread.syncStatus);
+          return thread as EmailThread;
+        },
+      );
 
       await service.unsnoozeEmail("user-1", "email-1");
 

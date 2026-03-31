@@ -241,7 +241,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
       // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
     };
 
-    const handleProgressResponse = async (progressData: any, timeoutId: ReturnType<typeof setTimeout> | null) => {
+    const handleProgressResponse = async (progressData: NonNullable<AnalyzeProgress['progress']>, timeoutId: ReturnType<typeof setTimeout> | null) => {
       // CRITICAL: Check if cancelled before updating state
       if (cancelledRef.current) {
         devDebug('handleProgressResponse skipped - cancelled');

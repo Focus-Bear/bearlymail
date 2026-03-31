@@ -17,7 +17,7 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { LLMProvider, LLMService } from "../llm/llm.service";
-import { SUMMARY_TYPES } from "../llm/prompts";
+import { getPrompt, SUMMARY_PROMPT_IDS, SUMMARY_TYPES } from "../llm/prompts";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { matchAny } from "./pattern-matcher";
@@ -160,11 +160,12 @@ export class SummarizationService {
         messagesToSummarize.length > 1
           ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last few):\n\n${threadText}\n\n${rule.customPrompt}`
           : `Email Subject: ${subject}\n\nEmail Body:\n"""\n${cleanedBody}\n"""\n\n${rule.customPrompt}`;
+      const customPromptConfig = getPrompt(SUMMARY_PROMPT_IDS.CUSTOM);
+      const systemPrompt = customPromptConfig?.systemPrompt ?? "";
       return this.llmService.generateText(
         {
           prompt,
-          systemPrompt:
-            "You are a helpful assistant that summarizes email threads according to user instructions.",
+          systemPrompt,
           temperature: 0.5,
           maxTokens: 500,
           userId,

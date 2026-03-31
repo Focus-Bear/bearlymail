@@ -5,7 +5,7 @@ import { ACTION_TYPE_CUSTOM } from 'constants/strings';
 
 interface ReplyOption {
   label: string;
-  text?: string;
+  text: string;
 }
 
 /**
@@ -37,7 +37,7 @@ export function useEmailDetailDraftHandlers(options: {
   setDraft: (d: string) => void;
   setSelectedReplyOption: (idx: number) => void;
   setReplyOptions: (opts: ReplyOption[] | null) => void;
-  setToneCheckResult: (r: any) => void;
+  setToneCheckResult: (r: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null) => void;
   setShowReplyComposer: (show: boolean) => void;
 }) {
   const { replyOptions, setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult, setShowReplyComposer } = options;

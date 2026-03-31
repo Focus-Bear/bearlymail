@@ -10,6 +10,15 @@ import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarMod
 import { API_URL } from 'config/api';
 import { CALENDAR_DAYS_AHEAD, CALENDAR_DAYS_BACK, MODAL_WIDTH_LARGE, VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
+interface CalendarEvent {
+  summary?: string;
+  start: string;
+  end: string;
+  location?: string;
+  attendees?: Array<{ email?: string; displayName?: string }>;
+  htmlLink?: string;
+}
+
 interface CalendarFindEventsModalProps {
   attendeeEmail: string;
   onClose: () => void;
@@ -18,7 +27,7 @@ interface CalendarFindEventsModalProps {
 export const CalendarFindEventsModal: React.FC<CalendarFindEventsModalProps> = ({ attendeeEmail, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     const fetchEvents = async () => {

@@ -54,7 +54,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
 
   // Extract unsubscribe link from email (check htmlBody first, then body as fallback)
   const unsubscribeLink = useMemo(() => {
-    const htmlBody = (email as any).htmlBody;
+    const htmlBody = email.htmlBody;
     return extractUnsubscribeLink(htmlBody, email.body);
   }, [email]);
 

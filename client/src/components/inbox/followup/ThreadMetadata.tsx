@@ -10,7 +10,7 @@ interface ThreadMetadataProps {
 }
 
 const calculateDaysSinceLastResponse = (thread: ThreadWithFollowUp): number | null => {
-  const lastTheirReplyAt = (thread as any).lastTheirReplyAt;
+  const lastTheirReplyAt = thread.lastTheirReplyAt;
   if (!lastTheirReplyAt) {
     return null;
   }
@@ -21,8 +21,8 @@ const calculateDaysSinceLastResponse = (thread: ThreadWithFollowUp): number | nu
 export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
   const { t } = useTranslation();
   const daysSinceLastResponse = calculateDaysSinceLastResponse(thread);
-  const otherPersonName = (thread as any).otherPersonName || thread.fromName || thread.from;
-  const lastMyReplyAt = (thread as any).lastMyReplyAt;
+  const otherPersonName = thread.otherPersonName || thread.fromName || thread.from;
+  const lastMyReplyAt = thread.lastMyReplyAt;
 
   return (
     <div style={{ marginBottom: theme.spacing.xs }}>

@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import { mockPartial } from 'test/mockUtils';
 import { Email } from 'types/email';
 
 import { API_URL } from 'config/api';
@@ -89,7 +90,7 @@ const createTestStore = (emails: Email[] = []) =>
   });
 
 const createMockState = () => ({
-  email: { id: TEST_EMAIL_ID, threadId: 'thread-1', subject: 'Test', from: 'test@test.com', body: 'Test body' },
+  email: mockPartial<Email>({ id: TEST_EMAIL_ID, threadId: 'thread-1', subject: 'Test', from: 'test@test.com', body: 'Test body' }),
   setEmail: jest.fn(),
   threadEmails: [],
   setThreadEmails: jest.fn(),

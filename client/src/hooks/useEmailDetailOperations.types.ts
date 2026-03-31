@@ -1,12 +1,13 @@
 import React from 'react';
+import { Email, GitHubLink, PriorityExplanation } from 'types/email';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
 export interface EmailDetailState {
-  email: any;
-  setEmail: (email: any) => void;
-  threadEmails: any[];
-  setThreadEmails: (emails: any[]) => void;
+  email: Email | null;
+  setEmail: React.Dispatch<React.SetStateAction<Email | null>>;
+  threadEmails: Email[];
+  setThreadEmails: React.Dispatch<React.SetStateAction<Email[]>>;
   expandedThreadItems: Set<string>;
   setExpandedThreadItems: (setter: (prev: Set<string>) => Set<string>) => void;
   noteContent: string;
@@ -85,12 +86,12 @@ export interface EmailDetailState {
   setSnoozeInput: (input: string) => void;
   showSnoozeInput: boolean;
   setShowSnoozeInput: (show: boolean) => void;
-  priorityExplanation: any;
-  setPriorityExplanation: (explanation: any) => void;
+  priorityExplanation: PriorityExplanation | null;
+  setPriorityExplanation: (explanation: PriorityExplanation | null) => void;
   showPriorityExplanation: boolean;
   setShowPriorityExplanation: (show: boolean) => void;
-  githubLinks: any[];
-  setGithubLinks: (links: any[]) => void;
+  githubLinks: GitHubLink[];
+  setGithubLinks: (links: GitHubLink[]) => void;
   loadingGithub: boolean;
   setLoadingGithub: (loading: boolean) => void;
   hasGithubToken: boolean;

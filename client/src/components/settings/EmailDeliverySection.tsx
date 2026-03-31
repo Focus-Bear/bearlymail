@@ -32,9 +32,9 @@ interface BatchSchedule {
 }
 
 interface EmailDeliverySectionProps {
-  googleAccounts: any[];
-  office365Accounts: any[];
-  zohoAccounts: any[];
+  googleAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean }>;
+  office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
+  zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>;
   batchSchedule: BatchSchedule;
   blockedSenders: BlockedSender[];
   blockedKeywords: BlockedKeyword[];

@@ -5,6 +5,7 @@ import axios from "axios";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { Organization } from "../database/entities/organization.entity";
@@ -230,8 +231,7 @@ export class SubscriptionsService {
         }
       } catch (error) {
         this.logger.error(
-          `Failed to check RevenueCat subscription for user ${userId}`,
-          error,
+          `Failed to check RevenueCat subscription for user ${userId}: ${sanitizeAxiosError(error)}`,
         );
       }
     }
@@ -327,8 +327,7 @@ export class SubscriptionsService {
               }
             } catch (error) {
               this.logger.error(
-                `Failed to fetch customer info for ${app_user_id}`,
-                error,
+                `Failed to fetch customer info for ${app_user_id}: ${sanitizeAxiosError(error)}`,
               );
             }
           }
@@ -351,7 +350,7 @@ export class SubscriptionsService {
         `Processed RevenueCat webhook: ${event.type} for user ${user.id}`,
       );
     } catch (error) {
-      this.logger.error("Error processing RevenueCat webhook", error);
+      this.logger.error(`Error processing RevenueCat webhook: ${sanitizeAxiosError(error)}`);
       throw error;
     }
   }

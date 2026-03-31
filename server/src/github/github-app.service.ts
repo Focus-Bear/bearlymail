@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import axios from "axios";
 
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { UsersService } from "../users/users.service";
 
 interface GitHubUser {
@@ -77,7 +78,7 @@ export class GitHubAppService {
       }
       return { userId: payload.userId, includeRepo: payload.includeRepo };
     } catch (error) {
-      this.logger.error(`Failed to verify connect token: ${error}`);
+      this.logger.error(`Failed to verify connect token: ${sanitizeAxiosError(error)}`);
       return null;
     }
   }
@@ -137,7 +138,7 @@ export class GitHubAppService {
 
       return response.data.access_token;
     } catch (error) {
-      this.logger.error(`Failed to exchange code for token: ${error}`);
+      this.logger.error(`Failed to exchange code for token: ${sanitizeAxiosError(error)}`);
       throw new Error("Failed to exchange authorization code for token");
     }
   }
@@ -159,7 +160,7 @@ export class GitHubAppService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to fetch GitHub user info: ${error}`);
+      this.logger.error(`Failed to fetch GitHub user info: ${sanitizeAxiosError(error)}`);
       throw new Error("Failed to fetch GitHub user info");
     }
   }

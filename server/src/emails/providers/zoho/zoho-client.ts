@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
 
 import { ERROR_MESSAGES } from "../../../constants/error-messages";
+import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import { ZohoAccountsService } from "../../../zoho-accounts/zoho-accounts.service";
 
 @Injectable()
@@ -72,7 +73,7 @@ export class ZohoClient {
 
       return access_token;
     } catch (error) {
-      this.logger.error("Failed to refresh Zoho token:", error);
+      this.logger.error(`Failed to refresh Zoho token: ${sanitizeAxiosError(error)}`);
       await this.zohoAccountsService.updateTokens(
         accountId,
         userId,
@@ -96,7 +97,7 @@ export class ZohoClient {
       }
       return accounts[0].accountId;
     } catch (error) {
-      this.logger.error("Failed to get Zoho account ID:", error);
+      this.logger.error(`Failed to get Zoho account ID: ${sanitizeAxiosError(error)}`);
       throw error;
     }
   }

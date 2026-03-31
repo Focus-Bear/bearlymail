@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
 
 import { ERROR_MESSAGES } from "../../../constants/error-messages";
+import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import { Office365AccountsService } from "../../../office365-accounts/office365-accounts.service";
 
 @Injectable()
@@ -77,7 +78,7 @@ export class Office365Client {
 
       return access_token;
     } catch (error) {
-      this.logger.error("Failed to refresh Microsoft token:", error);
+      this.logger.error(`Failed to refresh Microsoft token: ${sanitizeAxiosError(error)}`);
       await this.office365AccountsService.updateTokens(
         accountId,
         userId,

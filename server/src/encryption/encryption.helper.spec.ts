@@ -5,40 +5,71 @@ import {
   encryptedJsonTransformer,
   EncryptionHelper,
 } from "./encryption.helper";
+import { encryptionKeyProvider } from "./encryption-key-provider";
 
 describe("EncryptionHelper", () => {
   const originalEnv = process.env.ENCRYPTION_KEY;
 
   beforeEach(() => {
-    // Reset key cache before each test
-    (EncryptionHelper as any).keyCache = null;
-    // Set a test encryption key
     process.env.ENCRYPTION_KEY = "test-encryption-key-32-chars-long!!";
+    // Re-initialize the provider with the test key
+    encryptionKeyProvider.initialize();
+    // Reset the consecutive failure counter
+    (EncryptionHelper as any).consecutiveFailures = 0;
   });
 
   afterEach(() => {
-    // Restore original env
     if (originalEnv) {
       process.env.ENCRYPTION_KEY = originalEnv;
     } else {
       delete process.env.ENCRYPTION_KEY;
     }
-    (EncryptionHelper as any).keyCache = null;
   });
 
-  describe("getKey", () => {
+  describe("getKey (via encryptionKeyProvider)", () => {
+    it("should throw FATAL error when provider is not initialized", () => {
+      const provider = encryptionKeyProvider as any;
+      const originalInitialized = provider.initialized;
+      const originalDerivedKey = provider.derivedKey;
+      provider.initialized = false;
+      provider.derivedKey = null;
+      try {
+        expect(() => EncryptionHelper.encrypt("test")).toThrow(
+          "FATAL: EncryptionKeyProvider.getKey() called before initialize()",
+        );
+      } finally {
+        provider.initialized = originalInitialized;
+        provider.derivedKey = originalDerivedKey;
+      }
+    });
+  });
+
+  describe("encryptionKeyProvider.initialize()", () => {
     it("should throw FATAL error when ENCRYPTION_KEY is not set", () => {
       delete process.env.ENCRYPTION_KEY;
-      expect(() => EncryptionHelper.encrypt("test")).toThrow(
+      const provider = new (encryptionKeyProvider.constructor as any)();
+      expect(() => provider.initialize()).toThrow(
         "FATAL: ENCRYPTION_KEY environment variable is not set.",
       );
     });
 
     it("should throw FATAL error when ENCRYPTION_KEY is empty string", () => {
       process.env.ENCRYPTION_KEY = "";
-      expect(() => EncryptionHelper.encrypt("test")).toThrow(
+      const provider = new (encryptionKeyProvider.constructor as any)();
+      expect(() => provider.initialize()).toThrow(
         "FATAL: ENCRYPTION_KEY environment variable is not set.",
       );
+    });
+
+    it("should expose an 8-char hex fingerprint after initialize()", () => {
+      const fingerprint = encryptionKeyProvider.getFingerprint();
+      expect(fingerprint).toBeTruthy();
+      expect(fingerprint!.length).toBe(8);
+      expect(/^[0-9a-f]{8}$/.test(fingerprint!)).toBe(true);
+    });
+
+    it("should report isInitialized() true after initialize()", () => {
+      expect(encryptionKeyProvider.isInitialized()).toBe(true);
     });
   });
 
@@ -48,7 +79,6 @@ describe("EncryptionHelper", () => {
       const encrypted = EncryptionHelper.encrypt(plaintext);
       expect(encrypted).toBeTruthy();
       expect(encrypted).not.toBe(plaintext);
-      // Format: IV:authTag:encrypted
       expect(encrypted).toContain(":");
     });
 
@@ -71,7 +101,6 @@ describe("EncryptionHelper", () => {
       const plaintext = "Hello, World!";
       const encrypted1 = EncryptionHelper.encrypt(plaintext);
       const encrypted2 = EncryptionHelper.encrypt(plaintext);
-      // Should be different due to random IV
       expect(encrypted1).not.toBe(encrypted2);
     });
 
@@ -80,11 +109,8 @@ describe("EncryptionHelper", () => {
       const encrypted = EncryptionHelper.encrypt(plaintext);
       const parts = encrypted!.split(":");
       expect(parts.length).toBe(3);
-      // IV in hex
       expect(parts[0].length).toBe(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
-      // Auth tag in hex (16 bytes = 32 hex chars)
       expect(parts[1].length).toBe(32);
-      // Encrypted data
       expect(parts[2].length).toBeGreaterThan(0);
     });
 
@@ -109,15 +135,6 @@ describe("EncryptionHelper", () => {
       expect(encrypted).toBeTruthy();
       const decrypted = EncryptionHelper.decrypt(encrypted!);
       expect(decrypted).toBe(plaintext);
-    });
-
-    it("should cache the encryption key", () => {
-      const plaintext = "test";
-      EncryptionHelper.encrypt(plaintext);
-      const firstKeyCache = (EncryptionHelper as any).keyCache;
-      EncryptionHelper.encrypt(plaintext);
-      const secondKeyCache = (EncryptionHelper as any).keyCache;
-      expect(firstKeyCache).toBe(secondKeyCache);
     });
   });
 
@@ -152,24 +169,18 @@ describe("EncryptionHelper", () => {
     });
 
     it("should throw when decryption fails (malformed data)", () => {
-      // Create invalid encrypted data with correct IV length but bad auth tag
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const invalidEncrypted = `${fakeIvHex}:invalid:data`;
       expect(() => EncryptionHelper.decrypt(invalidEncrypted)).toThrow();
     });
 
     it("should return plaintext when 3-part value has wrong IV length (e.g. time strings)", () => {
-      // A time string like "12:30:45" has exactly 3 colon-separated parts,
-      // but the first part "12" decodes to only 1 byte, not the required IV_LENGTH bytes.
-      // Without the IV length check this would reach createDecipheriv and throw
-      // "Invalid initialization vector".
       const timeString = "12:30:45";
       const result = EncryptionHelper.decrypt(timeString);
       expect(result).toBe(timeString);
     });
 
     it("should throw when 3-part value has correct IV length but is not encrypted data", () => {
-      // Construct a value where the first part is the right hex length but random data
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const fakeValue = `${fakeIvHex}:fakeauth:fakedata`;
       expect(() => EncryptionHelper.decrypt(fakeValue)).toThrow();
@@ -179,9 +190,48 @@ describe("EncryptionHelper", () => {
       const plaintext = "test message";
       const encrypted1 = EncryptionHelper.encrypt(plaintext);
       const encrypted2 = EncryptionHelper.encrypt(plaintext);
-      // Both should decrypt to same plaintext
       expect(EncryptionHelper.decrypt(encrypted1!)).toBe(plaintext);
       expect(EncryptionHelper.decrypt(encrypted2!)).toBe(plaintext);
+    });
+  });
+
+  describe("tryDecrypt circuit-breaker", () => {
+    it("should reset consecutive failure counter on success", () => {
+      const plaintext = "hello";
+      const encrypted = EncryptionHelper.encrypt(plaintext);
+      (EncryptionHelper as any).consecutiveFailures = 5;
+      EncryptionHelper.tryDecrypt(encrypted);
+      expect((EncryptionHelper as any).consecutiveFailures).toBe(0);
+    });
+
+    it("should increment consecutive failure counter on each failure", () => {
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
+      (EncryptionHelper as any).consecutiveFailures = 0;
+      EncryptionHelper.tryDecrypt(badCiphertext);
+      expect((EncryptionHelper as any).consecutiveFailures).toBe(1);
+      EncryptionHelper.tryDecrypt(badCiphertext);
+      expect((EncryptionHelper as any).consecutiveFailures).toBe(2);
+    });
+
+    it("should throw FATAL after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures", () => {
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
+      (EncryptionHelper as any).consecutiveFailures = 0;
+      for (let i = 0; i < 9; i++) {
+        EncryptionHelper.tryDecrypt(badCiphertext);
+      }
+      expect(() => EncryptionHelper.tryDecrypt(badCiphertext)).toThrow(
+        "FATAL: 10 consecutive decryption failures",
+      );
+    });
+
+    it("should return raw ciphertext on failure below threshold", () => {
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
+      (EncryptionHelper as any).consecutiveFailures = 0;
+      const result = EncryptionHelper.tryDecrypt(badCiphertext);
+      expect(result).toBe(badCiphertext);
     });
   });
 
@@ -190,7 +240,6 @@ describe("EncryptionHelper", () => {
       const email = "test@example.com";
       const hash = EncryptionHelper.hashEmail(email);
       expect(hash).toBeTruthy();
-      // SHA-256 produces 64 hex characters
       expect(hash.length).toBe(64);
       expect(typeof hash).toBe("string");
     });
@@ -206,39 +255,32 @@ describe("EncryptionHelper", () => {
     });
 
     it("should normalize email to lowercase", () => {
-      const email1 = "Test@Example.com";
-      const email2 = "test@example.com";
-      const hash1 = EncryptionHelper.hashEmail(email1);
-      const hash2 = EncryptionHelper.hashEmail(email2);
+      const hash1 = EncryptionHelper.hashEmail("Test@Example.com");
+      const hash2 = EncryptionHelper.hashEmail("test@example.com");
       expect(hash1).toBe(hash2);
     });
 
     it("should trim email before hashing", () => {
-      const email1 = "test@example.com";
-      const email2 = "  test@example.com  ";
-      const hash1 = EncryptionHelper.hashEmail(email1);
-      const hash2 = EncryptionHelper.hashEmail(email2);
+      const hash1 = EncryptionHelper.hashEmail("test@example.com");
+      const hash2 = EncryptionHelper.hashEmail("  test@example.com  ");
       expect(hash1).toBe(hash2);
     });
 
     it("should produce consistent hashes for same email", () => {
       const email = "test@example.com";
-      const hash1 = EncryptionHelper.hashEmail(email);
-      const hash2 = EncryptionHelper.hashEmail(email);
-      expect(hash1).toBe(hash2);
+      expect(EncryptionHelper.hashEmail(email)).toBe(
+        EncryptionHelper.hashEmail(email),
+      );
     });
 
     it("should produce different hashes for different emails", () => {
-      const email1 = "test1@example.com";
-      const email2 = "test2@example.com";
-      const hash1 = EncryptionHelper.hashEmail(email1);
-      const hash2 = EncryptionHelper.hashEmail(email2);
+      const hash1 = EncryptionHelper.hashEmail("test1@example.com");
+      const hash2 = EncryptionHelper.hashEmail("test2@example.com");
       expect(hash1).not.toBe(hash2);
     });
 
     it("should handle emails with special characters", () => {
-      const email = "test+tag@example.com";
-      const hash = EncryptionHelper.hashEmail(email);
+      const hash = EncryptionHelper.hashEmail("test+tag@example.com");
       expect(hash).toBeTruthy();
       expect(hash.length).toBe(64);
     });
@@ -340,11 +382,9 @@ describe("EncryptionHelper", () => {
     });
 
     it("should return null if decrypted value is not valid JSON", () => {
-      // Create invalid JSON by encrypting non-JSON string
       const plaintext = "not json";
       const encrypted = EncryptionHelper.encrypt(plaintext);
       const result = encryptedJsonTransformer.from(encrypted!);
-      // Should return null when JSON parse fails
       expect(result).toBeNull();
     });
 

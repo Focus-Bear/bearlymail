@@ -3,35 +3,22 @@ import * as crypto from "crypto";
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { parseCategoryName } from "../utils/category-name.util";
 import { logError } from "../utils/logger";
+import { encryptionKeyProvider } from "./encryption-key-provider";
+
+const MAX_CONSECUTIVE_DECRYPT_FAILURES = 10;
 
 /**
- * Static encryption helper for use in TypeORM column transformers
- * Gets encryption key from environment variable
+ * Static encryption helper for use in TypeORM column transformers.
+ * Delegates key management to encryptionKeyProvider — throws if accessed before
+ * encryptionKeyProvider.initialize() has been called in main.ts.
  */
 class EncryptionHelper {
   private static algorithm = "aes-256-gcm";
   private static ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
-  private static keyCache: Buffer | null = null;
+  private static consecutiveFailures = 0;
 
   private static getKey(): Buffer {
-    if (this.keyCache) {
-      return this.keyCache;
-    }
-
-    const keyString = process.env.ENCRYPTION_KEY;
-    if (!keyString) {
-      throw new Error(
-        "FATAL: ENCRYPTION_KEY environment variable is not set. " +
-          "All data at rest is encrypted — the app cannot function without it. " +
-          "Set ENCRYPTION_KEY in your environment or Secrets Manager.",
-      );
-    }
-    this.keyCache = crypto.scryptSync(
-      keyString,
-      "salt",
-      ENCRYPTION_CONSTANTS.KEY_LENGTH,
-    );
-    return this.keyCache;
+    return encryptionKeyProvider.getKey();
   }
 
   static encrypt(text: string | null | undefined): string | null {
@@ -114,16 +101,34 @@ class EncryptionHelper {
    * Use this in data-mapping contexts (TypeORM transformers, row mappers, processors)
    * where a single corrupted row should not crash the entire request or worker.
    *
+   * Circuit-breaker: after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures,
+   * throws a fatal error to crash the process rather than silently serving encrypted data.
+   *
    * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
    */
   static tryDecrypt(
     encryptedText: string | null | undefined,
   ): string | null {
     try {
-      return EncryptionHelper.decrypt(encryptedText);
+      const result = EncryptionHelper.decrypt(encryptedText);
+      EncryptionHelper.consecutiveFailures = 0;
+      return result;
     } catch (error) {
+      EncryptionHelper.consecutiveFailures++;
+
+      if (
+        EncryptionHelper.consecutiveFailures >= MAX_CONSECUTIVE_DECRYPT_FAILURES
+      ) {
+        throw new Error(
+          `FATAL: ${EncryptionHelper.consecutiveFailures} consecutive decryption failures. ` +
+            `ENCRYPTION_KEY is likely wrong or rotated mid-process. ` +
+            `Key fingerprint: ${encryptionKeyProvider.getFingerprint()}. ` +
+            `Crashing to prevent serving encrypted data to users.`,
+        );
+      }
+
       logError(
-        "tryDecrypt: decryption failed — returning raw ciphertext",
+        `tryDecrypt: decryption failed (failure ${EncryptionHelper.consecutiveFailures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext`,
         error instanceof Error ? error : new Error(String(error)),
       );
       return encryptedText ?? null;

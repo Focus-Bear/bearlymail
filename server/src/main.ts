@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
 import { verifyEncryptionRoundTrip } from "./encryption/encryption-boot-check";
+import { encryptionKeyProvider } from "./encryption/encryption-key-provider";
 import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
@@ -22,8 +23,11 @@ async function bootstrap() {
     `[BearlyMail] Server version: ${process.env.COMMIT_HASH ?? "dev"} built: ${process.env.BUILD_TIME ?? "unknown"}`,
   );
   try {
+    encryptionKeyProvider.initialize();
     verifyEncryptionRoundTrip();
-    logger.log("Encryption self-test passed.");
+    logger.log(
+      `Encryption self-test passed. Key fingerprint: ${encryptionKeyProvider.getFingerprint()}`,
+    );
     // Check if running in worker mode
     if (process.env.WORKER_MODE === "true") {
       logger.log("Starting application in WORKER mode...");

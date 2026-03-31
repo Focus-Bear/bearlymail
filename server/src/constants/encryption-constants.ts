@@ -10,4 +10,6 @@ export const ENCRYPTION_CONSTANTS = {
   KEY_LENGTH: 32,
   // scrypt salt length (32 bytes)
   SALT_LENGTH: 32,
+  // Key fingerprint hex length (first 8 hex chars of SHA-256)
+  FINGERPRINT_LENGTH: 8,
 } as const;

@@ -35,9 +35,9 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const results = parsed?.priority_results;
+          const results = parsed?.prioritised_emails;
           if (!Array.isArray(results) || results.length === 0) {
-            throw new Error("Expected priority_results array, got: " + JSON.stringify(parsed));
+            throw new Error("Expected prioritised_emails array, got: " + JSON.stringify(parsed));
           }
           const item = results[0];
           if (item.category === "Code reviews by human developers") {
@@ -70,9 +70,9 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const results = parsed?.priority_results;
+          const results = parsed?.prioritised_emails;
           if (!Array.isArray(results) || results.length === 0) {
-            throw new Error("Expected priority_results array, got: " + JSON.stringify(parsed));
+            throw new Error("Expected prioritised_emails array, got: " + JSON.stringify(parsed));
           }
           const item = results[0];
           if (item.category !== "Devin PRs") {
@@ -109,7 +109,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const results = parsed?.priority_results;
+          const results = parsed?.prioritised_emails;
           if (!Array.isArray(results) || results.length !== 2) {
             throw new Error("Expected 2 results, got: " + JSON.stringify(parsed));
           }
@@ -152,7 +152,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category !== '✅ QA passed issues') {
             throw new Error(`QA bot pass misclassified as "${item.category}". Expected "✅ QA passed issues". Explanation: ${item.categoryExplanation}`);
           }
@@ -183,7 +183,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category !== 'QA failed issues') {
             throw new Error(`QA bot fail misclassified as "${item.category}". Expected "QA failed issues". Explanation: ${item.categoryExplanation}`);
           }
@@ -215,7 +215,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category === '✅ QA passed issues' || item.category === 'QA failed issues') {
             throw new Error(`CI bot notification misclassified as QA category "${item.category}". CI notifications should route to a bot/notification category, not QA. Explanation: ${item.categoryExplanation}`);
           }
@@ -247,7 +247,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category === 'Build/deployment errors') {
             throw new Error(`Spanish email with "datos" misclassified as "${item.category}". "datos" is Spanish for "data", not a build error. Explanation: ${item.categoryExplanation}`);
           }
@@ -282,7 +282,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category === 'Security & Compliance') {
             throw new Error(`Email with GDPR footer misclassified as "${item.category}". The GDPR footer is boilerplate — the actual email is a pricing question. Explanation: ${item.categoryExplanation}`);
           }
@@ -317,7 +317,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           if (item.category !== 'Security & Compliance') {
             throw new Error(`Genuine security email misclassified as "${item.category}". A real data breach report should be "Security & Compliance" even with a GDPR footer. Explanation: ${item.categoryExplanation}`);
           }
@@ -349,7 +349,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           // Hard failure: a Jira notification must NOT be treated as direct customer feedback
           // (it came via Jira, not directly from the customer by email)
           if (item.category === 'Customer feedback') {
@@ -385,7 +385,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           // Hard failure: Slack digest must NOT be treated as HR Admin content
           // (platform identity: Slack notification trumps HR-adjacent content topic)
           if (item.category === 'HR Admin') {
@@ -421,7 +421,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           // Hard failure: a GitHub issue must NOT be classified as "Customer feedback" —
           // the category explicitly states "NOT via GitHub issues"
           if (item.category === 'Customer feedback') {
@@ -458,7 +458,7 @@ tests:
           const parsed = typeof output === 'string'
             ? JSON.parse(output.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim())
             : output;
-          const item = parsed?.priority_results?.[0];
+          const item = parsed?.prioritised_emails?.[0];
           // Hard failure: Dependabot is a bot — can NEVER be in a "code reviews by humans" category
           if (item.category === 'Code reviews by human developers') {
             throw new Error(`Dependabot PR misclassified as "${item.category}". Dependabot is a bot — not eligible for human developer category. Explanation: ${item.categoryExplanation}`);

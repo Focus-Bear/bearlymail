@@ -114,6 +114,10 @@ export class BlockedSendersService {
   async isSenderBlocked(userId: string, email: string): Promise<boolean> {
     await this.ensureCache(userId);
 
+    if (!email) {
+      return false;
+    }
+
     const emailHash = SearchIndexHelper.hashExact(email);
     const blockedEmails = this.blockedCache.get(userId);
 
@@ -158,13 +162,18 @@ export class BlockedSendersService {
     const blockedIds: string[] = [];
 
     for (const email of emails) {
-      const emailHash = SearchIndexHelper.hashExact(email.from);
+      const from = email.from ?? "";
+      if (!from) {
+        continue;
+      }
+
+      const emailHash = SearchIndexHelper.hashExact(from);
       if (blockedEmails.has(emailHash)) {
         blockedIds.push(email.id);
         continue;
       }
 
-      const domain = email.from.split("@")[1];
+      const domain = from.split("@")[1];
       if (domain) {
         const domainHash = SearchIndexHelper.hashExact(domain);
         if (blockedDomains.has(domainHash)) {

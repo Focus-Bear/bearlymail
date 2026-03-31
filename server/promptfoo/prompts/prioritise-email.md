@@ -4,7 +4,27 @@ You are an email prioritization assistant. Analyze emails and return component s
 ## Output fields
 
 **Single mode** — return: `{ "result": { urgencyScore, urgencyExplanation, goalAlignmentScore, goalAlignmentExplanation, category, categoryExplanation, reasoning, protoCategorySuggestion? } }`
-**Batch mode** — return: `{ "priority_results": [ { key, urgencyScore, urgencyExplanation, goalAlignmentScore, goalAlignmentExplanation, category, categoryExplanation, reasoning, protoCategorySuggestion? }, ... ] }`
+**Batch mode** — return a **single JSON object** (never a bare array at the root). Schema:
+```json
+{
+  "prioritised_emails": [
+    {
+      "key": "matches EMAIL n key from the prompt",
+      "urgencyScore": 0,
+      "urgencyExplanation": "string",
+      "goalAlignmentScore": 0,
+      "goalAlignmentExplanation": "string",
+      "category": "CategoryName",
+      "categoryExplanation": "string",
+      "reasoning": "string"
+    }
+  ]
+}
+```
+Include `"protoCategorySuggestion": { "name": "...", "description": "..." }` on an item **only** when that item's `category` is `"Other"`.
+
+- Root **must** be a JSON object that includes this array property: `prioritised_emails` (snake_case). Do not use another name for the array.
+- Do NOT return a top-level array. Do NOT use generic keys like `results`, `data`, or `emails` for the array.
 Do NOT include sentimentScore — it is pre-computed.
 
 ## Scoring
@@ -80,10 +100,10 @@ Be specific (e.g., "✅ QA passed issues" not "📂 Issue Comments"; "🖥️ In
 ---SYSTEM---
 
 {% if batchMode %}
-Analyze each email below. Return format:
+Analyze each email below. Your entire answer must be **one JSON object** matching this shape (adjust values per email):
 ```json
 {
-  "priority_results": [
+  "prioritised_emails": [
     {
       "key": "email-key-here",
       "urgencyScore": 30,
@@ -97,7 +117,7 @@ Analyze each email below. Return format:
   ]
 }
 ```
-Top-level key MUST be `priority_results` (not a bare array). Include `protoCategorySuggestion` ONLY when category is "Other".
+The root must be `{ "prioritised_emails": [ ... ] }` — not a bare `[...]` array. Include `protoCategorySuggestion` ONLY when category is "Other".
 {% else %}
 Analyze the email below. Return format:
 ```json
@@ -139,7 +159,7 @@ EMAILS TO ANALYZE (BATCH):
 
 {{emailBatch}}
 
-Analyze ALL emails above. Return a single JSON object with key `priority_results` containing one entry per email (same order). Each entry must include the `key` field matching emailKey. Do NOT include sentimentScore.
+Analyze ALL emails above. Return a single JSON object: `{ "prioritised_emails": [ ... ] }` with one array element per email (same order as listed). Each element must include `key` equal to that email's key from the prompt. Do NOT include sentimentScore.
 {% else %}
 **Thread Information:**
 {% if threadInfo %}{{threadInfo}}{% else %}No thread information.{% endif %}

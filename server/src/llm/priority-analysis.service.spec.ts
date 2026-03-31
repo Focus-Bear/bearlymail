@@ -330,12 +330,11 @@ describe("PriorityAnalysisService", () => {
       },
     ];
 
-    // Correct format: wrapped with priority_results key
     const validBatchResponse = JSON.stringify({
-      priority_results: emailResultItems,
+      prioritised_emails: emailResultItems,
     });
 
-    it("should parse a valid batch JSON response with priority_results wrapper key", async () => {
+    it("should parse a valid batch JSON response with prioritised_emails root key", async () => {
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         validBatchResponse,
       );
@@ -346,6 +345,26 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-1")?.category).toBe("Newsletters");
       expect(results.get("email-2")?.category).toBe("Customer Support");
       expect(results.get("email-2")?.urgencyScore).toBe(70);
+    });
+
+    it("should accept a bare JSON array when each row has key (LLM prompt drift)", async () => {
+      const bareArrayResponse = JSON.stringify(emailResultItems);
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        bareArrayResponse,
+      );
+
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("bare results array"),
+      );
+      expect(results.get("email-1")?.category).toBe("Newsletters");
+      expect(results.get("email-2")?.category).toBe("Customer Support");
+      expect(results.get("email-1")?.isFallback).toBe(false);
     });
 
     it("should pass jsonMode: true to LLM to enforce JSON array responses", async () => {
@@ -409,9 +428,8 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should log missing email keys when batch response omits some emails", async () => {
-      // Only returns result for email-1, not email-2 (using correct priority_results format)
       const partialResponse = JSON.stringify({
-        priority_results: [
+        prioritised_emails: [
           {
             key: "email-1",
             urgencyScore: 30,
@@ -450,7 +468,6 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should use fallback when LLM responds with a wrong wrapper key (non-deterministic key name)", async () => {
-      // LLM invented its own key name instead of using priority_results — this is a prompt compliance failure
       const wrongKeyResponse = JSON.stringify({ results: emailResultItems });
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         wrongKeyResponse,
@@ -465,7 +482,7 @@ describe("PriorityAnalysisService", () => {
       // Should warn about the unexpected shape
       expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Unexpected response shape from LLM. Expected { priority_results: [...] }.",
+          'Unexpected response shape from LLM. Expected a JSON object with key "prioritised_emails".',
         ),
         expect.objectContaining({ parsed: expect.any(String) }),
       );
@@ -485,11 +502,9 @@ describe("PriorityAnalysisService", () => {
       expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
     });
 
-    // Regression test for issue #980:
-    // LLM returns { "priority_results": [...] } but the parser previously expected a bare array.
-    it("regression #980: correctly parses { priority_results: [...] } response shape", async () => {
+    it("regression #980: correctly parses { prioritised_emails: [...] } response shape", async () => {
       const wrappedResponse = JSON.stringify({
-        priority_results: [
+        prioritised_emails: [
           {
             key: "email-1",
             urgencyScore: 55,
@@ -528,11 +543,10 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-2")?.urgencyScore).toBe(5);
     });
 
-    it("returns fallback when LLM returns unexpected shape (bare array)", async () => {
-      // A bare array is no longer an accepted response shape — it is a prompt compliance failure
-      const bareArray = JSON.stringify([
+    it("returns fallback when LLM returns a bare array without per-row key/emailKey", async () => {
+      // Bare arrays are accepted only when every element has `key` or `emailKey`
+      const bareArrayMissingKeys = JSON.stringify([
         {
-          key: "email-1",
           urgencyScore: 30,
           urgencyExplanation: "Low urgency",
           goalAlignmentScore: 20,
@@ -541,19 +555,9 @@ describe("PriorityAnalysisService", () => {
           categoryExplanation: "Newsletter content",
           reasoning: "Mass email",
         },
-        {
-          key: "email-2",
-          urgencyScore: 70,
-          urgencyExplanation: "High urgency",
-          goalAlignmentScore: 80,
-          goalAlignmentExplanation: "Highly aligned",
-          category: "Customer Support",
-          categoryExplanation: "Support request",
-          reasoning: "Customer issue",
-        },
       ]);
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        bareArray,
+        bareArrayMissingKeys,
       );
 
       const loggerWarnSpy = jest
@@ -562,15 +566,13 @@ describe("PriorityAnalysisService", () => {
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
-      // Should warn about the unexpected shape
       expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Unexpected response shape from LLM. Expected { priority_results: [...] }.",
+          'Unexpected response shape from LLM. Expected a JSON object with key "prioritised_emails".',
         ),
         expect.objectContaining({ parsed: expect.any(String) }),
       );
 
-      // Both emails must receive isFallback: true — bare array is not accepted
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(true);
       expect(results.get("email-2")?.isFallback).toBe(true);
@@ -617,7 +619,7 @@ describe("PriorityAnalysisService", () => {
 
       // LLM response intentionally includes sentimentScore — these should be ignored
       const responseWithLlmSentiment = JSON.stringify({
-        priority_results: [
+        prioritised_emails: [
           {
             key: "email-1",
             urgencyScore: 80,

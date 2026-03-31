@@ -258,6 +258,18 @@ describe("BlockedSendersService", () => {
       expect(result).toBe(false);
     });
 
+    it("should return false when email is null or empty (no crash)", async () => {
+      const userId = "user-123";
+      mockRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.isSenderBlocked(userId, "" as unknown as string),
+      ).resolves.toBe(false);
+      await expect(
+        service.isSenderBlocked(userId, null as unknown as string),
+      ).resolves.toBe(false);
+    });
+
     it("should use cache on subsequent calls", async () => {
       const userId = "user-123";
       const email = "spam@example.com";
@@ -329,6 +341,20 @@ describe("BlockedSendersService", () => {
       const emails = [
         { id: "email-1", from: "good@example.com" },
         { id: "email-2", from: "another@example.com" },
+      ];
+
+      mockRepository.find.mockResolvedValue([]);
+
+      const result = await service.filterBlockedEmails(userId, emails);
+
+      expect(result).toEqual([]);
+    });
+
+    it("should skip entries with null or undefined from without throwing", async () => {
+      const userId = "user-123";
+      const emails = [
+        { id: "email-1", from: null as unknown as string },
+        { id: "email-2", from: "good@example.com" },
       ];
 
       mockRepository.find.mockResolvedValue([]);

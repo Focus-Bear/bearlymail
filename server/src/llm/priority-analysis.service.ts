@@ -17,6 +17,9 @@ import {
 } from "./llm-operations";
 import { getPrompt, PRIORITY_PROMPT_IDS, renderPrompt } from "./prompts";
 
+/** Root JSON object key for batch priority LLM output (must match prioritise-email.md). */
+const BATCH_PRIORITY_RESULTS_KEY = "prioritised_emails" as const;
+
 type UserContextInput = {
   urgentItems?: Array<{ value: string; explanation?: string }>;
   notUrgentItems?: Array<{ value: string; explanation?: string }>;
@@ -394,27 +397,47 @@ export class PriorityAnalysisService {
   /**
    * Extract the per-email results array from a parsed LLM batch response.
    *
-   * Only accepts the canonical shape: `{ "priority_results": [...] }`.
-   * Any other shape (bare array, wrong wrapper key, etc.) is treated as a
-   * prompt compliance failure — logged and returned as null so the caller
-   * falls back to sentinel values.
+   * Accepts `{ "prioritised_emails": [...] }` per the prompt. Bare arrays are
+   * accepted only when every element has `key` or `emailKey` (model drift).
    *
-   * Returns `null` when the response does not match the canonical shape.
+   * Returns `null` when the response does not match any accepted shape.
    */
   private extractBatchResultsArray(parsed: unknown): unknown[] | null {
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      "priority_results" in parsed &&
-      Array.isArray((parsed as Record<string, unknown>)["priority_results"])
-    ) {
-      return (parsed as Record<string, unknown>)[
-        "priority_results"
-      ] as unknown[];
+    if (parsed === null || parsed === undefined) {
+      return null;
     }
+
+    if (typeof parsed === "object" && !Array.isArray(parsed)) {
+      const items = (parsed as Record<string, unknown>)[
+        BATCH_PRIORITY_RESULTS_KEY
+      ];
+      if (Array.isArray(items)) {
+        return items as unknown[];
+      }
+    }
+
+    // Models sometimes return a bare array despite the prompt. Accept arrays
+    // whose items look like batch rows (key or emailKey).
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) {
+        return [];
+      }
+      const looksLikeBatchRows = parsed.every(
+        (item) =>
+          item !== null &&
+          typeof item === "object" &&
+          ("key" in (item as object) || "emailKey" in (item as object)),
+      );
+      if (looksLikeBatchRows) {
+        this.logger.warn(
+          `[analyzePriorityBatch] LLM returned a bare results array; accepting it (expected root object with prioritised_emails).`,
+        );
+        return parsed;
+      }
+    }
+
     this.logger.warn(
-      `[analyzePriorityBatch] Unexpected response shape from LLM. Expected { priority_results: [...] }.`,
+      `[analyzePriorityBatch] Unexpected response shape from LLM. Expected a JSON object with key "${BATCH_PRIORITY_RESULTS_KEY}".`,
       {
         parsed: (JSON.stringify(parsed) ?? "").slice(
           0,
@@ -526,7 +549,7 @@ Summary: ${cleanedBody}`;
       );
       this.errorTrackingService.captureException(
         new Error(
-          `LLM batch priority response contained no JSON array. Response preview: ${responsePreview}`,
+          `LLM batch priority response missing prioritised_emails array. Response preview: ${responsePreview}`,
         ),
         userId,
         {

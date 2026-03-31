@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, MoreThan, Repository } from "typeorm";
+import { FindManyOptions, In, MoreThan, Repository } from "typeorm";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS_PER_WEEK, MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { isDatabaseError, isError } from "../types/common";
 
 const PER_THREAD_BUDGET_MS = 200;
@@ -33,52 +34,22 @@ export class EmailThreadService {
     threadId: string,
     options?: { limit?: number; order?: "ASC" | "DESC" },
   ): Promise<Email[]> {
-    // CRITICAL: Use query builder with explicit select to avoid decrypting body/htmlBody
-    // These are large encrypted fields that cause significant slowdown
-    // The frontend can fetch body/htmlBody separately if needed for individual emails
-    const queryBuilder = this.emailRepository
-      .createQueryBuilder("email")
-      .select([
-        "email.id",
-        "email.userId",
-        "email.threadId",
-        "email.messageId",
-        "email.from",
-        "email.fromName",
-        "email.senderJobTitle",
-        "email.to",
-        "email.cc",
-        "email.replyTo",
-        "email.subject",
-        "email.isSnoozed",
-        "email.snoozeUntil",
-        "email.isBatched",
-        "email.batchReleaseAt",
-        "email.isRead",
-        "email.summary",
-        "email.receivedAt",
-        // Include labels field
-        "email.labels",
-        // Only include body/htmlBody if explicitly needed - they're large and encrypted
-        // For thread view, we can fetch them separately for expanded emails
-        "email.body",
-        "email.htmlBody",
-        "email.attachments",
-      ])
-      .where("email.userId = :userId", { userId })
-      .andWhere("email.threadId = :threadId", { threadId });
-
-    // Apply ordering (default to ASC for chronological processing, DESC for thread view display)
+    // Use repository.find (same hydration path as getEmailById) so column transformers
+    // reliably decrypt. Partial QueryBuilder selects were leaking ciphertext to the client.
     const order = options?.order || "ASC";
-    queryBuilder.orderBy("email.receivedAt", order);
-
-    // Apply limit if specified
+    const findOptions: FindManyOptions<Email> = {
+      where: { userId, threadId },
+      order: { receivedAt: order },
+    };
     if (options?.limit) {
-      queryBuilder.take(options.limit);
+      findOptions.take = options.limit;
     }
 
-    // TypeORM will automatically decrypt labels field due to the transformer
-    return queryBuilder.getMany();
+    const emails = await this.emailRepository.find(findOptions);
+    for (const email of emails) {
+      decryptEmailEntityForApi(email);
+    }
+    return emails;
   }
 
   /**

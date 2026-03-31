@@ -30,6 +30,7 @@ const dataSource = new DataSource({
 
 async function seedTestUser() {
   try {
+    encryptionKeyProvider.initialize();
     await dataSource.initialize();
     console.log('Database connected');
 

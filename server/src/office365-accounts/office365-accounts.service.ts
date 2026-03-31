@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Office365Account } from "../database/entities/office365-account.entity";
+import { decryptOffice365AccountEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 
 @Injectable()
@@ -58,10 +59,14 @@ export class Office365AccountsService {
   }
 
   async findAllByUser(userId: string): Promise<Office365Account[]> {
-    return this.office365AccountRepository.find({
+    const accounts = await this.office365AccountRepository.find({
       where: { userId, isActive: true },
       order: { isPrimary: "DESC", createdAt: "ASC" },
     });
+    for (const account of accounts) {
+      decryptOffice365AccountEntityForApi(account);
+    }
+    return accounts;
   }
 
   async findPrimary(userId: string): Promise<Office365Account | null> {

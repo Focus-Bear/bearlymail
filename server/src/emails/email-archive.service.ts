@@ -11,6 +11,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryName } from "../utils/category-name.util";
 import { EmailCrudService } from "./email-crud.service";
@@ -263,6 +264,9 @@ export class EmailArchiveService {
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
       select: ["contextId", "contextValue"],
     });
+    for (const ctx of allCtxs) {
+      decryptUserContextEntityForApi(ctx);
+    }
 
     const resolveLocalCategoryName = (
       categoryId: string | null,

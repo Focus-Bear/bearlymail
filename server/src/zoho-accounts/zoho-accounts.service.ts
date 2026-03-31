@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ZohoAccount } from "../database/entities/zoho-account.entity";
+import { decryptZohoAccountEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 
 export interface CreateZohoAccountOptions {
@@ -61,10 +62,14 @@ export class ZohoAccountsService {
   }
 
   async findAllByUser(userId: string): Promise<ZohoAccount[]> {
-    return this.zohoAccountRepository.find({
+    const accounts = await this.zohoAccountRepository.find({
       where: { userId, isActive: true },
       order: { isPrimary: "DESC", createdAt: "ASC" },
     });
+    for (const account of accounts) {
+      decryptZohoAccountEntityForApi(account);
+    }
+    return accounts;
   }
 
   async findPrimary(userId: string): Promise<ZohoAccount | null> {

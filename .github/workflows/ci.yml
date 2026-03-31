@@ -144,7 +144,9 @@ jobs:
 
       - name: Build client
         working-directory: client
-        run: npm run build
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+        run: COMMIT_HASH=$(echo "$COMMIT_HASH" | cut -c1-7) npm run build
 
   smoke-and-e2e:
     name: Smoke Tests + E2E
@@ -249,8 +251,9 @@ jobs:
       - name: Build client
         working-directory: client
         env:
+          COMMIT_HASH: ${{ github.sha }}
           VITE_API_URL: http://localhost:3001
-        run: npm run build
+        run: COMMIT_HASH=$(echo "$COMMIT_HASH" | cut -c1-7) npm run build
 
       - name: Serve client
         working-directory: client

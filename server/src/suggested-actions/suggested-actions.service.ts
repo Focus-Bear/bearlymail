@@ -13,6 +13,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
@@ -237,9 +238,10 @@ export class SuggestedActionsService {
           },
           select: ["contextValue"],
         });
-        emailCategory = categoryCtx
-          ? parseCategoryName(categoryCtx.contextValue)
-          : undefined;
+        if (categoryCtx) {
+          decryptUserContextEntityForApi(categoryCtx);
+          emailCategory = parseCategoryName(categoryCtx.contextValue);
+        }
       }
       const defaultRepo = hasGithubToken
         ? await this.repoMappingService.getRepoForEmail(userId, emailCategory)

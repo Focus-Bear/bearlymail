@@ -11,6 +11,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { parseCategoryName } from "../utils/category-name.util";
@@ -245,6 +246,9 @@ export class ContextCompressionService {
       },
       select: ["contextValue"],
     });
+    for (const ctx of userEditedCategories) {
+      decryptUserContextEntityForApi(ctx);
+    }
     const userEditedNames = new Set(
       userEditedCategories.map((ctx) =>
         parseCategoryName(ctx.contextValue).toLowerCase(),

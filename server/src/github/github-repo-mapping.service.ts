@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { GitHubRepoMapping } from "../database/entities/github-repo-mapping.entity";
+import { decryptGitHubRepoMappingEntityForApi } from "../encryption/entity-api-decrypt.util";
 
 @Injectable()
 export class GitHubRepoMappingService {
@@ -21,6 +22,10 @@ export class GitHubRepoMappingService {
       where: { userId },
       order: { isDefault: "DESC", createdAt: "ASC" },
     });
+
+    for (const repoMapping of all) {
+      decryptGitHubRepoMappingEntityForApi(repoMapping);
+    }
 
     // Deduplicate in-memory because owner/repo are encrypted with random IVs,
     // so DB-level UNIQUE constraints and WHERE-clause lookups on those columns
@@ -66,9 +71,13 @@ export class GitHubRepoMappingService {
     userId: string,
     id: string,
   ): Promise<GitHubRepoMapping | null> {
-    return this.repoMappingRepository.findOne({
+    const mapping = await this.repoMappingRepository.findOne({
       where: { id, userId },
     });
+    if (mapping) {
+      decryptGitHubRepoMappingEntityForApi(mapping);
+    }
+    return mapping;
   }
 
   async create(
@@ -99,7 +108,9 @@ export class GitHubRepoMappingService {
       isAutoDiscovered: mappingData.isAutoDiscovered || false,
     });
 
-    return this.repoMappingRepository.save(mapping);
+    const saved = await this.repoMappingRepository.save(mapping);
+    decryptGitHubRepoMappingEntityForApi(saved);
+    return saved;
   }
 
   async update(
@@ -136,7 +147,9 @@ export class GitHubRepoMappingService {
       mapping.isDefault = updates.isDefault;
     }
 
-    return this.repoMappingRepository.save(mapping);
+    const saved = await this.repoMappingRepository.save(mapping);
+    decryptGitHubRepoMappingEntityForApi(saved);
+    return saved;
   }
 
   async remove(userId: string, id: string): Promise<boolean> {
@@ -145,9 +158,13 @@ export class GitHubRepoMappingService {
   }
 
   async getDefaultForUser(userId: string): Promise<GitHubRepoMapping | null> {
-    return this.repoMappingRepository.findOne({
+    const mapping = await this.repoMappingRepository.findOne({
       where: { userId, isDefault: true },
     });
+    if (mapping) {
+      decryptGitHubRepoMappingEntityForApi(mapping);
+    }
+    return mapping;
   }
 
   async findByCategory(
@@ -157,6 +174,10 @@ export class GitHubRepoMappingService {
     const mappings = await this.repoMappingRepository.find({
       where: { userId },
     });
+
+    for (const repoMapping of mappings) {
+      decryptGitHubRepoMappingEntityForApi(repoMapping);
+    }
 
     for (const mapping of mappings) {
       if (!mapping.emailCategories) continue;
@@ -204,6 +225,9 @@ export class GitHubRepoMappingService {
     const allMappings = await this.repoMappingRepository.find({
       where: { userId },
     });
+    for (const repoMapping of allMappings) {
+      decryptGitHubRepoMappingEntityForApi(repoMapping);
+    }
     const existing =
       allMappings.find(
         (mapping) => mapping.owner === owner && mapping.repo === repo,
@@ -219,12 +243,16 @@ export class GitHubRepoMappingService {
           .includes(emailCategory.toLowerCase())
       ) {
         existing.emailCategories = `${existing.emailCategories},${emailCategory}`;
-        return this.repoMappingRepository.save(existing);
+        const saved = await this.repoMappingRepository.save(existing);
+        decryptGitHubRepoMappingEntityForApi(saved);
+        return saved;
       }
 
       if (emailCategory && !existing.emailCategories) {
         existing.emailCategories = emailCategory;
-        return this.repoMappingRepository.save(existing);
+        const saved = await this.repoMappingRepository.save(existing);
+        decryptGitHubRepoMappingEntityForApi(saved);
+        return saved;
       }
 
       return existing;
@@ -247,6 +275,8 @@ export class GitHubRepoMappingService {
       isDefault: hasAny === 0,
     });
 
-    return this.repoMappingRepository.save(mapping);
+    const saved = await this.repoMappingRepository.save(mapping);
+    decryptGitHubRepoMappingEntityForApi(saved);
+    return saved;
   }
 }

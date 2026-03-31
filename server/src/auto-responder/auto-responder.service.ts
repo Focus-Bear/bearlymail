@@ -14,6 +14,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { parseCategoryName } from "../utils/category-name.util";
 import { computeEmailHmac } from "../utils/hmac-email";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
@@ -460,7 +461,11 @@ export class AutoResponderService {
       },
       select: ["contextValue"],
     });
-    return categoryCtx ? parseCategoryName(categoryCtx.contextValue) : null;
+    if (categoryCtx) {
+      decryptUserContextEntityForApi(categoryCtx);
+      return parseCategoryName(categoryCtx.contextValue);
+    }
+    return null;
   }
 
   private async buildPreparedResponse(options: {

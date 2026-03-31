@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 
 interface CacheEntry<T> {
   cachedValue: T;
@@ -47,6 +48,9 @@ export class PriorityCacheService {
     const contexts = await this.userContextRepository.find({
       where: { userId },
     });
+    for (const ctx of contexts) {
+      decryptUserContextEntityForApi(ctx);
+    }
 
     // Update cache
     this.contextsCache.set(userId, {

@@ -13,6 +13,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
@@ -288,6 +289,9 @@ export class ContextCategoryService {
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
       select: ["contextId", "contextValue"],
     });
+    for (const ctx of existing) {
+      decryptUserContextEntityForApi(ctx);
+    }
     const existingNames = new Set(
       existing.map((ctx) => parseCategoryName(ctx.contextValue).toLowerCase()),
     );

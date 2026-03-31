@@ -18,6 +18,7 @@ import * as path from "path";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { User } from "../database/entities/user.entity";
+import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
 import { UsersService } from "./users.service";
@@ -97,6 +98,7 @@ export class UsersController {
   @Get("me")
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
+    decryptUserEntityForApi(user);
     // Never return the raw Anthropic key — expose presence only.
     const {
       password: _password,
@@ -117,10 +119,12 @@ export class UsersController {
       string,
       unknown
     > & { anthropicApiKey?: unknown };
-    return this.usersService.update(
+    const updated = await this.usersService.update(
       req.user.userId,
       safeUpdates as Partial<User>,
     );
+    decryptUserEntityForApi(updated);
+    return updated;
   }
 
   @Post("accept-consent")

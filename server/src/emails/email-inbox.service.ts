@@ -13,6 +13,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { parseCategoryName } from "../utils/category-name.util";
 import { computeEmailHmac } from "../utils/hmac-email";
 import { EmailFollowUpService } from "./email-follow-up.service";
@@ -329,6 +330,9 @@ export class EmailInboxService {
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
       select: ["contextId", "contextValue", "createdAt"],
     });
+    for (const ctx of ctxs) {
+      decryptUserContextEntityForApi(ctx);
+    }
     if (!deduplicateWithWarning) {
       const map = new Map<string, string>();
       for (const ctx of ctxs)
@@ -437,6 +441,9 @@ export class EmailInboxService {
         where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
         select: ["contextId", "contextValue"],
       });
+      for (const ctx of ctxs) {
+        decryptUserContextEntityForApi(ctx);
+      }
       const idToName = new Map<string, string>();
       for (const ctx of ctxs)
         idToName.set(ctx.contextId, parseCategoryName(ctx.contextValue));

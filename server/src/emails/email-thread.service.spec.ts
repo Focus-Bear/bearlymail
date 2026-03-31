@@ -19,6 +19,7 @@ describe("EmailThreadService", () => {
 
   const mockEmailRepository = {
     createQueryBuilder: jest.fn(),
+    find: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -59,58 +60,33 @@ describe("EmailThreadService", () => {
           receivedAt: new Date("2024-01-02"),
         },
       ];
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(mockEmails),
-      };
 
-      mockEmailRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockEmailRepository.find.mockResolvedValue(mockEmails);
 
       const result = await service.getThreadEmails(userId, threadId);
 
       expect(result).toEqual(mockEmails);
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        "email.userId = :userId",
-        { userId },
-      );
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        "email.threadId = :threadId",
-        { threadId },
-      );
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-        "email.receivedAt",
-        "ASC",
-      );
+      expect(mockEmailRepository.find).toHaveBeenCalledWith({
+        where: { userId, threadId },
+        order: { receivedAt: "ASC" },
+      });
     });
 
-    it("should select specific fields to avoid decrypting large fields", async () => {
+    it("should use DESC order and take when options are passed", async () => {
       const userId = "user-123";
       const threadId = "thread-123";
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
-      };
+      mockEmailRepository.find.mockResolvedValue([]);
 
-      mockEmailRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      await service.getThreadEmails(userId, threadId, {
+        order: "DESC",
+        limit: 10,
+      });
 
-      await service.getThreadEmails(userId, threadId);
-
-      expect(queryBuilder.select).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          "email.id",
-          "email.userId",
-          "email.threadId",
-          "email.subject",
-          "email.from",
-          "email.receivedAt",
-        ]),
-      );
+      expect(mockEmailRepository.find).toHaveBeenCalledWith({
+        where: { userId, threadId },
+        order: { receivedAt: "DESC" },
+        take: 10,
+      });
     });
   });
 

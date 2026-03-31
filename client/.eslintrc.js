@@ -348,12 +348,14 @@ module.exports = {
       },
     },
     {
-      // Relax rules for configuration files
+      // Relax rules for configuration files (Vite/Webpack/Jest run in Node.js).
       files: ['*.config.js', '*.config.ts', 'setupTests.ts'],
       rules: {
         'max-lines': 'off',
         'id-length': 'off',
         'i18next/no-literal-string': 'off', // Config files don't need i18n
+        // Vite config reads COMMIT_HASH / GITHUB_SHA / process.cwd — not import.meta.env.VITE_*.
+        'no-restricted-properties': 'off',
       },
     },
     {

@@ -7,6 +7,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { parseCategoryName } from "../utils/category-name.util";
 
 /**
@@ -25,6 +26,20 @@ export class CategoryDedupService {
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
   ) {}
+
+  /** Decrypt partial-select rows and group by userId for dedup processing. */
+  private groupFlaggedContextsByUserId(
+    flaggedContexts: UserContext[],
+  ): Map<string, UserContext[]> {
+    flaggedContexts.forEach(decryptUserContextEntityForApi);
+    const byUser = new Map<string, UserContext[]>();
+    for (const ctx of flaggedContexts) {
+      const list = byUser.get(ctx.userId) ?? [];
+      list.push(ctx);
+      byUser.set(ctx.userId, list);
+    }
+    return byUser;
+  }
 
   /**
    * Repair duplicate EMAIL_CATEGORY rows flagged by migration 1786000000000 (fix #1258).
@@ -52,13 +67,7 @@ export class CategoryDedupService {
 
     if (flaggedContexts.length === 0) return;
 
-    // Group by userId
-    const byUser = new Map<string, UserContext[]>();
-    for (const ctx of flaggedContexts) {
-      const list = byUser.get(ctx.userId) ?? [];
-      list.push(ctx);
-      byUser.set(ctx.userId, list);
-    }
+    const byUser = this.groupFlaggedContextsByUserId(flaggedContexts);
 
     let totalDuplicatesRemoved = 0;
 
@@ -72,7 +81,7 @@ export class CategoryDedupService {
           group.push(ctx);
           byName.set(displayName, group);
         } catch {
-          // Decryption failure — skip this row (contextValue is encrypted via transformer)
+          // parseCategoryName failure — skip this row
         }
       }
 

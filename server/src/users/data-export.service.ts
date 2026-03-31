@@ -10,6 +10,13 @@ import { BlockedSender } from "../database/entities/blocked-sender.entity";
 import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import {
+  decryptBlockedKeywordEntityForApi,
+  decryptBlockedSenderEntityForApi,
+  decryptSummarizationRuleEntityForApi,
+  decryptUserContextEntityForApi,
+  decryptUserEntityForApi,
+} from "../encryption/entity-api-decrypt.util";
 
 export interface ExportedUserData {
   exportedAt: string;
@@ -102,9 +109,23 @@ export class DataExportService {
       }),
     ]);
 
+    for (const ctx of contexts) {
+      decryptUserContextEntityForApi(ctx);
+    }
+    for (const sender of blockedSenders) {
+      decryptBlockedSenderEntityForApi(sender);
+    }
+    for (const kw of blockedKeywords) {
+      decryptBlockedKeywordEntityForApi(kw);
+    }
+    for (const rule of summarizationRules) {
+      decryptSummarizationRuleEntityForApi(rule);
+    }
+
     if (!user) {
       throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
     }
+    decryptUserEntityForApi(user);
 
     return {
       exportedAt: new Date().toISOString(),

@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 // __COMMIT_HASH__ and __BUILD_TIME__ are injected by vite.config.ts at build time.
-// They fall back to 'dev' / ISO timestamp respectively when building locally.
+// Commit: COMMIT_HASH, GITHUB_SHA, or `git rev-parse --short HEAD`; else "dev".
 declare const __COMMIT_HASH__: string;
 declare const __BUILD_TIME__: string;
 

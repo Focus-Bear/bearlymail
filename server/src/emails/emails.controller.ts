@@ -40,6 +40,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
 import { EmailAdminService } from "./email-admin.service";
 import {
@@ -482,6 +483,7 @@ export class EmailsController {
   @Get(":id")
   async getEmail(@Request() req, @Param("id") id: string) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
+    decryptEmailEntityForApi(email);
 
     // Defence-in-depth: ensure attachments is always null or an Array.
     // encryptedJsonTransformer returns `unknown` at runtime; if bad data is stored
@@ -653,6 +655,7 @@ export class EmailsController {
     @Body() body?: { reason?: string; blockDomain?: boolean },
   ) {
     const email = await this.getEmailOrThrow(req.user.userId, id);
+    decryptEmailEntityForApi(email);
 
     await this.emailAdminService.blockEmailSender(
       req.user.userId,

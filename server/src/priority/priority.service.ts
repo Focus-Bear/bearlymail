@@ -24,6 +24,7 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { LLMService } from "../llm/llm.service";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 
@@ -556,14 +557,21 @@ export class PriorityService {
     const contexts = await this.userContextRepository.find({
       where: { userId },
     });
+    for (const ctx of contexts) {
+      decryptUserContextEntityForApi(ctx);
+    }
 
     return this.calculateBasicPriorityScore(email, contexts);
   }
 
   async getUserContexts(userId: string): Promise<UserContext[]> {
-    return this.userContextRepository.find({
+    const contexts = await this.userContextRepository.find({
       where: { userId },
     });
+    for (const ctx of contexts) {
+      decryptUserContextEntityForApi(ctx);
+    }
+    return contexts;
   }
 
   analyzeSentiment(text: string): number {

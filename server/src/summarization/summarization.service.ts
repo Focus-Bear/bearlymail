@@ -11,6 +11,10 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
+import {
+  decryptSummarizationRuleEntityForApi,
+  decryptUserContextEntityForApi,
+} from "../encryption/entity-api-decrypt.util";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import {
   cleanEmailContent,
@@ -64,6 +68,9 @@ export class SummarizationService {
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
     });
     if (categories.length === 0) return "";
+    for (const ctx of categories) {
+      decryptUserContextEntityForApi(ctx);
+    }
     return categories
       .map((ctx) => {
         const parts = ctx.contextValue.split(" - ");
@@ -708,10 +715,14 @@ export class SummarizationService {
   async getSummarizationRules(
     userId: string,
   ): Promise<SummarizationRuleEntity[]> {
-    return this.summarizationRuleRepository.find({
+    const rules = await this.summarizationRuleRepository.find({
       where: { userId },
       order: { createdAt: "DESC" },
     });
+    for (const rule of rules) {
+      decryptSummarizationRuleEntityForApi(rule);
+    }
+    return rules;
   }
 
   /** Deterministic rule matching (fromPatterns + subjectPatterns). First match wins. No LLM call. */

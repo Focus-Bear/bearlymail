@@ -12,6 +12,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
@@ -324,9 +325,10 @@ export class GitHubEmailInfoService {
         },
         select: ["contextValue"],
       });
-      categoryName = categoryCtx
-        ? parseCategoryName(categoryCtx.contextValue)
-        : undefined;
+      if (categoryCtx) {
+        decryptUserContextEntityForApi(categoryCtx);
+        categoryName = parseCategoryName(categoryCtx.contextValue);
+      }
     }
     return { links, category: categoryName };
   }

@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { GoogleAccount } from "../database/entities/google-account.entity";
+import { decryptGoogleAccountEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 
 export interface CreateGoogleAccountOptions {
@@ -61,10 +62,14 @@ export class GoogleAccountsService {
   }
 
   async findAllByUser(userId: string): Promise<GoogleAccount[]> {
-    return this.googleAccountRepository.find({
+    const accounts = await this.googleAccountRepository.find({
       where: { userId, isActive: true },
       order: { isPrimary: "DESC", createdAt: "ASC" },
     });
+    for (const account of accounts) {
+      decryptGoogleAccountEntityForApi(account);
+    }
+    return accounts;
   }
 
   async findPrimary(userId: string): Promise<GoogleAccount | null> {

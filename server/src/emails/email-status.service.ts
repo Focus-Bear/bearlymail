@@ -11,6 +11,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 
@@ -141,6 +142,9 @@ export class EmailStatusService {
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
       select: ["contextValue"],
     });
+    for (const ctx of ctxs) {
+      decryptUserContextEntityForApi(ctx);
+    }
     const names = ctxs
       .map((ctx) => parseCategoryName(ctx.contextValue))
       .filter((name) => name !== "");

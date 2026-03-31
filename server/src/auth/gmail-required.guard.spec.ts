@@ -53,6 +53,45 @@ describe("GmailRequiredGuard", () => {
   });
 
   describe("canActivate", () => {
+    let originalCI: string | undefined;
+    let originalNodeEnv: string | undefined;
+
+    beforeEach(() => {
+      // Save and clear CI env vars so the guard does not short-circuit via the
+      // isCiTestEnv path (CI=true + NODE_ENV=test) during unit tests that need
+      // to exercise the real guard logic.
+      originalCI = process.env.CI;
+      originalNodeEnv = process.env.NODE_ENV;
+      delete process.env.CI;
+      delete process.env.NODE_ENV;
+    });
+
+    afterEach(() => {
+      delete process.env.CI_SEARCH_FALLBACK;
+      // Restore original values
+      if (originalCI !== undefined) {
+        process.env.CI = originalCI;
+      } else {
+        delete process.env.CI;
+      }
+      if (originalNodeEnv !== undefined) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        delete process.env.NODE_ENV;
+      }
+    });
+
+    it("should return true immediately when CI_SEARCH_FALLBACK is set", async () => {
+      process.env.CI_SEARCH_FALLBACK = "true";
+
+      // Guard should bypass all checks — no services called
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(googleAccountsService.hasConnectedGmail).not.toHaveBeenCalled();
+      expect(usersService.findOneWithTokens).not.toHaveBeenCalled();
+    });
+
     it("should return true when user has connected Gmail accounts (new system)", async () => {
       const userId = "user-123";
       const mockRequest = {

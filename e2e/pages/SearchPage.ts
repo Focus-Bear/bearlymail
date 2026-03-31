@@ -23,7 +23,12 @@ export class SearchPage extends BasePage {
 
   async goto() {
     await this.page.goto('/search');
-    await this.page.waitForLoadState('networkidle');
+    // Use 'load' rather than 'networkidle': the SPA has background polling
+    // (batch-status, etc.) that keeps the network permanently busy in CI,
+    // causing 'networkidle' to time out before the search input ever renders.
+    await this.page.waitForLoadState('load');
+    // Wait for the search input to be present and ready before returning
+    await this.searchInput.waitFor({ state: 'visible', timeout: 10000 });
   }
 
   async search(query: string) {
@@ -36,12 +41,12 @@ export class SearchPage extends BasePage {
     await Promise.race([
       // Wait for loading indicator to disappear
       this.loadingIndicator.waitFor({ state: 'hidden', timeout }).catch(() => {}),
-      // Or wait for results/no-results to appear
-      this.page.waitForSelector('text=/No emails found|email|result/i', { timeout }).catch(() => {}),
+      // Or wait for results/no-results to appear (specific "No emails found" or "Found N")
+      this.page.waitForSelector('text=/No emails found|Found \\d+ email/i', { timeout }).catch(() => {}),
     ]);
     
     // Additional wait to ensure UI has settled
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(2000);
   }
 
   async getQueriesTried(): Promise<Array<{ query: string; resultCount: number }>> {
@@ -120,15 +125,28 @@ export class SearchPage extends BasePage {
   }
 
   async getResultsCount(): Promise<number> {
-    // Count email items in results
-    const emailItems = this.page.locator('[data-testid="email-item"], .email-item, [data-email-id]').all();
-    const items = await emailItems;
-    return items.length;
+    // First try: parse the "Found N email(s)" count summary rendered by SearchResults
+    const foundText = await this.page.locator('text=/Found \\d+ email/i').first().textContent().catch(() => null);
+    if (foundText) {
+      const match = foundText.match(/(\d+)/);
+      if (match) {
+        const count = parseInt(match[1], 10);
+        if (count > 0) return count;
+      }
+    }
+
+    // Fallback: count email items in results using common test-id / class selectors
+    const emailItems = await this.page.locator(
+      '[data-testid="email-item"], .email-item, [data-email-id]'
+    ).all();
+    return emailItems.length;
   }
 
   async getNoResultsMessage(): Promise<string | null> {
-    if (await this.noResultsMessage.isVisible().catch(() => false)) {
-      return await this.noResultsMessage.textContent();
+    // Use .first() to avoid strict mode failure when multiple elements match
+    const el = this.noResultsMessage.first();
+    if (await el.isVisible().catch(() => false)) {
+      return await el.textContent();
     }
     return null;
   }

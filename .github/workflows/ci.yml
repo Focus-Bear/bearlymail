@@ -146,8 +146,8 @@ jobs:
         working-directory: client
         run: npm run build
 
-  server-smoke-test:
-    name: Server Smoke Test
+  smoke-and-e2e:
+    name: Smoke Tests + E2E
     runs-on: ubuntu-latest
 
     services:
@@ -164,6 +164,17 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: test
+      DB_PASSWORD: test
+      DB_NAME: test
+      JWT_SECRET: smoke-test-jwt-secret
+      ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
+      PORT: 3001
+      NODE_ENV: test
 
     steps:
       - name: Checkout code
@@ -192,72 +203,114 @@ jobs:
 
       - name: Run database migrations
         working-directory: server
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          DB_NAME: test
         run: npx typeorm migration:run -d dist/data-source.js
 
       - name: Check for schema drift
         working-directory: server
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          DB_NAME: test
-          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
         run: |
           chmod +x scripts/check-schema-drift.sh
           scripts/check-schema-drift.sh
 
-      - name: Start server and run smoke tests
+      - name: Start server
         working-directory: server
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          DB_NAME: test
-          JWT_SECRET: smoke-test-jwt-secret
-          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
-          PORT: 3001
-          NODE_ENV: test
         run: |
           node dist/main.js &
-          SERVER_PID=$!
+          echo $! > /tmp/server.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "Server is up after ${i}s"
+              break
+            fi
+            echo "Waiting for server... (${i}/30)"
+            sleep 1
+          done
+          curl -sf http://localhost:3001/health || (echo "Server failed to start" && exit 1)
 
+      - name: Run smoke tests
+        working-directory: server
+        run: |
           chmod +x scripts/smoke-test.sh
           scripts/smoke-test.sh
-          SMOKE_EXIT=$?
 
-          kill $SERVER_PID 2>/dev/null || true
-          exit $SMOKE_EXIT
+      - name: Seed test user for e2e
+        working-directory: server
+        run: npm run seed:test-user
+
+      - name: Seed search data for e2e
+        working-directory: server
+        env:
+          CI_SEARCH_FALLBACK: 'true'
+        run: npm run seed:search-data
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build client
+        working-directory: client
+        env:
+          VITE_API_URL: http://localhost:3001
+        run: npm run build
+
+      - name: Serve client
+        working-directory: client
+        run: |
+          npx serve -s build -l 3000 &
+          echo $! > /tmp/client.pid
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Client is up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:3000 || (echo "Client failed to start" && exit 1)
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        working-directory: e2e
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          VITE_API_URL: http://localhost:3001
+          TEST_EMAIL: test@example.com
+          TEST_PASSWORD: testpassword
+        run: |
+          npx playwright test search-ci.spec.ts inbox-load-time.spec.ts \
+            --reporter=html,github
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: Kill server before worker check
+        if: always()
+        run: |
+          [ -f /tmp/server.pid ] && kill $(cat /tmp/server.pid) 2>/dev/null || true
+          [ -f /tmp/client.pid ] && kill $(cat /tmp/client.pid) 2>/dev/null || true
+          sleep 2
 
       - name: Verify worker starts successfully
         working-directory: server
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          DB_NAME: test
-          JWT_SECRET: smoke-test-jwt-secret
-          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
-          NODE_ENV: test
           WORKER_PROCESSES: 1
         run: |
           echo "Starting worker process..."
-          # Capture both stdout and stderr to a log file
           node dist/worker.js > worker.log 2>&1 &
           WORKER_PID=$!
 
           TIMEOUT=30
           STARTED=false
           for i in $(seq 1 $TIMEOUT); do
-            # Check for NestJS structural errors in the log
             if grep -i "Nest can't resolve dependencies\|Module not found\|Cannot find module\|Error: No provider" worker.log 2>/dev/null; then
               echo "=========================================="
               echo "FATAL: NestJS structural error detected!"
@@ -268,7 +321,6 @@ jobs:
               exit 1
             fi
             if ! kill -0 $WORKER_PID 2>/dev/null; then
-            
               echo "FATAL: Worker process exited prematurely"
               echo "=========================================="
               cat worker.log
@@ -300,7 +352,6 @@ jobs:
 
           kill $WORKER_PID 2>/dev/null || true
 
-          # Avoid hanging indefinitely if the worker ignores SIGTERM.
           for _ in $(seq 1 10); do
             if ! kill -0 $WORKER_PID 2>/dev/null; then
               break
@@ -315,6 +366,53 @@ jobs:
 
           wait $WORKER_PID 2>/dev/null || true
           echo "Worker startup check passed!"
+
+  security-audit:
+    name: Security Audit (changed controllers only)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for changed controllers
+        id: check-controllers
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'server/src/**/*controller*' 'server/src/**/*Controller*' | head -20)
+          if [ -z "$CHANGED" ]; then
+            echo "No controller files changed — skipping security audit"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed controllers:"
+            echo "$CHANGED"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.check-controllers.outputs.skip != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        if: steps.check-controllers.outputs.skip != 'true'
+        working-directory: server
+        run: npm ci --legacy-peer-deps
+
+      - name: Run security audit (diff mode)
+        if: steps.check-controllers.outputs.skip != 'true'
+        working-directory: server
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SECURITY_AUDIT_OPENAI_API_KEY: ${{ secrets.SECURITY_AUDIT_OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run security:audit:ci
 
   promptfoo-tests:
     name: Promptfoo Tests
@@ -345,5 +443,5 @@ jobs:
           OPENAI_MAX_RETRIES: 3
           PROMPTFOO_CHANGED_ONLY: 'true'
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
-          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}   # ← ADD THIS LINE
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: npm run promptfoo:test

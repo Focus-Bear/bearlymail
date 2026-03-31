@@ -36,7 +36,12 @@ export class InboxPage extends BasePage {
         // Option 1: Loading text disappears
         this.page.waitForSelector('text=/Loading|Decrypting/', { state: 'hidden', timeout }),
         // Option 2: Content appears (emails, empty state, or priority badges)
-        this.page.waitForSelector('[data-priority-badge], text=/Medium|High|Low|No emails|empty|inbox is empty/i', { timeout }),
+        // Matches: "Medium/High/Low" priority badges, "No emails found", "No new emails to triage!",
+        // "No emails to process!", "all caught up", "inbox is empty", etc.
+        this.page.waitForSelector(
+          '[data-priority-badge], text=/Medium|High|Low|No emails|No new|all caught up|empty|inbox is empty/i',
+          { timeout }
+        ),
         // Option 3: Loading indicator disappears
         this.loadingIndicator.waitFor({ state: 'hidden', timeout })
       ]);

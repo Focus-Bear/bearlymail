@@ -87,6 +87,7 @@
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "jscodeshift": "^17.3.0",
     "prettier": "^3.8.1",
+    "serve": "^14.2.6",
     "storybook": "^8.6.17",
     "vite": "^8.0.3",
     "vite-tsconfig-paths": "^6.0.3"

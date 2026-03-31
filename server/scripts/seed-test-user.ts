@@ -4,9 +4,13 @@ import { config } from 'dotenv';
 import * as path from 'path';
 import { User } from '../src/database/entities/user.entity';
 import { EncryptionHelper } from '../src/encryption/encryption.helper';
+import { encryptionKeyProvider } from '../src/encryption/encryption-key-provider';
 
 // Load environment variables from .env file
 config({ path: path.join(__dirname, '../.env') });
+
+// Initialize encryption before any entity operations
+encryptionKeyProvider.initialize();
 
 const dbHost = process.env.DB_HOST || 'localhost';
 const isLocal = dbHost === 'localhost' || dbHost === '127.0.0.1';
@@ -46,6 +50,12 @@ async function seedTestUser() {
       existingUser.password = hashedPassword;
       existingUser.isApproved = true;
       existingUser.hasSeenTour = true; // Skip tour for test user
+      existingUser.hasCompletedOnboarding = true; // Skip onboarding wizard in CI
+      const now = new Date();
+      existingUser.termsAcceptedAt = now; // Accept terms so wizard doesn't block
+      existingUser.termsVersion = process.env.TERMS_VERSION || '1.0.0';
+      existingUser.privacyAcceptedAt = now; // Accept privacy policy so wizard doesn't block
+      existingUser.privacyVersion = process.env.PRIVACY_VERSION || '1.0.0';
       await userRepository.save(existingUser);
       console.log('Test user password updated');
       console.log('Email: test@example.com');
@@ -59,6 +69,7 @@ async function seedTestUser() {
         throw new Error('Failed to encrypt email. Check ENCRYPTION_KEY environment variable.');
       }
       
+      const now = new Date();
       const testUser = userRepository.create({
         email: encryptedEmail,
         emailHash,
@@ -66,7 +77,12 @@ async function seedTestUser() {
         name: 'Test User',
         isApproved: true,
         hasSeenTour: true, // Skip tour for test user
+        hasCompletedOnboarding: true, // Skip onboarding wizard in CI
         hasScannedHistory: false,
+        termsAcceptedAt: now, // Accept terms so wizard doesn't block
+        termsVersion: process.env.TERMS_VERSION || '1.0.0',
+        privacyAcceptedAt: now, // Accept privacy policy so wizard doesn't block
+        privacyVersion: process.env.PRIVACY_VERSION || '1.0.0',
       });
 
       await userRepository.save(testUser);

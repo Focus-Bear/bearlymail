@@ -18,6 +18,7 @@ import {
 } from "./email-search.types";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 
+
 export type {
   EmailWithMetadata,
   ProviderSearchResult,
@@ -163,7 +164,9 @@ export class EmailSearchService {
     originalQuery: string,
     accountTypes?: string[],
   ): Promise<EmailWithMetadata[]> {
-    if (process.env.CI_SEARCH_FALLBACK === "true") {
+    const isCiTestEnv =
+      process.env.CI === "true" && process.env.NODE_ENV === "test";
+    if (process.env.CI_SEARCH_FALLBACK === "true" || isCiTestEnv) {
       this.logger.log(
         `[SEARCH] No provider connected for user ${userId}; using CI local-DB fallback`,
       );
@@ -838,6 +841,11 @@ export class EmailSearchService {
       order: { receivedAt: "DESC" },
       take: QUERY_LIMITS.CI_LOCAL_DB_SEARCH_MAX,
     });
+
+    this.logger.log(
+      `[CI-SEARCH] searchEmailsFromLocalDb: userId=${userId} query="${query}" ` +
+        `found ${allEmails.length} emails`,
+    );
 
     const lowerQuery = query.toLowerCase();
     const queriesTried: QueryTried[] = [

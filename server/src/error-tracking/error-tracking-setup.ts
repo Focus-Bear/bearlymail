@@ -90,6 +90,36 @@ export function captureGlobalError(
 }
 
 /**
+ * Capture a custom event to PostHog from pre-NestJS or non-injectable contexts.
+ * Safe to call before NestJS bootstraps (uses the module-level posthogClient).
+ */
+export function captureGlobalEvent(
+  eventName: string,
+  properties?: Record<string, unknown>,
+): void {
+  if (!posthogClient) {
+    return;
+  }
+
+  try {
+    posthogClient.capture({
+      distinctId: "backend-events",
+      event: eventName,
+      properties: {
+        ...properties,
+        environment: process.env.NODE_ENV,
+        service: "backend",
+      },
+    });
+  } catch (captureError) {
+    logger.error(
+      `Failed to capture event "${eventName}" to PostHog`,
+      captureError,
+    );
+  }
+}
+
+/**
  * Shutdown the global PostHog client
  */
 export async function shutdownGlobalErrorTracking(): Promise<void> {

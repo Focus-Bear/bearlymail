@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
+import { captureGlobalEvent } from "../error-tracking/error-tracking-setup";
 
 class EncryptionKeyProvider {
   private derivedKey: Buffer | null = null;
@@ -28,6 +29,11 @@ class EncryptionKeyProvider {
       .digest("hex")
       .slice(0, ENCRYPTION_CONSTANTS.FINGERPRINT_LENGTH);
     this.initialized = true;
+
+    captureGlobalEvent("encryption-key-initialized", {
+      keyFingerprint: this.keyFingerprint,
+      keyLength: ENCRYPTION_CONSTANTS.KEY_LENGTH,
+    });
   }
 
   getKey(): Buffer {

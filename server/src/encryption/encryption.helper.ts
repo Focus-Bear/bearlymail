@@ -1,11 +1,13 @@
 import * as crypto from "crypto";
 
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
+import { captureGlobalEvent } from "../error-tracking/error-tracking-setup";
 import { parseCategoryName } from "../utils/category-name.util";
 import { logError } from "../utils/logger";
 import { encryptionKeyProvider } from "./encryption-key-provider";
 
 const MAX_CONSECUTIVE_DECRYPT_FAILURES = 10;
+const DECRYPT_FAILURE_EVENT_THROTTLE_MS = 60_000;
 
 /**
  * Static encryption helper for use in TypeORM column transformers.
@@ -16,6 +18,7 @@ class EncryptionHelper {
   private static algorithm = "aes-256-gcm";
   private static ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
   private static consecutiveFailures = 0;
+  private static lastDecryptFailureEventMs = 0;
 
   private static getKey(): Buffer {
     return encryptionKeyProvider.getKey();
@@ -115,6 +118,22 @@ class EncryptionHelper {
       return result;
     } catch (error) {
       EncryptionHelper.consecutiveFailures++;
+
+      const now = Date.now();
+      if (
+        now - EncryptionHelper.lastDecryptFailureEventMs >
+        DECRYPT_FAILURE_EVENT_THROTTLE_MS
+      ) {
+        EncryptionHelper.lastDecryptFailureEventMs = now;
+        captureGlobalEvent("encryption-decrypt-failure", {
+          error: error instanceof Error ? error.message : String(error),
+          ciphertextPrefix: encryptedText
+            ? encryptedText.slice(0, ENCRYPTION_CONSTANTS.CIPHERTEXT_DEBUG_PREFIX_LENGTH)
+            : "(null)",
+          consecutiveFailures: EncryptionHelper.consecutiveFailures,
+          keyFingerprint: encryptionKeyProvider.getFingerprint(),
+        });
+      }
 
       if (
         EncryptionHelper.consecutiveFailures >= MAX_CONSECUTIVE_DECRYPT_FAILURES

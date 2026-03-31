@@ -12,4 +12,6 @@ export const ENCRYPTION_CONSTANTS = {
   SALT_LENGTH: 32,
   // Key fingerprint hex length (first 8 hex chars of SHA-256)
   FINGERPRINT_LENGTH: 8,
+  // Number of bytes to include from ciphertext in debug/error logs
+  CIPHERTEXT_DEBUG_PREFIX_LENGTH: 16,
 } as const;

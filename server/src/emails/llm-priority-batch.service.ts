@@ -596,7 +596,6 @@ export class LLMPriorityBatchService {
       emailsNeedingFullAnalysis,
       batchResults,
     );
-
   }
 
   private async lockThreadsForProcessing(

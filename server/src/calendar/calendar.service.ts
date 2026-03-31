@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
@@ -24,8 +21,8 @@ import {
   CalendarAgendaService,
   CreateEventOptions,
 } from "./calendar-agenda.service";
-import { CalendarIcsService } from "./calendar-ics.service";
 import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
+import { CalendarIcsService } from "./calendar-ics.service";
 import {
   generateMeetingReply,
   respondToInvitation,

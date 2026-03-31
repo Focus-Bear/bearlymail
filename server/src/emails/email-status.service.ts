@@ -11,8 +11,8 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { parseCategoryName } from "../utils/category-name.util";
 import { UsersService } from "../users/users.service";
+import { parseCategoryName } from "../utils/category-name.util";
 
 @Injectable()
 export class EmailStatusService {
@@ -221,9 +221,30 @@ export class EmailStatusService {
    */
   async getPriorityDebugInfo(userId: string): Promise<{
     bucketsByMode: {
-      triage: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
-      action: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
-      followUp: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number };
+      triage: {
+        veryHigh: number;
+        high: number;
+        medium: number;
+        low: number;
+        veryLow: number;
+        unprioritised: number;
+      };
+      action: {
+        veryHigh: number;
+        high: number;
+        medium: number;
+        low: number;
+        veryLow: number;
+        unprioritised: number;
+      };
+      followUp: {
+        veryHigh: number;
+        high: number;
+        medium: number;
+        low: number;
+        veryLow: number;
+        unprioritised: number;
+      };
     };
     histogram: Array<{ band: string; count: number }>;
     nullPriorityCount: number;

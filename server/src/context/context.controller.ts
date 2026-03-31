@@ -527,9 +527,7 @@ export class ContextController {
   async approveQA(@Param("id") id: string, @Request() req) {
     const result = await this.contextService.approveQA(id, req.user.userId);
     if (!result) {
-      throw new NotFoundException(
-        "Q&A item not found or not pending approval",
-      );
+      throw new NotFoundException("Q&A item not found or not pending approval");
     }
     return result;
   }
@@ -539,9 +537,7 @@ export class ContextController {
   async rejectQA(@Param("id") id: string, @Request() req) {
     const deleted = await this.contextService.rejectQA(id, req.user.userId);
     if (!deleted) {
-      throw new NotFoundException(
-        "Q&A item not found or not pending approval",
-      );
+      throw new NotFoundException("Q&A item not found or not pending approval");
     }
   }
 

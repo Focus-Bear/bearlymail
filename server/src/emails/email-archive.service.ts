@@ -264,7 +264,9 @@ export class EmailArchiveService {
       select: ["contextId", "contextValue"],
     });
 
-    const resolveLocalCategoryName = (categoryId: string | null): string | null => {
+    const resolveLocalCategoryName = (
+      categoryId: string | null,
+    ): string | null => {
       if (!categoryId) return null;
       const found = allCtxs.find((ctx) => ctx.contextId === categoryId);
       return found ? parseCategoryName(found.contextValue) : null;

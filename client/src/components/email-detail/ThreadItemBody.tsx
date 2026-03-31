@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
@@ -9,7 +10,28 @@ interface ThreadItemBodyProps {
   htmlBody?: string;
 }
 
+function looksLikeCiphertext(text: string): boolean {
+  return /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]{2,}$/i.test(text.trim());
+}
+
 export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }) => {
+  const { t } = useTranslation();
+
+  if (looksLikeCiphertext(body) || (htmlBody != null && looksLikeCiphertext(htmlBody))) {
+    return (
+      <div
+        style={{
+          padding: theme.spacing.md,
+          backgroundColor: theme.colors.background.paper,
+          borderTop: `1px solid ${theme.colors.border.light}`,
+          color: theme.colors.text.secondary,
+        }}
+      >
+        {t('emailDetail.threadItemBody.decryptFailed')}
+      </div>
+    );
+  }
+
   const isHtml = Boolean(htmlBody);
   const processedContent = htmlBody
     ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))

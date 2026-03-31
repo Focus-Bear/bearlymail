@@ -2,7 +2,11 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
-import { verifyEncryptionRoundTrip } from "./encryption/encryption-boot-check";
+import bootstrapDataSource from "./data-source";
+import {
+  verifyEncryptionRoundTrip,
+  verifyExistingDataDecryption,
+} from "./encryption/encryption-boot-check";
 import { encryptionKeyProvider } from "./encryption/encryption-key-provider";
 import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
@@ -28,6 +32,11 @@ async function bootstrap() {
     logger.log(
       `Encryption self-test passed. Key fingerprint: ${encryptionKeyProvider.getFingerprint()}`,
     );
+
+    const dataSource = await bootstrapDataSource.initialize();
+    await verifyExistingDataDecryption(dataSource);
+    await dataSource.destroy();
+
     // Check if running in worker mode
     if (process.env.WORKER_MODE === "true") {
       logger.log("Starting application in WORKER mode...");

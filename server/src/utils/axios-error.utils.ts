@@ -18,7 +18,7 @@ export function sanitizeAxiosError(error: unknown): string {
     const method = error.config?.method?.toUpperCase() ?? "UNKNOWN";
     const url = error.config?.url ?? "unknown-url";
     const status = error.response?.status ?? "no-response";
-    const message = error.message;
+    const { message } = error;
     return `${method} ${url} → ${status}: ${message}`;
   }
   if (error instanceof Error) {

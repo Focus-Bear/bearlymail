@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+import { DataSource } from "typeorm";
 
 import { captureGlobalEvent } from "../error-tracking/error-tracking-setup";
 import { EncryptionHelper } from "./encryption.helper";
@@ -63,7 +64,61 @@ export function verifyEncryptionRoundTrip(): void {
   captureGlobalEvent("encryption-boot-check-success", {
     keyFingerprint: fingerprint,
   });
-  logger.log(
-    `Encryption self-test passed. Key fingerprint: ${fingerprint}`,
-  );
+  logger.log(`Encryption self-test passed. Key fingerprint: ${fingerprint}`);
+}
+
+/**
+ * Verifies the current ENCRYPTION_KEY can decrypt data already stored in the database.
+ *
+ * A round-trip self-test only proves the key works for freshly generated ciphertext.
+ * This check fetches an actual encrypted row and attempts decryption — if the key was
+ * rotated or changed, this will throw and crash the app before any user data is served.
+ *
+ * If the database has no emails yet (fresh install), the check is skipped.
+ *
+ * Call this in main.ts AFTER verifyEncryptionRoundTrip() and before NestJS bootstraps.
+ * Requires an active DataSource connection.
+ *
+ * Throws if decryption of existing data fails.
+ */
+export async function verifyExistingDataDecryption(
+  dataSource: DataSource,
+): Promise<void> {
+  const fingerprint = encryptionKeyProvider.getFingerprint();
+
+  let row: { subject: string } | undefined;
+  try {
+    const result = (await dataSource.query(
+      `SELECT subject FROM emails WHERE subject IS NOT NULL LIMIT 1`,
+    )) as { subject: string }[];
+    row = result[0];
+  } catch (err) {
+    logger.warn(
+      `verifyExistingDataDecryption: Could not query emails table — skipping (${String(err)})`,
+    );
+    return;
+  }
+
+  if (!row) {
+    logger.log(
+      `verifyExistingDataDecryption: No existing emails found — skipping (fresh database). Key fingerprint: ${fingerprint}`,
+    );
+    return;
+  }
+
+  try {
+    const decrypted = EncryptionHelper.decrypt(row.subject);
+    const previewLength = decrypted ? decrypted.length : 0;
+    logger.log(
+      `verifyExistingDataDecryption: Existing data decryption succeeded (subject length: ${previewLength}). Key fingerprint: ${fingerprint}`,
+    );
+  } catch (err) {
+    throw new Error(
+      `FATAL: Cannot decrypt existing database rows. ` +
+        `Current key fingerprint: ${fingerprint}. ` +
+        `Data was likely encrypted with a different key. ` +
+        `Verify ENCRYPTION_KEY matches the value used when data was originally encrypted. ` +
+        `Original error: ${String(err)}`,
+    );
+  }
 }

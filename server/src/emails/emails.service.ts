@@ -84,7 +84,9 @@ export class EmailsService {
   }
 
   async getPriorityDebugInfo(userId: string) {
-    return this.emailServiceDeps.emailStatusService.getPriorityDebugInfo(userId);
+    return this.emailServiceDeps.emailStatusService.getPriorityDebugInfo(
+      userId,
+    );
   }
 
   async getConnectedAccounts(userId: string): Promise<

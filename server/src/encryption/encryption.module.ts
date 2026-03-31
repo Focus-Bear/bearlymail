@@ -1,10 +1,13 @@
 import { Global, Module } from "@nestjs/common";
 
+import { UsersModule } from "../users/users.module";
+import { EncryptionController } from "./encryption.controller";
 import { EncryptionService } from "./encryption.service";
 
-// Make encryption service available everywhere
 @Global()
 @Module({
+  imports: [UsersModule],
+  controllers: [EncryptionController],
   providers: [EncryptionService],
   exports: [EncryptionService],
 })

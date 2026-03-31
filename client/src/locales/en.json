@@ -431,6 +431,9 @@
     "generatingSummary": "Generating summary...",
     "noSummary": "No summary yet. Select a summary type above to generate one.",
     "thread": "Thread",
+    "threadItemBody": {
+      "decryptFailed": "⚠️ This email's content could not be decrypted. Please contact support."
+    },
     "message": "message",
     "messages": "messages",
     "clickToExpand": "click to expand",
@@ -1139,7 +1142,25 @@
       "noApprovedEntries": "No approved entries",
       "emailSystem": "Email System",
       "decline": "Decline",
-      "feedback": "Feedback"
+      "feedback": "Feedback",
+      "emailDecrypt": "Email decrypt"
+    },
+    "emailDecrypt": {
+      "title": "Decrypt email (admin)",
+      "description": "Load ciphertext columns for an email UUID and attempt AES-GCM decryption using the server's ENCRYPTION_KEY, or an alternate passphrase for comparison.",
+      "emailIdLabel": "Email ID (UUID)",
+      "optionalKeyLabel": "Optional encryption key (passphrase)",
+      "optionalKeyPlaceholder": "Leave empty to use server key",
+      "submit": "Decrypt",
+      "loading": "Decrypting…",
+      "emailIdRequired": "Enter an email ID.",
+      "requestFailed": "Request failed.",
+      "serverKeyPrefixLabel": "First 10 characters of server ENCRYPTION_KEY:",
+      "emptyPrefix": "(not set)",
+      "columnField": "Field",
+      "columnCiphertextPreview": "Ciphertext preview",
+      "columnDecrypted": "Decrypted",
+      "columnError": "Error"
     },
     "jobs": {
       "title": "Job Queue Statistics",

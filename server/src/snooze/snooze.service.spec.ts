@@ -3,6 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import * as chrono from "chrono-node";
 import { Repository } from "typeorm";
 
+import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -259,7 +260,16 @@ describe("SnoozeService", () => {
 
       const result = await service.snoozeEmail("user-1", "email-1", "mon");
 
-      const expectedTime = new Date("2024-01-08T09:00:00Z");
+      const targetDay = 1;
+      const currentDay = now.getDay();
+      let daysUntil = targetDay - currentDay;
+      if (daysUntil <= 0) {
+        daysUntil += SNOOZE_CONSTANTS.DAYS_IN_WEEK;
+      }
+      const expectedTime = new Date(now);
+      expectedTime.setDate(now.getDate() + daysUntil);
+      expectedTime.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
+
       expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
 
       jest.useRealTimers();
@@ -335,9 +345,9 @@ describe("SnoozeService", () => {
     it("should throw error if thread not found", async () => {
       threadRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.unsnoozeEmail("user-1", "email-1"),
-      ).rejects.toThrow("thread not found");
+      await expect(service.unsnoozeEmail("user-1", "email-1")).rejects.toThrow(
+        "thread not found",
+      );
     });
 
     it("should set syncStatus to unsynced before provider call", async () => {

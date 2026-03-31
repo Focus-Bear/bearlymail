@@ -5,6 +5,51 @@ import { INBOX_MODES, QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { buildThreadFilter, RawEmailRow } from "./email-inbox.types";
 
+type InboxQueryFilters = {
+  accountIds?: string[];
+  minPriority?: number;
+  maxPriority?: number;
+  /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
+  assigneeId?: string;
+};
+
+function appendInboxAdditionalFilters(
+  filters: InboxQueryFilters | undefined,
+  paramIndex: number,
+  queryParams: (string | number)[],
+): { additionalFilters: string; paramIndex: number } {
+  let additionalFilters = "";
+  let idx = paramIndex;
+
+  if (filters?.accountIds && filters.accountIds.length > 0) {
+    const phGoogle = filters.accountIds.map(() => `$${idx++}`).join(", ");
+    const phOffice = filters.accountIds.map(() => `$${idx++}`).join(", ");
+    const phZoho = filters.accountIds.map(() => `$${idx++}`).join(", ");
+    additionalFilters += ` AND (e."googleAccountId" IN (${phGoogle}) OR e."office365AccountId" IN (${phOffice}) OR e."zohoAccountId" IN (${phZoho}))`;
+    queryParams.push(
+      ...filters.accountIds,
+      ...filters.accountIds,
+      ...filters.accountIds,
+    );
+  }
+  if (filters?.minPriority !== undefined) {
+    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${idx++}`;
+    queryParams.push(filters.minPriority);
+  }
+  if (filters?.maxPriority !== undefined) {
+    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${idx++}`;
+    queryParams.push(filters.maxPriority);
+  }
+  if (filters?.assigneeId === "unassigned") {
+    additionalFilters += ` AND thread."assigneeId" IS NULL`;
+  } else if (filters?.assigneeId) {
+    additionalFilters += ` AND thread."assigneeId" = $${idx++}`;
+    queryParams.push(filters.assigneeId);
+  }
+
+  return { additionalFilters, paramIndex: idx };
+}
+
 /**
  * Builds and executes the raw SQL inbox query, returning one representative
  * email row per thread ordered by priority descending.
@@ -15,48 +60,22 @@ export async function runInboxQuery(
   emailRepository: Repository<Email>,
   userId: string,
   mode: string,
-  filters?: {
-    accountIds?: string[];
-    minPriority?: number;
-    maxPriority?: number;
-    /** Filter by assignee userId, or "unassigned" for threads with no assignee. */
-    assigneeId?: string;
-  },
+  filters?: InboxQueryFilters,
+  userEmailHmac?: string,
 ): Promise<RawEmailRow[]> {
   const threadFilter = buildThreadFilter(mode);
   const queryParams: (string | number)[] = [userId];
-  let additionalFilters = "";
-  let paramIndex = 2;
+  const { additionalFilters, paramIndex: nextIdx } =
+    appendInboxAdditionalFilters(filters, 2, queryParams);
+  let paramIndex = nextIdx;
 
-  if (filters?.accountIds && filters.accountIds.length > 0) {
-    const phGoogle = filters.accountIds
-      .map(() => `$${paramIndex++}`)
-      .join(", ");
-    const phOffice = filters.accountIds
-      .map(() => `$${paramIndex++}`)
-      .join(", ");
-    const phZoho = filters.accountIds.map(() => `$${paramIndex++}`).join(", ");
-    additionalFilters += ` AND (e."googleAccountId" IN (${phGoogle}) OR e."office365AccountId" IN (${phOffice}) OR e."zohoAccountId" IN (${phZoho}))`;
-    queryParams.push(
-      ...filters.accountIds,
-      ...filters.accountIds,
-      ...filters.accountIds,
-    );
-  }
-  if (filters?.minPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
-    queryParams.push(filters.minPriority);
-  }
-  if (filters?.maxPriority !== undefined) {
-    additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${paramIndex++}`;
-    queryParams.push(filters.maxPriority);
-  }
-  // Assignee filter (#1112)
-  if (filters?.assigneeId === "unassigned") {
-    additionalFilters += ` AND thread."assigneeId" IS NULL`;
-  } else if (filters?.assigneeId) {
-    additionalFilters += ` AND thread."assigneeId" = $${paramIndex++}`;
-    queryParams.push(filters.assigneeId);
+  let correspondentFilter: string;
+  if (userEmailHmac) {
+    const hmacParam = `$${paramIndex++}`;
+    queryParams.push(userEmailHmac);
+    correspondentFilter = `AND cor."senderEmailHmac" IS DISTINCT FROM ${hmacParam}`;
+  } else {
+    correspondentFilter = "";
   }
 
   return emailRepository.query(
@@ -93,9 +112,9 @@ export async function runInboxQuery(
     ) e
     LEFT JOIN LATERAL (
       SELECT cor."from", cor."fromName"
-      FROM emails cor JOIN users u ON u.id = $1
+      FROM emails cor
       WHERE cor."emailThreadId" = thread.id AND cor."userId" = $1
-        AND LOWER(cor."from") != LOWER(u.email)
+        ${correspondentFilter}
       ORDER BY cor."receivedAt" ASC LIMIT 1
     ) correspondent ON true
     LEFT JOIN LATERAL (

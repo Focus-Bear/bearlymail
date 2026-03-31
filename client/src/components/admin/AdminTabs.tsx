@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 
 import {
   ADMIN_TAB_CONTEXT_ANALYSIS,
+  ADMIN_TAB_EMAIL_DECRYPT,
   ADMIN_TAB_FEEDBACK,
   ADMIN_TAB_GITHUB_DEBUG,
   ADMIN_TAB_JOBS,
@@ -63,6 +64,7 @@ export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) 
     { id: ADMIN_TAB_GITHUB_DEBUG, label: t('admin.dashboard.githubDebug') },
     { id: ADMIN_TAB_CONTEXT_ANALYSIS, label: t('admin.dashboard.contextAnalysis') },
     { id: ADMIN_TAB_FEEDBACK, label: t('admin.dashboard.feedback') },
+    { id: ADMIN_TAB_EMAIL_DECRYPT, label: t('admin.dashboard.emailDecrypt') },
   ];
 
   return (

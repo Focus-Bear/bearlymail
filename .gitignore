@@ -12,6 +12,7 @@ client/node_modules/
 server/dist/
 client/build/
 *.log
+server/coverage
 
 # Log files
 logs/

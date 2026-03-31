@@ -3,7 +3,6 @@ import { getRepositoryToken, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { AwsModule } from "../aws/aws.module";
-import { DebugModule } from "../debug/debug.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
@@ -21,6 +20,7 @@ import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import { DebugModule } from "../debug/debug.module";
 import { GitHubModule } from "../github/github.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";

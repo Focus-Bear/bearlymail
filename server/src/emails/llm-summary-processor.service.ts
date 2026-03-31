@@ -362,13 +362,12 @@ export class LLMSummaryProcessorService {
       };
     }
 
-    const newProto =
-      await this.protoCategoriesService.createAndAssignToThread(
-        userId,
-        category,
-        null,
-        emailThreadId,
-      );
+    const newProto = await this.protoCategoriesService.createAndAssignToThread(
+      userId,
+      category,
+      null,
+      emailThreadId,
+    );
     const unmatchedNote = `(Note: category "${category}" not found in your category list — email placed in Other)`;
     const explanation = categoryExplanation
       ? `${categoryExplanation} ${unmatchedNote}`
@@ -440,9 +439,7 @@ export class LLMSummaryProcessorService {
           ...(matchedCategoryId !== null
             ? { categoryId: matchedCategoryId }
             : {}),
-          ...(protoCategoryId !== undefined
-            ? { protoCategoryId }
-            : {}),
+          ...(protoCategoryId !== undefined ? { protoCategoryId } : {}),
         },
       );
     }

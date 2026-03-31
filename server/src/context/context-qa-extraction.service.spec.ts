@@ -73,7 +73,8 @@ describe("ContextQaExtractionService", () => {
     const createdContext = {
       userId: "user1",
       contextKey: ContextKey.Q_AND_A,
-      contextValue: "Q: What is your return policy? | A: 30 days no questions asked.",
+      contextValue:
+        "Q: What is your return policy? | A: 30 days no questions asked.",
       source: Source.UNAPPROVED,
     };
     mockContextRepository.create.mockReturnValue(createdContext);

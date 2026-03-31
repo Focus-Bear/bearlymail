@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- orchestration surface; incremental extraction preferred */
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -12,6 +13,9 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { parseCategoryName } from "../utils/category-name.util";
+import { computeEmailHmac } from "../utils/hmac-email";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import {
   determinePriorityLevel,
@@ -20,7 +24,6 @@ import {
 import { AutoResponderContextService } from "./auto-responder-context.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
-import { parseCategoryName } from "../utils/category-name.util";
 import {
   AutoresponderDecisionContext,
   autoresponderLogger,
@@ -829,7 +832,12 @@ export class AutoResponderService {
       limit?: number;
     },
   ) {
-    return this.analyticsService.getAutoRespondedThreads(userId, filters);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const userEmailPlain = user?.email
+      ? EncryptionHelper.tryDecrypt(user.email)
+      : undefined;
+    const hmac = userEmailPlain ? computeEmailHmac(userEmailPlain) : undefined;
+    return this.analyticsService.getAutoRespondedThreads(userId, filters, hmac);
   }
 
   /**

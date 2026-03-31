@@ -482,12 +482,11 @@ export class GmailProvider implements EmailProvider {
         allResults.push(...batchResults);
       }
 
-      return allResults.filter((result): result is GmailSearchResult => result !== null);
-    } catch (error) {
-      this.logger.error(
-        `Failed metadata search for user ${userId}:`,
-        error,
+      return allResults.filter(
+        (result): result is GmailSearchResult => result !== null,
       );
+    } catch (error) {
+      this.logger.error(`Failed metadata search for user ${userId}:`, error);
       return [];
     }
   }

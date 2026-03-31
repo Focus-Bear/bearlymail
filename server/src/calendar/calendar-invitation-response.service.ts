@@ -409,8 +409,7 @@ export async function rsvpByEventId(
     }
 
     const attendeeIndex = event.attendees.findIndex(
-      (attendee) =>
-        attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+      (attendee) => attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
     );
 
     if (attendeeIndex === -1) {

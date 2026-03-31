@@ -4,9 +4,9 @@
  */
 
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
-import { PhishingSignal } from "./phishing-detection.service";
 import { LLMProvider } from "../llm/llm.service";
 import { SummaryType } from "../llm/prompts";
+import { PhishingSignal } from "./phishing-detection.service";
 
 export interface ThreadData {
   emailId: string;

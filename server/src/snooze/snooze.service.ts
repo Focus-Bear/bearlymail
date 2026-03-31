@@ -163,36 +163,7 @@ export class SnoozeService {
 
   private parseDuration(duration: string): Date {
     const normalized = duration.toLowerCase().trim();
-
-    const parsed = chrono.parseDate(normalized);
-    if (parsed) {
-      return parsed;
-    }
-
     const now = new Date();
-    const regex = /^(\d+)\s*(m|min|h|hr|d|w)$/;
-    const match = normalized.match(regex);
-
-    if (match) {
-      const value = parseInt(match[1]);
-      const unit = match[2];
-
-      switch (unit) {
-        case "m":
-        case "min":
-          return new Date(now.getTime() + value * MILLISECONDS.MINUTE);
-        case "h":
-        case "hr":
-          return new Date(now.getTime() + value * MILLISECONDS.HOUR);
-        case "d":
-          return new Date(now.getTime() + value * MILLISECONDS.DAY);
-        case "w":
-          return new Date(
-            now.getTime() +
-              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
-          );
-      }
-    }
 
     const dayMap: { [key: string]: number } = {
       sun: 0,
@@ -218,6 +189,35 @@ export class SnoozeService {
       nextDate.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
 
       return nextDate;
+    }
+
+    const parsed = chrono.parseDate(normalized);
+    if (parsed) {
+      return parsed;
+    }
+
+    const regex = /^(\d+)\s*(m|min|h|hr|d|w)$/;
+    const match = normalized.match(regex);
+
+    if (match) {
+      const value = parseInt(match[1]);
+      const unit = match[2];
+
+      switch (unit) {
+        case "m":
+        case "min":
+          return new Date(now.getTime() + value * MILLISECONDS.MINUTE);
+        case "h":
+        case "hr":
+          return new Date(now.getTime() + value * MILLISECONDS.HOUR);
+        case "d":
+          return new Date(now.getTime() + value * MILLISECONDS.DAY);
+        case "w":
+          return new Date(
+            now.getTime() +
+              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
+          );
+      }
     }
 
     return new Date(now.getTime() + MILLISECONDS.HOUR);

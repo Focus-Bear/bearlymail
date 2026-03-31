@@ -193,6 +193,15 @@ describe("EncryptionHelper", () => {
       expect(EncryptionHelper.decrypt(encrypted1!)).toBe(plaintext);
       expect(EncryptionHelper.decrypt(encrypted2!)).toBe(plaintext);
     });
+
+    it("should round-trip decryptWithKeyString when passphrase matches ENCRYPTION_KEY", () => {
+      const plaintext = "admin key probe";
+      const encrypted = EncryptionHelper.encrypt(plaintext);
+      const key = process.env.ENCRYPTION_KEY ?? "";
+      expect(EncryptionHelper.decryptWithKeyString(encrypted!, key)).toBe(
+        plaintext,
+      );
+    });
   });
 
   describe("tryDecrypt circuit-breaker", () => {
@@ -218,11 +227,10 @@ describe("EncryptionHelper", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
       (EncryptionHelper as any).consecutiveFailures = 0;
-      for (let i = 0; i < 9; i++) {
-        EncryptionHelper.tryDecrypt(badCiphertext);
-      }
+      EncryptionHelper.tryDecrypt(badCiphertext);
+      EncryptionHelper.tryDecrypt(badCiphertext);
       expect(() => EncryptionHelper.tryDecrypt(badCiphertext)).toThrow(
-        "FATAL: 10 consecutive decryption failures",
+        /FATAL: 3 consecutive decryption failures/,
       );
     });
 

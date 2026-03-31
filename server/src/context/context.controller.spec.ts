@@ -1,7 +1,6 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-
-import { NotFoundException } from "@nestjs/common";
 
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { User } from "../database/entities/user.entity";

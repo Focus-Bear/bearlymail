@@ -12,7 +12,10 @@ import { ContactsService } from "../contacts/contacts.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { decryptContextValue } from "../encryption/encryption.helper";
 import { getJobPriority } from "../queue/job-priorities";
-import { EMAIL_CONTROLLER_DEFAULTS, PgBossWithInternals } from "./email-controller.helpers";
+import {
+  EMAIL_CONTROLLER_DEFAULTS,
+  PgBossWithInternals,
+} from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 

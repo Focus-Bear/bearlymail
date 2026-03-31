@@ -33,7 +33,9 @@ export class EmailFollowUpService {
     try {
       const user = await this.usersService.findOne(userId);
       if (user) {
-        const userEmail = EncryptionHelper.tryDecrypt(user.email)?.toLowerCase();
+        const userEmail = EncryptionHelper.tryDecrypt(
+          user.email,
+        )?.toLowerCase();
         if (userEmail) {
           const before = emails.length;
           const result = emails.filter(

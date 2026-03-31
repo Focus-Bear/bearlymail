@@ -3,11 +3,7 @@ import { calendar_v3 } from "googleapis";
 
 import { LLMService } from "../llm/llm.service";
 import { LLM_OP_GENERATE_BOOKING_TITLE } from "../llm/llm-operations";
-import {
-  CALENDAR_PROMPT_IDS,
-  getPrompt,
-  renderPrompt,
-} from "../llm/prompts";
+import { CALENDAR_PROMPT_IDS, getPrompt, renderPrompt } from "../llm/prompts";
 
 export interface BookSlotOptions {
   userId: string;
@@ -41,7 +37,9 @@ export class CalendarAgendaService {
   async summariseAgendaToTitle(agenda: string): Promise<string> {
     const MAX_TITLE_LENGTH = 60;
     try {
-      const promptConfig = getPrompt(CALENDAR_PROMPT_IDS.GENERATE_BOOKING_TITLE);
+      const promptConfig = getPrompt(
+        CALENDAR_PROMPT_IDS.GENERATE_BOOKING_TITLE,
+      );
       if (!promptConfig) {
         return agenda.slice(0, MAX_TITLE_LENGTH);
       }

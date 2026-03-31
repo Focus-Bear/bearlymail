@@ -6,7 +6,7 @@ import { parseCategoryName } from "../utils/category-name.util";
 import { logError } from "../utils/logger";
 import { encryptionKeyProvider } from "./encryption-key-provider";
 
-const MAX_CONSECUTIVE_DECRYPT_FAILURES = 10;
+const MAX_CONSECUTIVE_DECRYPT_FAILURES = 3;
 const DECRYPT_FAILURE_EVENT_THROTTLE_MS = 60_000;
 
 /**
@@ -100,18 +100,74 @@ class EncryptionHelper {
   }
 
   /**
+   * Decrypt using a passphrase with the same scrypt derivation as the running server key.
+   * For admin diagnostics only — does not affect the tryDecrypt circuit-breaker.
+   */
+  static decryptWithKeyString(
+    encryptedText: string | null | undefined,
+    keyMaterial: string,
+  ): string | null {
+    if (!encryptedText) return null;
+
+    if (!encryptedText.includes(":")) {
+      return encryptedText;
+    }
+
+    const parts = encryptedText.split(":");
+    if (parts.length !== 3) {
+      return encryptedText;
+    }
+
+    const key = crypto.scryptSync(
+      keyMaterial,
+      "salt",
+      ENCRYPTION_CONSTANTS.KEY_LENGTH,
+    );
+
+    const [ivHex, authTagHex, encrypted] = parts;
+    const iv = Buffer.from(ivHex, "hex");
+    if (iv.length !== EncryptionHelper.ivLength) {
+      return encryptedText;
+    }
+    const authTag = Buffer.from(authTagHex, "hex");
+
+    const decipher = crypto.createDecipheriv(
+      EncryptionHelper.algorithm,
+      key,
+      iv,
+    ) as crypto.DecipherGCM;
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+
+    return decrypted;
+  }
+
+  /**
    * Safe decrypt — catches errors and returns the raw ciphertext instead of throwing.
    * Use this in data-mapping contexts (TypeORM transformers, row mappers, processors)
    * where a single corrupted row should not crash the entire request or worker.
    *
-   * Circuit-breaker: after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures,
-   * throws a fatal error to crash the process rather than silently serving encrypted data.
+   * Circuit-breaker: after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive ciphertext
+   * failures, throws a fatal error to crash the process rather than silently serving
+   * encrypted data.
+   *
+   * Null/empty values and plaintext pass-through do NOT affect the failure counter —
+   * only actual ciphertext decryption attempts count. This prevents nullable columns
+   * from resetting the counter between real failures.
    *
    * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
    */
-  static tryDecrypt(
-    encryptedText: string | null | undefined,
-  ): string | null {
+  static tryDecrypt(encryptedText: string | null | undefined): string | null {
+    if (!encryptedText) return null;
+
+    if (!encryptedText.includes(":")) return encryptedText;
+    const parts = encryptedText.split(":");
+    if (parts.length !== 3) return encryptedText;
+    const ivLength = Buffer.from(parts[0], "hex").length;
+    if (ivLength !== EncryptionHelper.ivLength) return encryptedText;
+
     try {
       const result = EncryptionHelper.decrypt(encryptedText);
       EncryptionHelper.consecutiveFailures = 0;
@@ -128,7 +184,10 @@ class EncryptionHelper {
         captureGlobalEvent("encryption-decrypt-failure", {
           error: error instanceof Error ? error.message : String(error),
           ciphertextPrefix: encryptedText
-            ? encryptedText.slice(0, ENCRYPTION_CONSTANTS.CIPHERTEXT_DEBUG_PREFIX_LENGTH)
+            ? encryptedText.slice(
+                0,
+                ENCRYPTION_CONSTANTS.CIPHERTEXT_DEBUG_PREFIX_LENGTH,
+              )
             : "(null)",
           consecutiveFailures: EncryptionHelper.consecutiveFailures,
           keyFingerprint: encryptionKeyProvider.getFingerprint(),

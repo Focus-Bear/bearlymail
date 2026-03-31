@@ -13,11 +13,11 @@ import {
 import { LLMService } from "../llm/llm.service";
 import { getErrorMessage } from "../types/common";
 import { UsersService } from "../users/users.service";
+import { parseCategoryValue } from "../utils/category-name.util";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { ContextCompressionService } from "./context-compression.service";
 import { ContextCrudService } from "./context-crud.service";
 import { mapContextItemKey } from "./context-key-mapper";
-import { parseCategoryValue } from "../utils/category-name.util";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 
 type VipContactEntry = {

@@ -276,7 +276,9 @@ export class FollowUpsService {
       if (user?.email) {
         const userEmail = EncryptionHelper.tryDecrypt(user.email);
         const emailFrom = EncryptionHelper.tryDecrypt(email.from);
-        return (emailFrom ?? "").toLowerCase() === (userEmail ?? "").toLowerCase();
+        return (
+          (emailFrom ?? "").toLowerCase() === (userEmail ?? "").toLowerCase()
+        );
       }
     } catch (error) {
       this.logger.warn(`Error checking if email is from user: ${error}`);

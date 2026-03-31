@@ -29,7 +29,25 @@
       "waitlist": "Lista de espera",
       "emailSystem": "Sistema de correo",
       "decline": "Rechazar",
-      "feedback": "Comentarios"
+      "feedback": "Comentarios",
+      "emailDecrypt": "Descifrado de correo"
+    },
+    "emailDecrypt": {
+      "title": "Descifrar correo (admin)",
+      "description": "Cargar columnas cifradas de un UUID de correo e intentar descifrado AES-GCM con ENCRYPTION_KEY del servidor, o una frase alternativa para comparar.",
+      "emailIdLabel": "ID del correo (UUID)",
+      "optionalKeyLabel": "Clave de cifrado opcional (frase)",
+      "optionalKeyPlaceholder": "Dejar vacío para usar la clave del servidor",
+      "submit": "Descifrar",
+      "loading": "Descifrando…",
+      "emailIdRequired": "Introduce un ID de correo.",
+      "requestFailed": "La solicitud falló.",
+      "serverKeyPrefixLabel": "Primeros 10 caracteres de ENCRYPTION_KEY del servidor:",
+      "emptyPrefix": "(no configurado)",
+      "columnField": "Campo",
+      "columnCiphertextPreview": "Vista previa del cifrado",
+      "columnDecrypted": "Descifrado",
+      "columnError": "Error"
     },
     "jobs": {
       "active": "Activo",
@@ -815,6 +833,9 @@
       "tldr": "TL;DR"
     },
     "thread": "Hilo",
+    "threadItemBody": {
+      "decryptFailed": "⚠️ No se pudo descifrar el contenido de este correo. Contacta con soporte."
+    },
     "toneCheckIssues": "Verificación de tono: problemas encontrados",
     "toneCheckPassed": "¡Se pasó la verificación de tono!",
     "inappropriateTiming": "Nota de horario:",

@@ -73,7 +73,9 @@ export class ZohoClient {
 
       return access_token;
     } catch (error) {
-      this.logger.error(`Failed to refresh Zoho token: ${sanitizeAxiosError(error)}`);
+      this.logger.error(
+        `Failed to refresh Zoho token: ${sanitizeAxiosError(error)}`,
+      );
       await this.zohoAccountsService.updateTokens(
         accountId,
         userId,
@@ -97,7 +99,9 @@ export class ZohoClient {
       }
       return accounts[0].accountId;
     } catch (error) {
-      this.logger.error(`Failed to get Zoho account ID: ${sanitizeAxiosError(error)}`);
+      this.logger.error(
+        `Failed to get Zoho account ID: ${sanitizeAxiosError(error)}`,
+      );
       throw error;
     }
   }

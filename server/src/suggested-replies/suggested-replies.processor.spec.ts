@@ -218,7 +218,9 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
         from: i % 2 === 0 ? "alex@example.com" : "sarah@example.com",
         fromName: i % 2 === 0 ? "Alex" : "Sarah Chen",
         body: `Message ${i}`,
-        receivedAt: new Date(`2026-01-${String(i + 1).padStart(2, "0")}T10:00:00Z`),
+        receivedAt: new Date(
+          `2026-01-${String(i + 1).padStart(2, "0")}T10:00:00Z`,
+        ),
       })),
       {
         id: "email-8",
@@ -242,7 +244,11 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
 
     mockEmailRepository.find.mockResolvedValue(tenMessages);
 
-    const ctx = await buildFollowUpCtx("thread-1", "user-1", "alex@example.com");
+    const ctx = await buildFollowUpCtx(
+      "thread-1",
+      "user-1",
+      "alex@example.com",
+    );
 
     // Should fetch with window of 10
     expect(mockEmailRepository.find).toHaveBeenCalledWith(
@@ -294,7 +300,11 @@ describe("SuggestedRepliesProcessor — thread context (#885)", () => {
 
     mockEmailRepository.find.mockResolvedValue(followUpThread);
 
-    const ctx = await buildFollowUpCtx("thread-2", "user-1", "alex@example.com");
+    const ctx = await buildFollowUpCtx(
+      "thread-2",
+      "user-1",
+      "alex@example.com",
+    );
 
     // Days should be ~3 (based on Sarah's email), not ~1 (based on Alex's email)
     expect(ctx.daysSinceLastEmail).toBeGreaterThanOrEqual(2);

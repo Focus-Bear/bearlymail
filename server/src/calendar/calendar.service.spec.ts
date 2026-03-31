@@ -9,13 +9,13 @@ import { SchedulingPreferencesService } from "../scheduling-preferences/scheduli
 import { UsersService } from "../users/users.service";
 import { CalendarService } from "./calendar.service";
 import { CalendarAgendaService } from "./calendar-agenda.service";
-import { CalendarIcsService } from "./calendar-ics.service";
 import {
   alignToSlotBoundary,
   calculateFreeSlots,
   toDayKey,
   toTzDate,
 } from "./calendar-free-slots.helper";
+import { CalendarIcsService } from "./calendar-ics.service";
 
 // Mock googleapis
 jest.mock("googleapis", () => ({

@@ -2,8 +2,8 @@ import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 
 import { HTTP_STATUS } from "../../../constants/http-status";
-import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import { isApiError } from "../../../types/common";
+import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import { ZohoMailMessage } from "./zoho-message-parser";
 
 const logger = new Logger("ZohoOperations");
@@ -81,7 +81,9 @@ export async function unarchiveThreadInZoho(
       );
       movedCount++;
     } catch (error) {
-      logger.error(`Failed to unarchive message ${msg.uid}: ${sanitizeAxiosError(error)}`);
+      logger.error(
+        `Failed to unarchive message ${msg.uid}: ${sanitizeAxiosError(error)}`,
+      );
     }
   }
 

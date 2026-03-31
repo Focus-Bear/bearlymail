@@ -75,8 +75,9 @@ export class EmailInboxDecryptService {
       // categoryName from raw SQL is encrypted ciphertext — decrypt before use.
       // EncryptionHelper.tryDecrypt() catches errors and returns the raw ciphertext (fail-open).
       category: row.categoryName
-        ? parseCategoryName(EncryptionHelper.tryDecrypt(row.categoryName) ?? "") ||
-          OTHER_CATEGORY_NAME
+        ? parseCategoryName(
+            EncryptionHelper.tryDecrypt(row.categoryName) ?? "",
+          ) || OTHER_CATEGORY_NAME
         : OTHER_CATEGORY_NAME,
       categoryExplanation: row.categoryExplanation
         ? EncryptionHelper.tryDecrypt(row.categoryExplanation)

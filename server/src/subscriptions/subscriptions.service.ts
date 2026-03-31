@@ -5,13 +5,13 @@ import axios from "axios";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
-import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
 import { ApiError } from "../types/common";
+import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { VOLUME_TIER_NONE, VOLUME_TIERS } from "./volume-tiers.constants";
 
 export { VOLUME_TIER_NONE, VOLUME_TIERS };
@@ -350,7 +350,9 @@ export class SubscriptionsService {
         `Processed RevenueCat webhook: ${event.type} for user ${user.id}`,
       );
     } catch (error) {
-      this.logger.error(`Error processing RevenueCat webhook: ${sanitizeAxiosError(error)}`);
+      this.logger.error(
+        `Error processing RevenueCat webhook: ${sanitizeAxiosError(error)}`,
+      );
       throw error;
     }
   }

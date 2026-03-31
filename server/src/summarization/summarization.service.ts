@@ -28,8 +28,8 @@ import {
 } from "./summarization.helpers";
 import {
   EmailWithHtmlBody,
-  SummarizeWithPhishingResult,
   SummarizationRule,
+  SummarizeWithPhishingResult,
   ThreadData,
 } from "./summarization.types";
 
@@ -138,27 +138,50 @@ export class SummarizationService {
     userId: string;
     emailId: string;
   }): Promise<string> {
-    const { email, subject, threadText, messagesToSummarize, allThreadEmails, rule, userId } = options;
+    const {
+      email,
+      subject,
+      threadText,
+      messagesToSummarize,
+      allThreadEmails,
+      rule,
+      userId,
+    } = options;
     const llmProvider: LLMProvider | undefined = rule.provider ?? undefined;
     const cleanedBody = cleanEmailContent(email.body, email.htmlBody);
 
     if (rule.type === SUMMARY_TYPES.CUSTOM) {
       if (!rule.customPrompt) {
-        throw new Error(`Summarization rule is type "custom" but has no customPrompt — cannot summarize`);
+        throw new Error(
+          `Summarization rule is type "custom" but has no customPrompt — cannot summarize`,
+        );
       }
       const prompt =
         messagesToSummarize.length > 1
           ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last few):\n\n${threadText}\n\n${rule.customPrompt}`
           : `Email Subject: ${subject}\n\nEmail Body:\n"""\n${cleanedBody}\n"""\n\n${rule.customPrompt}`;
       return this.llmService.generateText(
-        { prompt, systemPrompt: "You are a helpful assistant that summarizes email threads according to user instructions.", temperature: 0.5, maxTokens: 500, userId },
+        {
+          prompt,
+          systemPrompt:
+            "You are a helpful assistant that summarizes email threads according to user instructions.",
+          temperature: 0.5,
+          maxTokens: 500,
+          userId,
+        },
         llmProvider,
         userId,
       );
     }
 
     const body = messagesToSummarize.length > 1 ? threadText : cleanedBody;
-    return this.llmService.summarizeEmail(body, subject, rule.type, llmProvider, userId);
+    return this.llmService.summarizeEmail(
+      body,
+      subject,
+      rule.type,
+      llmProvider,
+      userId,
+    );
   }
 
   private async prepareThreadDataEntry(
@@ -178,8 +201,15 @@ export class SummarizationService {
     const messagesToSummarize =
       allThreadEmails.length <= sliceCount + 1
         ? allThreadEmails
-        : [allThreadEmails[0], ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE)];
-    const threadText = this.buildThreadText(messagesToSummarize, allThreadEmails, userEmail);
+        : [
+            allThreadEmails[0],
+            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
+          ];
+    const threadText = this.buildThreadText(
+      messagesToSummarize,
+      allThreadEmails,
+      userEmail,
+    );
     const matchedRule = this.matchRuleDeterministic(
       { from: email.from, subject: email.subject },
       userRules,
@@ -187,7 +217,9 @@ export class SummarizationService {
     return {
       emailId,
       email,
-      threadText: threadText || cleanEmailContent(email.body, (email as EmailWithHtmlBody).htmlBody),
+      threadText:
+        threadText ||
+        cleanEmailContent(email.body, (email as EmailWithHtmlBody).htmlBody),
       isThread: messagesToSummarize.length > 1,
       messageCount: messagesToSummarize.length,
       matchedRule,
@@ -275,8 +307,15 @@ export class SummarizationService {
     const messagesToSummarize =
       allThreadEmails.length <= sliceCount + 1
         ? allThreadEmails
-        : [allThreadEmails[0], ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE)];
-    const threadText = this.buildThreadText(messagesToSummarize, allThreadEmails, userEmail);
+        : [
+            allThreadEmails[0],
+            ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
+          ];
+    const threadText = this.buildThreadText(
+      messagesToSummarize,
+      allThreadEmails,
+      userEmail,
+    );
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
 
@@ -303,7 +342,9 @@ export class SummarizationService {
   }
 
   private resolvePhishingSignalFromLLM(
-    llmPhishing: import("./phishing-detection.service").PhishingLLMResult | null,
+    llmPhishing:
+      | import("./phishing-detection.service").PhishingLLMResult
+      | null,
   ): PhishingSignal | null {
     if (!llmPhishing || !llmPhishing.is_phishing) return null;
     return { confidence: llmPhishing.confidence, reason: llmPhishing.reason };

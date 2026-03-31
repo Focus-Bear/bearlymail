@@ -394,13 +394,15 @@ describe("AutoResponderService", () => {
         reasons: ["Automated email"],
       });
       // checkCustomExclusionRules should match via deterministic pre-check (no LLM needed)
-      jest.spyOn(contextService, "checkCustomExclusionRules").mockResolvedValue({
-        matched: true,
-        matchedRule:
-          "Emails from automated systems (e.g., no-reply addresses, system notifications)",
-        reason:
-          "Email was classified as automated and user has an automated-email exclusion rule",
-      });
+      jest
+        .spyOn(contextService, "checkCustomExclusionRules")
+        .mockResolvedValue({
+          matched: true,
+          matchedRule:
+            "Emails from automated systems (e.g., no-reply addresses, system notifications)",
+          reason:
+            "Email was classified as automated and user has an automated-email exclusion rule",
+        });
       autoResponseLogRepository.save.mockResolvedValue({} as any);
       autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
 

@@ -3,8 +3,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { encryptionKeyProvider } from "../encryption/encryption-key-provider";
 import { EmailsService } from "../emails/emails.service";
+import { encryptionKeyProvider } from "../encryption/encryption-key-provider";
 import { PriorityController } from "./priority.controller";
 import { PriorityService } from "./priority.service";
 import { PriorityLearningService } from "./priority-learning.service";

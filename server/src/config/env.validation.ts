@@ -3,9 +3,9 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  MinLength,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from "class-validator";
 

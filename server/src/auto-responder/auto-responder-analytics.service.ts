@@ -5,12 +5,12 @@ import { Repository } from "typeorm";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { parseCategoryName } from "../utils/category-name.util";
 import {
   AutoResponseLogPriority,
   EmailClassification,
   QASearchResult,
 } from "./types/auto-responder.types";
-import { parseCategoryName } from "../utils/category-name.util";
 
 type AutoRespondedThread = {
   id: string;
@@ -196,6 +196,7 @@ export class AutoResponderAnalyticsService {
   async getAutoRespondedThreads(
     userId: string,
     filters?: AutoRespondedThreadFilters,
+    userEmailHmac?: string,
   ): Promise<{
     emails: AutoRespondedThread[];
     total: number;
@@ -206,6 +207,15 @@ export class AutoResponderAnalyticsService {
       filters,
       queryParams,
     );
+
+    let correspondentFilter: string;
+    if (userEmailHmac) {
+      const hmacParam = `$${queryParams.length + 1}`;
+      queryParams.push(userEmailHmac);
+      correspondentFilter = `AND cor."senderEmailHmac" IS DISTINCT FROM ${hmacParam}`;
+    } else {
+      correspondentFilter = "";
+    }
 
     const rows = (await this.autoResponseLogRepository.query(
       `SELECT
@@ -246,10 +256,9 @@ export class AutoResponderAnalyticsService {
        LEFT JOIN LATERAL (
          SELECT cor."from", cor."fromName"
          FROM emails cor
-         JOIN users u ON u.id = $1
          WHERE cor."emailThreadId" = thread.id
            AND cor."userId" = $1
-           AND LOWER(cor."from") != LOWER(u.email)
+           ${correspondentFilter}
          ORDER BY cor."receivedAt" ASC
          LIMIT 1
        ) correspondent ON true

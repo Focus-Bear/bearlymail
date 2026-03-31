@@ -17,7 +17,10 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
-import { parseCategoryName, parseCategoryValue } from "../utils/category-name.util";
+import {
+  parseCategoryName,
+  parseCategoryValue,
+} from "../utils/category-name.util";
 
 /**
  * Service for managing email category consolidation and generation.
@@ -286,9 +289,7 @@ export class ContextCategoryService {
       select: ["contextId", "contextValue"],
     });
     const existingNames = new Set(
-      existing.map((ctx) =>
-        parseCategoryName(ctx.contextValue).toLowerCase(),
-      ),
+      existing.map((ctx) => parseCategoryName(ctx.contextValue).toLowerCase()),
     );
 
     for (const cat of categories) {

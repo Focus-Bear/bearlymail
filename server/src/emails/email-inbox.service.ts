@@ -14,6 +14,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { parseCategoryName } from "../utils/category-name.util";
+import { computeEmailHmac } from "../utils/hmac-email";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import {
   buildSummaryFiltersAndParams,
@@ -369,7 +370,18 @@ export class EmailInboxService {
       assigneeId?: string;
     },
   ): Promise<RawEmailRow[]> {
-    return runInboxQuery(this.emailRepository, userId, mode, filters);
+    const userEmailLower =
+      await this.emailInboxCategoryService.resolveUserEmailLower(userId, true);
+    const userEmailHmac = userEmailLower
+      ? computeEmailHmac(userEmailLower)
+      : undefined;
+    return runInboxQuery(
+      this.emailRepository,
+      userId,
+      mode,
+      filters,
+      userEmailHmac,
+    );
   }
 
   async applyPostQueryFilters(

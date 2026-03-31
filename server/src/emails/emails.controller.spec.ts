@@ -109,7 +109,9 @@ describe("EmailsController", () => {
 
     controller = module.get<EmailsController>(EmailsController);
     emailsService = module.get<EmailsService>(EmailsService);
-    searchEnrichmentService = module.get<SearchEnrichmentService>(SearchEnrichmentService);
+    searchEnrichmentService = module.get<SearchEnrichmentService>(
+      SearchEnrichmentService,
+    );
   });
 
   afterEach(() => {
@@ -967,7 +969,10 @@ describe("EmailsController", () => {
       jest.spyOn(searchEnrichmentService, "getStatus").mockReturnValue(null);
 
       await expect(
-        controller.getSearchEnrichmentStatus(mockRequest, "non-existent-job-id"),
+        controller.getSearchEnrichmentStatus(
+          mockRequest,
+          "non-existent-job-id",
+        ),
       ).rejects.toThrow(NotFoundException);
 
       expect(searchEnrichmentService.getStatus).toHaveBeenCalledWith(

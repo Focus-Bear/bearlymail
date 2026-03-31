@@ -23,9 +23,9 @@ jest.mock("../llm/prompts", () => ({
     prompt: "Q&A context: {{qaPairs}}\nQuestion: {{subject}}\n{{body}}",
     systemPrompt: "You are a helpful assistant.",
   }),
-  renderPrompt: jest.fn((template: string, vars: Record<string, string>) => {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
-  }),
+  renderPrompt: jest.fn((template: string, vars: Record<string, string>) =>
+    template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? ""),
+  ),
   REPLY_PROMPT_IDS: { GENERATE_QA_ANSWER: "generate_qa_answer" },
 }));
 

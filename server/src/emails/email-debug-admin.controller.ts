@@ -9,11 +9,16 @@
  */
 
 import {
+  BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Logger,
+  NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Request,
@@ -25,6 +30,8 @@ import { AdminGuard } from "../auth/admin.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { JOB_NAMES } from "../constants/job-names";
+import { DebugService } from "../debug/debug.service";
+import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
@@ -38,6 +45,7 @@ export class EmailDebugAdminController {
     private readonly emailsService: EmailsService,
     private readonly emailAdminService: EmailAdminService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    private readonly debugService: DebugService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -185,5 +193,83 @@ export class EmailDebugAdminController {
     @Query("range") range: "24h" | "7d" | "30d" | "all" = "all",
   ) {
     return this.emailAdminService.getJobStats(range);
+  }
+
+  // ─── Debug config/data endpoints (issue #1595) ───────────────────────────────
+
+  /** List all debug feature configs. */
+  @Get("admin/debug/configs")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getDebugConfigs() {
+    return this.debugService.getAllConfigs();
+  }
+
+  /** Toggle a debug feature on/off, or update retentionDays. */
+  @Patch("admin/debug/configs/:feature")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async updateDebugConfig(
+    @Param("feature") feature: string,
+    @Body() body: UpdateDebugConfigDto,
+  ) {
+    await this.debugService.updateDebugConfig(feature, {
+      enabled: body.enabled,
+      retentionDays: body.retentionDays,
+    });
+    const configs = await this.debugService.getAllConfigs();
+    const config = configs.find((cfg) => cfg.feature === feature);
+    if (!config) {
+      throw new NotFoundException(`Debug feature '${feature}' not found`);
+    }
+    return config;
+  }
+
+  /** Query debug data for a feature with optional pagination. */
+  @Get("admin/debug/data/:feature")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getDebugData(
+    @Param("feature") feature: string,
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Query("userId") userId?: string,
+  ) {
+    const parsedLimit = limit !== undefined ? parseInt(limit, 10) : undefined;
+    const parsedOffset =
+      offset !== undefined ? parseInt(offset, 10) : undefined;
+
+    if (parsedLimit !== undefined && isNaN(parsedLimit)) {
+      throw new BadRequestException(
+        `Invalid query parameter: limit="${limit}"`,
+      );
+    }
+    if (parsedOffset !== undefined && isNaN(parsedOffset)) {
+      throw new BadRequestException(
+        `Invalid query parameter: offset="${offset}"`,
+      );
+    }
+
+    return this.debugService.queryData(feature, {
+      limit: parsedLimit,
+      offset: parsedOffset,
+      userId,
+    });
+  }
+
+  /**
+   * Aggregated redundancy detection summary for a feature.
+   * Groups by threadId + emailCount and shows cases where count > 1.
+   * Raw SQL is encapsulated in DebugService.getRedundancySummary().
+   */
+  @Get("admin/debug/data/:feature/summary")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getDebugDataSummary(@Param("feature") feature: string) {
+    return this.debugService.getRedundancySummary(feature);
+  }
+
+  /** Manual cleanup of all debug data for a feature. */
+  @Delete("admin/debug/data/:feature")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async deleteDebugData(@Param("feature") feature: string) {
+    const deleted = await this.debugService.deleteFeatureData(feature);
+    return { feature, deleted };
   }
 }

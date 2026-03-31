@@ -3,6 +3,7 @@ import { getRepositoryToken, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { AwsModule } from "../aws/aws.module";
+import { DebugModule } from "../debug/debug.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
@@ -121,6 +122,7 @@ import { SyncHistoryService } from "./sync-history.service";
     ProtoCategoriesModule,
     AwsModule,
     forwardRef(() => ScheduledEmailsModule),
+    DebugModule,
   ],
   controllers: [
     EmailsController,

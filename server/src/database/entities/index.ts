@@ -30,6 +30,9 @@ export { SummarizationRule } from "./summarization-rule.entity";
 export { TokenUsage } from "./token-usage.entity";
 export { User } from "./user.entity";
 export { UserContext } from "./user-context.entity";
+// DebugData has a FK to User — must be exported after User
+export { DebugConfig } from "./debug-config.entity";
+export { DebugData } from "./debug-data.entity";
 export { Waitlist } from "./waitlist.entity";
 export { WorkflowExecutionLog } from "./workflow-execution-log.entity";
 export { WorkflowRule } from "./workflow-rule.entity";

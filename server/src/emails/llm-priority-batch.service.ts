@@ -17,6 +17,8 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { DebugService } from "../debug/debug.service";
+import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import {
   BatchPriorityResult,
@@ -63,6 +65,7 @@ export class LLMPriorityBatchService {
     private readonly priorityResultService: LLMPriorityResultService,
     private readonly summaryProcessorService: LLMSummaryProcessorService,
     private readonly protoCategoriesService: ProtoCategoriesService,
+    private readonly debugService: DebugService,
   ) {}
 
   private async checkHasNewEmails(
@@ -302,7 +305,10 @@ export class LLMPriorityBatchService {
       const isQaRelated =
         QA_KEYWORD_REGEX.test(email.subject || "") ||
         QA_KEYWORD_REGEX.test(
-          email.body?.substring(0, QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS) || "",
+          email.body?.substring(
+            0,
+            QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS,
+          ) || "",
         );
       const bodyForBatch =
         !isQaRelated && email.summary?.trim()
@@ -440,7 +446,9 @@ export class LLMPriorityBatchService {
       emailCategories: contexts
         .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
         .map((category) => {
-          const { name, description } = parseCategoryValue(category.contextValue);
+          const { name, description } = parseCategoryValue(
+            category.contextValue,
+          );
           return { name, description: description ?? undefined };
         }),
       protoCategories: protoCategories.map((pc) => ({
@@ -500,12 +508,7 @@ export class LLMPriorityBatchService {
     }
 
     const threadIdsToLock = this.extractThreadIds(emailsToProcess);
-    if (threadIdsToLock.length > 0) {
-      await this.emailThreadRepository.update(
-        { id: In(threadIdsToLock) },
-        { isProcessingPriority: true },
-      );
-    }
+    await this.lockThreadsForProcessing(threadIdsToLock);
     tracker.endPhase("dataFetch");
     tracker.startPhase("processing");
 
@@ -544,8 +547,39 @@ export class LLMPriorityBatchService {
         userId,
       );
     tracker.endPhase("llmCall");
-    tracker.startPhase("dbUpdate");
 
+    await this.applyResultsRequeueAndLog(
+      workerId,
+      userId,
+      emailsNeedingFullAnalysis,
+      batchResults,
+      { contexts, tracker },
+    );
+
+    // Instrument each batch email for redundancy tracking (issue #1595)
+    await this.debugService.logBatch(
+      DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
+      userId,
+      this.buildPriorityDebugPayloads(emailsNeedingFullAnalysis),
+    );
+
+    tracker.finish();
+    return threadIdsToLock;
+  }
+
+  /**
+   * Apply batch results, re-queue fallbacks, and log debug entries.
+   * Extracted to keep runBatchRefinement within the max-statements limit.
+   */
+  private async applyResultsRequeueAndLog(
+    workerId: string,
+    userId: string,
+    emailsNeedingFullAnalysis: Email[],
+    batchResults: Map<string, BatchPriorityResult>,
+    options: { contexts: UserContext[]; tracker: JobPerformanceTracker },
+  ): Promise<void> {
+    const { contexts, tracker } = options;
+    tracker.startPhase("dbUpdate");
     await this.applyBatchResults(
       workerId,
       userId,
@@ -556,7 +590,6 @@ export class LLMPriorityBatchService {
     tracker.endPhase("dbUpdate");
 
     // Re-queue any emails that received fallback results (LLM batch failed for them).
-    // Uses singletonKey to prevent duplicate jobs and respects MAX_PRIORITY_RETRIES.
     await this.requeueFallbackEmails(
       workerId,
       userId,
@@ -564,11 +597,46 @@ export class LLMPriorityBatchService {
       batchResults,
     );
 
-    this.logger.log(
-      `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis`,
-    );
-    tracker.finish();
-    return threadIdsToLock;
+  }
+
+  private async lockThreadsForProcessing(
+    threadIdsToLock: string[],
+  ): Promise<void> {
+    if (threadIdsToLock.length > 0) {
+      await this.emailThreadRepository.update(
+        { id: In(threadIdsToLock) },
+        { isProcessingPriority: true },
+      );
+    }
+  }
+
+  private buildPriorityDebugPayloads(emails: Email[]): Array<{
+    threadId: string | null;
+    emailCount: number;
+    caller: string;
+    callerFile: string;
+    emailId: string;
+    jobType: string;
+  }> {
+    const threadEmailCountMap = new Map<string, number>();
+    for (const email of emails) {
+      if (email.threadId) {
+        threadEmailCountMap.set(
+          email.threadId,
+          (threadEmailCountMap.get(email.threadId) ?? 0) + 1,
+        );
+      }
+    }
+    return emails.map((email) => ({
+      threadId: email.threadId ?? null,
+      emailCount: email.threadId
+        ? (threadEmailCountMap.get(email.threadId) ?? 1)
+        : 1,
+      caller: "runBatchRefinement",
+      callerFile: "llm-priority-batch.service.ts",
+      emailId: email.id,
+      jobType: "REFINE_PRIORITY_BATCH",
+    }));
   }
 
   /**

@@ -14,6 +14,8 @@ import {
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { DebugService } from "../debug/debug.service";
+import { DEBUG_FEATURES } from "../debug/debug-feature-names";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
@@ -62,6 +64,7 @@ export class LLMProcessor implements OnModuleInit {
     private priorityResultService: LLMPriorityResultService,
     private priorityBatchService: LLMPriorityBatchService,
     private summaryProcessorService: LLMSummaryProcessorService,
+    private debugService: DebugService,
   ) {
     const cpuCores = os.cpus().length;
     const defaultConcurrency = Math.max(4, cpuCores * 2);
@@ -205,7 +208,8 @@ export class LLMProcessor implements OnModuleInit {
     const isQaRelated =
       QA_KEYWORD_REGEX.test(email.subject || "") ||
       QA_KEYWORD_REGEX.test(
-        email.body?.substring(0, QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS) || "",
+        email.body?.substring(0, QA_KEYWORD_SCAN.QA_KEYWORD_BODY_SCAN_CHARS) ||
+          "",
       );
     const bodyForPriority =
       !isQaRelated && email.summary?.trim()
@@ -247,6 +251,20 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("dbUpdate");
     this.logger.log(
       `[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...)`,
+    );
+
+    // Instrument priority analysis call for redundancy tracking (issue #1595)
+    await this.debugService.log(
+      DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
+      userId,
+      {
+        threadId: email.threadId ?? null,
+        emailCount: threadEmails.length,
+        caller: "runFullPriorityRefinement",
+        callerFile: "llm-processor.ts",
+        emailId,
+        jobType: "REFINE_PRIORITY",
+      },
     );
   }
 

@@ -286,7 +286,7 @@ module.exports = {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
         'max-statements': 'off',
-        '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/no-explicit-any': 'off',
         '@typescript-eslint/no-magic-numbers': 'off',
         // Test data variables often use generic names like 'data', which is acceptable in tests
         'id-denylist': 'off',

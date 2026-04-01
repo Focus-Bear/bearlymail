@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
+import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 import { ProtoCategory } from 'hooks/useProtoCategories';
 
 interface UseProtoCategoryManagementResult {
@@ -15,11 +16,15 @@ interface UseProtoCategoryManagementResult {
   handleReanalyseOther: () => Promise<void>;
   handleConvertProtoCategory: (protoCategoryId: string, name: string) => Promise<void>;
   handleDeleteProtoCategoryFromInbox: (protoCategoryId: string) => Promise<void>;
+  recategorizeProgress: RecategorizeProgressState;
+  dismissRecategorizeProgress: () => void;
 }
 
 export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
+  const { progress: recategorizeProgress, startTracking, dismiss: dismissRecategorizeProgress } =
+    useRecategorizeProgress();
   const [protoCategories, setProtoCategories] = useState<ProtoCategory[]>([]);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
   const [convertingProtoCategoryId, setConvertingProtoCategoryId] = useState<string | null>(null);
@@ -34,26 +39,28 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
     }
   }, []);
 
-  const handleReanalyseOther = async () => {
+  const handleReanalyseOther = useCallback(async () => {
     setIsReanalysingOther(true);
     try {
-      const response = await axios.post(`${API_URL}/context/generate-categories-from-other`);
-      const { newCategoriesCount, reclassifyJobsQueued } = response.data;
-      if (newCategoriesCount > 0) {
-        showNotification(
-          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount, reclassifyCount: reclassifyJobsQueued }),
-          'success'
-        );
+      const response = await axios.post(`${API_URL}/emails/recategorize-triage`);
+      const { batchId, queued, message } = response.data as {
+        batchId: string | null;
+        queued: number;
+        message?: string;
+      };
+      if (batchId && queued > 0) {
+        startTracking(batchId, queued);
+        showNotification(t('inbox.category.recategorizeQueued', { count: queued }), 'success');
       } else {
-        showNotification(t('inbox.category.reanalyseNoNewCategories'), 'info');
+        showNotification(message || t('inbox.category.recategorizeNone'), 'info');
       }
     } catch (error) {
-      console.error('Error re-analysing categories:', error);
-      showNotification('Failed to re-analyse categories. Please try again.', 'error');
+      console.error('Error starting inbox recategorisation:', error);
+      showNotification(t('inbox.category.recategorizeError'), 'error');
     } finally {
       setIsReanalysingOther(false);
     }
-  };
+  }, [showNotification, startTracking, t]);
 
   const handleConvertProtoCategory = useCallback(
     async (protoCategoryId: string, name: string) => {
@@ -97,5 +104,7 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
     handleReanalyseOther,
     handleConvertProtoCategory,
     handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress,
+    dismissRecategorizeProgress,
   };
 };

@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { GitHubRepoMapping } from "../database/entities/github-repo-mapping.entity";
 import { decryptGitHubRepoMappingEntityForApi } from "../encryption/entity-api-decrypt.util";
+import { isGarbageEmailCategoryToken } from "../utils/github-email-categories.util";
 
 @Injectable()
 export class GitHubRepoMappingService {
@@ -236,6 +237,7 @@ export class GitHubRepoMappingService {
     if (existing) {
       if (
         emailCategory &&
+        !isGarbageEmailCategoryToken(emailCategory) &&
         existing.emailCategories &&
         !existing.emailCategories
           .split(",")
@@ -248,7 +250,11 @@ export class GitHubRepoMappingService {
         return saved;
       }
 
-      if (emailCategory && !existing.emailCategories) {
+      if (
+        emailCategory &&
+        !isGarbageEmailCategoryToken(emailCategory) &&
+        !existing.emailCategories
+      ) {
         existing.emailCategories = emailCategory;
         const saved = await this.repoMappingRepository.save(existing);
         decryptGitHubRepoMappingEntityForApi(saved);
@@ -270,7 +276,10 @@ export class GitHubRepoMappingService {
       userId,
       owner,
       repo,
-      emailCategories: emailCategory || null,
+      emailCategories:
+        emailCategory && !isGarbageEmailCategoryToken(emailCategory)
+          ? emailCategory
+          : null,
       isAutoDiscovered: true,
       isDefault: hasAny === 0,
     });

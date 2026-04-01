@@ -336,7 +336,7 @@ export class EmailAdminService {
     const batchId = crypto.randomUUID();
     let queued = 0;
     for (const email of allEmails) {
-      await this.boss.send(
+      const jobId = await this.boss.send(
         JOB_NAMES.REFINE_PRIORITY,
         {
           userId,
@@ -350,7 +350,7 @@ export class EmailAdminService {
           singletonMinutes: 1,
         },
       );
-      queued++;
+      if (jobId != null) queued++;
     }
 
     this.logger.log(
@@ -384,18 +384,18 @@ export class EmailAdminService {
       WITH all_jobs AS (
         SELECT state::text, data->>'userId' as "userId"
         FROM pgboss.job
-        WHERE data->>'recategorizeBatchId' = $1
+        WHERE data->>'recategorizeBatchId' = $1 AND name = $3
         UNION ALL
         SELECT state::text, data->>'userId' as "userId"
         FROM pgboss.archive
-        WHERE data->>'recategorizeBatchId' = $1
+        WHERE data->>'recategorizeBatchId' = $1 AND name = $3
       )
       SELECT state, COUNT(*) as count
       FROM all_jobs
       WHERE "userId" = $2
       GROUP BY state
       `,
-      [batchId, userId],
+      [batchId, userId, JOB_NAMES.REFINE_PRIORITY],
     );
 
     const counts: Record<string, number> = {};

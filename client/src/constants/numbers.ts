@@ -80,6 +80,8 @@ export const DEBOUNCE_DELAY_MS = 300;
 export const LONG_TIMEOUT_MS = 10000;
 export const SHORT_TIMEOUT_MS = 2000;
 export const POLLING_INTERVAL_MS = 2000; // 2 seconds
+/** Stop recategorise progress spinner when backend keeps reporting total=0 for this many polls. */
+export const RECATEGORIZE_ZERO_TOTAL_MAX_POLLS = 12;
 export const TOAST_DURATION_SHORT_MS = 3000; // 3 seconds (already have TOAST_DURATION_MS = 3000)
 export const POLLING_TIMEOUT_2_MIN_MS = 120000; // 2 minutes
 export const POLLING_TIMEOUT_5_MIN_MS = 300000; // 5 minutes

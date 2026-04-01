@@ -226,7 +226,9 @@ describe("EncryptionHelper", () => {
     it("should throw FATAL after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      (EncryptionHelper as any).consecutiveFailures = 0;
+      (
+        EncryptionHelper as unknown as { consecutiveFailures: number }
+      ).consecutiveFailures = 0;
       EncryptionHelper.tryDecrypt(badCiphertext);
       EncryptionHelper.tryDecrypt(badCiphertext);
       expect(() => EncryptionHelper.tryDecrypt(badCiphertext)).toThrow(

@@ -7,11 +7,11 @@ import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { threadHasBlockedLabel } from "./email-inbox.types";
 
-/** Display name used for the null-category (uncategorized) bucket. */
-const OTHER_CATEGORY_NAME = "Other";
+/** Display name used for the null-category (uncategorized) bucket; inbox summary uses id: null. */
+export const INBOX_OTHER_CATEGORY_NAME = "Other";
 
 /** Key the client sends for the null-category (uncategorized) bucket. */
-const UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
+export const INBOX_UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
 
 /**
  * Category-counting and filtering helpers extracted from EmailInboxService.
@@ -133,16 +133,20 @@ export class EmailInboxCategoryService {
 
       // categoryName comes from a raw SQL query — TypeORM's encryptedColumnTransformer does NOT
       // run for raw .query() results, so contextValue is returned as encrypted ciphertext.
-      // Decrypt it here before use. NULL categoryId → "Other" bucket.
-      // EncryptionHelper.tryDecrypt() catches errors and returns the raw ciphertext (fail-open) — no try/catch needed.
-      const decryptedCategoryName = row.categoryName
+      // tryDecrypt returns raw ciphertext on failure; treat that as "no usable name" so we bucket
+      // to Other and never attach a UUID to the Other label (orphan categoryId + missing name).
+      const rawResolved = row.categoryName
         ? EncryptionHelper.tryDecrypt(row.categoryName)
         : null;
+      const decryptedCategoryName =
+        rawResolved && !EncryptionHelper.looksLikeEncryptedPayload(rawResolved)
+          ? rawResolved
+          : null;
       let category: string;
-      if (row.categoryId && decryptedCategoryName != null) {
+      if (row.categoryId != null && decryptedCategoryName != null) {
         category = parseCategoryName(decryptedCategoryName);
       } else {
-        category = OTHER_CATEGORY_NAME;
+        category = INBOX_OTHER_CATEGORY_NAME;
       }
       const threadPriority = row.priorityScore ?? 0;
       if (!categoryOrder.includes(category)) {
@@ -158,8 +162,13 @@ export class EmailInboxCategoryService {
       categoryCounts[category] = (categoryCounts[category] || 0) + 1;
       if (row.threadId && includeThreadIds)
         categoryThreadIds[category].push(row.threadId);
-      if (row.categoryId && !categoryUuidByName.has(category))
+      if (
+        row.categoryId != null &&
+        decryptedCategoryName != null &&
+        !categoryUuidByName.has(category)
+      ) {
         categoryUuidByName.set(category, row.categoryId);
+      }
     }
 
     // Sort categories by their max thread priority descending so that high-priority
@@ -190,10 +199,12 @@ export class EmailInboxCategoryService {
 
     // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
     const requestedOther =
-      categoryIds.includes(OTHER_CATEGORY_NAME) ||
-      categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
+      categoryIds.includes(INBOX_OTHER_CATEGORY_NAME) ||
+      categoryIds.includes(INBOX_UNCATEGORIZED_CATEGORY_KEY);
     const realIds = categoryIds.filter(
-      (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
+      (id) =>
+        id !== INBOX_OTHER_CATEGORY_NAME &&
+        id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
     );
     const requestedUuids = new Set(realIds);
     const idToName = new Map<string, string>();
@@ -212,7 +223,7 @@ export class EmailInboxCategoryService {
     }
 
     return categoryOrder.filter((cat) => {
-      if (requestedOther && cat === OTHER_CATEGORY_NAME) return true;
+      if (requestedOther && cat === INBOX_OTHER_CATEGORY_NAME) return true;
       const uuid = categoryUuidByName.get(cat);
       if (uuid) return requestedUuids.has(uuid);
       return namesFromIds.has(cat);

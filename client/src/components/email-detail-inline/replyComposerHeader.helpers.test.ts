@@ -119,4 +119,5 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
     const uniqueParts = [...new Set(parts)];
     expect(parts.length).toBe(uniqueParts.length);
   });
+
 });

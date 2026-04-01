@@ -59,17 +59,6 @@ export class EmailDebugAdminController {
     return this.emailAdminService.getRecategorizationProgress(userId, batchId);
   }
 
-  @Post("recategorize-triage")
-  async recategorizeTriageEmails(
-    @Request() req,
-    @Query("modes") modesParam?: string,
-  ) {
-    return this.emailAdminService.queueBulkRecategorization(
-      req.user.userId,
-      modesParam,
-    );
-  }
-
   // ─── Debug endpoints ─────────────────────────────────────────────────────────
 
   @Get("debug/sync-status")

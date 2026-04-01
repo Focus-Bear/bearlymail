@@ -97,6 +97,8 @@ export interface GitHubLink {
 export interface Email {
   id: string;
   threadId: string;
+  /** Provider message id (e.g. Gmail), when returned by the API */
+  messageId?: string;
   from: string;
   fromName?: string;
   to?: string;

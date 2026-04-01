@@ -18,7 +18,6 @@ import {
 } from "./email-search.types";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 
-
 export type {
   EmailWithMetadata,
   ProviderSearchResult,

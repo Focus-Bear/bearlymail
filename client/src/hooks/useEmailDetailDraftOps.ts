@@ -18,9 +18,9 @@ export { buildReplyAllRecipients } from './buildReplyAllRecipients';
 // Returns { recipients, cc } to be applied to state.
 function buildReplyRecipientsForMode(
   mode: string,
-  latestEmail: Email,
+  targetEmail: Email,
   threadEmails: Email[],
-  userEmail: string | undefined
+  userEmail: string | undefined,
 ): { recipients: string; cc: string | null } {
   const normalizedUserEmail = userEmail?.toLowerCase();
   const extractEmail = (addr: string): string => {
@@ -28,7 +28,7 @@ function buildReplyRecipientsForMode(
     return match ? match[1].toLowerCase() : addr.toLowerCase();
   };
   const isCurrentUser: IsCurrentUserFn = addr => !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
-  const isLatestFromCurrentUser = normalizedUserEmail && isCurrentUser(latestEmail.from);
+  const isTargetFromCurrentUser = normalizedUserEmail && isCurrentUser(targetEmail.from);
 
   if (mode === REPLY_MODE_FORWARD) {
     // Forwards start with empty recipient field — the user fills in a new destination
@@ -36,25 +36,25 @@ function buildReplyRecipientsForMode(
   }
 
   if (mode === REPLY_MODE_REPLY_ALL) {
-    return buildReplyAllRecipients(latestEmail, isCurrentUser, isLatestFromCurrentUser);
+    return buildReplyAllRecipients(targetEmail, isCurrentUser, isTargetFromCurrentUser);
   }
 
   // Regular reply
-  if (isLatestFromCurrentUser) {
+  if (isTargetFromCurrentUser) {
     const otherPersonEmail = threadEmails.find(event => !isCurrentUser(event.from));
     if (otherPersonEmail) {
       return { recipients: otherPersonEmail.from, cc: null };
     }
-    if (latestEmail.to) {
-      const firstRecipient = latestEmail.to
+    if (targetEmail.to) {
+      const firstRecipient = targetEmail.to
         .split(',')
         .map((recipientStr: string) => recipientStr.trim())
         .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr))[0];
-      return { recipients: firstRecipient || latestEmail.to, cc: null };
+      return { recipients: firstRecipient || targetEmail.to, cc: null };
     }
-    return { recipients: latestEmail.from, cc: null };
+    return { recipients: targetEmail.from, cc: null };
   }
-  return { recipients: latestEmail.replyTo || latestEmail.from, cc: null };
+  return { recipients: targetEmail.replyTo || targetEmail.from, cc: null };
 }
 
 // Pure helper: resets reply options to empty Custom state.
@@ -186,15 +186,19 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
       setShowCc(false);
       setShowBcc(false);
 
-      const latestEmail =
+      // Reply / Reply All apply to the **message being viewed** (route `id`), not the newest
+      // message in the thread — otherwise CC/To from the selected message are ignored.
+      const latestByTime =
         threadEmails.length > 0
           ? threadEmails.reduce((latest, current) =>
               new Date(current.receivedAt) > new Date(latest.receivedAt) ? current : latest
             )
-          : email;
+          : null;
+      const targetEmail =
+        threadEmails.find((threadMsg) => threadMsg.id === id) ?? email ?? latestByTime;
 
-      if (latestEmail) {
-        const { recipients, cc } = buildReplyRecipientsForMode(mode, latestEmail, threadEmails, userEmail);
+      if (targetEmail) {
+        const { recipients, cc } = buildReplyRecipientsForMode(mode, targetEmail, threadEmails, userEmail);
         setReplyRecipients(recipients);
         if (cc) {
           setReplyCc(cc);

@@ -4,6 +4,10 @@ import { google } from "googleapis";
 import { HTTP_STATUS } from "../constants/http-status";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
+import {
+  decodeRfc2047HeaderValue,
+  encodeRfc2047Unstructured,
+} from "../utils/rfc2047-header.util";
 import { EmailsService } from "./emails.service";
 import { RawEmailMessage } from "./interfaces/email-provider.interface";
 import { GmailPayload, GmailPayloadPart } from "./types/gmail.types";
@@ -69,9 +73,10 @@ export class GmailService {
       format: "full",
     });
     const headers = fullMsg.data.payload?.headers || [];
-    const subject =
+    const subject = decodeRfc2047HeaderValue(
       headers.find((header) => header.name === "Subject")?.value ||
-      "(No Subject)";
+        "(No Subject)",
+    );
     const from = headers.find((header) => header.name === "From")?.value || "";
     const labelIds = fullMsg.data.labelIds || [];
     const starCount = labelIds.includes("STARRED") ? 3 : 0;
@@ -182,9 +187,10 @@ export class GmailService {
       format: "full",
     });
     const headers = fullMsg.data.payload?.headers || [];
-    const subject =
+    const subject = decodeRfc2047HeaderValue(
       headers.find((header) => header.name === "Subject")?.value ||
-      "(No Subject)";
+        "(No Subject)",
+    );
     const from = headers.find((header) => header.name === "From")?.value || "";
     const labelIds = fullMsg.data.labelIds || [];
     const starCount = labelIds.includes("STARRED") ? 3 : 0;
@@ -330,7 +336,7 @@ export class GmailService {
     // Create email message
     const emailLines = [
       `To: ${to}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodeRfc2047Unstructured(subject)}`,
       "Content-Type: text/plain; charset=utf-8",
       "",
       body,

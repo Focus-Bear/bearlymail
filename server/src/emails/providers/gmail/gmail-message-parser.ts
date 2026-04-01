@@ -1,5 +1,6 @@
 import { gmail_v1 } from "googleapis";
 
+import { decodeRfc2047HeaderValue } from "../../../utils/rfc2047-header.util";
 import { GmailSearchResult } from "../../email-search.types";
 import {
   EmailAttachment,
@@ -15,10 +16,11 @@ export function parseGmailMessage(
   if (!messageData.id || !messageData.threadId) return null;
 
   const headers = messageData.payload?.headers || [];
-  const subject =
+  const rawSubject =
     headers.find(
       (header: { name?: string; value?: string }) => header.name === "Subject",
     )?.value || "(No Subject)";
+  const subject = decodeRfc2047HeaderValue(rawSubject);
   const from =
     headers.find(
       (header: { name?: string; value?: string }) => header.name === "From",
@@ -178,7 +180,9 @@ export function parseGmailMetadata(
         header.name?.toLowerCase() === name.toLowerCase(),
     )?.value ?? "";
 
-  const subject = getHeader("Subject") || "(No Subject)";
+  const subject = decodeRfc2047HeaderValue(
+    getHeader("Subject") || "(No Subject)",
+  );
   const from = getHeader("From");
   const dateHeader = getHeader("Date");
 

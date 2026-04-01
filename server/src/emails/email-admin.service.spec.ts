@@ -91,7 +91,9 @@ describe("EmailAdminService", () => {
     });
 
     it("should queue follow-up emails when present", async () => {
-      const mockBoss = { send: jest.fn().mockResolvedValue(undefined) };
+      const mockBoss = {
+        send: jest.fn().mockResolvedValue("mock-pgboss-job-id"),
+      };
 
       // Re-create with boss that we can check
       const module: TestingModule = await Test.createTestingModule({

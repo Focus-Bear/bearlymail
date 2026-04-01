@@ -18,6 +18,7 @@ import type { SummarizationRule } from "../database/entities/summarization-rule.
 import type { User } from "../database/entities/user.entity";
 import type { UserContext } from "../database/entities/user-context.entity";
 import type { ZohoAccount } from "../database/entities/zoho-account.entity";
+import { sanitizeEmailCategoriesCsv } from "../utils/github-email-categories.util";
 import { EncryptionHelper } from "./encryption.helper";
 
 /**
@@ -27,7 +28,9 @@ import { EncryptionHelper } from "./encryption.helper";
  * responses — tryDecrypt is idempotent for plaintext (see EncryptionHelper).
  */
 // Decrypt shorthand used across many field assignments in this module.
-function decryptForUI(value: string | null | undefined): string | null | undefined {
+function decryptForUI(
+  value: string | null | undefined,
+): string | null | undefined {
   if (value == null || value === "") {
     return value;
   }
@@ -102,14 +105,16 @@ export function decryptUserEntityForApi(user: User): void {
   user.name = decryptForUI(user.name) as string | null;
   user.displayName = decryptForUI(user.displayName) as string | null;
   user.jobTitle = decryptForUI(user.jobTitle) as string | null;
-  user.calendarBookingUrl = decryptForUI(user.calendarBookingUrl) as string | null;
+  user.calendarBookingUrl = decryptForUI(user.calendarBookingUrl) as
+    | string
+    | null;
   user.emailSignature = decryptForUI(user.emailSignature) as string | null;
-  user.googleCalendarAccessToken = decryptForUI(user.googleCalendarAccessToken) as
-    | string
-    | null;
-  user.googleCalendarRefreshToken = decryptForUI(user.googleCalendarRefreshToken) as
-    | string
-    | null;
+  user.googleCalendarAccessToken = decryptForUI(
+    user.googleCalendarAccessToken,
+  ) as string | null;
+  user.googleCalendarRefreshToken = decryptForUI(
+    user.googleCalendarRefreshToken,
+  ) as string | null;
   user.openAiApiKey = decryptForUI(user.openAiApiKey) as string | null;
   user.githubToken = decryptForUI(user.githubToken) as string | null;
   user.anthropicApiKey = decryptForUI(user.anthropicApiKey) as string | null;
@@ -165,7 +170,9 @@ export function decryptGitHubRepoMappingEntityForApi(
   mapping.emailCategories =
     mapping.emailCategories == null || mapping.emailCategories === ""
       ? mapping.emailCategories
-      : (decryptForUI(mapping.emailCategories) as string);
+      : sanitizeEmailCategoriesCsv(
+          decryptForUI(mapping.emailCategories) as string,
+        );
   mapping.context =
     mapping.context == null || mapping.context === ""
       ? mapping.context

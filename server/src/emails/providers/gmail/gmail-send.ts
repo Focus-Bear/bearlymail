@@ -1,5 +1,9 @@
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import {
+  encodeMailboxDisplayName,
+  encodeRfc2047Unstructured,
+} from "../../../utils/rfc2047-header.util";
+import {
   EmailAttachmentData,
   EmailRecipient,
 } from "../../interfaces/email-provider.interface";
@@ -18,7 +22,9 @@ export function buildEmailContent(options: {
   headers?: Record<string, string>;
 }): string {
   const formatRecipient = (recipient: EmailRecipient) =>
-    recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email;
+    recipient.name
+      ? `${encodeMailboxDisplayName(recipient.name)} <${recipient.email}>`
+      : recipient.email;
 
   const toHeader = options.to.map(formatRecipient).join(", ");
   const ccHeader =
@@ -35,7 +41,7 @@ export function buildEmailContent(options: {
   // Build email headers
   const headerLines: string[] = [
     `To: ${toHeader}`,
-    `Subject: ${options.subject}`,
+    `Subject: ${encodeRfc2047Unstructured(options.subject)}`,
     "MIME-Version: 1.0",
   ];
 

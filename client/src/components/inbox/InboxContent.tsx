@@ -3,6 +3,7 @@ import { Email, InboxMode, TriageSuggestion } from 'types/email';
 
 import { ResizableDivider } from 'components/inbox/ResizableDivider';
 import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
+import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
 import { FollowUpData } from 'hooks/useFollowUps';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
@@ -87,6 +88,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     emailCategoryMap, otherProtoGroups, displayCategories,
     protoCategories, isReanalysingOther, convertingProtoCategoryId, deletingProtoCategoryId,
     handleReanalyseOther, handleConvertProtoCategory, handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress, dismissRecategorizeProgress,
     handleSplitViewArchive, handleSplitViewSnooze, handleSplitViewPrioritySet, handleSendFollowUp,
   } = useInboxContentState({
     mode, emails, categorySummary, stableCategoryOrder, expandedCategories,
@@ -116,7 +118,9 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
   };
 
   return (
-    <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissRecategorizeProgress} />
+      <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
       <InboxEmailListPanel {...listPanelProps} />
       {!splitView.isMobile && splitView.selectedEmailId && !splitView.panelExpanded && (
         <ResizableDivider
@@ -143,6 +147,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
           mode={mode}
         />
       )}
+      </div>
     </div>
   );
 };

@@ -159,6 +159,22 @@ class EncryptionHelper {
    *
    * Keep the throwing `decrypt()` for boot checks and token paths where failure must be fatal.
    */
+  /**
+   * True when the string matches stored AES-256-GCM column shape (`ivHex:tagHex:cipherHex`).
+   * Used to treat tryDecrypt fail-open ciphertext as absent plaintext (e.g. inbox category bucketing).
+   */
+  static looksLikeEncryptedPayload(text: string): boolean {
+    if (!text || !text.includes(":")) return false;
+    const parts = text.split(":");
+    if (parts.length !== 3) return false;
+    try {
+      const iv = Buffer.from(parts[0], "hex");
+      return iv.length === this.ivLength;
+    } catch {
+      return false;
+    }
+  }
+
   static tryDecrypt(encryptedText: string | null | undefined): string | null {
     if (!encryptedText) return null;
 

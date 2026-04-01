@@ -2,27 +2,28 @@ import { Email } from 'types/email';
 
 export type IsCurrentUserFn = (addr: string) => boolean;
 
-// Pure helper: builds recipients for reply-all mode.
+// Pure helper: builds recipients for reply-all mode for **the message being replied to**
+// (not necessarily the newest message in the thread).
 // No Vite/import.meta dependencies — safe for use in Jest tests.
 export function buildReplyAllRecipients(
-  latestEmail: Pick<Email, 'from' | 'to' | 'cc' | 'replyTo'>,
+  targetEmail: Pick<Email, 'from' | 'to' | 'cc' | 'replyTo'>,
   isCurrentUser: IsCurrentUserFn,
-  isLatestFromCurrentUser: boolean | '' | undefined
+  isTargetFromCurrentUser: boolean | '' | undefined,
 ): { recipients: string; cc: string | null } {
   const recipients: string[] = [];
-  if (isLatestFromCurrentUser) {
-    if (latestEmail.to) {
-      const toRecipients = latestEmail.to
+  if (isTargetFromCurrentUser) {
+    if (targetEmail.to) {
+      const toRecipients = targetEmail.to
         .split(',')
         .map((recipientStr: string) => recipientStr.trim())
         .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
     }
   } else {
-    const replyToAddress = latestEmail.replyTo || latestEmail.from;
+    const replyToAddress = targetEmail.replyTo || targetEmail.from;
     recipients.push(replyToAddress);
-    if (latestEmail.to) {
-      const toRecipients = latestEmail.to
+    if (targetEmail.to) {
+      const toRecipients = targetEmail.to
         .split(',')
         .map((recipientStr: string) => recipientStr.trim())
         .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
@@ -31,8 +32,8 @@ export function buildReplyAllRecipients(
   }
   const uniqueRecipients = [...new Set(recipients)];
   let cc: string | null = null;
-  if (latestEmail.cc) {
-    const ccRecipients = latestEmail.cc
+  if (targetEmail.cc) {
+    const ccRecipients = targetEmail.cc
       .split(',')
       .map((recipientStr: string) => recipientStr.trim())
       .filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));

@@ -54,6 +54,7 @@ export function useInboxContentState({
   const {
     protoCategories, isReanalysingOther, convertingProtoCategoryId, deletingProtoCategoryId,
     fetchProtoCategories, handleReanalyseOther, handleConvertProtoCategory, handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress, dismissRecategorizeProgress,
   } = useProtoCategoryManagement();
 
   const { sentinelRef } = useInboxScrollObserver({ hasMore: hasMore ?? false, onLoadMore });
@@ -107,6 +108,8 @@ export function useInboxContentState({
     handleReanalyseOther,
     handleConvertProtoCategory,
     handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress,
+    dismissRecategorizeProgress,
     ...splitViewHandlers,
   };
 }

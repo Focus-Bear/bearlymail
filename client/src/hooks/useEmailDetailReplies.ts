@@ -127,7 +127,8 @@ function buildReplyAddresses(
     return match ? match[1].toLowerCase() : addr.toLowerCase();
   };
   const notCurrentUser = (addr: string) => !!normalizedUserEmail && extractEmail(addr) !== normalizedUserEmail;
-  const isFromCurrentUser = !!normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
+  const isFromCurrentUser =
+    !!normalizedUserEmail && extractEmail(email.from || '') === normalizedUserEmail;
   const replyToAddress = email.replyTo || email.from;
 
   if (mode === REPLY_MODE_FORWARD) {

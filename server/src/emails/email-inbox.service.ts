@@ -24,19 +24,17 @@ import {
   RawEmailRow,
   threadHasBlockedLabel,
 } from "./email-inbox.types";
-import { EmailInboxCategoryService } from "./email-inbox-category.service";
+import {
+  EmailInboxCategoryService,
+  INBOX_OTHER_CATEGORY_NAME,
+  INBOX_UNCATEGORIZED_CATEGORY_KEY,
+} from "./email-inbox-category.service";
 import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
 import { runInboxQuery } from "./email-inbox-query.helpers";
 import { InboxEmail } from "./interfaces/inbox-email.interface";
 import { PerformanceTracker } from "./performance-tracker";
 
 export { BLOCKED_MODE_THREAD_FILTER, RawEmailRow } from "./email-inbox.types";
-
-/** Key the client sends for the null-category (uncategorized) bucket. */
-const UNCATEGORIZED_CATEGORY_KEY = "uncategorized";
-
-/** Display name used for the null-category (uncategorized) bucket. */
-const OTHER_CATEGORY_NAME = "Other";
 
 /**
  * Handles inbox queries, filtering, summary, and decryption of raw query results.
@@ -139,8 +137,10 @@ export class EmailInboxService {
 
     const categories = visibleCategories.map((name) => ({
       id:
-        categoryUuidByName.get(name) ??
-        lookupCategoryIdByName(name, categoryNameToId),
+        name === INBOX_OTHER_CATEGORY_NAME
+          ? null
+          : (categoryUuidByName.get(name) ??
+            lookupCategoryIdByName(name, categoryNameToId)),
       name,
       count: categoryCounts[name] || 0,
       ...(filters?.includeThreadIds
@@ -431,10 +431,12 @@ export class EmailInboxService {
     if (filters?.categoryIds && filters.categoryIds.length > 0) {
       // Client sends "uncategorized" for the null-category bucket; treat as synonym for "Other".
       const requestedOther =
-        filters.categoryIds.includes(OTHER_CATEGORY_NAME) ||
-        filters.categoryIds.includes(UNCATEGORIZED_CATEGORY_KEY);
+        filters.categoryIds.includes(INBOX_OTHER_CATEGORY_NAME) ||
+        filters.categoryIds.includes(INBOX_UNCATEGORIZED_CATEGORY_KEY);
       const realIds = filters.categoryIds.filter(
-        (id) => id !== OTHER_CATEGORY_NAME && id !== UNCATEGORIZED_CATEGORY_KEY,
+        (id) =>
+          id !== INBOX_OTHER_CATEGORY_NAME &&
+          id !== INBOX_UNCATEGORIZED_CATEGORY_KEY,
       );
       const requestedUuids = new Set(realIds);
       const ctxs = await this.userContextRepository.find({
@@ -465,9 +467,10 @@ export class EmailInboxService {
         // categoryId is the single source of truth (fixes #1293).
         // NULL categoryId → "Other" bucket.
         // Defense-in-depth for #1404: also catch orphaned-UUID threads where
-        // decryptRawEmailRow already resolved category to OTHER_CATEGORY_NAME.
+        // decryptRawEmailRow already resolved category to INBOX_OTHER_CATEGORY_NAME.
         const isOtherThread =
-          !emailEntry.categoryId || emailEntry.category === OTHER_CATEGORY_NAME;
+          !emailEntry.categoryId ||
+          emailEntry.category === INBOX_OTHER_CATEGORY_NAME;
         if (requestedOther && isOtherThread) return true;
         if (emailEntry.categoryId && !isOtherThread)
           return requestedUuids.has(emailEntry.categoryId);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
-import { POLLING_INTERVAL_MS } from 'constants/numbers';
+import { POLLING_INTERVAL_MS, RECATEGORIZE_ZERO_TOTAL_MAX_POLLS } from 'constants/numbers';
 
 const STORAGE_KEY = 'recategorize_progress';
 
@@ -64,6 +64,8 @@ export const useRecategorizeProgress = () => {
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
   const isPollingRef = useRef(false);
+  /** Backend may briefly report total=0; after several polls with no jobs, stop waiting (legacy mismatch). */
+  const zeroTotalStreakRef = useRef(0);
 
   const stopPolling = useCallback(() => {
     cancelledRef.current = true;
@@ -92,12 +94,22 @@ export const useRecategorizeProgress = () => {
         pending: number;
       };
 
+      if (total > 0) {
+        zeroTotalStreakRef.current = 0;
+      } else if (storedTotal > 0) {
+        zeroTotalStreakRef.current += 1;
+      } else {
+        zeroTotalStreakRef.current = 0;
+      }
+
       // Use stored total if backend reports 0 (for display purposes only)
       const effectiveTotal = total > 0 ? total : storedTotal;
-      // Only mark as complete when backend confirmed jobs exist and none are pending.
-      // Using `total` (not effectiveTotal) prevents premature completion when the backend
-      // returns total=0 because jobs haven't appeared in PgBoss yet or were deduplicated.
-      const isComplete = total > 0 && pending === 0;
+      // Complete when all known jobs finished, or when progress never appears for this batch
+      // after several polls (avoids infinite spinner when PgBoss rows are filtered out).
+      const isComplete =
+        (total > 0 && pending === 0) ||
+        (zeroTotalStreakRef.current >= RECATEGORIZE_ZERO_TOTAL_MAX_POLLS &&
+          storedTotal > 0);
 
       setProgress({
         batchId,
@@ -154,6 +166,7 @@ export const useRecategorizeProgress = () => {
       stopPolling();
       cancelledRef.current = false;
       isPollingRef.current = false;
+      zeroTotalStreakRef.current = 0;
 
       const stored: StoredProgress = {
         batchId,

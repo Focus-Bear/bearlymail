@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import axios from 'axios';
 import { Contact } from 'types/contact';
+import { ContactGroup, RecipientSuggestion } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
@@ -11,6 +12,8 @@ export interface UseContactSearchResult {
   ccSearch: string;
   bccSearch: string;
   searchResults: Contact[];
+  /** Merged suggestions including contact groups — used by RecipientFields in Compose. */
+  recipientSuggestions: RecipientSuggestion[];
   activeField: 'to' | 'cc' | 'bcc' | null;
   selectedSuggestionIndex: number;
   searching: boolean;
@@ -47,6 +50,7 @@ export const useContactSearch = (): UseContactSearchResult => {
   const [ccSearch, setCcSearch] = useState('');
   const [bccSearch, setBccSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
+  const [groupResults, setGroupResults] = useState<ContactGroup[]>([]);
   const [activeField, setActiveField] = useState<'to' | 'cc' | 'bcc' | null>(null);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
@@ -55,17 +59,28 @@ export const useContactSearch = (): UseContactSearchResult => {
   const searchContacts = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
+      setGroupResults([]);
       return;
     }
 
     setSearching(true);
     try {
-      const response = await axios.get(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
-      setSearchResults(response.data);
+      const [contactsRes, groupsRes] = await Promise.allSettled([
+        axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`),
+        axios.get<ContactGroup[]>(`${API_URL}/contact-groups/search?q=${encodeURIComponent(query)}`),
+      ]);
+
+      setSearchResults(
+        contactsRes.status === 'fulfilled' ? contactsRes.value.data : [],
+      );
+      setGroupResults(
+        groupsRes.status === 'fulfilled' ? groupsRes.value.data : [],
+      );
       setSelectedSuggestionIndex(-1);
     } catch (err) {
       console.error('Contact search failed:', err);
       setSearchResults([]);
+      setGroupResults([]);
     } finally {
       setSearching(false);
     }
@@ -104,6 +119,7 @@ export const useContactSearch = (): UseContactSearchResult => {
     setCcSearch('');
     setBccSearch('');
     setSearchResults([]);
+    setGroupResults([]);
     setActiveField(null);
   }, []);
 
@@ -121,11 +137,28 @@ export const useContactSearch = (): UseContactSearchResult => {
     [searchResults]
   );
 
+  // Merged suggestions: groups first (with distinct kind tag), then contacts
+  const recipientSuggestions: RecipientSuggestion[] = [
+    ...groupResults.map(
+      (grp): RecipientSuggestion => ({ kind: 'group', group: grp }),
+    ),
+    ...searchResults.map(
+      (contact): RecipientSuggestion => ({
+        kind: 'contact',
+        id: contact.id,
+        email: contact.email,
+        name: contact.name,
+        photoUrl: contact.photoUrl,
+      }),
+    ),
+  ];
+
   return {
     toSearch,
     ccSearch,
     bccSearch,
     searchResults,
+    recipientSuggestions,
     activeField,
     selectedSuggestionIndex,
     searching,

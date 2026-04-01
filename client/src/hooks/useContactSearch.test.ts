@@ -113,7 +113,8 @@ describe('useContactSearch', () => {
       });
 
       await waitFor(() => {
-        expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        // Two calls per search: contacts + contact-groups
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
       });
       expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('test'));
     });
@@ -168,15 +169,15 @@ describe('useContactSearch', () => {
 
     it('should handle search errors', async () => {
       const { result } = renderHook(() => useContactSearch());
-      const error = new Error('Search failed');
 
-      mockedAxios.get.mockRejectedValue(error);
+      mockedAxios.get.mockRejectedValue(new Error('Search failed'));
 
       await act(async () => {
         await result.current.searchContacts('test');
       });
 
-      expect(console.error).toHaveBeenCalledWith('Contact search failed:', error);
+      // Promise.allSettled handles per-promise failures gracefully;
+      // failed results are treated as empty arrays rather than thrown.
       expect(result.current.searchResults).toEqual([]);
     });
   });

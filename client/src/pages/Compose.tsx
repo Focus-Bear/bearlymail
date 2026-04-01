@@ -314,6 +314,7 @@ const Compose: React.FC = () => {
             activeField={search.activeField}
             searchQuery={currentSearchQuery}
             searchResults={search.searchResults}
+            recipientSuggestions={search.recipientSuggestions}
             onAddRecipient={handleAddRecipient}
             onRemoveRecipient={form.removeRecipient}
             onShowCc={() => form.setShowCc(true)}

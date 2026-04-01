@@ -30,7 +30,8 @@
     "show": "Show",
     "pageNotFound": "Page not found",
     "goHome": "Go home",
-    "checkmark": "✓"
+    "checkmark": "✓",
+    "confirmDelete": "Confirm Delete"
   },
   "auth": {
     "loginTitle": "Welcome Back",
@@ -1112,7 +1113,19 @@
     },
     "version": "Version:",
     "builtAt": "Built:",
-    "versionFooterLabel": "Application version"
+    "versionFooterLabel": "Application version",
+    "contactGroups": {
+      "title": "Contact Groups",
+      "description": "Create named groups of contacts. Type the group name in To/CC/BCC when composing to expand all members at once.",
+      "newGroupPlaceholder": "Group name (e.g. Engineering Team)",
+      "namePlaceholder": "Group name",
+      "searchContacts": "Search contacts to add...",
+      "members": "Members",
+      "membersCount": "members",
+      "createGroup": "Create Group",
+      "noGroups": "No contact groups yet. Create one below.",
+      "creating": "Creating..."
+    }
   },
   "admin": {
     "title": "Admin",

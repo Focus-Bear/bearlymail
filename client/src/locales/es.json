@@ -402,7 +402,8 @@
     "show": "Mostrar",
     "pageNotFound": "Página no encontrada",
     "goHome": "Ir al inicio",
-    "checkmark": "✓"
+    "checkmark": "✓",
+    "confirmDelete": "Confirmar eliminación"
   },
   "compose": {
     "addBcc": "Agregar CCO",
@@ -2539,7 +2540,19 @@
     "anthropicNoKey": "Sin clave configurada",
     "version": "Versión:",
     "builtAt": "Compilado:",
-    "versionFooterLabel": "Versión de la aplicación"
+    "versionFooterLabel": "Versión de la aplicación",
+    "contactGroups": {
+      "title": "Grupos de Contactos",
+      "description": "Crea grupos con nombre de contactos. Escribe el nombre del grupo en Para/CC/CCO al redactar para expandir todos los miembros de una vez.",
+      "newGroupPlaceholder": "Nombre del grupo (ej. Equipo de Ingeniería)",
+      "namePlaceholder": "Nombre del grupo",
+      "searchContacts": "Buscar contactos para agregar...",
+      "members": "Miembros",
+      "membersCount": "miembros",
+      "createGroup": "Crear Grupo",
+      "noGroups": "Aún no hay grupos de contactos. Crea uno abajo.",
+      "creating": "Creando..."
+    }
   },
   "keyboard": {
     "archiveConfirmSingle": "¿Archivar este correo?",

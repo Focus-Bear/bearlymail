@@ -15,6 +15,7 @@ import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.modul
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { CalendarModule } from "./calendar/calendar.module";
 import { validate } from "./config/env.validation";
+import { ContactGroupsModule } from "./contact-groups/contact-groups.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ContextModule } from "./context/context.module";
 import { CrmModule } from "./crm/crm.module";
@@ -141,6 +142,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     BatchScheduleModule,
     FeedbackModule,
     FollowUpsModule,
+    ContactGroupsModule,
     ContactsModule,
     CrmModule,
     BlockedSendersModule,

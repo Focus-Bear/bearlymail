@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { RecipientSuggestion } from 'types/contactGroup';
 import { isValidEmail, parseRecipientString } from 'utils/recipientParser';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
@@ -25,6 +26,8 @@ interface RecipientFieldsProps {
   activeField: FieldType | null;
   searchQuery: string;
   searchResults: Contact[];
+  /** When provided, shown instead of (and superseding) the plain searchResults list. */
+  recipientSuggestions?: RecipientSuggestion[];
   onAddRecipient: (contact: Contact | { email: string; name?: string }, field: FieldType) => void;
   onRemoveRecipient: (email: string, field: FieldType) => void;
   onShowCc: () => void;
@@ -43,6 +46,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
   activeField,
   searchQuery,
   searchResults,
+  recipientSuggestions,
   onAddRecipient,
   onRemoveRecipient,
   onShowCc,
@@ -223,7 +227,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
               backgroundColor: COLOR_TRANSPARENT,
             }}
           />
-          {isActive && searchResults.length > 0 && (
+          {isActive && (recipientSuggestions ? recipientSuggestions.length > 0 : searchResults.length > 0) && (
             <div
               style={{
                 position: 'absolute',
@@ -240,67 +244,190 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                 overflowY: 'auto',
               }}
             >
-              {searchResults.map(contact => (
-                <div
-                  key={contact.id || contact.email}
-                  onMouseDown={event => event.preventDefault()}
-                  onTouchStart={event => event.preventDefault()}
-                  onClick={() => onSelectSearchResult(contact)}
-                  style={{
-                    padding: `8px ${FONT_SIZE_XS_PX}px`,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderBottom: `1px solid ${theme.colors.border.light}`,
-                  }}
-                  onMouseEnter={event => {
-                    event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                  }}
-                  onMouseLeave={event => {
-                    event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-                  }}
-                >
-                  {contact.photoUrl ? (
-                    <img
-                      src={contact.photoUrl}
-                      alt=""
-                      style={{
-                        width: `${AVATAR_SIZE_SMALL_PX}px`,
-                        height: `${AVATAR_SIZE_SMALL_PX}px`,
-                        borderRadius: '50%',
-                      }}
-                    />
-                  ) : (
+              {recipientSuggestions
+                ? recipientSuggestions.map(suggestion => {
+                    if (suggestion.kind === 'group') {
+                      const { group } = suggestion;
+                      return (
+                        <div
+                          key={`group-${group.id}`}
+                          onMouseDown={event => event.preventDefault()}
+                          onTouchStart={event => event.preventDefault()}
+                          onClick={() => {
+                            group.members.forEach(member => {
+                              onAddRecipient({ email: member.email, name: member.name }, field);
+                            });
+                            onSearchQueryChange('');
+                          }}
+                          style={{
+                            padding: `8px ${FONT_SIZE_XS_PX}px`,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            borderBottom: `1px solid ${theme.colors.border.light}`,
+                            backgroundColor: theme.colors.background.subtle,
+                          }}
+                          onMouseEnter={event => {
+                            event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
+                          }}
+                          onMouseLeave={event => {
+                            event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${AVATAR_SIZE_SMALL_PX}px`,
+                              height: `${AVATAR_SIZE_SMALL_PX}px`,
+                              borderRadius: '50%',
+                              backgroundColor: theme.colors.primary.main,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: theme.colors.common.white,
+                              fontSize: `${FONT_SIZE_XS_PX}px`,
+                              fontWeight: theme.typography.fontWeight.semibold,
+                              flexShrink: 0,
+                            }}
+                          >
+                            👥
+                          </div>
+                          <div>
+                            <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
+                              {group.name}
+                            </div>
+                            <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+                              {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    // contact suggestion
+                    const contact = suggestion;
+                    return (
+                      <div
+                        key={contact.id || contact.email}
+                        onMouseDown={event => event.preventDefault()}
+                        onTouchStart={event => event.preventDefault()}
+                        onClick={() => onSelectSearchResult({ id: contact.id, email: contact.email, name: contact.name, photoUrl: contact.photoUrl } as Contact)}
+                        style={{
+                          padding: `8px ${FONT_SIZE_XS_PX}px`,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          borderBottom: `1px solid ${theme.colors.border.light}`,
+                        }}
+                        onMouseEnter={event => {
+                          event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                        }}
+                        onMouseLeave={event => {
+                          event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+                        }}
+                      >
+                        {contact.photoUrl ? (
+                          <img
+                            src={contact.photoUrl}
+                            alt=""
+                            style={{
+                              width: `${AVATAR_SIZE_SMALL_PX}px`,
+                              height: `${AVATAR_SIZE_SMALL_PX}px`,
+                              borderRadius: '50%',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: `${AVATAR_SIZE_SMALL_PX}px`,
+                              height: `${AVATAR_SIZE_SMALL_PX}px`,
+                              borderRadius: '50%',
+                              backgroundColor: theme.colors.primary.subtle,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: theme.colors.primary.main,
+                              fontSize: `${FONT_SIZE_XS_PX}px`,
+                              fontWeight: theme.typography.fontWeight.semibold,
+                            }}
+                          >
+                            {(contact.name || contact.email)[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+                            {contact.name || contact.email}
+                          </div>
+                          {contact.name && (
+                            <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+                              {contact.email}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                : searchResults.map(contact => (
                     <div
+                      key={contact.id || contact.email}
+                      onMouseDown={event => event.preventDefault()}
+                      onTouchStart={event => event.preventDefault()}
+                      onClick={() => onSelectSearchResult(contact)}
                       style={{
-                        width: `${AVATAR_SIZE_SMALL_PX}px`,
-                        height: `${AVATAR_SIZE_SMALL_PX}px`,
-                        borderRadius: '50%',
-                        backgroundColor: theme.colors.primary.subtle,
+                        padding: `8px ${FONT_SIZE_XS_PX}px`,
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        color: theme.colors.primary.main,
-                        fontSize: `${FONT_SIZE_XS_PX}px`,
-                        fontWeight: theme.typography.fontWeight.semibold,
+                        gap: '8px',
+                        borderBottom: `1px solid ${theme.colors.border.light}`,
+                      }}
+                      onMouseEnter={event => {
+                        event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                      }}
+                      onMouseLeave={event => {
+                        event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                       }}
                     >
-                      {(contact.name || contact.email)[0].toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
-                      {contact.name || contact.email}
-                    </div>
-                    {contact.name && (
-                      <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-                        {contact.email}
+                      {contact.photoUrl ? (
+                        <img
+                          src={contact.photoUrl}
+                          alt=""
+                          style={{
+                            width: `${AVATAR_SIZE_SMALL_PX}px`,
+                            height: `${AVATAR_SIZE_SMALL_PX}px`,
+                            borderRadius: '50%',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: `${AVATAR_SIZE_SMALL_PX}px`,
+                            height: `${AVATAR_SIZE_SMALL_PX}px`,
+                            borderRadius: '50%',
+                            backgroundColor: theme.colors.primary.subtle,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: theme.colors.primary.main,
+                            fontSize: `${FONT_SIZE_XS_PX}px`,
+                            fontWeight: theme.typography.fontWeight.semibold,
+                          }}
+                        >
+                          {(contact.name || contact.email)[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+                          {contact.name || contact.email}
+                        </div>
+                        {contact.name && (
+                          <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+                            {contact.email}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                    </div>
+                  ))}
             </div>
           )}
         </div>

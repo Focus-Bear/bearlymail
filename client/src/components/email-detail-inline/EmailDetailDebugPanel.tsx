@@ -166,6 +166,14 @@ export const AdminDebugPanel: React.FC<{
         <div>
           <strong>{t('debug.adminPanel.messageId')}:</strong> {emailData.messageId || t('debug.adminPanel.notAvailable')}
         </div>
+        <div>
+          <strong>{t('debug.adminPanel.attachments')}:</strong>{' '}
+          {Array.isArray(emailData.attachments) && emailData.attachments.length > 0
+            ? `${emailData.attachments.length} (${emailData.attachments
+                .map((attachment: { filename?: string }) => attachment.filename || '?')
+                .join(', ')})`
+            : t('debug.adminPanel.attachmentsNone')}
+        </div>
         <div
           style={{
             marginTop: theme.spacing.md,

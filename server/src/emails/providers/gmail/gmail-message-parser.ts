@@ -126,6 +126,90 @@ export function extractBodyFromPayload(
   return { body, htmlBody };
 }
 
+function getPartHeader(
+  part: gmail_v1.Schema$MessagePart,
+  headerName: string,
+): string | undefined {
+  const { headers } = part;
+  if (!headers) {
+    return undefined;
+  }
+  const found = headers.find(
+    (header) => header.name?.toLowerCase() === headerName.toLowerCase(),
+  );
+  return found?.value ?? undefined;
+}
+
+/**
+ * Parse filename from Content-Disposition (RFC 2183 / RFC 5987 filename*).
+ */
+export function filenameFromContentDisposition(
+  contentDisposition: string | undefined,
+): string | undefined {
+  if (!contentDisposition) {
+    return undefined;
+  }
+  const starMatch = contentDisposition.match(
+    /filename\*=(?:UTF-8''|utf-8'')([^;\s]+)/i,
+  );
+  if (starMatch) {
+    try {
+      return decodeURIComponent(starMatch[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      return starMatch[1];
+    }
+  }
+  const quotedMatch = contentDisposition.match(
+    /filename\s*=\s*"((?:\\.|[^"\\])*)"/i,
+  );
+  if (quotedMatch) {
+    return quotedMatch[1].replace(/\\"/g, '"');
+  }
+  const plainMatch = contentDisposition.match(/filename\s*=\s*([^;\s]+)/i);
+  if (plainMatch) {
+    return plainMatch[1].replace(/^"|"$/g, "");
+  }
+  return undefined;
+}
+
+function resolveAttachmentFilename(part: gmail_v1.Schema$MessagePart): string {
+  const fromApi = part.filename?.trim();
+  if (fromApi) {
+    return fromApi;
+  }
+  return (
+    filenameFromContentDisposition(
+      getPartHeader(part, "Content-Disposition"),
+    )?.trim() || ""
+  );
+}
+
+/**
+ * Skip inline CID images and similar parts that are not user-visible attachments.
+ */
+function shouldSkipLikelyInlinePart(
+  part: gmail_v1.Schema$MessagePart,
+): boolean {
+  const cdRaw = getPartHeader(part, "Content-Disposition") ?? "";
+  const cd = cdRaw.toLowerCase();
+  const hasCid = !!getPartHeader(part, "Content-ID");
+  if (hasCid && cd.includes("inline") && !cd.includes("attachment")) {
+    return true;
+  }
+  const filename = resolveAttachmentFilename(part);
+  if (filename !== "") {
+    return false;
+  }
+  const mime = (part.mimeType ?? "").toLowerCase();
+  if (!mime.startsWith("image/")) {
+    return false;
+  }
+  if (cd.includes("attachment")) {
+    return false;
+  }
+  return cd.includes("inline");
+}
+
 /**
  * Extract attachment metadata from Gmail message payload
  */
@@ -137,17 +221,18 @@ export function extractAttachmentsFromPayload(
   const attachments: EmailAttachment[] = [];
 
   const findAttachments = (part: gmail_v1.Schema$MessagePart): void => {
-    // Check if this part is an attachment
-    if (part.filename && part.filename !== "" && part.body?.attachmentId) {
+    const { body } = part;
+    const attachmentId = body?.attachmentId;
+    if (attachmentId && !shouldSkipLikelyInlinePart(part)) {
+      const filename = resolveAttachmentFilename(part);
       attachments.push({
-        attachmentId: part.body.attachmentId,
-        filename: part.filename,
+        attachmentId,
+        filename: filename || "attachment",
         mimeType: part.mimeType || "application/octet-stream",
-        size: part.body.size || 0,
+        size: body?.size ?? 0,
       });
     }
 
-    // Recursively check parts
     if (part.parts) {
       for (const subPart of part.parts) {
         findAttachments(subPart);

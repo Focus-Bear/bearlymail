@@ -108,6 +108,44 @@ export const removeSignature = (text: string): string => {
 };
 
 /**
+ * Aligns with server `reply-plaintext-format.util.ts`: fixes run-on AI replies, strips a
+ * trailing encryption blob if it was mistaken for a sign-off name (stale suggestions).
+ */
+export const normalizeAiReplyPlaintext = (raw: string): string => {
+  let text = raw.trim();
+  if (!text) {
+    return text;
+  }
+
+  text = text.replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\n/g, '\n');
+
+  const trailingCipher = /,?\s*[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i;
+  text = text.replace(trailingCipher, match => (match.startsWith(',') ? ',' : ''));
+
+  const linesWithContent = text.split('\n').filter(line => line.trim().length > 0);
+  if (linesWithContent.length >= 2) {
+    return text.trimEnd();
+  }
+
+  text = text.replace(/^((?:Hi|Hello|Hey|Dear)\s+[^,\n]+),\s+/i, '$1,\n\n');
+
+  const closingAfterPunct = new RegExp(
+    '([.!?])\\s+((?:cheers|best regards|kind regards|warm regards|warmly|sincerely|yours truly|many thanks))\\s*,',
+    'gi',
+  );
+  text = text.replace(closingAfterPunct, '$1\n\n$2,');
+
+  if (!text.includes('\n')) {
+    text = text.replace(
+      /\s+((?:cheers|best regards|kind regards|warm regards|warmly|sincerely|yours truly|many thanks))\s*,\s*/gi,
+      '\n\n$1,\n',
+    );
+  }
+
+  return text.trimEnd();
+};
+
+/**
  * Sanitizes and processes HTML for safe rendering
  */
 export const plainTextToHtml = (text: string): string => {

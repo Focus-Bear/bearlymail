@@ -3,6 +3,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { normalizeGeneratedReplyPlaintext } from "../utils/reply-plaintext-format.util";
 import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -151,17 +152,9 @@ export class LLMReplyService {
       LLM_OP_GENERATE_REPLY_OPTIONS,
     );
 
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return parsed.options || [];
-      }
-    } catch (error) {
-      this.logger.warn(
-        "Failed to parse LLM reply options response as JSON",
-        error,
-      );
+    const parsed = this.parseReplyOptionsResponse(response);
+    if (parsed) {
+      return parsed;
     }
 
     const fallbackDraft = await this.generateReplyDraft(
@@ -170,7 +163,36 @@ export class LLMReplyService {
       provider,
       userId,
     );
-    return [{ label: "Draft Reply", text: fallbackDraft }];
+    return [
+      {
+        label: "Draft Reply",
+        text: normalizeGeneratedReplyPlaintext(fallbackDraft),
+      },
+    ];
+  }
+
+  private parseReplyOptionsResponse(
+    response: string,
+  ): Array<{ label: string; text: string }> | null {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as {
+          options?: Array<{ label: string; text: string }>;
+        };
+        const options = parsed.options || [];
+        return options.map((opt) => ({
+          label: opt.label,
+          text: normalizeGeneratedReplyPlaintext(opt.text ?? ""),
+        }));
+      }
+    } catch (error) {
+      this.logger.warn(
+        "Failed to parse LLM reply options response as JSON",
+        error,
+      );
+    }
+    return null;
   }
 
   async generateReplyDraft(
@@ -230,7 +252,7 @@ export class LLMReplyService {
       emailExamples,
     });
 
-    return await this.generateText(
+    const draft = await this.generateText(
       {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
@@ -242,6 +264,7 @@ export class LLMReplyService {
       userId,
       LLM_OP_GENERATE_REPLY,
     );
+    return normalizeGeneratedReplyPlaintext(draft);
   }
 
   async generateMeetingReply(
@@ -377,7 +400,7 @@ export class LLMReplyService {
       hasUserLastMessage: cleanedUserLastMessage.length > 0,
     });
 
-    return await this.generateText(
+    const followUp = await this.generateText(
       {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
@@ -389,5 +412,6 @@ export class LLMReplyService {
       userId,
       LLM_OP_GENERATE_FOLLOW_UP,
     );
+    return normalizeGeneratedReplyPlaintext(followUp);
   }
 }

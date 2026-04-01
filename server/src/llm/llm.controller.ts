@@ -14,6 +14,10 @@ import { Repository } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
+import {
+  resolveUserDisplayName,
+  resolveUserJobTitle,
+} from "../utils/user-display-fields.util";
 import { validateAnthropicKey } from "./anthropic-key-validator";
 import { LLMService } from "./llm.service";
 
@@ -174,8 +178,8 @@ export class LLMController {
     const userContext = {
       tone: body.context?.tone || "professional",
       writingStyle: body.context?.writingStyle,
-      userName: user?.displayName || user?.name || "User",
-      userJobTitle: user?.jobTitle || "",
+      userName: resolveUserDisplayName(user),
+      userJobTitle: resolveUserJobTitle(user),
       emailExamples,
     };
 

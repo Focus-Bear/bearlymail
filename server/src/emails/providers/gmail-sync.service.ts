@@ -23,6 +23,7 @@ import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
 } from "../emails.service";
+import { EmailAttachment } from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import { GmailProvider } from "./gmail.provider";
@@ -423,10 +424,18 @@ export class GmailSyncService {
     );
     if (existing) {
       const isReadInGmail = !(message.labelIds || []).includes("UNREAD");
+      const hasStoredAttachments =
+        Array.isArray(existing.attachments) && existing.attachments.length > 0;
+      const parsedAttachments = rawEmail.attachments;
+      const updates: { isRead?: boolean; attachments?: EmailAttachment[] } = {};
       if (existing.isRead !== isReadInGmail) {
-        await this.emailsService.updateEmail(existing.id, {
-          isRead: isReadInGmail,
-        });
+        updates.isRead = isReadInGmail;
+      }
+      if (!hasStoredAttachments && parsedAttachments?.length) {
+        updates.attachments = parsedAttachments;
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.emailsService.updateEmail(existing.id, updates);
       }
       return;
     }

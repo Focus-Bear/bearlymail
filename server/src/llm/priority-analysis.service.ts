@@ -607,7 +607,9 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
           prompt: triagePrompt,
           systemPrompt: triageSystemPrompt,
           temperature: 0,
-          maxTokens: emailsNeedingTriage.length * QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
+          maxTokens:
+            emailsNeedingTriage.length *
+            QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
           userId,
           operation: LLM_OP_BATCH_PRIORITY_TRIAGE,
           jsonMode: true,
@@ -630,7 +632,8 @@ Summary: ${cleanedBody}${categoryHint}${urgencyHint}`;
               urgencyExplanation: TRIAGE_PRESERVED_EXPLANATIONS.URGENCY,
               sentimentScore: email.preComputedSentimentScore,
               goalAlignmentScore: -1,
-              goalAlignmentExplanation: TRIAGE_PRESERVED_EXPLANATIONS.GOAL_ALIGNMENT,
+              goalAlignmentExplanation:
+                TRIAGE_PRESERVED_EXPLANATIONS.GOAL_ALIGNMENT,
               category: TRIAGE_PRESERVED_CATEGORY,
               categoryExplanation: TRIAGE_PRESERVED_EXPLANATIONS.CATEGORY,
               reasoning: TRIAGE_PRESERVED_EXPLANATIONS.REASONING,

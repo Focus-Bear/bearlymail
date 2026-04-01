@@ -6,7 +6,6 @@ import { Repository } from "typeorm";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { RATIOS } from "../constants/percentages";
-import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import {
   PRIORITY_BOOSTS,
@@ -21,6 +20,7 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 import { PerformanceTracker } from "./performance-tracker";

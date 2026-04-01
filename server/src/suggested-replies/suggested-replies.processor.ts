@@ -14,6 +14,11 @@ import { StructuralError } from "../errors/structural-error";
 import { LLMService } from "../llm/llm.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
+import {
+  normalizeEncryptedUserText,
+  resolveUserDisplayName,
+  resolveUserJobTitle,
+} from "../utils/user-display-fields.util";
 import { SuggestedRepliesService } from "./suggested-replies.service";
 
 interface ReplyContext {
@@ -213,11 +218,12 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
 
     const userContext = {
       tone: "professional",
-      userName: user?.displayName || user?.name || "User",
-      userJobTitle: user?.jobTitle || "",
+      userName: resolveUserDisplayName(user),
+      userJobTitle: resolveUserJobTitle(user),
       emailExamples,
       // Expose booking link (if configured) to prompts so the LLM can include it
-      calendarLink: user?.calendarBookingUrl || null,
+      calendarLink:
+        normalizeEncryptedUserText(user?.calendarBookingUrl) || null,
     };
 
     return { userEmail, userSentLast, userContext, emailExamples };

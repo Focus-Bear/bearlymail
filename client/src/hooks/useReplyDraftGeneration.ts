@@ -2,7 +2,7 @@ import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'reac
 import axios from 'axios';
 import { Email } from 'types/email';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
-import { plainTextToHtml } from 'utils/emailUtils';
+import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 
 import { API_URL } from 'config/api';
 import { STRING_STALE } from 'constants/strings';
@@ -71,7 +71,7 @@ function applyGeneratedOptions(
   if (generatedOptions && generatedOptions.length > 0) {
     const htmlOptions = generatedOptions.map(opt => ({
       ...opt,
-      text: sanitizeAndProcessHtml(plainTextToHtml(opt.text)),
+      text: sanitizeAndProcessHtml(plainTextToHtml(normalizeAiReplyPlaintext(opt.text))),
     }));
     setReplyOptions([{ label: 'Custom', text: '' }, ...htmlOptions]);
   } else {

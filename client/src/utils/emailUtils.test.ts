@@ -1,6 +1,11 @@
 import { TYPEOF_UNDEFINED } from 'constants/strings';
 
-import { plainTextToHtml, removeSignature, sanitizeAndProcessHtml } from './emailUtils';
+import {
+  normalizeAiReplyPlaintext,
+  plainTextToHtml,
+  removeSignature,
+  sanitizeAndProcessHtml,
+} from './emailUtils';
 
 // Mock DOMPurify for testing
 jest.mock('dompurify', () => {
@@ -275,6 +280,18 @@ describe('emailUtils', () => {
         const result = sanitizeAndProcessHtml(html);
         expect(result).not.toContain('<a');
       });
+    });
+  });
+
+  describe('normalizeAiReplyPlaintext', () => {
+    it('strips trailing encryption artifact and splits greeting for run-on text', () => {
+      const blob =
+        '9518edda947ebbee1b345d5cbadb359d:84924624b945510b940a7101dc715a5a:63b4ca486f70';
+      const raw = `Hi Kurt, Thanks for the update. cheers, ${blob}`;
+      const normalized = normalizeAiReplyPlaintext(raw);
+      expect(normalized).toContain('Hi Kurt,\n\n');
+      expect(normalized).toContain('update.\n\ncheers,');
+      expect(normalized).not.toContain('9518edda');
     });
   });
 

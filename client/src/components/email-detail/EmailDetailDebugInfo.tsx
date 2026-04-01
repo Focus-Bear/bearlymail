@@ -8,6 +8,16 @@ interface Props {
   threadEmails: Email[];
 }
 
+function formatStoredAttachmentsSummary(att: unknown, noneLabel: string): string {
+  if (!Array.isArray(att) || att.length === 0) {
+    return noneLabel;
+  }
+  const names = att
+    .map((attachment: { filename?: string }) => attachment.filename || '?')
+    .join(', ');
+  return `${att.length} (${names})`;
+}
+
 interface ThreadEmailsListProps {
   threadEmails: Email[];
 }
@@ -22,34 +32,24 @@ const threadEntryBoxStyle: React.CSSProperties = {
 
 const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => {
   const { t } = useTranslation();
-  const na = () => t('debug.emailDetail.notAvailable');
+  const none = t('debug.emailDetail.attachmentsNone');
   return (
     <div style={{ marginTop: theme.spacing.md }}>
       <strong>{t('debug.emailDetail.threadEmails', { count: threadEmails.length })}</strong>
-      {threadEmails.map((threadEmail, idx) => (
-        <div key={threadEmail.id} style={threadEntryBoxStyle}>
-          <div>
-            <strong>{t('debug.emailDetail.threadEmailIndex', { idx })}</strong>{' '}
-            {t('debug.emailDetail.messageIdAbbrev')}: {threadEmail.messageId ?? na()}
+      {threadEmails.map((threadEmail, idx) => {
+        const threadEmailData = threadEmail as any;
+        return (
+          <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+            {t('debug.emailDetail.threadEmailItem', {
+              idx,
+              messageId: threadEmailData.messageId || t('debug.emailDetail.notAvailable'),
+              attachments: formatStoredAttachmentsSummary(threadEmailData.attachments, none),
+              labels: threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]',
+              receivedAt: threadEmailData.receivedAt,
+            })}
           </div>
-          <div>
-            <strong>{t('debug.emailDetail.from')}:</strong> {threadEmail.from ?? na()}
-          </div>
-          <div>
-            <strong>{t('debug.emailDetail.to')}:</strong> {threadEmail.to?.trim() ? threadEmail.to : na()}
-          </div>
-          <div>
-            <strong>{t('debug.emailDetail.cc')}:</strong> {threadEmail.cc?.trim() ? threadEmail.cc : na()}
-          </div>
-          <div>
-            <strong>{t('debug.emailDetail.labels')}:</strong>{' '}
-            {threadEmail.labels ? JSON.stringify(threadEmail.labels) : '[]'}
-          </div>
-          <div>
-            <strong>{t('debug.emailDetail.receivedAt')}:</strong> {threadEmail.receivedAt ?? na()}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -58,6 +58,7 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
 export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
   const { t } = useTranslation();
   const emailData = email as any;
+  const attachmentsNone = t('debug.emailDetail.attachmentsNone');
   return (
     <div
       style={{
@@ -145,6 +146,10 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
         </div>
         <div>
           <strong>{t('debug.emailDetail.starCount')}:</strong> {emailData.starCount || 0}
+        </div>
+        <div>
+          <strong>{t('debug.emailDetail.attachments')}:</strong>{' '}
+          {formatStoredAttachmentsSummary(emailData.attachments, attachmentsNone)}
         </div>
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
       </div>

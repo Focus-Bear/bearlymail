@@ -16,9 +16,11 @@ interface EmailHeaderLeftProps {
     hoveredPriorityEmailId: string | null;
     priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
+    priorityExplanationError: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;
     expeditePriorityCalculation: (emailId: string) => Promise<void>;
+    retryPriorityExplanation: (emailId: string) => Promise<void>;
   };
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;

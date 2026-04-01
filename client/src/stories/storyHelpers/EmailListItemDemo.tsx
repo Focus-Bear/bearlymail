@@ -39,9 +39,11 @@ export const defaultPriorityTooltip = {
   hoveredPriorityEmailId: null,
   priorityExplanation: null,
   loadingPriorityExplanation: false,
+  priorityExplanationError: false,
   togglePriorityTooltip: noopSync,
   hidePriorityTooltip: noopSync,
   expeditePriorityCalculation: noop,
+  retryPriorityExplanation: noop,
 };
 
 export const defaultKeyboardHint = {

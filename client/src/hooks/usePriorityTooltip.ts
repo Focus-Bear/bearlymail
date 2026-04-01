@@ -46,27 +46,29 @@ interface UsePriorityTooltipReturn {
   hoveredPriorityEmailId: string | null;
   priorityExplanation: PriorityExplanation | null;
   loadingPriorityExplanation: boolean;
+  priorityExplanationError: boolean;
   togglePriorityTooltip: (emailId: string) => void;
   hidePriorityTooltip: () => void;
   fetchPriorityExplanation: (emailId: string) => Promise<void>;
   expeditePriorityCalculation: (emailId: string) => Promise<void>;
+  retryPriorityExplanation: (emailId: string) => Promise<void>;
 }
 
 export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const [hoveredPriorityEmailId, setHoveredPriorityEmailId] = useState<string | null>(null);
   const [priorityExplanation, setPriorityExplanation] = useState<PriorityExplanation | null>(null);
   const [loadingPriorityExplanation, setLoadingPriorityExplanation] = useState(false);
+  const [priorityExplanationError, setPriorityExplanationError] = useState(false);
 
   const fetchPriorityExplanation = useCallback(
     async (emailId: string) => {
-      // Don't return early if loading - allow it to fetch for the current email
       if (loadingPriorityExplanation) {
         return;
       }
 
       setLoadingPriorityExplanation(true);
+      setPriorityExplanationError(false);
       try {
-        // Add timeout of 10 seconds to prevent infinite loading
         const TIMEOUT_MS = 10000;
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => {
@@ -82,13 +84,21 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
         setPriorityExplanation(response.data);
       } catch (error) {
         console.error('Error fetching priority explanation:', error);
-        // Don't set explanation on error - keep previous state or null
+        setPriorityExplanationError(true);
       } finally {
-        // Always reset loading state, even on timeout or error
         setLoadingPriorityExplanation(false);
       }
     },
     [loadingPriorityExplanation]
+  );
+
+  const retryPriorityExplanation = useCallback(
+    async (emailId: string) => {
+      setPriorityExplanationError(false);
+      setPriorityExplanation(null);
+      await fetchPriorityExplanation(emailId);
+    },
+    [fetchPriorityExplanation]
   );
 
   const togglePriorityTooltip = useCallback(
@@ -96,10 +106,11 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
       if (hoveredPriorityEmailId === emailId) {
         setHoveredPriorityEmailId(null);
         setPriorityExplanation(null);
+        setPriorityExplanationError(false);
         setLoadingPriorityExplanation(false);
       } else {
-        // Clear previous explanation when switching to a different email
         setPriorityExplanation(null);
+        setPriorityExplanationError(false);
         setHoveredPriorityEmailId(emailId);
         fetchPriorityExplanation(emailId);
       }
@@ -110,7 +121,7 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const hidePriorityTooltip = useCallback(() => {
     setHoveredPriorityEmailId(null);
     setPriorityExplanation(null);
-    // Reset loading state when hiding tooltip
+    setPriorityExplanationError(false);
     setLoadingPriorityExplanation(false);
   }, []);
 
@@ -145,9 +156,11 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
     hoveredPriorityEmailId,
     priorityExplanation,
     loadingPriorityExplanation,
+    priorityExplanationError,
     togglePriorityTooltip,
     hidePriorityTooltip,
     fetchPriorityExplanation,
     expeditePriorityCalculation,
+    retryPriorityExplanation,
   };
 }

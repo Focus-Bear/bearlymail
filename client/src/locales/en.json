@@ -2182,7 +2182,10 @@
       "hoverToSeeDetails": "Hover to see details",
       "category": "Category",
       "showCategoryExplanation": "Show why this category was chosen",
-      "suggestedCategory": "Suggested Category"
+      "suggestedCategory": "Suggested Category",
+      "loadError": "Failed to load priority explanation.",
+      "noData": "No priority breakdown is available yet.",
+      "retry": "Retry"
     },
     "override": {
       "title": "Override Priority Score",

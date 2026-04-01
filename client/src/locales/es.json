@@ -1929,7 +1929,10 @@
       "learnMore": "Más información",
       "category": "Categoría",
       "showCategoryExplanation": "Mostrar por qué se eligió esta categoría",
-      "suggestedCategory": "Categoría sugerida"
+      "suggestedCategory": "Categoría sugerida",
+      "loadError": "No se pudo cargar la explicación de prioridad.",
+      "noData": "Aún no hay un desglose de prioridad disponible.",
+      "retry": "Reintentar"
     },
     "veryLow": "Muy bajo"
   },

@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { RATIOS } from "../constants/percentages";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import {
   PRIORITY_BOOSTS,
@@ -160,6 +161,9 @@ export class EmailPriorityExplanationService {
     const contexts = await this.userContextRepository.find({
       where: { userId },
     });
+    for (const ctx of contexts) {
+      decryptUserContextEntityForApi(ctx);
+    }
     endContextQuery();
 
     const endDaysCalc = perf.startSpan(

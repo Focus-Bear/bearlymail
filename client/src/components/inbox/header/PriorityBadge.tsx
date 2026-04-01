@@ -13,9 +13,11 @@ interface PriorityBadgeProps {
     hoveredPriorityEmailId: string | null;
     priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
+    priorityExplanationError: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;
     expeditePriorityCalculation: (emailId: string) => Promise<void>;
+    retryPriorityExplanation: (emailId: string) => Promise<void>;
   };
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -85,6 +87,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           emailThreadId={email.emailThreadId}
           priorityExplanation={priorityTooltip.priorityExplanation}
           loadingPriorityExplanation={priorityTooltip.loadingPriorityExplanation}
+          priorityExplanationError={priorityTooltip.priorityExplanationError}
           urgencyScore={email.urgencyScore}
           urgencyExplanation={email.urgencyExplanation}
           category={email.category || (!email.category_id ? CATEGORY_OTHER : null)}
@@ -96,6 +99,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           onOverrideUrgency={onOverrideUrgency}
           onProvideFeedback={onProvideFeedback}
           onExpedite={() => priorityTooltip.expeditePriorityCalculation(email.id)}
+          onRetry={() => priorityTooltip.retryPriorityExplanation(email.id)}
           onCategoryOverride={onCategoryOverride}
         />
       )}

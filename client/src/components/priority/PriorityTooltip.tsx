@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
 import { PriorityExplanation } from 'types/email';
 
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
@@ -10,6 +12,7 @@ interface PriorityTooltipProps {
   emailThreadId?: string;
   priorityExplanation: PriorityExplanation | null;
   loadingPriorityExplanation: boolean;
+  priorityExplanationError?: boolean;
   urgencyScore?: number;
   urgencyExplanation?: string | null;
   category?: string | null;
@@ -22,6 +25,7 @@ interface PriorityTooltipProps {
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
   onExpedite?: () => void;
+  onRetry?: () => void;
   onCategoryOverride?: (newCategory: string) => void;
 }
 
@@ -30,6 +34,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   emailThreadId,
   priorityExplanation,
   loadingPriorityExplanation,
+  priorityExplanationError = false,
   urgencyScore,
   urgencyExplanation,
   category,
@@ -41,12 +46,76 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   onOverrideUrgency,
   onProvideFeedback,
   onExpedite,
+  onRetry,
   onCategoryOverride,
 }) => {
-  // Always show the tooltip if it's the hovered email, even if loading or no explanation yet
-  // This prevents the blank popup from auto-closing
-  if (!priorityExplanation && !loadingPriorityExplanation) {
+  const { t } = useTranslation();
+
+  if (priorityExplanationError && !loadingPriorityExplanation) {
+    return (
+      <PriorityTooltipContainer emailId={emailId}>
+        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+          <div style={{ marginBottom: theme.spacing.sm, color: theme.colors.text.secondary }}>
+            {t('priority.tooltip.loadError')}
+          </div>
+          {onRetry && (
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                event.preventDefault();
+                onRetry();
+              }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                cursor: 'pointer',
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.light}`,
+                background: 'none',
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('priority.tooltip.retry')}
+            </button>
+          )}
+        </div>
+      </PriorityTooltipContainer>
+    );
+  }
+
+  if (!priorityExplanation && loadingPriorityExplanation) {
     return <PriorityTooltipLoading emailId={emailId} />;
+  }
+
+  if (!priorityExplanation) {
+    return (
+      <PriorityTooltipContainer emailId={emailId}>
+        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+          <div style={{ color: theme.colors.text.secondary }}>
+            {t('priority.tooltip.noData')}
+          </div>
+          {onRetry && (
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                event.preventDefault();
+                onRetry();
+              }}
+              style={{
+                marginTop: theme.spacing.sm,
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                cursor: 'pointer',
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.light}`,
+                background: 'none',
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('priority.tooltip.retry')}
+            </button>
+          )}
+        </div>
+      </PriorityTooltipContainer>
+    );
   }
 
   return (

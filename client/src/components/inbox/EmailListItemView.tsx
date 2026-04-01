@@ -37,9 +37,11 @@ export interface EmailListItemViewProps {
     hoveredPriorityEmailId: string | null;
     priorityExplanation: PriorityExplanation | null;
     loadingPriorityExplanation: boolean;
+    priorityExplanationError: boolean;
     togglePriorityTooltip: (emailId: string) => void;
     hidePriorityTooltip: () => void;
     expeditePriorityCalculation: (emailId: string) => Promise<void>;
+    retryPriorityExplanation: (emailId: string) => Promise<void>;
   };
   keyboardHint: {
     showHint: (emailId: string, action: string) => void;

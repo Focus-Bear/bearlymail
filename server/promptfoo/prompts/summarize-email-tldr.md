@@ -71,7 +71,9 @@ Context:
 
 ---
 
-Return a JSON object (no markdown fences) with exactly these fields:
+Return a JSON object (no markdown fences) with exactly these fields.
+The **summary** value must be plain prose only (the actual TL;DR text). Do not put JSON, markdown, or structured data inside the `summary` string — only human-readable sentences.
+
 {
   "summary": "<your TL;DR here>",
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,

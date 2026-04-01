@@ -435,14 +435,16 @@ export class GitHubEmailInfoService {
           hasCachedStatus: false,
         };
       }
-      const hasStatus =
-        (thread.githubMetadata?.links?.length ?? 0) > 0 &&
-        thread.githubMetadata.links.some((link) => link.status);
+      // Batch polling must stop once metadata has been written, even when GitHub API
+      // returned no status (rate limit, 404, private repo). Otherwise hasCachedStatus
+      // stayed false forever and clients saw perpetual pending + loading spinners.
+      const links = thread.githubMetadata?.links ?? [];
+      const hasCachedStatus = links.length > 0;
       return {
         emailId: email.id,
         threadId: email.emailThreadId,
-        links: thread.githubMetadata?.links ?? [],
-        hasCachedStatus: hasStatus,
+        links,
+        hasCachedStatus,
       };
     });
   }

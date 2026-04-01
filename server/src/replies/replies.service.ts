@@ -14,6 +14,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailThreadService } from "../emails/email-thread.service";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { LLMProvider, LLMService } from "../llm/llm.service";
 import { SnoozeService } from "../snooze/snooze.service";
@@ -70,6 +71,14 @@ export class RepliesService {
     private emailThreadRepository: Repository<EmailThread>,
   ) {}
 
+  /**
+   * Ensures from/subject/body/htmlBody/etc. are plaintext before composing MIME
+   * (quoted replies, forwards). Mirrors GET /emails/:id — transformers can leak ciphertext.
+   */
+  private ensureEmailDecryptedForReplyCompose(email: Email): void {
+    decryptEmailEntityForApi(email);
+  }
+
   async generateDraftReply(
     userId: string,
     emailId: string,
@@ -79,6 +88,7 @@ export class RepliesService {
     if (!email) {
       throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
+    this.ensureEmailDecryptedForReplyCompose(email);
 
     // Get user context from UserContext entities
     const contexts = await this.contextService.getUserContext(userId);
@@ -283,6 +293,7 @@ ${closing}`;
     if (!email) {
       throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     }
+    this.ensureEmailDecryptedForReplyCompose(email);
 
     // Simple rule generation based on email characteristics
     const trigger = `subject contains '${email.subject.split(" ")[0]}'`;
@@ -698,6 +709,7 @@ ${closing}`;
 
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    this.ensureEmailDecryptedForReplyCompose(email);
 
     const user = await this.usersService.findOne(userId);
     if (!user) throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);

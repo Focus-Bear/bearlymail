@@ -54,7 +54,9 @@ Context:
 
 ---
 
-Return a JSON object (no markdown fences) with exactly these fields:
+Return a JSON object (no markdown fences) with exactly these fields.
+The **summary** value must be plain prose only. Do not put JSON or markdown inside the `summary` string.
+
 {
   "summary": "<your action items here>",
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,

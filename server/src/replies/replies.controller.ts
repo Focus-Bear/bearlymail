@@ -18,6 +18,7 @@ import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EmailsService } from "../emails/emails.service";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { RepliesService, ReplyRule } from "./replies.service";
@@ -217,6 +218,7 @@ export class RepliesController {
   ) {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
+    decryptEmailEntityForApi(email);
 
     const subject = this.buildScheduledSubject(email.subject, parsed.isForward);
     const replyToAddress = body.recipients?.trim()

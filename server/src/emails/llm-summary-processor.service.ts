@@ -13,6 +13,7 @@ import {
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
+import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
@@ -407,7 +408,7 @@ export class LLMSummaryProcessorService {
     await this.emailRepository.update(
       { id: In(threadEmailIds) },
       {
-        summary: summary!,
+        summary: extractPlainSummary(summary!),
         isProcessingSummary: false,
         ...(sentimentScore !== null ? { sentimentScore } : {}),
         phishingConfidence: phishingConfidence ?? null,

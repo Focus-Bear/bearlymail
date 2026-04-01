@@ -124,14 +124,16 @@ import { SyncHistoryService } from "./sync-history.service";
     forwardRef(() => ScheduledEmailsModule),
     DebugModule,
   ],
+  // EmailsController must be LAST: it defines @Get(":id"), which otherwise steals
+  // paths like recategorize-progress, backlog-progress, etc. from sibling controllers.
   controllers: [
-    EmailsController,
     EmailDebugAdminController,
     EmailSearchOpsController,
     EmailBacklogController,
     EmailDebugController,
     EmailSendController,
     EmailAssignmentController,
+    EmailsController,
   ],
   providers: [
     SyncHistoryService,

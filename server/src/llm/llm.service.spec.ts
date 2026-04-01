@@ -408,6 +408,18 @@ describe("LLMService", () => {
       const input = `  ${JSON.stringify({ summary: "Clean summary" })}  `;
       expect(extractPlainSummary(input)).toBe("Clean summary");
     });
+
+    it("extracts summary when JSON is wrapped in markdown fences", () => {
+      const inner = JSON.stringify({ summary: "Fenced", extra: 1 });
+      const input = `\`\`\`json\n${inner}\n\`\`\``;
+      expect(extractPlainSummary(input)).toBe("Fenced");
+    });
+
+    it("extracts JSON that is preceded by a short preamble", () => {
+      const obj = { summary: "After preamble", x: 1 };
+      const input = `Here is the result:\n${JSON.stringify(obj)}`;
+      expect(extractPlainSummary(input)).toBe("After preamble");
+    });
   });
 
   describe("parseSummaryWithPhishing success-path sanitisation (issue #1162)", () => {
@@ -458,6 +470,40 @@ describe("LLMService", () => {
         "  plain fallback summary  ",
       );
       expect(result.summary).toBe("plain fallback summary");
+    });
+
+    it("parses JSON when the summary string contains a closing brace (greedy-regex regression)", () => {
+      const inner =
+        "Action required: if spending exceeds $250/month before April 1, 2026, access pauses — review billing.";
+      const response = JSON.stringify({
+        summary: inner,
+        phishing: {
+          is_phishing: false,
+          confidence: "low",
+          reason: "Legitimate notice; no credential harvesting.",
+        },
+        sentiment: { score: 0, explanation: "Neutral informational tone." },
+        category: "Other",
+        categoryExplanation: "Service usage notice.",
+        actionItems: [],
+      });
+      const result = summarizationService.parseSummaryWithPhishing(response);
+      expect(result.summary).toBe(inner);
+      expect(result.phishing?.is_phishing).toBe(false);
+    });
+
+    it("strips markdown fences and still extracts the summary", () => {
+      const payload = {
+        summary: "Short TL;DR line.",
+        phishing: null,
+        sentiment: { score: 0, explanation: "Neutral." },
+        category: "Other",
+        categoryExplanation: "x",
+        actionItems: [],
+      };
+      const wrapped = `\`\`\`json\n${JSON.stringify(payload)}\n\`\`\``;
+      const result = summarizationService.parseSummaryWithPhishing(wrapped);
+      expect(result.summary).toBe("Short TL;DR line.");
     });
   });
 });

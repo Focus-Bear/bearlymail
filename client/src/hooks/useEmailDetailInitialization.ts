@@ -169,10 +169,10 @@ export const useEmailDetailInitialization = ({
 
   // Ref-based callback pattern: gives always-fresh closure access to all deps without
   // making them reactive. (useEffectEvent does not exist in React 19.2 stable.)
-  const onEmailFetchRef = useRef<(emailId: string) => void>(() => {});
-  onEmailFetchRef.current = (emailId: string) => {
+  const onEmailFetchRef = useRef<(emailId: string) => Promise<void>>(async () => {});
+  onEmailFetchRef.current = async (emailId: string) => {
     fetchedEmailIdRef.current = emailId;
-    initializeEmailSummary({
+    await initializeEmailSummary({
       id: emailId,
       isGeneratingSummary,
       summaryType,
@@ -186,6 +186,9 @@ export const useEmailDetailInitialization = ({
       setSummaryCollapsed,
       initializedEmailIdRef,
     });
+    if (fetchedEmailIdRef.current !== emailId) {
+      return;
+    }
     fetchGithubInfo();
     fetchSuggestedActions();
   };
@@ -194,7 +197,7 @@ export const useEmailDetailInitialization = ({
     if (!id || fetchedEmailIdRef.current === id) {
       return;
     }
-    onEmailFetchRef.current(id);
+    void onEmailFetchRef.current(id);
   }, [id]);
 
   useEmailThreadFetcher({ email, fetchNote, fetchThreadEmails, setActionItems });

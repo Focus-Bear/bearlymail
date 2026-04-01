@@ -258,6 +258,7 @@ export function useEmailDetailOperations(
   }, [id]);
 
   useEffect(() => {
+    githubFetchedRef.current = null;
     if (id) {
       setGithubLinks([]);
       setLoadingGithub(true);

@@ -7,7 +7,23 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { EmailServiceDeps } from "./email-service-dependencies.provider";
+
+type EmailAttachmentMeta = NonNullable<Email["attachments"]>[number];
+
+/**
+ * Same hardening as GET /emails/:id — attachments may be ciphertext strings (partial
+ * hydration) or legacy non-array JSON; both break `.find()` on download.
+ */
+function normaliseEmailAttachmentsList(raw: unknown): EmailAttachmentMeta[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as EmailAttachmentMeta[];
+  if (typeof raw === "object" && raw !== null && "attachmentId" in raw) {
+    return [raw as EmailAttachmentMeta];
+  }
+  return [];
+}
 import { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
 
 export { EmailDataWithOptionalThreadProps } from "./interfaces/email-data.interface";
@@ -196,9 +212,11 @@ export class EmailsService {
   }> {
     const email = await this.getEmailById(userId, emailId);
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
-    if (!email.attachments || email.attachments.length === 0)
+    decryptEmailEntityForApi(email);
+    const attachmentsList = normaliseEmailAttachmentsList(email.attachments);
+    if (attachmentsList.length === 0)
       throw new Error("Email has no attachments");
-    const attachment = email.attachments.find(
+    const attachment = attachmentsList.find(
       (att) => att.attachmentId === attachmentId,
     );
     if (!attachment) throw new Error("Attachment not found in email");

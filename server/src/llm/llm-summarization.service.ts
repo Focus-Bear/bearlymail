@@ -17,7 +17,11 @@ import {
   LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING,
   type LLMOperation,
 } from "./llm-operations";
-import { extractPlainSummary } from "./llm-summary-utils";
+import {
+  coerceSummaryFromLlmField,
+  extractPlainSummary,
+  tryParseJsonObjectFromLlmResponse,
+} from "./llm-summary-utils";
 import {
   getPrompt,
   renderPrompt,
@@ -228,10 +232,10 @@ export class LLMSummarizationService {
     actionItems: Array<{ description: string; confidence: number }> | null;
   } {
     try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (typeof parsed.summary === "string") {
+      const parsed = tryParseJsonObjectFromLlmResponse(response);
+      if (parsed) {
+        const summaryText = coerceSummaryFromLlmField(parsed.summary);
+        if (summaryText !== null) {
           const sentiment = this.validateSentimentResult(parsed.sentiment);
           const category =
             typeof parsed.category === "string" ? parsed.category : null;
@@ -241,7 +245,7 @@ export class LLMSummarizationService {
               : null;
           const actionItems = this.validateActionItems(parsed.actionItems);
           return {
-            summary: extractPlainSummary(parsed.summary),
+            summary: summaryText,
             phishing: this.validatePhishingLLMResult(parsed.phishing),
             sentiment,
             category,

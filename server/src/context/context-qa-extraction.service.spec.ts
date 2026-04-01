@@ -16,7 +16,6 @@ const mockContextRepository = {
   findOne: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
-  createQueryBuilder: jest.fn(),
 };
 
 const mockLlmService = {
@@ -34,12 +33,8 @@ describe("ContextQaExtractionService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const mockQb = {
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([]),
-    };
-    mockContextRepository.createQueryBuilder.mockReturnValue(mockQb);
+    // Default: no existing Q&A in DB
+    mockContextRepository.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,7 +65,6 @@ describe("ContextQaExtractionService", () => {
       },
     ]);
 
-    mockContextRepository.findOne.mockResolvedValue(null);
     const createdContext = {
       userId: "user1",
       contextKey: ContextKey.Q_AND_A,
@@ -110,5 +104,74 @@ describe("ContextQaExtractionService", () => {
     ]);
 
     expect(mockContextRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates Q&A against existing entries without using findOne on encrypted column", async () => {
+    // Simulate an existing Q&A already stored (plaintext — as returned after decryption)
+    const existingQA = mockPartial<UserContext>({
+      contextId: "existing-qa-id",
+      userId: "user1",
+      contextKey: ContextKey.Q_AND_A,
+      contextValue: "Q: What is your timezone? | A: UTC+8",
+      source: Source.UNAPPROVED,
+      lastModified: new Date("2024-01-01"),
+    });
+    mockContextRepository.find.mockResolvedValue([existingQA]);
+
+    mockLlmService.extractQAndA.mockResolvedValue([
+      // Same Q&A as existing — should be deduped (update existing, not create)
+      { question: "What is your timezone?", answer: "UTC+8", frequency: 5 },
+    ]);
+
+    mockContextRepository.save.mockResolvedValue(existingQA);
+
+    await service.extractQAndAFromSentEmails("user1", [
+      mockPartial({
+        subject: "Re: timezone",
+        body: "UTC+8",
+        htmlBody: null,
+        receivedAt: new Date(),
+      }),
+    ]);
+
+    // Should NOT call findOne (the broken path)
+    expect(mockContextRepository.findOne).not.toHaveBeenCalled();
+    // Should NOT create a new entry (it's a duplicate)
+    expect(mockContextRepository.create).not.toHaveBeenCalled();
+    // Should update the existing entity's lastModified
+    expect(mockContextRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ contextId: "existing-qa-id" }),
+    );
+  });
+
+  it("uses repository.find() instead of createQueryBuilder to load existing Q&As", async () => {
+    // Return at least one result so the service proceeds to load existing Q&As
+    mockLlmService.extractQAndA.mockResolvedValue([
+      { question: "Any question?", answer: "Any answer.", frequency: 5 },
+    ]);
+    const createdContext = mockPartial<UserContext>({
+      userId: "user1",
+      contextKey: ContextKey.Q_AND_A,
+      contextValue: "Q: Any question? | A: Any answer.",
+      source: Source.UNAPPROVED,
+    });
+    mockContextRepository.create.mockReturnValue(createdContext);
+    mockContextRepository.save.mockResolvedValue(createdContext);
+
+    await service.extractQAndAFromSentEmails("user1", [
+      mockPartial({
+        subject: "Test",
+        body: "body",
+        htmlBody: null,
+        receivedAt: new Date(),
+      }),
+    ]);
+
+    // Should use find() — not createQueryBuilder
+    expect(mockContextRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ contextKey: ContextKey.Q_AND_A }),
+      }),
+    );
   });
 });

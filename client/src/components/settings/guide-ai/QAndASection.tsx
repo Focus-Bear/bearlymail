@@ -45,18 +45,14 @@ interface QAndASectionProps {
 }
 
 function parseQAndA(contextValue: string): { question: string; answer: string } {
-  const parts = contextValue.split(' | ');
-  const question =
-    parts
-      .find(part => part.startsWith('Q:'))
-      ?.replace('Q:', '')
-      .trim() || '';
-  const answer =
-    parts
-      .find(part => part.startsWith('A:'))
-      ?.replace('A:', '')
-      .trim() || '';
-  return { question, answer };
+  // Use a regex to handle any whitespace variation around 'Q:', '|', and 'A:'
+  // (e.g. "Q:x|A:y", "Q: x | A: y", "Q:  x  |  A:  y")
+  const match = contextValue.match(/Q:\s*(.+?)\s*\|\s*A:\s*(.+)/);
+  if (match) {
+    return { question: match[1].trim(), answer: match[2].trim() };
+  }
+  // Fallback: show raw value as question so content is never silently blank
+  return { question: contextValue, answer: '' };
 }
 
 type TabType = 'approved' | 'pending';

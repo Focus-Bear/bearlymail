@@ -9,6 +9,7 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
@@ -75,11 +76,15 @@ export class ContextQaExtractionService {
         this.logger.log(
           `[CONTEXT-ANALYSIS] Found ${qaAnalysis.length} common Q&A pairs`,
         );
-        const existingQAs = await this.contextRepository
-          .createQueryBuilder("context")
-          .where("context.userId = :userId", { userId })
-          .andWhere("context.contextKey = :key", { key: ContextKey.Q_AND_A })
-          .getMany();
+        // Use repository.find() (not createQueryBuilder) to ensure TypeORM
+        // column transformers run correctly and decrypt contextValue/explanation.
+        const existingQAs = await this.contextRepository.find({
+          where: { userId, contextKey: ContextKey.Q_AND_A },
+        });
+        // Belt-and-suspenders: force-decrypt in case of hydration edge cases.
+        for (const qa of existingQAs) {
+          decryptUserContextEntityForApi(qa);
+        }
         this.logger.log(
           `[CONTEXT-ANALYSIS] Found ${existingQAs.length} existing Q&A pairs in database for deduplication`,
         );
@@ -148,7 +153,19 @@ export class ContextQaExtractionService {
       }
       seenQuestions.add(normalizedQuestion);
       seenAnswers.add(normalizedAnswer);
-      await this.saveQAPair(userId, qa);
+      // Find matching existing entity (already decrypted) so saveQAPair can
+      // update it without a broken findOne on an encrypted column.
+      const matchedExisting = existingQAs.find((existing) => {
+        const parsed = existing.contextValue.match(
+          /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/,
+        );
+        if (!parsed) return false;
+        return (
+          parsed[1].toLowerCase().trim() === normalizedQuestion &&
+          parsed[2].toLowerCase().trim() === normalizedAnswer
+        );
+      });
+      await this.saveQAPair(userId, qa, matchedExisting);
     }
   }
 
@@ -183,17 +200,19 @@ export class ContextQaExtractionService {
   private async saveQAPair(
     userId: string,
     qa: { question: string; answer: string; frequency: number },
+    existingEntity?: UserContext,
   ): Promise<void> {
     const qaValue = `Q: ${qa.question} | A: ${qa.answer}`;
     const explanation = qa.frequency
       ? `Appeared ${qa.frequency} times in your replies`
       : undefined;
-    const existing = await this.contextRepository.findOne({
-      where: { userId, contextKey: ContextKey.Q_AND_A, contextValue: qaValue },
-    });
-    if (existing) {
-      existing.lastModified = new Date();
-      await this.contextRepository.save(existing);
+    // Do NOT use findOne({ where: { contextValue: qaValue } }) — AES-GCM uses
+    // random IVs so the same plaintext produces different ciphertext each time,
+    // meaning a WHERE comparison against the encrypted column always fails.
+    // Instead, the caller passes the already-decrypted matching entity (if any).
+    if (existingEntity) {
+      existingEntity.lastModified = new Date();
+      await this.contextRepository.save(existingEntity);
     } else {
       const context = this.contextRepository.create({
         userId,

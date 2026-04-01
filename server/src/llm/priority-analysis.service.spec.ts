@@ -1,8 +1,10 @@
 import { Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { CategoryShortlistService } from "./category-shortlist.service";
 import { LLMCoreService } from "./llm-core.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import * as prompts from "./prompts";
@@ -15,6 +17,8 @@ jest.mock("./prompts", () => ({
     ANALYZE_PRIORITY: "analyze_priority",
     ANALYZE_PRIORITY_FEEDBACK: "analyze_priority_feedback",
     INCREMENTAL_PRIORITY_CHECK: "incremental_priority_check",
+    CATEGORY_SHORTLIST: "category_shortlist",
+    BATCH_PRIORITY_TRIAGE: "batch_priority_triage",
   },
 }));
 
@@ -42,6 +46,10 @@ describe("PriorityAnalysisService", () => {
   let service: PriorityAnalysisService;
   let mockLLMCoreService: jest.Mocked<Partial<LLMCoreService>>;
   let mockErrorTrackingService: jest.Mocked<Partial<ErrorTrackingService>>;
+  let mockCategoryShortlistService: jest.Mocked<
+    Partial<CategoryShortlistService>
+  >;
+  let mockConfigService: jest.Mocked<Partial<ConfigService>>;
   let loggerErrorSpy: jest.SpyInstance;
 
   beforeEach(async () => {
@@ -51,6 +59,15 @@ describe("PriorityAnalysisService", () => {
 
     mockErrorTrackingService = {
       captureException: jest.fn(),
+    };
+
+    mockCategoryShortlistService = {
+      isShortlistEnabled: jest.fn().mockReturnValue(false),
+      getShortlist: jest.fn(),
+    };
+
+    mockConfigService = {
+      get: jest.fn(),
     };
 
     (prompts.getPrompt as jest.Mock).mockReturnValue({
@@ -67,6 +84,11 @@ describe("PriorityAnalysisService", () => {
         PriorityAnalysisService,
         { provide: LLMCoreService, useValue: mockLLMCoreService },
         { provide: ErrorTrackingService, useValue: mockErrorTrackingService },
+        {
+          provide: CategoryShortlistService,
+          useValue: mockCategoryShortlistService,
+        },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -296,81 +318,54 @@ describe("PriorityAnalysisService", () => {
         from: "sender1@example.com",
         subject: "First email",
         body: "Body 1",
+        existingCategory: "Customer Support",
+        existingUrgencyScore: 60,
       },
       {
         emailKey: "email-2",
         from: "sender2@example.com",
         subject: "Second email",
         body: "Body 2",
+        existingCategory: "Admin",
+        existingUrgencyScore: 20,
       },
     ];
 
-    const emailResultItems = [
-      {
-        key: "email-1",
-        urgencyScore: 30,
-        urgencyExplanation: "Low urgency",
-        sentimentScore: 0,
-        goalAlignmentScore: 20,
-        goalAlignmentExplanation: "Slightly aligned",
-        category: "Newsletters",
-        categoryExplanation: "Newsletter content",
-        reasoning: "Mass email",
-      },
-      {
-        key: "email-2",
-        urgencyScore: 70,
-        urgencyExplanation: "High urgency",
-        sentimentScore: -0.5,
-        goalAlignmentScore: 80,
-        goalAlignmentExplanation: "Highly aligned",
-        category: "Customer Support",
-        categoryExplanation: "Support request",
-        reasoning: "Customer issue",
-      },
-    ];
-
-    const validBatchResponse = JSON.stringify({
-      prioritised_emails: emailResultItems,
+    const validTriageResponse = JSON.stringify({
+      results: [
+        { key: "email-1", needsReanalysis: true, reason: "new deadline" },
+        { key: "email-2", needsReanalysis: false, reason: "routine follow-up" },
+      ],
     });
 
-    it("should parse a valid batch JSON response with prioritised_emails root key", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validBatchResponse,
-      );
-
-      const results = await service.analyzePriorityBatch(batchEmails);
-
-      expect(results.size).toBe(2);
-      expect(results.get("email-1")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.category).toBe("Customer Support");
-      expect(results.get("email-2")?.urgencyScore).toBe(70);
+    beforeEach(() => {
+      (prompts.getPrompt as jest.Mock).mockImplementation((id: string) => {
+        if (id === "batch_priority_triage") {
+          return {
+            id: "batch_priority_triage",
+            prompt: "Triage: {{emailList}}",
+            systemPrompt: "You are a triage assistant.",
+          };
+        }
+        return {
+          id: "analyze_priority",
+          prompt: "Analyze this email: {{subject}}",
+          systemPrompt: "You are an email analyzer.",
+        };
+      });
     });
 
-    it("should accept a bare JSON array when each row has key (LLM prompt drift)", async () => {
-      const bareArrayResponse = JSON.stringify(emailResultItems);
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        bareArrayResponse,
-      );
+    it("should return empty map for empty email list", async () => {
+      const results = await service.analyzePriorityBatch([]);
 
-      const loggerWarnSpy = jest
-        .spyOn(Logger.prototype, "warn")
-        .mockImplementation(() => undefined);
-
-      const results = await service.analyzePriorityBatch(batchEmails);
-
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("bare results array"),
-      );
-      expect(results.get("email-1")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.category).toBe("Customer Support");
-      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.size).toBe(0);
+      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
     });
 
-    it("should pass jsonMode: true to LLM to enforce JSON array responses", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validBatchResponse,
-      );
+    it("should pass jsonMode: true to LLM for the triage call", async () => {
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(validTriageResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
 
       await service.analyzePriorityBatch(batchEmails);
 
@@ -381,184 +376,47 @@ describe("PriorityAnalysisService", () => {
       );
     });
 
-    it("should log a clear error when LLM returns non-JSON response for batch", async () => {
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        "Sorry, I cannot process these emails.",
-      );
-
-      const results = await service.analyzePriorityBatch(
-        batchEmails,
-        undefined,
-        undefined,
-        "user-789",
-      );
-
-      // Should log a clear error with email count and keys
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "analyzePriorityBatch: LLM returned a non-JSON response",
-        ),
-      );
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("2 emails"),
-      );
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("email-1"),
-      );
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("email-2"),
-      );
-
-      // Error tracking should be notified
-      expect(mockErrorTrackingService.captureException).toHaveBeenCalledWith(
-        expect.any(Error),
-        "user-789",
-        expect.objectContaining({
-          operation: "analyze_priority_batch",
-          emailCount: 2,
-        }),
-      );
-
-      // All emails should get fallback values
-      expect(results.size).toBe(2);
-      expect(results.get("email-1")?.category).toBe("Other");
-      expect(results.get("email-1")?.categoryExplanation).toBe(
-        "Batch analysis failed",
-      );
-    });
-
-    it("should log missing email keys when batch response omits some emails", async () => {
-      const partialResponse = JSON.stringify({
-        prioritised_emails: [
-          {
-            key: "email-1",
-            urgencyScore: 30,
-            urgencyExplanation: "Low urgency",
-            sentimentScore: 0,
-            goalAlignmentScore: 20,
-            goalAlignmentExplanation: "Slightly aligned",
-            category: "Newsletters",
-            categoryExplanation: "Newsletter content",
-            reasoning: "Mass email",
-          },
-        ],
-      });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        partialResponse,
-      );
+    it("should mark non-flagged emails as triagePreserved and only run individual analysis for flagged ones", async () => {
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(validTriageResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
-      // Should log an error about missing emails
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "1 of 2 emails were missing from LLM batch response",
-        ),
-      );
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("email-2"),
-      );
-
-      // email-1 should have correct values, email-2 should have fallback
-      expect(results.get("email-1")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.category).toBe("Other");
-      expect(results.get("email-2")?.categoryExplanation).toBe(
-        "Batch analysis failed",
-      );
-    });
-
-    it("should use fallback when LLM responds with a wrong wrapper key (non-deterministic key name)", async () => {
-      const wrongKeyResponse = JSON.stringify({ results: emailResultItems });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        wrongKeyResponse,
-      );
-
-      const loggerWarnSpy = jest
-        .spyOn(Logger.prototype, "warn")
-        .mockImplementation(() => undefined);
-
-      const results = await service.analyzePriorityBatch(batchEmails);
-
-      // Should warn about the unexpected shape
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Unexpected response shape from LLM. Expected a JSON object with key "prioritised_emails".',
-        ),
-        expect.objectContaining({ parsed: expect.any(String) }),
-      );
-
-      // Both emails should receive fallback sentinel values (prompt compliance failure)
-      expect(results.size).toBe(2);
-      expect(results.get("email-1")?.isFallback).toBe(true);
-      expect(results.get("email-2")?.isFallback).toBe(true);
-      expect(results.get("email-1")?.category).toBe("Other");
-      expect(results.get("email-2")?.category).toBe("Other");
-    });
-
-    it("should return empty map for empty email list", async () => {
-      const results = await service.analyzePriorityBatch([]);
-
-      expect(results.size).toBe(0);
-      expect(mockLLMCoreService.generateText).not.toHaveBeenCalled();
-    });
-
-    it("regression #980: correctly parses { prioritised_emails: [...] } response shape", async () => {
-      const wrappedResponse = JSON.stringify({
-        prioritised_emails: [
-          {
-            key: "email-1",
-            urgencyScore: 55,
-            urgencyExplanation: "Needs timely reply",
-            goalAlignmentScore: 65,
-            goalAlignmentExplanation: "Aligned with support goals",
-            category: "Customer Support",
-            categoryExplanation: "Customer reporting an issue",
-            reasoning: "Support ticket requiring response",
-          },
-          {
-            key: "email-2",
-            urgencyScore: 5,
-            urgencyExplanation: "Informational digest",
-            goalAlignmentScore: 10,
-            goalAlignmentExplanation: "Not directly related to goals",
-            category: "Newsletters",
-            categoryExplanation: "Mass-sent newsletter",
-            reasoning: "Weekly newsletter, no action required",
-          },
-        ],
-      });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        wrappedResponse,
-      );
-
-      const results = await service.analyzePriorityBatch(batchEmails);
-
-      // Both emails should be parsed — not silently dropped
       expect(results.size).toBe(2);
       expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-1")?.triagePreserved).toBeFalsy();
       expect(results.get("email-1")?.category).toBe("Customer Support");
-      expect(results.get("email-1")?.urgencyScore).toBe(55);
       expect(results.get("email-2")?.isFallback).toBe(false);
-      expect(results.get("email-2")?.category).toBe("Newsletters");
-      expect(results.get("email-2")?.urgencyScore).toBe(5);
+      expect(results.get("email-2")?.triagePreserved).toBe(true);
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
     });
 
-    it("returns fallback when LLM returns a bare array without per-row key/emailKey", async () => {
-      // Bare arrays are accepted only when every element has `key` or `emailKey`
-      const bareArrayMissingKeys = JSON.stringify([
-        {
-          urgencyScore: 30,
-          urgencyExplanation: "Low urgency",
-          goalAlignmentScore: 20,
-          goalAlignmentExplanation: "Slightly aligned",
-          category: "Newsletters",
-          categoryExplanation: "Newsletter content",
-          reasoning: "Mass email",
-        },
-      ]);
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        bareArrayMissingKeys,
-      );
+    it("should run individual analysis for all emails when triage flags all", async () => {
+      const allFlaggedTriage = JSON.stringify({
+        results: [
+          { key: "email-1", needsReanalysis: true, reason: "urgent" },
+          { key: "email-2", needsReanalysis: true, reason: "topic shift" },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(allFlaggedTriage)
+        .mockResolvedValueOnce(validPriorityResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.isFallback).toBe(false);
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(3);
+    });
+
+    it("should reanalyse all emails when triage returns non-JSON response", async () => {
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce("Sorry, I cannot triage.")
+        .mockResolvedValueOnce(validPriorityResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
 
       const loggerWarnSpy = jest
         .spyOn(Logger.prototype, "warn")
@@ -567,40 +425,51 @@ describe("PriorityAnalysisService", () => {
       const results = await service.analyzePriorityBatch(batchEmails);
 
       expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Unexpected response shape from LLM. Expected a JSON object with key "prioritised_emails".',
-        ),
-        expect.objectContaining({ parsed: expect.any(String) }),
+        expect.stringContaining("will reanalyse all emails"),
       );
-
       expect(results.size).toBe(2);
-      expect(results.get("email-1")?.isFallback).toBe(true);
-      expect(results.get("email-2")?.isFallback).toBe(true);
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.isFallback).toBe(false);
     });
 
-    it("should log a clear error when batch JSON parsing throws", async () => {
-      const malformedBatchJson = "[{ urgencyScore: BROKEN }]";
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        malformedBatchJson,
-      );
+    it("should reanalyse all emails when triage LLM call throws", async () => {
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockRejectedValueOnce(new Error("Triage LLM failed"))
+        .mockResolvedValueOnce(validPriorityResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "analyzePriorityBatch: Batch LLM call failed for",
-        ),
+        expect.stringContaining("Triage LLM call failed"),
         expect.any(Error),
       );
-
-      // All emails should get fallback values
-      expect(results.get("email-1")?.category).toBe("Other");
-      expect(results.get("email-2")?.category).toBe("Other");
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.isFallback).toBe(false);
     });
 
-    it("should use preComputedSentimentScore from each email in batch, not LLM output", async () => {
-      // Batch emails with pre-computed sentiment scores from the summary step
-      const batchEmailsWithSentiment = [
+    it("should return isFallback for emails where individual analysis fails", async () => {
+      const allFlaggedTriage = JSON.stringify({
+        results: [
+          { key: "email-1", needsReanalysis: true, reason: "urgent" },
+          { key: "email-2", needsReanalysis: true, reason: "topic shift" },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(allFlaggedTriage)
+        .mockResolvedValueOnce(validPriorityResponse)
+        .mockRejectedValueOnce(new Error("LLM failed for email-2"));
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.isFallback).toBe(true);
+    });
+
+    it("should use preComputedSentimentScore from batch email in individual analysis", async () => {
+      const emailsWithSentiment = [
         {
           emailKey: "email-1",
           from: "sender1@example.com",
@@ -608,69 +477,241 @@ describe("PriorityAnalysisService", () => {
           body: "Summary of angry customer email",
           preComputedSentimentScore: -0.9,
         },
-        {
-          emailKey: "email-2",
-          from: "sender2@example.com",
-          subject: "Happy feedback",
-          body: "Summary of positive feedback email",
-          preComputedSentimentScore: 0.7,
-        },
       ];
-
-      // LLM response intentionally includes sentimentScore — these should be ignored
-      const responseWithLlmSentiment = JSON.stringify({
-        prioritised_emails: [
-          {
-            key: "email-1",
-            urgencyScore: 80,
-            urgencyExplanation: "Upset customer",
-            /* LLM value — should be ignored */
-            sentimentScore: 0,
-            goalAlignmentScore: 70,
-            goalAlignmentExplanation: "Support issue",
-            category: "Customer Support",
-            categoryExplanation: "Complaint",
-            reasoning: "Angry customer requiring prompt response",
-          },
-          {
-            key: "email-2",
-            urgencyScore: 20,
-            urgencyExplanation: "Positive feedback, no action needed",
-            /* LLM value — should be ignored */
-            sentimentScore: 0,
-            goalAlignmentScore: 30,
-            goalAlignmentExplanation: "Positive signal",
-            category: "Customer Support",
-            categoryExplanation: "Feedback",
-            reasoning: "Happy feedback, low urgency",
-          },
-        ],
+      const singleFlaggedTriage = JSON.stringify({
+        results: [{ key: "email-1", needsReanalysis: true, reason: "urgent" }],
       });
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        responseWithLlmSentiment,
-      );
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(singleFlaggedTriage)
+        .mockResolvedValueOnce(validPriorityResponse);
 
-      const results = await service.analyzePriorityBatch(
-        batchEmailsWithSentiment,
-      );
+      const results = await service.analyzePriorityBatch(emailsWithSentiment);
 
-      // Pre-computed sentiment should be used — LLM sentimentScore (0) must be ignored
       expect(results.get("email-1")?.sentimentScore).toBe(-0.9);
-      expect(results.get("email-2")?.sentimentScore).toBe(0.7);
     });
 
-    it("should return sentimentScore: undefined for batch emails without preComputedSentimentScore", async () => {
-      // batchEmails has no preComputedSentimentScore field set
-      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
-        validBatchResponse,
+    it("should log triage count when some emails are skipped", async () => {
+      const loggerLogSpy = jest
+        .spyOn(Logger.prototype, "log")
+        .mockImplementation(() => undefined);
+
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(validTriageResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
+
+      await service.analyzePriorityBatch(batchEmails);
+
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("triage flagged 1/2 existing"),
       );
+    });
+
+    it("should force reanalysis for email keys omitted from triage response (fail-open)", async () => {
+      // LLM response only mentions email-1, omits email-2
+      const partialTriageResponse = JSON.stringify({
+        results: [
+          { key: "email-1", needsReanalysis: false, reason: "routine" },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(partialTriageResponse)
+        .mockResolvedValueOnce(validPriorityResponse);
+
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
 
       const results = await service.analyzePriorityBatch(batchEmails);
 
-      // No pre-computed sentiment — sentimentScore should be undefined so callers
-      // skip the DB write rather than overwriting with 0
-      expect(results.get("email-1")?.sentimentScore).toBeUndefined();
-      expect(results.get("email-2")?.sentimentScore).toBeUndefined();
+      // email-1 was marked needsReanalysis: false → triagePreserved
+      expect(results.get("email-1")?.triagePreserved).toBe(true);
+      // email-2 was omitted → fail-open → should be reanalysed, not triagePreserved
+      expect(results.get("email-2")?.triagePreserved).toBeFalsy();
+      expect(results.get("email-2")?.isFallback).toBe(false);
+      expect(results.get("email-2")?.category).toBe("Customer Support");
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('omitted key "email-2"'),
+      );
+    });
+
+    it("should bypass triage for emails with no existing analysis and analyse them directly", async () => {
+      const newEmails = [
+        {
+          emailKey: "new-1",
+          from: "new@example.com",
+          subject: "New email",
+          body: "Body",
+          // no existingCategory, no existingUrgencyScore
+        },
+      ];
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        validPriorityResponse,
+      );
+
+      const loggerLogSpy = jest
+        .spyOn(Logger.prototype, "log")
+        .mockImplementation(() => undefined);
+
+      const results = await service.analyzePriorityBatch(newEmails);
+
+      // Triage should not have been called (only 1 LLM call: individual analysis)
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(1);
+      expect(results.get("new-1")?.isFallback).toBe(false);
+      expect(results.get("new-1")?.triagePreserved).toBeFalsy();
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no emails with existing analysis"),
+      );
+    });
+
+    it("should route new emails to analysis and apply triage only to emails with existing analysis", async () => {
+      const mixedEmails = [
+        {
+          emailKey: "existing-1",
+          from: "a@example.com",
+          subject: "Existing email",
+          body: "Body",
+          existingCategory: "Admin",
+          existingUrgencyScore: 30,
+        },
+        {
+          emailKey: "new-2",
+          from: "b@example.com",
+          subject: "New email",
+          body: "Body",
+          // no existingCategory, no existingUrgencyScore
+        },
+      ];
+      const triagePreservesExisting = JSON.stringify({
+        results: [
+          { key: "existing-1", needsReanalysis: false, reason: "no change" },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock)
+        .mockResolvedValueOnce(triagePreservesExisting)
+        .mockResolvedValueOnce(validPriorityResponse);
+
+      const results = await service.analyzePriorityBatch(mixedEmails);
+
+      // existing-1: triage said no reanalysis → triagePreserved
+      expect(results.get("existing-1")?.triagePreserved).toBe(true);
+      // new-2: bypassed triage → got individual analysis
+      expect(results.get("new-2")?.isFallback).toBe(false);
+      expect(results.get("new-2")?.triagePreserved).toBeFalsy();
+      // 2 LLM calls: 1 triage + 1 individual for new-2
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("category shortlist integration", () => {
+    const manyCategories = Array.from({ length: 20 }, (_, i) => ({
+      name: `Category ${i + 1}`,
+    }));
+
+    it("should call getShortlist when isShortlistEnabled returns true", async () => {
+      const shortlist = [{ name: "Category 1" }];
+      (
+        mockCategoryShortlistService.isShortlistEnabled as jest.Mock
+      ).mockReturnValue(true);
+      (
+        mockCategoryShortlistService.getShortlist as jest.Mock
+      ).mockResolvedValue(shortlist);
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+
+      await service.analyzePriority({
+        email: mockEmail,
+        userContext: { emailCategories: manyCategories },
+      });
+
+      expect(mockCategoryShortlistService.getShortlist).toHaveBeenCalledTimes(
+        1,
+      );
+      // getShortlist now receives summary (cleaned body) not raw body
+      expect(mockCategoryShortlistService.getShortlist).toHaveBeenCalledWith(
+        expect.objectContaining({ subject: mockEmail.subject }),
+        expect.arrayContaining([
+          expect.objectContaining({ name: "Category 1" }),
+        ]),
+      );
+      // summary key should be present (not body)
+      expect(mockCategoryShortlistService.getShortlist).toHaveBeenCalledWith(
+        expect.objectContaining({ summary: expect.any(String) }),
+        expect.any(Array),
+      );
+    });
+
+    it("should NOT call getShortlist during the triage phase (batch is triage-only)", async () => {
+      // The triage phase uses batch-priority-triage.md and does NOT run per-email shortlisting.
+      // Shortlisting only happens inside analyzePriority for flagged emails.
+      (
+        mockCategoryShortlistService.isShortlistEnabled as jest.Mock
+      ).mockReturnValue(true);
+      (
+        mockCategoryShortlistService.getShortlist as jest.Mock
+      ).mockResolvedValue([{ name: "Category 1" }]);
+
+      // Triage: no emails flagged for reanalysis → no individual calls → getShortlist never invoked
+      const noFlaggedTriage = JSON.stringify({
+        results: [
+          { key: "email-1", needsReanalysis: false, reason: "routine" },
+          { key: "email-2", needsReanalysis: false, reason: "routine" },
+        ],
+      });
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValueOnce(
+        noFlaggedTriage,
+      );
+
+      await service.analyzePriorityBatch(
+        [
+          {
+            emailKey: "email-1",
+            from: "a@b.com",
+            subject: "Sub 1",
+            body: "Body 1",
+            existingCategory: "Admin",
+            existingUrgencyScore: 30,
+          },
+          {
+            emailKey: "email-2",
+            from: "c@d.com",
+            subject: "Sub 2",
+            body: "Body 2",
+            existingCategory: "Admin",
+            existingUrgencyScore: 30,
+          },
+        ],
+        { emailCategories: manyCategories },
+      );
+
+      expect(mockCategoryShortlistService.getShortlist).not.toHaveBeenCalled();
+    });
+
+    it("should include combined emailCategories and protoCategories in shortlist input", async () => {
+      const protoCategories = [{ name: "Proto Cat" }];
+      const shortlist = [{ name: "Category 1" }, { name: "Other" }];
+      (
+        mockCategoryShortlistService.isShortlistEnabled as jest.Mock
+      ).mockReturnValue(true);
+      (
+        mockCategoryShortlistService.getShortlist as jest.Mock
+      ).mockResolvedValue(shortlist);
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+
+      await service.analyzePriority({
+        email: mockEmail,
+        userContext: {
+          emailCategories: manyCategories,
+          protoCategories,
+        },
+      });
+
+      // getShortlist should receive both email + proto categories merged
+      const callArg = (mockCategoryShortlistService.getShortlist as jest.Mock)
+        .mock.calls[0][1] as Array<{ name: string }>;
+      expect(callArg.some((cat) => cat.name === "Proto Cat")).toBe(true);
     });
   });
 });

@@ -653,7 +653,7 @@ async function analyzWithLLM(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: process.env.OPENAI_MODEL || "gpt-5-mini",
+            model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
             messages: [
               {
                 role: "system",

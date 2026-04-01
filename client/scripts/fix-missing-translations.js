@@ -191,7 +191,7 @@ ${JSON.stringify(batch, null, 2)}`;
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-5-mini',
+          model: 'gpt-5.4-mini',
           messages: [
             {
               role: 'system',

@@ -364,7 +364,9 @@ export class LLMCoreService {
     }
 
     const model =
-      this.configService.get<string>("OPENAI_MODEL") || "gpt-5-mini";
+      request.model ||
+      this.configService.get<string>("OPENAI_MODEL") ||
+      "gpt-5.4-mini";
     const reasoningEffort =
       this.configService.get<string>("OPENAI_REASONING_EFFORT") || "low";
     const isReasoningModel = supportsReasoningEffort(model);

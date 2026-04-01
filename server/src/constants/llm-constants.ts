@@ -142,3 +142,21 @@ export const SUGGESTED_REPLIES = {
   // Reply draft max tokens
   REPLY_MAX_TOKENS: 25,
 } as const;
+
+// Category shortlist LLM constants
+export const CATEGORY_SHORTLIST = {
+  // Max tokens for shortlist LLM response (JSON list of category names — short output)
+  MAX_TOKENS: 512,
+} as const;
+
+// Sentinel category value written to triage-preserved results.
+// Downstream logic uses this to distinguish preserved results from real LLM-assigned categories.
+export const TRIAGE_PRESERVED_CATEGORY = "__TRIAGE_PRESERVED__";
+
+// Explanation strings used when triage determines an email needs no reanalysis.
+export const TRIAGE_PRESERVED_EXPLANATIONS = {
+  URGENCY: "Triage: no reanalysis needed",
+  GOAL_ALIGNMENT: "Triage: no reanalysis needed",
+  CATEGORY: "Triage: existing analysis preserved",
+  REASONING: "Batch triage determined no reanalysis needed",
+} as const;

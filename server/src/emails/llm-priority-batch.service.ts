@@ -265,9 +265,9 @@ export class LLMPriorityBatchService {
         );
         continue;
       }
-      if (llmResult.isFallback) {
+      if (llmResult.isFallback || llmResult.triagePreserved) {
         this.logger.warn(
-          `[Worker ${workerId}] Skipping fallback result for email ${email.id} — preserving existing priority score`,
+          `[Worker ${workerId}] Skipping ${llmResult.triagePreserved ? "triage-preserved" : "fallback"} result for email ${email.id} — preserving existing priority score`,
         );
         continue;
       }
@@ -290,7 +290,11 @@ export class LLMPriorityBatchService {
     }
   }
 
-  buildBatchEmailPayloads(emailsToProcess: Email[]): Array<{
+  buildBatchEmailPayloads(
+    emailsToProcess: Email[],
+    threadMap?: Map<string, EmailThread>,
+    categoryMap?: Map<string, string>,
+  ): Array<{
     emailKey: string;
     from: string;
     fromName?: string;
@@ -298,6 +302,8 @@ export class LLMPriorityBatchService {
     subject: string;
     body: string;
     preComputedSentimentScore?: number;
+    existingUrgencyScore?: number;
+    existingCategory?: string;
   }> {
     return emailsToProcess.map((email) => {
       // For QA-related emails, always use raw body so the categorisation LLM sees
@@ -318,6 +324,10 @@ export class LLMPriorityBatchService {
               email.htmlBody,
               BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
             );
+      const thread =
+        threadMap && email.emailThreadId
+          ? threadMap.get(email.emailThreadId)
+          : undefined;
       return {
         emailKey: email.id,
         from: email.from || "",
@@ -326,8 +336,34 @@ export class LLMPriorityBatchService {
         subject: email.subject || "",
         body: bodyForBatch,
         preComputedSentimentScore: email.sentimentScore ?? undefined,
+        existingUrgencyScore:
+          thread?.urgencyScore !== undefined && thread.urgencyScore !== null
+            ? thread.urgencyScore
+            : undefined,
+        existingCategory:
+          thread?.categoryId && categoryMap
+            ? categoryMap.get(thread.categoryId)
+            : undefined,
       };
     });
+  }
+
+  /** Load a thread map for the given emails so callers can access existing urgency scores. */
+  private async loadThreadMapForEmails(
+    emails: Email[],
+  ): Promise<Map<string, EmailThread>> {
+    const threadIds = [
+      ...new Set(
+        emails.map((email) => email.emailThreadId).filter(Boolean) as string[],
+      ),
+    ];
+    const threads =
+      threadIds.length > 0
+        ? await this.emailThreadRepository.find({
+            where: { id: In(threadIds) },
+          })
+        : [];
+    return new Map(threads.map((thread) => [thread.id, thread]));
   }
 
   async cleanupBatchOnError(
@@ -534,15 +570,58 @@ export class LLMPriorityBatchService {
       return threadIdsToLock;
     }
 
-    const userContext = this.buildUserContext(contexts, protoCategories);
-    const batchEmails = this.buildBatchEmailPayloads(emailsNeedingFullAnalysis);
+    await this.runLlmAnalysisAndApply(
+      workerId,
+      userId,
+      emailsNeedingFullAnalysis,
+      {
+        contexts,
+        protoCategories,
+        tracker,
+      },
+    );
+
+    this.logger.log(
+      `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis`,
+    );
+    tracker.finish();
+    return threadIdsToLock;
+  }
+
+  private async runLlmAnalysisAndApply(
+    workerId: string,
+    userId: string,
+    emailsNeedingFullAnalysis: Email[],
+    opts: {
+      contexts: UserContext[];
+      protoCategories: ProtoCategoryInput;
+      tracker: JobPerformanceTracker;
+    },
+  ): Promise<void> {
+    const { contexts, protoCategories, tracker } = opts;
+    const threadMapForPayload = await this.loadThreadMapForEmails(
+      emailsNeedingFullAnalysis,
+    );
+    const categoryMap = new Map(
+      contexts
+        .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
+        .map((ctx) => {
+          const { name } = parseCategoryValue(ctx.contextValue);
+          return [(ctx as UserContext).contextId, name] as const;
+        }),
+    );
+    const batchEmails = this.buildBatchEmailPayloads(
+      emailsNeedingFullAnalysis,
+      threadMapForPayload,
+      categoryMap,
+    );
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
     const batchResults: Map<string, BatchPriorityResult> =
       await this.priorityAnalysisService.analyzePriorityBatch(
         batchEmails,
-        userContext,
+        this.buildUserContext(contexts, protoCategories),
         undefined,
         userId,
       );
@@ -562,9 +641,6 @@ export class LLMPriorityBatchService {
       userId,
       this.buildPriorityDebugPayloads(emailsNeedingFullAnalysis),
     );
-
-    tracker.finish();
-    return threadIdsToLock;
   }
 
   /**
@@ -589,7 +665,6 @@ export class LLMPriorityBatchService {
     );
     tracker.endPhase("dbUpdate");
 
-    // Re-queue any emails that received fallback results (LLM batch failed for them).
     await this.requeueFallbackEmails(
       workerId,
       userId,

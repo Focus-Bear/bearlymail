@@ -32,6 +32,8 @@ export const PRIORITY_PROMPT_IDS = {
   ANALYZE_PRIORITY: "analyze_priority",
   ANALYZE_PRIORITY_FEEDBACK: "analyze_priority_feedback",
   INCREMENTAL_PRIORITY_CHECK: "incremental_priority_check",
+  CATEGORY_SHORTLIST: "category_shortlist",
+  BATCH_PRIORITY_TRIAGE: "batch_priority_triage",
 } as const;
 
 /**
@@ -195,6 +197,14 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "generate-booking-title.md",
     key: CALENDAR_PROMPT_IDS.GENERATE_BOOKING_TITLE,
+  },
+  {
+    file: "category-shortlist.md",
+    key: PRIORITY_PROMPT_IDS.CATEGORY_SHORTLIST,
+  },
+  {
+    file: "batch-priority-triage.md",
+    key: PRIORITY_PROMPT_IDS.BATCH_PRIORITY_TRIAGE,
   },
 ];
 

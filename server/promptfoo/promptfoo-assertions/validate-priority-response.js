@@ -223,7 +223,7 @@ module.exports = (output, context) => {
     if (context.config.expectProtoCategorySuggestion !== undefined) {
       if (context.config.expectProtoCategorySuggestion === true) {
         // Expect category "Other" with a proto suggestion, OR a non-listed category
-        // gpt-5-mini may assign a relevant custom category instead of "Other"
+        // gpt-5.4-mini may assign a relevant custom category instead of "Other"
         const listedCategories = [];
         if (context.vars && context.vars.emailCategories) {
           const catLines = context.vars.emailCategories.split('\n');
@@ -305,7 +305,7 @@ module.exports = (output, context) => {
         ? context.config.protoCategoryRelevantTo
         : [context.config.protoCategoryRelevantTo];
       
-      // gpt-5-mini may assign a relevant custom category directly instead of "Other" + proto suggestion
+      // gpt-5.4-mini may assign a relevant custom category directly instead of "Other" + proto suggestion
       const nameToCheck = (parsed.protoCategorySuggestion && parsed.protoCategorySuggestion.name)
         ? parsed.protoCategorySuggestion.name
         : parsed.category;

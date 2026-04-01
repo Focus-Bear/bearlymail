@@ -150,6 +150,13 @@ module.exports = {
     // Note: This rule can be noisy, so we configure it carefully
     // Using TypeScript-specific version from @typescript-eslint
     //
+    // ⚠️  COVERAGE: This rule covers ALL numeric literals in service/non-test files,
+    // including object property values (e.g. `maxTokens: 256` in function call args).
+    // `ignoreDefaultValues` only exempts function default parameter initializers
+    // (e.g. `function foo(x = 5) {}`), NOT object literal values.
+    // If a magic number slips through review, replace it with a named constant in
+    // the appropriate constants file (llm-constants.ts, query-limits.ts, etc.).
+    //
     // ⚠️  NOTE ON MAGIC STRINGS: `no-magic-numbers` covers numeric literals
     // only — it does NOT flag inline string literals such as "summarize_email_tldr".
     // ESLint has no built-in "no-magic-strings" rule.  To enforce named constants
@@ -160,6 +167,8 @@ module.exports = {
     '@typescript-eslint/no-magic-numbers': [
       'error',
       {
+        // Only the most common trivially-meaningful numbers are exempted.
+        // Powers-of-two, byte sizes, token counts, timeouts etc. MUST use named constants.
         ignore: [0, 1, -1, 2, 3, 4, 5, 10, 100],
         ignoreArrayIndexes: true,
         ignoreDefaultValues: true,

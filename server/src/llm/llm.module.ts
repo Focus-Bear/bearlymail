@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { UsersModule } from "../users/users.module";
+import { CategoryShortlistService } from "./category-shortlist.service";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
@@ -42,6 +43,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSearchService,
     LLMSummarizationService,
     LLMToneService,
+    CategoryShortlistService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,
@@ -57,6 +59,7 @@ import { TokenUsageService } from "./token-usage.service";
     LLMSearchService,
     LLMSummarizationService,
     LLMToneService,
+    CategoryShortlistService,
     PriorityAnalysisService,
     IncrementalAnalysisService,
     TokenUsageService,

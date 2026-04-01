@@ -111,6 +111,12 @@ export const LLM_OP_RESOLVE_WORKFLOW_VARIABLES = "resolve_workflow_variables";
 // Booking meeting title generation from agenda
 export const LLM_OP_GENERATE_BOOKING_TITLE = "generate_booking_title";
 
+// Category shortlisting: pre-filter full category list to top-N candidates (cheap model)
+export const LLM_OP_CATEGORY_SHORTLIST = "category_shortlist";
+
+// Batch priority triage: lightweight check if category/priority needs reanalysis (cheap model)
+export const LLM_OP_BATCH_PRIORITY_TRIAGE = "batch_priority_triage";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -153,6 +159,8 @@ export type LLMOperation =
   | typeof LLM_OP_COMPRESS_CONTEXT
   | typeof LLM_OP_CHECK_PHISHING_ONLY
   | typeof LLM_OP_GENERATE_BOOKING_TITLE
+  | typeof LLM_OP_CATEGORY_SHORTLIST
+  | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -194,5 +202,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_COMPRESS_CONTEXT]: "Compress Context",
   [LLM_OP_CHECK_PHISHING_ONLY]: "Check Phishing Only",
   [LLM_OP_GENERATE_BOOKING_TITLE]: "Generate Booking Title",
+  [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
+  [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

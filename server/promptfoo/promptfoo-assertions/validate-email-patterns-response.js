@@ -62,7 +62,7 @@ module.exports = (output, context) => {
   const config = context.config || {};
   
   // Check if should have a specific context key (can be string or array of strings)
-  // Case-insensitive matching with common synonym support for gpt-5-mini compatibility
+  // Case-insensitive matching with common synonym support for gpt-5.4-mini compatibility
   const KEY_SYNONYMS = {
     'VIP_CONTACT': ['VIP_CONTACT', 'VIP', 'IMPORTANT_CONTACT', 'KEY_CONTACT'],
     'NOT_IMPORTANT': ['NOT_IMPORTANT', 'LOW_PRIORITY', 'UNIMPORTANT', 'DEPRIORITIZE'],

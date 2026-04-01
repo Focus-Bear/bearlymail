@@ -3,16 +3,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { isValidEmail, parseRecipientString } from 'utils/recipientParser';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { AVATAR_SIZE_SMALL_PX, DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
-
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const extractedEmail = email.match(/<([^>]+)>/)?.[1] || email;
-  return emailRegex.test(extractedEmail.trim());
-};
 
 interface Recipient {
   email: string;
@@ -195,6 +190,16 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                 onSearchQueryChange('');
               }
               onSetActiveField(null);
+            }}
+            onPaste={event => {
+              const raw = event.clipboardData.getData('text');
+              const parsed = parseRecipientString(raw);
+              if (parsed.length > 0) {
+                event.preventDefault();
+                parsed.forEach(recipient => onAddRecipient(recipient, field));
+                onSearchQueryChange('');
+              }
+              // If nothing valid was parsed, fall through to default paste behaviour
             }}
             onKeyDown={event => {
               if ((event.key === KEY_ENTER || event.key === KEY_COMMA) && searchQuery.trim()) {

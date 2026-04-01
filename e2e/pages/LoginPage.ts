@@ -99,7 +99,7 @@ export class LoginPage extends BasePage {
     
     // If successful, wait for navigation to inbox (should be fast)
     try {
-      await this.page.waitForURL('/inbox', { timeout: 5000 });
+      await this.page.waitForURL('**/inbox', { timeout: 5000 });
     } catch (error: any) {
       // Check if we're already on inbox
       const currentUrl = this.page.url();
@@ -112,7 +112,7 @@ export class LoginPage extends BasePage {
 
   async isLoggedIn(): Promise<boolean> {
     try {
-      await this.page.waitForURL('/inbox', { timeout: 2000 });
+      await this.page.waitForURL('**/inbox', { timeout: 2000 });
       return true;
     } catch {
       return false;
@@ -234,7 +234,7 @@ export class LoginPage extends BasePage {
     
     // If successful, wait for navigation to inbox (should be fast)
     try {
-      await this.page.waitForURL('/inbox', { timeout: 5000 });
+      await this.page.waitForURL('**/inbox', { timeout: 5000 });
     } catch (error: any) {
       // Check if we're already on inbox
       const currentUrl = this.page.url();

@@ -10,7 +10,7 @@ export class PriorityTooltip {
 
   constructor(page: Page) {
     this.page = page;
-    this.tooltip = page.locator('[data-priority-tooltip], div:has-text("Priority Score")').first();
+    this.tooltip = page.locator('text=/Priority Score:/i').first();
     this.priorityScoreHeader = this.tooltip.locator('text=/Priority Score:/i');
     this.urgencySection = this.tooltip.locator('text=/🔥.*Urgency/i');
     this.goalAlignmentSection = this.tooltip.locator('text=/🎯.*Goal Alignment/i');

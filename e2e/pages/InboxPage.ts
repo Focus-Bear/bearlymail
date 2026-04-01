@@ -21,13 +21,13 @@ export class InboxPage extends BasePage {
   }
 
   async waitForInboxToLoad(timeout: number = 5000): Promise<void> {
-    // Wait for URL to be /inbox first
-    await this.page.waitForURL('/inbox', { timeout: 3000 }).catch(() => {
-      // If we're already on inbox, that's fine
-      if (!this.page.url().includes('/inbox')) {
-        throw new Error(`Not on inbox page. Current URL: ${this.page.url()}`);
-      }
-    });
+    // Verify we're on /inbox — callers are responsible for navigating here first.
+    // Previously this was a waitForURL('**/inbox', { timeout: 3000 }) that burned
+    // 3 000 ms when the glob didn't match query-param URLs (e.g. /inbox?tab=…),
+    // then the .catch() silently swallowed the timeout.
+    if (!this.page.url().includes('/inbox')) {
+      throw new Error(`Not on inbox page. Current URL: ${this.page.url()}`);
+    }
 
     // Wait for loading to stop OR content to appear (whichever comes first)
     // This is the key - we want to detect when the inbox is ready, not wait for specific content

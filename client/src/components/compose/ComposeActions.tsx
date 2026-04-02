@@ -42,7 +42,7 @@ function SendButtonContent({
   if (checkingTone) {
     return (
       <>
-        <span style={SPINNER_STYLE} />
+        <span style={SPINNER_STYLE} role="status" />
         {t('emailDetail.checkingTone')}
       </>
     );
@@ -50,7 +50,7 @@ function SendButtonContent({
   if (sending) {
     return (
       <>
-        <span style={SPINNER_STYLE} />
+        <span style={SPINNER_STYLE} role="status" />
         {t('compose.sending')}
       </>
     );

@@ -225,6 +225,7 @@ export function useEmailDetailOperations(
   }, [location.state]);
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
+  const toneCheckAbortRef = useRef<AbortController | null>(null);
   const previousIdRef = useRef<string | null>(null);
   const summaryRef = useRef<string | null>(summary);
   const emailRef = useRef<Email | null>(email);
@@ -831,6 +832,13 @@ export function useEmailDetailOperations(
 
       // Skip tone check if using revised text from tone check or dispute was already accepted
       if (!draftOverride && !disputeResult?.accepted) {
+        // Cancel any in-flight tone check before starting a new one
+        if (toneCheckAbortRef.current) {
+          toneCheckAbortRef.current.abort();
+        }
+        const controller = new AbortController();
+        toneCheckAbortRef.current = controller;
+
         setCheckingTone(true);
         try {
           const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
@@ -839,7 +847,7 @@ export function useEmailDetailOperations(
             // Pass the scheduled send time so the server can suppress timing nags when
             // the user has already queued the email for a specific delivery time.
             scheduledSendAt: scheduledSendAt?.toISOString(),
-          });
+          }, { signal: controller.signal });
           setToneCheckResult(toneResponse.data);
 
           if (!toneResponse.data.isOk) {
@@ -847,9 +855,16 @@ export function useEmailDetailOperations(
             return;
           }
         } catch (error) {
+          if (axios.isCancel(error)) {
+            // User cancelled — not an error
+            return;
+          }
           console.error('Error checking tone:', error);
         } finally {
           setCheckingTone(false);
+          if (toneCheckAbortRef.current === controller) {
+            toneCheckAbortRef.current = null;
+          }
         }
       }
 
@@ -944,6 +959,14 @@ export function useEmailDetailOperations(
   // Stable ref so the countdown useEffect never captures a stale handleSendReply
   const handleSendReplyRef = useRef<typeof handleSendReply>(handleSendReply);
   handleSendReplyRef.current = handleSendReply;
+
+  const cancelToneCheck = useCallback(() => {
+    if (toneCheckAbortRef.current) {
+      toneCheckAbortRef.current.abort();
+      toneCheckAbortRef.current = null;
+    }
+    setCheckingTone(false);
+  }, [setCheckingTone]);
 
   const disputeToneCheck = useCallback(
     async (emailText: string, userArgument: string) => {
@@ -1080,6 +1103,7 @@ export function useEmailDetailOperations(
     handleOpenReplyComposer,
     handleGenerateDraft,
     handleSendReply,
+    cancelToneCheck,
     disputeToneCheck,
     cancelAutoSend,
     handleArchive,

@@ -407,7 +407,7 @@ export function useEmailDetailReplies(
     setInitialAttachments, setScheduledSendAt,
     replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt } = composerState;
 
-  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone,
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, cancelToneCheck,
     disputing, disputeResult, disputeToneCheck, clearDisputeResult } = useEmailDetailToneCheck();
 
   const { replyOptions, selectedReplyOption, draft, loadingReplies,
@@ -460,6 +460,6 @@ export function useEmailDetailReplies(
     replyOptions, selectedReplyOption, draft, loadingReplies,
     checkingTone, toneCheckResult, disputing, disputeResult, replyGenerationDebugInfo,
     setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult,
-    handleOpenReplyComposer, handleSendReply, disputeToneCheck, clearDisputeResult,
+    handleOpenReplyComposer, handleSendReply, cancelToneCheck, disputeToneCheck, clearDisputeResult,
   };
 }

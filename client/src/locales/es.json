@@ -2702,5 +2702,9 @@
       "promoApplied": "Código promocional aplicado correctamente.",
       "promoError": "No se pudo aplicar el código promocional. Verifica el código e intenta de nuevo."
     }
+  },
+  "toneCheck": {
+    "toastChecking": "Verificando tono antes de enviar",
+    "cancelSend": "Cancelar envío"
   }
 }

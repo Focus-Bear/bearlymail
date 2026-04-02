@@ -26,6 +26,7 @@ export function useEmailDetailToneCheck() {
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<DisputeResult | null>(null);
   const timezoneRef = useRef<string | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     axios
@@ -38,7 +39,22 @@ export function useEmailDetailToneCheck() {
       });
   }, []);
 
+  const cancelToneCheck = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setCheckingTone(false);
+  }, []);
+
   const checkTone = useCallback(async (draft: string, scheduledSendAt?: string | null): Promise<boolean> => {
+    // Cancel any in-flight tone check before starting a new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setCheckingTone(true);
     setDisputeResult(null);
     try {
@@ -47,7 +63,8 @@ export function useEmailDetailToneCheck() {
         text: draft,
         currentTime,
         scheduledSendAt: scheduledSendAt ?? null,
-      });
+      }, { signal: controller.signal });
+
       setToneCheckResult(toneResponse.data);
 
       if (!toneResponse.data.isOk) {
@@ -56,10 +73,17 @@ export function useEmailDetailToneCheck() {
       }
       return true;
     } catch (error) {
+      if (axios.isCancel(error)) {
+        // User cancelled — not an error
+        return false;
+      }
       console.error('Error checking tone:', error);
       return false;
     } finally {
       setCheckingTone(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   }, []);
 
@@ -96,6 +120,7 @@ export function useEmailDetailToneCheck() {
     toneCheckResult,
     setToneCheckResult,
     checkTone,
+    cancelToneCheck,
     disputing,
     disputeResult,
     disputeToneCheck,

@@ -2699,5 +2699,9 @@
       "promoApplied": "Promo code applied successfully.",
       "promoError": "Failed to apply promo code. Please check the code and try again."
     }
+  },
+  "toneCheck": {
+    "toastChecking": "Checking tone before sending",
+    "cancelSend": "Cancel send"
   }
 }

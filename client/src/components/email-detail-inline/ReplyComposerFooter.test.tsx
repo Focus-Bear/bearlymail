@@ -149,6 +149,30 @@ describe('ReplyComposerFooter', () => {
       expect(sendButton).toBeDisabled();
     });
 
+    it('shows "Checking tone…" label and disables Send button while checkingTone', () => {
+      render(<ReplyComposerFooter {...defaultProps} checkingTone />);
+
+      // Button text changes to the checkingTone i18n key
+      const sendButton = screen.getByText('emailDetail.checkingTone');
+      expect(sendButton).toBeDisabled();
+    });
+
+    it('renders InlineSpinner inside Send button while checkingTone', () => {
+      render(<ReplyComposerFooter {...defaultProps} checkingTone />);
+
+      // InlineSpinner renders with data-testid="inline-spinner" inside the button
+      const sendButton = screen.getByRole('button', { name: /emailDetail\.checkingTone/ });
+      const spinner = within(sendButton).getByTestId('inline-spinner');
+      expect(spinner).toBeInTheDocument();
+    });
+
+    it('disables Cancel button while checkingTone', () => {
+      render(<ReplyComposerFooter {...defaultProps} checkingTone />);
+
+      const cancelButton = screen.getByText('common.cancel');
+      expect(cancelButton).toBeDisabled();
+    });
+
     it('does not fire onSend when disabled', () => {
       render(<ReplyComposerFooter {...defaultProps} draft={null} />);
 

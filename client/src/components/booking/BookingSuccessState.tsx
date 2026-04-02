@@ -63,11 +63,19 @@ export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestE
             style={{
               marginTop: theme.spacing.lg,
               padding: theme.spacing.md,
-              backgroundColor: theme.colors.primary.light,
+              backgroundColor: theme.colors.primary.subtle,
               borderRadius: theme.borderRadius.md,
+              border: `1px solid ${theme.colors.border.medium}`,
             }}
           >
-            <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.sm, fontSize: theme.typography.fontSize.sm }}>
+            <p
+              style={{
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.sm,
+                fontSize: theme.typography.fontSize.sm,
+                marginTop: 0,
+              }}
+            >
               {t('booking.meetLink', 'Video call link:')}
             </p>
             <a
@@ -76,9 +84,11 @@ export const BookingSuccessState: React.FC<BookingSuccessStateProps> = ({ guestE
               rel="noopener noreferrer"
               aria-label={t('booking.joinMeetingAriaLabel', 'Join video call via Google Meet')}
               style={{
-                color: theme.colors.primary.main,
+                color: theme.colors.text.primary,
                 fontWeight: theme.typography.fontWeight.semibold,
                 wordBreak: 'break-all',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
               }}
             >
               {meetLink}

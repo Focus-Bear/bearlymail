@@ -9,6 +9,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsService } from "../emails/emails.service";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { LLMService } from "../llm/llm.service";
 import {
   SchedulingPreferenceData,
@@ -52,6 +53,7 @@ export class CalendarService {
 
   constructor(
     public usersService: UsersService,
+    public googleAccountsService: GoogleAccountsService,
     public llmService: LLMService,
     public emailsService: EmailsService,
     public schedulingPreferencesService: SchedulingPreferencesService,
@@ -81,6 +83,38 @@ export class CalendarService {
       refresh_token: user.googleCalendarRefreshToken,
     });
     return client;
+  }
+
+  /**
+   * Public booking URLs use `/book/:id` where `id` should be `users.id`. Some clients
+   * accidentally used `google_accounts.id` (also a UUID). Resolve either to `users.id`.
+   */
+  async resolvePublicBookingHostUserId(rawId: string): Promise<string> {
+    if (await this.usersService.hasUser(rawId)) {
+      return rawId;
+    }
+    const viaGoogleAccount =
+      await this.googleAccountsService.findOwnerUserIdByGoogleAccountId(rawId);
+    if (viaGoogleAccount) {
+      return viaGoogleAccount;
+    }
+    throw new Error("User not found");
+  }
+
+  /** True when the signed-in user is the host for this public booking URL param. */
+  async isSameBookingHost(
+    sessionUserId: string,
+    urlParamId: string,
+  ): Promise<boolean> {
+    if (sessionUserId === urlParamId) {
+      return true;
+    }
+    try {
+      const resolved = await this.resolvePublicBookingHostUserId(urlParamId);
+      return resolved === sessionUserId;
+    } catch {
+      return false;
+    }
   }
 
   async getAvailableTimeSlots(
@@ -168,13 +202,19 @@ export class CalendarService {
     limit: number = 8,
     afterDate?: Date,
   ): Promise<TimeSlotsWithTimezone> {
+    const resolvedUserId = await this.resolvePublicBookingHostUserId(userId);
     const prefs =
-      await this.schedulingPreferencesService.getPreferences(userId);
+      await this.schedulingPreferencesService.getPreferences(resolvedUserId);
     // Pass limit+1 to detect hasMore without fetching unlimited slots
-    const slots = await this.getAvailableTimeSlots(userId, daysAhead, prefs, {
-      limit: limit + 1,
-      afterDate,
-    });
+    const slots = await this.getAvailableTimeSlots(
+      resolvedUserId,
+      daysAhead,
+      prefs,
+      {
+        limit: limit + 1,
+        afterDate,
+      },
+    );
     const hasMore = slots.length > limit;
     const paginatedSlots = slots.slice(0, limit);
     return {

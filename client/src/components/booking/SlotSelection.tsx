@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_SELECTED } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 
@@ -105,7 +105,9 @@ const DaySlotGroup: React.FC<DaySlotGroupProps> = ({ dayKey, daySlots, selectedS
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        // Two columns keeps small day groups (e.g. 4 slots) in a balanced grid
+        // instead of 3+1 orphans in a narrow booking column (~260–300px).
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         gap: theme.spacing.sm,
       }}
     >
@@ -130,18 +132,24 @@ interface LoadMoreButtonProps {
 
 const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({ onLoadMore, loadingMore, t }) => (
   <button
+    type="button"
     onClick={onLoadMore}
     disabled={loadingMore}
     style={{
-      padding: theme.spacing.md,
-      border: `1px solid ${theme.colors.border.medium}`,
-      backgroundColor: COLOR_NAMED_WHITE,
-      borderRadius: theme.borderRadius.md,
+      padding: `${theme.spacing.sm} 0`,
+      border: 'none',
+      backgroundColor: COLOR_TRANSPARENT,
+      borderRadius: theme.borderRadius.sm,
       cursor: loadingMore ? 'not-allowed' : 'pointer',
-      color: theme.colors.primary.main,
+      color: theme.colors.secondary.main,
       fontWeight: theme.typography.fontWeight.medium,
+      fontSize: theme.typography.fontSize.sm,
       marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
       opacity: loadingMore ? OPACITY_DISABLED : 1,
+      textDecoration: 'underline',
+      textUnderlineOffset: '3px',
+      textAlign: 'left',
     }}
   >
     {loadingMore ? t('booking.loadingMore') : t('booking.loadMoreDates')}
@@ -181,7 +189,7 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
   }, [slots]);
 
   return (
-    <div style={{ flex: 1, minWidth: '300px' }}>
+    <div style={{ flex: 1, minWidth: '300px', marginBottom: theme.spacing.xl }}>
       <h2
         style={{
           fontSize: theme.typography.fontSize.lg,

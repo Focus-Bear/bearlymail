@@ -4,6 +4,7 @@ import { google } from "googleapis";
 
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsService } from "../emails/emails.service";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { LLMService } from "../llm/llm.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { mockPartial } from "../test/helpers/mock-utils";
@@ -95,6 +96,13 @@ describe("CalendarService", () => {
           provide: UsersService,
           useValue: {
             findOne: jest.fn(),
+            hasUser: jest.fn(),
+          },
+        },
+        {
+          provide: GoogleAccountsService,
+          useValue: {
+            findOwnerUserIdByGoogleAccountId: jest.fn().mockResolvedValue(null),
           },
         },
         {
@@ -148,6 +156,9 @@ describe("CalendarService", () => {
     emailsService = module.get(EmailsService);
     calendarIcsService = module.get(CalendarIcsService);
     jest.clearAllMocks();
+    usersService.hasUser.mockImplementation((id: string) =>
+      Promise.resolve(id === "user-1"),
+    );
   });
 
   describe("getAvailableTimeSlots", () => {
@@ -893,6 +904,36 @@ describe("CalendarService", () => {
       expect(Array.isArray(result.slots)).toBe(true);
       expect(typeof result.timezone).toBe("string");
       expect(typeof result.hasMore).toBe("boolean");
+    });
+
+    it("should treat :userId as google_accounts.id when it is not users.id", async () => {
+      usersService.findOne.mockImplementation((id: string) =>
+        id === "user-1" ? Promise.resolve(mockUser) : Promise.resolve(null),
+      );
+      jest
+        .spyOn(
+          service.googleAccountsService,
+          "findOwnerUserIdByGoogleAccountId",
+        )
+        .mockResolvedValue("user-1");
+
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      await service.getAvailableSlotsWithTimezone("acc-google-uuid");
+
+      expect(usersService.hasUser).toHaveBeenCalledWith("acc-google-uuid");
+      expect(
+        service.googleAccountsService.findOwnerUserIdByGoogleAccountId,
+      ).toHaveBeenCalledWith("acc-google-uuid");
+      expect(usersService.findOne).toHaveBeenCalledWith("user-1");
     });
 
     it("should use UTC as default timezone", async () => {

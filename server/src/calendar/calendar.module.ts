@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "../auth/auth.module";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { EmailsModule } from "../emails/emails.module";
+import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { LLMModule } from "../llm/llm.module";
 import { SchedulingPreferencesModule } from "../scheduling-preferences/scheduling-preferences.module";
 import { UsersModule } from "../users/users.module";
@@ -18,6 +19,7 @@ import { PublicCalendarController } from "./public-calendar.controller";
     AuthModule,
     TypeOrmModule.forFeature([CalendarBooking]),
     UsersModule,
+    GoogleAccountsModule,
     LLMModule,
     EmailsModule,
     SchedulingPreferencesModule,

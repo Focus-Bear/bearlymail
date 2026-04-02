@@ -32,6 +32,32 @@ export class PublicCalendarController {
 
   constructor(private readonly calendarService: CalendarService) {}
 
+  /** Static `booking/*` routes must be registered before `:userId/*` (Nest route order). */
+  @Get("booking/:bookingToken")
+  async getBooking(@Param("bookingToken") bookingToken: string) {
+    return this.calendarService.getBookingByToken(bookingToken);
+  }
+
+  @Post("booking/:bookingToken/reschedule")
+  async rescheduleBooking(
+    @Param("bookingToken") bookingToken: string,
+    @Body() body: { newStartTime: string },
+  ) {
+    if (!body.newStartTime) {
+      throw new BadRequestException("New start time is required");
+    }
+
+    return this.calendarService.rescheduleBooking(
+      bookingToken,
+      body.newStartTime,
+    );
+  }
+
+  @Post("booking/:bookingToken/cancel")
+  async cancelBooking(@Param("bookingToken") bookingToken: string) {
+    return this.calendarService.cancelBooking(bookingToken);
+  }
+
   @Get(":userId/slots")
   @UseGuards(OptionalJwtAuthGuard)
   async getPublicSlots(
@@ -63,7 +89,9 @@ export class PublicCalendarController {
       this.logger.warn(
         `Public calendar slots unavailable for user ${userId}: ${message}`,
       );
-      const isPageOwner = req.user?.userId === userId;
+      const isPageOwner = req.user
+        ? await this.calendarService.isSameBookingHost(req.user.userId, userId)
+        : false;
       if (isPageOwner) {
         if (message.includes("User not found")) {
           this.logger.warn(
@@ -150,8 +178,20 @@ export class PublicCalendarController {
       ? body.agenda.replace(/<[^>]*>/g, "").trim()
       : undefined;
 
+    let hostUserId: string;
+    try {
+      hostUserId =
+        await this.calendarService.resolvePublicBookingHostUserId(userId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("User not found")) {
+        throw new NotFoundException("User not found");
+      }
+      throw err;
+    }
+
     return this.calendarService.bookSlotWithAgenda({
-      userId,
+      userId: hostUserId,
       startTime: body.startTime,
       durationMinutes: body.duration || MINUTES.THIRTY,
       guestEmail: body.guestEmail,
@@ -159,30 +199,5 @@ export class PublicCalendarController {
       additionalGuests,
       agenda: sanitisedAgenda,
     });
-  }
-
-  @Get("booking/:bookingToken")
-  async getBooking(@Param("bookingToken") bookingToken: string) {
-    return this.calendarService.getBookingByToken(bookingToken);
-  }
-
-  @Post("booking/:bookingToken/reschedule")
-  async rescheduleBooking(
-    @Param("bookingToken") bookingToken: string,
-    @Body() body: { newStartTime: string },
-  ) {
-    if (!body.newStartTime) {
-      throw new BadRequestException("New start time is required");
-    }
-
-    return this.calendarService.rescheduleBooking(
-      bookingToken,
-      body.newStartTime,
-    );
-  }
-
-  @Post("booking/:bookingToken/cancel")
-  async cancelBooking(@Param("bookingToken") bookingToken: string) {
-    return this.calendarService.cancelBooking(bookingToken);
   }
 }

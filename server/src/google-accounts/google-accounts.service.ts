@@ -84,6 +84,21 @@ export class GoogleAccountsService {
     });
   }
 
+  /**
+   * Looks up `google_accounts.id` and returns the owning BearlyMail user id.
+   * Used by public booking links when the URL mistakenly used a linked Gmail
+   * account UUID instead of `users.id` (both are UUIDs, so the client cannot tell).
+   */
+  async findOwnerUserIdByGoogleAccountId(
+    googleAccountId: string,
+  ): Promise<string | null> {
+    const row = await this.googleAccountRepository.findOne({
+      where: { id: googleAccountId, isActive: true },
+      select: ["userId"],
+    });
+    return row?.userId ?? null;
+  }
+
   async updateTokens(
     id: string,
     userId: string,

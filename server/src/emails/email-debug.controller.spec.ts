@@ -5,6 +5,7 @@ import { UsersService } from "../users/users.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugController } from "./email-debug.controller";
 import { EmailsService } from "./emails.service";
+import { GmailSyncService } from "./providers/gmail-sync.service";
 
 describe("EmailDebugController", () => {
   let controller: EmailDebugController;
@@ -44,6 +45,10 @@ describe("EmailDebugController", () => {
     findOneWithTokens: jest.fn().mockResolvedValue(null),
   };
 
+  const mockGmailSyncService = {
+    refreshAttachmentsFromGmail: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailDebugController],
@@ -67,6 +72,10 @@ describe("EmailDebugController", () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: GmailSyncService,
+          useValue: mockGmailSyncService,
         },
       ],
     }).compile();

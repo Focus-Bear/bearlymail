@@ -18,6 +18,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
+import { GmailSyncService } from "./providers/gmail-sync.service";
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard, AdminGuard)
@@ -27,6 +28,7 @@ export class EmailDebugController {
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailAdminService: EmailAdminService,
+    private readonly gmailSyncService: GmailSyncService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
@@ -130,6 +132,14 @@ export class EmailDebugController {
   @Get(":id/debug/category")
   async getCategoryDebugData(@Request() req, @Param("id") id: string) {
     return this.emailsService.getCategoryDebugData(req.user.userId, id);
+  }
+
+  @Post(":id/debug/refresh-attachments-from-gmail")
+  async refreshAttachmentsFromGmail(@Request() req, @Param("id") id: string) {
+    return this.gmailSyncService.refreshAttachmentsFromGmail(
+      req.user.userId,
+      id,
+    );
   }
 
   @Get("admin/job-stats")

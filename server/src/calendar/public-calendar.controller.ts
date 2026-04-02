@@ -7,13 +7,20 @@ import {
   NotFoundException,
   Param,
   Post,
-  Query,
+  Req,
   ServiceUnavailableException,
+  UseGuards,
 } from "@nestjs/common";
+import type { Request } from "express";
 
+import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { MAX_ADDITIONAL_GUESTS } from "../constants/booking-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
+
+interface PublicCalendarRequest extends Request {
+  user?: { userId: string; email?: string };
+}
 
 const DEFAULT_SLOTS_LIMIT = 8;
 const MAX_SLOTS_LIMIT = 50;
@@ -26,13 +33,15 @@ export class PublicCalendarController {
   constructor(private readonly calendarService: CalendarService) {}
 
   @Get(":userId/slots")
+  @UseGuards(OptionalJwtAuthGuard)
   async getPublicSlots(
     @Param("userId") userId: string,
-    @Query("daysAhead") daysAhead?: string,
-    @Query("offset") offset?: string,
-    @Query("limit") limit?: string,
-    @Query("afterDate") afterDate?: string,
+    @Req() req: PublicCalendarRequest,
   ) {
+    const { daysAhead, offset, limit, afterDate } = req.query as Record<
+      string,
+      string | undefined
+    >;
     // Search a 14-day window from afterDate (or now). A 14-day window is enough
     // to find 8 slots for most users without over-fetching calendar data.
     const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.WEEK * 2;
@@ -54,6 +63,16 @@ export class PublicCalendarController {
       this.logger.warn(
         `Public calendar slots unavailable for user ${userId}: ${message}`,
       );
+      const isPageOwner = req.user?.userId === userId;
+      if (isPageOwner) {
+        if (message.includes("User not found")) {
+          this.logger.warn(
+            `Public calendar slots: user_not_found for userId=${userId}`,
+          );
+          throw new NotFoundException("User not found");
+        }
+        throw new ServiceUnavailableException(message);
+      }
       if (message.includes("User not found")) {
         this.logger.warn(
           `Public calendar slots: user_not_found for userId=${userId}`,

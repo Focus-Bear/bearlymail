@@ -683,7 +683,16 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           extractCleanBodyWithMeta={ops.extractCleanBodyWithMeta}
         />
       </div>
-      {user?.isAdmin && st.email && <EmailDetailDebugInfo email={st.email} threadEmails={st.threadEmails} />}
+      {user?.isAdmin && st.email && (
+        <EmailDetailDebugInfo
+          email={st.email}
+          threadEmails={st.threadEmails}
+          onAttachmentsSynced={async () => {
+            await ops.fetchEmail();
+            await ops.fetchThreadEmails();
+          }}
+        />
+      )}
       <ToneCheckToast visible={st.checkingTone} onCancel={ops.cancelToneCheck} />
     </>
   );

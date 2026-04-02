@@ -32,8 +32,9 @@ import {
   getExistingThreadUpdates,
   isGmailAuthError,
   isThreadStarred,
-  verifyThreadStatusesInGmail,
 } from "./gmail/gmail-sync";
+import { refreshAttachmentsFromGmailForUser } from "./gmail-sync.refresh-attachments";
+import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
 const GMAIL_INBOX_QUERY =
@@ -656,50 +657,11 @@ export class GmailSyncService {
   async verifyInboxStatus(userId: string): Promise<void> {
     const gmail = await this.gmailProvider.createGmailClientPublic(userId);
     if (!gmail) return;
-
-    const allThreadIds =
-      await this.emailsService.getAllNonArchivedThreadIds(userId);
-    if (allThreadIds.length === 0) return;
-
-    this.logger.log(
-      `[VerifyInbox] Checking ${allThreadIds.length} non-archived threads for user ${userId}`,
-    );
-
-    const updates = await verifyThreadStatusesInGmail(
+    await verifyInboxStatusForUser(
       userId,
-      allThreadIds,
       gmail,
-    );
-
-    if (updates.length === 0) return;
-
-    const starUpdates = updates.filter((upd) => upd.starCount !== undefined);
-    const archiveUpdates = updates.filter(
-      (upd) => upd.isArchived !== undefined,
-    );
-
-    if (starUpdates.length > 0) {
-      await this.emailsService.batchUpdateThreadStarCount(
-        userId,
-        starUpdates.map((upd) => ({
-          threadId: upd.threadId,
-          starCount: upd.starCount,
-        })),
-      );
-    }
-    if (archiveUpdates.length > 0) {
-      await this.emailsService.batchUpdateThreadArchivedStatuses(
-        userId,
-        archiveUpdates.map((upd) => ({
-          threadId: upd.threadId,
-          isArchived: upd.isArchived,
-        })),
-      );
-    }
-
-    const archivedCount = updates.filter((upd) => upd.isArchived).length;
-    this.logger.log(
-      `[VerifyInbox] Done for user ${userId}: ${updates.length} checked, ${archivedCount} newly archived`,
+      this.emailsService,
+      this.logger,
     );
   }
 
@@ -761,6 +723,24 @@ export class GmailSyncService {
         await this.usersService.update(userId, { needsRelogin: true });
       throw error;
     }
+  }
+
+  async refreshAttachmentsFromGmail(
+    userId: string,
+    emailId: string,
+  ): Promise<{
+    gmailMessageId: string;
+    attachments: EmailAttachment[] | null;
+  }> {
+    return refreshAttachmentsFromGmailForUser(
+      {
+        emailsService: this.emailsService,
+        gmailProvider: this.gmailProvider,
+        logger: this.logger,
+      },
+      userId,
+      emailId,
+    );
   }
 
   async processScanEmail(userId: string, messageId: string): Promise<void> {

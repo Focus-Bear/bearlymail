@@ -5,7 +5,17 @@ import { theme } from 'theme/theme';
 import { MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import { STRING_AUTO, STRING_HIDDEN, STRING_WHITE } from 'constants/strings';
 
-export const BookingErrorState: React.FC = () => {
+export interface BookingErrorStateProps {
+  /** Signed-in host viewing their own `/book/:userId` — show API detail instead of guest copy */
+  showHostDiagnostic?: boolean;
+  /** Error text from the server (only used when showHostDiagnostic) */
+  hostDiagnosticText?: string;
+}
+
+export const BookingErrorState: React.FC<BookingErrorStateProps> = ({
+  showHostDiagnostic = false,
+  hostDiagnosticText,
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -58,16 +68,50 @@ export const BookingErrorState: React.FC = () => {
               marginBottom: theme.spacing.md,
             }}
           >
-            {t('booking.error.headline')}
+            {showHostDiagnostic
+              ? t('booking.error.hostHeadline')
+              : t('booking.error.headline')}
           </h2>
-          <p
-            style={{
-              color: theme.colors.text?.secondary ?? theme.colors.primary.main,
-              lineHeight: 1.6,
-            }}
-          >
-            {t('booking.error.detail')}
-          </p>
+          {showHostDiagnostic ? (
+            <>
+              <p
+                style={{
+                  color: theme.colors.text?.secondary ?? theme.colors.primary.main,
+                  lineHeight: 1.6,
+                  marginBottom: theme.spacing.md,
+                }}
+              >
+                {t('booking.error.hostHint')}
+              </p>
+              <pre
+                style={{
+                  textAlign: 'left',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  fontFamily: 'monospace',
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.subtle,
+                  padding: theme.spacing.md,
+                  borderRadius: theme.borderRadius.md,
+                  margin: 0,
+                }}
+              >
+                {hostDiagnosticText?.trim()
+                  ? hostDiagnosticText
+                  : t('booking.error.ownerFallback')}
+              </pre>
+            </>
+          ) : (
+            <p
+              style={{
+                color: theme.colors.text?.secondary ?? theme.colors.primary.main,
+                lineHeight: 1.6,
+              }}
+            >
+              {t('booking.error.detail')}
+            </p>
+          )}
         </div>
       </div>
     </div>

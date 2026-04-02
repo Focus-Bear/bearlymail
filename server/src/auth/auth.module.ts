@@ -16,6 +16,7 @@ import { AuthService } from "./auth.service";
 import { GmailRequiredGuard } from "./gmail-required.guard";
 import { GoogleStrategy } from "./google.strategy";
 import { JwtStrategy } from "./jwt.strategy";
+import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 import { LocalStrategy } from "./local.strategy";
 import { MicrosoftStrategy } from "./microsoft.strategy";
 import { ZohoStrategy } from "./zoho.strategy";
@@ -48,8 +49,16 @@ import { ZohoStrategy } from "./zoho.strategy";
     ZohoStrategy,
     AdminGuard,
     GmailRequiredGuard,
+    OptionalJwtAuthGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService, AdminGuard, GmailRequiredGuard],
+  exports: [
+    AuthService,
+    AdminGuard,
+    GmailRequiredGuard,
+    PassportModule,
+    JwtModule,
+    OptionalJwtAuthGuard,
+  ],
 })
 export class AuthModule {}

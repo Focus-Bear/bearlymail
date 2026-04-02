@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getAxiosResponseErrorMessage } from 'utils/axios-error-message';
 
 import { BookingErrorState } from 'components/booking/BookingErrorState';
 import { BookingForm } from 'components/booking/BookingForm';
@@ -21,6 +22,7 @@ import {
   STRING_HIDDEN,
   STRING_WHITE,
 } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 
 const MAX_ADDITIONAL_GUESTS = 10;
 
@@ -38,6 +40,7 @@ const DAYS_AHEAD_LOAD_MORE = 90;
 const BookingPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [timezone, setTimezone] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -84,12 +87,18 @@ const BookingPage: React.FC = () => {
       setSlotOffset(currentOffset + currentLimit);
     } catch (error) {
       console.error('Error fetching slots:', error);
-      setError(t('booking.failedToLoad'));
+      const isHostView = Boolean(userId && user?.id && user.id === userId);
+      const serverMessage = getAxiosResponseErrorMessage(error);
+      if (isHostView) {
+        setError(serverMessage ?? t('booking.error.ownerFallback'));
+      } else {
+        setError(t('booking.failedToLoad'));
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [userId, t]);
+  }, [userId, user?.id, t]);
 
   useEffect(() => {
     if (userId) {
@@ -132,7 +141,13 @@ const BookingPage: React.FC = () => {
     } catch (error) {
       console.error('Error booking slot:', error);
       setBookingStatus(BOOKING_ERROR);
-      setError(t('booking.failedToBook'));
+      const isHostView = Boolean(userId && user?.id && user.id === userId);
+      const serverMessage = getAxiosResponseErrorMessage(error);
+      if (isHostView && serverMessage) {
+        setError(serverMessage);
+      } else {
+        setError(t('booking.failedToBook'));
+      }
     }
   };
 
@@ -141,7 +156,13 @@ const BookingPage: React.FC = () => {
   }
 
   if (error && slots.length === 0) {
-    return <BookingErrorState />;
+    const isHostView = Boolean(userId && user?.id && user.id === userId);
+    return (
+      <BookingErrorState
+        showHostDiagnostic={isHostView}
+        hostDiagnosticText={isHostView ? error : undefined}
+      />
+    );
   }
 
   if (bookingStatus === BOOKING_STATUS_SUCCESS) {

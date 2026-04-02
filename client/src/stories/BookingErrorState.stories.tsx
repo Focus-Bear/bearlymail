@@ -20,7 +20,7 @@ const meta: Meta<typeof BookingErrorState> = {
     docs: {
       description: {
         component:
-          'Generic error screen shown to guests when a calendar booking link is unavailable (e.g. expired auth token, calendar not connected, or user not found). Intentionally shows no internal reason codes — privacy fix for #1465.',
+          'Guests see a generic message when loading fails (#1465). When the signed-in user is the host (same user id as `/book/:userId`), the server returns a detailed error and this screen shows it.',
       },
     },
     layout: 'fullscreen',
@@ -42,4 +42,17 @@ export const Default: Story = {
     </I18nextProvider>
   ),
   name: 'Default (generic error — no internal reason codes)',
+};
+
+/** Host previewing their own link while signed in — shows API detail (example). */
+export const HostDiagnostic: Story = {
+  render: () => (
+    <I18nextProvider i18n={i18n}>
+      <BookingErrorState
+        showHostDiagnostic
+        hostDiagnosticText="Google Calendar not connected for this account. Reconnect in Settings."
+      />
+    </I18nextProvider>
+  ),
+  name: 'Host diagnostic (signed-in owner only)',
 };

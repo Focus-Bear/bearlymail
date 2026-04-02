@@ -1877,7 +1877,10 @@
     },
     "error": {
       "headline": "Something went wrong",
-      "detail": "We're unable to load this booking page right now. Please contact the person who sent you this booking link."
+      "detail": "We're unable to load this booking page right now. Please contact the person who sent you this booking link.",
+      "hostHeadline": "Unable to load your availability",
+      "hostHint": "You are signed in as the host. Only you see this message; guests still get a generic error.",
+      "ownerFallback": "Could not load time slots. Check Scheduling in Settings and your Google Calendar connection."
     }
   },
   "consent": {
@@ -2038,6 +2041,9 @@
       "isArchived": "Is Archived",
       "starCount": "Star Count",
       "attachments": "Attachments (stored)",
+      "refreshAttachmentsFromGmail": "Refresh from Gmail",
+      "refreshingAttachments": "Checking Gmail…",
+      "refreshAttachmentsFailed": "Could not refresh attachments from Gmail.",
       "attachmentsNone": "none",
       "notAvailable": "N/A",
       "threadEmails": "Thread Emails ({{count}})",

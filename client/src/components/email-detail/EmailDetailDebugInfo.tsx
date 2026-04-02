@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { getAxiosResponseErrorMessage } from 'utils/axios-error-message';
+
+import { API_URL } from 'config/api';
+
+/** Opacity for controls in a non-interactive (loading) state */
+const DISABLED_CONTROL_OPACITY = 0.7;
 
 interface Props {
   email: any;
   threadEmails: Email[];
+  /** Re-load email + thread after Gmail attachment metadata is synced */
+  onAttachmentsSynced?: () => Promise<void>;
 }
 
 function formatStoredAttachmentsSummary(att: unknown, noneLabel: string): string {
@@ -39,7 +48,7 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
       {threadEmails.map((threadEmail, idx) => {
         const threadEmailData = threadEmail as any;
         return (
-          <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+          <div key={threadEmail.id} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
             {t('debug.emailDetail.threadEmailItem', {
               idx,
               messageId: threadEmailData.messageId || t('debug.emailDetail.notAvailable'),
@@ -55,10 +64,32 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
 };
 
 /** Admin-only debug information panel shown in email detail view. */
-export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
+export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced }: Props) {
   const { t } = useTranslation();
   const emailData = email as any;
   const attachmentsNone = t('debug.emailDetail.attachmentsNone');
+  const [refreshingAttachments, setRefreshingAttachments] = useState(false);
+
+  const handleRefreshAttachmentsFromGmail = async () => {
+    if (!emailData?.id || refreshingAttachments) {
+      return;
+    }
+    setRefreshingAttachments(true);
+    try {
+      await axios.post(
+        `${API_URL}/emails/${emailData.id}/debug/refresh-attachments-from-gmail`,
+      );
+      await onAttachmentsSynced?.();
+    } catch (err) {
+      console.error('refreshAttachmentsFromGmail:', err);
+      const msg =
+        getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.refreshAttachmentsFailed');
+      alert(msg);
+    } finally {
+      setRefreshingAttachments(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -105,6 +136,7 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
           </code>
           {emailData.threadId && (
             <button
+              type="button"
               onClick={() => {
                 navigator.clipboard.writeText(emailData.threadId);
                 alert(t('debug.emailDetail.threadIdCopied'));
@@ -147,9 +179,32 @@ export function EmailDetailDebugInfo({ email, threadEmails }: Props) {
         <div>
           <strong>{t('debug.emailDetail.starCount')}:</strong> {emailData.starCount || 0}
         </div>
-        <div>
-          <strong>{t('debug.emailDetail.attachments')}:</strong>{' '}
-          {formatStoredAttachmentsSummary(emailData.attachments, attachmentsNone)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+          <span>
+            <strong>{t('debug.emailDetail.attachments')}:</strong>{' '}
+            {formatStoredAttachmentsSummary(emailData.attachments, attachmentsNone)}
+          </span>
+          {emailData.messageId && (
+            <button
+              type="button"
+              disabled={refreshingAttachments}
+              onClick={() => void handleRefreshAttachmentsFromGmail()}
+              style={{
+                padding: '2px 8px',
+                fontSize: '11px',
+                backgroundColor: theme.colors.background.paper,
+                color: theme.colors.text.primary,
+                border: `1px solid ${theme.colors.border.light}`,
+                borderRadius: '4px',
+                cursor: refreshingAttachments ? 'not-allowed' : 'pointer',
+                opacity: refreshingAttachments ? DISABLED_CONTROL_OPACITY : 1,
+              }}
+            >
+              {refreshingAttachments
+                ? t('debug.emailDetail.refreshingAttachments')
+                : t('debug.emailDetail.refreshAttachmentsFromGmail')}
+            </button>
+          )}
         </div>
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
       </div>

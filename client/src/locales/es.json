@@ -354,7 +354,10 @@
     },
     "error": {
       "headline": "Algo salió mal",
-      "detail": "No podemos cargar esta página de reservas en este momento. Por favor, contacta a la persona que te envió este enlace de reserva."
+      "detail": "No podemos cargar esta página de reservas en este momento. Por favor, contacta a la persona que te envió este enlace de reserva.",
+      "hostHeadline": "No se pudo cargar tu disponibilidad",
+      "hostHint": "Has iniciado sesión como anfitrión. Solo tú ves este mensaje; los invitados siguen viendo un error genérico.",
+      "ownerFallback": "No se pudieron cargar los horarios. Revisa Programación en Ajustes y tu conexión con Google Calendar."
     }
   },
   "calendar": {
@@ -601,6 +604,9 @@
       "isArchived": "Archivado",
       "starCount": "Número de estrellas",
       "attachments": "Adjuntos (almacenados)",
+      "refreshAttachmentsFromGmail": "Actualizar desde Gmail",
+      "refreshingAttachments": "Consultando Gmail…",
+      "refreshAttachmentsFailed": "No se pudieron actualizar los adjuntos desde Gmail.",
       "attachmentsNone": "ninguno",
       "notAvailable": "N/D",
       "threadEmails": "Correos del hilo ({{count}})",

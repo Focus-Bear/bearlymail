@@ -36,6 +36,19 @@ type PriorityExplanationResult = {
   breakdown: Array<{ factor: string; value: number; description: string }>;
 };
 
+/** Shape stored on EmailThread.priorityExplanation (may arrive as JSON string from DB edge cases). */
+type PriorityExplanationPayload = {
+  score: number;
+  dimensions?: {
+    urgency?: { score: number; reasons: string[] };
+    goalAlignment?: { score: number; reasons: string[] };
+    vipContact?: { score: number; reasons: string[] };
+    sentiment?: { score: number; type: string; reasons: string[] };
+  };
+  breakdown?: Array<{ factor: string; value: number; description: string }>;
+  calculatedAt?: string;
+};
+
 /**
  * Handles priority score explanation, computation, and recalculation queueing.
  * Extracted from EmailsService (Phase 2).
@@ -43,6 +56,39 @@ type PriorityExplanationResult = {
 @Injectable()
 export class EmailPriorityExplanationService {
   private readonly logger = new Logger(EmailPriorityExplanationService.name);
+
+  /**
+   * `priorityExplanation` is normally a parsed object (encryptedJsonTransformer) but can
+   * surface as a JSON string in production; never mutate the raw value in place.
+   */
+  private parsePriorityExplanationPayload(
+    raw: unknown,
+  ): PriorityExplanationPayload | null {
+    if (raw == null) {
+      return null;
+    }
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        return null;
+      }
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (parsed && typeof parsed === "object" && "score" in parsed) {
+          return parsed as PriorityExplanationPayload;
+        }
+      } catch {
+        this.logger.warn(
+          "priorityExplanation: stored value is not valid JSON; falling back",
+        );
+      }
+      return null;
+    }
+    if (typeof raw === "object" && raw !== null && "score" in raw) {
+      return raw as PriorityExplanationPayload;
+    }
+    return null;
+  }
 
   constructor(
     @InjectRepository(Email)
@@ -90,16 +136,20 @@ export class EmailPriorityExplanationService {
         });
       }
 
-      if (thread?.priorityExplanation) {
+      const parsedExplanation = thread?.priorityExplanation
+        ? this.parsePriorityExplanationPayload(thread.priorityExplanation)
+        : null;
+
+      if (parsedExplanation) {
         const hasOldStructure =
-          thread.priorityExplanation.breakdown?.some(
+          parsedExplanation.breakdown?.some(
             (item) =>
               item.factor === "Base Score" ||
               item.factor === "🤖 AI Analysis" ||
               item.factor === "AI Analysis",
           ) ?? false;
         const hasCalculatingItems =
-          thread.priorityExplanation.breakdown?.some(
+          parsedExplanation.breakdown?.some(
             (item) =>
               item.description === "Calculating..." ||
               item.description?.includes("Calculating..."),
@@ -120,14 +170,14 @@ export class EmailPriorityExplanationService {
           endTotal();
           perf.finish();
           return this.normalizePriorityExplanation(
-            thread.priorityExplanation,
+            parsedExplanation,
             email.sentimentScore ?? 0,
           );
         } else if (!hasOldStructure && !hasCalculatingItems) {
           endTotal();
           perf.finish();
           return this.normalizePriorityExplanation(
-            thread.priorityExplanation,
+            parsedExplanation,
             email.sentimentScore ?? 0,
           );
         }
@@ -336,27 +386,24 @@ export class EmailPriorityExplanationService {
   }
 
   normalizePriorityExplanation(
-    rawExplanation: {
-      score: number;
-      dimensions?: {
-        urgency?: { score: number; reasons: string[] };
-        goalAlignment?: { score: number; reasons: string[] };
-        vipContact?: { score: number; reasons: string[] };
-        sentiment?: { score: number; type: string; reasons: string[] };
-      };
-      breakdown?: Array<{ factor: string; value: number; description: string }>;
-    },
+    rawExplanation: unknown,
     sentimentScore: number,
   ): PriorityExplanationResult {
-    const explanation = rawExplanation;
-    if (!explanation.dimensions?.sentiment) {
-      explanation.dimensions = {
-        ...explanation.dimensions,
-        sentiment: {
-          score: sentimentScore,
-          type: this.getSentimentType(sentimentScore),
-          reasons: [],
+    const explanation = this.parsePriorityExplanationPayload(rawExplanation);
+    if (!explanation || typeof explanation.score !== "number") {
+      return {
+        score: 0,
+        dimensions: {
+          urgency: { score: 0, reasons: [] },
+          goalAlignment: { score: 0, reasons: [] },
+          vipContact: { score: 0, reasons: [] },
+          sentiment: {
+            score: sentimentScore,
+            type: this.getSentimentType(sentimentScore),
+            reasons: [],
+          },
         },
+        breakdown: [],
       };
     }
     return {

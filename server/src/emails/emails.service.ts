@@ -748,10 +748,15 @@ export class EmailsService {
     );
   }
 
-  async getCategoryDebugData(userId: string, emailId: string) {
+  async getCategoryDebugData(
+    userId: string,
+    emailId: string,
+    options?: { deep?: boolean },
+  ) {
     return this.emailServiceDeps.emailDebugService.getCategoryDebugData(
       userId,
       emailId,
+      options,
     );
   }
 }

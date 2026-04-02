@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { DataSource, In, Repository } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -9,6 +10,8 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { CategoryShortlistService } from "../llm/category-shortlist.service";
+import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -97,6 +100,28 @@ describe("EmailDebugService", () => {
           useValue: {
             getSyncHistory: jest.fn().mockResolvedValue([]),
             logSyncAttempt: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CategoryRulesService,
+          useValue: {
+            getDeterministicRulesDebug: jest.fn().mockResolvedValue({
+              winningRule: null,
+              evaluations: [],
+            }),
+          },
+        },
+        {
+          provide: CategoryShortlistService,
+          useValue: {
+            isShortlistEnabled: jest.fn().mockReturnValue(false),
+            getShortlist: jest.fn(),
+          },
+        },
+        {
+          provide: PriorityAnalysisService,
+          useValue: {
+            analyzePriority: jest.fn(),
           },
         },
         EmailDebugCategoryService,

@@ -42,6 +42,8 @@ type UserContextTexts = {
   emailCategoriesText: string;
 };
 
+export type CategoryConfidence = "HIGH" | "MEDIUM" | "LOW";
+
 type PriorityResult = {
   urgencyScore: number;
   urgencyExplanation: string;
@@ -50,6 +52,8 @@ type PriorityResult = {
   goalAlignmentExplanation: string;
   category: string;
   categoryExplanation: string;
+  /** Confidence level the LLM assigned to its category decision. Used for deterministic rule generation (issue #1624). */
+  categoryConfidence?: CategoryConfidence;
   reasoning: string;
   protoCategorySuggestion?: { name: string; description: string };
 };
@@ -315,6 +319,12 @@ export class PriorityAnalysisService {
       categoryExplanation:
         analysisResult.categoryExplanation ||
         "No category explanation provided",
+      categoryConfidence:
+        analysisResult.categoryConfidence === "HIGH" ||
+        analysisResult.categoryConfidence === "MEDIUM" ||
+        analysisResult.categoryConfidence === "LOW"
+          ? (analysisResult.categoryConfidence as CategoryConfidence)
+          : undefined,
       reasoning: analysisResult.reasoning || "No reasoning provided",
       protoCategorySuggestion:
         category === "Other" && analysisResult.protoCategorySuggestion

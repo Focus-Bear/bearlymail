@@ -6,6 +6,7 @@ import { AwsModule } from "../aws/aws.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
+import { CategoryRulesModule } from "../category-rules/category-rules.module";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ContextModule } from "../context/context.module";
 import { CrmModule } from "../crm/crm.module";
@@ -123,6 +124,7 @@ import { SyncHistoryService } from "./sync-history.service";
     AwsModule,
     forwardRef(() => ScheduledEmailsModule),
     DebugModule,
+    CategoryRulesModule,
   ],
   // EmailsController must be LAST: it defines @Get(":id"), which otherwise steals
   // paths like recategorize-progress, backlog-progress, etc. from sibling controllers.

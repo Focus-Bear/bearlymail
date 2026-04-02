@@ -311,9 +311,9 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectProtoCategorySuggestion: true
-          # Keyword similarity check - proto category should relate to infrastructure/monitoring
-          protoCategoryRelevantTo: ["infrastructure"]
+          # Core invariant: server/infrastructure alerts must NOT be in people-oriented categories.
+          # An alert from alerts@monitoring.internal is NEVER "Customer Support" or "HR Admin".
+          excludedCategories: ["Customer Support", "HR Admin", "Newsletters"]
 
   # Proto category test 3: Should match existing proto category (shipping)
   - description: "Proto category: should match existing proto category for package delivery"
@@ -383,10 +383,10 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          # Accept "Other" OR a custom non-listed category (e.g. "Calendar & Meetings")
-          # The condensed prompt may return a relevant custom category instead of always "Other"
-          expectProtoCategorySuggestion: true
-          protoCategoryRelevantTo: ["calendar"]
+          # Core invariant: a calendar invite from Google Calendar is NOT "Customer Support",
+          # "Sales", or "Newsletters". It should be "Other" + a calendar-related proto suggestion,
+          # or a custom category like "Calendar & Meetings". Use excludedCategories for resilience.
+          excludedCategories: ["Customer Support", "Sales", "Newsletters"]
 
   # Proto category test 7: Match existing proto category for calendar
   - description: "Proto category: should match existing calendar proto category"

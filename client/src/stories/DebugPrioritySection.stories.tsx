@@ -10,7 +10,6 @@
  * Author: Captain Codebeard (AI)
  * Implements: #1571 Feature — Priority debug section (P3)
  */
-import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { DebugPrioritySection } from 'components/inbox/debug/DebugPrioritySection';

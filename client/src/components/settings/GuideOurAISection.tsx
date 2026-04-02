@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 
+import { DeterministicCategoryRulesSection } from 'components/settings/category-rules/DeterministicCategoryRulesSection';
 import { ContextAboutMeSection } from 'components/settings/guide-ai/ContextAboutMeSection';
 import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAISectionHeader';
 import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
@@ -176,6 +177,8 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         onUpdateProfile={onUpdateProfile}
         onRefreshContexts={onRefreshContexts}
       />
+
+      <DeterministicCategoryRulesSection />
 
       <ToneSettingsSection
         toneRules={toneRules}

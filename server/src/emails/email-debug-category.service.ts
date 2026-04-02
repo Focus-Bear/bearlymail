@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
+import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -9,7 +10,9 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import {
   parseCategoryValue,
   resolveCategoryName,
@@ -24,7 +27,6 @@ export interface CategoryDebugData {
     bodyPreview: string;
   };
   thread: {
-    // human-readable category name resolved from categoryId (fixes #1453 Bug 2)
     category: string | null;
     categoryExplanation: string | null;
     categorySource: "summary" | "priority" | null;
@@ -38,11 +40,41 @@ export interface CategoryDebugData {
     workingOn: Array<{ value: string; priority?: number }>;
     dontCare: Array<{ value: string }>;
   };
+  /**
+   * Present when `deep` was requested: deterministic rules, shortlist pass, and a fresh smart-model run.
+   * The smart step may invoke shortlisting again internally (same as production priority analysis).
+   */
+  categorizationTrace?: CategorizationTrace;
+}
+
+export interface CategorizationTrace {
+  deterministicRules: Awaited<
+    ReturnType<CategoryRulesService["getDeterministicRulesDebug"]>
+  >;
+  shortlist: {
+    skipped: boolean;
+    skipReason?: string;
+    categoryNames: string[];
+    error?: string;
+  };
+  smartModel: {
+    category: string;
+    categoryExplanation: string;
+    categoryConfidence?: string;
+    error?: string;
+  };
 }
 
 @Injectable()
 export class EmailDebugCategoryService {
-  constructor(private dataSource: DataSource) {}
+  private readonly logger = new Logger(EmailDebugCategoryService.name);
+
+  constructor(
+    private dataSource: DataSource,
+    private categoryRulesService: CategoryRulesService,
+    private categoryShortlistService: CategoryShortlistService,
+    private priorityAnalysisService: PriorityAnalysisService,
+  ) {}
 
   private get emailRepository() {
     return this.dataSource.getRepository(Email);
@@ -63,6 +95,7 @@ export class EmailDebugCategoryService {
   async getCategoryDebugData(
     userId: string,
     emailId: string,
+    options?: { deep?: boolean },
   ): Promise<CategoryDebugData> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
@@ -78,7 +111,7 @@ export class EmailDebugCategoryService {
         })
       : null;
 
-    const [contexts, protoCategories] = await Promise.all([
+    const [contexts, protoCategoryEntities] = await Promise.all([
       this.userContextRepository.find({ where: { userId } }),
       this.protoCategoryRepository.find({
         where: { userId, isPromoted: false },
@@ -94,11 +127,14 @@ export class EmailDebugCategoryService {
       BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
     );
 
-    // Resolve categoryId → display name using already-fetched contexts (fixes #1453 Bug 2).
-    // No extra DB query needed.
     const categoryName = resolveCategoryName(thread?.categoryId, contexts);
 
-    return {
+    const protoCategories = protoCategoryEntities.map((pc) => ({
+      name: pc.name,
+      description: pc.description || undefined,
+    }));
+
+    const base: CategoryDebugData = {
       email: {
         from: email.from || "",
         fromName: email.fromName || "",
@@ -112,12 +148,119 @@ export class EmailDebugCategoryService {
         categorySource: thread?.categorySource || null,
       },
       emailCategories,
-      protoCategories: protoCategories.map((pc) => ({
-        name: pc.name,
-        description: pc.description || undefined,
-      })),
+      protoCategories,
       userContext,
     };
+
+    if (!options?.deep) {
+      return base;
+    }
+
+    const categorizationTrace = await this.buildCategorizationTrace(
+      userId,
+      email,
+      emailCategories,
+      protoCategories,
+      userContext,
+    );
+
+    return { ...base, categorizationTrace };
+  }
+
+  private async buildCategorizationTrace(
+    userId: string,
+    email: Email,
+    emailCategories: Array<{ name: string; description?: string }>,
+    protoCategories: Array<{ name: string; description?: string }>,
+    userContext: CategoryDebugData["userContext"],
+  ): Promise<CategorizationTrace> {
+    const allCombined = [...emailCategories, ...protoCategories];
+    const cleanedForShortlist = cleanEmailContent(
+      email.body || "",
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+    const meta = {
+      from: email.from || "",
+      subject: email.subject || "",
+      bodyTextForMatch: cleanedForShortlist,
+    };
+    const deterministicRules =
+      await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);
+
+    let shortlist: CategorizationTrace["shortlist"];
+    if (!this.categoryShortlistService.isShortlistEnabled(allCombined.length)) {
+      shortlist = {
+        skipped: true,
+        skipReason: `Category count (${allCombined.length}) is at or below the shortlist threshold; full list is passed to the smart model.`,
+        categoryNames: allCombined.map((category) => category.name),
+      };
+    } else {
+      try {
+        const shortlisted = await this.categoryShortlistService.getShortlist(
+          {
+            from: email.from || "",
+            fromName: email.fromName || undefined,
+            subject: email.subject || "",
+            summary: cleanedForShortlist,
+          },
+          allCombined,
+        );
+        shortlist = {
+          skipped: false,
+          categoryNames: shortlisted.map((category) => category.name),
+        };
+      } catch (err) {
+        this.logger.warn(
+          `Category debug shortlist failed for user ${userId}: ${(err as Error).message}`,
+        );
+        shortlist = {
+          skipped: false,
+          categoryNames: [],
+          error: (err as Error).message,
+        };
+      }
+    }
+
+    let smartModel: CategorizationTrace["smartModel"];
+    try {
+      const priorityUserContext = {
+        urgentItems: userContext.urgentItems,
+        notUrgentItems: userContext.notUrgentItems,
+        goals: userContext.goals,
+        workingOn: userContext.workingOn,
+        dontCare: userContext.dontCare,
+        emailCategories,
+        protoCategories,
+      };
+      const result = await this.priorityAnalysisService.analyzePriority({
+        email: {
+          from: email.from || "",
+          fromName: email.fromName || undefined,
+          senderJobTitle: email.senderJobTitle || undefined,
+          subject: email.subject || "",
+          body: email.body || "",
+        },
+        userId,
+        userContext: priorityUserContext,
+      });
+      smartModel = {
+        category: result.category,
+        categoryExplanation: result.categoryExplanation,
+        categoryConfidence: result.categoryConfidence,
+      };
+    } catch (err) {
+      this.logger.warn(
+        `Category debug analyzePriority failed for user ${userId}: ${(err as Error).message}`,
+      );
+      smartModel = {
+        category: "",
+        categoryExplanation: "",
+        error: (err as Error).message,
+      };
+    }
+
+    return { deterministicRules, shortlist, smartModel };
   }
 
   private parseEmailCategories(

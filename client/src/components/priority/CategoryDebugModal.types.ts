@@ -1,3 +1,48 @@
+export interface CompositeRuleEvaluationDetailClient {
+  senderMatch: boolean;
+  subjectMatch: boolean;
+  bodyMatch: boolean;
+  bodyMatchedPhrase: string | null;
+}
+
+export interface CategoryRuleEvaluationDebug {
+  id: string;
+  ruleKind: 'legacy' | 'composite';
+  ruleType: string | null;
+  categoryName: string;
+  pattern: string;
+  subjectPrefix: string | null;
+  isEnabled: boolean;
+  hitCount: number;
+  patternMatches: boolean;
+  isWinningRule: boolean;
+  compositeDetail?: CompositeRuleEvaluationDetailClient;
+}
+
+export interface CategorizationTrace {
+  deterministicRules: {
+    winningRule: {
+      categoryName: string;
+      ruleId: string;
+      ruleType: string | null;
+      ruleKind: 'legacy' | 'composite';
+    } | null;
+    evaluations: CategoryRuleEvaluationDebug[];
+  };
+  shortlist: {
+    skipped: boolean;
+    skipReason?: string;
+    categoryNames: string[];
+    error?: string;
+  };
+  smartModel: {
+    category: string;
+    categoryExplanation: string;
+    categoryConfidence?: string;
+    error?: string;
+  };
+}
+
 export interface CategoryDebugData {
   email: {
     from: string;
@@ -20,6 +65,7 @@ export interface CategoryDebugData {
     workingOn: Array<{ value: string; priority?: number }>;
     dontCare: Array<{ value: string }>;
   };
+  categorizationTrace?: CategorizationTrace;
 }
 
 export interface CategoryDebugModalProps {

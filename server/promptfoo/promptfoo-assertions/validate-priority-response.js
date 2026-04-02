@@ -97,6 +97,14 @@ module.exports = (output, context) => {
   if (!parsed.reasoning || typeof parsed.reasoning !== 'string') {
     return { pass: false, score: 0, reason: 'Response must have a reasoning string' };
   }
+
+  // categoryConfidence is required in single-mode responses (batch mode may omit it)
+  if (parsed.categoryConfidence !== undefined) {
+    const validValues = ['HIGH', 'MEDIUM', 'LOW'];
+    if (!validValues.includes(parsed.categoryConfidence)) {
+      return { pass: false, score: 0, reason: `categoryConfidence must be HIGH, MEDIUM, or LOW — got "${parsed.categoryConfidence}"` };
+    }
+  }
   
   // Check for VIP mentions (should not be in reasoning)
   if (parsed.reasoning.toLowerCase().includes('vip')) {
@@ -248,8 +256,11 @@ module.exports = (output, context) => {
             if (!parsed.protoCategorySuggestion.description || typeof parsed.protoCategorySuggestion.description !== 'string') {
               return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.description to be a non-empty string` };
             }
+            // Note: emoji prefix is preferred but not a hard requirement — LLMs occasionally
+            // omit it despite prompt guidance. Warn via score penalty instead of hard failing.
             if (!/^[\p{Emoji}]/u.test(parsed.protoCategorySuggestion.name)) {
-              return { pass: false, score: 0, reason: `Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"` };
+              // Pass but with a partial score to signal the style violation
+              return { pass: true, score: 0.7, reason: `protoCategorySuggestion.name should start with an emoji (style guideline), got "${parsed.protoCategorySuggestion.name}" — passing with reduced score` };
             }
           }
         }

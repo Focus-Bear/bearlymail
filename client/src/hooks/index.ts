@@ -1,3 +1,4 @@
+export { useCategoryRules } from 'hooks/settings/useCategoryRules';
 export { useBatchSchedule } from 'hooks/useBatchSchedule';
 export { useDebugPanel } from 'hooks/useDebugPanel';
 export { useEmailActions } from 'hooks/useEmailActions';

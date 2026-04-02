@@ -14,6 +14,7 @@ import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { CalendarModule } from "./calendar/calendar.module";
+import { CategoryRulesModule } from "./category-rules/category-rules.module";
 import { validate } from "./config/env.validation";
 import { ContactGroupsModule } from "./contact-groups/contact-groups.module";
 import { ContactsModule } from "./contacts/contacts.module";
@@ -147,6 +148,7 @@ const DEFAULT_POLLING_LIMIT = 3000;
     CrmModule,
     BlockedSendersModule,
     BlockedKeywordsModule,
+    CategoryRulesModule,
     EmailModule,
     GoogleAccountsModule,
     Office365AccountsModule,

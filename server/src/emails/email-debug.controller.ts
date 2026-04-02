@@ -130,8 +130,15 @@ export class EmailDebugController {
   }
 
   @Get(":id/debug/category")
-  async getCategoryDebugData(@Request() req, @Param("id") id: string) {
-    return this.emailsService.getCategoryDebugData(req.user.userId, id);
+  async getCategoryDebugData(
+    @Request() req,
+    @Param("id") id: string,
+    @Query("deep") deep?: string,
+  ) {
+    const wantDeep = deep === "1" || deep === "true";
+    return this.emailsService.getCategoryDebugData(req.user.userId, id, {
+      deep: wantDeep,
+    });
   }
 
   @Post(":id/debug/refresh-attachments-from-gmail")

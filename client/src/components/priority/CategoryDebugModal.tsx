@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { ModalBackdrop, ModalContent } from 'components/modal';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { API_URL } from 'config/api';
+import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
 
 import { CategoryDebugData, CategoryDebugModalProps } from './CategoryDebugModal.types';
 import { CategoriesList, CategorySection, EmailSection, UserContextSection } from './CategoryDebugPanels';
+import { CategoryDebugTracePanel } from './CategoryDebugTracePanel';
 import { formatForGithubIssue } from './categoryDebugUtils';
 
 const COPY_FEEDBACK_DURATION_MS = 2000;
@@ -20,22 +23,45 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
   const { t } = useTranslation();
   const [debugInfo, setDebugInfo] = useState<CategoryDebugData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [traceLoading, setTraceLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [traceError, setTraceError] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (deep: boolean) => {
+      if (deep) {
+        setTraceLoading(true);
+        setTraceError(null);
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const response = await axios.get<CategoryDebugData>(`${API_URL}/emails/${emailId}/debug/category`, {
+          params: deep ? { deep: 1 } : {},
+        });
+        setDebugInfo(response.data);
+      } catch {
+        if (deep) {
+          setTraceError(t('priority.categoryDebug.traceFetchError'));
+        } else {
+          setError(t('priority.categoryDebug.fetchError'));
+        }
+      } finally {
+        if (deep) {
+          setTraceLoading(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [emailId, t]
+  );
 
   useEffect(() => {
-    const fetchDebugData = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/emails/${emailId}/debug/category`);
-        setDebugInfo(response.data);
-      } catch (err) {
-        setError(t('priority.categoryDebug.fetchError'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDebugData();
-  }, [emailId, t]);
+    void load(false);
+  }, [load]);
 
   const handleCopy = async () => {
     if (!debugInfo) {
@@ -49,6 +75,10 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
     } catch {
       setError(t('priority.categoryDebug.copyFailed'));
     }
+  };
+
+  const handleRefreshTrace = () => {
+    void load(true);
   };
 
   return createPortal(
@@ -66,9 +96,49 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
           <div style={{ color: theme.colors.feedback?.error || '#d32f2f', padding: theme.spacing.sm }}>{error}</div>
         )}
 
-        {debugInfo && (
+        {debugInfo && !loading && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                marginBottom: theme.spacing.xs,
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleRefreshTrace}
+                disabled={traceLoading}
+                title={t('priority.categoryDebug.refreshTraceTitle')}
+                aria-label={t('priority.categoryDebug.refreshTraceTitle')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: theme.colors.background.subtle,
+                  border: `1px solid ${theme.colors.border?.default || '#e0e0e0'}`,
+                  borderRadius: theme.borderRadius.sm,
+                  cursor: traceLoading ? 'wait' : 'pointer',
+                  padding: `4px ${theme.spacing.sm}`,
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.secondary,
+                  opacity: traceLoading ? OPACITY_DISABLED_ALT : OPACITY_FULL,
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    animation: traceLoading ? 'cat-debug-spin 0.8s linear infinite' : undefined,
+                  }}
+                >
+                  <FiRefreshCw size={14} />
+                </span>
+                {t('priority.categoryDebug.refreshTrace')}
+              </button>
+              <style>{`@keyframes cat-debug-spin { to { transform: rotate(360deg); } }`}</style>
               <button
                 onClick={handleCopy}
                 style={{
@@ -101,6 +171,19 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
                 />
               )}
               <UserContextSection userContext={debugInfo.userContext} />
+              {traceError && (
+                <div style={{ color: theme.colors.feedback?.error || '#d32f2f', padding: theme.spacing.sm, fontSize: theme.typography.fontSize.sm }}>
+                  {traceError}
+                </div>
+              )}
+              {traceLoading && (
+                <div style={{ padding: theme.spacing.md, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+                  {t('priority.categoryDebug.traceLoading')}
+                </div>
+              )}
+              {debugInfo.categorizationTrace && !traceLoading && (
+                <CategoryDebugTracePanel trace={debugInfo.categorizationTrace} />
+              )}
             </div>
           </>
         )}

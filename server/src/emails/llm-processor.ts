@@ -5,6 +5,10 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import {
+  CategoryRuleMatch,
+  CategoryRulesService,
+} from "../category-rules/category-rules.service";
 import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
@@ -65,6 +69,7 @@ export class LLMProcessor implements OnModuleInit {
     private priorityBatchService: LLMPriorityBatchService,
     private summaryProcessorService: LLMSummaryProcessorService,
     private debugService: DebugService,
+    private categoryRulesService: CategoryRulesService,
   ) {
     const cpuCores = os.cpus().length;
     const defaultConcurrency = Math.max(4, cpuCores * 2);
@@ -162,6 +167,201 @@ export class LLMProcessor implements OnModuleInit {
     return { email, thread };
   }
 
+  /**
+   * Look up a deterministic category rule for the email and build the body hint string.
+   * Returns the matched rule (or null) and the body text to send to the LLM.
+   */
+  private async resolveCategoryHint(
+    userId: string,
+    emailId: string,
+    email: Email,
+    workerId: string,
+    bodyForPriority: string,
+  ): Promise<{
+    categoryRuleMatch: CategoryRuleMatch | null;
+    bodyWithCategoryHint: string;
+  }> {
+    const bodyTextForMatch = cleanEmailContent(
+      email.body || "",
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+    const emailMetadata = {
+      from: email.from || "",
+      subject: email.subject || "",
+      bodyTextForMatch,
+    };
+    const categoryRuleMatch = await this.categoryRulesService.findMatchingRule(
+      userId,
+      emailMetadata,
+    );
+    if (categoryRuleMatch) {
+      const kindOrType =
+        categoryRuleMatch.ruleType ?? categoryRuleMatch.ruleKind;
+      this.logger.log(
+        `[Worker ${workerId}] Category rule ${categoryRuleMatch.ruleId} matched (${kindOrType}) → category="${categoryRuleMatch.categoryName}" for email ${emailId}`,
+      );
+    }
+    const bodyWithCategoryHint = categoryRuleMatch
+      ? `[Category pre-assigned by deterministic rule: "${categoryRuleMatch.categoryName}". Focus on urgency and goal-alignment scoring only.]\n\n${bodyForPriority}`
+      : bodyForPriority;
+    return { categoryRuleMatch, bodyWithCategoryHint };
+  }
+
+  /**
+   * After a HIGH-confidence LLM categorisation (with no prior rule match), attempt to
+   * persist a deterministic rule so future emails skip the LLM category step.
+   * Errors are swallowed — rule generation must never block email processing.
+   */
+  private async tryGenerateCategoryRule(
+    userId: string,
+    emailId: string,
+    email: Email,
+    categoryName: string,
+    workerId: string,
+  ): Promise<void> {
+    const emailMetadata = {
+      from: email.from || "",
+      subject: email.subject || "",
+    };
+    try {
+      await this.categoryRulesService.generateRuleFromEmail(
+        userId,
+        emailMetadata,
+        categoryName,
+      );
+    } catch (ruleError) {
+      this.logger.error(
+        `[Worker ${workerId}] Failed to generate category rule for email ${emailId}`,
+        ruleError,
+      );
+    }
+  }
+
+  /** Fetch all data needed for priority refinement in parallel. */
+  private async fetchPriorityData(
+    userId: string,
+    email: Email,
+  ): Promise<{
+    contexts: Awaited<
+      ReturnType<typeof this.priorityCacheService.getUserContexts>
+    >;
+    avgTimeToReply: Awaited<
+      ReturnType<typeof this.priorityCacheService.getAvgTimeToReply>
+    >;
+    threadEmails: Email[];
+    protoCategories: Awaited<
+      ReturnType<typeof this.protoCategoriesService.findActiveByUser>
+    >;
+  }> {
+    const [contexts, avgTimeToReply, threadEmails, protoCategories] =
+      await Promise.all([
+        this.priorityCacheService.getUserContexts(userId),
+        this.priorityCacheService.getAvgTimeToReply(userId),
+        email.threadId
+          ? this.emailsService.getThreadEmails(userId, email.threadId, {
+              limit: ORCHESTRATOR_CONSTANTS.THREAD_EMAILS_LIMIT,
+              order: "ASC",
+            })
+          : Promise.resolve([] as Email[]),
+        this.protoCategoriesService.findActiveByUser(userId),
+      ]);
+    return { contexts, avgTimeToReply, threadEmails, protoCategories };
+  }
+
+  /** Run the LLM call, apply category override, persist result, and attempt rule generation. */
+  private async runLlmAndPersist(options: {
+    userId: string;
+    emailId: string;
+    email: Email;
+    workerId: string;
+    tracker: JobPerformanceTracker;
+    avgTimeToReply: number;
+    threadEmails: Email[];
+    contexts: Awaited<
+      ReturnType<typeof this.priorityCacheService.getUserContexts>
+    >;
+    userContext: ReturnType<LLMPriorityBatchService["buildUserContext"]>;
+    replyStatus: ReturnType<typeof this.determineThreadReplyStatus>;
+    bodyForPriority: string;
+  }): Promise<void> {
+    const {
+      userId,
+      emailId,
+      email,
+      workerId,
+      tracker,
+      avgTimeToReply,
+      threadEmails,
+      contexts,
+      userContext,
+      replyStatus,
+      bodyForPriority,
+    } = options;
+    const { categoryRuleMatch, bodyWithCategoryHint } =
+      await this.resolveCategoryHint(
+        userId,
+        emailId,
+        email,
+        workerId,
+        bodyForPriority,
+      );
+    const llmResult = await this.priorityAnalysisService.analyzePriority({
+      email: {
+        from: email.from || "",
+        fromName: email.fromName,
+        senderJobTitle: email.senderJobTitle,
+        subject: email.subject || "",
+        body: bodyWithCategoryHint,
+      },
+      userHistory: { averageTimeToReply: avgTimeToReply },
+      userId,
+      userContext,
+      threadInfo: replyStatus,
+      preComputedSentimentScore: email.sentimentScore ?? undefined,
+    });
+    if (categoryRuleMatch) {
+      llmResult.category = categoryRuleMatch.categoryName;
+      const kindOrType =
+        categoryRuleMatch.ruleType ?? categoryRuleMatch.ruleKind;
+      llmResult.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${categoryRuleMatch.categoryName}"`;
+    }
+    tracker.endPhase("llmCall");
+    tracker.startPhase("dbUpdate");
+    await this.priorityResultService.applyPriorityResult(
+      email,
+      llmResult,
+      contexts,
+      userId,
+      workerId,
+    );
+    tracker.endPhase("dbUpdate");
+    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
+      await this.tryGenerateCategoryRule(
+        userId,
+        emailId,
+        email,
+        llmResult.category,
+        workerId,
+      );
+    }
+    this.logger.log(
+      `[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...)`,
+    );
+    await this.debugService.log(
+      DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
+      userId,
+      {
+        threadId: email.threadId ?? null,
+        emailCount: threadEmails.length,
+        caller: "runFullPriorityRefinement",
+        callerFile: "llm-processor.ts",
+        emailId,
+        jobType: "REFINE_PRIORITY",
+      },
+    );
+  }
+
   private async runFullPriorityRefinement(options: {
     userId: string;
     emailId: string;
@@ -178,18 +378,8 @@ export class LLMProcessor implements OnModuleInit {
       );
     }
 
-    const [contexts, avgTimeToReply, threadEmails, protoCategories] =
-      await Promise.all([
-        this.priorityCacheService.getUserContexts(userId),
-        this.priorityCacheService.getAvgTimeToReply(userId),
-        email.threadId
-          ? this.emailsService.getThreadEmails(userId, email.threadId, {
-              limit: ORCHESTRATOR_CONSTANTS.THREAD_EMAILS_LIMIT,
-              order: "ASC",
-            })
-          : Promise.resolve([]),
-        this.protoCategoriesService.findActiveByUser(userId),
-      ]);
+    const { contexts, avgTimeToReply, threadEmails, protoCategories } =
+      await this.fetchPriorityData(userId, email);
     tracker.endPhase("dataFetch");
     tracker.startPhase("processing");
 
@@ -223,49 +413,19 @@ export class LLMProcessor implements OnModuleInit {
     tracker.endPhase("processing");
     tracker.startPhase("llmCall");
 
-    const llmResult = await this.priorityAnalysisService.analyzePriority({
-      email: {
-        from: email.from || "",
-        fromName: email.fromName,
-        senderJobTitle: email.senderJobTitle,
-        subject: email.subject || "",
-        body: bodyForPriority,
-      },
-      userHistory: { averageTimeToReply: avgTimeToReply },
+    await this.runLlmAndPersist({
       userId,
-      userContext,
-      threadInfo: replyStatus,
-      preComputedSentimentScore: email.sentimentScore ?? undefined,
-    });
-
-    tracker.endPhase("llmCall");
-    tracker.startPhase("dbUpdate");
-
-    await this.priorityResultService.applyPriorityResult(
+      emailId,
       email,
-      llmResult,
-      contexts,
-      userId,
       workerId,
-    );
-    tracker.endPhase("dbUpdate");
-    this.logger.log(
-      `[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, ORCHESTRATOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...)`,
-    );
-
-    // Instrument priority analysis call for redundancy tracking (issue #1595)
-    await this.debugService.log(
-      DEBUG_FEATURES.PRIORITY_ANALYSIS_TRACKING,
-      userId,
-      {
-        threadId: email.threadId ?? null,
-        emailCount: threadEmails.length,
-        caller: "runFullPriorityRefinement",
-        callerFile: "llm-processor.ts",
-        emailId,
-        jobType: "REFINE_PRIORITY",
-      },
-    );
+      tracker,
+      avgTimeToReply,
+      threadEmails,
+      contexts,
+      userContext,
+      replyStatus,
+      bodyForPriority,
+    });
   }
 
   private async handleRefinePriorityJob(job: PgBoss.Job): Promise<void> {

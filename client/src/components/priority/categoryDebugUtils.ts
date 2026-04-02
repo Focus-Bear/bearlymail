@@ -1,3 +1,5 @@
+import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
+
 import { CategoryDebugData } from './CategoryDebugModal.types';
 
 // Pure section builders for GitHub issue formatting.
@@ -81,6 +83,57 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
   appendContextItemList(lines, "Don't Care", dontCare);
   if (!urgentItems.length && !notUrgentItems.length && !goals.length && !workingOn.length && !dontCare.length) {
     lines.push('None');
+  }
+  if (debugInfo.categorizationTrace) {
+    const tr = debugInfo.categorizationTrace;
+    lines.push('');
+    lines.push('### Categorisation trace (deep refresh)');
+    const win = tr.deterministicRules.winningRule;
+    let winLabel: string | null = null;
+    if (win) {
+      if (win.ruleKind === CATEGORY_RULE_KIND_COMPOSITE) {
+        winLabel = CATEGORY_RULE_KIND_COMPOSITE;
+      } else {
+        winLabel = win.ruleType ?? 'legacy';
+      }
+    }
+    lines.push(
+      win
+        ? `- **Deterministic winner**: ${win.categoryName} (${winLabel}, id ${win.ruleId})`
+        : '- **Deterministic winner**: none',
+    );
+    lines.push('- **Rule evaluations**:');
+    tr.deterministicRules.evaluations.forEach(evaluation => {
+      const kindLabel =
+        evaluation.ruleKind === CATEGORY_RULE_KIND_COMPOSITE
+          ? CATEGORY_RULE_KIND_COMPOSITE
+          : evaluation.ruleType ?? 'legacy';
+      let extra = '';
+      if (evaluation.ruleKind === CATEGORY_RULE_KIND_COMPOSITE && evaluation.compositeDetail) {
+        const compositeDetail = evaluation.compositeDetail;
+        extra = ` | sender=${compositeDetail.senderMatch} subject=${compositeDetail.subjectMatch} body=${compositeDetail.bodyMatch} phrase=${compositeDetail.bodyMatchedPhrase ?? '—'}`;
+      }
+      lines.push(
+        `  - [${kindLabel}] ${evaluation.categoryName} | patternMatch=${evaluation.patternMatches} enabled=${evaluation.isEnabled} winning=${evaluation.isWinningRule} hits=${evaluation.hitCount}${extra}`,
+      );
+    });
+    lines.push(`- **Shortlist skipped**: ${tr.shortlist.skipped}`);
+    if (tr.shortlist.skipReason) {
+      lines.push(`  - ${tr.shortlist.skipReason}`);
+    }
+    if (tr.shortlist.error) {
+      lines.push(`- **Shortlist error**: ${tr.shortlist.error}`);
+    }
+    lines.push(`- **Shortlist categories**: ${tr.shortlist.categoryNames.join(', ') || '(none)'}`);
+    if (tr.smartModel.error) {
+      lines.push(`- **Smart model error**: ${tr.smartModel.error}`);
+    } else {
+      lines.push(`- **Smart model category**: ${tr.smartModel.category}`);
+      lines.push(`- **Smart model explanation**: ${tr.smartModel.categoryExplanation}`);
+      if (tr.smartModel.categoryConfidence) {
+        lines.push(`- **Smart model confidence**: ${tr.smartModel.categoryConfidence}`);
+      }
+    }
   }
   return lines.join('\n');
 };

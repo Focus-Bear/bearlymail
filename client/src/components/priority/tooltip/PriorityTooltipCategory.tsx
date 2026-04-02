@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiRefreshCw } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
@@ -63,8 +64,14 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
         {'✏️'}
       </button>
       {isAdmin && (
-        <button onClick={onOpenDebug} style={iconButtonStyle} title={t('priority.categoryDebug.buttonTitle')}>
-          {'👎'}
+        <button
+          onClick={onOpenDebug}
+          style={iconButtonStyle}
+          title={t('priority.categoryDebug.buttonTitle')}
+          aria-label={t('priority.categoryDebug.buttonTitle')}
+          type="button"
+        >
+          <FiRefreshCw size={14} aria-hidden />
         </button>
       )}
     </>

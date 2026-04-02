@@ -861,8 +861,13 @@ export class EmailDebugService {
   async getCategoryDebugData(
     userId: string,
     emailId: string,
+    options?: { deep?: boolean },
   ): Promise<CategoryDebugData> {
-    return this.emailDebugCategoryService.getCategoryDebugData(userId, emailId);
+    return this.emailDebugCategoryService.getCategoryDebugData(
+      userId,
+      emailId,
+      options,
+    );
   }
 
   /**

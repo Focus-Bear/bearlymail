@@ -11,6 +11,7 @@ client/node_modules/
 # Build outputs
 server/dist/
 client/build/
+lambda/batch-analyzer/dist/
 *.log
 server/coverage
 

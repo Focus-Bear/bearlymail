@@ -147,8 +147,14 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       code: lambda.Code.fromAsset(
         path.join(__dirname, "../../lambda/batch-analyzer/dist"),
         {
-          // Include prompt file in deployment package
-          exclude: ["**/*.spec.js", "**/*.test.js"],
+          // Include prompt file + node_modules (installed by lambda/batch-analyzer build)
+          exclude: [
+            "**/*.spec.js",
+            "**/*.test.js",
+            "**/*.d.ts",
+            "**/*.d.ts.map",
+            "**/*.js.map",
+          ],
         },
       ),
       // Memory: 512MB is sufficient for Node.js LLM API calls

@@ -4,7 +4,7 @@
   "description": "Lambda function for parallel context batch analysis via SQS",
   "main": "dist/handler.js",
   "scripts": {
-    "build": "tsc && cp -r prompts dist/prompts",
+    "build": "rm -rf dist && tsc && cp -r prompts dist/prompts && cp package.json package-lock.json dist/ && cd dist && npm ci --omit=dev && rm -f package.json package-lock.json",
     "package": "npm run build && cd dist && zip -r ../function.zip .",
     "test": "jest"
   },

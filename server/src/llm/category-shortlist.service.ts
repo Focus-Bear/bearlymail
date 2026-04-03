@@ -19,7 +19,12 @@ const SHORTLIST_THRESHOLD = 12;
 /** Default model for shortlist classification. Override via CATEGORY_SHORTLIST_MODEL env var. */
 const DEFAULT_SHORTLIST_MODEL = "gpt-5.4-nano";
 
-type CategoryItem = { name: string; description?: string };
+export type CategoryItem = {
+  name: string;
+  description?: string;
+  /** Stable id for LLM output (DB slug or synthetic proto id). */
+  categoryKey?: string;
+};
 
 /**
  * CategoryShortlistService — Step 1 of the two-step category analysis.
@@ -94,9 +99,13 @@ export class CategoryShortlistService {
     );
 
     const categoryListText = shortlistableCategories
-      .map((cat) =>
-        cat.description ? `- ${cat.name}: ${cat.description}` : `- ${cat.name}`,
-      )
+      .map((cat) => {
+        const idPart = cat.categoryKey ? `[id: ${cat.categoryKey}] ` : "";
+        const body = cat.description
+          ? `${idPart}"${cat.name}": ${cat.description}`
+          : `${idPart}"${cat.name}"`;
+        return `- ${body}`;
+      })
       .join("\n");
 
     const prompt = renderPrompt(promptConfig.prompt, {
@@ -139,42 +148,71 @@ export class CategoryShortlistService {
    * Parse the LLM shortlist response into a filtered CategoryItem array.
    *
    * - Accepts a JSON object `{ "categories": [...] }` (or falls back to bare array for resilience).
-   * - Filters to names that actually exist in allCategories (case-insensitive).
+   * - Filters to items that match by categoryKey (preferred, case-insensitive) or display name (case-insensitive).
    * - Does NOT append "Other" — the smart model (Step 2) decides if "Other" applies.
    * - Falls back to allCategories on parse errors.
    */
+  private extractShortlistNamesArray(response: string): unknown[] | null {
+    const objMatch = response.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      const parsed = JSON.parse(objMatch[0]) as Record<string, unknown>;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "categories" in parsed &&
+        Array.isArray(parsed["categories"])
+      ) {
+        return parsed["categories"] as unknown[];
+      }
+    }
+    const arrayMatch = response.match(/\[[\s\S]*\]/);
+    if (!arrayMatch) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(arrayMatch[0]);
+    return Array.isArray(parsed) ? parsed : null;
+  }
+
+  private resolveShortlistToken(entry: unknown): string | null {
+    if (typeof entry === "string") {
+      const trimmed = entry.trim();
+      return trimmed || null;
+    }
+    if (!entry || typeof entry !== "object" || !("id" in entry)) {
+      return null;
+    }
+    const idVal = (entry as { id: unknown }).id;
+    if (typeof idVal !== "string") {
+      return null;
+    }
+    const trimmed = idVal.trim();
+    return trimmed || null;
+  }
+
+  private buildShortlistLookupMaps(allCategories: CategoryItem[]): {
+    categoryByKeyLower: Map<string, CategoryItem>;
+    categoryByNameLower: Map<string, CategoryItem>;
+  } {
+    const eligible = allCategories.filter(
+      (cat) => cat.name.toLowerCase() !== "other",
+    );
+    const categoryByKeyLower = new Map<string, CategoryItem>();
+    const categoryByNameLower = new Map<string, CategoryItem>();
+    for (const cat of eligible) {
+      categoryByNameLower.set(cat.name.toLowerCase(), cat);
+      if (cat.categoryKey) {
+        categoryByKeyLower.set(cat.categoryKey.toLowerCase(), cat);
+      }
+    }
+    return { categoryByKeyLower, categoryByNameLower };
+  }
+
   private parseShortlistResponse(
     response: string,
     allCategories: CategoryItem[],
   ): CategoryItem[] {
     try {
-      // Try to parse as JSON object first (preferred: { "categories": [...] })
-      let names: unknown[] | null = null;
-
-      const objMatch = response.match(/\{[\s\S]*\}/);
-      if (objMatch) {
-        const parsed = JSON.parse(objMatch[0]) as Record<string, unknown>;
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "categories" in parsed &&
-          Array.isArray(parsed["categories"])
-        ) {
-          names = parsed["categories"] as unknown[];
-        }
-      }
-
-      // Resilience fallback: accept bare array if no object found
-      if (!names) {
-        const arrayMatch = response.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-          const parsed: unknown = JSON.parse(arrayMatch[0]);
-          if (Array.isArray(parsed)) {
-            names = parsed;
-          }
-        }
-      }
-
+      const names = this.extractShortlistNamesArray(response);
       if (!names) {
         this.logger.warn(
           "CategoryShortlistService: no JSON object or array found in shortlist response — using full list",
@@ -182,21 +220,21 @@ export class CategoryShortlistService {
         return allCategories;
       }
 
-      // Build a lookup map for fast case-insensitive matching
-      // Exclude "Other" from the shortlist — the smart model handles that
-      const categoryByNameLower = new Map<string, CategoryItem>(
-        allCategories
-          .filter((cat) => cat.name.toLowerCase() !== "other")
-          .map((cat) => [cat.name.toLowerCase(), cat] as const),
-      );
+      const { categoryByKeyLower, categoryByNameLower } =
+        this.buildShortlistLookupMaps(allCategories);
 
       const shortlisted: CategoryItem[] = [];
-      for (const name of names) {
-        if (typeof name !== "string") continue;
-        const found = categoryByNameLower.get(name.toLowerCase());
-        if (found) {
-          shortlisted.push(found);
-        }
+      const seen = new Set<string>();
+      for (const entry of names) {
+        const token = this.resolveShortlistToken(entry);
+        if (!token) continue;
+        const byKey = categoryByKeyLower.get(token.toLowerCase());
+        const found = byKey ?? categoryByNameLower.get(token.toLowerCase());
+        if (!found) continue;
+        const dedupeKey = found.categoryKey ?? found.name.toLowerCase();
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        shortlisted.push(found);
       }
 
       if (shortlisted.length === 0) {
@@ -206,7 +244,6 @@ export class CategoryShortlistService {
         return allCategories;
       }
 
-      // Do NOT append "Other" — the smart model (Step 2) decides if "Other" applies.
       return shortlisted;
     } catch (error) {
       this.logger.error(

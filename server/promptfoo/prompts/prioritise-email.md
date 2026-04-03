@@ -74,7 +74,7 @@ Do NOT include sentimentScore — it is pre-computed.
 
 - Use "Other" when the email genuinely does not fit any category — do NOT force-fit.
 - **Sanity check before finalising:** If you selected a people/business category (e.g., "Customer Support", "Sales", "HR Admin") for (a) an automated system alert (e.g., server CPU alert, infrastructure notification, monitoring ping from an internal monitoring system — including emails from `alerts@*`, `monitoring@*`, `noreply@*` internal systems), or (b) a calendar invite / meeting request from a calendar service (e.g., Google Calendar, Microsoft Outlook, calendar@*), STOP and reconsider — automated system/infrastructure alerts and calendar invitations NEVER belong in people-oriented categories even if they say "please investigate". Use "Other" + protoCategorySuggestion instead. **CONCRETE EXAMPLE:** An email from `alerts@monitoring.internal` with subject "CPU Alert - Production Server" → category = "Other", protoCategorySuggestion = `{ "name": "🖥️ Infrastructure Alerts", "description": "..." }`. NOTE: This rule does NOT apply to newsletters (which correctly go in "Newsletters" if available) or GitHub notifications.
-- Return category name EXACTLY as listed (same spelling, capitalisation, punctuation) — no appended text
+- Categories in the list may show `[id: some_stable_id]` before the display name. **Prefer returning that exact id string** in the `category` field when choosing a listed category (same characters as inside the brackets, no extra quotes). If no id is shown for an entry, return the display name EXACTLY as listed (same spelling, capitalisation, punctuation) — no appended text.
 - If category not in the provided list, use "Other" + protoCategorySuggestion
 
 **GitHub-specific rules:**

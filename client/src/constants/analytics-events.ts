@@ -31,6 +31,7 @@ export const ANALYTICS_EVENTS = {
   CONTACTS_VIEWED: 'contacts_viewed',
   CONTEXT_DELETED: 'context_deleted',
   CONTEXT_EDIT_CLICKED: 'context_edit_clicked',
+  CONTEXT_ADD_MATCHING_RULE_CLICKED: 'context_add_matching_rule_clicked',
   DATA_EXPORT_COMPLETED: 'data_export_completed',
   DATA_EXPORT_FAILED: 'data_export_failed',
   DATA_EXPORT_INITIATED: 'data_export_initiated',

@@ -491,16 +491,8 @@ export class LLMPriorityResultService {
     let protoCategoryId: string | null =
       finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
 
-    const lookupCategoryContextId = (name: string | null): string | null => {
-      if (!name || name === "Other") return null;
-      const nameLower = name.toLowerCase().trim();
-      const exact = contexts.find((context) => {
-        if (context.contextKey !== ContextKey.EMAIL_CATEGORY) return false;
-        const ctxName = parseCategoryName(context.contextValue).toLowerCase();
-        return ctxName === nameLower;
-      });
-      return exact?.contextId ?? null;
-    };
+    const lookupCategoryContextId =
+      this.createLookupCategoryContextId(contexts);
 
     let categoryId: string | null = lookupCategoryContextId(finalCategory);
 
@@ -537,11 +529,63 @@ export class LLMPriorityResultService {
       ({ finalCategory, protoCategoryId, categoryId } = resolved);
     }
 
-    // Priority-over-Other guard (fix #1509):
-    // If the summary step wrote "Other" to the thread (leaving categoryId null)
-    // but the priority step returns a real category, always prefer the priority result.
-    // This is a safety net in case finalCategory is still "Other" after all resolution
-    // but the original priority LLM returned a valid non-Other category.
+    const guarded = this.applyPriorityOverOtherGuard({
+      finalCategory,
+      categoryId,
+      protoCategoryId,
+      llmResult,
+      knownCategoryNames,
+      emailThreadId: email.emailThreadId,
+      workerId,
+      lookupCategoryContextId,
+    });
+
+    return guarded;
+  }
+
+  private createLookupCategoryContextId(
+    contexts: UserContext[],
+  ): (name: string | null) => string | null {
+    return (name: string | null): string | null => {
+      if (!name || name === "Other") return null;
+      const nameLower = name.toLowerCase().trim();
+      const exact = contexts.find((context) => {
+        if (context.contextKey !== ContextKey.EMAIL_CATEGORY) return false;
+        if (
+          context.categoryKey &&
+          context.categoryKey.toLowerCase() === nameLower
+        ) {
+          return true;
+        }
+        const ctxName = parseCategoryName(context.contextValue).toLowerCase();
+        return ctxName === nameLower;
+      });
+      return exact?.contextId ?? null;
+    };
+  }
+
+  private applyPriorityOverOtherGuard(options: {
+    finalCategory: string | null;
+    categoryId: string | null;
+    protoCategoryId: string | null;
+    llmResult: PriorityLlmResult;
+    knownCategoryNames: string[];
+    emailThreadId: string | undefined;
+    workerId: string;
+    lookupCategoryContextId: (name: string | null) => string | null;
+  }): {
+    finalCategory: string | null;
+    protoCategoryId: string | null;
+    categoryId: string | null;
+  } {
+    const {
+      llmResult,
+      knownCategoryNames,
+      emailThreadId,
+      workerId,
+      lookupCategoryContextId,
+    } = options;
+    let { finalCategory, categoryId, protoCategoryId } = options;
     if (
       (!finalCategory || finalCategory === "Other") &&
       llmResult.category &&
@@ -556,11 +600,10 @@ export class LLMPriorityResultService {
         categoryId = lookupCategoryContextId(finalCategory);
         protoCategoryId = null;
         this.logger.debug(
-          `[Worker ${workerId}] Priority-over-Other guard: preferring priority category "${finalCategory}" over summary "Other" for thread ${email.emailThreadId}`,
+          `[Worker ${workerId}] Priority-over-Other guard: preferring priority category "${finalCategory}" over summary "Other" for thread ${emailThreadId}`,
         );
       }
     }
-
     return { finalCategory, protoCategoryId, categoryId };
   }
 

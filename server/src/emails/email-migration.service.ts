@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 
+import { CategoryKeyBackfillService } from "../category-keys/category-key-backfill.service";
 import { CategoryDedupService } from "./category-dedup.service";
 
 /**
@@ -14,7 +15,10 @@ import { CategoryDedupService } from "./category-dedup.service";
 export class EmailMigrationService implements OnModuleInit {
   private readonly logger = new Logger(EmailMigrationService.name);
 
-  constructor(private categoryDedupService: CategoryDedupService) {}
+  constructor(
+    private categoryDedupService: CategoryDedupService,
+    private categoryKeyBackfillService: CategoryKeyBackfillService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     // Deduplicate EMAIL_CATEGORY rows flagged by migration 1786000000000
@@ -24,6 +28,11 @@ export class EmailMigrationService implements OnModuleInit {
       await this.categoryDedupService.deduplicateCategoryNames();
     } catch (err) {
       this.logger.error("deduplicateCategoryNames failed on startup", err);
+    }
+    try {
+      await this.categoryKeyBackfillService.backfillMissingCategoryKeys();
+    } catch (err) {
+      this.logger.error("backfillMissingCategoryKeys failed on startup", err);
     }
   }
 }

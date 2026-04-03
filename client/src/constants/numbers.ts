@@ -26,6 +26,10 @@ export const MAX_OPTION_LENGTH = 50;
 export const MAX_DESCRIPTION_LENGTH = 500;
 export const MAX_SEARCH_RESULT_LENGTH = 200;
 export const MIN_SCORE_VALUE = -100;
+/** Min length for hex-like category `contextValue` treated as opaque in category debug UI */
+export const CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN = 32;
+/** Truncate raw category value preview in category debug */
+export const CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS = 48;
 
 // Width values
 export const SIDEBAR_WIDTH_PX = 50;

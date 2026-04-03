@@ -2,6 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import {
+  CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN,
+  CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS,
+} from 'constants/numbers';
+
 import { CategoryDebugData } from './CategoryDebugModal.types';
 
 const sectionHeaderStyle: React.CSSProperties = {
@@ -88,6 +93,11 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ thread }) => {
           <strong>{t('priority.categoryDebug.category')}:</strong>{' '}
           {thread.category || <span style={emptyStyle}>{t('priority.categoryDebug.none')}</span>}
         </div>
+        {thread.categorySource ? (
+          <div style={{ marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+            <strong>{t('priority.categoryDebug.categorySourceLabel')}:</strong> {thread.categorySource}
+          </div>
+        ) : null}
         {thread.categoryExplanation && (
           <div style={{ marginTop: theme.spacing.xs }}>
             <strong>{t('priority.categoryDebug.explanation')}:</strong>
@@ -101,41 +111,99 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ thread }) => {
   );
 };
 
+function categoryNameLooksLikeOpaqueId(name: string): boolean {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)) {
+    return true;
+  }
+  return (
+    name.length >= CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN &&
+    /^[0-9a-f]+$/i.test(name.replace(/-/g, ''))
+  );
+}
+
 // --- CategoriesList ---
 
 interface CategoriesListProps {
-  categories: Array<{ name: string; description?: string }>;
+  categories: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryKey?: string | null;
+  }>;
   headerLabel: string;
   emptyLabel: string;
+  /** When false, only the list box is rendered (e.g. inside a parent accordion title). */
+  includeHeading?: boolean;
 }
 
-export const CategoriesList: React.FC<CategoriesListProps> = ({ categories, headerLabel, emptyLabel }) => (
-  <>
-    <div style={sectionHeaderStyle}>{headerLabel}</div>
-    <div style={sectionBoxStyle}>
-      {categories.length === 0 ? (
-        <span style={emptyStyle}>{emptyLabel}</span>
-      ) : (
-        <ul style={{ margin: 0, paddingLeft: '16px' }}>
-          {categories.map(cat => (
-            <li key={cat.name}>
-              <strong>{cat.name}</strong>
-              {cat.description && <span style={{ color: theme.colors.text.secondary }}> — {cat.description}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  </>
-);
+export const CategoriesList: React.FC<CategoriesListProps> = ({
+  categories,
+  headerLabel,
+  emptyLabel,
+  includeHeading = true,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <>
+      {includeHeading ? <div style={sectionHeaderStyle}>{headerLabel}</div> : null}
+      <div style={sectionBoxStyle}>
+        {categories.length === 0 ? (
+          <span style={emptyStyle}>{emptyLabel}</span>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: '16px' }}>
+            {categories.map(cat => {
+              const opaque = categoryNameLooksLikeOpaqueId(cat.name);
+              const title = opaque
+                ? t('priority.categoryDebug.categoryLabelUnreadable', { shortId: cat.id.slice(0, 8) })
+                : cat.name;
+              return (
+                <li key={cat.id}>
+                  <strong>{title}</strong>
+                  {opaque ? (
+                    <span style={{ color: theme.colors.text.tertiary, fontFamily: 'ui-monospace, monospace', fontSize: '10px' }}>
+                      {' '}
+                      ({t('priority.categoryDebug.categoryRawValue')}:{' '}
+                      {cat.name.length > CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS
+                        ? `${cat.name.slice(0, CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS)}…`
+                        : cat.name})
+                    </span>
+                  ) : null}
+                  {!opaque && cat.description ? (
+                    <span style={{ color: theme.colors.text.secondary }}> — {cat.description}</span>
+                  ) : null}
+                  {cat.categoryKey ? (
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        fontFamily: 'ui-monospace, monospace',
+                        color: theme.colors.text.tertiary,
+                        marginTop: theme.spacing.xs,
+                      }}
+                    >
+                      {t('priority.categoryDebug.categoryStableIdLine', { key: cat.categoryKey })}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+};
 
 // --- UserContextSection ---
 
 interface UserContextSectionProps {
   userContext: CategoryDebugData['userContext'];
+  includeHeading?: boolean;
 }
 
-export const UserContextSection: React.FC<UserContextSectionProps> = ({ userContext }) => {
+export const UserContextSection: React.FC<UserContextSectionProps> = ({
+  userContext,
+  includeHeading = true,
+}) => {
   const { t } = useTranslation();
   const { urgentItems, notUrgentItems, goals, workingOn, dontCare } = userContext;
   const hasNoContext =
@@ -147,7 +215,7 @@ export const UserContextSection: React.FC<UserContextSectionProps> = ({ userCont
 
   return (
     <>
-      <div style={sectionHeaderStyle}>{t('priority.categoryDebug.userContext')}</div>
+      {includeHeading ? <div style={sectionHeaderStyle}>{t('priority.categoryDebug.userContext')}</div> : null}
       <div style={sectionBoxStyle}>
         {urgentItems.length > 0 && (
           <div style={{ marginBottom: theme.spacing.xs }}>

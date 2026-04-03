@@ -19,14 +19,24 @@ export function useDeterministicCategoryRulesSectionState() {
     COMPOSITE_RULE_FORM_MODE_ADD
   );
   const [editingRule, setEditingRule] = useState<CategoryRuleDto | null>(null);
+  const [prefillCategoryName, setPrefillCategoryName] = useState('');
 
   const openAdd = useCallback(() => {
+    setPrefillCategoryName('');
+    setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
+    setEditingRule(null);
+    setModalOpen(true);
+  }, []);
+
+  const openAddWithPrefill = useCallback((categoryDisplayName: string) => {
+    setPrefillCategoryName(categoryDisplayName.trim());
     setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
     setEditingRule(null);
     setModalOpen(true);
   }, []);
 
   const openEdit = useCallback((rule: CategoryRuleDto) => {
+    setPrefillCategoryName('');
     setModalMode(COMPOSITE_RULE_FORM_MODE_EDIT);
     setEditingRule(rule);
     setModalOpen(true);
@@ -35,6 +45,7 @@ export function useDeterministicCategoryRulesSectionState() {
   const closeModal = useCallback(() => {
     setModalOpen(false);
     setEditingRule(null);
+    setPrefillCategoryName('');
   }, []);
 
   const handleToggle = useCallback(
@@ -82,7 +93,9 @@ export function useDeterministicCategoryRulesSectionState() {
     modalOpen,
     modalMode,
     editingRule,
+    prefillCategoryName,
     openAdd,
+    openAddWithPrefill,
     openEdit,
     closeModal,
     handleToggle,

@@ -13,6 +13,7 @@ import {
 import { CategoryShortlistService } from "../llm/category-shortlist.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
+import { protoCategoryKey } from "../utils/category-key.util";
 import {
   parseCategoryValue,
   resolveCategoryName,
@@ -31,8 +32,18 @@ export interface CategoryDebugData {
     categoryExplanation: string | null;
     categorySource: "summary" | "priority" | null;
   };
-  emailCategories: Array<{ name: string; description?: string }>;
-  protoCategories: Array<{ name: string; description?: string }>;
+  emailCategories: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryKey?: string | null;
+  }>;
+  protoCategories: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryKey?: string;
+  }>;
   userContext: {
     urgentItems: Array<{ value: string; explanation?: string }>;
     notUrgentItems: Array<{ value: string; explanation?: string }>;
@@ -62,6 +73,9 @@ export interface CategorizationTrace {
     categoryExplanation: string;
     categoryConfidence?: string;
     error?: string;
+    /** When a deterministic rule won, the LLM's category before production overrides it. */
+    llmCategoryBeforeRuleOverride?: string;
+    llmExplanationBeforeRuleOverride?: string;
   };
 }
 
@@ -130,8 +144,10 @@ export class EmailDebugCategoryService {
     const categoryName = resolveCategoryName(thread?.categoryId, contexts);
 
     const protoCategories = protoCategoryEntities.map((pc) => ({
+      id: pc.id,
       name: pc.name,
       description: pc.description || undefined,
+      categoryKey: protoCategoryKey(pc.id),
     }));
 
     const base: CategoryDebugData = {
@@ -170,8 +186,8 @@ export class EmailDebugCategoryService {
   private async buildCategorizationTrace(
     userId: string,
     email: Email,
-    emailCategories: Array<{ name: string; description?: string }>,
-    protoCategories: Array<{ name: string; description?: string }>,
+    emailCategories: CategoryDebugData["emailCategories"],
+    protoCategories: CategoryDebugData["protoCategories"],
     userContext: CategoryDebugData["userContext"],
   ): Promise<CategorizationTrace> {
     const allCombined = [...emailCategories, ...protoCategories];
@@ -187,42 +203,90 @@ export class EmailDebugCategoryService {
     };
     const deterministicRules =
       await this.categoryRulesService.getDeterministicRulesDebug(userId, meta);
+    const { winningRule } = deterministicRules;
+    const bodyForPriorityLlm = winningRule
+      ? `[Category pre-assigned by deterministic rule: "${winningRule.categoryName}". Focus on urgency and goal-alignment scoring only.]\n\n${email.body || ""}`
+      : email.body || "";
 
-    let shortlist: CategorizationTrace["shortlist"];
+    const shortlist = await this.buildDebugShortlistTrace(
+      userId,
+      email,
+      allCombined,
+      cleanedForShortlist,
+    );
+    const smartModel = await this.buildDebugSmartModelTrace({
+      userId,
+      email,
+      bodyForPriorityLlm,
+      winningRule,
+      userContext,
+      emailCategories,
+      protoCategories,
+    });
+
+    return { deterministicRules, shortlist, smartModel };
+  }
+
+  private async buildDebugShortlistTrace(
+    userId: string,
+    email: Email,
+    allCombined: Array<
+      | CategoryDebugData["emailCategories"][number]
+      | CategoryDebugData["protoCategories"][number]
+    >,
+    cleanedForShortlist: string,
+  ): Promise<CategorizationTrace["shortlist"]> {
     if (!this.categoryShortlistService.isShortlistEnabled(allCombined.length)) {
-      shortlist = {
+      return {
         skipped: true,
         skipReason: `Category count (${allCombined.length}) is at or below the shortlist threshold; full list is passed to the smart model.`,
         categoryNames: allCombined.map((category) => category.name),
       };
-    } else {
-      try {
-        const shortlisted = await this.categoryShortlistService.getShortlist(
-          {
-            from: email.from || "",
-            fromName: email.fromName || undefined,
-            subject: email.subject || "",
-            summary: cleanedForShortlist,
-          },
-          allCombined,
-        );
-        shortlist = {
-          skipped: false,
-          categoryNames: shortlisted.map((category) => category.name),
-        };
-      } catch (err) {
-        this.logger.warn(
-          `Category debug shortlist failed for user ${userId}: ${(err as Error).message}`,
-        );
-        shortlist = {
-          skipped: false,
-          categoryNames: [],
-          error: (err as Error).message,
-        };
-      }
     }
+    try {
+      const shortlisted = await this.categoryShortlistService.getShortlist(
+        {
+          from: email.from || "",
+          fromName: email.fromName || undefined,
+          subject: email.subject || "",
+          summary: cleanedForShortlist,
+        },
+        allCombined,
+      );
+      return {
+        skipped: false,
+        categoryNames: shortlisted.map((category) => category.name),
+      };
+    } catch (err) {
+      this.logger.warn(
+        `Category debug shortlist failed for user ${userId}: ${(err as Error).message}`,
+      );
+      return {
+        skipped: false,
+        categoryNames: [],
+        error: (err as Error).message,
+      };
+    }
+  }
 
-    let smartModel: CategorizationTrace["smartModel"];
+  private async buildDebugSmartModelTrace(options: {
+    userId: string;
+    email: Email;
+    bodyForPriorityLlm: string;
+    winningRule: CategorizationTrace["deterministicRules"]["winningRule"];
+    userContext: CategoryDebugData["userContext"];
+    emailCategories: CategoryDebugData["emailCategories"];
+    protoCategories: CategoryDebugData["protoCategories"];
+  }): Promise<CategorizationTrace["smartModel"]> {
+    const {
+      userId,
+      email,
+      bodyForPriorityLlm,
+      winningRule,
+      userContext,
+      emailCategories,
+      protoCategories,
+    } = options;
     try {
       const priorityUserContext = {
         urgentItems: userContext.urgentItems,
@@ -239,12 +303,21 @@ export class EmailDebugCategoryService {
           fromName: email.fromName || undefined,
           senderJobTitle: email.senderJobTitle || undefined,
           subject: email.subject || "",
-          body: email.body || "",
+          body: bodyForPriorityLlm,
         },
         userId,
         userContext: priorityUserContext,
       });
-      smartModel = {
+      if (winningRule) {
+        const kindOrType = winningRule.ruleType ?? winningRule.ruleKind;
+        return {
+          category: winningRule.categoryName,
+          categoryExplanation: `Matched deterministic rule (${kindOrType}): category="${winningRule.categoryName}"`,
+          llmCategoryBeforeRuleOverride: result.category,
+          llmExplanationBeforeRuleOverride: result.categoryExplanation,
+        };
+      }
+      return {
         category: result.category,
         categoryExplanation: result.categoryExplanation,
         categoryConfidence: result.categoryConfidence,
@@ -253,24 +326,27 @@ export class EmailDebugCategoryService {
       this.logger.warn(
         `Category debug analyzePriority failed for user ${userId}: ${(err as Error).message}`,
       );
-      smartModel = {
+      return {
         category: "",
         categoryExplanation: "",
         error: (err as Error).message,
       };
     }
-
-    return { deterministicRules, shortlist, smartModel };
   }
 
   private parseEmailCategories(
     contexts: UserContext[],
-  ): Array<{ name: string; description?: string }> {
+  ): CategoryDebugData["emailCategories"] {
     return contexts
       .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
       .map((category) => {
         const { name, description } = parseCategoryValue(category.contextValue);
-        return { name, description: description ?? undefined };
+        return {
+          id: category.contextId,
+          name,
+          description: description ?? undefined,
+          categoryKey: category.categoryKey ?? undefined,
+        };
       });
   }
 

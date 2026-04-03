@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
 import {
   ContextKey,
   Source,
@@ -31,6 +32,10 @@ const mockBoss = {
   send: jest.fn(),
 };
 
+const mockCategoryKeyAssignmentService = {
+  getUsedCategoryKeys: jest.fn().mockResolvedValue([]),
+};
+
 describe("ContextCompressionService", () => {
   let service: ContextCompressionService;
 
@@ -47,6 +52,10 @@ describe("ContextCompressionService", () => {
         { provide: LLMService, useValue: mockLlmService },
         { provide: ContextCategoryService, useValue: mockCategoryService },
         { provide: "PG_BOSS", useValue: mockBoss },
+        {
+          provide: CategoryKeyAssignmentService,
+          useValue: mockCategoryKeyAssignmentService,
+        },
       ],
     }).compile();
 

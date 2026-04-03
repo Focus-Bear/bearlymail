@@ -347,6 +347,7 @@ describe("EmailDebugService", () => {
       );
 
       expect(result.emailCategories).toHaveLength(1);
+      expect(result.emailCategories[0].id).toBe("ctx-1");
       expect(result.emailCategories[0].name).toBe("PR Bot Comments");
       expect(result.emailCategories[0].description).toBe(
         "GitHub PR bot notifications",

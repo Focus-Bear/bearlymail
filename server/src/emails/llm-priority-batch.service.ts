@@ -13,6 +13,7 @@ import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ProtoCategory } from "../database/entities/proto-category.entity";
 import {
   ContextKey,
   UserContext,
@@ -28,6 +29,7 @@ import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { protoCategoryKey } from "../utils/category-key.util";
 import { parseCategoryValue } from "../utils/category-name.util";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
@@ -41,8 +43,9 @@ type UserContextInput = Array<{
   contextValue: string;
   explanation?: string | null;
   priority?: number | null;
+  categoryKey?: string | null;
 }>;
-type ProtoCategoryInput = Array<{ name: string; description?: string | null }>;
+type ProtoCategoryInput = ProtoCategory[];
 
 /**
  * Domain service for batch email priority processing.
@@ -189,7 +192,7 @@ export class LLMPriorityBatchService {
   ): Promise<{
     emailsToProcess: Email[];
     contexts: UserContext[];
-    protoCategories: Array<{ name: string; description?: string | null }>;
+    protoCategories: ProtoCategory[];
   }> {
     const [emailResults, contexts, protoCategories] = await Promise.all([
       Promise.all(
@@ -485,11 +488,16 @@ export class LLMPriorityBatchService {
           const { name, description } = parseCategoryValue(
             category.contextValue,
           );
-          return { name, description: description ?? undefined };
+          return {
+            name,
+            description: description ?? undefined,
+            categoryKey: category.categoryKey ?? undefined,
+          };
         }),
       protoCategories: protoCategories.map((pc) => ({
         name: pc.name,
         description: pc.description || undefined,
+        categoryKey: protoCategoryKey(pc.id),
       })),
     };
   }

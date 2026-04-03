@@ -31,7 +31,7 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
   const detail = ev.compositeDetail;
 
   return (
-    <li style={{ marginBottom: theme.spacing.xs }}>
+    <div style={{ marginBottom: theme.spacing.xs }}>
       <span style={monoStyle}>
         [{evaluationRuleLabel(ev, translate)}] {ev.categoryName}
       </span>
@@ -100,6 +100,6 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
         {' · '}
         {translate('priority.categoryDebug.traceHits', { count: ev.hitCount })}
       </span>
-    </li>
+    </div>
   );
 };

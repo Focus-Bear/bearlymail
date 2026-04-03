@@ -5,6 +5,7 @@ import { FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { AccordionGroup } from 'components/inbox/debug/AccordionGroup';
 import { ModalBackdrop, ModalContent } from 'components/modal';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { API_URL } from 'config/api';
@@ -140,7 +141,8 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
               </button>
               <style>{`@keyframes cat-debug-spin { to { transform: rotate(360deg); } }`}</style>
               <button
-                onClick={handleCopy}
+                type="button"
+                onClick={() => void handleCopy()}
                 style={{
                   background: copied ? theme.colors.feedback?.success || '#388e3c' : theme.colors.background.subtle,
                   border: `1px solid ${theme.colors.border?.default || '#e0e0e0'}`,
@@ -158,21 +160,14 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
             <div style={{ overflowY: 'auto', maxHeight: '70vh' }}>
               <EmailSection email={debugInfo.email} />
               <CategorySection thread={debugInfo.thread} />
-              <CategoriesList
-                categories={debugInfo.emailCategories}
-                headerLabel={`${t('priority.categoryDebug.availableCategories')} (${debugInfo.emailCategories.length})`}
-                emptyLabel={t('priority.categoryDebug.noCategories')}
-              />
-              {debugInfo.protoCategories.length > 0 && (
-                <CategoriesList
-                  categories={debugInfo.protoCategories}
-                  headerLabel={`${t('priority.categoryDebug.protoCategories')} (${debugInfo.protoCategories.length})`}
-                  emptyLabel=""
-                />
-              )}
-              <UserContextSection userContext={debugInfo.userContext} />
               {traceError && (
-                <div style={{ color: theme.colors.feedback?.error || '#d32f2f', padding: theme.spacing.sm, fontSize: theme.typography.fontSize.sm }}>
+                <div
+                  style={{
+                    color: theme.colors.feedback?.error || '#d32f2f',
+                    padding: theme.spacing.sm,
+                    fontSize: theme.typography.fontSize.sm,
+                  }}
+                >
                   {traceError}
                 </div>
               )}
@@ -184,6 +179,45 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
               {debugInfo.categorizationTrace && !traceLoading && (
                 <CategoryDebugTracePanel trace={debugInfo.categorizationTrace} />
               )}
+              <AccordionGroup
+                title={t('priority.categoryDebug.referenceAllCategories')}
+                count={debugInfo.emailCategories.length}
+                defaultOpen={false}
+              >
+                <CategoriesList
+                  includeHeading={false}
+                  categories={debugInfo.emailCategories}
+                  headerLabel=""
+                  emptyLabel={t('priority.categoryDebug.noCategories')}
+                />
+              </AccordionGroup>
+              {debugInfo.protoCategories.length > 0 ? (
+                <AccordionGroup
+                  title={t('priority.categoryDebug.referenceProtoCategories')}
+                  count={debugInfo.protoCategories.length}
+                  defaultOpen={false}
+                >
+                  <CategoriesList
+                    includeHeading={false}
+                    categories={debugInfo.protoCategories}
+                    headerLabel=""
+                    emptyLabel=""
+                  />
+                </AccordionGroup>
+              ) : null}
+              <AccordionGroup
+                title={t('priority.categoryDebug.referenceUserContext')}
+                count={
+                  debugInfo.userContext.urgentItems.length +
+                  debugInfo.userContext.notUrgentItems.length +
+                  debugInfo.userContext.goals.length +
+                  debugInfo.userContext.workingOn.length +
+                  debugInfo.userContext.dontCare.length
+                }
+                defaultOpen={false}
+              >
+                <UserContextSection userContext={debugInfo.userContext} includeHeading={false} />
+              </AccordionGroup>
             </div>
           </>
         )}

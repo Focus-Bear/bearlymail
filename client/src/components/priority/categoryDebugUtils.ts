@@ -33,7 +33,12 @@ function appendCategoriesList(lines: string[], categories: CategoryDebugData['em
   if (categories.length === 0) {
     lines.push('None');
   } else {
-    categories.forEach(cat => lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`));
+    categories.forEach(cat => {
+      const keyPart = cat.categoryKey ? ` [key: ${cat.categoryKey}]` : '';
+      lines.push(
+        `- **${cat.name}** (context ${cat.id})${keyPart}${cat.description ? `: ${cat.description}` : ''}`,
+      );
+    });
   }
   lines.push('');
 }
@@ -128,10 +133,18 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
     if (tr.smartModel.error) {
       lines.push(`- **Smart model error**: ${tr.smartModel.error}`);
     } else {
-      lines.push(`- **Smart model category**: ${tr.smartModel.category}`);
-      lines.push(`- **Smart model explanation**: ${tr.smartModel.categoryExplanation}`);
+      lines.push(`- **Final category (priority pipeline)**: ${tr.smartModel.category}`);
+      lines.push(`- **Final explanation**: ${tr.smartModel.categoryExplanation}`);
       if (tr.smartModel.categoryConfidence) {
         lines.push(`- **Smart model confidence**: ${tr.smartModel.categoryConfidence}`);
+      }
+      if (tr.smartModel.llmCategoryBeforeRuleOverride !== undefined) {
+        lines.push(
+          `- **LLM category before rule override**: ${tr.smartModel.llmCategoryBeforeRuleOverride || 'None'}`,
+        );
+        if (tr.smartModel.llmExplanationBeforeRuleOverride) {
+          lines.push(`  - ${tr.smartModel.llmExplanationBeforeRuleOverride}`);
+        }
       }
     }
   }

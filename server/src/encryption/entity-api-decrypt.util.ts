@@ -227,6 +227,7 @@ export function mapRawUserContextRowToApiEntity(
     userId: row.userId as string,
     contextKey: row.contextKey as UserContext["contextKey"],
     contextValue: row.contextValue as string,
+    categoryKey: (row.categoryKey as string | null) ?? null,
     priority: row.priority as number | null,
     source: row.source as UserContext["source"],
     explanation: row.explanation as string | null,

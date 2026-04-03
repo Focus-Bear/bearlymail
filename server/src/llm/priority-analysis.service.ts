@@ -11,6 +11,7 @@ import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
+import { resolveLlmCategoryToDisplayName } from "../utils/category-key.util";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { LLMProvider } from "./llm.types";
@@ -29,8 +30,16 @@ type UserContextInput = {
   goals?: Array<{ value: string; priority?: number }>;
   workingOn?: Array<{ value: string; priority?: number }>;
   dontCare?: Array<{ value: string }>;
-  emailCategories?: Array<{ name: string; description?: string }>;
-  protoCategories?: Array<{ name: string; description?: string }>;
+  emailCategories?: Array<{
+    name: string;
+    description?: string;
+    categoryKey?: string;
+  }>;
+  protoCategories?: Array<{
+    name: string;
+    description?: string;
+    categoryKey?: string;
+  }>;
 };
 
 type UserContextTexts = {
@@ -135,10 +144,12 @@ export class PriorityAnalysisService {
     const emailCategoriesText =
       userContext?.emailCategories && userContext.emailCategories.length > 0
         ? userContext.emailCategories
-            .map(
-              (cat) =>
-                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-            )
+            .map((cat) => {
+              const keyPart = cat.categoryKey
+                ? ` [id: ${cat.categoryKey}]`
+                : "";
+              return `   - "${cat.name}"${keyPart}${cat.description ? `: ${cat.description}` : ""}`;
+            })
             .join("\n")
         : "";
     return {
@@ -268,6 +279,26 @@ export class PriorityAnalysisService {
    * Parse a successful LLM priority response JSON into a PriorityResult.
    * Returns null if the JSON doesn't contain a valid priority object.
    */
+  private applyCategoryKeyResolution(
+    result: PriorityResult,
+    userContext?: UserContextInput,
+  ): PriorityResult {
+    const emailCats = userContext?.emailCategories ?? [];
+    const protoCats = userContext?.protoCategories ?? [];
+    if (emailCats.length === 0 && protoCats.length === 0) {
+      return result;
+    }
+    const resolved = resolveLlmCategoryToDisplayName(
+      result.category,
+      emailCats,
+      protoCats,
+    );
+    if (resolved === result.category) {
+      return result;
+    }
+    return { ...result, category: resolved };
+  }
+
   private parsePriorityResponse(
     response: string,
     preComputedSentimentScore: number | undefined,
@@ -429,7 +460,9 @@ export class PriorityAnalysisService {
         responsePreview,
         userId,
       );
-      if (parsed) return parsed;
+      if (parsed) {
+        return this.applyCategoryKeyResolution(parsed, userContext);
+      }
     } catch (error) {
       this.logger.error(
         `analyzePriority: Failed to parse LLM priority response as JSON - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,

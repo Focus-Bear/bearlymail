@@ -6,6 +6,7 @@ import { AwsModule } from "../aws/aws.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
+import { CategoryKeysModule } from "../category-keys/category-keys.module";
 import { CategoryRulesModule } from "../category-rules/category-rules.module";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ContextModule } from "../context/context.module";
@@ -91,6 +92,7 @@ import { SyncHistoryService } from "./sync-history.service";
 
 @Module({
   imports: [
+    CategoryKeysModule,
     TypeOrmModule.forFeature([
       Email,
       EmailThread,

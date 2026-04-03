@@ -6,6 +6,8 @@ import { ContextAboutMeSection } from 'components/settings/guide-ai/ContextAbout
 import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAISectionHeader';
 import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
 import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
+import { CategoryRuleFromCategoryContext } from 'contexts/CategoryRuleFromCategoryContext';
+import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
 interface UserContext {
   contextId: string;
@@ -143,81 +145,89 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onUpdateProfile,
   onRefreshContexts,
 }) => {
+  const deterministicCategoryRulesController = useDeterministicCategoryRulesSectionState();
+
   return (
-    <div
-      id="guide-our-ai"
-      style={{
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.xl,
-        marginBottom: theme.spacing.lg,
-        boxShadow: theme.shadows.md,
+    <CategoryRuleFromCategoryContext.Provider
+      value={{
+        openAddRuleForCategoryDisplayName: deterministicCategoryRulesController.openAddWithPrefill,
       }}
     >
-      <GuideOurAISectionHeader />
+      <div
+        id="guide-our-ai"
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.xl,
+          marginBottom: theme.spacing.lg,
+          boxShadow: theme.shadows.md,
+        }}
+      >
+        <GuideOurAISectionHeader />
 
-      <ContextAboutMeSection
-        contexts={contexts}
-        analyzing={analyzing}
-        addingContextType={addingContextType}
-        editingContextId={editingContextId}
-        editContextValue={editContextValue}
-        newContextValue={newContextValue}
-        displayName={displayName}
-        jobTitle={jobTitle}
-        calendarBookingUrl={calendarBookingUrl}
-        onAnalyzeContext={onAnalyzeContext}
-        onAddContext={onAddContext}
-        onUpdateContext={onUpdateContext}
-        onDeleteContext={onDeleteContext}
-        onNewContextValueChange={onNewContextValueChange}
-        onAddingContextTypeChange={onAddingContextTypeChange}
-        onEditingContextIdChange={onEditingContextIdChange}
-        onEditContextValueChange={onEditContextValueChange}
-        onUpdateProfile={onUpdateProfile}
-        onRefreshContexts={onRefreshContexts}
-      />
+        <ContextAboutMeSection
+          contexts={contexts}
+          analyzing={analyzing}
+          addingContextType={addingContextType}
+          editingContextId={editingContextId}
+          editContextValue={editContextValue}
+          newContextValue={newContextValue}
+          displayName={displayName}
+          jobTitle={jobTitle}
+          calendarBookingUrl={calendarBookingUrl}
+          onAnalyzeContext={onAnalyzeContext}
+          onAddContext={onAddContext}
+          onUpdateContext={onUpdateContext}
+          onDeleteContext={onDeleteContext}
+          onNewContextValueChange={onNewContextValueChange}
+          onAddingContextTypeChange={onAddingContextTypeChange}
+          onEditingContextIdChange={onEditingContextIdChange}
+          onEditContextValueChange={onEditContextValueChange}
+          onUpdateProfile={onUpdateProfile}
+          onRefreshContexts={onRefreshContexts}
+        />
 
-      <DeterministicCategoryRulesSection />
+        <DeterministicCategoryRulesSection controller={deterministicCategoryRulesController} />
 
-      <ToneSettingsSection
-        toneRules={toneRules}
-        newToneRule={newToneRule}
-        onAddToneRule={onAddToneRule}
-        onRemoveToneRule={onRemoveToneRule}
-        onEditToneRule={onEditToneRule}
-        onNewToneRuleChange={onNewToneRuleChange}
-      />
+        <ToneSettingsSection
+          toneRules={toneRules}
+          newToneRule={newToneRule}
+          onAddToneRule={onAddToneRule}
+          onRemoveToneRule={onRemoveToneRule}
+          onEditToneRule={onEditToneRule}
+          onNewToneRuleChange={onNewToneRuleChange}
+        />
 
-      <SummarizationRulesSection
-        summarizationRules={summarizationRules}
-        newSummarizationWhen={newSummarizationWhen}
-        newSummarizationHow={newSummarizationHow}
-        newFromPatterns={newFromPatterns}
-        newSubjectPatterns={newSubjectPatterns}
-        newPriority={newPriority}
-        editingSummarizationRule={editingSummarizationRule}
-        editSummarizationWhen={editSummarizationWhen}
-        editSummarizationHow={editSummarizationHow}
-        editFromPatterns={editFromPatterns}
-        editSubjectPatterns={editSubjectPatterns}
-        editPriority={editPriority}
-        onAddSummarizationRule={onAddSummarizationRule}
-        onEditSummarizationRule={onEditSummarizationRule}
-        onSaveSummarizationRule={onSaveSummarizationRule}
-        onDeleteSummarizationRule={onDeleteSummarizationRule}
-        onNewSummarizationWhenChange={onNewSummarizationWhenChange}
-        onNewSummarizationHowChange={onNewSummarizationHowChange}
-        onNewFromPatternsChange={onNewFromPatternsChange}
-        onNewSubjectPatternsChange={onNewSubjectPatternsChange}
-        onNewPriorityChange={onNewPriorityChange}
-        onEditSummarizationWhenChange={onEditSummarizationWhenChange}
-        onEditSummarizationHowChange={onEditSummarizationHowChange}
-        onEditFromPatternsChange={onEditFromPatternsChange}
-        onEditSubjectPatternsChange={onEditSubjectPatternsChange}
-        onEditPriorityChange={onEditPriorityChange}
-        onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
-      />
-    </div>
+        <SummarizationRulesSection
+          summarizationRules={summarizationRules}
+          newSummarizationWhen={newSummarizationWhen}
+          newSummarizationHow={newSummarizationHow}
+          newFromPatterns={newFromPatterns}
+          newSubjectPatterns={newSubjectPatterns}
+          newPriority={newPriority}
+          editingSummarizationRule={editingSummarizationRule}
+          editSummarizationWhen={editSummarizationWhen}
+          editSummarizationHow={editSummarizationHow}
+          editFromPatterns={editFromPatterns}
+          editSubjectPatterns={editSubjectPatterns}
+          editPriority={editPriority}
+          onAddSummarizationRule={onAddSummarizationRule}
+          onEditSummarizationRule={onEditSummarizationRule}
+          onSaveSummarizationRule={onSaveSummarizationRule}
+          onDeleteSummarizationRule={onDeleteSummarizationRule}
+          onNewSummarizationWhenChange={onNewSummarizationWhenChange}
+          onNewSummarizationHowChange={onNewSummarizationHowChange}
+          onNewFromPatternsChange={onNewFromPatternsChange}
+          onNewSubjectPatternsChange={onNewSubjectPatternsChange}
+          onNewPriorityChange={onNewPriorityChange}
+          onEditSummarizationWhenChange={onEditSummarizationWhenChange}
+          onEditSummarizationHowChange={onEditSummarizationHowChange}
+          onEditFromPatternsChange={onEditFromPatternsChange}
+          onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+          onEditPriorityChange={onEditPriorityChange}
+          onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
+        />
+      </div>
+    </CategoryRuleFromCategoryContext.Provider>
   );
 };

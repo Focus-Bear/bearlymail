@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AuthModule } from "../auth/auth.module";
 import { AwsModule } from "../aws/aws.module";
+import { CategoryKeysModule } from "../category-keys/category-keys.module";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -38,6 +39,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
 
 @Module({
   imports: [
+    CategoryKeysModule,
     TypeOrmModule.forFeature([
       UserContext,
       Email,

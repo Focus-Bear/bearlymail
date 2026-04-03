@@ -40,6 +40,8 @@ export interface CategorizationTrace {
     categoryExplanation: string;
     categoryConfidence?: string;
     error?: string;
+    llmCategoryBeforeRuleOverride?: string;
+    llmExplanationBeforeRuleOverride?: string;
   };
 }
 
@@ -56,8 +58,18 @@ export interface CategoryDebugData {
     categoryExplanation: string | null;
     categorySource: "summary" | "priority" | null;
   };
-  emailCategories: Array<{ name: string; description?: string }>;
-  protoCategories: Array<{ name: string; description?: string }>;
+  emailCategories: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryKey?: string | null;
+  }>;
+  protoCategories: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryKey?: string;
+  }>;
   userContext: {
     urgentItems: Array<{ value: string; explanation?: string }>;
     notUrgentItems: Array<{ value: string; explanation?: string }>;

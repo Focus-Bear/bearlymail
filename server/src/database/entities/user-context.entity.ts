@@ -73,6 +73,17 @@ export class UserContext {
   @Column("text", { transformer: encryptedColumnTransformer })
   contextValue: string;
 
+  /**
+   * Stable snake_case identifier for EMAIL_CATEGORY rows only.
+   * Used in LLM shortlist / priority prompts so models return ids instead of paraphrased names.
+   */
+  @Column({
+    type: "varchar",
+    length: 128,
+    nullable: true,
+  })
+  categoryKey: string | null;
+
   @Column({
     type: "int",
     nullable: true,

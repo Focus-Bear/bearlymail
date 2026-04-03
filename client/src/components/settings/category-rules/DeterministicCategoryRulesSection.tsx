@@ -7,7 +7,13 @@ import { DeterministicCategoryRulesPanel } from 'components/settings/category-ru
 import { COLOR_WHITE } from 'constants/colors';
 import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
-export const DeterministicCategoryRulesSection: React.FC = () => {
+export type DeterministicCategoryRulesController = ReturnType<typeof useDeterministicCategoryRulesSectionState>;
+
+interface DeterministicCategoryRulesSectionProps {
+  controller: DeterministicCategoryRulesController;
+}
+
+export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRulesSectionProps> = ({ controller }) => {
   const { t } = useTranslation();
   const {
     rules,
@@ -16,13 +22,14 @@ export const DeterministicCategoryRulesSection: React.FC = () => {
     modalOpen,
     modalMode,
     editingRule,
+    prefillCategoryName,
     openAdd,
     openEdit,
     closeModal,
     handleToggle,
     handleDelete,
     handleFormSubmit,
-  } = useDeterministicCategoryRulesSectionState();
+  } = controller;
 
   return (
     <div
@@ -68,7 +75,7 @@ export const DeterministicCategoryRulesSection: React.FC = () => {
         open={modalOpen}
         mode={modalMode}
         categoryOptions={categoryOptions}
-        initialCategoryName={editingRule?.categoryName ?? ''}
+        initialCategoryName={editingRule?.categoryName ?? prefillCategoryName}
         initialSpec={editingRule?.compositeSpec ?? null}
         onClose={closeModal}
         onSubmit={handleFormSubmit}

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import {
   ContextKey,
@@ -13,6 +14,7 @@ import {
   mapRawUserContextRowToApiEntity,
 } from "../encryption/entity-api-decrypt.util";
 import { getErrorMessage } from "../types/common";
+import { parseCategoryName } from "../utils/category-name.util";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 
 export interface CreateContextOptions {
@@ -33,6 +35,7 @@ export class ContextCrudService {
     @InjectRepository(UserContext)
     private contextRepository: Repository<UserContext>,
     private piiRedactionService: ContextPiiRedactionService,
+    private categoryKeyAssignmentService: CategoryKeyAssignmentService,
   ) {}
 
   /**
@@ -54,7 +57,8 @@ export class ContextCrudService {
         "sourceThreadIds",
         "createdAt",
         "lastModified",
-        "needsCategoryDedup"
+        "needsCategoryDedup",
+        "categoryKey"
       FROM user_contexts
       WHERE "userId" = $1
       ORDER BY "lastModified" DESC
@@ -94,27 +98,22 @@ export class ContextCrudService {
     const redactedValue = this.piiRedactionService.redactPII(trimmedValue);
 
     if (existing) {
-      existing.lastModified = new Date();
-      // Update with redacted value
-      existing.contextValue = redactedValue;
-      if (source === Source.USER_EDITED) {
-        existing.source = Source.USER_EDITED;
-      }
-      if (priority !== undefined) {
-        existing.priority = priority;
-      }
-      if (explanation !== undefined) {
-        existing.explanation = explanation;
-      }
-      // Merge source thread IDs (don't replace, add new ones)
-      if (sourceThreadIds && sourceThreadIds.length > 0) {
-        const existingIds = existing.sourceThreadIds || [];
-        const mergedIds = [...new Set([...existingIds, ...sourceThreadIds])];
-        existing.sourceThreadIds = mergedIds;
-      }
-      const saved = await this.contextRepository.save(existing);
-      decryptUserContextEntityForApi(saved);
-      return saved;
+      return this.persistExistingContextUpdate(
+        existing,
+        redactedValue,
+        source,
+        options,
+      );
+    }
+
+    let categoryKey: string | null = null;
+    if (contextKey === ContextKey.EMAIL_CATEGORY) {
+      const displayName = parseCategoryName(redactedValue);
+      categoryKey =
+        await this.categoryKeyAssignmentService.allocateKeyForNewCategory(
+          userId,
+          displayName,
+        );
     }
 
     const newContext = this.contextRepository.create({
@@ -122,6 +121,7 @@ export class ContextCrudService {
       contextKey,
       // Use PII-redacted value
       contextValue: redactedValue,
+      categoryKey,
       source,
       priority,
       explanation,
@@ -130,6 +130,35 @@ export class ContextCrudService {
     const created = await this.contextRepository.save(newContext);
     decryptUserContextEntityForApi(created);
     return created;
+  }
+
+  private async persistExistingContextUpdate(
+    existing: UserContext,
+    redactedValue: string,
+    source: Source,
+    options: CreateContextOptions,
+  ): Promise<UserContext> {
+    const { priority, explanation, sourceThreadIds } = options;
+    existing.lastModified = new Date();
+    existing.contextValue = redactedValue;
+    if (source === Source.USER_EDITED) {
+      existing.source = Source.USER_EDITED;
+    }
+    if (priority !== undefined) {
+      existing.priority = priority;
+    }
+    if (explanation !== undefined) {
+      existing.explanation = explanation;
+    }
+    if (sourceThreadIds && sourceThreadIds.length > 0) {
+      const existingIds = existing.sourceThreadIds || [];
+      existing.sourceThreadIds = [
+        ...new Set([...existingIds, ...sourceThreadIds]),
+      ];
+    }
+    const saved = await this.contextRepository.save(existing);
+    decryptUserContextEntityForApi(saved);
+    return saved;
   }
 
   /**

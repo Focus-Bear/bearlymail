@@ -28,18 +28,30 @@ const mockEmail = {
 };
 
 const allCategories = [
-  { name: "Customer Support", description: "Support tickets" },
-  { name: "Sales", description: "Sales enquiries" },
-  { name: "Marketing", description: "Marketing emails" },
-  { name: "Engineering", description: "Engineering team" },
-  { name: "Finance", description: "Finance related" },
-  { name: "HR", description: "Human resources" },
-  { name: "Legal", description: "Legal matters" },
-  { name: "Operations", description: "Operations team" },
-  { name: "Product", description: "Product team" },
-  { name: "Design", description: "Design team" },
-  { name: "Data", description: "Data team" },
-  { name: "Security", description: "Security alerts" },
+  {
+    name: "Customer Support",
+    description: "Support tickets",
+    categoryKey: "customer_support",
+  },
+  { name: "Sales", description: "Sales enquiries", categoryKey: "sales" },
+  { name: "Marketing", description: "Marketing emails", categoryKey: "mkt" },
+  {
+    name: "Engineering",
+    description: "Engineering team",
+    categoryKey: "engineering",
+  },
+  { name: "Finance", description: "Finance related", categoryKey: "finance" },
+  { name: "HR", description: "Human resources", categoryKey: "hr" },
+  { name: "Legal", description: "Legal matters", categoryKey: "legal" },
+  {
+    name: "Operations",
+    description: "Operations team",
+    categoryKey: "operations",
+  },
+  { name: "Product", description: "Product team", categoryKey: "product" },
+  { name: "Design", description: "Design team", categoryKey: "design" },
+  { name: "Data", description: "Data team", categoryKey: "data" },
+  { name: "Security", description: "Security alerts", categoryKey: "security" },
   { name: "Other" },
 ];
 
@@ -223,6 +235,30 @@ describe("CategoryShortlistService", () => {
         expect.any(String),
         expect.objectContaining({ topN: "5" }),
       );
+    });
+
+    it("should match shortlisted categories by stable categoryKey from LLM", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        '{"categories": ["customer_support", "engineering", "security"]}',
+      );
+
+      const result = await service.getShortlist(mockEmail, allCategories);
+
+      expect(result.map((cat) => cat.name)).toEqual([
+        "Customer Support",
+        "Engineering",
+        "Security",
+      ]);
+    });
+
+    it("should accept { id } objects in categories array", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        '{"categories": [{"id": "sales"}, {"id": "hr"}]}',
+      );
+
+      const result = await service.getShortlist(mockEmail, allCategories);
+
+      expect(result.map((cat) => cat.name)).toEqual(["Sales", "HR"]);
     });
   });
 });

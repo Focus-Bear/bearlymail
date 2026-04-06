@@ -495,27 +495,34 @@ describe("FollowUpsService", () => {
 
   describe("calculateWaitingDuration", () => {
     it("should calculate business days since last user message", async () => {
-      usersService.findOne.mockResolvedValue(mockUser);
+      // Fixed "now" and last-message dates — relative Date.now() spans are flaky
+      // (weekends, holidays, DST) once normalized to start-of-day in calculateBusinessDays.
+      const friday = new Date(2024, 0, 12, 12, 0, 0);
+      const monday = new Date(2024, 0, 8, 9, 0, 0);
+      jest.useFakeTimers({ now: friday });
+      try {
+        usersService.findOne.mockResolvedValue(mockUser);
 
-      // 5 days ago
-      const userEmail = mockPartial({
-        ...mockEmail,
-        from: "user@example.com",
-        labels: ["SENT"],
-        receivedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        getPriorityScore: jest.fn().mockReturnValue(50),
-      });
+        const userEmail = mockPartial({
+          ...mockEmail,
+          from: "user@example.com",
+          labels: ["SENT"],
+          receivedAt: monday,
+          getPriorityScore: jest.fn().mockReturnValue(50),
+        });
 
-      emailRepository.find.mockResolvedValue([userEmail]);
+        emailRepository.find.mockResolvedValue([userEmail]);
 
-      const result = await service.calculateWaitingDuration(
-        "user-1",
-        "thread-1",
-      );
+        const result = await service.calculateWaitingDuration(
+          "user-1",
+          "thread-1",
+        );
 
-      // At least 3 business days (5 calendar days)
-      expect(result).toBeGreaterThanOrEqual(3);
-      expect(result).toBeLessThanOrEqual(5);
+        // Mon 2024-01-08 → Fri 2024-01-12 inclusive = 5 business days (see business-days.util.spec)
+        expect(result).toBe(5);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("should return 0 when no user messages found", async () => {

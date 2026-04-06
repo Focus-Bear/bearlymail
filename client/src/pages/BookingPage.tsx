@@ -58,6 +58,11 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState('');
   const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
   const fetchSlots = useCallback(async (currentOffset: number, append = false) => {
     const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
     const currentDaysAhead = append ? DAYS_AHEAD_LOAD_MORE : DAYS_AHEAD_INITIAL;
@@ -70,6 +75,7 @@ const BookingPage: React.FC = () => {
 
       const response = await axios.get(
         `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`,
+        { headers: getAuthHeaders() },
       );
 
       if (append) {
@@ -98,7 +104,7 @@ const BookingPage: React.FC = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [userId, user?.id, t]);
+  }, [userId, user?.id, t, getAuthHeaders]);
 
   useEffect(() => {
     if (userId) {
@@ -126,14 +132,18 @@ const BookingPage: React.FC = () => {
 
     setBookingStatus(BOOKING_SUBMITTING);
     try {
-      const bookingResponse = await axios.post(`${API_URL}/public/calendar/${userId}/book`, {
-        startTime: selectedSlot.start,
-        guestEmail,
-        guestName,
-        duration: selectedSlot.duration,
-        additionalGuests,
-        agenda: agenda.trim() || undefined,
-      });
+      const bookingResponse = await axios.post(
+        `${API_URL}/public/calendar/${userId}/book`,
+        {
+          startTime: selectedSlot.start,
+          guestEmail,
+          guestName,
+          duration: selectedSlot.duration,
+          additionalGuests,
+          agenda: agenda.trim() || undefined,
+        },
+        { headers: getAuthHeaders() },
+      );
       if (bookingResponse.data?.meetLink) {
         setMeetLink(bookingResponse.data.meetLink);
       }

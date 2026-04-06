@@ -432,11 +432,8 @@ export function useEmailDetailReplies(
           setReplyCc(cc);
           setShowCc(shouldShowCc);
         }
-        setInitialAttachments(
-          mode === REPLY_MODE_FORWARD
-            ? (Array.isArray(email.attachments) ? email.attachments : [])
-            : []
-        );
+        const forwardAttachments = Array.isArray(email.attachments) ? email.attachments : [];
+        setInitialAttachments(mode === REPLY_MODE_FORWARD ? forwardAttachments : []);
       }
       // Bug 7 fix: AI draft generation is only relevant for replies, not forwards.
       if (mode !== REPLY_MODE_FORWARD) {

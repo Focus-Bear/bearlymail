@@ -14,133 +14,25 @@ import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, TIMEOUT_800_MS } from 'constants/numbers';
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, TIMEOUT_800_MS } from 'constants/numbers';
 import {
-  ACTION_ITEM_SOURCE_LLM,
   ANIMATION_TYPE_ARCHIVE,
   ANIMATION_TYPE_PRIORITY,
   ANIMATION_TYPE_SEND,
   GITHUB_ACTION_PREFIX,
-  REPLY_MODE_FORWARD,
-  REPLY_MODE_REPLY_ALL,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';
 import { removeEmail } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
+import { useEmailDetailActionItems } from './useEmailDetailActionItems';
 import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
 import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
 import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetailOperations.types';
+import { routeAfterSend,SendReplyPayload, sendReplyRequest } from './useEmailDetailSendHelpers';
 
 export type { EmailDetailOperationsOptions, EmailDetailState };
-
-interface SendReplyPayload {
-  emailId: string;
-  draft: string;
-  recipients: string;
-  cc: string | null;
-  bcc: string | null;
-  replyMode: string;
-  expectedReplyHours?: number;
-  scheduledSendAt?: Date;
-  files: File[];
-  /** Inline images keyed by their CID (from <img src="cid:…"> in the draft). */
-  inlineImages?: Map<string, File>;
-  /** Attachment IDs from the original email to carry through when forwarding. */
-  forwardAttachmentIds?: string[];
-}
-
-function buildSendReplyFormData(payload: SendReplyPayload): FormData {
-  const formData = new FormData();
-  formData.append('reply', payload.draft);
-  formData.append('recipients', payload.recipients);
-  formData.append('replyAll', String(payload.replyMode === REPLY_MODE_REPLY_ALL));
-  formData.append('isForward', String(payload.replyMode === REPLY_MODE_FORWARD));
-  if (payload.cc) {
-    formData.append('cc', payload.cc);
-  }
-  if (payload.bcc) {
-    formData.append('bcc', payload.bcc);
-  }
-  if (payload.expectedReplyHours !== undefined) {
-    formData.append('expectedReplyHours', String(payload.expectedReplyHours));
-  }
-  if (payload.scheduledSendAt) {
-    formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
-  }
-  if (payload.forwardAttachmentIds && payload.forwardAttachmentIds.length > 0) {
-    formData.append('forwardAttachmentIds', JSON.stringify(payload.forwardAttachmentIds));
-  }
-  payload.files.forEach(file => {
-    formData.append('files', file);
-  });
-  // Encode inline images: filename = "<cid>::::<original_filename>"
-  payload.inlineImages?.forEach((file, cid) => {
-    formData.append('inlineImages', file, `${cid}::::${file.name}`);
-  });
-  return formData;
-}
-
-async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
-  const hasAttachments =
-    payload.files.length > 0 || (payload.inlineImages && payload.inlineImages.size > 0);
-  if (hasAttachments) {
-    const formData = buildSendReplyFormData(payload);
-    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  } else {
-    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, {
-      reply: payload.draft,
-      recipients: payload.recipients,
-      cc: payload.cc || undefined,
-      bcc: payload.bcc || undefined,
-      replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
-      isForward: payload.replyMode === REPLY_MODE_FORWARD,
-      forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
-      expectedReplyHours: payload.expectedReplyHours,
-      scheduledSendAt: payload.scheduledSendAt?.toISOString(),
-    });
-  }
-}
-
-interface PostSendRoutingParams {
-  keepInAction?: boolean;
-  expectedReplyHours?: number;
-  scheduledSendAt?: Date;
-  performArchiveAfterReply: () => void;
-  performSnoozeAfterReply: (duration: string) => void;
-  navigate: (path: string) => void;
-  getInboxPath: () => string;
-}
-
-function routeAfterSend({
-  keepInAction,
-  expectedReplyHours,
-  scheduledSendAt,
-  performArchiveAfterReply,
-  performSnoozeAfterReply,
-  navigate,
-  getInboxPath,
-}: PostSendRoutingParams): void {
-  if (keepInAction) {
-    return;
-  }
-  if (expectedReplyHours !== undefined) {
-    if (expectedReplyHours === 0) {
-      performArchiveAfterReply();
-    } else {
-      const duration =
-        expectedReplyHours <= HOURS_IN_TWO_DAYS
-          ? `${expectedReplyHours}h`
-          : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
-      performSnoozeAfterReply(duration);
-    }
-  } else {
-    navigate(getInboxPath());
-  }
-}
 
 export function useEmailDetailOperations(
   id: string | undefined,
@@ -468,17 +360,22 @@ export function useEmailDetailOperations(
     }
   }, [email?.threadId, setNoteContent, setNotesCollapsed]);
 
-  const fetchActionItems = useCallback(async () => {
-    if (!email?.id) {
-      return;
-    }
-    try {
-      const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
-      setActionItems(response.data);
-    } catch (error) {
-      console.error('Error fetching action items:', error);
-    }
-  }, [email?.id, setActionItems]);
+  const {
+    fetchActionItems,
+    handleExtractActions,
+    handleAddActionItem,
+    handleToggleActionItem,
+    handleDeleteActionItem,
+    handleRegenerateActionItems,
+  } = useEmailDetailActionItems({
+    id,
+    email,
+    actionItems,
+    newActionItem,
+    setActionItems,
+    setNewActionItem,
+    setIsGeneratingSummary,
+  });
 
   // Track which email IDs we've already fetched GitHub data for
   const githubFetchedRef = useRef<string | null>(null);
@@ -627,126 +524,6 @@ export function useEmailDetailOperations(
       console.error('Error fetching priority explanation:', error);
     }
   }, [id, priorityExplanation, setPriorityExplanation, setShowPriorityExplanation]);
-
-  const handleExtractActions = useCallback(async () => {
-    if (!id || !email?.body) {
-      return;
-    }
-    captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_EXTRACT_CLICKED, { email_id: id });
-    setIsGeneratingSummary(true);
-    try {
-      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
-        emailBody: email.body,
-        subject: email.subject,
-        senderInfo: {
-          from: email.from,
-          fromName: email.fromName,
-        },
-        existingActions: actionItems.map(item => item.description).filter(Boolean),
-        // Bug fix: old code used `any` and accessed `labelIds`, but the server populates `labels` on the Email object (not `labelIds`)
-        isSentEmail: email.labels?.includes('SENT') ?? false,
-      });
-      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
-        response.data.map((item: { description: string; source?: string }) => ({
-          description: item.description,
-          isCompleted: false,
-          source: ACTION_ITEM_SOURCE_LLM,
-        }));
-      await Promise.all(
-        newItems.map((item) =>
-          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-        )
-      );
-      fetchActionItems();
-    } catch (error) {
-      console.error('Error extracting actions:', error);
-    } finally {
-      setIsGeneratingSummary(false);
-    }
-  }, [id, email, setIsGeneratingSummary, fetchActionItems]);
-
-  const handleAddActionItem = useCallback(async () => {
-    if (!newActionItem.trim() || !email?.id) {
-      return;
-    }
-    try {
-      await axios.post(`${API_URL}/action-items`, {
-        description: newActionItem,
-        emailId: email.id,
-        emailThreadId: email.threadId,
-        source: 'user',
-      });
-      setNewActionItem('');
-      fetchActionItems();
-    } catch (error) {
-      console.error('Error adding action item:', error);
-    }
-  }, [newActionItem, email, setNewActionItem, fetchActionItems]);
-
-  const handleToggleActionItem = useCallback(
-    async (itemId: string, completed: boolean) => {
-      try {
-        setActionItems(prev => prev.map(item => (item.id === itemId ? { ...item, isCompleted: completed } : item)));
-        await axios.put(`${API_URL}/action-items/${itemId}`, { isCompleted: completed });
-      } catch (error) {
-        console.error('Error toggling action item:', error);
-        fetchActionItems();
-      }
-    },
-    [setActionItems, fetchActionItems]
-  );
-
-  const handleDeleteActionItem = useCallback(
-    async (itemId: string) => {
-      try {
-        await axios.delete(`${API_URL}/action-items/${itemId}`);
-        fetchActionItems();
-      } catch (error) {
-        console.error('Error deleting action item:', error);
-      }
-    },
-    [fetchActionItems]
-  );
-
-  const handleRegenerateActionItems = useCallback(async () => {
-    if (!id || !email?.body) {
-      return;
-    }
-    setIsGeneratingSummary(true);
-    try {
-      const llmItems = actionItems.filter(item => item.source === ACTION_ITEM_SOURCE_LLM);
-      await Promise.all(
-        llmItems.map(item => (item.id ? axios.delete(`${API_URL}/action-items/${item.id}`) : Promise.resolve()))
-      );
-
-      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
-        emailBody: email.body,
-        subject: email.subject,
-        senderInfo: {
-          from: email.from,
-          fromName: email.fromName,
-        },
-        // Bug fix: old code used `any` and accessed `labelIds`, but the server populates `labels` on the Email object (not `labelIds`)
-        isSentEmail: email.labels?.includes('SENT') ?? false,
-      });
-      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
-        response.data.map((item: { description: string; source?: string }) => ({
-          description: item.description,
-          isCompleted: false,
-          source: ACTION_ITEM_SOURCE_LLM,
-        }));
-      await Promise.all(
-        newItems.map((item) =>
-          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-        )
-      );
-      fetchActionItems();
-    } catch (error) {
-      console.error('Error regenerating action items:', error);
-    } finally {
-      setIsGeneratingSummary(false);
-    }
-  }, [id, email, actionItems, setIsGeneratingSummary, fetchActionItems]);
 
   const handleSaveNote = useCallback(async () => {
     if (!email) {

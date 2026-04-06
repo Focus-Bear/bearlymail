@@ -269,11 +269,15 @@ export const FeedbackForm: React.FC<Props> = ({
                 opacity: isBusy || !message.trim() ? OPACITY_DISABLED : 1,
               }}
             >
-              {uploadingScreenshot
-                ? t('contactFeedback.screenshotUploading')
-                : isSubmitting
-                  ? t('contactFeedback.submitting')
-                  : t('contactFeedback.submit')}
+              {(() => {
+                if (uploadingScreenshot) {
+                  return t('contactFeedback.screenshotUploading');
+                }
+                if (isSubmitting) {
+                  return t('contactFeedback.submitting');
+                }
+                return t('contactFeedback.submit');
+              })()}
             </button>
           </div>
         </>

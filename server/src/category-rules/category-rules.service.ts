@@ -8,7 +8,9 @@ import {
   CategoryRule,
   CategoryRuleKind,
   CategoryRuleType,
+  CompositeCategoryRuleSpec,
   CompositeCategoryRuleSpecV1,
+  CompositeCategoryRuleSpecV2,
 } from "../database/entities/category-rule.entity";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 import { PatchCategoryRuleDto } from "./dto/patch-category-rule.dto";
@@ -76,7 +78,7 @@ export interface CategoryRuleDto {
   ruleType: CategoryRuleType | null;
   pattern: string;
   subjectPrefix: string | null;
-  compositeSpec: CompositeCategoryRuleSpecV1 | null;
+  compositeSpec: CompositeCategoryRuleSpec | null;
   isEnabled: boolean;
   hitCount: number;
   createdAt: Date;
@@ -88,6 +90,10 @@ export interface CompositeRuleEvaluationDetail {
   subjectMatch: boolean;
   bodyMatch: boolean;
   bodyMatchedPhrase: string | null;
+  /** Which sender value matched (v2 rules with multiple senders). */
+  senderMatchedValue: string | null;
+  /** Which subject phrase matched (v2 rules with multiple subject phrases). */
+  subjectMatchedValue: string | null;
 }
 
 export interface CategoryRuleEvaluationDebug {
@@ -262,17 +268,41 @@ export class CategoryRulesService {
 
   normalizeCompositeSpecDto(
     dto: CreateCompositeCategoryRuleDto,
-  ): CompositeCategoryRuleSpecV1 {
-    const sender = this.normaliseSender(dto.sender);
-    const subjectContains = dto.subjectContains.trim();
+  ): CompositeCategoryRuleSpecV2 {
+    const senderMatchesAny = dto.senderMatchesAny
+      .map((senderRaw) => this.normaliseSender(senderRaw))
+      .filter(Boolean);
+    const subjectContainsAny = dto.subjectContainsAny
+      .map((subjectPhrase) => subjectPhrase.trim())
+      .filter(Boolean);
     const bodyContainsAny = dto.bodyContainsAny
       .map((phrase) => phrase.trim())
       .filter(Boolean);
-    if (!sender) {
-      throw new BadRequestException("sender is required");
+    if (senderMatchesAny.length === 0) {
+      throw new BadRequestException(
+        "senderMatchesAny must contain at least one non-empty sender",
+      );
     }
-    if (!subjectContains) {
-      throw new BadRequestException("subjectContains is required");
+    // Defence-in-depth: class-validator @ArrayMaxSize already rejects oversized arrays before
+    // this method is reached, but we duplicate the check here so the service layer is safe
+    // even if called without the DTO validation pipeline.
+    if (senderMatchesAny.length > CATEGORY_RULE_COMPOSITE.MAX_SENDERS) {
+      throw new BadRequestException(
+        `At most ${CATEGORY_RULE_COMPOSITE.MAX_SENDERS} senders allowed`,
+      );
+    }
+    if (subjectContainsAny.length === 0) {
+      throw new BadRequestException(
+        "subjectContainsAny must contain at least one non-empty phrase",
+      );
+    }
+    // Defence-in-depth: same rationale as the sender guard above.
+    if (
+      subjectContainsAny.length > CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES
+    ) {
+      throw new BadRequestException(
+        `At most ${CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES} subject phrases allowed`,
+      );
     }
     if (bodyContainsAny.length === 0) {
       throw new BadRequestException(
@@ -286,8 +316,8 @@ export class CategoryRulesService {
     }
     return {
       v: CATEGORY_RULE_COMPOSITE.SPEC_VERSION,
-      sender,
-      subjectContains,
+      senderMatchesAny,
+      subjectContainsAny,
       bodyContainsAny,
     };
   }
@@ -346,8 +376,8 @@ export class CategoryRulesService {
       }
       const spec = this.normalizeCompositeSpecDto({
         categoryName: rule.categoryName,
-        sender: dto.compositeSpec.sender,
-        subjectContains: dto.compositeSpec.subjectContains,
+        senderMatchesAny: dto.compositeSpec.senderMatchesAny,
+        subjectContainsAny: dto.compositeSpec.subjectContainsAny,
         bodyContainsAny: dto.compositeSpec.bodyContainsAny,
       });
       rule.compositeSpec = spec;
@@ -378,17 +408,52 @@ export class CategoryRulesService {
     return { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash };
   }
 
+  /** Normalise a v1 spec into the v2 array shape for unified evaluation. */
+  private specToV2(
+    spec: CompositeCategoryRuleSpecV1 | CompositeCategoryRuleSpecV2,
+  ): CompositeCategoryRuleSpecV2 {
+    if (spec.v === 2) {
+      return spec;
+    }
+    return {
+      v: 2,
+      senderMatchesAny: [spec.sender],
+      subjectContainsAny: [spec.subjectContains],
+      bodyContainsAny: spec.bodyContainsAny,
+    };
+  }
+
   private evaluateComposite(
-    spec: CompositeCategoryRuleSpecV1,
+    spec: CompositeCategoryRuleSpecV1 | CompositeCategoryRuleSpecV2,
     email: EmailMetadata,
   ): { matches: boolean; detail: CompositeRuleEvaluationDetail } {
-    const senderOk =
-      this.normaliseSender(email.from) === this.normaliseSender(spec.sender);
+    const v2 = this.specToV2(spec);
+    const normFrom = this.normaliseSender(email.from);
+
+    let senderOk = false;
+    let senderMatchedValue: string | null = null;
+    for (const sender of v2.senderMatchesAny) {
+      if (this.normaliseSender(sender) === normFrom) {
+        senderOk = true;
+        senderMatchedValue = sender;
+        break;
+      }
+    }
+
     const subj = (email.subject || "").toLowerCase();
-    const needle = spec.subjectContains.trim().toLowerCase();
-    const subjectOk = needle.length > 0 && subj.includes(needle);
+    let subjectOk = false;
+    let subjectMatchedValue: string | null = null;
+    for (const phrase of v2.subjectContainsAny) {
+      const needle = phrase.trim().toLowerCase();
+      if (needle.length > 0 && subj.includes(needle)) {
+        subjectOk = true;
+        subjectMatchedValue = phrase;
+        break;
+      }
+    }
+
     const body = (email.bodyTextForMatch || "").toLowerCase();
-    const phrases = spec.bodyContainsAny
+    const phrases = v2.bodyContainsAny
       .map((phrase) => phrase.trim())
       .filter(Boolean);
     let bodyMatchedPhrase: string | null = null;
@@ -407,6 +472,8 @@ export class CategoryRulesService {
         subjectMatch: subjectOk,
         bodyMatch: bodyOk,
         bodyMatchedPhrase,
+        senderMatchedValue,
+        subjectMatchedValue,
       },
     };
   }
@@ -441,7 +508,11 @@ export class CategoryRulesService {
         continue;
       }
       const spec = rule.compositeSpec;
-      if (!spec || spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
+      if (
+        !spec ||
+        (spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION &&
+          spec.v !== CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1)
+      ) {
         continue;
       }
       const { matches } = this.evaluateComposite(spec, email);
@@ -554,7 +625,11 @@ export class CategoryRulesService {
         const spec = rule.compositeSpec;
         let patternMatches = false;
         let compositeDetail: CompositeRuleEvaluationDetail | undefined;
-        if (spec && spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
+        if (
+          spec &&
+          (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION ||
+            spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1)
+        ) {
           const ev = this.evaluateComposite(spec, email);
           patternMatches = ev.matches;
           compositeDetail = ev.detail;

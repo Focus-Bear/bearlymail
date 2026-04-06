@@ -12,27 +12,33 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
+const textareaStyle: React.CSSProperties = {
+  ...inputStyle,
+  resize: 'vertical',
+  minHeight: '60px',
+};
+
 export interface CompositeCategoryRuleFormFieldsProps {
   categoryOptions: CategoryOption[];
   categoryName: string;
-  sender: string;
-  subjectContains: string;
+  senderLines: string;
+  subjectLines: string;
   bodyLines: string;
   onCategoryNameChange: (value: string) => void;
-  onSenderChange: (value: string) => void;
-  onSubjectContainsChange: (value: string) => void;
+  onSenderLinesChange: (value: string) => void;
+  onSubjectLinesChange: (value: string) => void;
   onBodyLinesChange: (value: string) => void;
 }
 
 export const CompositeCategoryRuleFormFields: React.FC<CompositeCategoryRuleFormFieldsProps> = ({
   categoryOptions,
   categoryName,
-  sender,
-  subjectContains,
+  senderLines,
+  subjectLines,
   bodyLines,
   onCategoryNameChange,
-  onSenderChange,
-  onSubjectContainsChange,
+  onSenderLinesChange,
+  onSubjectLinesChange,
   onBodyLinesChange,
 }) => {
   const { t } = useTranslation();
@@ -64,18 +70,31 @@ export const CompositeCategoryRuleFormFields: React.FC<CompositeCategoryRuleForm
         <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
           {t('settings.deterministicCategoryRules.senderField')}
         </label>
-        <input type="text" value={sender} onChange={event => onSenderChange(event.target.value)} style={inputStyle} />
+        <textarea
+          value={senderLines}
+          onChange={event => onSenderLinesChange(event.target.value)}
+          rows={3}
+          placeholder={t('settings.deterministicCategoryRules.senderPlaceholder')}
+          style={textareaStyle}
+        />
+        <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
+          {t('settings.deterministicCategoryRules.senderHelp')}
+        </p>
       </div>
       <div>
         <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
           {t('settings.deterministicCategoryRules.subjectContainsField')}
         </label>
-        <input
-          type="text"
-          value={subjectContains}
-          onChange={event => onSubjectContainsChange(event.target.value)}
-          style={inputStyle}
+        <textarea
+          value={subjectLines}
+          onChange={event => onSubjectLinesChange(event.target.value)}
+          rows={3}
+          placeholder={t('settings.deterministicCategoryRules.subjectPlaceholder')}
+          style={textareaStyle}
         />
+        <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
+          {t('settings.deterministicCategoryRules.subjectHelp')}
+        </p>
       </div>
       <div>
         <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
@@ -86,7 +105,7 @@ export const CompositeCategoryRuleFormFields: React.FC<CompositeCategoryRuleForm
           onChange={event => onBodyLinesChange(event.target.value)}
           rows={5}
           placeholder={t('settings.deterministicCategoryRules.bodyPhrasesPlaceholder')}
-          style={{ ...inputStyle, resize: 'vertical', minHeight: '100px' }}
+          style={{ ...textareaStyle, minHeight: '100px' }}
         />
         <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
           {t('settings.deterministicCategoryRules.bodyPhrasesHelp')}

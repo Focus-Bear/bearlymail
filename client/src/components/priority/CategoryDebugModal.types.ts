@@ -3,6 +3,10 @@ export interface CompositeRuleEvaluationDetailClient {
   subjectMatch: boolean;
   bodyMatch: boolean;
   bodyMatchedPhrase: string | null;
+  /** Which sender value matched (v2 rules with multiple senders). */
+  senderMatchedValue?: string | null;
+  /** Which subject phrase matched (v2 rules with multiple subject phrases). */
+  subjectMatchedValue?: string | null;
 }
 
 export interface CategoryRuleEvaluationDebug {

@@ -6,15 +6,15 @@ import { API_URL } from 'config/api';
 
 export interface CreateCompositePayload {
   categoryName: string;
-  sender: string;
-  subjectContains: string;
+  senderMatchesAny: string[];
+  subjectContainsAny: string[];
   bodyContainsAny: string[];
 }
 
 /** PATCH body: composite criteria without version (server assigns v). */
 export interface PatchCompositeSpecPayload {
-  sender: string;
-  subjectContains: string;
+  senderMatchesAny: string[];
+  subjectContainsAny: string[];
   bodyContainsAny: string[];
 }
 

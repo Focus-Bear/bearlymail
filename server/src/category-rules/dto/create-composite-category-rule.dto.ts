@@ -15,15 +15,21 @@ export class CreateCompositeCategoryRuleDto {
   @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_CATEGORY_NAME_LENGTH)
   categoryName!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SENDER_LENGTH)
-  sender!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_SENDERS)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SENDER_LENGTH, { each: true })
+  senderMatchesAny!: string[];
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
-  subjectContains!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH, {
+    each: true,
+  })
+  subjectContainsAny!: string[];
 
   @IsArray()
   @ArrayMinSize(1)

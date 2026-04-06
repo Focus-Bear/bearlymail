@@ -16,7 +16,7 @@
 import { MemoryRouter } from 'react-router-dom';
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { LoginFormSection } from '../components/auth/LoginFormSection';
+import { LoginFormSection } from 'components/auth/LoginFormSection';
 
 const meta: Meta<typeof LoginFormSection> = {
   title: 'Auth/LoginFormSection',

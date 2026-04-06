@@ -90,12 +90,14 @@ interface VolumeProgressBarProps {
 
 const VolumeProgressBar: React.FC<VolumeProgressBarProps> = ({ percentUsed }) => {
   const clamped = Math.min(percentUsed, 100);
-  const color =
-    clamped >= VOLUME_CRITICAL_THRESHOLD
-      ? theme.colors.error.main
-      : clamped >= VOLUME_WARN_THRESHOLD
-        ? theme.colors.warning?.main ?? '#f59e0b'
-        : theme.colors.primary.main;
+  let color: string;
+  if (clamped >= VOLUME_CRITICAL_THRESHOLD) {
+    color = theme.colors.error.main;
+  } else if (clamped >= VOLUME_WARN_THRESHOLD) {
+    color = theme.colors.warning?.main ?? '#f59e0b';
+  } else {
+    color = theme.colors.primary.main;
+  }
   return (
     <div style={progressBarContainerStyle}>
       <div

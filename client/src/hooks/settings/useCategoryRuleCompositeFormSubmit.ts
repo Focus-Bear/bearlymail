@@ -7,8 +7,8 @@ import type { CreateCompositePayload, PatchCategoryRulePayload } from 'hooks/set
 
 export interface CategoryRuleFormPayload {
   categoryName: string;
-  sender: string;
-  subjectContains: string;
+  senderMatchesAny: string[];
+  subjectContainsAny: string[];
   bodyContainsAny: string[];
 }
 
@@ -47,8 +47,8 @@ export function useCategoryRuleCompositeFormSubmit({
         const patchPayload: PatchCategoryRulePayload = {
           categoryName: payload.categoryName,
           compositeSpec: {
-            sender: payload.sender,
-            subjectContains: payload.subjectContains,
+            senderMatchesAny: payload.senderMatchesAny,
+            subjectContainsAny: payload.subjectContainsAny,
             bodyContainsAny: payload.bodyContainsAny,
           },
         };

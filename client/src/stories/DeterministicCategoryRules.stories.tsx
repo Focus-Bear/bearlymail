@@ -28,10 +28,10 @@ const MOCK_RULES: CategoryRuleDto[] = [
     pattern: '',
     subjectPrefix: null,
     compositeSpec: {
-      v: 1,
-      sender: 'billing@acme.com',
-      subjectContains: 'Invoice',
-      bodyContainsAny: ['Amount due', 'Please pay'],
+      v: 2,
+      senderMatchesAny: ['billing@acme.com', 'invoices@acme.com', 'noreply@stripe.com'],
+      subjectContainsAny: ['Invoice', 'Receipt', 'Payment confirmation'],
+      bodyContainsAny: ['Amount due', 'Please pay', 'Total charged'],
     },
     isEnabled: true,
     hitCount: 7,
@@ -99,6 +99,67 @@ export const Empty: Story = {
   render: () => (
     <Wrapper>
       <DeterministicCategoryRulesPanel rules={[]} onToggleEnabled={noop} onDelete={noop} />
+    </Wrapper>
+  ),
+};
+
+const MULTI_RULES_SAME_CATEGORY: CategoryRuleDto[] = [
+  {
+    id: 'mc1',
+    categoryName: 'Finance',
+    ruleKind: 'composite',
+    ruleType: null,
+    pattern: '',
+    subjectPrefix: null,
+    compositeSpec: {
+      v: 2,
+      senderMatchesAny: ['billing@acme.com', 'noreply@stripe.com'],
+      subjectContainsAny: ['Invoice', 'Receipt'],
+      bodyContainsAny: ['Amount due'],
+    },
+    isEnabled: true,
+    hitCount: 15,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'mc2',
+    categoryName: 'Finance',
+    ruleKind: 'composite',
+    ruleType: null,
+    pattern: '',
+    subjectPrefix: null,
+    compositeSpec: {
+      v: 2,
+      senderMatchesAny: ['payroll@company.com'],
+      subjectContainsAny: ['Payslip', 'Salary'],
+      bodyContainsAny: ['Net pay', 'Gross amount'],
+    },
+    isEnabled: true,
+    hitCount: 4,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'mc3',
+    categoryName: 'Finance',
+    ruleKind: 'legacy',
+    ruleType: 'sender_domain',
+    pattern: '@xero.com',
+    subjectPrefix: null,
+    compositeSpec: null,
+    isEnabled: true,
+    hitCount: 22,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+/** Multiple rules targeting the same category (any matching rule = categorised) */
+export const MultipleRulesPerCategory: Story = {
+  render: () => (
+    <Wrapper>
+      <DeterministicCategoryRulesPanel rules={MULTI_RULES_SAME_CATEGORY} onToggleEnabled={noop} onDelete={noop} onEditComposite={noop} />
     </Wrapper>
   ),
 };

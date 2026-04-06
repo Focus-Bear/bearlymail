@@ -99,11 +99,12 @@ export const ContactGroupsSection: React.FC = () => {
       </p>
 
       {/* Existing groups */}
-      {isLoading ? (
+      {isLoading && (
         <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
           {t('common.loading')}
         </p>
-      ) : groups.length === 0 ? (
+      )}
+      {!isLoading && groups.length === 0 && (
         <p
           style={{
             color: theme.colors.text.secondary,
@@ -113,7 +114,8 @@ export const ContactGroupsSection: React.FC = () => {
         >
           {t('settings.contactGroups.noGroups')}
         </p>
-      ) : (
+      )}
+      {!isLoading && groups.length > 0 && (
         <div style={{ marginBottom: theme.spacing.md }}>
           {groups.map((group) => (
             <ContactGroupItem key={group.id} group={group} />

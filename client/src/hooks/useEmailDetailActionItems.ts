@@ -1,39 +1,39 @@
-import { useCallback, useEffect, useState } from 'react';
+/**
+ * useEmailDetailActionItems.ts
+ *
+ * Sub-hook for action-item CRUD operations in the email detail view.
+ * Extracted from useEmailDetailOperations to keep that file under max-lines.
+ */
+import { useCallback } from 'react';
 import axios from 'axios';
+import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { ACTION_ITEM_SOURCE_LLM } from 'constants/strings';
 
 type ActionItem = { id?: string; description: string; isCompleted: boolean; source: string };
 
-type EmailArg = { id: string; threadId: string; body: string; from: string; fromName?: string } | null;
-
-function buildActionItemsFromLLMResponse(
-  responseData: Array<{ description: string }>
-): Array<{ description: string; isCompleted: boolean; source: string }> {
-  return responseData.map(item => ({
-    description: item.description,
-    isCompleted: false,
-    source: 'llm',
-  }));
+interface UseEmailDetailActionItemsParams {
+  id: string | undefined;
+  email: Email | null;
+  actionItems: ActionItem[];
+  newActionItem: string;
+  setActionItems: (updater: ActionItem[] | ((prev: ActionItem[]) => ActionItem[])) => void;
+  setNewActionItem: (value: string) => void;
+  setIsGeneratingSummary: (value: boolean) => void;
 }
 
-async function saveExtractedActionItems(
-  newItems: Array<{ description: string; isCompleted: boolean; source: string }>,
-  emailId: string,
-  emailThreadId: string
-): Promise<void> {
-  await Promise.all(
-    newItems.map(item =>
-      axios.post(`${API_URL}/action-items`, { ...item, emailId, emailThreadId })
-    )
-  );
-}
-
-export function useEmailDetailActionItems(email: EmailArg) {
-  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
-  const [newActionItem, setNewActionItem] = useState('');
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-
+export function useEmailDetailActionItems({
+  id,
+  email,
+  actionItems,
+  newActionItem,
+  setActionItems,
+  setNewActionItem,
+  setIsGeneratingSummary,
+}: UseEmailDetailActionItemsParams) {
   const fetchActionItems = useCallback(async () => {
     if (!email?.id) {
       return;
@@ -44,13 +44,43 @@ export function useEmailDetailActionItems(email: EmailArg) {
     } catch (error) {
       console.error('Error fetching action items:', error);
     }
-  }, [email?.id]);
+  }, [email?.id, setActionItems]);
 
-  useEffect(() => {
-    if (email?.id) {
-      fetchActionItems();
+  const handleExtractActions = useCallback(async () => {
+    if (!id || !email?.body) {
+      return;
     }
-  }, [email?.id, fetchActionItems]);
+    captureEvent(ANALYTICS_EVENTS.ACTION_ITEMS_EXTRACT_CLICKED, { email_id: id });
+    setIsGeneratingSummary(true);
+    try {
+      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
+        emailBody: email.body,
+        subject: email.subject,
+        senderInfo: {
+          from: email.from,
+          fromName: email.fromName,
+        },
+        existingActions: actionItems.map(item => item.description).filter(Boolean),
+        isSentEmail: email.labels?.includes('SENT') ?? false,
+      });
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
+        response.data.map((item: { description: string; source?: string }) => ({
+          description: item.description,
+          isCompleted: false,
+          source: ACTION_ITEM_SOURCE_LLM,
+        }));
+      await Promise.all(
+        newItems.map((item) =>
+          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+        )
+      );
+      fetchActionItems();
+    } catch (error) {
+      console.error('Error extracting actions:', error);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }, [id, email, actionItems, setIsGeneratingSummary, fetchActionItems]);
 
   const handleAddActionItem = useCallback(async () => {
     if (!newActionItem.trim() || !email?.id) {
@@ -68,74 +98,78 @@ export function useEmailDetailActionItems(email: EmailArg) {
     } catch (error) {
       console.error('Error adding action item:', error);
     }
-  }, [newActionItem, email, fetchActionItems]);
+  }, [newActionItem, email, setNewActionItem, fetchActionItems]);
 
   const handleToggleActionItem = useCallback(
     async (itemId: string, completed: boolean) => {
       try {
-        setActionItems((prev: ActionItem[]) =>
-          prev.map(item => (item.id === itemId ? { ...item, isCompleted: completed } : item))
-        );
+        setActionItems(prev => prev.map(item => (item.id === itemId ? { ...item, isCompleted: completed } : item)));
         await axios.put(`${API_URL}/action-items/${itemId}`, { isCompleted: completed });
       } catch (error) {
         console.error('Error toggling action item:', error);
         fetchActionItems();
       }
     },
-    [fetchActionItems]
+    [setActionItems, fetchActionItems]
   );
 
   const handleDeleteActionItem = useCallback(
     async (itemId: string) => {
       try {
-        setActionItems((prev: ActionItem[]) => prev.filter(item => item.id !== itemId));
         await axios.delete(`${API_URL}/action-items/${itemId}`);
+        fetchActionItems();
       } catch (error) {
         console.error('Error deleting action item:', error);
-        fetchActionItems();
       }
     },
     [fetchActionItems]
   );
 
-  const handleExtractActions = useCallback(async () => {
-    if (!email?.id || !email?.body) {
+  const handleRegenerateActionItems = useCallback(async () => {
+    if (!id || !email?.body) {
       return;
     }
     setIsGeneratingSummary(true);
     try {
-      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
-        emailBody: email.body,
-        senderInfo: { from: email.from, fromName: email.fromName },
-        // Pass existing action descriptions so the LLM can avoid re-generating them.
-        existingActions: actionItems.map(action => action.description),
-      });
-      const newItems = buildActionItemsFromLLMResponse(response.data);
-
-      // Client-side guard: filter out any items that are exact (normalised) matches
-      // of already-saved actions, as a safety net on top of the LLM-level dedup.
-      const existingNormalized = new Set(actionItems.map(action => action.description.toLowerCase().trim()));
-      const deduped = newItems.filter(
-        item => !existingNormalized.has(item.description.toLowerCase().trim())
+      const llmItems = actionItems.filter(item => item.source === ACTION_ITEM_SOURCE_LLM);
+      await Promise.all(
+        llmItems.map(item => (item.id ? axios.delete(`${API_URL}/action-items/${item.id}`) : Promise.resolve()))
       );
 
-      await saveExtractedActionItems(deduped, email.id, email.threadId);
+      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
+        emailBody: email.body,
+        subject: email.subject,
+        senderInfo: {
+          from: email.from,
+          fromName: email.fromName,
+        },
+        isSentEmail: email.labels?.includes('SENT') ?? false,
+      });
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
+        response.data.map((item: { description: string; source?: string }) => ({
+          description: item.description,
+          isCompleted: false,
+          source: ACTION_ITEM_SOURCE_LLM,
+        }));
+      await Promise.all(
+        newItems.map((item) =>
+          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+        )
+      );
       fetchActionItems();
     } catch (error) {
-      console.error('Error extracting actions:', error);
+      console.error('Error regenerating action items:', error);
     } finally {
       setIsGeneratingSummary(false);
     }
-  }, [email, actionItems, fetchActionItems]);
+  }, [id, email, actionItems, setIsGeneratingSummary, fetchActionItems]);
 
   return {
-    actionItems,
-    newActionItem,
-    setNewActionItem,
-    isGeneratingSummary,
+    fetchActionItems,
+    handleExtractActions,
     handleAddActionItem,
     handleToggleActionItem,
     handleDeleteActionItem,
-    handleExtractActions,
+    handleRegenerateActionItems,
   };
 }

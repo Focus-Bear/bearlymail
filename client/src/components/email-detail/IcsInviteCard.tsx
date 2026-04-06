@@ -398,11 +398,14 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                       const isThisPending = rsvpPending === response;
                       const isAnyPending = rsvpPending !== null;
                       const RSVP_DISABLED_OPACITY = 0.6;
-                      const labelKey = response === 'accepted'
-                        ? 'emailDetail.icsInvite.rsvpAccept'
-                        : response === 'tentative'
-                          ? 'emailDetail.icsInvite.rsvpTentative'
-                          : 'emailDetail.icsInvite.rsvpDecline';
+                      let labelKey: string;
+                      if (response === 'accepted') {
+                        labelKey = 'emailDetail.icsInvite.rsvpAccept';
+                      } else if (response === 'tentative') {
+                        labelKey = 'emailDetail.icsInvite.rsvpTentative';
+                      } else {
+                        labelKey = 'emailDetail.icsInvite.rsvpDecline';
+                      }
                       return (
                         <button
                           key={response}

@@ -23,13 +23,15 @@ function extractPlainSummary(value: string): string {
     }
     if (Array.isArray(parsed)) {
       const items = (parsed as unknown[])
-        .map((item) =>
-          typeof item === 'string'
-            ? item
-            : typeof item === 'object' && item !== null
-              ? extractPlainSummary(JSON.stringify(item))
-              : String(item),
-        )
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item;
+          }
+          if (typeof item === 'object' && item !== null) {
+            return extractPlainSummary(JSON.stringify(item));
+          }
+          return String(item);
+        })
         .filter(Boolean);
       return items.join('\n') || trimmed;
     }

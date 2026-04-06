@@ -89,25 +89,28 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       : {}),
   };
 
-  const variantStyle: React.CSSProperties =
-    variant === 'primary'
-      ? {
-          backgroundColor: theme.colors.text.primary,
-          color: COLOR_NAMED_WHITE,
-          fontWeight: theme.typography.fontWeight.semibold,
-        }
-      : variant === 'secondary'
-      ? {
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          border: `1px solid ${theme.colors.border.medium}`,
-          fontWeight: theme.typography.fontWeight.medium,
-        }
-      : /* ghost */ {
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        };
+  let variantStyle: React.CSSProperties;
+  if (variant === 'primary') {
+    variantStyle = {
+      backgroundColor: theme.colors.text.primary,
+      color: COLOR_NAMED_WHITE,
+      fontWeight: theme.typography.fontWeight.semibold,
+    };
+  } else if (variant === 'secondary') {
+    variantStyle = {
+      backgroundColor: COLOR_TRANSPARENT,
+      color: theme.colors.text.secondary,
+      border: `1px solid ${theme.colors.border.medium}`,
+      fontWeight: theme.typography.fontWeight.medium,
+    };
+  } else {
+    /* ghost */
+    variantStyle = {
+      backgroundColor: COLOR_TRANSPARENT,
+      color: theme.colors.text.secondary,
+      fontWeight: theme.typography.fontWeight.medium,
+    };
+  }
 
   return (
     <button style={{ ...baseStyle, ...variantStyle, ...extraStyle }} {...rest}>

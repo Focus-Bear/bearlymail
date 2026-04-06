@@ -39,24 +39,33 @@ interface PillProps {
 
 const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = false, compact = false, onClick }) => {
   const { t } = useTranslation();
-  const backgroundColor = isSelected
-    ? isAll
-      ? theme.colors.secondary.main
-      : theme.colors.background.subtle
-    : theme.colors.background.paper;
+  let backgroundColor: string;
+  if (isSelected && isAll) {
+    backgroundColor = theme.colors.secondary.main;
+  } else if (isSelected) {
+    backgroundColor = theme.colors.background.subtle;
+  } else {
+    backgroundColor = theme.colors.background.paper;
+  }
 
-  const borderColor = isSelected
-    ? isAll
-      ? theme.colors.secondary.main
-      : theme.colors.primary.main
-    : theme.colors.border.medium;
+  let borderColor: string;
+  if (isSelected && isAll) {
+    borderColor = theme.colors.secondary.main;
+  } else if (isSelected) {
+    borderColor = theme.colors.primary.main;
+  } else {
+    borderColor = theme.colors.border.medium;
+  }
 
-  const textColor = isSelected
-    ? isAll
-      // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
-      ? theme.colors.text.inverse
-      : theme.colors.text.primary
-    : theme.colors.text.secondary;
+  let textColor: string;
+  if (isSelected && isAll) {
+    // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
+    textColor = theme.colors.text.inverse;
+  } else if (isSelected) {
+    textColor = theme.colors.text.primary;
+  } else {
+    textColor = theme.colors.text.secondary;
+  }
 
   const maxLabelWidth = compact ? PILL_LABEL_MAX_WIDTH_COMPACT : PILL_LABEL_MAX_WIDTH_DEFAULT;
   const countSuffix = count !== undefined ? ` (${count})` : '';
@@ -361,14 +370,24 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
   const selectedLabels = selectedIds
     .map(id => categories.find(cat => cat.id === id)?.label)
     .filter(Boolean);
-  const summaryText = isAllSelected
-    ? t('inbox.filters.allCategories', 'All categories')
-    : selectedLabels.length === 1
-      ? selectedLabels[0]!
-      : t('inbox.filters.nCategoriesSelected', '{{count}} selected', { count: selectedLabels.length });
+  let summaryText: string;
+  if (isAllSelected) {
+    summaryText = t('inbox.filters.allCategories', 'All categories');
+  } else if (selectedLabels.length === 1) {
+    summaryText = selectedLabels[0]!;
+  } else {
+    summaryText = t('inbox.filters.nCategoriesSelected', '{{count}} selected', { count: selectedLabels.length });
+  }
 
   // While summary is refetching, show a neutral "…" instead of a stale count (fix #1466).
-  const countText = loading ? ' (…)' : totalCount !== undefined ? ` (${totalCount})` : '';
+  let countText: string;
+  if (loading) {
+    countText = ' (…)';
+  } else if (totalCount !== undefined) {
+    countText = ` (${totalCount})`;
+  } else {
+    countText = '';
+  }
 
   return (
     <div

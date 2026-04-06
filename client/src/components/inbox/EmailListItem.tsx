@@ -65,12 +65,12 @@ export const EmailListItem: React.FC<EmailListItemProps> = (props) => {
   const animatingOut = useSelector(selectAnimatingOut);
   const animatingOutItem = animatingOut.find(item => item.id === props.email.id);
 
-  const animatingOutType =
-    animatingOutItem?.type === ANIMATION_TYPE_ARCHIVE
-      ? ANIMATION_TYPE_ARCHIVE
-      : animatingOutItem?.type === ANIMATION_TYPE_PRIORITY
-        ? ANIMATION_TYPE_PRIORITY
-        : null;
+  let animatingOutType: typeof ANIMATION_TYPE_ARCHIVE | typeof ANIMATION_TYPE_PRIORITY | null = null;
+  if (animatingOutItem?.type === ANIMATION_TYPE_ARCHIVE) {
+    animatingOutType = ANIMATION_TYPE_ARCHIVE;
+  } else if (animatingOutItem?.type === ANIMATION_TYPE_PRIORITY) {
+    animatingOutType = ANIMATION_TYPE_PRIORITY;
+  }
 
   return (
     <EmailListItemView

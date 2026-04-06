@@ -15,15 +15,21 @@ import { CATEGORY_RULE_COMPOSITE } from "../../constants/category-rule-composite
 
 /** Optional nested payload when updating a composite rule's match criteria. */
 export class PatchCompositeSpecDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SENDER_LENGTH)
-  sender!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_SENDERS)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SENDER_LENGTH, { each: true })
+  senderMatchesAny!: string[];
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH)
-  subjectContains!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES)
+  @IsString({ each: true })
+  @MaxLength(CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_CONTAINS_LENGTH, {
+    each: true,
+  })
+  subjectContainsAny!: string[];
 
   @IsArray()
   @ArrayMinSize(1)

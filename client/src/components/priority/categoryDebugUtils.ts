@@ -116,7 +116,9 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
       let extra = '';
       if (evaluation.ruleKind === CATEGORY_RULE_KIND_COMPOSITE && evaluation.compositeDetail) {
         const compositeDetail = evaluation.compositeDetail;
-        extra = ` | sender=${compositeDetail.senderMatch} subject=${compositeDetail.subjectMatch} body=${compositeDetail.bodyMatch} phrase=${compositeDetail.bodyMatchedPhrase ?? '—'}`;
+        const matchedSender = compositeDetail.senderMatchedValue ? ` matchedSender=${compositeDetail.senderMatchedValue}` : '';
+        const matchedSubject = compositeDetail.subjectMatchedValue ? ` matchedSubject=${compositeDetail.subjectMatchedValue}` : '';
+        extra = ` | sender=${compositeDetail.senderMatch}${matchedSender} subject=${compositeDetail.subjectMatch}${matchedSubject} body=${compositeDetail.bodyMatch} phrase=${compositeDetail.bodyMatchedPhrase ?? '—'}`;
       }
       lines.push(
         `  - [${kindLabel}] ${evaluation.categoryName} | patternMatch=${evaluation.patternMatches} enabled=${evaluation.isEnabled} winning=${evaluation.isWinningRule} hits=${evaluation.hitCount}${extra}`,

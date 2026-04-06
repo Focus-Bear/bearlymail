@@ -23,13 +23,26 @@ export type CategoryRuleType =
 
 export type CategoryRuleKind = "legacy" | "composite";
 
-/** Encrypted JSON at rest; decrypted shape for v1. */
+/** Encrypted JSON at rest; decrypted shape for v1 (legacy — single sender/subject). */
 export type CompositeCategoryRuleSpecV1 = {
   v: 1;
   sender: string;
   subjectContains: string;
   bodyContainsAny: string[];
 };
+
+/** v2: each condition supports multiple matching options (OR within, AND across). */
+export type CompositeCategoryRuleSpecV2 = {
+  v: 2;
+  senderMatchesAny: string[];
+  subjectContainsAny: string[];
+  bodyContainsAny: string[];
+};
+
+/** Union of all supported composite rule spec versions. */
+export type CompositeCategoryRuleSpec =
+  | CompositeCategoryRuleSpecV1
+  | CompositeCategoryRuleSpecV2;
 
 /**
  * Deterministic category rules: legacy hash-based (auto-generated) or composite
@@ -76,7 +89,7 @@ export class CategoryRule {
   ruleKind: CategoryRuleKind;
 
   @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
-  compositeSpec: CompositeCategoryRuleSpecV1 | null;
+  compositeSpec: CompositeCategoryRuleSpec | null;
 
   @Column({ default: true })
   isEnabled: boolean;

@@ -68,6 +68,26 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
               ? translate('priority.categoryDebug.traceCompositeYes')
               : translate('priority.categoryDebug.traceCompositeNo')}
           </span>
+          {detail.senderMatchedValue ? (
+            <>
+              <br />
+              <span style={monoStyle}>
+                {translate('priority.categoryDebug.traceCompositeMatchedSender', {
+                  sender: detail.senderMatchedValue,
+                })}
+              </span>
+            </>
+          ) : null}
+          {detail.subjectMatchedValue ? (
+            <>
+              <br />
+              <span style={monoStyle}>
+                {translate('priority.categoryDebug.traceCompositeMatchedSubject', {
+                  subject: detail.subjectMatchedValue,
+                })}
+              </span>
+            </>
+          ) : null}
           {detail.bodyMatchedPhrase ? (
             <>
               <br />

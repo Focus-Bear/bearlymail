@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { CategoryOption } from 'queries/useCategoryContextQuery';
 import { theme } from 'theme/theme';
-import type { CompositeSpecV1 } from 'types/category-rules.types';
+import type { CompositeSpec } from 'types/category-rules.types';
+import { specSenders, specSubjects } from 'types/category-rules.types';
 
 import { ModalBackdrop, ModalContent } from 'components/modal';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
@@ -16,12 +17,12 @@ export interface CompositeCategoryRuleFormModalProps {
   mode: typeof COMPOSITE_RULE_FORM_MODE_ADD | typeof COMPOSITE_RULE_FORM_MODE_EDIT;
   categoryOptions: CategoryOption[];
   initialCategoryName?: string;
-  initialSpec?: CompositeSpecV1 | null;
+  initialSpec?: CompositeSpec | null;
   onClose: () => void;
   onSubmit: (payload: {
     categoryName: string;
-    sender: string;
-    subjectContains: string;
+    senderMatchesAny: string[];
+    subjectContainsAny: string[];
     bodyContainsAny: string[];
   }) => Promise<void>;
 }
@@ -37,8 +38,8 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
 }) => {
   const { t } = useTranslation();
   const [categoryName, setCategoryName] = useState('');
-  const [sender, setSender] = useState('');
-  const [subjectContains, setSubjectContains] = useState('');
+  const [senderLines, setSenderLines] = useState('');
+  const [subjectLines, setSubjectLines] = useState('');
   const [bodyLines, setBodyLines] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -47,8 +48,8 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
       return;
     }
     setCategoryName(initialCategoryName);
-    setSender(initialSpec?.sender ?? '');
-    setSubjectContains(initialSpec?.subjectContains ?? '');
+    setSenderLines(initialSpec ? specSenders(initialSpec).join('\n') : '');
+    setSubjectLines(initialSpec ? specSubjects(initialSpec).join('\n') : '');
     setBodyLines((initialSpec?.bodyContainsAny ?? []).join('\n'));
   }, [open, initialCategoryName, initialSpec]);
 
@@ -56,21 +57,26 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
     return null;
   }
 
-  const handleSubmit = async () => {
-    const phrases = bodyLines
+  const parseLines = (text: string): string[] =>
+    text
       .split('\n')
       .map(line => line.trim())
       .filter(Boolean);
-    if (!categoryName.trim() || !sender.trim() || !subjectContains.trim() || phrases.length === 0) {
+
+  const handleSubmit = async () => {
+    const senders = parseLines(senderLines);
+    const subjects = parseLines(subjectLines);
+    const bodyPhrases = parseLines(bodyLines);
+    if (!categoryName.trim() || senders.length === 0 || subjects.length === 0 || bodyPhrases.length === 0) {
       return;
     }
     setSaving(true);
     try {
       await onSubmit({
         categoryName: categoryName.trim(),
-        sender: sender.trim(),
-        subjectContains: subjectContains.trim(),
-        bodyContainsAny: phrases,
+        senderMatchesAny: senders,
+        subjectContainsAny: subjects,
+        bodyContainsAny: bodyPhrases,
       });
       onClose();
     } catch {
@@ -92,12 +98,12 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
         <CompositeCategoryRuleFormFields
           categoryOptions={categoryOptions}
           categoryName={categoryName}
-          sender={sender}
-          subjectContains={subjectContains}
+          senderLines={senderLines}
+          subjectLines={subjectLines}
           bodyLines={bodyLines}
           onCategoryNameChange={setCategoryName}
-          onSenderChange={setSender}
-          onSubjectContainsChange={setSubjectContains}
+          onSenderLinesChange={setSenderLines}
+          onSubjectLinesChange={setSubjectLines}
           onBodyLinesChange={setBodyLines}
         />
         <div style={{ marginTop: theme.spacing.md }}>

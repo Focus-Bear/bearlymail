@@ -379,5 +379,136 @@ describe("CategoryRulesService", () => {
 
       expect(match).toBeNull();
     });
+
+    it("matches a v2 composite rule with multiple senders (OR)", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c2",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "Invoices",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 2,
+            senderMatchesAny: [
+              "billing@acme.com",
+              "invoices@acme.com",
+              "noreply@stripe.com",
+            ],
+            subjectContainsAny: ["Invoice"],
+            bodyContainsAny: ["Amount due"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const match = await service.findMatchingRule(userId, {
+        from: "invoices@acme.com",
+        subject: "Invoice #1234",
+        bodyTextForMatch: "Amount due: $50",
+      });
+
+      expect(match?.ruleKind).toBe("composite");
+      expect(match?.categoryName).toBe("Invoices");
+    });
+
+    it("matches a v2 composite rule with multiple subjects (OR)", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c3",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "Receipts",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 2,
+            senderMatchesAny: ["billing@shop.com"],
+            subjectContainsAny: ["Receipt", "Payment confirmation", "Order"],
+            bodyContainsAny: ["Thank you"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const match = await service.findMatchingRule(userId, {
+        from: "billing@shop.com",
+        subject: "Payment confirmation for order 567",
+        bodyTextForMatch: "Thank you for your purchase.",
+      });
+
+      expect(match?.ruleKind).toBe("composite");
+      expect(match?.categoryName).toBe("Receipts");
+    });
+
+    it("v2 rule does not match when no sender matches", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c4",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "Invoices",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 2,
+            senderMatchesAny: ["billing@acme.com", "invoices@acme.com"],
+            subjectContainsAny: ["Invoice"],
+            bodyContainsAny: ["Amount due"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const match = await service.findMatchingRule(userId, {
+        from: "random@other.com",
+        subject: "Invoice #999",
+        bodyTextForMatch: "Amount due: $100",
+      });
+
+      expect(match).toBeNull();
+    });
+
+    it("v1 spec backward compat still works after v2 introduction", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c5",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "Legacy QA",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 1,
+            sender: "ci@build.com",
+            subjectContains: "Build",
+            bodyContainsAny: ["PASSED"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const match = await service.findMatchingRule(userId, {
+        from: "ci@build.com",
+        subject: "Build #42 completed",
+        bodyTextForMatch: "All tests PASSED.",
+      });
+
+      expect(match?.categoryName).toBe("Legacy QA");
+      expect(match?.ruleKind).toBe("composite");
+    });
   });
 });

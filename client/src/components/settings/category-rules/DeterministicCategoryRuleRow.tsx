@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import type { CategoryRuleDto } from 'types/category-rules.types';
+import { specSenders, specSubjects } from 'types/category-rules.types';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
 
@@ -47,6 +48,31 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
   const kindLabel = isComposite
     ? t('settings.deterministicCategoryRules.kindComposite')
     : t('settings.deterministicCategoryRules.kindLegacy');
+
+  const renderCompositeSpec = () => {
+    if (!rule.compositeSpec) {
+      return null;
+    }
+    const senders = specSenders(rule.compositeSpec);
+    const subjects = specSubjects(rule.compositeSpec);
+    const separator = t('settings.deterministicCategoryRules.bodyPhraseSeparator');
+    return (
+      <>
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.senderField')}:{' '}
+          {senders.join(separator)}
+        </div>
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.subjectContainsField')}:{' '}
+          {subjects.join(separator)}
+        </div>
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.bodyPhrasesField')}:{' '}
+          {rule.compositeSpec.bodyContainsAny.join(separator)}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div style={rowStyle}>
@@ -102,19 +128,8 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
         </button>
       </div>
 
-      {isComposite && rule.compositeSpec ? (
-        <>
-          <div style={mono}>
-            {t('settings.deterministicCategoryRules.senderField')}: {rule.compositeSpec.sender}
-          </div>
-          <div style={mono}>
-            {t('settings.deterministicCategoryRules.subjectContainsField')}: {rule.compositeSpec.subjectContains}
-          </div>
-          <div style={mono}>
-            {t('settings.deterministicCategoryRules.bodyPhrasesField')}:{' '}
-            {rule.compositeSpec.bodyContainsAny.join(t('settings.deterministicCategoryRules.bodyPhraseSeparator'))}
-          </div>
-        </>
+      {isComposite ? (
+        renderCompositeSpec()
       ) : (
         <>
           <div style={mono}>

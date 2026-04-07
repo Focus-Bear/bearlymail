@@ -151,6 +151,10 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
     <CategoryRuleFromCategoryContext.Provider
       value={{
         openAddRuleForCategoryDisplayName: deterministicCategoryRulesController.openAddWithPrefill,
+        rules: deterministicCategoryRulesController.rules,
+        onToggleEnabled: deterministicCategoryRulesController.handleToggle,
+        onDeleteRule: deterministicCategoryRulesController.handleDelete,
+        onEditRule: deterministicCategoryRulesController.openEdit,
       }}
     >
       <div

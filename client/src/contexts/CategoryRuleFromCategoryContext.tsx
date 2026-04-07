@@ -1,7 +1,12 @@
 import { createContext, useContext } from 'react';
+import type { CategoryRuleDto } from 'types/category-rules.types';
 
 export type CategoryRuleFromCategoryContextValue = {
   openAddRuleForCategoryDisplayName: (displayName: string) => void;
+  rules: CategoryRuleDto[];
+  onToggleEnabled: (id: string, nextEnabled: boolean) => void;
+  onDeleteRule: (id: string) => void;
+  onEditRule: (rule: CategoryRuleDto) => void;
 };
 
 export const CategoryRuleFromCategoryContext = createContext<CategoryRuleFromCategoryContextValue | null>(null);

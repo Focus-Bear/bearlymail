@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { getEmailCategoryDisplayNameFromContextValue } from 'utils/emailCategoryContextUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { InfoTooltip } from 'components/InfoTooltip';
+import { DeterministicCategoryRuleRow } from 'components/settings/category-rules/DeterministicCategoryRuleRow';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -362,12 +364,16 @@ const ContextItem: React.FC<ContextItemProps> = ({
 }) => {
   const { t } = useTranslation();
   const categoryRuleFromCategory = useCategoryRuleFromCategory();
+  const [showRulesAccordion, setShowRulesAccordion] = useState(false);
   const categoryDisplayNameForRule =
     context.contextKey === CONTEXT_KEY_EMAIL_CATEGORY
       ? getEmailCategoryDisplayNameFromContextValue(context.contextValue)
       : '';
-  const showAddMatchingRuleButton =
-    context.contextKey === CONTEXT_KEY_EMAIL_CATEGORY && categoryRuleFromCategory !== null;
+  const isEmailCategory = context.contextKey === CONTEXT_KEY_EMAIL_CATEGORY && categoryRuleFromCategory !== null;
+  const matchingRules = isEmailCategory
+    ? (categoryRuleFromCategory?.rules ?? []).filter(rule => rule.categoryName === categoryDisplayNameForRule)
+    : [];
+  const ruleCount = matchingRules.length;
 
   if (editingContextId === context.contextId) {
     return (
@@ -381,75 +387,143 @@ const ContextItem: React.FC<ContextItemProps> = ({
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: theme.spacing.sm,
-        backgroundColor: theme.colors.background.subtle,
-        borderRadius: theme.borderRadius.md,
-        border: `1px solid ${theme.colors.border.light}`,
-      }}
-    >
-      <ContextItemContent context={context} />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
-        {showAddMatchingRuleButton && (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: theme.spacing.sm,
+          backgroundColor: theme.colors.background.subtle,
+          borderRadius: showRulesAccordion ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          border: `1px solid ${theme.colors.border.light}`,
+          borderBottom: showRulesAccordion ? 'none' : `1px solid ${theme.colors.border.light}`,
+        }}
+      >
+        <ContextItemContent context={context} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {isEmailCategory && ruleCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowRulesAccordion(prev => !prev)}
+              style={{
+                cursor: 'pointer',
+                color: theme.colors.primary.main,
+                border: STRING_NONE,
+                background: STRING_NONE,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('settings.emailCategories.rulesCount', { count: ruleCount })}
+            </button>
+          )}
+          {isEmailCategory && ruleCount === 0 && (
+            <button
+              type="button"
+              title={t('settings.emailCategories.addMatchingRuleTooltip')}
+              disabled={!categoryDisplayNameForRule}
+              onClick={() => {
+                if (!categoryRuleFromCategory || !categoryDisplayNameForRule) {
+                  return;
+                }
+                captureEvent(ANALYTICS_EVENTS.CONTEXT_ADD_MATCHING_RULE_CLICKED, { context_key: context.contextKey });
+                categoryRuleFromCategory.openAddRuleForCategoryDisplayName(categoryDisplayNameForRule);
+              }}
+              style={{
+                cursor: categoryDisplayNameForRule ? 'pointer' : 'not-allowed',
+                color: theme.colors.primary.main,
+                border: STRING_NONE,
+                background: STRING_NONE,
+                fontSize: theme.typography.fontSize.sm,
+                opacity: categoryDisplayNameForRule ? OPACITY_FULL : OPACITY_DISABLED,
+              }}
+            >
+              {t('settings.emailCategories.addMatchingRule')}
+            </button>
+          )}
           <button
             type="button"
-            title={t('settings.emailCategories.addMatchingRuleTooltip')}
-            disabled={!categoryDisplayNameForRule}
+            title={t('common.edit')}
+            aria-label={t('common.edit')}
             onClick={() => {
-              if (!categoryRuleFromCategory || !categoryDisplayNameForRule) {
-                return;
-              }
-              captureEvent(ANALYTICS_EVENTS.CONTEXT_ADD_MATCHING_RULE_CLICKED, { context_key: context.contextKey });
-              categoryRuleFromCategory.openAddRuleForCategoryDisplayName(categoryDisplayNameForRule);
+              captureEvent(ANALYTICS_EVENTS.CONTEXT_EDIT_CLICKED, { context_key: context.contextKey });
+              onEditingContextIdChange(context.contextId);
+              onEditContextValueChange(context.contextValue);
             }}
             style={{
-              cursor: categoryDisplayNameForRule ? 'pointer' : 'not-allowed',
+              cursor: 'pointer',
               color: theme.colors.primary.main,
               border: STRING_NONE,
               background: STRING_NONE,
               fontSize: theme.typography.fontSize.sm,
-              opacity: categoryDisplayNameForRule ? OPACITY_FULL : OPACITY_DISABLED,
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            {t('settings.emailCategories.addMatchingRule')}
+            <FiEdit2 size={14} />
           </button>
-        )}
-        <button
-          onClick={() => {
-            captureEvent(ANALYTICS_EVENTS.CONTEXT_EDIT_CLICKED, { context_key: context.contextKey });
-            onEditingContextIdChange(context.contextId);
-            onEditContextValueChange(context.contextValue);
-          }}
-          style={{
-            cursor: 'pointer',
-            color: theme.colors.primary.main,
-            border: STRING_NONE,
-            background: STRING_NONE,
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('common.edit')}
-        </button>
-        <button
-          onClick={() => {
-            captureEvent(ANALYTICS_EVENTS.CONTEXT_DELETED, { context_key: context.contextKey });
-            onDeleteContext(context.contextId);
-          }}
-          style={{
-            cursor: 'pointer',
-            color: theme.colors.accent.error,
-            border: STRING_NONE,
-            background: STRING_NONE,
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('common.delete')}
-        </button>
+          <button
+            type="button"
+            title={t('common.delete')}
+            aria-label={t('common.delete')}
+            onClick={() => {
+              captureEvent(ANALYTICS_EVENTS.CONTEXT_DELETED, { context_key: context.contextKey });
+              onDeleteContext(context.contextId);
+            }}
+            style={{
+              cursor: 'pointer',
+              color: theme.colors.accent.error,
+              border: STRING_NONE,
+              background: STRING_NONE,
+              fontSize: theme.typography.fontSize.sm,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <FiTrash2 size={14} />
+          </button>
+        </div>
       </div>
+      {showRulesAccordion && matchingRules.length > 0 && (
+        <div
+          style={{
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: `0 0 ${theme.borderRadius.md} ${theme.borderRadius.md}`,
+            border: `1px solid ${theme.colors.border.light}`,
+            borderTop: 'none',
+          }}
+        >
+          {matchingRules.map(matchingRule => (
+            <DeterministicCategoryRuleRow
+              key={matchingRule.id}
+              rule={matchingRule}
+              onToggleEnabled={(id, nextEnabled) => categoryRuleFromCategory?.onToggleEnabled(id, nextEnabled)}
+              onDelete={id => categoryRuleFromCategory?.onDeleteRule(id)}
+              onEditComposite={ruleToEdit => categoryRuleFromCategory?.onEditRule(ruleToEdit)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              if (categoryRuleFromCategory && categoryDisplayNameForRule) {
+                captureEvent(ANALYTICS_EVENTS.CONTEXT_ADD_MATCHING_RULE_CLICKED, { context_key: context.contextKey });
+                categoryRuleFromCategory.openAddRuleForCategoryDisplayName(categoryDisplayNameForRule);
+              }
+            }}
+            style={{
+              marginTop: theme.spacing.xs,
+              background: COLOR_TRANSPARENT,
+              border: STRING_NONE,
+              color: theme.colors.primary.main,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+            }}
+          >
+            {t('settings.emailCategories.addMatchingRuleWithPrefix')}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

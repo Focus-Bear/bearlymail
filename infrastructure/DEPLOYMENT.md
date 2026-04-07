@@ -391,12 +391,13 @@ aws secretsmanager put-secret-value \
     "database": "bearlymail"
   }'
 
-# Populate LLM secret (use the same provider/key as ECS)
+# Populate LLM secret (same JSON shape as ECS app secrets; Lambda uses APP_SECRET_ARN)
+# If `LLM_PROVIDER` is omitted, default is `openai` — same as server `LLMCoreService`.
 aws secretsmanager put-secret-value \
   --secret-id bearlymail/lambda/llm \
   --secret-string '{
-    "LLM_PROVIDER": "anthropic",
-    "ANTHROPIC_API_KEY": "<YOUR_ANTHROPIC_KEY>"
+    "LLM_PROVIDER": "openai",
+    "OPENAI_API_KEY": "<YOUR_OPENAI_KEY>"
   }'
 ```
 

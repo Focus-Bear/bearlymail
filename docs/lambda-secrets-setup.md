@@ -32,15 +32,16 @@ aws cloudformation describe-stacks \
 ## 2. LLM Secret (`bearlymail/lambda/llm`)
 
 Set the LLM provider API keys. Only the key for the active `LLM_PROVIDER` is required.
+If `LLM_PROVIDER` is omitted, the batch Lambda defaults to **`openai`**, matching the ECS app (`LLMCoreService`).
 
 ```bash
 aws secretsmanager put-secret-value \
   --secret-id bearlymail/lambda/llm \
   --secret-string '{
-    "ANTHROPIC_API_KEY": "<your-anthropic-key>",
     "OPENAI_API_KEY": "<your-openai-key>",
+    "ANTHROPIC_API_KEY": "<your-anthropic-key>",
     "GEMINI_API_KEY": "<your-gemini-key>",
-    "LLM_PROVIDER": "anthropic"
+    "LLM_PROVIDER": "openai"
   }'
 ```
 

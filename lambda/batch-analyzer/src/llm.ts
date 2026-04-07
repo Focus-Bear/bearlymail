@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
-import { getLlmSecrets } from "./secrets";
+import { getLlmSecrets, resolveLlmProvider } from "./secrets";
 
 // Lazy-loaded clients (cached across warm invocations)
 let anthropicClient: Anthropic | null = null;
@@ -155,7 +155,8 @@ export async function analyzeEmailPatterns(options: {
 }): Promise<AnalysisResult> {
   const { receivedEmails, sentEmails, currentContext, userEmail } = options;
   const secrets = await getLlmSecrets();
-  const provider = options.provider || secrets.LLM_PROVIDER || "anthropic";
+  const provider =
+    options.provider?.trim().toLowerCase() || resolveLlmProvider(secrets);
   const template = loadPromptTemplate();
 
   const prompt = buildPrompt(

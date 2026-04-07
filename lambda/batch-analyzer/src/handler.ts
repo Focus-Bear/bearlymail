@@ -14,7 +14,7 @@ import { randomUUID } from "crypto";
 
 import { saveBatchResult, saveBatchFailure } from "./db";
 import { analyzeEmailPatterns, ThreadPayload, SentPayload, ContextItem } from "./llm";
-import { getDbSecrets, getLlmSecrets } from "./secrets";
+import { getDbSecrets, getLlmSecrets, resolveLlmProvider } from "./secrets";
 import type { ContextBatchPayload } from "./types";
 
 // Cold-start secrets validation: validated once per container lifetime.
@@ -36,7 +36,7 @@ async function validateSecrets(): Promise<void> {
     );
   }
 
-  const provider = llmSecrets.LLM_PROVIDER || "anthropic";
+  const provider = resolveLlmProvider(llmSecrets);
   const apiKey =
     provider === "openai"
       ? llmSecrets.OPENAI_API_KEY

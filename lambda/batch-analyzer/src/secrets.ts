@@ -55,6 +55,15 @@ export interface LlmSecrets {
   LLM_PROVIDER?: string;
 }
 
+/**
+ * Default matches server `LLMCoreService` / `ConfigService`: `LLM_PROVIDER` env defaults to openai.
+ * Lambda reads the same app secret as ECS; that JSON often omits `LLM_PROVIDER` while ECS sets it on the task.
+ */
+export function resolveLlmProvider(secrets: LlmSecrets): string {
+  const raw = secrets.LLM_PROVIDER?.trim();
+  return (raw || "openai").toLowerCase();
+}
+
 const DB_SECRET_NAME =
   process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME || "bearlymail/lambda/db";
 const LLM_SECRET_NAME =

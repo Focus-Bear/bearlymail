@@ -52,8 +52,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       scope: [
         "email",
         "profile",
-        // Read calendar data including freebusy (required for booking page availability)
-        "https://www.googleapis.com/auth/calendar.readonly",
+        // Free/busy only (required for booking page availability via freebusy.query)
+        "https://www.googleapis.com/auth/calendar.freebusy",
         // Manage calendar events (create/edit/delete bookings)
         "https://www.googleapis.com/auth/calendar.events",
         // Includes read + modify (labels, etc.)

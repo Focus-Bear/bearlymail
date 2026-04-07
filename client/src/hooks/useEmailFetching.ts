@@ -287,6 +287,7 @@ function serveCategoryFromCacheAndRefresh({
   dispatch,
   buildCategoryParams,
   fetchSessionRef,
+  loadingCategoryNamesRef,
 }: {
   cachedEmails: Email[];
   catKey: string;
@@ -295,12 +296,21 @@ function serveCategoryFromCacheAndRefresh({
   dispatch: AppDispatch;
   buildCategoryParams: (categoryKey: string) => URLSearchParams;
   fetchSessionRef: React.MutableRefObject<number>;
+  /** Ref to current loading category keys — used to skip background fetch when one is already in-flight. Fix #1665. */
+  loadingCategoryNamesRef: React.MutableRefObject<string[]>;
 }): void {
   dispatch(updateCategoryEmails({ categoryKey: catKey, emails: cachedEmails }));
   if (cachedEmails.length > 0) {
     dispatch(markCategoryLoaded(catKey));
   }
   // If cachedEmails is empty, leave the category in its current state — the background refresh will load it
+
+  // Guard: skip background refresh if a fetch is already in-flight for this category
+  // (e.g. refreshInPlace is fetching the same category concurrently). Fix #1665.
+  if (loadingCategoryNamesRef.current.includes(catKey)) {
+    console.log('[Accordion] Skipping background refresh for category (already in-flight):', categoryName, '(key:', catKey, ')');
+    return;
+  }
 
   const sessionId = fetchSessionRef.current;
   const params = buildCategoryParams(catKey);
@@ -383,7 +393,7 @@ function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boole
 
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
-  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, categorySummaryRef } = args;
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, categorySummaryRef, loadingCategoryNamesRef } = args;
   // Compute the stable key: UUID when available, name as fallback
   const catKey = getCategoryKey(categoryId, categoryName);
 
@@ -395,7 +405,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
   // Stale-while-revalidate for categories: show cached emails instantly, refresh in background
   const cachedEmails = getCachedCategoryEmails(mode, catKey);
   if (cachedEmails !== null) {
-    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef });
+    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef, loadingCategoryNamesRef });
     return;
   }
 

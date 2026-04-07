@@ -1,7 +1,7 @@
 import React from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
@@ -586,6 +586,107 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
     expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-other-0003');
+  });
+});
+
+// ─── serveCategoryFromCacheAndRefresh – in-flight guard (fix #1665) ──────────
+
+describe('serveCategoryFromCacheAndRefresh – skips background fetch when category already in-flight (#1665)', () => {
+  // When a category is already in loadingCategoryNames (e.g. refreshInPlace is fetching it),
+  // `fetchCategoryEmails` must skip making a new GET request to prevent duplicate API calls
+  // during inbox initialization. This is enforced by two cooperating guards:
+  //   1. `shouldSkipCategoryFetch` — early exits before even reaching the cache path
+  //   2. `serveCategoryFromCacheAndRefresh` in-flight check — defense-in-depth after cache hit
+  // Both read from `loadingCategoryNamesRef` (updated each render via useSelector).
+
+  let store: ReturnType<typeof configureStore>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+    store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
+  });
+
+  const createWrapper = () =>
+    ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store, children });
+
+  it('does NOT fire a background GET when the category is already loading (in-flight guard)', async () => {
+    // Cache has emails — this would normally trigger the serveCategoryFromCacheAndRefresh path.
+    const cachedEmail = {
+      id: 'e-inf-1',
+      threadId: 'thread-inf-1',
+      subject: 'In-flight test',
+      from: 'sender@test.com',
+      to: 'me@test.com',
+      body: '',
+      isRead: false,
+      isArchived: false,
+      starCount: 0,
+      receivedAt: new Date().toISOString(),
+      category: 'Newsletters',
+      category_id: 'uuid-newsletters-inf-1',
+    };
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([cachedEmail]);
+
+    // Seed the store BEFORE rendering the hook so loadingCategoryNamesRef is populated
+    // with the loading state on the very first render (no re-render needed).
+    const { markCategoryLoading } = await import('store/slices/emailSlice');
+    store.dispatch(markCategoryLoading('uuid-newsletters-inf-1'));
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    // Verify the category is in loading state in Redux
+    const stateAfterSeed = store.getState() as { inboxData: { loadingCategoryNames: string[] } };
+    expect(stateAfterSeed.inboxData.loadingCategoryNames).toContain('uuid-newsletters-inf-1');
+
+    mockedAxios.get.mockClear();
+
+    // fetchCategoryEmails will return early via shouldSkipCategoryFetch (category is in
+    // loadingCategoryNames) — no GET should be issued. Fix #1665.
+    await result.current.fetchCategoryEmails('Newsletters', 'uuid-newsletters-inf-1');
+
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+  });
+
+  it('DOES fire a background GET when the category is NOT already loading', async () => {
+    // Sanity check: when the guard condition is false, the background refresh fires normally.
+    const cachedEmail = {
+      id: 'e-inf-2',
+      threadId: 'thread-inf-2',
+      subject: 'Not in-flight test',
+      from: 'sender@test.com',
+      to: 'me@test.com',
+      body: '',
+      isRead: false,
+      isArchived: false,
+      starCount: 0,
+      receivedAt: new Date().toISOString(),
+      category: 'Work',
+      category_id: 'uuid-work-inf-2',
+    };
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([cachedEmail]);
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [cachedEmail] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Work', 'uuid-work-inf-2');
+
+    // Background refresh should fire since category is not in loadingCategoryNames.
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('/emails/inbox')
+    );
   });
 });
 

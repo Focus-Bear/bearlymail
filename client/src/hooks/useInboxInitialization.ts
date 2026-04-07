@@ -71,6 +71,13 @@ export function useInboxInitialization({
 }: UseInboxInitializationProps) {
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [hasRunAnalysis, setHasRunAnalysis] = useState<boolean | null>(null);
+  /**
+   * True while `refreshInPlace` is executing during cached-path initialization.
+   * Passed to `useCategoryFetch` (via `useInboxState`) so it skips its auto-expand
+   * effect while the background refresh is already fetching the same categories.
+   * Prevents duplicate API requests for the same category during inbox load (#1665).
+   */
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
 
   const lastFetchedAt = useSelector(selectLastFetchedAt);
@@ -112,11 +119,19 @@ export function useInboxInitialization({
         // then silently revalidate in the background so the list stays up-to-date.
         if (!signal.aborted) {
           setHasInitiallyLoaded(true);
+          // Signal to useCategoryFetch that a background refresh is in progress so
+          // it suppresses its auto-expand effect and avoids duplicate category fetches.
+          // Fix #1665: prevents overlapping requests during cached-path initialization.
+          setIsBackgroundRefreshing(true);
         }
         await Promise.all([
           refreshInPlace(signal).catch(err => {
             if (!signal.aborted) {
               console.error('Error refreshing inbox in background:', err);
+            }
+          }).finally(() => {
+            if (!signal.aborted) {
+              setIsBackgroundRefreshing(false);
             }
           }),
           fetchBatchStatus(signal).catch(err => {
@@ -181,5 +196,5 @@ export function useInboxInitialization({
     return () => controller.abort();
   }, [authLoading, user, hasInitiallyLoaded]);
 
-  return { hasInitiallyLoaded, hasRunAnalysis };
+  return { hasInitiallyLoaded, hasRunAnalysis, isBackgroundRefreshing };
 }

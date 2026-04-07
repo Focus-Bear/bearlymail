@@ -47,7 +47,9 @@ export async function getDbClient(): Promise<Client> {
     ssl: { rejectUnauthorized: false },
     // Increased to 10 s — RDS Proxy cold-start can take several seconds
     connectionTimeoutMillis: 10_000,
-    statement_timeout: 30_000,
+    // Do not set statement_timeout here: RDS Proxy returns FATAL
+    // "Feature not supported: RDS Proxy currently doesn't support the option statement_timeout."
+    // Rely on the Lambda function timeout and keep queries bounded in application code.
   });
 
   isConnected = false;

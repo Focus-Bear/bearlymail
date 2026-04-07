@@ -1,15 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS, MS_PER_SECOND } from "../constants/time-constants";
+import { DAYS } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import {
   EmailProvider,
   RawEmailMessage,
 } from "../emails/interfaces/email-provider.interface";
 import { UsersService } from "../users/users.service";
+import {
+  buildDateRangeQuery,
+  buildSentFolderQuery,
+  formatGmailDate,
+} from "./email-query-builder.util";
 
 const EMAIL_FETCH_LIMIT = 400;
+const NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER = 1.5;
 import { gmail_v1, google } from "googleapis";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
@@ -121,102 +127,6 @@ export class ContextEmailDataService {
   }
 
   /**
-   * Format date for Gmail search query (YYYY/MM/DD format)
-   */
-  private formatGmailDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}/${month}/${day}`;
-  }
-
-  /**
-   * Format date for Office365 filter (ISO 8601 format)
-   */
-  private formatOffice365Date(date: Date): string {
-    return date.toISOString();
-  }
-
-  /**
-   * Format date for Zoho search (Unix timestamp in seconds)
-   */
-  private formatZohoDate(date: Date): string {
-    return Math.floor(date.getTime() / MS_PER_SECOND).toString();
-  }
-
-  /**
-   * Build date range query for a provider
-   */
-  private buildDateRangeQuery(
-    provider: EmailProvider,
-    after: Date,
-    before: Date,
-  ): string {
-    const providerName = provider.constructor.name;
-
-    if (providerName.includes("Gmail")) {
-      const gmailAfter = this.formatGmailDate(after);
-      const gmailBefore = this.formatGmailDate(before);
-      return `after:${gmailAfter} before:${gmailBefore}`;
-    } else if (
-      providerName.includes("Office365") ||
-      providerName.includes("Office")
-    ) {
-      // Office365 uses $filter with receivedDateTime
-      // Format: receivedDateTime ge {ISO_DATE} and receivedDateTime le {ISO_DATE}
-      const afterISO = this.formatOffice365Date(after);
-      const beforeISO = this.formatOffice365Date(before);
-      // Note: searchEmails uses $search, but we'll pass the filter format
-      // The Office365 provider will need to handle this
-      // For now, return a format that Office365 can understand
-      return `receivedDateTime ge ${afterISO} and receivedDateTime le ${beforeISO}`;
-    } else if (providerName.includes("Zoho")) {
-      // Zoho uses Unix timestamps
-      const afterUnix = this.formatZohoDate(after);
-      const beforeUnix = this.formatZohoDate(before);
-      return `receivedTime >= ${afterUnix} AND receivedTime <= ${beforeUnix}`;
-    }
-    // Fallback: try Gmail format
-    const gmailAfter = this.formatGmailDate(after);
-    const gmailBefore = this.formatGmailDate(before);
-    return `after:${gmailAfter} before:${gmailBefore}`;
-  }
-
-  /**
-   * Build sent folder query for a provider
-   */
-  private buildSentFolderQuery(
-    provider: EmailProvider,
-    after: Date,
-    before: Date,
-  ): string {
-    const providerName = provider.constructor.name;
-
-    if (providerName.includes("Gmail")) {
-      const gmailAfter = this.formatGmailDate(after);
-      const gmailBefore = this.formatGmailDate(before);
-      return `after:${gmailAfter} before:${gmailBefore} in:sent`;
-    } else if (
-      providerName.includes("Office365") ||
-      providerName.includes("Office")
-    ) {
-      // Office365 sent items folder
-      const afterISO = this.formatOffice365Date(after);
-      const beforeISO = this.formatOffice365Date(before);
-      return `receivedDateTime ge ${afterISO} and receivedDateTime le ${beforeISO} and isSent eq true`;
-    } else if (providerName.includes("Zoho")) {
-      // Zoho sent folder
-      const afterUnix = this.formatZohoDate(after);
-      const beforeUnix = this.formatZohoDate(before);
-      return `receivedTime >= ${afterUnix} AND receivedTime <= ${beforeUnix} AND folderid:sent`;
-    }
-    // Fallback
-    const gmailAfter = this.formatGmailDate(after);
-    const gmailBefore = this.formatGmailDate(before);
-    return `after:${gmailAfter} before:${gmailBefore} in:sent`;
-  }
-
-  /**
    * Group messages by threadId and convert to ThreadData[]
    */
   private groupMessagesByThread(
@@ -322,7 +232,7 @@ export class ContextEmailDataService {
     }
 
     // For Office365 and Zoho, use searchEmails and group by threadId
-    const dateQuery = this.buildDateRangeQuery(provider, after, before);
+    const dateQuery = buildDateRangeQuery(provider, after, before);
     this.logger.log(
       `[CONTEXT-ANALYSIS] ${providerType} search query: "${dateQuery}"`,
     );
@@ -370,7 +280,7 @@ export class ContextEmailDataService {
     limit: number = EMAIL_FETCH_LIMIT,
   ): Promise<string[]> {
     const gmail = await this.createGmailClient(userId);
-    const gmailQuery = `after:${this.formatGmailDate(after)} before:${this.formatGmailDate(before)}`;
+    const gmailQuery = `after:${formatGmailDate(after)} before:${formatGmailDate(before)}`;
     this.logger.log(
       `[CONTEXT-ANALYSIS] Gmail search query for thread IDs: "${gmailQuery}"`,
     );
@@ -474,9 +384,7 @@ export class ContextEmailDataService {
   ): Promise<string[]> {
     // For Office365 and Zoho, use searchEmails and extract thread IDs
     const userRecord = await this.usersService.findOne(userId);
-    const userEmailAddr = userRecord?.email
-      ? userRecord.email.toLowerCase()
-      : null;
+    const userEmailAddr = userRecord?.email ? userRecord.email.toLowerCase() : null;
 
     if (!userEmailAddr) {
       this.logger.warn(
@@ -491,10 +399,7 @@ export class ContextEmailDataService {
         `from:${userEmailAddr}`,
         limit * 2,
       );
-      const threadIds = new Set<string>();
-      sentMessages.forEach((msg: RawEmailMessage) => {
-        if (msg.threadId) threadIds.add(msg.threadId);
-      });
+      const threadIds = new Set<string>(sentMessages.filter((msg: RawEmailMessage) => msg.threadId).map((msg) => msg.threadId));
       const sentThreadIds = Array.from(threadIds).slice(0, limit);
       this.logger.log(
         `[CONTEXT-ANALYSIS] ${providerType} returned ${sentThreadIds.length} sent thread IDs from ${sentMessages.length} messages`,
@@ -770,10 +675,6 @@ export class ContextEmailDataService {
   }
 
   /**
-   * Fetch threads from Gmail using the thread API (Gmail-specific)
-   * @param onProgress Optional callback for progress updates and findings
-   */
-  /**
    * Paginate through Gmail threads.list to collect thread IDs.
    * Reports search progress via the optional callback.
    */
@@ -925,7 +826,7 @@ export class ContextEmailDataService {
     onProgress?: GmailFetchProgressCallback,
   ): Promise<ThreadData[]> {
     const gmail = await this.createGmailClient(userId);
-    const gmailQuery = `after:${this.formatGmailDate(after)} before:${this.formatGmailDate(before)}`;
+    const gmailQuery = `after:${formatGmailDate(after)} before:${formatGmailDate(before)}`;
     this.logger.log(`[CONTEXT-ANALYSIS] Gmail search query: "${gmailQuery}"`);
 
     const allThreadIds = await this.paginateGmailThreadIds(
@@ -960,14 +861,19 @@ export class ContextEmailDataService {
     );
 
     // Build sent folder query for the provider
-    const sentQuery = this.buildSentFolderQuery(provider, after, before);
+    const sentQuery = buildSentFolderQuery(provider, after, before);
     this.logger.log(
       `[CONTEXT-ANALYSIS] ${providerType} sent query: "${sentQuery}"`,
     );
 
-    // Search sent emails using the provider's searchEmails method
-    // Fetch more to account for filtering
-    const messages = await provider.searchEmails(userId, sentQuery, limit * 2);
+    // Phase 3: Reduced from limit*2 to limit — the sentQuery already includes date-range
+    // filters (after:/before: for Gmail, receivedDateTime for Office365, receivedTime for
+    // Zoho), so the 2x over-fetch was redundant for Gmail and wasteful in general.
+    // For non-Gmail providers where query filters may be less reliable, we keep a 1.5x
+    // buffer to ensure we still get enough results after date filtering.
+    const fetchLimit =
+      provider.constructor.name.includes("Gmail") ? limit : Math.ceil(limit * NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER);
+    const messages = await provider.searchEmails(userId, sentQuery, fetchLimit);
 
     this.logger.log(
       `[CONTEXT-ANALYSIS] ${providerType} returned ${messages.length} sent messages`,

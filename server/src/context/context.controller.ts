@@ -414,9 +414,9 @@ export class ContextController {
         threadsReadButNotReplied: 0,
         vipContactsEvaluated: 0,
         // Explicitly empty - no insights from previous runs
+        // Phase 4: batchPayloadsForRetry removed — SQS DLQ handles retries
         batchResults: {},
         batchJobIds: {},
-        batchPayloadsForRetry: {},
       },
     });
     await this.contextAnalysisRepository.save(analysisRecord);

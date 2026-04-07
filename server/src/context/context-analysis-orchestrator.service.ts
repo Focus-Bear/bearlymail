@@ -168,7 +168,6 @@ export class ContextAnalysisOrchestratorService {
       ...EMPTY_ANALYSIS_STATS,
       batchResults: {},
       batchJobIds: {},
-      batchPayloadsForRetry: {},
       totalBatches: 0,
     };
     record.fetchingStatus = null;
@@ -202,13 +201,28 @@ export class ContextAnalysisOrchestratorService {
       : null;
 
     writeAnalysisLog(`Getting thread IDs from 5-12 days ago`, "log");
-    const { generalThreadIds, sentThreadIds, threadIds } =
-      await this.fetchAllThreadIds(
-        userId,
-        analysisRecord,
-        twelveDaysAgo,
-        fiveDaysAgo,
-      );
+
+    // Phase 1: Parallelize orchestration steps — thread-ID fetch, sent-email fetch,
+    // and context-prompt build run concurrently (saves 5-15s).
+    const [threadIdResult, sentResult, currentContextForPrompt] =
+      await Promise.all([
+        this.fetchAllThreadIds(
+          userId,
+          analysisRecord,
+          twelveDaysAgo,
+          fiveDaysAgo,
+        ),
+        this.fetchSentEmailsContext(userId, userEmail),
+        this.buildCurrentContextPrompt(userId),
+      ]);
+
+    const { generalThreadIds, sentThreadIds, threadIds } = threadIdResult;
+    const { sentEmailsData, sentPayload } = sentResult;
+    // Set totalThreads now that we know threadIds.length
+    const analysisStats: AnalysisStats = {
+      ...sentResult.analysisStats,
+      totalThreads: threadIds.length,
+    };
 
     if (threadIds.length === 0) {
       await this.completeWithNoThreads(userId, analysisRecord);
@@ -217,11 +231,6 @@ export class ContextAnalysisOrchestratorService {
 
     await this.clearStaleFindings(analysisRecord);
     await this.resetStatsForAnalysis(analysisRecord, threadIds.length);
-
-    const { sentEmailsData, sentPayload, analysisStats } =
-      await this.fetchSentEmailsContext(userId, userEmail, threadIds.length);
-    const currentContextForPrompt =
-      await this.buildCurrentContextPrompt(userId);
 
     this.logger.log(
       `[CONTEXT-ANALYSIS] 🚀 Dispatching all batches via SQS → Lambda (userId: ${userId})`,
@@ -333,7 +342,6 @@ export class ContextAnalysisOrchestratorService {
   private async fetchSentEmailsContext(
     userId: string,
     userEmail: string | null,
-    totalThreads: number,
   ): Promise<{
     sentEmailsData: Awaited<
       ReturnType<ContextGmailDataService["fetchSentThreadsFromProvider"]>
@@ -368,8 +376,9 @@ export class ContextAnalysisOrchestratorService {
       sentAt: email.receivedAt.toISOString(),
     }));
 
+    // totalThreads will be set by the caller after thread-ID fetch completes
     const analysisStats: AnalysisStats = {
-      totalThreads,
+      totalThreads: 0,
       outboundEmails: sentEmailsData.length,
       threadsNeverOpened: 0,
       threadsReadButNotReplied: 0,
@@ -473,20 +482,14 @@ export class ContextAnalysisOrchestratorService {
 
   private async persistBatchState(
     analysisRecord: ContextAnalysis,
-    allProcessedBatches: BatchPayloadItem[][],
+    _allProcessedBatches: BatchPayloadItem[][],
     jobResults: Array<{ jobId: string | null; batchNum: number }>,
     totalBatches: number,
   ): Promise<void> {
     const batchJobIds: Record<number, string | null> = {};
-    const batchPayloadsForRetry: Record<number, BatchPayloadItem[]> = {};
+    // Phase 4: batchPayloadsForRetry removed — SQS DLQ handles retries automatically;
+    // storing 1-3MB of pre-processed payloads in Postgres was pure bloat.
 
-    let payloadIndex = 0;
-    for (const batchArray of allProcessedBatches) {
-      if (batchArray.length > 0) {
-        batchPayloadsForRetry[payloadIndex] = batchArray;
-        payloadIndex++;
-      }
-    }
     for (const result of jobResults) {
       batchJobIds[result.batchNum] = result.jobId;
     }
@@ -495,7 +498,6 @@ export class ContextAnalysisOrchestratorService {
       ...(analysisRecord.stats || { ...EMPTY_ANALYSIS_STATS }),
       totalBatches,
       batchJobIds,
-      batchPayloadsForRetry,
     };
     await this.contextAnalysisRepository.save(analysisRecord);
     writeAnalysisLog(
@@ -532,8 +534,10 @@ export class ContextAnalysisOrchestratorService {
       successfulEnqueues,
     } = params;
 
-    // 30 seconds — Lambda processes all batches concurrently; enough headroom before timeout.
-    const finalizationDelayMs = 30_000;
+    // Phase 5: Reduced from 30s to 5s — the finalizer already handles incomplete batches
+    // gracefully by re-queuing itself, so a short initial delay is better than always
+    // waiting 30s even when Lambda finishes in 10s.
+    const finalizationDelayMs = 5_000;
 
     if (totalBatches <= 0 || successfulEnqueues <= 0) {
       this.logger.error(
@@ -658,7 +662,6 @@ export class ContextAnalysisOrchestratorService {
       ...EMPTY_ANALYSIS_STATS,
       batchResults: {},
       batchJobIds: {},
-      batchPayloadsForRetry: {},
       totalBatches: 0,
     };
     await this.contextAnalysisRepository.save(analysisRecord);

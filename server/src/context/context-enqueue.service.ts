@@ -43,13 +43,18 @@ export class ContextEnqueueService {
 
   async buildAndQueueBatchJobs(
     args: BuildAndQueueArgs,
-    fetchBatchSize: number,
+    _fetchBatchSize: number,
     analysisBatchSize: number,
   ): Promise<BatchQueueResult> {
     const { userId, threadIds, userEmail } = args;
 
+    // Phase 2: Single-pass parallel thread fetch — instead of processing fetchBatchSize
+    // threads sequentially (10 rounds for 300 threads), fetch all threads in one parallel
+    // pass. fetchThreadsByIds already parallelises internally in sub-batches of 50, so
+    // we're not increasing peak concurrency, just removing the idle time between rounds
+    // (saves 10-30s).
     this.logger.log(
-      `[CONTEXT-ANALYSIS] Fetching threads progressively (${fetchBatchSize} at a time)...`,
+      `[CONTEXT-ANALYSIS] Fetching all ${threadIds.length} threads in one parallel pass...`,
     );
 
     const allProcessedBatches: BatchPayloadItem[][] = [];
@@ -60,39 +65,33 @@ export class ContextEnqueueService {
       batchPayload: BatchPayloadItem[];
     }> = [];
 
-    for (let start = 0; start < threadIds.length; start += fetchBatchSize) {
-      const batchIds = threadIds.slice(
-        start,
-        Math.min(start + fetchBatchSize, threadIds.length),
-      );
-      const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
-        userId,
-        batchIds,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Fetched batch ${Math.floor(start / fetchBatchSize) + 1}: ${fetchedThreads.length}/${batchIds.length} threads`,
-      );
+    const allFetchedThreads = await this.gmailDataService.fetchThreadsByIds(
+      userId,
+      threadIds,
+    );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Fetched ${allFetchedThreads.length}/${threadIds.length} threads in single pass`,
+    );
 
-      const processedBatches = this.batchPayloadService.buildBatchPayloads(
-        fetchedThreads,
-        userEmail,
-        analysisBatchSize,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads`,
-      );
+    const processedBatches = this.batchPayloadService.buildBatchPayloads(
+      allFetchedThreads,
+      userEmail,
+      analysisBatchSize,
+    );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${allFetchedThreads.length} threads`,
+    );
 
-      for (const batchPayload of processedBatches) {
-        if (batchPayload.length === 0) {
-          this.logger.warn(`[CONTEXT-ANALYSIS] Skipping empty batch payload`);
-          continue;
-        }
-        const batchNum = globalBatchIndex++;
-        lambdaBatches.push({ batchNum, batchPayload });
+    for (const batchPayload of processedBatches) {
+      if (batchPayload.length === 0) {
+        this.logger.warn(`[CONTEXT-ANALYSIS] Skipping empty batch payload`);
+        continue;
       }
-
-      allProcessedBatches.push(...processedBatches);
+      const batchNum = globalBatchIndex++;
+      lambdaBatches.push({ batchNum, batchPayload });
     }
+
+    allProcessedBatches.push(...processedBatches);
 
     const jobPromises = await this.dispatchViaSqs(
       args,

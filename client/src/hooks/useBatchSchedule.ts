@@ -23,7 +23,7 @@ interface UrgentCheckResult {
 interface UseBatchScheduleReturn {
   nextDelivery: Date | null;
   lastUrgentCheck: Date | null;
-  fetchBatchStatus: () => Promise<void>;
+  fetchBatchStatus: (signal?: AbortSignal) => Promise<void>;
   updateLastUrgentCheck: () => void;
   checkForUrgentEmails: () => Promise<UrgentCheckResult>;
 }
@@ -81,7 +81,7 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
     };
   }, [checkForUrgentEmails]);
 
-  const fetchBatchStatus = useCallback(async () => {
+  const fetchBatchStatus = useCallback(async (signal?: AbortSignal) => {
     // Check localStorage cache first
     try {
       const cached = localStorage.getItem(BATCH_STATUS_CACHE_KEY);
@@ -99,7 +99,7 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
     }
 
     try {
-      const response = await axios.get(`${API_URL}/emails/batch-status`);
+      const response = await axios.get(`${API_URL}/emails/batch-status`, { signal });
       const nextDeliveryDate = response.data.nextDelivery ? new Date(response.data.nextDelivery) : null;
       setNextDelivery(nextDeliveryDate);
 

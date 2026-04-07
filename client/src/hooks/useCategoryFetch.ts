@@ -53,6 +53,13 @@ export function useCategoryFetch({
   const expandedCategoriesRef = useRef(expandedCategories);
   expandedCategoriesRef.current = expandedCategories;
 
+  // Tracks which category keys have had a fetch dispatched in the current session.
+  // This guards against the category expansion effect firing twice for the same key
+  // when categorySummary changes (e.g. after refreshInPlace) before the Redux
+  // loadedCategoryNames / loadingCategoryNames have been updated — i.e. the timing
+  // window where refs haven't caught up with the latest dispatch yet. See #1665.
+  const fetchSessionRef = useRef<Set<string>>(new Set());
+
   const loadedCategoryNamesRef = useRef(loadedCategoryNames);
   loadedCategoryNamesRef.current = loadedCategoryNames;
   const loadingCategoryNamesRef = useRef(loadingCategoryNames);
@@ -86,6 +93,7 @@ export function useCategoryFetch({
     setStableCategoryOrder([]);
     setExpandedCategories(new Set());
     hasAutoExpandedRef.current = false;
+    fetchSessionRef.current = new Set();
     dispatch(categoryResetAll());
   }, [dispatch]);
 
@@ -104,7 +112,8 @@ export function useCategoryFetch({
       if (
         loadedCategoryNamesRef.current.includes(key) ||
         loadingCategoryNamesRef.current.includes(key) ||
-        exhaustedCategoryNamesRef.current.includes(key)
+        exhaustedCategoryNamesRef.current.includes(key) ||
+        fetchSessionRef.current.has(key)
       ) {
         return;
       }
@@ -113,6 +122,12 @@ export function useCategoryFetch({
       if (!item) {
         return;
       }
+
+      // Mark as dispatched in the current session before the async call so that
+      // a second effect run (e.g. triggered by categorySummary changing via
+      // refreshInPlace) doesn't dispatch a duplicate fetch while the first is
+      // still in-flight. See #1665.
+      fetchSessionRef.current.add(key);
 
       // Phase 2 dual-write: notify categorySlice of fetch start
       dispatch(categoryFetchStart(key));
@@ -125,10 +140,16 @@ export function useCategoryFetch({
           // Phase 2 dual-write: emails: [] is intentional — categorySlice tracks fetch status only;
           // actual emails remain in emailSlice (populated by fetchCategoryEmails above).
           dispatch(categoryFetchSuccess({ key, emails: [], fetchedAt: Date.now() }));
+          // Clear the session guard so legitimate re-fetches (e.g. pull-to-refresh after
+          // archiving) can trigger a new fetch for this category. The Set is only cleared
+          // on mode change otherwise, which blocks re-fetches within the same mode. See #1665.
+          fetchSessionRef.current.delete(key);
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : 'Unknown fetch error';
           dispatch(categoryFetchError({ key, error: message, retryCount: 1, nextRetryAt: Date.now() + CATEGORY_FETCH_RETRY_DELAY_MS }));
+          // Also clear on error so the retry mechanism can re-dispatch if needed.
+          fetchSessionRef.current.delete(key);
         });
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails, dispatch]);

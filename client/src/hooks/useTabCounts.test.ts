@@ -15,33 +15,34 @@ describe('useTabCounts', () => {
   });
 
   describe('initialization', () => {
-    it('should initialize with null tab counts and start loading', async () => {
-      mockedAxios.get.mockRejectedValue(new Error('network error'));
-
+    it('should initialize with null tab counts and NOT start loading (no auto-fetch on mount)', () => {
+      // After removing the mount-time useEffect, the hook no longer auto-fetches.
+      // Tab counts are now fetched explicitly by useInboxInitialization.
       const { result } = renderHook(() => useTabCounts());
 
-      // On mount the hook immediately starts fetching, so loading is true
       expect(result.current.tabCounts).toBeNull();
-      expect(result.current.loading).toBe(true);
+      // loading should be false — no automatic fetch is triggered on mount
+      expect(result.current.loading).toBe(false);
+    });
 
-      // After the fetch settles, loading becomes false
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-      expect(result.current.tabCounts).toBeNull();
+    it('exposes fetchTabCounts for explicit invocation', () => {
+      const { result } = renderHook(() => useTabCounts());
+      expect(typeof result.current.fetchTabCounts).toBe('function');
     });
   });
 
   describe('fetchTabCounts', () => {
-    it('should fetch tab counts from API and cache them', async () => {
+    it('should fetch tab counts from API and cache them when called explicitly', async () => {
       const mockCounts = { triage: 10, action: 5, followUp: 2 };
       mockedAxios.get.mockResolvedValue({ data: mockCounts });
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(mockCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
+
+      expect(result.current.tabCounts).toEqual(mockCounts);
 
       const cached = JSON.parse(localStorage.getItem(TAB_COUNTS_CACHE_KEY) || 'null');
       expect(cached).not.toBeNull();
@@ -61,11 +62,12 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(cachedCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
 
-      // Should not have made an API call
+      expect(result.current.tabCounts).toEqual(cachedCounts);
+      // Should not have made an API call — cache is fresh
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
@@ -107,10 +109,11 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(freshCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
 
+      expect(result.current.tabCounts).toEqual(freshCounts);
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
   });
@@ -122,9 +125,11 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(initialCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
+
+      expect(result.current.tabCounts).toEqual(initialCounts);
 
       act(() => {
         result.current.updateTabCountsOptimistically({ triage: -1 });
@@ -139,9 +144,11 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(initialCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
+
+      expect(result.current.tabCounts).toEqual(initialCounts);
 
       act(() => {
         result.current.updateTabCountsOptimistically({ triage: -5 });
@@ -161,9 +168,12 @@ describe('useTabCounts', () => {
         })
       );
 
-      mockedAxios.get.mockResolvedValue({ data: initialCounts });
-
       const { result } = renderHook(() => useTabCounts());
+
+      // Fetch from cache (fresh, no API call)
+      await act(async () => {
+        await result.current.fetchTabCounts();
+      });
 
       await waitFor(() => {
         expect(result.current.tabCounts).not.toBeNull();
@@ -176,8 +186,7 @@ describe('useTabCounts', () => {
       const cached = JSON.parse(localStorage.getItem(TAB_COUNTS_CACHE_KEY) || 'null');
       expect(cached).not.toBeNull();
       expect(cached.counts.triage).toBe(9);
-      // Timestamp should NOT be reset to now - it should be the original or from API fetch
-      // The key invariant: optimistic updates don't extend TTL beyond what the server last set
+      // Timestamp should NOT be reset to now — optimistic updates don't extend TTL
       expect(cached.timestamp).not.toBeGreaterThan(Date.now() - 4000);
     });
 
@@ -187,9 +196,11 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(initialCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
+
+      expect(result.current.tabCounts).toEqual(initialCounts);
 
       // Clear the cache
       localStorage.removeItem(TAB_COUNTS_CACHE_KEY);
@@ -208,9 +219,11 @@ describe('useTabCounts', () => {
 
       const { result } = renderHook(() => useTabCounts());
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).toEqual(initialCounts);
+      await act(async () => {
+        await result.current.fetchTabCounts();
       });
+
+      expect(result.current.tabCounts).toEqual(initialCounts);
 
       act(() => {
         result.current.updateTabCountsOptimistically({ triage: -1, action: 1 });

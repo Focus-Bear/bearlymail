@@ -84,10 +84,11 @@ export function getCategoryKey(id: string | null | undefined, _name?: string): s
 async function fetchAutoRespondedEmails(
   dispatch: AppDispatch,
   buildAutoRespondedParams: () => URLSearchParams,
-  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>
+  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>,
+  signal?: AbortSignal
 ): Promise<void> {
   const params = buildAutoRespondedParams();
-  const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
+  const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`, { signal });
   const { emails = [], total = 0, hasMore = false } = response.data;
 
   const normalizedEmails: Email[] = emails.map((email: Email) => ({
@@ -110,10 +111,11 @@ async function fetchAutoRespondedEmails(
 
 async function fetchInboxSummary(
   dispatch: AppDispatch,
-  buildSummaryParams: () => URLSearchParams
+  buildSummaryParams: () => URLSearchParams,
+  signal?: AbortSignal
 ): Promise<CategorySummaryItem[] | null> {
   const params = buildSummaryParams();
-  const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
+  const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`, { signal });
   const { total, categories } = response.data;
   dispatch(setCategorySummary(categories));
   dispatch(setSummaryLoading(false));
@@ -177,17 +179,23 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
    *   Pass the new filter values directly so the API call uses them without waiting for
    *   the next render cycle. Fixes: #1165 (stale closure sends wrong minPriority).
    */
-  const fetchEmails = useCallback(async (overrideFilters?: Partial<InboxFilter>) => {
+  const fetchEmails = useCallback(async (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => {
+    // Support two call signatures:
+    //   fetchEmails(signal?)                      — called by useInboxInitialization with an AbortSignal
+    //   fetchEmails(overrideFilters?)             — called internally with filter overrides
+    const signal = signalOrOverride instanceof AbortSignal ? signalOrOverride : undefined;
+    const effectiveOverride = signalOrOverride instanceof AbortSignal ? overrideFilters : signalOrOverride;
+
     fetchSessionRef.current += 1;
     isLoadingMoreRef.current = false;
     // Fix #846: when filters change, the cached summary and per-category emails are stale
     // by definition (they were fetched with different filter params). Invalidate all cached
     // data for this mode so fetchEmailsImpl always hits the network with the new filter
     // values instead of serving wrong data from the stale-while-revalidate cache.
-    if (overrideFilters) {
+    if (effectiveOverride) {
       clearCacheForMode(mode);
     }
-    const effectiveFilters = overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters;
+    const effectiveFilters = effectiveOverride ? { ...filters, ...effectiveOverride } as InboxFilter : filters;
     const buildSummaryParamsWithOverride = () => buildSummaryParamsImpl(mode, effectiveFilters);
     const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);
     await fetchEmailsImpl({
@@ -198,6 +206,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       buildAutoRespondedSummary,
       // Fix #1571 Bug 1: pass effective filters so the cache key is scoped to the filter hash.
       activeFilters: effectiveFilters,
+      signal,
     });
   }, [mode, dispatch, filters, buildAutoRespondedSummary]);
 
@@ -250,7 +259,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     }
   }, [currentOffset]);
 
-  const refreshInPlace = useCallback(async () => {
+  const refreshInPlace = useCallback(async (signal?: AbortSignal) => {
     await refreshInPlaceImpl({
       mode,
       dispatch,
@@ -262,6 +271,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       loadedCategoryNamesRef,
       // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
       activeFilters: filters,
+      signal,
     });
   }, [mode, dispatch, filters, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
@@ -482,6 +492,7 @@ async function refreshInPlaceImpl({
   buildAutoRespondedSummary,
   loadedCategoryNamesRef,
   activeFilters,
+  signal,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -493,10 +504,11 @@ async function refreshInPlaceImpl({
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
   /** Fix #1571 Bug 1: filters used to scope the cache write-back to the filter hash. */
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
+  signal?: AbortSignal;
 }) {
   if (mode === MODE_AUTORESPONDED) {
     try {
-      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
+      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary, signal);
     } catch (err) {
       console.warn('[refreshInPlace] Autoresponded refresh failed:', err);
     }
@@ -508,7 +520,7 @@ async function refreshInPlaceImpl({
 
   try {
     const summaryParams = buildSummaryParams();
-    const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
+    const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`, { signal });
     const freshCategories = summaryResponse.data.categories;
     dispatch(setCategorySummary(freshCategories));
     dispatch(setSummaryLoading(false));
@@ -526,7 +538,7 @@ async function refreshInPlaceImpl({
     loadedCategoryKeys.map(async categoryKey => {
       try {
         const catParams = buildCategoryParams(categoryKey);
-        const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
+        const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`, { signal });
         // Emails now include category_id (UUID) from the server; no normalization needed.
         const emails: Email[] = (catResponse.data as { emails: Email[] }).emails;
         // Write category emails without a filter hash so fetchCategoryEmailsImpl (which reads
@@ -683,6 +695,7 @@ async function fetchEmailsImpl({
   buildAutoRespondedParams,
   buildAutoRespondedSummary,
   activeFilters,
+  signal,
 }: {
   mode: InboxMode;
   dispatch: AppDispatch;
@@ -692,6 +705,7 @@ async function fetchEmailsImpl({
   buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
   /** Fix #1571 Bug 1: filters used to compute the cache key hash. */
   activeFilters?: { minPriority?: number | null; maxPriority?: number | null };
+  signal?: AbortSignal;
 }) {
   // Stale-while-revalidate: if we have cached summary data AND it is within the
   // TTL window, serve it immediately (no spinner) then refresh in the background.
@@ -712,7 +726,7 @@ async function fetchEmailsImpl({
   dispatchFetchStart(dispatch);
   try {
     if (mode === MODE_AUTORESPONDED) {
-      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
+      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary, signal);
     } else if (mode === MODE_SCHEDULED) {
       // Scheduled emails are managed by ScheduledEmailsManager, not the inbox email slice.
       // Nothing to fetch here; clear loading state so the panel renders immediately.
@@ -721,7 +735,7 @@ async function fetchEmailsImpl({
       dispatch(setLoadingModeSwitch(false));
       return;
     } else {
-      const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams);
+      const freshSummary = await fetchInboxSummary(dispatch, buildSummaryParams, signal);
       if (freshSummary) {
         setCachedSummary(mode, freshSummary, hash);
       }

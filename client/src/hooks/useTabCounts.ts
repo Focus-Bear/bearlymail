@@ -19,7 +19,7 @@ interface TabCountChanges {
 interface UseTabCountsReturn {
   tabCounts: TabCounts | null;
   loading: boolean;
-  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null) => Promise<void>;
+  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => Promise<void>;
   updateTabCountsOptimistically: (changes: TabCountChanges) => void;
 }
 
@@ -76,7 +76,7 @@ export function useTabCounts(): UseTabCountsReturn {
   // of always falling back to the base key.
   const currentCacheKeyRef = useRef<string>(TAB_COUNTS_CACHE_KEY);
 
-  const fetchTabCounts = useCallback(async (force = false, filters?: Partial<InboxFilter> | null) => {
+  const fetchTabCounts = useCallback(async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => {
     const cacheKey = buildCacheKey(filters);
     currentCacheKeyRef.current = cacheKey;
 
@@ -99,7 +99,7 @@ export function useTabCounts(): UseTabCountsReturn {
     setLoading(true);
     try {
       const qs = buildQueryParams(filters);
-      const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`);
+      const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`, { signal });
       const counts: TabCounts = {
         triage: response.data.triage || 0,
         action: response.data.action || 0,
@@ -158,10 +158,11 @@ export function useTabCounts(): UseTabCountsReturn {
     });
   }, []);
 
-  // Fetch on mount (no filters — will apply defaults via the UI later)
-  useEffect(() => {
-    fetchTabCounts();
-  }, [fetchTabCounts]);
+  // NOTE: The mount-time self-fetch was removed to prevent duplicate requests during
+  // inbox load. Tab counts are fetched by useInboxInitialization (and useInboxModeChanges
+  // on mode switches) with the correct active filters. A standalone unfiltered mount fetch
+  // here produced a stale/wrong count when filters were active, and doubled the
+  // tab-counts request on every inbox open. See #1665.
 
   return {
     tabCounts,

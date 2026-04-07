@@ -11,9 +11,9 @@ interface UseInboxModeChangesProps {
   hasInitiallyLoaded: boolean;
   user: User | null;
   authLoading: boolean;
-  fetchEmails: () => Promise<void>;
-  fetchBatchStatus: () => Promise<void>;
-  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null) => Promise<void>;
+  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchBatchStatus: (signal?: AbortSignal) => Promise<void>;
+  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => Promise<void>;
   filters?: Partial<InboxFilter> | null;
   setEmails: React.Dispatch<React.SetStateAction<Email[]>>;
   setLoadingModeSwitch: (loading: boolean) => void;
@@ -50,14 +50,16 @@ export function useInboxModeChanges({
       return;
     }
 
-    // On first run after initial load, just record the initial mode and don't fetch
+    // On first run after initial load, just record the initial mode and don't fetch.
+    // useInboxInitialization already handles the initial fetchEmails/fetchBatchStatus/
+    // fetchTabCounts calls — duplicating them here would cause duplicate requests.
     if (!hasSetInitialModeRef.current) {
       prevModeForFetchRef.current = mode;
       hasSetInitialModeRef.current = true;
       return;
     }
 
-    // Only fetch if mode actually changed
+    // Only fetch if mode actually changed since the last fetch
     if (prevModeForFetchRef.current === mode) {
       return;
     }

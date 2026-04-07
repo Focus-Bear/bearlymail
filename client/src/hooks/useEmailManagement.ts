@@ -33,7 +33,7 @@ type BulkReadParams = {
   emailIds: string[];
   isRead: boolean;
   dispatch: AppDispatch;
-  fetchEmails: (overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
 };
 
@@ -140,7 +140,7 @@ interface UseEmailManagementReturn {
   loadingModeSwitch: boolean;
   setLoadingModeSwitch: React.Dispatch<React.SetStateAction<boolean>>;
   fetchError: string | null;
-  fetchEmails: (overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
   refreshInPlace: () => Promise<void>;
   loadMore: () => Promise<void>;
   fetchCategoryEmails: (categoryName: string) => Promise<void>;

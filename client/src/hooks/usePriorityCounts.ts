@@ -5,15 +5,15 @@ import { InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 
 export interface PriorityCounts {
-  /** Threads with priorityScore > 50 */
+  /** Threads with COALESCE(priorityScore, 0) >= 50 */
   veryHigh: number;
-  /** Threads with priorityScore > 30 and <= 50 */
+  /** Threads with COALESCE(priorityScore, 0) >= 30 and < 50 */
   high: number;
-  /** Threads with priorityScore > 15 and <= 30 */
+  /** Threads with COALESCE(priorityScore, 0) >= 15 and < 30 */
   medium: number;
-  /** Threads with priorityScore >= 0 and <= 15 */
+  /** Threads with COALESCE(priorityScore, 0) >= 0 and < 15 */
   low: number;
-  /** Threads with priorityScore < 0 */
+  /** Threads with COALESCE(priorityScore, 0) < 0 */
   veryLow: number;
   /** Threads with priorityScore IS NULL (analysis not yet run) */
   unprioritised: number;

@@ -186,11 +186,11 @@ export class EmailStatusService {
 
     const rows = await this.emailThreadRepository.query(
       `SELECT
-         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 50) AS "veryHigh",
-         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 30 AND "priorityScore" <= 50) AS high,
-         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" > 15 AND "priorityScore" <= 30) AS medium,
-         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" >= 0 AND "priorityScore" <= 15) AS low,
-         COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL AND "priorityScore" < 0) AS "veryLow",
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 50) AS "veryHigh",
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 30 AND COALESCE("priorityScore", 0) < 50) AS high,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 15 AND COALESCE("priorityScore", 0) < 30) AS medium,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) >= 0 AND COALESCE("priorityScore", 0) < 15) AS low,
+         COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 0) AS "veryLow",
          COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS unprioritised
        FROM email_threads
        WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false ${modeFilter}`,

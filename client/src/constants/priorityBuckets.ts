@@ -13,12 +13,15 @@
  * Solution: PriorityBucketDef.min/max store actual server score values.
  * PriorityRangeSelector maps these to even visual positions (0-20-40-60-80-100) for display.
  *
- * Server SQL ranges (email_threads.priorityScore):
- *   Very High:  > 50          → min: 50, max: null
- *   High:       > 30, ≤ 50    → min: 30, max: 50
- *   Medium:     > 15, ≤ 30    → min: 15, max: 30
- *   Low:        ≥ 0,  ≤ 15    → min: 0,  max: 15
- *   Very Low:   < 0            → min: null, max: 0
+ * Server SQL ranges (email_threads.priorityScore) — half-open intervals [min, max):
+ *   Very High:  >= 50          → min: 50, max: null
+ *   High:       >= 30, < 50    → min: 30, max: 50
+ *   Medium:     >= 15, < 30    → min: 15, max: 30
+ *   Low:        >= 0,  < 15    → min: 0,  max: 15
+ *   Very Low:   < 0             → min: null, max: 0
+ *
+ * Both getPriorityCounts (server) and the inbox filter query use COALESCE(priorityScore, 0)
+ * with these same [min, max) boundaries, ensuring counts and displayed threads always agree.
  */
 
 export interface PriorityBucketDef {

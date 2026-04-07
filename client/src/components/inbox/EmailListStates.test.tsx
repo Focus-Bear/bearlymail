@@ -413,4 +413,77 @@ describe('EmailListStates', () => {
       expect(countEl.textContent).toBe('7');
     });
   });
+
+  describe('maxPriority prop — bounded range filter', () => {
+    it('treats maxPriority-only filter as active (hasActiveFilter=true)', () => {
+      // When only maxPriority is set (e.g. "Very Low" bucket: min=null, max=0),
+      // hasActiveFilter should be true so we get filter-aware empty states.
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={null}
+          maxPriority={0}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      // All tiers zero with maxPriority active → AllCaughtUpState (not generic EmptyState)
+      expect(screen.getByTestId('all-caught-up-state')).toBeTruthy();
+      expect(screen.queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('treats both minPriority and maxPriority set as active filter (Medium bucket)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={MEDIUM_PRIORITY_THRESHOLD}
+          maxPriority={HIGH_PRIORITY_THRESHOLD}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 0, low: 3, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      // Filter active + lower emails exist → FilteredEmptyState (not generic EmptyState)
+      expect(screen.getByTestId('filtered-empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('passes maxPriority prop without breaking existing progressive unlock behaviour', () => {
+      const onUnlockPriorityTier = jest.fn();
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={VERY_HIGH_PRIORITY_THRESHOLD}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 5, medium: 0, low: 0, veryLow: 0 }}
+          onUnlockPriorityTier={onUnlockPriorityTier}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      expect(screen.getByTestId('progressive-unlock-prompt')).toBeTruthy();
+      fireEvent.click(screen.getByTestId('yes-btn'));
+      expect(onUnlockPriorityTier).toHaveBeenCalledWith(HIGH_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD);
+    });
+
+    it('renders generic EmptyState when both minPriority and maxPriority are null (no filter)', () => {
+      render(
+        <EmailListStates
+          {...baseProps}
+          emailsEmpty
+          minPriority={null}
+          maxPriority={null}
+          priorityCounts={{ veryHigh: 0, high: 0, medium: 5, low: 2, veryLow: 0 }}
+          onUnlockPriorityTier={jest.fn()}
+          onDismissUnlockPrompt={jest.fn()}
+        />
+      );
+      expect(screen.getByTestId('empty-state')).toBeTruthy();
+      expect(screen.queryByTestId('progressive-unlock-prompt')).toBeNull();
+      expect(screen.queryByTestId('filtered-empty-state')).toBeNull();
+    });
+  });
 });

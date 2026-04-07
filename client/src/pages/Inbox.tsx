@@ -348,6 +348,7 @@ const InboxView: React.FC = () => {
               categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}
               loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
               minPriority={filters.minPriority}
+              maxPriority={filters.maxPriority}
               priorityCounts={priorityCounts}
               onUnlockPriorityTier={(minPriority: number, maxPriority: number | null) => {
                 const newFilters = { minPriority, maxPriority };

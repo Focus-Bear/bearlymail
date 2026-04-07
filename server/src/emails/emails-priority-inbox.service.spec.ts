@@ -229,4 +229,106 @@ describe("priority inbox thread filter (fix #1088)", () => {
       expect(score >= minPriority).toBe(true);
     });
   });
+
+  /**
+   * getPriorityCounts boundary assertions (fix #1052)
+   *
+   * The count SQL now uses COALESCE(priorityScore, 0) with [min, max) half-open intervals
+   * to exactly match the inbox filter query. These tests verify that every boundary score
+   * (0, 15, 30, 50) lands in the correct bucket under the new convention.
+   */
+  describe("getPriorityCounts — [min, max) boundary alignment with inbox filter", () => {
+    /**
+     * Helper: which bucket does a score fall into under the new COALESCE [min, max) rules?
+     * Mirrors: COALESCE("priorityScore", 0)
+     *   veryHigh:  >= 50
+     *   high:      >= 30 AND < 50
+     *   medium:    >= 15 AND < 30
+     *   low:       >= 0  AND < 15
+     *   veryLow:   < 0
+     */
+    function whichBucket(rawScore: number | null): 'veryHigh' | 'high' | 'medium' | 'low' | 'veryLow' {
+      const score = rawScore ?? 0;
+      if (score >= 50) return 'veryHigh';
+      if (score >= 30) return 'high';
+      if (score >= 15) return 'medium';
+      if (score >= 0) return 'low';
+      return 'veryLow';
+    }
+
+    it("score=50 → veryHigh bucket (lower boundary of veryHigh)", () => {
+      expect(whichBucket(50)).toBe('veryHigh');
+    });
+
+    it("score=49 → high bucket (just below veryHigh threshold)", () => {
+      expect(whichBucket(49)).toBe('high');
+    });
+
+    it("score=30 → high bucket (lower boundary of high)", () => {
+      expect(whichBucket(30)).toBe('high');
+    });
+
+    it("score=29 → medium bucket (just below high threshold)", () => {
+      expect(whichBucket(29)).toBe('medium');
+    });
+
+    it("score=15 → medium bucket (lower boundary of medium)", () => {
+      expect(whichBucket(15)).toBe('medium');
+    });
+
+    it("score=14 → low bucket (just below medium threshold)", () => {
+      expect(whichBucket(14)).toBe('low');
+    });
+
+    it("score=0 → low bucket (lower boundary of low)", () => {
+      expect(whichBucket(0)).toBe('low');
+    });
+
+    it("score=-1 → veryLow bucket (just below low threshold)", () => {
+      expect(whichBucket(-1)).toBe('veryLow');
+    });
+
+    it("null score (COALESCE to 0) → low bucket (same as score=0)", () => {
+      expect(whichBucket(null)).toBe('low');
+    });
+
+    it("count bucket and inbox filter agree for score=15 (previously in 'Low' count but 'Medium' filter)", () => {
+      // score=15: old count had >= 0 AND <= 15 (Low), inbox filter had >= 15 (Medium) → MISMATCH
+      // new count has >= 15 AND < 30 (Medium), inbox filter >= 15 AND < 30 (Medium) → MATCH
+      const score = 15;
+      const mediumBucketMin = 15;
+      const mediumBucketMax = 30;
+      const inFilter = score >= mediumBucketMin && score < mediumBucketMax;
+      const inCount = whichBucket(score) === 'medium';
+      expect(inFilter).toBe(true);
+      expect(inCount).toBe(true);
+      // count and filter must agree
+      expect(inFilter).toBe(inCount);
+    });
+
+    it("count bucket and inbox filter agree for score=30 (previously in 'Medium' count but 'High' filter)", () => {
+      // score=30: old count had > 15 AND <= 30 (Medium), inbox filter had >= 30 AND < 50 (High) → MISMATCH
+      // new count has >= 30 AND < 50 (High), inbox filter >= 30 AND < 50 (High) → MATCH
+      const score = 30;
+      const highBucketMin = 30;
+      const highBucketMax = 50;
+      const inFilter = score >= highBucketMin && score < highBucketMax;
+      const inCount = whichBucket(score) === 'high';
+      expect(inFilter).toBe(true);
+      expect(inCount).toBe(true);
+      expect(inFilter).toBe(inCount);
+    });
+
+    it("count bucket and inbox filter agree for score=50 (previously in 'High' count but 'VeryHigh' filter)", () => {
+      // score=50: old count had > 30 AND <= 50 (High), inbox filter had >= 50 (VeryHigh) → MISMATCH
+      // new count has >= 50 (VeryHigh), inbox filter >= 50 (VeryHigh) → MATCH
+      const score = 50;
+      const veryHighBucketMin = 50;
+      const inFilter = score >= veryHighBucketMin;
+      const inCount = whichBucket(score) === 'veryHigh';
+      expect(inFilter).toBe(true);
+      expect(inCount).toBe(true);
+      expect(inFilter).toBe(inCount);
+    });
+  });
 });

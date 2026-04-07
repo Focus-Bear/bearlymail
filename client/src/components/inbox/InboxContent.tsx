@@ -57,8 +57,10 @@ export interface InboxContentProps {
   loadedCategoryNames?: string[];
   loadingCategoryNames?: string[];
   fetchCategoryEmails?: (categoryName: string) => void;
-  /** Current active priority filter for progressive unlock */
+  /** Current active priority filter lower bound for progressive unlock */
   minPriority?: number | null;
+  /** Current active priority filter upper bound (null = no upper cap) */
+  maxPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
   priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
@@ -80,7 +82,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet, onBulkArchive,
     expandedCategories, stableCategoryOrder, onToggleCategory, onUpdateStableCategoryOrder,
     onLoadMore, hasMore, categorySummary, loadedCategoryNames,
-    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
+    minPriority, maxPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
   } = props;
 
   const {
@@ -113,7 +115,7 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     onToggleCategory, onBulkArchive, onConvertProtoCategory: handleConvertProtoCategory,
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
     onReanalyseOther: handleReanalyseOther,
-    minPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
+    minPriority, maxPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
     unprioritisedCount: priorityCounts?.unprioritised ?? 0,
   };
 

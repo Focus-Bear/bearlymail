@@ -132,8 +132,10 @@ interface EmailListStatesProps {
   emailsEmpty: boolean;
   mode: InboxMode;
   onRetry: () => void;
-  /** Current priority filter (null = no filter / show all) */
+  /** Current priority filter lower bound (null = no lower bound / show all) */
   minPriority?: number | null;
+  /** Current priority filter upper bound (null = no upper cap) */
+  maxPriority?: number | null;
   /** Counts of threads in each priority tier — used for progressive unlock prompt */
   priorityCounts?: PriorityCounts | null;
   /** Called when user accepts the progressive unlock offer to a lower tier */
@@ -148,6 +150,7 @@ interface EmptyInboxProps {
   t: (key: string) => string;
   isUnlockPromptDismissed: boolean;
   minPriority: number | null | undefined;
+  maxPriority: number | null | undefined;
   priorityCounts: PriorityCounts | null | undefined;
   mode: InboxMode;
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
@@ -170,6 +173,7 @@ function EmptyInboxContent({
   t,
   isUnlockPromptDismissed,
   minPriority,
+  maxPriority,
   priorityCounts,
   mode,
   onUnlockPriorityTier,
@@ -177,11 +181,19 @@ function EmptyInboxContent({
   handleDismissPrompt,
   onClearFilters,
 }: EmptyInboxProps): React.ReactElement {
-  const hasActiveFilter = minPriority !== null && minPriority !== undefined;
+  const hasActiveFilter =
+    (minPriority !== null && minPriority !== undefined) ||
+    (maxPriority !== null && maxPriority !== undefined);
 
   // 1. Progressive unlock prompt (only when user hasn't dismissed it for this session).
   //    Dismissal hides the prompt but does NOT disable filter-awareness (fixes edge case 1).
-  const isPromptEligible = hasActiveFilter && !isUnlockPromptDismissed;
+  //    Progressive unlock only applies to unbounded tier views (maxPriority=null/undefined).
+  //    When maxPriority is set, the user is viewing a specific bounded bucket and unlock
+  //    is not relevant — fall through to FilteredEmptyState or AllCaughtUpState instead.
+  const isPromptEligible =
+    hasActiveFilter &&
+    !isUnlockPromptDismissed &&
+    (maxPriority === null || maxPriority === undefined);
 
   if (isPromptEligible && priorityCounts && onUnlockPriorityTier && onDismissUnlockPrompt) {
     const nextTier = findNextNonEmptyTier(minPriority as number, priorityCounts);
@@ -249,6 +261,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
   mode,
   onRetry,
   minPriority,
+  maxPriority,
   priorityCounts,
   onUnlockPriorityTier,
   onDismissUnlockPrompt,
@@ -280,6 +293,7 @@ export const EmailListStates: React.FC<EmailListStatesProps> = ({
         t={t}
         isUnlockPromptDismissed={isUnlockPromptDismissed}
         minPriority={minPriority}
+        maxPriority={maxPriority}
         priorityCounts={priorityCounts}
         mode={mode}
         onUnlockPriorityTier={onUnlockPriorityTier}

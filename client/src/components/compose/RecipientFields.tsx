@@ -8,7 +8,7 @@ import { isValidEmail, parseRecipientString } from 'utils/recipientParser';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { AVATAR_SIZE_SMALL_PX, DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
-import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE, SUGGESTION_KIND_GROUP } from 'constants/strings';
 
 interface Recipient {
   email: string;
@@ -246,7 +246,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             >
               {recipientSuggestions
                 ? recipientSuggestions.map(suggestion => {
-                    if (suggestion.kind === 'group') {
+                    if (suggestion.kind === SUGGESTION_KIND_GROUP) {
                       const { group } = suggestion;
                       return (
                         <div
@@ -297,7 +297,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                               {group.name}
                             </div>
                             <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-                              {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+                              {t('settings.contactGroups.memberCount', { count: group.memberCount })}
                             </div>
                           </div>
                         </div>

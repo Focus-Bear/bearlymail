@@ -8,7 +8,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
+import { SEARCH_RESULT_NO_RESULTS, STATUS_PENDING, STRING_NA } from 'constants/strings';
 
 interface SearchDebugInfo {
   message?: string;
@@ -142,7 +142,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         {instantResults.map((result, index) => {
           const gmailResult = result as GmailSearchResult;
           // Pending card (metadata only)
-          if (gmailResult.enrichmentStatus === 'pending') {
+          if (gmailResult.enrichmentStatus === STATUS_PENDING) {
             return <PendingResultCard key={gmailResult.messageId} result={gmailResult} />;
           }
           // Enriched card — result is an EnrichedSearchResult; access priorityScore directly

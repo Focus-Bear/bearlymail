@@ -58,3 +58,6 @@ export const COLOR_GITHUB_CLOSED_BG = '#ffebe9' as const; // closed state backgr
 export const COLOR_GITHUB_CLOSED_FG = '#cf222e' as const; // closed state text & border
 export const COLOR_GITHUB_MERGED_BG = '#fbefff' as const; // merged state background
 export const COLOR_GITHUB_MERGED_FG = '#8250df' as const; // merged state text & border
+
+// ── Additional neutrals ────────────────────────────────────────────────────
+export const COLOR_GREY_BORDER = '#ccc' as const; // light border / divider grey

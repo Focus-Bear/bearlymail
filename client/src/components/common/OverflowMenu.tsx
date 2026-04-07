@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { theme } from 'theme/theme';
 
+import { COLOR_TRANSPARENT } from 'constants/colors';
 import { TOUCH_TARGET_MIN_PX } from 'constants/layout';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 const OVERFLOW_MENU_ICON = '\u22EE';
 
@@ -71,7 +72,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
       return;
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === KEY_ESCAPE) {
         close();
       }
     };
@@ -112,7 +113,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
                 gap: theme.spacing.sm,
                 width: '100%',
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.primary,
                 border: STRING_NONE,
                 cursor: 'pointer',
@@ -123,7 +124,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
                 (event.currentTarget as HTMLButtonElement).style.backgroundColor = theme.colors.background.default;
               }}
               onMouseLeave={event => {
-                (event.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                (event.currentTarget as HTMLButtonElement).style.backgroundColor = COLOR_TRANSPARENT;
               }}
             >
               {item.icon && <span style={{ flexShrink: 0 }}>{item.icon}</span>}
@@ -148,7 +149,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
           minWidth: `${TOUCH_TARGET_MIN_PX}px`,
           minHeight: `${TOUCH_TARGET_MIN_PX}px`,
           padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.text.secondary,
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,

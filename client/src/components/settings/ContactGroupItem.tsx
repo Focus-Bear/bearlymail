@@ -10,6 +10,7 @@ import { Contact } from 'types/contact';
 import { ContactGroup } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
+import { COLOR_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
 interface ContactGroupItemProps {
@@ -195,7 +196,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
             style={{
               padding: '6px 16px',
               backgroundColor: theme.colors.primary.main,
-              color: '#fff',
+              color: COLOR_WHITE,
               border: STRING_NONE,
               borderRadius: theme.borderRadius.sm,
               cursor: updateMutation.isPending ? 'not-allowed' : 'pointer',

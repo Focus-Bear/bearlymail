@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { COLOR_WHITE_FULL } from 'constants/colors';
 import { useBacklogProgress } from 'hooks/useBacklogProgress';
 
 /**
@@ -21,7 +22,7 @@ export const CatchingUpBanner: React.FC = () => {
       title={t('inbox.catchingUpTooltip')}
       style={{
         backgroundColor: theme.colors.accent.info,
-        color: '#ffffff',
+        color: COLOR_WHITE_FULL,
         padding: `${theme.spacing.sm} ${theme.spacing.md}`,
         textAlign: 'center',
         fontWeight: theme.typography.fontWeight.medium,

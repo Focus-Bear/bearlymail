@@ -130,6 +130,10 @@ export const KEY_SPACE = ' ' as const;
 export const KEY_TAB = 'Tab' as const;
 export const KEY_ARROW_DOWN = 'ArrowDown' as const;
 export const KEY_ARROW_UP = 'ArrowUp' as const;
+export const KEY_ARROW_LEFT = 'ArrowLeft' as const;
+export const KEY_ARROW_RIGHT = 'ArrowRight' as const;
+export const KEY_HOME = 'Home' as const;
+export const KEY_END = 'End' as const;
 export const KEY_J = 'j' as const;
 export const KEY_K = 'k' as const;
 export const KEY_DELETE = 'Delete' as const;
@@ -411,3 +415,44 @@ export const CATEGORY_SALES = 'Sales' as const;
 export const CATEGORY_PARTNERSHIPS = 'Partnerships' as const;
 export const CATEGORY_CUSTOMER_SUPPORT = 'Customer Support' as const;
 export const CATEGORY_HR_ADMIN = 'HR Admin' as const;
+
+// ICS / calendar attachment
+export const ICS_MIME_TYPE = 'text/calendar' as const;
+export const ICS_STATUS_NEEDS_ACTION = 'NEEDS-ACTION' as const;
+
+// RSVP / Google Calendar response statuses
+export const ICS_RSVP_ACCEPTED = 'accepted' as const;
+export const ICS_RSVP_DECLINED = 'declined' as const;
+export const ICS_RSVP_TENTATIVE = 'tentative' as const;
+export const ICS_RSVP_NEEDS_ACTION_STATUS = 'needsAction' as const;
+
+// Contact suggestion kind
+export const SUGGESTION_KIND_GROUP = 'group' as const;
+
+// Thread role
+export const THREAD_ROLE_FROM = 'from' as const;
+
+// Letter spacing
+export const LETTER_SPACING_005EM = '0.05em' as const;
+
+// Promise settlement status
+export const PROMISE_STATUS_FULFILLED = 'fulfilled' as const;
+
+// Search / enrichment status
+export const STATUS_COMPLETE = 'complete' as const;
+
+// Priority bucket label sentinel (the "All" bucket)
+export const BUCKET_LABEL_ALL = 'All' as const;
+
+// Q&A context tabs
+export const QA_TAB_PENDING = 'pending' as const;
+export const QA_TAB_APPROVED = 'approved' as const;
+
+// Auth error types
+export const AUTH_ERROR_OAUTH_ONLY = 'OAUTH_ONLY_ACCOUNT' as const;
+
+// Environment values
+export const ENV_PRODUCTION = 'production' as const;
+
+// Role filter sentinel
+export const FILTER_ROLE_ALL = 'all' as const;

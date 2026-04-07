@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { FILTER_ROLE_ALL } from 'constants/strings';
 
 export type ContactThreadRole = 'from' | 'to' | 'cc';
 export type ContactThreadRoleFilter = ContactThreadRole | 'all';
@@ -49,7 +50,7 @@ export function useContactThreads(contactId?: string) {
   const filteredThreads = useMemo(() => {
     let result = threads;
 
-    if (roleFilter !== 'all') {
+    if (roleFilter !== FILTER_ROLE_ALL) {
       result = result.filter(thread => thread.role === roleFilter);
     }
 

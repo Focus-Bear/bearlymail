@@ -10,6 +10,7 @@ import { theme } from 'theme/theme';
 
 import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
 import { decrementCategorySummaryCount,removeEmail } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
@@ -85,27 +86,27 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (event.key === KEY_ARROW_DOWN || event.key === KEY_ARROW_UP) {
         setIsOpen(true);
         setHighlightedIndex(0);
         event.preventDefault();
       }
       return;
     }
-    if (event.key === 'ArrowDown') {
+    if (event.key === KEY_ARROW_DOWN) {
       event.preventDefault();
       setHighlightedIndex(prev => (prev + 1) % totalItems);
-    } else if (event.key === 'ArrowUp') {
+    } else if (event.key === KEY_ARROW_UP) {
       event.preventDefault();
       setHighlightedIndex(prev => (prev <= 0 ? totalItems - 1 : prev - 1));
-    } else if (event.key === 'Enter') {
+    } else if (event.key === KEY_ENTER) {
       event.preventDefault();
       if (highlightedIndex === ADD_NEW_INDEX) {
         handleAddNewMouseDown();
       } else if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
         handleOptionMouseDown(filtered[highlightedIndex]);
       }
-    } else if (event.key === 'Escape') {
+    } else if (event.key === KEY_ESCAPE) {
       event.preventDefault();
       setSearchTerm('');
       setIsOpen(false);

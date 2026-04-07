@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
+import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, STRING_NONE } from 'constants/strings';
 
 import RecipientChip from './RecipientChip';
@@ -148,7 +149,7 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
           outline: 'none',
           fontSize: theme.typography.fontSize.sm,
           padding: '4px 0',
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
         }}
         placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
       />

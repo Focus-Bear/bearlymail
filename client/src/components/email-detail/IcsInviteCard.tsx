@@ -7,6 +7,14 @@ import { GoogleResponseStatus, IcsEventData, IcsInfoResponse } from 'types/ics-e
 import { isValidIANATimezone } from 'utils/timezoneUtils';
 
 import { API_URL } from 'config/api';
+import {
+  ICS_MIME_TYPE,
+  ICS_RSVP_ACCEPTED,
+  ICS_RSVP_DECLINED,
+  ICS_RSVP_NEEDS_ACTION_STATUS,
+  ICS_RSVP_TENTATIVE,
+  ICS_STATUS_NEEDS_ACTION,
+} from 'constants/strings';
 
 const MAX_VISIBLE_ATTENDEES = 5;
 
@@ -62,7 +70,7 @@ const AttendeesList: React.FC<{ attendees: IcsEventData['attendees']; t: (k: str
       {visible.map((att) => (
         <div key={att.email} style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
           {att.name ? `${att.name} <${att.email}>` : att.email}
-          {att.status && att.status !== 'NEEDS-ACTION' && (
+          {att.status && att.status !== ICS_STATUS_NEEDS_ACTION && (
             <span style={{ marginLeft: theme.spacing.xs, color: theme.colors.text.tertiary }}>
               ({att.status.toLowerCase()})
             </span>
@@ -99,7 +107,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
   const icsAttachment = Array.isArray(email.attachments)
     ? email.attachments.find(
         (att) =>
-          att.mimeType === 'text/calendar' ||
+          att.mimeType === ICS_MIME_TYPE ||
           att.filename?.toLowerCase().endsWith('.ics'),
       )
     : undefined;
@@ -374,10 +382,10 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                       }}
                       data-testid="rsvp-status-badge"
                     >
-                      {rsvpStatus === 'accepted' && <span>✅ </span>}
-                      {rsvpStatus === 'declined' && <span>❌ </span>}
-                      {rsvpStatus === 'tentative' && <span>❓ </span>}
-                      {rsvpStatus === 'needsAction' && <span>⏳ </span>}
+                      {rsvpStatus === ICS_RSVP_ACCEPTED && <span>✅ </span>}
+                      {rsvpStatus === ICS_RSVP_DECLINED && <span>❌ </span>}
+                      {rsvpStatus === ICS_RSVP_TENTATIVE && <span>❓ </span>}
+                      {rsvpStatus === ICS_RSVP_NEEDS_ACTION_STATUS && <span>⏳ </span>}
                       <span>{t(`emailDetail.icsInvite.rsvpStatus.${rsvpStatus}`)}</span>
                     </span>
                   )}
@@ -398,14 +406,11 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                       const isThisPending = rsvpPending === response;
                       const isAnyPending = rsvpPending !== null;
                       const RSVP_DISABLED_OPACITY = 0.6;
-                      let labelKey: string;
-                      if (response === 'accepted') {
-                        labelKey = 'emailDetail.icsInvite.rsvpAccept';
-                      } else if (response === 'tentative') {
-                        labelKey = 'emailDetail.icsInvite.rsvpTentative';
-                      } else {
-                        labelKey = 'emailDetail.icsInvite.rsvpDecline';
-                      }
+                      const labelKey = response === ICS_RSVP_ACCEPTED
+                        ? 'emailDetail.icsInvite.rsvpAccept'
+                        : response === ICS_RSVP_TENTATIVE
+                          ? 'emailDetail.icsInvite.rsvpTentative'
+                          : 'emailDetail.icsInvite.rsvpDecline';
                       return (
                         <button
                           key={response}

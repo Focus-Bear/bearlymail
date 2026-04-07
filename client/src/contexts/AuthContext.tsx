@@ -6,6 +6,8 @@ import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { COLOR_WHITE } from 'constants/colors';
+import { AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 export interface User {
@@ -71,7 +73,7 @@ const ServiceErrorScreen: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
           cursor: 'pointer',
           borderRadius: '6px',
           border: '1px solid #ccc',
-          backgroundColor: '#fff',
+          backgroundColor: COLOR_WHITE,
         }}
       >
         {t('serviceError.retry', 'Retry')}
@@ -113,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: unknown) {
       // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
       // render a specific, actionable message.
-      if (axios.isAxiosError(err) && (err.response?.data as { error?: string } | undefined)?.error === 'OAUTH_ONLY_ACCOUNT') {
+      if (axios.isAxiosError(err) && (err.response?.data as { error?: string } | undefined)?.error === AUTH_ERROR_OAUTH_ONLY) {
         throw new OAuthOnlyAccountError();
       }
       throw err;

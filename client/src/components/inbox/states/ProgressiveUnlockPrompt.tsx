@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { COLOR_TRANSPARENT } from 'constants/colors';
+
 interface ProgressiveUnlockPromptProps {
   message: string;
   nextTierLabel: string;
@@ -70,7 +72,7 @@ export const ProgressiveUnlockPrompt: React.FC<ProgressiveUnlockPromptProps> = (
           onClick={onLater}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,

@@ -29,7 +29,7 @@ import { captureEvent } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
+import { SEARCH_RESULT_NO_RESULTS, STATUS_COMPLETE, STATUS_FAILED } from 'constants/strings';
 
 interface ConnectedAccount {
   id: string;
@@ -144,7 +144,7 @@ async function pollEnrichmentUpdates(options: {
 
       setEnrichmentProgress({ total: progress.total, enriched: progress.enriched });
 
-      if (status === 'complete' || status === 'failed') {
+      if (status === STATUS_COMPLETE || status === STATUS_FAILED) {
         break;
       }
     } catch (pollError) {

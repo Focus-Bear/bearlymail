@@ -2648,7 +2648,9 @@
       "membersCount": "miembros",
       "createGroup": "Crear Grupo",
       "noGroups": "Aún no hay grupos de contactos. Crea uno abajo.",
-      "creating": "Creando..."
+      "creating": "Creando...",
+      "memberCount_one": "{{count}} miembro",
+      "memberCount_other": "{{count}} miembros"
     }
   },
   "keyboard": {

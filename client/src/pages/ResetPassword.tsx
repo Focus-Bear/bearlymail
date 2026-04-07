@@ -7,7 +7,7 @@ import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { TOAST_DURATION_MS } from 'constants/numbers';
-import { STRING_NONE } from 'constants/strings';
+import { ENV_PRODUCTION, STRING_NONE } from 'constants/strings';
 
 const ResetPassword: React.FC = () => {
   const { t } = useTranslation();
@@ -55,7 +55,7 @@ const ResetPassword: React.FC = () => {
         navigate('/login');
       }, TOAST_DURATION_MS);
     } catch (err: unknown) {
-      if (import.meta.env.MODE !== 'production') {
+      if (import.meta.env.MODE !== ENV_PRODUCTION) {
         // eslint-disable-next-line no-console
         console.error(
           '[ResetPassword] Backend error:',

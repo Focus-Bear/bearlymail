@@ -4,7 +4,7 @@ import { theme } from 'theme/theme';
 
 import { RoleFilterTab } from 'components/crm/RoleFilterTab';
 import { ThreadRow } from 'components/crm/ThreadRow';
-import { STRING_FLEX } from 'constants/strings';
+import { FILTER_ROLE_ALL, STRING_FLEX } from 'constants/strings';
 import { ContactThread, ContactThreadRoleFilter } from 'hooks/useContactThreads';
 
 export interface ContactThreadListProps {
@@ -48,7 +48,7 @@ export const ContactThreadList: React.FC<ContactThreadListProps> = ({
 
   const showEmpty = !isLoading && !hasError && filteredThreads.length === 0;
   const showList = !isLoading && !hasError && filteredThreads.length > 0;
-  const isFiltering = Boolean(keyword) || roleFilter !== 'all';
+  const isFiltering = Boolean(keyword) || roleFilter !== FILTER_ROLE_ALL;
 
   return (
     <div style={sectionStyle}>

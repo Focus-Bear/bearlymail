@@ -19,6 +19,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { COLOR_TRANSPARENT } from 'constants/colors';
+
 /** How many category pills to show before overflow. */
 const MAX_VISIBLE_PILLS = 5;
 
@@ -273,7 +275,7 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
                 }}
                 onMouseLeave={event => {
                   if (!isSelected) {
-                    event.currentTarget.style.backgroundColor = 'transparent';
+                    event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                   }
                 }}
               >

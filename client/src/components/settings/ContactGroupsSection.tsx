@@ -9,6 +9,7 @@ import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
 import { API_URL } from 'config/api';
+import { COLOR_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
 import { ContactGroupItem } from './ContactGroupItem';
@@ -256,7 +257,7 @@ export const ContactGroupsSection: React.FC = () => {
               createMutation.isPending || !newName.trim()
                 ? theme.colors.greyscale[400]
                 : theme.colors.primary.main,
-            color: '#fff',
+            color: COLOR_WHITE,
             border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             cursor: createMutation.isPending || !newName.trim() ? 'not-allowed' : 'pointer',

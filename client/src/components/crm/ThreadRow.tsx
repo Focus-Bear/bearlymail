@@ -1,7 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 
-import { STRING_FLEX, STRING_POINTER } from 'constants/strings';
+import { STRING_FLEX, STRING_POINTER, THREAD_ROLE_FROM } from 'constants/strings';
 import { ContactThread } from 'hooks/useContactThreads';
 
 export interface ThreadRowProps {
@@ -72,7 +72,7 @@ export const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onNavigate }) => {
             marginTop: theme.spacing.xs,
             fontSize: theme.typography.fontSize.xs,
             color:
-              thread.role === 'from'
+              thread.role === THREAD_ROLE_FROM
                 ? theme.colors.primary.main
                 : theme.colors.text.tertiary,
             textTransform: 'uppercase',

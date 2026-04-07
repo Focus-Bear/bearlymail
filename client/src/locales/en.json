@@ -1166,7 +1166,9 @@
       "membersCount": "members",
       "createGroup": "Create Group",
       "noGroups": "No contact groups yet. Create one below.",
-      "creating": "Creating..."
+      "creating": "Creating...",
+      "memberCount_one": "{{count}} member",
+      "memberCount_other": "{{count}} members"
     }
   },
   "admin": {

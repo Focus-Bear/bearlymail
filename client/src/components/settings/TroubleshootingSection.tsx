@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_WRENCH } from 'constants/emojis';
 import { KEY_ENTER, KEY_SPACE } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
@@ -110,7 +111,7 @@ export const TroubleshootingSection: React.FC = () => {
                 width: '20px',
                 height: '20px',
                 borderRadius: '50%',
-                backgroundColor: 'white',
+                backgroundColor: COLOR_NAMED_WHITE,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                 transition: 'left 0.2s ease',
               }}

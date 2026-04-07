@@ -28,6 +28,14 @@ import {
   visualMaxToScore,
   visualMinToScore,
 } from 'constants/priorityBuckets';
+import {
+  KEY_ARROW_DOWN,
+  KEY_ARROW_LEFT,
+  KEY_ARROW_RIGHT,
+  KEY_ARROW_UP,
+  KEY_END,
+  KEY_HOME,
+} from 'constants/strings';
 
 // ── Bucket definitions ────────────────────────────────────────────────────────
 
@@ -224,16 +232,16 @@ return;
 
   const handleKeyDown = useCallback((keyEvent: React.KeyboardEvent) => {
     const step = VISUAL_BUCKET_SIZE;
-    if (keyEvent.key === 'ArrowLeft' || keyEvent.key === 'ArrowDown') {
+    if (keyEvent.key === KEY_ARROW_LEFT || keyEvent.key === KEY_ARROW_DOWN) {
       keyEvent.preventDefault();
       onDrag(Math.max(SLIDER_MIN, value - step));
-    } else if (keyEvent.key === 'ArrowRight' || keyEvent.key === 'ArrowUp') {
+    } else if (keyEvent.key === KEY_ARROW_RIGHT || keyEvent.key === KEY_ARROW_UP) {
       keyEvent.preventDefault();
       onDrag(Math.min(SLIDER_MAX, value + step));
-    } else if (keyEvent.key === 'Home') {
+    } else if (keyEvent.key === KEY_HOME) {
       keyEvent.preventDefault();
       onDrag(SLIDER_MIN);
-    } else if (keyEvent.key === 'End') {
+    } else if (keyEvent.key === KEY_END) {
       keyEvent.preventDefault();
       onDrag(SLIDER_MAX);
     }

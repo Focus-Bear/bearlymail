@@ -7,6 +7,7 @@ import { theme } from 'theme/theme';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CHECK } from 'constants/emojis';
 import { MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT, OPACITY_DISABLED, OPACITY_FULL, WIDTH_FULL_PX } from 'constants/numbers';
 import {
@@ -259,7 +260,7 @@ const BookingReschedulePage: React.FC = () => {
                     marginTop: theme.spacing.sm,
                     width: WIDTH_FULL_PX,
                     padding: theme.spacing.md,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     color: theme.colors.primary.main,
                     border: `1px solid ${theme.colors.primary.main}`,
                     borderRadius: theme.borderRadius.md,

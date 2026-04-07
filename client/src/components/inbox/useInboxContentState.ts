@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Email, InboxMode } from 'types/email';
 
-import { CATEGORY_OTHER } from 'constants/strings';
+import { CATEGORY_OTHER, MODE_BLOCKED } from 'constants/strings';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
@@ -67,7 +67,7 @@ export function useInboxContentState({
   // Blocked-mode emails are archived by definition (isArchived=true), so we must
   // skip the isArchived filter when in blocked mode or the list would always be empty.
   const filteredEmails = useMemo(
-    () => mode === 'blocked' ? emails : emails.filter(email => !email.isArchived),
+    () => mode === MODE_BLOCKED ? emails : emails.filter(email => !email.isArchived),
     [emails, mode]
   );
   const emailCategoryMap = useMemo(

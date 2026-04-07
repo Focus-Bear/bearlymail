@@ -24,6 +24,9 @@ import { OPACITY_DISABLED } from 'constants/numbers';
 import {
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
   ACTION_TYPE_SCHEDULING_REQUEST,
+  BUTTON_VARIANT_PRIMARY,
+  BUTTON_VARIANT_SECONDARY,
+  ICS_MIME_TYPE,
   REPLY_MODE_FORWARD,
   STRING_NONE,
 } from 'constants/strings';
@@ -89,28 +92,25 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       : {}),
   };
 
-  let variantStyle: React.CSSProperties;
-  if (variant === 'primary') {
-    variantStyle = {
-      backgroundColor: theme.colors.text.primary,
-      color: COLOR_NAMED_WHITE,
-      fontWeight: theme.typography.fontWeight.semibold,
-    };
-  } else if (variant === 'secondary') {
-    variantStyle = {
-      backgroundColor: COLOR_TRANSPARENT,
-      color: theme.colors.text.secondary,
-      border: `1px solid ${theme.colors.border.medium}`,
-      fontWeight: theme.typography.fontWeight.medium,
-    };
-  } else {
-    /* ghost */
-    variantStyle = {
-      backgroundColor: COLOR_TRANSPARENT,
-      color: theme.colors.text.secondary,
-      fontWeight: theme.typography.fontWeight.medium,
-    };
-  }
+  const variantStyle: React.CSSProperties =
+    variant === BUTTON_VARIANT_PRIMARY
+      ? {
+          backgroundColor: theme.colors.text.primary,
+          color: COLOR_NAMED_WHITE,
+          fontWeight: theme.typography.fontWeight.semibold,
+        }
+      : variant === BUTTON_VARIANT_SECONDARY
+      ? {
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: `1px solid ${theme.colors.border.medium}`,
+          fontWeight: theme.typography.fontWeight.medium,
+        }
+      : /* ghost */ {
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          fontWeight: theme.typography.fontWeight.medium,
+        };
 
   return (
     <button style={{ ...baseStyle, ...variantStyle, ...extraStyle }} {...rest}>
@@ -169,7 +169,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
       Array.isArray(email.attachments) &&
       email.attachments.some(
         (att) =>
-          att.mimeType === 'text/calendar' ||
+          att.mimeType === ICS_MIME_TYPE ||
           att.filename?.toLowerCase().endsWith('.ics'),
       ),
     [email.attachments],

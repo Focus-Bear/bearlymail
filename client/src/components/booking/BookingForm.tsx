@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 
 const BOOKING_STATUS_SUBMITTING = 'submitting';
 
@@ -109,7 +109,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   };
 
   const handleGuestInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+    if (event.key === KEY_ENTER) {
       event.preventDefault();
       handleAddGuest();
     }

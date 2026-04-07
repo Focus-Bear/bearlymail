@@ -34,8 +34,11 @@ export interface PriorityBucketDef {
  * min/max are actual server score values (NOT visual slider positions).
  * Used by `useInboxFilters` to validate stored filter pairs.
  */
+/** Sentinel label for the "show all" bucket (not a real score tier). */
+export const BUCKET_LABEL_ALL = 'All' as const;
+
 export const PRIORITY_BUCKET_DEFS: PriorityBucketDef[] = [
-  { label: 'All',       min: null, max: null },
+  { label: BUCKET_LABEL_ALL, min: null, max: null },
   { label: 'Very Low',  min: null, max: 0    },
   { label: 'Low',       min: 0,    max: 15   },
   { label: 'Medium',    min: 15,   max: 30   },
@@ -48,7 +51,7 @@ export const PRIORITY_BUCKET_DEFS: PriorityBucketDef[] = [
  * Used by `PriorityRangeSelector` as the visual track source.
  */
 export const PRIORITY_BUCKET_RANGES = PRIORITY_BUCKET_DEFS.filter(
-  (bucketDef): bucketDef is PriorityBucketDef => bucketDef.label !== 'All',
+  (bucketDef): bucketDef is PriorityBucketDef => bucketDef.label !== BUCKET_LABEL_ALL,
 );
 
 /**

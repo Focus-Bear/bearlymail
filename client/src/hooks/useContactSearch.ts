@@ -5,7 +5,7 @@ import { ContactGroup, RecipientSuggestion } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
-import { EMAIL_FIELD_CC, EMAIL_FIELD_TO } from 'constants/strings';
+import { EMAIL_FIELD_CC, EMAIL_FIELD_TO, PROMISE_STATUS_FULFILLED } from 'constants/strings';
 
 export interface UseContactSearchResult {
   toSearch: string;
@@ -71,10 +71,10 @@ export const useContactSearch = (): UseContactSearchResult => {
       ]);
 
       setSearchResults(
-        contactsRes.status === 'fulfilled' ? contactsRes.value.data : [],
+        contactsRes.status === PROMISE_STATUS_FULFILLED ? contactsRes.value.data : [],
       );
       setGroupResults(
-        groupsRes.status === 'fulfilled' ? groupsRes.value.data : [],
+        groupsRes.status === PROMISE_STATUS_FULFILLED ? groupsRes.value.data : [],
       );
       setSelectedSuggestionIndex(-1);
     } catch (err) {

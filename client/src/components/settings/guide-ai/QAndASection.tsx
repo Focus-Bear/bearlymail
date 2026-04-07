@@ -12,6 +12,8 @@ import {
   CONTEXT_SOURCE_UNAPPROVED,
   KEY_ENTER,
   KEY_ESCAPE,
+  QA_TAB_APPROVED,
+  QA_TAB_PENDING,
   STRING_NONE,
 } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -643,17 +645,17 @@ const QAndASectionBody: React.FC<QAndASectionBodyProps> = ({
   return (
     <div>
       <div style={{ display: 'flex', borderBottom: `1px solid ${theme.colors.border.light}`, padding: `0 ${theme.spacing.md}` }}>
-        <button style={makeTabStyle(activeTab === 'pending')} onClick={() => onTabChange('pending')}>
+        <button style={makeTabStyle(activeTab === QA_TAB_PENDING)} onClick={() => onTabChange(QA_TAB_PENDING)}>
           {t('settings.context.pendingReview')}
           {pendingContexts.length > 0 && <span style={badgeStyle}>{pendingContexts.length}</span>}
         </button>
-        <button style={makeTabStyle(activeTab === 'approved')} onClick={() => onTabChange('approved')}>
+        <button style={makeTabStyle(activeTab === QA_TAB_APPROVED)} onClick={() => onTabChange(QA_TAB_APPROVED)}>
           {t('settings.context.approved')}
           <span style={badgeStyle}>{approvedContexts.length}</span>
         </button>
       </div>
       <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {activeTab === 'pending' && (
+        {activeTab === QA_TAB_PENDING && (
           <PendingTab
             pendingContexts={pendingContexts}
             isApprovingAll={isApprovingAll}
@@ -668,7 +670,7 @@ const QAndASectionBody: React.FC<QAndASectionBodyProps> = ({
             onEditContextValueChange={onEditContextValueChange}
           />
         )}
-        {activeTab === 'approved' && (
+        {activeTab === QA_TAB_APPROVED && (
           <ApprovedTab approvedContexts={approvedContexts} {...approvedTabProps} />
         )}
       </div>

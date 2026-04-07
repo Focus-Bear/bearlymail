@@ -19,7 +19,7 @@ import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
-import { PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
+import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
 import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
@@ -171,7 +171,7 @@ const InboxView: React.FC = () => {
   // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
   const priorityTotalCount = priorityCounts
     ? PRIORITY_BUCKET_DEFS
-        .filter(bucket => bucket.label !== 'All')
+        .filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
         .filter(bucket => {
           const bucketMin = bucket.min ?? -Infinity;
           const bucketMax = bucket.max ?? Infinity;

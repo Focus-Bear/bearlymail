@@ -103,6 +103,31 @@ export class EmailPriorityExplanationService {
   ) {}
 
   /**
+   * Resolve an EmailThread for an email.
+   * Primary: look up by emailThreadId FK (UUID).
+   * Fallback: look up by (userId, threadId) string — handles the known TypeORM edge
+   * case where the FK column is not persisted, which would otherwise cause
+   * getPriorityExplanation to skip stored priorityExplanation and fall back to
+   * computeFallbackExplanation (returning "Calculating..." placeholders).
+   */
+  private async resolveThreadForEmail(
+    email: Email,
+  ): Promise<EmailThread | null> {
+    if (email.emailThreadId) {
+      const byId = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId },
+      });
+      if (byId) return byId;
+    }
+    if (email.threadId && email.userId) {
+      return this.emailThreadRepository.findOne({
+        where: { userId: email.userId, threadId: email.threadId },
+      });
+    }
+    return null;
+  }
+
+  /**
    * Get priority score explanation breakdown for an email.
    */
   async getPriorityExplanation(
@@ -129,12 +154,7 @@ export class EmailPriorityExplanationService {
 
       if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
 
-      let thread: EmailThread | null = null;
-      if (email.emailThreadId) {
-        thread = await this.emailThreadRepository.findOne({
-          where: { id: email.emailThreadId },
-        });
-      }
+      const thread = await this.resolveThreadForEmail(email);
 
       const parsedExplanation = thread?.priorityExplanation
         ? this.parsePriorityExplanationPayload(thread.priorityExplanation)

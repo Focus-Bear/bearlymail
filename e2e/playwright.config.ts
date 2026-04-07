@@ -13,7 +13,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Increase timeout for tests - search operations may take time for AI processing */
+  /* Global per-test timeout — prevents stuck tests from blocking CI indefinitely.
+   * Individual tests that need a different limit override via test.setTimeout().
+   * 120s gives headroom for login + navigation + assertions (regression suite
+   * and search tests rely on this; do not lower without auditing all included specs). */
   timeout: 120000,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,

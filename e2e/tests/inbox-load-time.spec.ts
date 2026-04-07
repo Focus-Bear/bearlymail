@@ -3,19 +3,18 @@ import { LoginPage } from '../pages/LoginPage';
 import { InboxPage } from '../pages/InboxPage';
 import { PriorityTooltip } from '../pages/PriorityTooltip';
 import { NetworkTracker } from '../utils/NetworkTracker';
+import { API_BASE, TEST_EMAIL, TEST_PASSWORD } from '../utils/config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3005';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@example.com';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'testpassword';
+// API_URL removed — use shared API_BASE from config (was :3005, correct port is :3001)
 const TEST_NAME = process.env.TEST_NAME || 'Test User';
 
 test.describe('Inbox Load Performance', () => {
   test('inbox should load in under 2 seconds and track network requests', async ({ page }) => {
-    test.setTimeout(30000); // 30 second timeout for the full login → inbox API flow
+    test.setTimeout(15000); // 15 second timeout for the full login → inbox API flow
     
     // Setup network tracking BEFORE navigation
     const networkTracker = new NetworkTracker(page, [
-      API_URL,
+      API_BASE,
       '/api/',
       '/users/',
       '/emails/',
@@ -160,7 +159,7 @@ test.describe('Inbox Load Performance', () => {
   });
 
   test('priority popup should load quickly and display correct breakdown', async ({ page }) => {
-    test.setTimeout(15000); // 15 second timeout - should fail fast if things aren't working
+    test.setTimeout(10000); // 10 second timeout - should fail fast if things aren't working
 
     // Setup network tracking for priority explanation BEFORE navigation
     const networkTracker = new NetworkTracker(page, ['priority-explanation']);
@@ -179,123 +178,253 @@ test.describe('Inbox Load Performance', () => {
     const inboxPage = new InboxPage(page);
     await inboxPage.waitForInboxToLoad();
 
-    // Check if priority badges exist
     if (!(await inboxPage.hasPriorityBadges())) {
-      console.log('⚠️  No priority badges found - skipping priority popup test');
-      test.skip();
-      return;
+      throw new Error(
+        'No priority badges in inbox — expected seeded threads with priorityScore. ' +
+          'Run `cd server && npm run seed:test-user` and ensure /emails/inbox returns 200 with emails.',
+      );
     }
 
-    // Get first priority badge
-    const priorityBadge = await inboxPage.getPriorityBadge(0);
+    // Target a known canary email's priority badge by subject line rather than
+    // taking the first badge in the inbox. The first badge may belong to a
+    // non-canary email whose emailThreadId is still null in some CI DB states
+    // (e.g. emails seeded before the resolveThreadForEmail() FK fix), which
+    // causes the priority-explanation API to fall back to "Calculating..."
+    // placeholders. Canary emails always have their emailThreadId set by the
+    // seed script, so they are guaranteed to have valid priorityExplanation data.
+    //
+    // Subject: '[E2E Canary] Triage visibility' (messageId: ci-canary-triage-001)
+    const canarySubjectPattern = /\[E2E Canary\]\s+Triage visibility/i;
+    const canaryRow = page.locator('tr, [data-testid*="email"], [class*="email-row"], li').filter({
+      has: page.getByText(canarySubjectPattern),
+    }).first();
+
+    let priorityBadge = canaryRow.locator('[data-priority-badge]').first();
+    const canaryBadgeCount = await priorityBadge.count();
+
+    // Canary email ID resolved via API when DOM nesting fails (virtualised list in CI).
+    let canaryEmailIdFromApi: string | null = null;
+
+    if (canaryBadgeCount === 0) {
+      // Fallback: the inbox is a virtualised list — the canary row may not be in
+      // the DOM subtree we searched. Resolve the canary email ID via the inbox API
+      // instead of falling back to the first DOM badge (which may be a non-canary
+      // email whose thread has no priorityExplanation, causing "Calculating...").
+      console.log('\n⚠️  Could not find canary badge via row nesting. Resolving canary email ID via inbox API.');
+      const authTokenForFallback = await page.evaluate(() => localStorage.getItem('token'));
+      const fallbackHeaders = authTokenForFallback ? { Authorization: `Bearer ${authTokenForFallback}` } : {};
+      const inboxRes = await page.request.get(
+        `${API_BASE}/emails/inbox?mode=triage&limit=200&offset=0`,
+        { headers: fallbackHeaders },
+      );
+      if (inboxRes.ok()) {
+        const inboxBody = await inboxRes.json();
+        const inboxEmails: { id: string; subject?: string }[] = inboxBody?.emails ?? [];
+        const canaryEmail = inboxEmails.find(
+          (e) => e.subject?.includes('[E2E Canary] Triage visibility'),
+        );
+        if (canaryEmail) {
+          canaryEmailIdFromApi = canaryEmail.id;
+          console.log(`\n✅  Resolved canary email ID via API: ${canaryEmailIdFromApi}`);
+        }
+      }
+
+      if (canaryEmailIdFromApi) {
+        // Try to find the canary badge by email ID in the DOM (may or may not be visible
+        // in a virtualised list). If visible, use it for the click interaction too.
+        const canaryBadgeById = page.locator(`[data-priority-badge="${canaryEmailIdFromApi}"]`);
+        const canaryBadgeByIdCount = await canaryBadgeById.count();
+        if (canaryBadgeByIdCount > 0) {
+          priorityBadge = canaryBadgeById.first();
+          console.log(`\n✅  Found canary badge in DOM by email ID: ${canaryEmailIdFromApi}`);
+        } else {
+          // Badge not in DOM viewport — use first visible badge for the click interaction.
+          // The smoke test (priority-explanation API call) uses canaryEmailIdFromApi directly.
+          console.log(`\n⚠️  Canary badge not in DOM viewport — click test will use first visible badge.`);
+          priorityBadge = await inboxPage.getPriorityBadge(0);
+        }
+      } else {
+        // Last resort: use first visible badge (may produce "Calculating..." if
+        // the email has no seeded priorityExplanation on its thread).
+        console.log('\n⚠️  Could not resolve canary via API either. Falling back to first badge in inbox.');
+        priorityBadge = await inboxPage.getPriorityBadge(0);
+      }
+    }
     await priorityBadge.waitFor({ state: 'visible', timeout: 5000 });
 
-    // Fix 2B — smoke test: verify the priority-explanation API works for the first
-    // email BEFORE trying the hover/click interaction.  If this fails, the API
-    // endpoint cannot serve seeded data and the tooltip will never render content.
-    const firstEmailId = await priorityBadge.getAttribute('data-priority-badge');
+    // Fix 2B — smoke test: verify the priority-explanation API works for the
+    // targeted email BEFORE trying the hover/click interaction.  If this fails,
+    // the API endpoint cannot serve seeded data and the tooltip will never render.
+    //
+    // Prefer the canary email ID resolved via API (avoids non-canary emails that
+    // have no priorityExplanation on their thread and always return "Calculating...").
+    const firstEmailId = canaryEmailIdFromApi ?? await priorityBadge.getAttribute('data-priority-badge');
     if (firstEmailId) {
-      // JWT is stored in localStorage — extract it to authenticate the direct API call.
       const authToken = await page.evaluate(() => localStorage.getItem('token'));
-      // Use page.evaluate so the fetch runs inside the browser process - this avoids
-      // ECONNREFUSED errors in CI where the Playwright runner process cannot reach
-      // localhost:3005 directly (IPv6/port mismatch). The browser already has the
-      // correct baseURL and auth cookies/tokens in scope.
-      const smokeResult = await page.evaluate(
-        async ({ emailId, token }: { emailId: string; token: string | null }) => {
-          const res = await fetch(`/emails/${emailId}/priority-explanation`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          const body = await res.text().catch(() => '(unreadable)');
-          return { status: res.status, body };
+      const smokeRes = await page.request.get(
+        `${API_BASE}/emails/${firstEmailId}/priority-explanation`,
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         },
-        { emailId: firstEmailId, token: authToken }
       );
-      if (smokeResult.status !== 200) {
+      const smokeBody = await smokeRes.text().catch(() => '(unreadable)');
+      if (smokeRes.status() !== 200) {
         throw new Error(
-          `GET /emails/${firstEmailId}/priority-explanation returned HTTP ${smokeResult.status} — tooltip will never render. Body: ${smokeResult.body}`
+          `GET /emails/${firstEmailId}/priority-explanation returned HTTP ${smokeRes.status()} — tooltip will never render. Body: ${smokeBody}`,
         );
       }
-      let explData: any = null;
-      try { explData = JSON.parse(smokeResult.body); } catch { /* non-JSON body */ }
+      let explData: { score?: number; breakdown?: unknown[] } | null = null;
+      try {
+        explData = JSON.parse(smokeBody) as { score?: number; breakdown?: unknown[] };
+      } catch {
+        /* non-JSON body */
+      }
+      const breakdownLen = explData?.breakdown?.length ?? 0;
+      if (breakdownLen === 0) {
+        throw new Error(
+          'priority-explanation returned empty breakdown — tooltip dimensions will not render (prod regression guard).',
+        );
+      }
+      // Guard: fallback must not overwrite seeded data with "Calculating..." placeholders
+      const breakdownDescs = (explData?.breakdown ?? []).map(
+        (b: { description?: string }) => b.description ?? '',
+      );
+      const hasCalculating = breakdownDescs.some((d: string) => d.includes('Calculating...'));
+      expect(
+        hasCalculating,
+        `priority-explanation returned "Calculating..." descriptions — computeFallbackExplanation overwrote seeded data. ` +
+          `Descriptions: ${JSON.stringify(breakdownDescs)}`,
+      ).toBe(false);
+
       console.log(`\n🔍 Priority explanation smoke test passed (status 200):`);
-      console.log(`   Score: ${explData?.score}, breakdown items: ${explData?.breakdown?.length ?? 0}`);
+      console.log(`   Score: ${explData?.score}, breakdown items: ${breakdownLen}`);
     } else {
-      console.warn('⚠️  Could not read data-priority-badge attribute — skipping API smoke test');
+      throw new Error('Could not read data-priority-badge attribute on first row — cannot verify priority API.');
     }
 
-    await page.waitForTimeout(500); // Small delay to ensure badge is interactive
+    // ── Tooltip interaction ──────────────────────────────────────────────────
+    //
+    // Architecture (from code review of PriorityBadge.tsx + usePriorityTooltip.ts):
+    //
+    // 1. PriorityBadge (header variant) uses onClick → togglePriorityTooltip(email.id)
+    //    - BUT: onClick early-returns if isEmailPriorityCalculating(email) is true
+    //      (when priorityScore === 0 AND no breakdown on the email entity)
+    //
+    // 2. togglePriorityTooltip is a TOGGLE — second click CLOSES the tooltip.
+    //    Never double-click as a "retry". If the first click doesn't work, diagnose why.
+    //
+    // 3. The tooltip renders via createPortal to document.body with
+    //    [data-priority-tooltip=emailId] in ALL states (loading, error, content).
+    //
+    // 4. The "close on outside click" useEffect fires on mousedown outside
+    //    [data-priority-badge] and [data-priority-tooltip].
+    //
+    // 5. fetchPriorityExplanation calls axios.get(API_URL/emails/:id/priority-explanation)
+    //    from the browser. API_URL defaults to http://localhost:3001.
 
-    // Register a listener for the priority-explanation API call BEFORE hovering so
-    // we don't race against it. The internal hook fires axios.get immediately on
-    // togglePriorityTooltip; if we register after the hover we may miss the response.
+    // Register response listener BEFORE clicking (the hook fires axios.get immediately)
     const priorityExplanationResponsePromise = page.waitForResponse(
       (response) => response.url().includes('/priority-explanation'),
-      { timeout: 10000 }
+      { timeout: 8000 },
     ).catch(() => null);
 
-    // Hover over the priority badge to trigger the tooltip.
-    // We wait for the tooltip to be visible BEFORE starting the performance timer
-    // so hover mechanics don't inflate popupLoadTime.
-    await priorityBadge.hover({ timeout: 2000 });
+    // Click the badge to open the tooltip
+    await priorityBadge.scrollIntoViewIfNeeded();
+    await priorityBadge.click({ force: true });
 
     const tooltip = new PriorityTooltip(page);
-    
-    let tooltipVisible = false;
+
+    // Step 1: Wait for tooltip CONTAINER (any state: loading, error, or content).
+    // [data-priority-tooltip] is present in PriorityTooltipContainer AND PriorityTooltipLoading.
+    let containerVisible = false;
     try {
-      await tooltip.waitForVisible(3000);
-      tooltipVisible = true;
+      await tooltip.waitForContainer(5000);
+      containerVisible = true;
     } catch {
-      // If hover doesn't work, try clicking
-      console.log('Hover did not trigger tooltip, trying click...');
-      try {
-        await priorityBadge.click({ timeout: 2000 });
-        await tooltip.waitForVisible(3000);
-        tooltipVisible = true;
-      } catch {
-        // tooltip did not appear after click either
+      // Container didn't appear — the click didn't trigger togglePriorityTooltip
+    }
+
+    if (!containerVisible) {
+      // Diagnose: is the email stuck in "calculating" state?
+      const badgeText = await priorityBadge.textContent();
+      const emailId = await priorityBadge.getAttribute('data-priority-badge');
+      const isCalculating = badgeText?.toLowerCase().includes('calculating');
+
+      if (isCalculating) {
+        throw new Error(
+          `Priority badge for email ${emailId} shows "${badgeText}" (calculating state). ` +
+            'isEmailPriorityCalculating(email) returned true, blocking the onClick handler. ' +
+            'This means the inbox API returned priorityScore=0 with no breakdown for this email. ' +
+            'Ensure seed-test-user.ts sets priorityScore > 0 on the Email entity.',
+        );
       }
+      throw new Error(
+        `Priority tooltip container [data-priority-tooltip] did not appear after click. ` +
+          `Badge text: "${badgeText}", emailId: ${emailId}. ` +
+          'The click may have been intercepted by a parent handler or the badge was not interactive.',
+      );
     }
 
-    if (!tooltipVisible) {
-      console.log('⚠️  Priority tooltip did not appear — no emails with calculated priority scores in this environment. Skipping.');
-      test.skip();
-      return;
+    // Step 2: Wait for the priority-explanation API call to complete
+    const explResponse = await priorityExplanationResponsePromise;
+    if (explResponse) {
+      console.log(`\n🔍 priority-explanation API response: HTTP ${explResponse.status()}`);
+    } else {
+      console.log('\n⚠️ priority-explanation API response not intercepted (may have been cached or failed silently)');
     }
 
-    // Wait for the priority-explanation API call to complete BEFORE asserting on
-    // tooltip content. The component renders a loading state until the axios call
-    // resolves; without this await, the assertion races against async state updates.
-    await priorityExplanationResponsePromise;
-
-    // Dump tooltip HTML before asserting on content so we can diagnose what the
-    // component actually rendered (loading spinner, error state, content, or nothing).
+    // Step 3: Wait for tooltip CONTENT ("Priority Score: X" header)
+    // Dump DOM state for diagnostics first
     const tooltipHTML = await page.evaluate(() => {
-      const el = document.querySelector('[data-priority-tooltip]') ||
-                 [...document.querySelectorAll('div')].find(d => d.textContent?.includes('Priority Score'));
+      const el = document.querySelector('[data-priority-tooltip]');
       return el ? el.innerHTML.slice(0, 800) : '(tooltip element not found in DOM)';
     });
-    console.log(`\n🔍 Tooltip DOM at assertion time:\n${tooltipHTML}`);
+    console.log(`\n🔍 Tooltip DOM after API response:\n${tooltipHTML}`);
 
-    // Start timing AFTER tooltip is visible AND API has responded — measures only
-    // the React render time from resolved state to DOM update.
+    let contentVisible = false;
+    try {
+      await tooltip.waitForContent(8000);
+      contentVisible = true;
+    } catch {
+      // Content header didn't appear — stuck in loading, error, or no-data state
+    }
+
+    if (!contentVisible) {
+      const tooltipText = await tooltip.getTextContent();
+      const isLoading = tooltipText?.toLowerCase().includes('loading');
+      const isError = tooltipText?.toLowerCase().includes('error') || tooltipText?.toLowerCase().includes('retry');
+
+      if (isLoading) {
+        throw new Error(
+          'Priority tooltip stuck in loading state — fetchPriorityExplanation likely timed out ' +
+            'or the API at http://localhost:3001 is unreachable from the browser. ' +
+            `Tooltip text: "${tooltipText}"`,
+        );
+      }
+      if (isError) {
+        throw new Error(
+          'Priority tooltip shows error state — the priority-explanation API call failed. ' +
+            `Tooltip text: "${tooltipText}"`,
+        );
+      }
+      throw new Error(
+        'Priority tooltip container is visible but "Priority Score" content did not render. ' +
+          `Tooltip text: "${tooltipText}"`,
+      );
+    }
+
+    // Step 4: Verify content structure and scores
     const popupStartTime = Date.now();
-
-    // Verify the popup displays the expected content
-    // 3000ms timeout: allows React 18 to batch the state update and re-render
     await expect(tooltip.priorityScoreHeader).toBeVisible({ timeout: 3000 });
-
     const popupLoadTime = Date.now() - popupStartTime;
-    expect(popupLoadTime).toBeLessThan(1000);
-    // Verify content structure
+
     const content = await tooltip.verifyContent();
-    
+
     expect(content.hasPriorityScore).toBe(true);
     expect(content.hasUrgency).toBe(true);
     expect(content.hasGoalAlignment).toBe(true);
     expect(content.hasVipContact).toBe(true);
 
-    // Verify scores are valid
     expect(content.priorityScore).not.toBeNull();
     expect(content.priorityScore).toBeGreaterThanOrEqual(0);
     expect(content.priorityScore).toBeLessThanOrEqual(100);
@@ -304,33 +433,30 @@ test.describe('Inbox Load Performance', () => {
     expect(content.goalAlignmentScore).not.toBeNull();
     expect(content.vipContactScore).not.toBeNull();
 
-    // Verify API request was made
+    // Step 5: Verify API request was made and was fast
     const priorityRequests = networkTracker.getRequestsByPattern('priority-explanation');
     expect(priorityRequests.length).toBeGreaterThan(0);
-    
-    // Verify API request was fast (under 500ms)
+
     if (priorityRequests.length > 0) {
-      const requestTiming = priorityRequests[0].timing;
-      expect(requestTiming).toBeLessThan(500);
+      expect(priorityRequests[0].timing).toBeLessThan(500);
       expect(priorityRequests[0].status).toBe(200);
     }
 
     // Log results
-    console.log(`\n📊 Priority Popup Performance Results (hover wait excluded):`);
-    console.log(`⏱️  Popup Content Load Time: ${popupLoadTime}ms (${(popupLoadTime / 1000).toFixed(2)}s)`);
-    
+    console.log(`\n📊 Priority Popup Performance Results:`);
+    console.log(`⏱️  Popup Content Render Time: ${popupLoadTime}ms`);
     if (priorityRequests.length > 0) {
       console.log(`🌐 API Request Time: ${priorityRequests[0].timing.toFixed(0)}ms`);
-      console.log(`📡 API Endpoint: ${priorityRequests[0].url}`);
-      console.log(`📊 API Status: ${priorityRequests[0].status}`);
+      console.log(`📡 API Status: ${priorityRequests[0].status}`);
     }
 
-    // Verify content structure
     console.log(`\n✅ Content Verification:`);
-    console.log(`   ✓ Priority Score header found: ${content.priorityScore}`);
-    console.log(`   ✓ Urgency dimension found: ${content.urgencyScore}`);
-    console.log(`   ✓ Goal Alignment dimension found: ${content.goalAlignmentScore}`);
-    console.log(`   ✓ VIP Contact dimension found: ${content.vipContactScore}`);
+    console.log(`   ✓ Priority Score: ${content.priorityScore}`);
+    console.log(`   ✓ Urgency: ${content.urgencyScore}`);
+    console.log(`   ✓ Goal Alignment: ${content.goalAlignmentScore}`);
+    console.log(`   ✓ VIP Contact: ${content.vipContactScore}`);
+
+    expect(popupLoadTime).toBeLessThan(1000);
 
     // Check for duplicate requests
     if (priorityRequests.length > 1) {
@@ -338,7 +464,6 @@ test.describe('Inbox Load Performance', () => {
       priorityRequests.forEach((req, index) => {
         console.log(`   ${index + 1}. ${req.url} (${req.timing.toFixed(0)}ms, status: ${req.status})`);
       });
-      // Fail if there are duplicate requests
       expect(priorityRequests.length).toBe(1);
     } else {
       console.log(`\n✅ No duplicate requests for priority explanation`);

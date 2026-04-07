@@ -281,10 +281,11 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           VITE_API_URL: http://localhost:3001
+          PLAYWRIGHT_API_URL: http://localhost:3001
           TEST_EMAIL: test@example.com
           TEST_PASSWORD: testpassword
         run: |
-          npx playwright test search-ci.spec.ts inbox-load-time.spec.ts \
+          npx playwright test tests/ \
             --reporter=html,github
 
       - name: Upload Playwright report

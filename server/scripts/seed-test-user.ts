@@ -47,6 +47,8 @@ interface SeedEmailSpec {
   urgencyScore: number;
   priorityScore: number;
   starCount: number;
+  /** Gmail-style label list (e.g. ['SENT']) to mark outbound emails. */
+  labels?: string[];
 }
 
 const now = Date.now();
@@ -258,6 +260,70 @@ const SEED_EMAILS: SeedEmailSpec[] = [
     priorityScore: 55,
     starCount: 0,
   },
+  // ── E2E canaries — keep subjects in sync with e2e/tests/seeded-inbox-canaries.spec.ts ──
+  {
+    messageId: 'ci-canary-triage-001',
+    threadId: 'ci-thread-canary-triage',
+    from: 'canary-triage@e2e.invalid',
+    fromName: 'E2E Canary Triage',
+    subject: '[E2E Canary] Triage visibility',
+    body: 'Synthetic thread for Playwright: must appear in triage (starCount 0).',
+    receivedAt: daysAgo(0),
+    isRead: false,
+    isSnoozed: false,
+    isArchived: false,
+    urgencyScore: 65,
+    priorityScore: 80,
+    starCount: 0,
+  },
+  {
+    messageId: 'ci-canary-action-001',
+    threadId: 'ci-thread-canary-action',
+    from: 'canary-action@e2e.invalid',
+    fromName: 'E2E Canary Action',
+    subject: '[E2E Canary] Action visibility',
+    body: 'Synthetic thread for Playwright: must appear in action (starred, latest from correspondent).',
+    receivedAt: daysAgo(0),
+    isRead: false,
+    isSnoozed: false,
+    isArchived: false,
+    urgencyScore: 70,
+    priorityScore: 82,
+    starCount: 1,
+  },
+  {
+    messageId: 'ci-canary-followup-001',
+    threadId: 'ci-thread-canary-followup',
+    from: 'canary-followup@e2e.invalid',
+    fromName: 'E2E Canary Follow-up',
+    subject: '[E2E Canary] Follow-up visibility',
+    body: 'First message in thread; user replies after this.',
+    receivedAt: daysAgo(2),
+    isRead: true,
+    isSnoozed: false,
+    isArchived: false,
+    urgencyScore: 55,
+    priorityScore: 75,
+    starCount: 1,
+  },
+  {
+    messageId: 'ci-canary-followup-002',
+    threadId: 'ci-thread-canary-followup',
+    from: 'test@example.com',
+    fromName: 'Test User',
+    subject: 'Re: [E2E Canary] Follow-up visibility',
+    body: 'Following up as discussed.',
+    receivedAt: daysAgo(1),
+    isRead: true,
+    isSnoozed: false,
+    isArchived: false,
+    urgencyScore: 55,
+    priorityScore: 75,
+    starCount: 1,
+    // SENT label marks this as a user-sent email for follow-up detection
+    // (mirrors how Gmail labels outbound mail; see email-follow-up.service.ts)
+    labels: ['SENT'],
+  },
 ];
 
 const SEED_CONTEXTS = [
@@ -307,20 +373,27 @@ async function seedEmails(
   let skipped = 0;
 
   for (const spec of SEED_EMAILS) {
-    // Idempotency: skip if email already exists
-    const existing = await emailRepo.findOne({
-      where: { userId, messageId: spec.messageId },
-    });
-
-    if (existing) {
-      skipped++;
-      continue;
-    }
-
-    // Ensure EmailThread exists
+    // Always ensure thread exists and has the current PRIORITY_EXPLANATION.
+    // This must happen BEFORE the email-exists check so that re-runs on a
+    // pre-seeded DB always refresh stale/old-structure explanations on the
+    // thread (e.g. "Base Score" factors, or "Calculating..." placeholders from
+    // a previous incomplete run).
     let thread = await threadRepo.findOne({
       where: { userId, threadId: spec.threadId },
     });
+
+    const needsExplanationUpdate =
+      !thread ||
+      !thread.priorityExplanation ||
+      (thread.priorityExplanation as { breakdown?: { factor?: string }[] })?.breakdown?.some(
+        (item) =>
+          item.factor === 'Base Score' ||
+          item.factor === '🤖 AI Analysis' ||
+          item.factor === 'AI Analysis',
+      ) ||
+      (thread.priorityExplanation as { breakdown?: { description?: string }[] })?.breakdown?.some(
+        (item) => item.description?.includes('Calculating...'),
+      );
 
     if (!thread) {
       const newThread = threadRepo.create({
@@ -330,9 +403,47 @@ async function seedEmails(
         isArchived: spec.isArchived,
         urgencyScore: spec.urgencyScore,
         priorityScore: spec.priorityScore,
-        priorityExplanation: PRIORITY_EXPLANATION,
+        // Do NOT pass priorityExplanation here — TypeORM transformer encrypts it with
+        // the seed-process key, which the server process cannot decrypt in CI due to
+        // a known cross-process crypto.scryptSync key mismatch (see seed-search-data.ts).
+        // priorityExplanation is written as plaintext JSON via raw SQL below.
       });
       thread = await threadRepo.save(newThread);
+    }
+
+    // Always write priorityExplanation as PLAINTEXT JSON via raw SQL.
+    //
+    // Root cause: TypeORM's encryptedJsonTransformer encrypts with the seed-script
+    // process's derived key. The server process cannot decrypt it in CI (cross-process
+    // crypto.scryptSync mismatch). EncryptionHelper.tryDecrypt() falls through for
+    // non-3-part strings, so a plain JSON value like {"score":80,...} is returned
+    // as-is and JSON.parse() succeeds. This ensures the server always reads valid data.
+    //
+    // Same pattern as seed-search-data.ts (see comment there for full explanation).
+    const plainExplanationJson = JSON.stringify(PRIORITY_EXPLANATION);
+    await threadRepo.query(
+      `UPDATE email_threads SET "priorityExplanation" = $1, "priorityScore" = $2, "isProcessingPriority" = false WHERE id = $3`,
+      [plainExplanationJson, spec.priorityScore, thread.id],
+    );
+    if (needsExplanationUpdate) {
+      console.log(`    refresh priorityExplanation (plaintext) on thread ${spec.threadId}`);
+    }
+
+    // Idempotency: skip email creation if email already exists
+    const existing = await emailRepo.findOne({
+      where: { userId, messageId: spec.messageId },
+    });
+
+    if (existing) {
+      // Patch emailThreadId if it was not persisted on a previous run (TypeORM FK edge case).
+      // This ensures the priority-explanation service can look up the thread and return
+      // the seeded priorityExplanation instead of falling back to computeFallbackExplanation.
+      if (!existing.emailThreadId && thread?.id) {
+        console.log(`    [patch] ${spec.messageId}: existing email has null emailThreadId, patching to ${thread.id}`);
+        await emailRepo.update({ id: existing.id }, { emailThreadId: thread.id });
+      }
+      skipped++;
+      continue;
     }
 
     // Create Email — TypeORM save triggers encryptedColumnTransformer
@@ -354,10 +465,20 @@ async function seedEmails(
       isProcessingSummary: false,
       wasDeliveredEarly: false,
       receivedAt: spec.receivedAt,
+      // Propagate outbound labels (e.g. 'SENT') so follow-up detection works
+      ...(spec.labels !== undefined ? { labels: spec.labels } : {}),
     };
 
     const email = emailRepo.create(emailData as Parameters<typeof emailRepo.create>[0]);
     await emailRepo.save(email);
+
+    // Verify emailThreadId was persisted (Record<string, unknown> cast can bypass TypeORM FK handling)
+    const savedEmail = await emailRepo.findOne({ where: { userId, messageId: spec.messageId } });
+    if (savedEmail && !savedEmail.emailThreadId) {
+      console.log(`    [patch] ${spec.messageId}: emailThreadId was null after save, patching to ${thread.id}`);
+      await emailRepo.update({ id: savedEmail.id }, { emailThreadId: thread.id });
+    }
+
     console.log(`    create ${spec.messageId} — "${spec.subject}"`);
     created++;
   }
@@ -436,10 +557,33 @@ async function seedTestUser() {
     await seedEmails(emailRepository, threadRepository, testUser.id);
     await seedUserContexts(contextRepository, testUser.id);
 
+    // ── Final FK repair pass ──────────────────────────────────────────────────
+    // Explicitly patch ALL emails in the test user's account where emailThreadId
+    // is NULL by joining on threadId → EmailThread.id. This covers any emails
+    // that were created before the resolveThreadForEmail() FK fix and whose FK
+    // was never backfilled by a previous seed run. Without this, the first
+    // priority badge in the inbox might still be a non-canary email with a null
+    // FK, causing the priority-explanation API to fall back to "Calculating..."
+    // placeholders and breaking inbox-load-time.spec.ts:161.
+    const patchResult = await dataSource.query(
+      `UPDATE "emails" e
+         SET "emailThreadId" = et.id
+         FROM "email_threads" et
+        WHERE e."userId" = $1
+          AND e."emailThreadId" IS NULL
+          AND et."userId" = $1
+          AND et."threadId" = e."threadId"`,
+      [testUser.id],
+    );
+    const patchCount = Array.isArray(patchResult) ? patchResult[1] ?? 0 : 0;
+    if (patchCount > 0) {
+      console.log(`  [fk-repair] Patched ${patchCount} email(s) with null emailThreadId → correct thread FK`);
+    }
+
     console.log('\n✅ Test user seed complete.');
     console.log('   Email:    test@example.com');
     console.log('   Password: testpassword');
-    console.log('   Emails seeded: inbox, action, archived, and multi-email thread');
+    console.log('   Emails seeded: inbox, action, follow-up canaries, archived, and multi-email thread');
 
     await dataSource.destroy();
     console.log('Database connection closed');

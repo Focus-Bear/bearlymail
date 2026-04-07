@@ -4,16 +4,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Search debugging test suite
- * 
- * These tests verify that:
+ * Search debugging test suite — LOCAL USE ONLY, skipped in CI.
+ *
+ * These tests verify:
  * 1. Search queries tried are displayed in the UI
  * 2. Rejected emails are shown with score breakdowns
  * 3. Debug information is available for troubleshooting
- * 
+ *
  * After each test (especially failures), the test reads and logs
  * relevant entries from logs/search-system.log for debugging.
+ *
+ * NOT suitable for CI: requires a local Chrome session (no auth), reads from
+ * server/logs/search-system.log, and has 60s wait timeouts for AI processing.
+ * Use search-ci.spec.ts for CI-safe search coverage.
  */
+
+
 
 // Helper function to read last N lines from search log
 function readSearchLogLines(count: number = 50): string[] {
@@ -40,7 +46,11 @@ function filterLogForQuery(logLines: string[], query: string): string[] {
   );
 }
 
-test.describe('Search Debugging', () => {
+// In CI this suite is skipped: it needs a local Chrome session, reads from
+// server/logs/search-system.log, and has 60s waits for AI processing.
+// Use search-ci.spec.ts for CI-safe search coverage instead.
+const describeOrSkip = process.env.CI ? test.describe.skip : test.describe;
+describeOrSkip('Search Debugging', () => {
   let searchPage: SearchPage;
 
   test.beforeEach(async ({ page }) => {

@@ -160,7 +160,7 @@ function main() {
   }
 
   // Final summary
-  console.log('\n' + '='.repeat(50));
+  console.log(`\n${'='.repeat(50)}`);
   if (hasErrors) {
     console.log('❌ Validation failed. Please fix the errors above.');
     process.exit(1);

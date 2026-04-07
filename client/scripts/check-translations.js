@@ -158,7 +158,7 @@ function scanForTranslationCalls(sourceRoot) {
         results.dynamicUsages.push({
           filePath,
           line: getLineNumberFromIndex(newlineIndex, startIndex),
-          expression: 't(`...`) with ${...}',
+          expression: 't(`...`) with interpolation',
         });
         continue;
       }
@@ -232,7 +232,6 @@ function main() {
   }
 
   const enTranslations = translationsByLocale['en'];
-  const esTranslations = translationsByLocale['es'];
   if (!enTranslations) {
     console.error('\nTranslation validation failed: Missing en.json');
     process.exit(1);

@@ -8,7 +8,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const srcDir = path.resolve(__dirname, 'src');
 
@@ -32,7 +31,6 @@ function getAllFiles(dir, fileList = []) {
 function convertImports(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const fileDir = path.dirname(filePath);
-  const relativeFromSrc = path.relative(srcDir, fileDir);
   
   // Match import/export statements with relative paths (including multi-line)
   // This regex handles both single-line and multi-line imports
@@ -43,7 +41,7 @@ function convertImports(filePath) {
   
   newContent = newContent.replace(importRegex, (match, keyword, middle, importPath) => {
     // Skip if it's a node_modules import or already absolute
-    if (importPath.includes('node_modules') || !importPath.startsWith('./') && !importPath.startsWith('../')) {
+    if (importPath.includes('node_modules') || (!importPath.startsWith('./') && !importPath.startsWith('../'))) {
       return match;
     }
     

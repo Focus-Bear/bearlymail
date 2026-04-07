@@ -6,7 +6,6 @@
  */
 
 const path = require('path');
-const fs = require('fs');
 
 module.exports = function transformer(fileInfo, api) {
   const j = api.jscodeshift;
@@ -15,9 +14,6 @@ module.exports = function transformer(fileInfo, api) {
   
   // Find src directory (assume we're running from client/)
   const srcPath = path.resolve(process.cwd(), 'src');
-  
-  // Calculate relative path from src to current file directory
-  const relativeFromSrc = path.relative(srcPath, fileDir);
   
   let hasChanges = false;
 

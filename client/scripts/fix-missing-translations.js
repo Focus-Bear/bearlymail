@@ -33,22 +33,6 @@ const GOOGLE_LANGUAGE_CODES = {
 };
 
 /**
- * Recursively get all keys from a nested object with their values
- */
-function getAllKeysWithValues(obj, prefix = '') {
-  const entries = [];
-  for (const key in obj) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-      entries.push(...getAllKeysWithValues(obj[key], fullKey));
-    } else {
-      entries.push({ key: fullKey, value: obj[key] });
-    }
-  }
-  return entries;
-}
-
-/**
  * Get all keys from a nested object
  */
 function getAllKeys(obj, prefix = '') {
@@ -104,7 +88,7 @@ async function translateWithGoogle(text, targetLanguage) {
   
   // Preserve placeholders by replacing them temporarily
   const placeholders = [];
-  let processedText = text.replace(/\{\{([^}]+)\}\}/g, (match) => {
+  const processedText = text.replace(/\{\{([^}]+)\}\}/g, (match) => {
     placeholders.push(match);
     return `__PLACEHOLDER_${placeholders.length - 1}__`;
   });
@@ -356,7 +340,7 @@ async function main() {
       console.log(`\n   Missing keys:`);
       missingKeys.slice(0, 30).forEach(({ key, value }) => {
         const displayValue = typeof value === 'string' && value.length > 50 
-          ? value.substring(0, 50) + '...' 
+          ? `${value.substring(0, 50)}...` 
           : value;
         console.log(`      - ${key}: "${displayValue}"`);
       });
@@ -392,7 +376,7 @@ async function main() {
     const sortedLocale = sortObjectKeys(targetLocale);
     
     // Write updated locale file
-    fs.writeFileSync(targetLocalePath, JSON.stringify(sortedLocale, null, 2) + '\n', 'utf8');
+    fs.writeFileSync(targetLocalePath, `${JSON.stringify(sortedLocale, null, 2)}\n`, 'utf8');
     
     const newKeyCount = getAllKeys(sortedLocale).length;
     console.log(`   ✅ Added ${missingKeys.length} translations. Total keys: ${newKeyCount}\n`);

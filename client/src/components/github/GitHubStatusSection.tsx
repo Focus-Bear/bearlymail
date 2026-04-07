@@ -41,7 +41,12 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody)) {
+  // Show the section when:
+  //   (a) the email text explicitly mentions "github" (keyword gate), OR
+  //   (b) the server already found GitHub links — avoids false-negative when the
+  //       keyword only appears in HTML content that doesn't reach the plain-text check.
+  const serverFoundLinks = links.length > 0;
+  if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody) && !serverFoundLinks) {
     return null;
   }
 

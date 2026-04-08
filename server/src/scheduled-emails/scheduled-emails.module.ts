@@ -8,6 +8,7 @@ import {
 import { TypeOrmModule } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
@@ -34,7 +35,7 @@ export class ScheduledEmailsModule implements OnModuleInit {
   private readonly logger = new Logger(ScheduledEmailsModule.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly sendScheduledEmailsProcessor: SendScheduledEmailsProcessor,
   ) {}
 

@@ -23,6 +23,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
 import { isUuid } from "../common/uuid.utils";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
@@ -53,7 +54,7 @@ export class GitHubController {
     private readonly githubApiService: GitHubApiService,
     private readonly githubProjectStatusService: GitHubProjectStatusService,
     private readonly usersService: UsersService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly repoMappingService: GitHubRepoMappingService,
   ) {}
 

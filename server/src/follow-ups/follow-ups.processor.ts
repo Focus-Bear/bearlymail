@@ -10,6 +10,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { THREAD_LIMITS } from "../constants/llm-constants";
 import { HTTP_STATUS } from "../constants/service-constants";
@@ -53,7 +54,7 @@ export class FollowUpsProcessor implements OnModuleInit {
   private readonly logger = new Logger(FollowUpsProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(FollowUp)
     private followUpRepository: Repository<FollowUp>,
     @InjectRepository(Email)

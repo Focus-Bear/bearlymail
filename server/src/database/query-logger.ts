@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { Logger as TypeOrmLogger, QueryRunner } from "typeorm";
 
+import { LOG_LEVELS } from "../constants/domain-types";
+
 // Ensure logs directory exists
 const LOGS_DIR = path.join(process.cwd(), "logs");
 if (!fs.existsSync(LOGS_DIR)) {
@@ -85,7 +87,7 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     _queryRunner?: QueryRunner,
   ) {
     // Only log warnings
-    if (level === "warn") {
+    if (level === LOG_LEVELS.WARN) {
       this.logger.warn(message);
       writeToLogFile(`WARN: ${message}`);
     }

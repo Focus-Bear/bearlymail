@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { calendar_v3, google } from "googleapis";
 
+import { LLM_PROVIDER_STRINGS } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
@@ -336,7 +337,9 @@ export async function generateMeetingReply(
   let llmProvider: LLMProvider | undefined;
   if (provider) {
     llmProvider =
-      provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+      provider === LLM_PROVIDER_STRINGS.GEMINI
+        ? LLMProvider.GEMINI
+        : LLMProvider.OPENAI;
   }
 
   try {

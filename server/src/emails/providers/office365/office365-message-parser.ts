@@ -1,3 +1,7 @@
+import {
+  CONTENT_TYPES,
+  EMAIL_IMPORTANCE,
+} from "../../../constants/domain-types";
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 
 /**
@@ -81,9 +85,9 @@ export function parseOffice365Message(
   const threadId = messageData.conversationId || messageData.id;
   const importance = messageData.importance || "normal";
   let starCount: number;
-  if (importance === "high") {
+  if (importance === EMAIL_IMPORTANCE.HIGH) {
     starCount = 3;
-  } else if (importance === "low") {
+  } else if (importance === EMAIL_IMPORTANCE.LOW) {
     starCount = 1;
   } else {
     starCount = 0;
@@ -92,7 +96,7 @@ export function parseOffice365Message(
   // Extract body content
   const bodyContent =
     messageData.body?.content || messageData.bodyPreview || "";
-  const isHtml = messageData.body?.contentType === "html";
+  const isHtml = messageData.body?.contentType === CONTENT_TYPES.HTML;
   const htmlBody = isHtml ? bodyContent : undefined;
   const body = isHtml
     ? bodyContent.replace(/<[^>]*>/g, "").trim() ||
@@ -127,7 +131,7 @@ export function extractBodyFromOffice365Message(
 ): { body: string; htmlBody?: string } {
   const bodyContent =
     messageData.body?.content || messageData.bodyPreview || "";
-  const isHtml = messageData.body?.contentType === "html";
+  const isHtml = messageData.body?.contentType === CONTENT_TYPES.HTML;
 
   let body = "";
   let htmlBody: string | undefined;

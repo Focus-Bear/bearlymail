@@ -17,6 +17,7 @@ import PgBoss from "pg-boss";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { getJobPriority } from "../queue/job-priorities";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
@@ -39,7 +40,7 @@ export class EmailSendController {
     private readonly emailProviderManager: EmailProviderManager,
     private readonly usersService: UsersService,
     private readonly emailAdminService: EmailAdminService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => ScheduledEmailsService))
     private readonly scheduledEmailsService: ScheduledEmailsService,
   ) {}

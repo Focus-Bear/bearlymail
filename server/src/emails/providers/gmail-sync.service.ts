@@ -3,8 +3,11 @@ import { gmail_v1, google } from "googleapis";
 import PgBoss from "pg-boss";
 
 import { authLogger } from "../../auth/auth-logger";
+import { SYNC_STATUS } from "../../constants/domain-statuses";
+import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
+import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import {
@@ -56,7 +59,7 @@ export class GmailSyncService {
     @Inject(forwardRef(() => EmailsService))
     private readonly emailsService: EmailsService,
     private readonly scanEmailService: ScanEmailService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly syncHistoryService: SyncHistoryService,
     @Inject(forwardRef(() => GmailProvider))
     private readonly gmailProvider: GmailProvider,
@@ -100,7 +103,11 @@ export class GmailSyncService {
     const responseData = errResponse?.data as { error?: string } | undefined;
     if (responseData?.error) {
       const code = responseData.error.toLowerCase();
-      if (code === "invalid_token" || code === "invalid_grant") return true;
+      if (
+        code === OAUTH_ERROR_CODES.INVALID_TOKEN ||
+        code === OAUTH_ERROR_CODES.INVALID_GRANT
+      )
+        return true;
     }
     const message = (
       error instanceof Error ? error.message : String(error)
@@ -602,7 +609,7 @@ export class GmailSyncService {
       const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
 
       const updates = dbThreads
-        .filter((thread) => thread.syncStatus === "synced")
+        .filter((thread) => thread.syncStatus === SYNC_STATUS.SYNCED)
         .filter(
           (thread) =>
             thread.isArchived !== !inboxThreadIds.has(thread.threadId) ||

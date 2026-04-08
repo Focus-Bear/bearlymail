@@ -23,6 +23,7 @@ const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { getJobPriority } from "../queue/job-priorities";
 import {
@@ -70,7 +71,7 @@ export class EmailDebugService {
     private emailProviderManager: EmailProviderManager,
     @Inject(forwardRef(() => GmailProvider))
     private gmailProvider: GmailProvider,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private blockedSendersService: BlockedSendersService,
     private syncHistoryService: SyncHistoryService,
     private emailDebugCategoryService: EmailDebugCategoryService,

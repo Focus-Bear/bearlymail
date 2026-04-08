@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -39,7 +40,7 @@ export class EmailArchiveService {
     private emailCrudService: EmailCrudService,
     private emailThreadService: EmailThreadService,
     private emailReadService: EmailReadService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
   ) {}

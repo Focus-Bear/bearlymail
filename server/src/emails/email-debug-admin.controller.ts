@@ -29,6 +29,8 @@ import PgBoss from "pg-boss";
 import { AdminGuard } from "../auth/admin.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { DebugService } from "../debug/debug.service";
 import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
@@ -44,7 +46,7 @@ export class EmailDebugAdminController {
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailAdminService: EmailAdminService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly debugService: DebugService,
   ) {}
 
@@ -174,7 +176,7 @@ export class EmailDebugAdminController {
     @Param("id") id: string,
     @Query("deep") deep?: string,
   ) {
-    const wantDeep = deep === "1" || deep === "true";
+    const wantDeep = deep === "1" || deep === BOOLEAN_STRING_VALUES.TRUE;
     return this.emailsService.getCategoryDebugData(req.user.userId, id, {
       deep: wantDeep,
     });

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { PusherService } from "../pusher/pusher.service";
 import { UsersService } from "../users/users.service";
@@ -11,7 +12,7 @@ export class ContactSyncProcessor implements OnModuleInit {
   private readonly logger = new Logger(ContactSyncProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly contactsService: ContactsService,
     private readonly usersService: UsersService,
     private readonly pusherService: PusherService,

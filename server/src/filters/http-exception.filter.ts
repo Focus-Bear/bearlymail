@@ -10,10 +10,11 @@ import {
 } from "@nestjs/common";
 import { Request, Response } from "express";
 
+import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { logErrorToFile } from "../utils/error-logger";
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

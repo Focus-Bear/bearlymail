@@ -4,7 +4,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
 import { Repository } from "typeorm";
 
+import { SUBSCRIPTION_STATUS } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { MEMBER_STATUS } from "../constants/member-roles";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { Organization } from "../database/entities/organization.entity";
@@ -150,8 +152,8 @@ export class SubscriptionsService {
 
     // Check if user already has an active subscription
     if (
-      user.subscriptionStatus === "active" ||
-      user.subscriptionStatus === "trial"
+      user.subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE ||
+      user.subscriptionStatus === SUBSCRIPTION_STATUS.TRIAL
     ) {
       return { success: false };
     }
@@ -164,7 +166,7 @@ export class SubscriptionsService {
     );
 
     await this.userRepository.update(userId, {
-      subscriptionStatus: "trial",
+      subscriptionStatus: SUBSCRIPTION_STATUS.TRIAL,
       trialStartedAt: trialStartDate,
       subscriptionExpiresAt: trialEndDate,
     });
@@ -189,13 +191,13 @@ export class SubscriptionsService {
     // Check if subscription has expired
     if (user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date()) {
       if (
-        user.subscriptionStatus === "trial" ||
-        user.subscriptionStatus === "active"
+        user.subscriptionStatus === SUBSCRIPTION_STATUS.TRIAL ||
+        user.subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE
       ) {
         await this.userRepository.update(userId, {
-          subscriptionStatus: "expired",
+          subscriptionStatus: SUBSCRIPTION_STATUS.EXPIRED,
         });
-        return { status: "expired", isActive: false };
+        return { status: SUBSCRIPTION_STATUS.EXPIRED, isActive: false };
       }
     }
 
@@ -216,7 +218,9 @@ export class SubscriptionsService {
         if (activeEntitlementKeys.length > 0) {
           // User has active subscription via RevenueCat
           const firstEntitlement = activeEntitlements[activeEntitlementKeys[0]];
-          const status = firstEntitlement?.will_renew ? "active" : "trial";
+          const status = firstEntitlement?.will_renew
+            ? SUBSCRIPTION_STATUS.ACTIVE
+            : SUBSCRIPTION_STATUS.TRIAL;
           const expiresAt = firstEntitlement?.expires_date
             ? new Date(firstEntitlement.expires_date)
             : undefined;
@@ -238,13 +242,13 @@ export class SubscriptionsService {
 
     // Fall back to database status
     const isActive =
-      user.subscriptionStatus === "active" ||
-      (user.subscriptionStatus === "trial" &&
+      user.subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE ||
+      (user.subscriptionStatus === SUBSCRIPTION_STATUS.TRIAL &&
         user.subscriptionExpiresAt &&
         user.subscriptionExpiresAt > new Date());
 
     return {
-      status: user.subscriptionStatus || "expired",
+      status: user.subscriptionStatus || SUBSCRIPTION_STATUS.EXPIRED,
       expiresAt: user.subscriptionExpiresAt,
       isActive,
     };
@@ -320,7 +324,7 @@ export class SubscriptionsService {
                   : undefined;
 
                 await this.userRepository.update(user.id, {
-                  subscriptionStatus: "active",
+                  subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
                   subscriptionExpiresAt: expiresAt,
                   revenueCatUserId: app_user_id,
                 });
@@ -335,13 +339,13 @@ export class SubscriptionsService {
 
         case "CANCELLATION":
           await this.userRepository.update(user.id, {
-            subscriptionStatus: "cancelled",
+            subscriptionStatus: SUBSCRIPTION_STATUS.CANCELLED,
           });
           break;
 
         case "EXPIRATION":
           await this.userRepository.update(user.id, {
-            subscriptionStatus: "expired",
+            subscriptionStatus: SUBSCRIPTION_STATUS.EXPIRED,
           });
           break;
       }
@@ -395,9 +399,9 @@ export class SubscriptionsService {
     await this.userRepository.update(userId, {
       subscriptionExpiresAt: newExpiresAt,
       subscriptionStatus:
-        user.subscriptionStatus === "expired"
-          ? "trial"
-          : user.subscriptionStatus || "trial",
+        user.subscriptionStatus === SUBSCRIPTION_STATUS.EXPIRED
+          ? SUBSCRIPTION_STATUS.TRIAL
+          : user.subscriptionStatus || SUBSCRIPTION_STATUS.TRIAL,
     });
 
     this.logger.log(
@@ -471,7 +475,7 @@ export class SubscriptionsService {
     }
 
     await this.userRepository.update(userId, {
-      subscriptionStatus: "active",
+      subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
       ...(expiresAt ? { subscriptionExpiresAt: expiresAt } : {}),
     });
     this.logger.log(`Team seat activated for user ${userId} in org ${orgId}`);
@@ -500,7 +504,7 @@ export class SubscriptionsService {
     }
 
     await this.userRepository.update(userId, {
-      subscriptionStatus: "expired",
+      subscriptionStatus: SUBSCRIPTION_STATUS.EXPIRED,
     });
     this.logger.log(`Team seat deactivated for user ${userId}`);
   }
@@ -588,7 +592,7 @@ export class SubscriptionsService {
   ): Promise<void> {
     if (eventType === "INITIAL_PURCHASE" || eventType === "RENEWAL") {
       const members = await this.memberRepository.find({
-        where: { organizationId: org.id, status: "active" },
+        where: { organizationId: org.id, status: MEMBER_STATUS.ACTIVE },
       });
       await Promise.all(
         members
@@ -600,7 +604,7 @@ export class SubscriptionsService {
 
     if (eventType === "CANCELLATION" || eventType === "EXPIRATION") {
       const members = await this.memberRepository.find({
-        where: { organizationId: org.id, status: "active" },
+        where: { organizationId: org.id, status: MEMBER_STATUS.ACTIVE },
       });
       await Promise.all(
         members
@@ -656,7 +660,7 @@ export class SubscriptionsService {
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
     await this.userRepository.update(userId, {
-      subscriptionStatus: "active",
+      subscriptionStatus: SUBSCRIPTION_STATUS.ACTIVE,
       subscriptionExpiresAt: expiresAt,
     });
 

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { MoreThan, Repository } from "typeorm";
 
+import { CONTEXT_ANALYSIS_STATUS } from "../constants/domain-statuses";
 import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
@@ -54,7 +55,7 @@ export class ContextAnalysisQueryService {
       analyzedCount: analysis.analyzedCount ?? undefined,
       stats: analysis.stats ?? undefined,
       errorMessage:
-        analysis.status === "failed"
+        analysis.status === CONTEXT_ANALYSIS_STATUS.FAILED
           ? (analysis.errorMessage ?? undefined)
           : undefined,
       completedBatches,

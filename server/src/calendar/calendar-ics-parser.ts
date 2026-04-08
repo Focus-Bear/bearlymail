@@ -9,6 +9,7 @@
 
 import * as ical from "node-ical";
 
+import { ICS_DATE_TYPES } from "../constants/domain-types";
 import { mapToIANATimezone } from "../utils/timezone.utils";
 import { IcsAttendee, IcsEventData } from "./ics-event.types";
 
@@ -171,7 +172,7 @@ function buildEventResult(
       title,
       startAt: startDate.toISOString(),
       endAt: endDate?.toISOString(),
-      allDay: extEntry.datetype === "date",
+      allDay: extEntry.datetype === ICS_DATE_TYPES.DATE,
       location: extractStringValue(extEntry.location),
       description: extractStringValue(extEntry.description),
       organizer,

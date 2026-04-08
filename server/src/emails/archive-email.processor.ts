@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { logErrorToFile } from "../utils/error-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -23,7 +24,7 @@ export class ArchiveEmailProcessor implements OnModuleInit {
   private readonly logger = new Logger(ArchiveEmailProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
   ) {}

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
@@ -16,7 +17,7 @@ export class GitHubMetadataProcessor implements OnModuleInit {
   private readonly logger = new Logger(GitHubMetadataProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly githubEmailInfoService: GitHubEmailInfoService,
     private readonly repoMappingService: GitHubRepoMappingService,
   ) {}

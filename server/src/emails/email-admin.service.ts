@@ -5,6 +5,8 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { QUEUE_JOB_STATE } from "../constants/domain-statuses";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { INBOX_MODES } from "../constants/query-limits";
 import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
@@ -34,7 +36,7 @@ export class EmailAdminService {
   private readonly logger = new Logger(EmailAdminService.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailsService: EmailsService,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
@@ -186,11 +188,16 @@ export class EmailAdminService {
         avgCompletionTimeMs: null,
       };
     }
-    if (state === "created") statsByJobType[jobType].queued = count;
-    else if (state === "active") statsByJobType[jobType].active = count;
-    else if (state === "retry") statsByJobType[jobType].retry = count;
-    else if (state === "failed") statsByJobType[jobType].failed = count;
-    else if (state === "completed") statsByJobType[jobType].completed = count;
+    if (state === QUEUE_JOB_STATE.CREATED)
+      statsByJobType[jobType].queued = count;
+    else if (state === QUEUE_JOB_STATE.ACTIVE)
+      statsByJobType[jobType].active = count;
+    else if (state === QUEUE_JOB_STATE.RETRY)
+      statsByJobType[jobType].retry = count;
+    else if (state === QUEUE_JOB_STATE.FAILED)
+      statsByJobType[jobType].failed = count;
+    else if (state === QUEUE_JOB_STATE.COMPLETED)
+      statsByJobType[jobType].completed = count;
   }
 
   mergeArchiveStatsRow(

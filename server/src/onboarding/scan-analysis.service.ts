@@ -4,6 +4,7 @@ import { gmail_v1, google } from "googleapis";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextService } from "../context/context.service";
 import { ScanEmail } from "../database/entities/scan-email.entity";
@@ -23,7 +24,7 @@ export class ScanAnalysisService {
     private contextService: ContextService,
     private usersService: UsersService,
     private llmService: LLMService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**

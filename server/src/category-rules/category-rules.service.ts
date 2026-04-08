@@ -3,6 +3,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
+import {
+  CATEGORY_RULE_KINDS,
+  CATEGORY_RULE_MATCH_MODES,
+  CATEGORY_RULE_TYPES,
+} from "../constants/domain-types";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 import {
   CategoryRule,
@@ -190,7 +195,8 @@ export class CategoryRulesService {
     }
 
     const hashInput =
-      ruleType === "sender_domain_and_subject_prefix" && subjectPrefixToStore
+      ruleType === CATEGORY_RULE_MATCH_MODES.SENDER_DOMAIN_AND_SUBJECT_PREFIX &&
+      subjectPrefixToStore
         ? `${pattern.toLowerCase()}|${subjectPrefixToStore.toLowerCase()}`
         : pattern.toLowerCase();
 
@@ -369,7 +375,7 @@ export class CategoryRulesService {
     }
 
     if (dto.compositeSpec !== undefined) {
-      if (rule.ruleKind !== "composite") {
+      if (rule.ruleKind !== CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
         throw new BadRequestException(
           "compositeSpec can only be set on composite rules",
         );
@@ -504,7 +510,7 @@ export class CategoryRulesService {
     email: EmailMetadata,
   ): CategoryRuleMatch | null {
     for (const rule of rules) {
-      if (rule.ruleKind !== "composite") {
+      if (rule.ruleKind !== CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
         continue;
       }
       const spec = rule.compositeSpec;
@@ -534,7 +540,7 @@ export class CategoryRulesService {
   ): CategoryRuleMatch | null {
     const legacyRules = rules.filter(
       (rule) =>
-        rule.ruleKind === "legacy" &&
+        rule.ruleKind === CATEGORY_RULE_KINDS.LEGACY &&
         rule.ruleType != null &&
         rule.patternHash != null,
     );
@@ -621,7 +627,7 @@ export class CategoryRulesService {
 
     const hashes = this.buildEmailHashes(email);
     const evaluations: CategoryRuleEvaluationDebug[] = rules.map((rule) => {
-      if (rule.ruleKind === "composite") {
+      if (rule.ruleKind === CATEGORY_RULE_MATCH_MODES.COMPOSITE) {
         const spec = rule.compositeSpec;
         let patternMatches = false;
         let compositeDetail: CompositeRuleEvaluationDetail | undefined;
@@ -671,21 +677,28 @@ export class CategoryRulesService {
     rule: Pick<CategoryRule, "ruleType" | "patternHash" | "ruleKind">,
     hashes: ReturnType<CategoryRulesService["buildEmailHashes"]>,
   ): boolean {
-    if (rule.ruleKind !== "legacy" || !rule.ruleType || !rule.patternHash) {
+    if (
+      rule.ruleKind !== CATEGORY_RULE_KINDS.LEGACY ||
+      !rule.ruleType ||
+      !rule.patternHash
+    ) {
       return false;
     }
     const { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash } =
       hashes;
-    if (rule.ruleType === "exact_sender") {
+    if (rule.ruleType === CATEGORY_RULE_TYPES.EXACT_SENDER) {
       return rule.patternHash === senderHash;
     }
-    if (rule.ruleType === "sender_domain") {
+    if (rule.ruleType === CATEGORY_RULE_TYPES.SENDER_DOMAIN) {
       return domainHash !== null && rule.patternHash === domainHash;
     }
-    if (rule.ruleType === "subject_prefix") {
+    if (rule.ruleType === CATEGORY_RULE_TYPES.SUBJECT_PREFIX) {
       return prefixHash !== null && rule.patternHash === prefixHash;
     }
-    if (rule.ruleType === "sender_domain_and_subject_prefix") {
+    if (
+      rule.ruleType ===
+      CATEGORY_RULE_MATCH_MODES.SENDER_DOMAIN_AND_SUBJECT_PREFIX
+    ) {
       if (!domainPattern || !subjectPrefix) {
         return false;
       }
@@ -724,7 +737,10 @@ export class CategoryRulesService {
       ruleType: rule.ruleType,
       pattern: rule.pattern ?? "",
       subjectPrefix: rule.subjectPrefix,
-      compositeSpec: rule.ruleKind === "composite" ? rule.compositeSpec : null,
+      compositeSpec:
+        rule.ruleKind === CATEGORY_RULE_MATCH_MODES.COMPOSITE
+          ? rule.compositeSpec
+          : null,
       isEnabled: rule.isEnabled,
       hitCount: rule.hitCount,
       createdAt: rule.createdAt,

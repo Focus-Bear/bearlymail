@@ -5,6 +5,10 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  NODE_ENV_VALUES,
+} from "../constants/domain-types";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { UsersService } from "../users/users.service";
 
@@ -28,8 +32,12 @@ export class GmailRequiredGuard implements CanActivate {
     // without needing a per-step override, so both the server startup and the
     // E2E test step run with the Gmail guard bypassed.
     const isCiTestEnv =
-      process.env.CI === "true" && process.env.NODE_ENV === "test";
-    if (process.env.CI_SEARCH_FALLBACK === "true" || isCiTestEnv) {
+      process.env.CI === BOOLEAN_STRING_VALUES.TRUE &&
+      process.env.NODE_ENV === NODE_ENV_VALUES.TEST;
+    if (
+      process.env.CI_SEARCH_FALLBACK === BOOLEAN_STRING_VALUES.TRUE ||
+      isCiTestEnv
+    ) {
       return true;
     }
 

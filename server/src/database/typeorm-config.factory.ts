@@ -1,6 +1,11 @@
 import { ConfigService } from "@nestjs/config";
 import { TypeOrmModuleOptions } from "@nestjs/typeorm";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  LOCALHOST_VALUES,
+} from "../constants/domain-types";
+
 /**
  * Shared TypeORM configuration factory used by both AppModule and WorkerModule.
  *
@@ -15,9 +20,12 @@ export function createTypeOrmConfig(
   overrides?: Partial<TypeOrmModuleOptions>,
 ): TypeOrmModuleOptions {
   const dbHost = configService.get<string>("DB_HOST");
-  const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
-  const sslEnabled = configService.get<string>("DB_SSL") === "true";
-  const sslDisabled = configService.get<string>("DB_SSL") === "false";
+  const isLocal =
+    dbHost === LOCALHOST_VALUES.LOCALHOST || dbHost === "127.0.0.1";
+  const sslEnabled =
+    configService.get<string>("DB_SSL") === BOOLEAN_STRING_VALUES.TRUE;
+  const sslDisabled =
+    configService.get<string>("DB_SSL") === BOOLEAN_STRING_VALUES.FALSE;
   const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
   const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
   // Safer default: 4 processes × 5 = 20 TypeORM connections

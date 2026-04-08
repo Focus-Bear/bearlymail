@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
@@ -57,7 +58,7 @@ export class LLMPriorityBatchService {
   private readonly logger = new Logger(LLMPriorityBatchService.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)

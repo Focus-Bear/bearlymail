@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import PgBoss = require("pg-boss");
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -38,7 +39,7 @@ export class WorkflowProcessor implements OnModuleInit {
   private readonly logger = new Logger(WorkflowProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(Email)
     private readonly emailRepo: Repository<Email>,
     @InjectRepository(EmailThread)

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { CATEGORY_RESERVED_NAMES } from "../constants/domain-types";
 import { CATEGORY_SHORTLIST } from "../constants/llm-constants";
 import { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
@@ -95,7 +96,7 @@ export class CategoryShortlistService {
 
     // Exclude "Other" from the shortlist input — the smart model handles that
     const shortlistableCategories = allCategories.filter(
-      (cat) => cat.name.toLowerCase() !== "other",
+      (cat) => cat.name.toLowerCase() !== CATEGORY_RESERVED_NAMES.OTHER,
     );
 
     const categoryListText = shortlistableCategories
@@ -194,7 +195,7 @@ export class CategoryShortlistService {
     categoryByNameLower: Map<string, CategoryItem>;
   } {
     const eligible = allCategories.filter(
-      (cat) => cat.name.toLowerCase() !== "other",
+      (cat) => cat.name.toLowerCase() !== CATEGORY_RESERVED_NAMES.OTHER,
     );
     const categoryByKeyLower = new Map<string, CategoryItem>();
     const categoryByNameLower = new Map<string, CategoryItem>();

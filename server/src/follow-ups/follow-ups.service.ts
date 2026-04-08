@@ -3,7 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { LessThanOrEqual, Repository } from "typeorm";
 
+import { FOLLOW_UP_GENERATION_STATUS } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextService } from "../context/context.service";
@@ -35,7 +37,7 @@ export class FollowUpsService {
     private usersService: UsersService,
     private contextService: ContextService,
     private emailsService: EmailsService,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
   ) {}
 
   /**
@@ -501,7 +503,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
       // Skip if already has draft or is currently generating
       if (
         followUp.draftFollowUp ||
-        followUp.generationStatus === "generating"
+        followUp.generationStatus === FOLLOW_UP_GENERATION_STATUS.GENERATING
       ) {
         continue;
       }

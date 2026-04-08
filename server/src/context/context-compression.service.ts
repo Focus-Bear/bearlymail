@@ -5,6 +5,7 @@ import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 
 import { CategoryKeyAssignmentService } from "../category-keys/category-key-assignment.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import {
@@ -28,7 +29,7 @@ export class ContextCompressionService {
     private contextRepository: Repository<UserContext>,
     private llmService: LLMService,
     private categoryService: ContextCategoryService,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private categoryKeyAssignmentService: CategoryKeyAssignmentService,
   ) {}
 

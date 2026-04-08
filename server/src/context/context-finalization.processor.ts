@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
   MAX_FINALIZATION_RETRIES,
@@ -45,7 +46,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
   private readonly finalizationConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private contextService: ContextService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import PgBoss = require("pg-boss");
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";
@@ -19,7 +20,7 @@ export class AutoResponderProcessor implements OnModuleInit {
   private readonly logger = new Logger(AutoResponderProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private autoResponderService: AutoResponderService,
   ) {}
 

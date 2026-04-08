@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import cluster from "cluster";
 import os from "os";
 
+import { NODE_ENV_VALUES } from "./constants/domain-types";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
 import { WorkerModule } from "./worker.module";
@@ -14,7 +15,7 @@ initializeGlobalErrorTracking();
 
 // Get number of worker processes from env or use CPU cores
 // In development, use half the CPU cores to leave resources for other dev tools
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
 const cpuCores = os.cpus().length;
 // Half cores in dev, minimum 1
 // All cores in production, minimum 2

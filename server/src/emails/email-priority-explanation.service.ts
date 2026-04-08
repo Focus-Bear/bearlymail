@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { RATIOS } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import {
@@ -98,7 +99,7 @@ export class EmailPriorityExplanationService {
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
     private usersService: UsersService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Optional() private cloudWatchService?: CloudWatchService,
   ) {}
 

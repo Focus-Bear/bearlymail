@@ -1,6 +1,10 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 
+import {
+  EMAIL_IMPORTANCE,
+  OFFICE365_FOLDER_IDS,
+} from "../../../constants/domain-types";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
@@ -63,8 +67,10 @@ export async function verifyThreadStatusesInOffice365(
           }
 
           const latestMessage = conversationMessages[0];
-          const isImportant = latestMessage.importance === "high";
-          const isInInbox = latestMessage.parentFolderId === "inbox";
+          const isImportant =
+            latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
+          const isInInbox =
+            latestMessage.parentFolderId === OFFICE365_FOLDER_IDS.INBOX;
           const starCount = isImportant ? 3 : 0;
           const isArchived = !isInInbox;
 
@@ -160,8 +166,9 @@ export async function getExistingThreadUpdates(
       }
 
       const latestMessage = conversationMessages[0];
-      const isImportant = latestMessage.importance === "high";
-      const isInInbox = latestMessage.parentFolderId === "inbox";
+      const isImportant = latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
+      const isInInbox =
+        latestMessage.parentFolderId === OFFICE365_FOLDER_IDS.INBOX;
       const starCount = isImportant ? 3 : 0;
       const isArchived = !isInInbox;
 

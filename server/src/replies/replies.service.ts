@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { LLM_PROVIDER_STRINGS, TONE_STYLES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { HOURS_PER_DAY } from "../constants/time-constants";
@@ -148,7 +149,9 @@ export class RepliesService {
       let llmProvider: LLMProvider | undefined = undefined;
       if (provider) {
         llmProvider =
-          provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+          provider === LLM_PROVIDER_STRINGS.GEMINI
+            ? LLMProvider.GEMINI
+            : LLMProvider.OPENAI;
       }
 
       return await this.llmService.generateReplyDraft(
@@ -205,9 +208,9 @@ export class RepliesService {
 
     // Add greeting based on tone
     let greeting: string;
-    if (tone === "casual") {
+    if (tone === TONE_STYLES.CASUAL) {
       greeting = "Hey";
-    } else if (tone === "formal") {
+    } else if (tone === TONE_STYLES.FORMAL) {
       greeting = "Dear";
     } else {
       greeting = "Hi";
@@ -223,17 +226,17 @@ export class RepliesService {
     _phrases: string[],
   ): string {
     let greeting: string;
-    if (tone === "casual") {
+    if (tone === TONE_STYLES.CASUAL) {
       greeting = "Hey";
-    } else if (tone === "formal") {
+    } else if (tone === TONE_STYLES.FORMAL) {
       greeting = "Dear";
     } else {
       greeting = "Hi";
     }
     let closing: string;
-    if (tone === "casual") {
+    if (tone === TONE_STYLES.CASUAL) {
       closing = "Thanks!";
-    } else if (tone === "formal") {
+    } else if (tone === TONE_STYLES.FORMAL) {
       closing = "Best regards";
     } else {
       closing = "Best";

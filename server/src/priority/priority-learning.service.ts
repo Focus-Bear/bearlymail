@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { PRIORITY_LEARNING_REASONS } from "../constants/domain-types";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -511,9 +512,9 @@ export class PriorityLearningService {
     reasonType: string,
     reasonText: string,
   ): Promise<void> {
-    if (reasonType === "wrong_sender_priority") {
+    if (reasonType === PRIORITY_LEARNING_REASONS.WRONG_SENDER_PRIORITY) {
       await this.handleWrongSenderPriorityReason(userId, email, reasonText);
-    } else if (reasonType === "topic_mismatch") {
+    } else if (reasonType === PRIORITY_LEARNING_REASONS.TOPIC_MISMATCH) {
       await this.handleTopicMismatchReason(userId, reasonText);
     }
   }

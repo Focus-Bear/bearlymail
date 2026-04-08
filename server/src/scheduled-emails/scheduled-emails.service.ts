@@ -3,6 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DateTime } from "luxon";
 import { LessThanOrEqual, Repository } from "typeorm";
 
+import { SCHEDULED_EMAIL_STATUS } from "../constants/domain-statuses";
+import { SCHEDULED_EMAIL_TYPES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ContactsService } from "../contacts/contacts.service";
 import {
@@ -124,7 +126,7 @@ export class ScheduledEmailsService {
       throw new Error("Scheduled email not found");
     }
 
-    if (scheduledEmail.status !== "pending") {
+    if (scheduledEmail.status !== SCHEDULED_EMAIL_STATUS.PENDING) {
       throw new Error(
         `Cannot cancel email with status: ${scheduledEmail.status}`,
       );
@@ -208,14 +210,14 @@ export class ScheduledEmailsService {
       content: Buffer.from(att.content, "base64"),
     }));
 
-    if (scheduledEmail.emailType === "reply") {
+    if (scheduledEmail.emailType === SCHEDULED_EMAIL_TYPES.REPLY) {
       await this.sendScheduledReply(
         scheduledEmail,
         userId,
         bodyWithSignature,
         attachments,
       );
-    } else if (scheduledEmail.emailType === "forward") {
+    } else if (scheduledEmail.emailType === SCHEDULED_EMAIL_TYPES.FORWARD) {
       await this.sendScheduledForward(
         scheduledEmail,
         userId,

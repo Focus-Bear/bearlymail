@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
@@ -24,7 +25,7 @@ export class EmailStarService {
     private emailProviderManager: EmailProviderManager,
     @Inject(forwardRef(() => SuggestedRepliesService))
     private suggestedRepliesService: SuggestedRepliesService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   /**

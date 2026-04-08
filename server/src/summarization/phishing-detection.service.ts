@@ -14,6 +14,8 @@
  *    the phishing result is null (fail-safe). Keyword signals feed the LLM prompt only.
  */
 
+import { PHISHING_CONFIDENCE } from "../constants/domain-types";
+
 export type PhishingConfidence = "low" | "medium" | "high";
 
 export interface PhishingSignal {
@@ -122,7 +124,11 @@ const CONFIDENCE_LEVELS: Record<PhishingConfidence, number> = {
 export function validatePhishingConfidence(
   value: unknown,
 ): PhishingConfidence | null {
-  if (value === "low" || value === "medium" || value === "high") {
+  if (
+    value === PHISHING_CONFIDENCE.LOW ||
+    value === PHISHING_CONFIDENCE.MEDIUM ||
+    value === PHISHING_CONFIDENCE.HIGH
+  ) {
     return value;
   }
   return null;
@@ -378,7 +384,11 @@ export function detectPhishingSignal(
   }
 
   // Suppress very low-confidence signals that only triggered one minor phrase
-  if (confidence === "low" && reasons.length === 1 && suspicionScore <= 1) {
+  if (
+    confidence === PHISHING_CONFIDENCE.LOW &&
+    reasons.length === 1 &&
+    suspicionScore <= 1
+  ) {
     return null;
   }
 

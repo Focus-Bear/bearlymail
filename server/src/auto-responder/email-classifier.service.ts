@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 
+import { AUTO_REPLY_VALUES } from "../constants/domain-types";
 import {
   BODY_PREVIEW_LENGTHS,
   EMAIL_CLASSIFICATION,
@@ -277,7 +278,7 @@ export class EmailClassifierService {
 
     // Check for OOO
     const isOutOfOffice =
-      autoSubmitted === "auto-replied" ||
+      autoSubmitted === AUTO_REPLY_VALUES.AUTO_REPLIED ||
       (autoResponseSuppress && autoResponseSuppress.includes("OOF"));
 
     return {

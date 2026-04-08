@@ -14,6 +14,7 @@ import {
 import PgBoss from "pg-boss";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContactSearchResult, ContactsService } from "./contacts.service";
@@ -23,7 +24,7 @@ import { ContactSearchResult, ContactsService } from "./contacts.service";
 export class ContactsController {
   constructor(
     private readonly contactsService: ContactsService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   @Get("search")

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -13,7 +14,7 @@ export class EmailBacklogService {
   private readonly logger = new Logger(EmailBacklogService.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @InjectRepository(EmailThread)
     private readonly threadRepository: Repository<EmailThread>,
     @InjectRepository(Email)

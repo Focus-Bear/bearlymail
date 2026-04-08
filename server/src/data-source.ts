@@ -3,15 +3,22 @@ import { config } from "dotenv";
 import * as path from "path";
 import { DataSource } from "typeorm";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  LOCALHOST_VALUES,
+} from "./constants/domain-types";
+
 // Load environment variables
 config({ path: path.join(__dirname, "../.env") });
 
 const configService = new ConfigService();
 
 const dbHost = configService.get<string>("DB_HOST") || "localhost";
-const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
-const sslEnabled = configService.get<string>("DB_SSL") === "true";
-const sslDisabled = configService.get<string>("DB_SSL") === "false";
+const isLocal = dbHost === LOCALHOST_VALUES.LOCALHOST || dbHost === "127.0.0.1";
+const sslEnabled =
+  configService.get<string>("DB_SSL") === BOOLEAN_STRING_VALUES.TRUE;
+const sslDisabled =
+  configService.get<string>("DB_SSL") === BOOLEAN_STRING_VALUES.FALSE;
 
 // Use SSL if explicitly enabled, or if not local and not explicitly disabled
 const sslRequired = sslEnabled || (!isLocal && !sslDisabled);

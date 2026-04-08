@@ -6,6 +6,7 @@
  * in both EmailDebugService and any future debug modules.
  */
 
+import { SYNC_STATUS } from "../constants/domain-statuses";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -35,7 +36,7 @@ export async function buildConditionReasons(
     );
   }
 
-  if (thread.syncStatus === "unsynced") {
+  if (thread.syncStatus === SYNC_STATUS.UNSYNCED) {
     const minutesSinceUpdate = thread.syncStatusUpdatedAt
       ? Math.floor(
           (Date.now() - new Date(thread.syncStatusUpdatedAt).getTime()) /
@@ -169,7 +170,7 @@ export function buildStarredThreadReason(
   if (isBlocked) {
     return `BLOCKED_SENDER: sender "${latestEmail?.from ?? "unknown"}" is blocked`;
   }
-  if (thread.syncStatus === "unsynced") {
+  if (thread.syncStatus === SYNC_STATUS.UNSYNCED) {
     const minutesSinceUpdate = thread.syncStatusUpdatedAt
       ? Math.floor(
           (Date.now() - new Date(thread.syncStatusUpdatedAt).getTime()) /
@@ -336,7 +337,7 @@ export async function analyzeStarredThread(options: {
     visibility,
   );
   const isInGmailInbox = gmailInboxSet.has(gmailThreadId);
-  const hasUnsyncedChanges = thread.syncStatus === "unsynced";
+  const hasUnsyncedChanges = thread.syncStatus === SYNC_STATUS.UNSYNCED;
 
   return {
     threadId: gmailThreadId,

@@ -1,10 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 
 // Only log to file during local development
-const isDevelopment = process.env.NODE_ENV !== "production";
+const isDevelopment = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
 
 // Ensure logs directory exists
 const LOGS_DIR = path.join(process.cwd(), "logs");
@@ -199,7 +200,10 @@ export function setupGlobalErrorHandlers(source?: string): void {
       );
 
       // Capture to PostHog (production only, avoid noise in dev)
-      if (process.env.NODE_ENV === "production" && reason instanceof Error) {
+      if (
+        process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION &&
+        reason instanceof Error
+      ) {
         captureGlobalError(reason, {
           error_type: "unhandled_rejection",
           source: source || "unknown",
@@ -232,7 +236,7 @@ export function setupGlobalErrorHandlers(source?: string): void {
     logErrorToFile("Uncaught Exception", error, source);
 
     // Capture to PostHog (production only)
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION) {
       captureGlobalError(error, {
         error_type: "uncaught_exception",
         source: source || "unknown",

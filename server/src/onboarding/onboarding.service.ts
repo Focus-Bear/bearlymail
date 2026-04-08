@@ -3,7 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { CONTEXT_ANALYSIS_STATUS } from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -15,7 +17,7 @@ export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly usersService: UsersService,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
@@ -97,8 +99,8 @@ export class OnboardingService {
 
     const analysisFinished =
       latestAnalysis != null &&
-      (latestAnalysis.status === "completed" ||
-        latestAnalysis.status === "failed");
+      (latestAnalysis.status === CONTEXT_ANALYSIS_STATUS.COMPLETED ||
+        latestAnalysis.status === CONTEXT_ANALYSIS_STATUS.FAILED);
 
     // isReady when:
     // 1. The analysis job has finished (completed or failed), OR

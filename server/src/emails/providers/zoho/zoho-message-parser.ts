@@ -1,3 +1,4 @@
+import { EMAIL_IMPORTANCE } from "../../../constants/domain-types";
 import { MS_PER_SECOND } from "../../../constants/time-constants";
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 
@@ -36,8 +37,8 @@ export interface ZohoMailMessage {
 function importanceToStarCount(
   importance: ZohoMailMessage["importance"],
 ): number {
-  if (importance === "high") return 3;
-  if (importance === "low") return 1;
+  if (importance === EMAIL_IMPORTANCE.HIGH) return 3;
+  if (importance === EMAIL_IMPORTANCE.LOW) return 1;
   return 0;
 }
 

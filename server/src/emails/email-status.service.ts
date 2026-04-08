@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { MoreThan, Repository } from "typeorm";
 
+import { EMAIL_MODES } from "../constants/domain-types";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
@@ -177,7 +178,7 @@ export class EmailStatusService {
     // Apply the same mode-based starCount filter as buildThreadFilter in email-inbox.types.ts.
     // This ensures bucket counts match the thread count shown on the inbox tab for that mode.
     let modeFilter: string;
-    if (mode === "action" || mode === "follow-up") {
+    if (mode === EMAIL_MODES.ACTION || mode === EMAIL_MODES.FOLLOW_UP) {
       modeFilter = 'AND "starCount" > 0';
     } else {
       // triage (default): only threads not yet actioned

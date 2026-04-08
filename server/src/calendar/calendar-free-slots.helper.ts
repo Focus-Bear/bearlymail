@@ -3,6 +3,7 @@
  * Extracted from calendar.service.ts (issue #939 — pending decomposition batch 2).
  */
 
+import { TEMPLATE_PART_TYPES } from "../constants/domain-types";
 import {
   HOURS,
   MILLISECONDS,
@@ -38,7 +39,7 @@ export function toTzDate(date: Date, tz: string): Date {
   const parts = formatter.formatToParts(date);
   const dateMap: Record<string, string> = {};
   parts.forEach((part) => {
-    if (part.type !== "literal") {
+    if (part.type !== TEMPLATE_PART_TYPES.LITERAL) {
       dateMap[part.type] = part.value;
     }
   });

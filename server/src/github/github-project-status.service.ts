@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 
+import { GITHUB_FIELD_NAMES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { getErrorMessage } from "../types/common";
 
@@ -146,7 +147,10 @@ export class GitHubProjectStatusService {
         for (const field of project.fields.nodes) {
           if (!field) continue;
           const fieldName = field.name?.toLowerCase();
-          if (fieldName === "status" && field.options?.length) {
+          if (
+            fieldName === GITHUB_FIELD_NAMES.STATUS &&
+            field.options?.length
+          ) {
             if (!project.id || !item.id || !field.id) continue;
             return {
               projectId: project.id,

@@ -212,6 +212,35 @@ module.exports = {
         message:
           "Use a named constant for event/tier identifiers instead of a magic string.",
       },
+      {
+        // Phase 5: Flag lowercase string literals in === / !== comparisons.
+        // This catches status/type/role/mode comparisons that should use named constants
+        // from server/src/constants/ (e.g. SUBSCRIPTION_STATUS.ACTIVE, MEMBER_ROLES.OWNER).
+        // Matches 4+ char lowercase alpha/hyphen/underscore strings to avoid false positives
+        // on short strings. Excludes typeof checks (already handled by TypeScript).
+        // See: server/src/constants/domain-statuses.ts, domain-types.ts, member-roles.ts
+        selector:
+          "BinaryExpression[operator=/^(===|!==)$/]:not(:has(UnaryExpression[operator='typeof'])) > Literal[value=/^[a-z][a-z_-]{3,}$/]",
+        message:
+          "Use a named constant instead of a magic string in comparisons. See server/src/constants/.",
+      },
+      {
+        // Phase 5: Flag lowercase string literals in switch cases.
+        // Catches domain status/type/mode switch cases that should use named constants.
+        // Matches 4+ char lowercase alpha/hyphen/underscore strings.
+        selector: "SwitchCase > Literal[value=/^[a-z][a-z_-]{3,}$/]",
+        message:
+          "Use a named constant instead of a magic string in switch cases. See server/src/constants/.",
+      },
+      {
+        // Phase 6: Flag string literals passed directly to @Inject() decorator.
+        // Use a named constant from INJECT_TOKENS (server/src/constants/inject-tokens.ts)
+        // instead of inline strings in @Inject() decorators.
+        selector:
+          "Decorator[expression.callee.name='Inject'] > CallExpression > Literal",
+        message:
+          "Use a named constant from INJECT_TOKENS instead of a magic string in @Inject(). See server/src/constants/inject-tokens.ts.",
+      },
     ],
 
     // Require const for variables that are never reassigned
@@ -338,6 +367,47 @@ module.exports = {
       files: ['**/types/**/*.ts'],
       rules: {
         'id-denylist': 'off',
+      },
+    },
+    {
+      // Constant definition files — the source-of-truth `as const` objects define the strings
+      // that other files import. These string literals ARE the constants, not magic strings.
+      // Also covers prompts.ts and llm-operations.ts which already define their own constants.
+      // Phase 5+6 (issue #1095): Comparison, switch-case, and @Inject() selectors do not apply here.
+      files: [
+        '**/constants/**/*.ts',
+        '**/prompts.ts',
+        '**/llm-operations.ts',
+      ],
+      rules: {
+        'no-restricted-syntax': 'off',
+      },
+    },
+    {
+      // Module files that provide NestJS injection tokens use `provide: TOKEN` patterns.
+      // The token values are defined in inject-tokens.ts (already overridden above),
+      // and module files use INJECT_TOKENS.* constants. This override covers any remaining
+      // edge cases in module provider definitions.
+      files: ['**/*.module.ts'],
+      rules: {
+        // Module files may export/provide token strings in NestJS module metadata
+        // (e.g. exports: [INJECT_TOKENS.PG_BOSS]). These are already using constants;
+        // the override is a safety net for module-specific patterns.
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector: "CallExpression[callee.name='getPrompt'] > Literal",
+            message: "Pass a named constant to getPrompt() instead of a magic string.",
+          },
+          {
+            selector: "CallExpression[callee.property.name='captureEvent'] > Literal:first-child",
+            message: "Use a named constant for PostHog event names instead of a magic string.",
+          },
+          {
+            selector: "Property[key.name=/^(tier|eventName)$/] > Literal",
+            message: "Use a named constant for event/tier identifiers instead of a magic string.",
+          },
+        ],
       },
     },
     // llm-processor.ts override removed — Phase 7b split the 2198-line monolith into:

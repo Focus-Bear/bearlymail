@@ -14,6 +14,7 @@ import {
 import { Throttle } from "@nestjs/throttler";
 
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { AUTH_ACTION_TYPES } from "../constants/domain-types";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { logError } from "../utils/logger";
@@ -285,7 +286,11 @@ export class AuthController {
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);
-    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+    if (
+      !stateData ||
+      stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
+      !stateData.userId
+    )
       return false;
     try {
       const googleUser = req.user as {
@@ -354,7 +359,11 @@ export class AuthController {
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);
-    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+    if (
+      !stateData ||
+      stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
+      !stateData.userId
+    )
       return false;
     try {
       const microsoftUser = req.user as {
@@ -417,7 +426,11 @@ export class AuthController {
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);
-    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+    if (
+      !stateData ||
+      stateData.action !== AUTH_ACTION_TYPES.CONNECT ||
+      !stateData.userId
+    )
       return false;
     try {
       const zohoUser = req.user as {

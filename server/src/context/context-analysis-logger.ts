@@ -1,6 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import {
+  LOCALHOST_VALUES,
+  LOG_LEVELS,
+  NODE_ENV_VALUES,
+} from "../constants/domain-types";
 import { createLogger, logError, logWarn } from "../utils/logger";
 
 const logger = createLogger("ContextAnalysisLogger");
@@ -27,13 +32,13 @@ export function writeAnalysisLog(
   // Always log to console for visibility
   const consoleMessage = `${logPrefix} ${message}`;
   switch (level) {
-    case "error":
+    case LOG_LEVELS.ERROR:
       logError(consoleMessage);
       break;
-    case "warn":
+    case LOG_LEVELS.WARN:
       logWarn(consoleMessage);
       break;
-    case "debug":
+    case LOG_LEVELS.DEBUG:
       logger.debug(consoleMessage);
       break;
     default:
@@ -44,8 +49,10 @@ export function writeAnalysisLog(
   const dbHost = process.env.DB_HOST;
   const nodeEnv = process.env.NODE_ENV;
   const isLocal =
-    nodeEnv !== "production" &&
-    (dbHost === "localhost" || dbHost === "127.0.0.1" || !dbHost);
+    nodeEnv !== NODE_ENV_VALUES.PRODUCTION &&
+    (dbHost === LOCALHOST_VALUES.LOCALHOST ||
+      dbHost === "127.0.0.1" ||
+      !dbHost);
 
   if (!isLocal) {
     // Don't log to file in production

@@ -11,6 +11,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 
 import { AwsModule } from "../aws/aws.module";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { logErrorToFile } from "../utils/error-logger";
 import { QueueAutoscalingService } from "./queue-autoscaling.service";
 import { QueueMonitorService } from "./queue-monitor.service";
@@ -21,7 +22,7 @@ import { ResourceMonitorService } from "./resource-monitor.service";
   imports: [ConfigModule, TypeOrmModule, AwsModule],
   providers: [
     {
-      provide: "PG_BOSS",
+      provide: INJECT_TOKENS.PG_BOSS,
       useFactory: async (configService: ConfigService) => {
         const logger = new Logger("QueueModule");
         const dbHost = configService.get<string>("DB_HOST");
@@ -94,13 +95,13 @@ import { ResourceMonitorService } from "./resource-monitor.service";
     ResourceMonitorService,
     QueueAutoscalingService,
   ],
-  exports: ["PG_BOSS", QueueMonitorService, ResourceMonitorService],
+  exports: [INJECT_TOKENS.PG_BOSS, QueueMonitorService, ResourceMonitorService],
 })
 export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(QueueModule.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private queueMonitorService: QueueMonitorService,
     private resourceMonitorService: ResourceMonitorService,
     private queueAutoscalingService: QueueAutoscalingService,
@@ -144,4 +145,4 @@ export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
   }
 }
 
-export const InjectBoss = () => Inject("PG_BOSS");
+export const InjectBoss = () => Inject(INJECT_TOKENS.PG_BOSS);

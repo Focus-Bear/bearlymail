@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
@@ -20,7 +21,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
   private readonly logger = new Logger(WritingStyleLearningProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private usersService: UsersService,
     private writingStyleLearningService: WritingStyleLearningService,
     private emailProviderManager: EmailProviderManager,

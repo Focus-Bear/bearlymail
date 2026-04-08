@@ -16,6 +16,10 @@ import {
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import {
+  BOOLEAN_STRING_VALUES,
+  UPLOAD_FIELD_NAMES,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { EmailsService } from "../emails/emails.service";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
@@ -111,10 +115,10 @@ export class RepliesController {
     // Inline images use fieldname 'inlineImages'; their originalname encodes the
     // CID as "<cid>::::<filename>" so the MIME Content-ID header can be set correctly.
     const regularFiles = (allFiles ?? []).filter(
-      (fileItem) => fileItem.fieldname === "files",
+      (fileItem) => fileItem.fieldname === UPLOAD_FIELD_NAMES.FILES,
     );
     const inlineImageFiles = (allFiles ?? []).filter(
-      (fileItem) => fileItem.fieldname === "inlineImages",
+      (fileItem) => fileItem.fieldname === UPLOAD_FIELD_NAMES.INLINE_IMAGES,
     );
 
     const attachments = regularFiles.map((file) => ({
@@ -150,7 +154,7 @@ export class RepliesController {
         : body.expectedReplyHours;
     const isForward =
       typeof body.isForward === "string"
-        ? body.isForward === "true"
+        ? body.isForward === BOOLEAN_STRING_VALUES.TRUE
         : !!body.isForward;
 
     if (body.scheduledSendAt) {

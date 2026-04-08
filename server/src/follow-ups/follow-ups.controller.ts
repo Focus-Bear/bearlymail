@@ -15,6 +15,7 @@ import PgBoss from "pg-boss";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
@@ -35,7 +36,7 @@ interface EmailWithFollowUpMetadata extends Email {
 export class FollowUpsController {
   constructor(
     private followUpsService: FollowUpsService,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
   ) {}
 
   /**

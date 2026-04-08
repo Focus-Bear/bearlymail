@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { IsNull, Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -40,7 +41,7 @@ export class ContextCategoryService {
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
     private llmService: LLMService,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
   ) {}
 
   /**

@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -56,7 +57,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
   private readonly logger = new Logger(SuggestedRepliesProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private suggestedRepliesService: SuggestedRepliesService,

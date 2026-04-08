@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import { Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { MEMBER_ROLES, MEMBER_STATUS } from "../constants/member-roles";
 import { Organization } from "../database/entities/organization.entity";
 import {
   OrganizationMember,
@@ -90,7 +91,7 @@ export class OrganizationsService {
       email: ownerEmail,
       emailHash: EncryptionHelper.hashEmail(ownerEmail),
       role: "owner",
-      status: "active",
+      status: MEMBER_STATUS.ACTIVE,
       displayName: user.displayName ?? user.name ?? null,
       inviteToken: null,
       inviteExpires: null,
@@ -113,7 +114,7 @@ export class OrganizationsService {
     members: OrganizationMember[];
   }> {
     const membership = await this.memberRepo.findOne({
-      where: { userId, status: "active" },
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
       relations: ["organization"],
     });
     if (!membership) {
@@ -137,7 +138,7 @@ export class OrganizationsService {
   async getSeatUsage(orgId: string): Promise<SeatUsage> {
     const org = await this.orgRepo.findOneOrFail({ where: { id: orgId } });
     const activeSeats = await this.memberRepo.count({
-      where: { organizationId: orgId, status: "active" },
+      where: { organizationId: orgId, status: MEMBER_STATUS.ACTIVE },
     });
     return {
       activeSeats,
@@ -200,10 +201,10 @@ export class OrganizationsService {
     });
 
     if (existing) {
-      if (existing.status === "active") {
+      if (existing.status === MEMBER_STATUS.ACTIVE) {
         throw new ConflictException("This email is already a member");
       }
-      if (existing.status === "deactivated") {
+      if (existing.status === MEMBER_STATUS.DEACTIVATED) {
         throw new ConflictException(
           "This member was deactivated. Re-activate via the members API",
         );
@@ -346,7 +347,7 @@ export class OrganizationsService {
     }
 
     const alreadyMember = await this.memberRepo.findOne({
-      where: { userId: acceptingUserId, status: "active" },
+      where: { userId: acceptingUserId, status: MEMBER_STATUS.ACTIVE },
     });
     if (alreadyMember) {
       throw new ConflictException(
@@ -385,10 +386,13 @@ export class OrganizationsService {
     });
     if (!target) throw new NotFoundException("Member not found");
 
-    if (target.role === "owner") {
+    if (target.role === MEMBER_ROLES.OWNER) {
       throw new ForbiddenException("Cannot change the owner role");
     }
-    if (target.userId === requesterId && requesterMembership.role !== "owner") {
+    if (
+      target.userId === requesterId &&
+      requesterMembership.role !== MEMBER_ROLES.OWNER
+    ) {
       throw new ForbiddenException("You cannot change your own role");
     }
 
@@ -410,7 +414,7 @@ export class OrganizationsService {
     });
     if (!target) throw new NotFoundException("Member not found");
 
-    if (target.role === "owner") {
+    if (target.role === MEMBER_ROLES.OWNER) {
       throw new ForbiddenException("Cannot remove the organisation owner");
     }
     if (target.userId === requesterId) {
@@ -419,7 +423,7 @@ export class OrganizationsService {
       );
     }
 
-    target.status = "deactivated";
+    target.status = MEMBER_STATUS.DEACTIVATED;
     target.inviteToken = null;
     target.inviteExpires = null;
     await this.memberRepo.save(target);
@@ -435,7 +439,7 @@ export class OrganizationsService {
     return this.memberRepo.find({
       where: {
         organizationId: membership.organizationId,
-        status: "active",
+        status: MEMBER_STATUS.ACTIVE,
       },
     });
   }
@@ -443,16 +447,18 @@ export class OrganizationsService {
   async findActiveMembership(
     userId: string,
   ): Promise<OrganizationMember | null> {
-    return this.memberRepo.findOne({ where: { userId, status: "active" } });
+    return this.memberRepo.findOne({
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
+    });
   }
 
   async areInSameOrg(userAId: string, userBId: string): Promise<boolean> {
     const memberA = await this.memberRepo.findOne({
-      where: { userId: userAId, status: "active" },
+      where: { userId: userAId, status: MEMBER_STATUS.ACTIVE },
     });
     if (!memberA) return false;
     const memberB = await this.memberRepo.findOne({
-      where: { userId: userBId, status: "active" },
+      where: { userId: userBId, status: MEMBER_STATUS.ACTIVE },
     });
     if (!memberB) return false;
     return memberA.organizationId === memberB.organizationId;
@@ -462,7 +468,7 @@ export class OrganizationsService {
     userId: string,
   ): Promise<OrganizationMember> {
     const membership = await this.memberRepo.findOne({
-      where: { userId, status: "active" },
+      where: { userId, status: MEMBER_STATUS.ACTIVE },
     });
     if (!membership) {
       throw new ForbiddenException(
@@ -473,7 +479,10 @@ export class OrganizationsService {
   }
 
   private requireAdminOrOwner(membership: OrganizationMember): void {
-    if (membership.role !== "owner" && membership.role !== "admin") {
+    if (
+      membership.role !== MEMBER_ROLES.OWNER &&
+      membership.role !== MEMBER_ROLES.ADMIN
+    ) {
       throw new ForbiddenException(
         "Only organisation owners and admins can perform this action",
       );

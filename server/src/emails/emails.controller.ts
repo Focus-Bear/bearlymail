@@ -35,7 +35,9 @@ import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
+import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
@@ -67,7 +69,7 @@ export class EmailsController {
     private readonly emailAdminService: EmailAdminService,
     private readonly gmailProvider: GmailProvider,
     private readonly searchEnrichmentService: SearchEnrichmentService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -114,7 +116,7 @@ export class EmailsController {
 
     const result = await this.emailsService.getInbox(
       req.user.userId,
-      includeBatched === "true",
+      includeBatched === BOOLEAN_STRING_VALUES.TRUE,
       mode,
       {
         accountIds,
@@ -205,7 +207,7 @@ export class EmailsController {
       categoryIds: categoryIdList,
       minPriority: minPriorityValue,
       maxPriority: maxPriorityValue,
-      includeThreadIds: includeThreadIds === "true",
+      includeThreadIds: includeThreadIds === BOOLEAN_STRING_VALUES.TRUE,
       accountIds,
     });
   }
@@ -306,7 +308,7 @@ export class EmailsController {
     const selectedAccountTypes = accountTypes
       ? accountTypes.split(",")
       : undefined;
-    const skipLlmRanking = skipLlm === "true";
+    const skipLlmRanking = skipLlm === BOOLEAN_STRING_VALUES.TRUE;
 
     // ---------------------------------------------------------------------------
     // Instant search path (INSTANT_SEARCH_ENABLED=true)
@@ -318,7 +320,7 @@ export class EmailsController {
     // this path. Users with Office365 or Zoho accounts should disable
     // INSTANT_SEARCH_ENABLED — they will be served by the legacy path below.
     // ---------------------------------------------------------------------------
-    if (process.env.INSTANT_SEARCH_ENABLED === "true") {
+    if (process.env.INSTANT_SEARCH_ENABLED === BOOLEAN_STRING_VALUES.TRUE) {
       try {
         const { userId } = req.user;
 

@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
+import { BOOLEAN_STRING_VALUES } from "./constants/domain-types";
 import bootstrapDataSource from "./data-source";
 import {
   verifyEncryptionRoundTrip,
@@ -38,7 +39,7 @@ async function bootstrap() {
     await dataSource.destroy();
 
     // Check if running in worker mode
-    if (process.env.WORKER_MODE === "true") {
+    if (process.env.WORKER_MODE === BOOLEAN_STRING_VALUES.TRUE) {
       logger.log("Starting application in WORKER mode...");
       await NestFactory.createApplicationContext(AppModule);
       // Keep the process alive

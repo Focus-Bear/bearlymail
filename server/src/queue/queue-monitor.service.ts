@@ -4,6 +4,7 @@ import * as path from "path";
 import PgBoss from "pg-boss";
 import { DataSource } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
@@ -41,7 +42,7 @@ export class QueueMonitorService implements OnModuleInit {
   private readonly processingTimes: Map<string, number[]> = new Map();
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private dataSource: DataSource,
   ) {
     const logsDir = path.join(process.cwd(), "logs");

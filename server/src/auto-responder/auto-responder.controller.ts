@@ -12,6 +12,7 @@ import {
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
 import { AutoResponderService } from "./auto-responder.service";
 import { AutoResponderArchiveAuditService } from "./auto-responder-archive-audit.service";
 import { QueueStatsService } from "./queue-stats.service";
@@ -259,7 +260,7 @@ export class AutoResponderController {
     @Request() req: AuthenticatedRequest,
     @Query("dryRun") dryRun?: string,
   ) {
-    const isDryRun = dryRun === "true";
+    const isDryRun = dryRun === BOOLEAN_STRING_VALUES.TRUE;
     this.logger.log(
       `Archive audit requested by user ${req.user.userId} (dryRun=${isDryRun})`,
     );

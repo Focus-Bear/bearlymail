@@ -3,8 +3,13 @@ import { ConfigService } from "@nestjs/config";
 import { AxiosInstance } from "axios";
 import PgBoss from "pg-boss";
 
+import {
+  EMAIL_IMPORTANCE,
+  ZOHO_FOLDER_IDS,
+} from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
+import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
@@ -55,7 +60,7 @@ export class ZohoProvider implements EmailProvider {
     @Inject(forwardRef(() => EmailsService))
     public emailsService: EmailsService,
     private scanEmailService: ScanEmailService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     public zohoAccountsService: ZohoAccountsService,
     private configService: ConfigService,
   ) {
@@ -300,7 +305,7 @@ export class ZohoProvider implements EmailProvider {
           (message) =>
             message.threadId === threadId || message.uid === threadId,
         );
-        const isImportant = latestMessage.importance === "high";
+        const isImportant = latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
 
         starUpdates.push({ threadId, starCount: isImportant ? 3 : 0 });
         archivedUpdates.push({ threadId, isArchived: !isInInbox });
@@ -558,8 +563,9 @@ export class ZohoProvider implements EmailProvider {
       }
 
       const isArchived =
-        messageData.folderId !== "inbox" && messageData.folderId !== "trash";
-      const isDeleted = messageData.folderId === "trash";
+        messageData.folderId !== ZOHO_FOLDER_IDS.INBOX &&
+        messageData.folderId !== ZOHO_FOLDER_IDS.TRASH;
+      const isDeleted = messageData.folderId === ZOHO_FOLDER_IDS.TRASH;
       const tags = (messageData.tags as string[]) || [];
       await this.scanEmailService.createScanEmail(userId, {
         ...rawEmail,

@@ -1,6 +1,7 @@
 /* istanbul ignore file */
 import { Repository } from "typeorm";
 
+import { INBOX_FILTER_VALUES } from "../constants/domain-types";
 import { INBOX_MODES, QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { buildThreadFilter, RawEmailRow } from "./email-inbox.types";
@@ -40,7 +41,7 @@ function appendInboxAdditionalFilters(
     additionalFilters += ` AND COALESCE(thread."priorityScore", 0) < $${idx++}`;
     queryParams.push(filters.maxPriority);
   }
-  if (filters?.assigneeId === "unassigned") {
+  if (filters?.assigneeId === INBOX_FILTER_VALUES.UNASSIGNED) {
     additionalFilters += ` AND thread."assigneeId" IS NULL`;
   } else if (filters?.assigneeId) {
     additionalFilters += ` AND thread."assigneeId" = $${idx++}`;

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { LessThan, Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
@@ -28,7 +29,7 @@ export class ContextAnalysisCleanupService implements OnModuleInit {
   private static readonly CLEANUP_CRON = "*/15 * * * *";
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,
   ) {}

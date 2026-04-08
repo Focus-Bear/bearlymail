@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
@@ -93,7 +94,7 @@ export class ContextAnalysisOrchestratorService {
     private gmailDataService: ContextGmailDataService,
     private crudService: ContextCrudService,
     private batchPayloadService: ContextBatchPayloadService,
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private contextEnqueueService: ContextEnqueueService,
   ) {}
 

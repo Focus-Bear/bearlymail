@@ -9,6 +9,7 @@ import {
   CategoryRuleMatch,
   CategoryRulesService,
 } from "../category-rules/category-rules.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
   BODY_PREVIEW_LENGTHS,
@@ -54,7 +55,7 @@ export class LLMProcessor implements OnModuleInit {
   private readonly summaryConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)

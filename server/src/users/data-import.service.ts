@@ -8,6 +8,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { AutoResponderConfig } from "../auto-responder/types/auto-responder.types";
+import { DATA_IMPORT_MERGE_MODES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
@@ -293,7 +294,7 @@ export class DataImportService {
     });
 
     if (existing) {
-      if (mergeMode === "replace") {
+      if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
         await this.batchScheduleRepository.update(existing.id, {
           deliveryDays: schedule.deliveryDays,
           deliveryTimes: schedule.deliveryTimes,
@@ -328,7 +329,7 @@ export class DataImportService {
     senders: ExportedUserData["blockedSenders"],
     mergeMode: "replace" | "merge",
   ): Promise<{ imported: number; skipped: number }> {
-    if (mergeMode === "replace") {
+    if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
       await this.blockedSenderRepository.delete({ userId });
     }
 
@@ -378,7 +379,7 @@ export class DataImportService {
     keywords: ExportedUserData["blockedKeywords"],
     mergeMode: "replace" | "merge",
   ): Promise<{ imported: number; skipped: number }> {
-    if (mergeMode === "replace") {
+    if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
       await this.blockedKeywordRepository.delete({ userId });
     }
 
@@ -420,7 +421,7 @@ export class DataImportService {
     contexts: ExportedUserData["contexts"],
     mergeMode: "replace" | "merge",
   ): Promise<{ imported: number; skipped: number }> {
-    if (mergeMode === "replace") {
+    if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
       await this.userContextRepository.delete({ userId });
     }
 
@@ -438,7 +439,7 @@ export class DataImportService {
       }
 
       // Check for duplicate in merge mode
-      if (mergeMode === "merge") {
+      if (mergeMode === DATA_IMPORT_MERGE_MODES.MERGE) {
         const existing = await this.userContextRepository.findOne({
           where: {
             userId,
@@ -484,7 +485,7 @@ export class DataImportService {
       throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
-    if (mergeMode === "replace") {
+    if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
       await this.userRepository.update(userId, {
         toneSettings: { rules: toneRules },
       });
@@ -503,7 +504,7 @@ export class DataImportService {
     rules: ExportedUserData["summarizationRules"],
     mergeMode: "replace" | "merge",
   ): Promise<number> {
-    if (mergeMode === "replace") {
+    if (mergeMode === DATA_IMPORT_MERGE_MODES.REPLACE) {
       await this.summarizationRuleRepository.delete({ userId });
     }
 
@@ -511,7 +512,7 @@ export class DataImportService {
 
     for (const rule of rules) {
       // Check for duplicate in merge mode
-      if (mergeMode === "merge") {
+      if (mergeMode === DATA_IMPORT_MERGE_MODES.MERGE) {
         const existing = await this.summarizationRuleRepository.findOne({
           where: {
             userId,

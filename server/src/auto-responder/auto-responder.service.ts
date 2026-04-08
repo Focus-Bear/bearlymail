@@ -3,6 +3,7 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { PRIORITY_LEVELS } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
@@ -388,7 +389,10 @@ export class AutoResponderService {
       },
     );
 
-    if (priorityLevel === "high" && !config.sendFor.highPriority) {
+    if (
+      priorityLevel === PRIORITY_LEVELS.HIGH &&
+      !config.sendFor.highPriority
+    ) {
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
         reason: "High priority auto-response disabled",
@@ -396,7 +400,10 @@ export class AutoResponderService {
       });
       return { sent: false, reason: "High priority auto-response disabled" };
     }
-    if (priorityLevel === "medium" && !config.sendFor.standardPriority) {
+    if (
+      priorityLevel === PRIORITY_LEVELS.MEDIUM &&
+      !config.sendFor.standardPriority
+    ) {
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
         reason: "Standard priority auto-response disabled",
@@ -410,7 +417,7 @@ export class AutoResponderService {
         reason: "Standard priority auto-response disabled",
       };
     }
-    if (priorityLevel === "low" && !config.sendFor.lowPriority) {
+    if (priorityLevel === PRIORITY_LEVELS.LOW && !config.sendFor.lowPriority) {
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
         reason: "Low priority auto-response disabled",

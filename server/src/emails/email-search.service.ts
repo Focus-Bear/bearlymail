@@ -2,6 +2,10 @@ import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  NODE_ENV_VALUES,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
@@ -164,8 +168,12 @@ export class EmailSearchService {
     accountTypes?: string[],
   ): Promise<EmailWithMetadata[]> {
     const isCiTestEnv =
-      process.env.CI === "true" && process.env.NODE_ENV === "test";
-    if (process.env.CI_SEARCH_FALLBACK === "true" || isCiTestEnv) {
+      process.env.CI === BOOLEAN_STRING_VALUES.TRUE &&
+      process.env.NODE_ENV === NODE_ENV_VALUES.TEST;
+    if (
+      process.env.CI_SEARCH_FALLBACK === BOOLEAN_STRING_VALUES.TRUE ||
+      isCiTestEnv
+    ) {
       this.logger.log(
         `[SEARCH] No provider connected for user ${userId}; using CI local-DB fallback`,
       );

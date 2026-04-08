@@ -12,6 +12,7 @@ import {
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { MEMBER_ROLES } from "../constants/member-roles";
 import { OrganizationsService } from "../organizations/organizations.service";
 import {
   ApplyPromoDto,
@@ -111,7 +112,10 @@ export class SubscriptionsController {
     if (!membership) {
       throw new ForbiddenException("You are not a member of any organisation");
     }
-    if (membership.role !== "owner" && membership.role !== "admin") {
+    if (
+      membership.role !== MEMBER_ROLES.OWNER &&
+      membership.role !== MEMBER_ROLES.ADMIN
+    ) {
       throw new ForbiddenException(
         "Only org owners and admins can link billing",
       );

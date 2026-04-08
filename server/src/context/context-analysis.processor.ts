@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
@@ -16,7 +17,7 @@ export class ContextAnalysisProcessor implements OnModuleInit {
   private readonly contextConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private contextService: ContextService,
     private usersService: UsersService,
     private configService: ConfigService,

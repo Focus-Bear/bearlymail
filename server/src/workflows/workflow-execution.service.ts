@@ -4,6 +4,8 @@ import axios from "axios";
 import { Repository } from "typeorm";
 
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
+import { WORKFLOW_RESULT_STATUS } from "../constants/domain-statuses";
+import { WORKFLOW_STEP_TYPES } from "../constants/domain-types";
 import { WorkflowExecutionLog } from "../database/entities/workflow-execution-log.entity";
 import { WorkflowRule } from "../database/entities/workflow-rule.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -95,10 +97,10 @@ export class WorkflowExecutionService {
     }
 
     const allSucceeded = actionResults.every(
-      (result) => result.status === "success",
+      (result) => result.status === WORKFLOW_RESULT_STATUS.SUCCESS,
     );
     const anySucceeded = actionResults.some(
-      (result) => result.status === "success",
+      (result) => result.status === WORKFLOW_RESULT_STATUS.SUCCESS,
     );
     let status: WorkflowExecutionStatus = "failed";
     if (allSucceeded) {
@@ -174,11 +176,11 @@ export class WorkflowExecutionService {
     context: WorkflowContext,
   ): Promise<{ output: unknown; resolved?: Record<string, string> }> {
     switch (action.type) {
-      case "reply":
+      case WORKFLOW_STEP_TYPES.REPLY:
         return this.executeReply(action, context);
-      case "mcp_tool":
+      case WORKFLOW_STEP_TYPES.MCP_TOOL:
         return this.executeMCPTool(action, context);
-      case "webhook":
+      case WORKFLOW_STEP_TYPES.WEBHOOK:
         return this.executeWebhook(action, context);
       default:
         throw new Error(

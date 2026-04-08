@@ -23,6 +23,9 @@ import { In, Repository } from "typeorm";
 
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CONTEXT_ANALYSIS_STATUS } from "../constants/domain-statuses";
+import { ANALYSIS_PROGRESS_STAGES } from "../constants/domain-types";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { PERCENTAGES } from "../constants/percentages";
@@ -67,7 +70,7 @@ export class ContextController {
   constructor(
     private readonly contextService: ContextService,
     private readonly usersService: UsersService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @InjectRepository(ContextAnalysis)
     private readonly contextAnalysisRepository: Repository<ContextAnalysis>,
     @InjectRepository(User)
@@ -100,8 +103,8 @@ export class ContextController {
 
     // Check and sync jobs between DB and PgBoss for active analyses
     if (
-      progressInfo.status === "running" ||
-      progressInfo.status === "pending"
+      progressInfo.status === CONTEXT_ANALYSIS_STATUS.RUNNING ||
+      progressInfo.status === CONTEXT_ANALYSIS_STATUS.PENDING
     ) {
       await this.contextService.checkAndSyncJobs(req.user.userId, analysisId);
     }
@@ -112,7 +115,7 @@ export class ContextController {
     }
 
     // Check if analysis failed
-    if (progressInfo.status === "failed") {
+    if (progressInfo.status === CONTEXT_ANALYSIS_STATUS.FAILED) {
       return {
         progress: null,
         error:
@@ -151,7 +154,8 @@ export class ContextController {
     const finalStats = stats || progressInfo.stats;
 
     // Log for debugging
-    const isActuallyComplete = progressInfo.status === "completed";
+    const isActuallyComplete =
+      progressInfo.status === CONTEXT_ANALYSIS_STATUS.COMPLETED;
     if (percent >= 100) {
       this.logger.log(
         `[PROGRESS-DEBUG] Completion check: userId=${req.user.userId}, percent=${percent}, status=${progressInfo.status}, isActuallyComplete=${isActuallyComplete}, stats=${finalStats ? "YES" : "NO"}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
@@ -202,12 +206,13 @@ export class ContextController {
     progressInfo: ProgressInfo,
     user: { scanProgress?: number | null; scanTotal?: number | null },
   ): { percent: number; stage: ProgressStage } {
-    if (progressInfo.status === "completed") {
+    if (progressInfo.status === CONTEXT_ANALYSIS_STATUS.COMPLETED) {
       return { percent: 100, stage: "complete" };
     }
 
     const isStillRunning =
-      progressInfo.status === "running" || progressInfo.status === "pending";
+      progressInfo.status === CONTEXT_ANALYSIS_STATUS.RUNNING ||
+      progressInfo.status === CONTEXT_ANALYSIS_STATUS.PENDING;
 
     if (isStillRunning) {
       return this.calcRunningPercent(progressInfo);
@@ -319,13 +324,13 @@ export class ContextController {
     } = progressInfo;
 
     switch (stage) {
-      case "starting":
+      case ANALYSIS_PROGRESS_STAGES.STARTING:
         return {
           messageKey: "settings.analysis.progress.starting",
           messageValues: {},
         };
 
-      case "fetching":
+      case ANALYSIS_PROGRESS_STAGES.FETCHING:
         return {
           messageKey: "settings.analysis.progress.fetching",
           messageValues: {
@@ -334,7 +339,7 @@ export class ContextController {
           },
         };
 
-      case "analyzing":
+      case ANALYSIS_PROGRESS_STAGES.ANALYZING:
         return {
           messageKey: "settings.analysis.progress.analyzing",
           messageValues: {
@@ -345,13 +350,13 @@ export class ContextController {
           },
         };
 
-      case "summarizing":
+      case ANALYSIS_PROGRESS_STAGES.SUMMARIZING:
         return {
           messageKey: "settings.analysis.progress.finalizing",
           messageValues: {},
         };
 
-      case "complete":
+      case ANALYSIS_PROGRESS_STAGES.COMPLETE:
         if (stats) {
           const vipCount = (stats.vipContactsEvaluated as number) || 0;
           return {

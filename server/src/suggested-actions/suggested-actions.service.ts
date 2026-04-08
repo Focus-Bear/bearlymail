@@ -4,6 +4,10 @@ import { IsNull, Not, Repository } from "typeorm";
 
 import { ActionItemsService } from "../action-items/action-items.service";
 import { CalendarService } from "../calendar/calendar.service";
+import {
+  GITHUB_ACTION_TYPES,
+  GITHUB_LINK_TYPES,
+} from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
@@ -98,12 +102,12 @@ export class SuggestedActionsService {
     defaultRepo: { owner: string; repo: string } | null,
   ): SuggestedAction {
     if (
-      (action.type === "github_update_status" ||
-        action.type === "github_add_comment") &&
+      (action.type === GITHUB_ACTION_TYPES.UPDATE_STATUS ||
+        action.type === GITHUB_ACTION_TYPES.ADD_COMMENT) &&
       githubLinks.length > 0
     ) {
       const link = githubLinks[0];
-      if (link.type === "issue") {
+      if (link.type === GITHUB_LINK_TYPES.ISSUE) {
         return {
           ...action,
           metadata: {
@@ -116,7 +120,7 @@ export class SuggestedActionsService {
         };
       }
     }
-    if (action.type === "github_create_issue" && defaultRepo) {
+    if (action.type === GITHUB_ACTION_TYPES.CREATE_ISSUE && defaultRepo) {
       return {
         ...action,
         metadata: {

@@ -3,8 +3,13 @@ import { ConfigService } from "@nestjs/config";
 import { AxiosInstance } from "axios";
 import PgBoss from "pg-boss";
 
+import {
+  EMAIL_IMPORTANCE,
+  OFFICE365_FOLDER_IDS,
+} from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
 import { HTTP_STATUS } from "../../constants/http-status";
+import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
@@ -58,7 +63,7 @@ export class Office365Provider implements EmailProvider {
     @Inject(forwardRef(() => EmailsService))
     public emailsService: EmailsService,
     private scanEmailService: ScanEmailService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     public office365AccountsService: Office365AccountsService,
     private configService: ConfigService,
   ) {
@@ -310,7 +315,7 @@ export class Office365Provider implements EmailProvider {
             message.conversationId === conversationId ||
             message.id === conversationId,
         );
-        const isImportant = latestMessage.importance === "high";
+        const isImportant = latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
 
         starUpdates.push({
           threadId: conversationId,
@@ -582,9 +587,10 @@ export class Office365Provider implements EmailProvider {
       }
 
       const isArchived =
-        messageData.parentFolderId !== "inbox" &&
-        messageData.parentFolderId !== "deleteditems";
-      const isDeleted = messageData.parentFolderId === "deleteditems";
+        messageData.parentFolderId !== OFFICE365_FOLDER_IDS.INBOX &&
+        messageData.parentFolderId !== OFFICE365_FOLDER_IDS.DELETED_ITEMS;
+      const isDeleted =
+        messageData.parentFolderId === OFFICE365_FOLDER_IDS.DELETED_ITEMS;
       const categories = (messageData.categories as string[]) || [];
       await this.scanEmailService.createScanEmail(userId, {
         ...rawEmail,

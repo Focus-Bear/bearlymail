@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { TONE_VALIDATION_STATUS } from "../constants/domain-statuses";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import type { LLMProvider } from "./llm.types";
@@ -261,13 +262,16 @@ export class LLMToneService {
 
       try {
         const parsed = JSON.parse(cleaned);
-        if (parsed.status === "rejected") {
+        if (parsed.status === TONE_VALIDATION_STATUS.REJECTED) {
           this.logger.debug(
             `Writing example rejected: ${parsed.reason || "no reason given"}`,
           );
           return null;
         }
-        if (parsed.status === "valid" && parsed.cleanedText) {
+        if (
+          parsed.status === TONE_VALIDATION_STATUS.VALID &&
+          parsed.cleanedText
+        ) {
           return parsed.cleanedText;
         }
         this.logger.warn(

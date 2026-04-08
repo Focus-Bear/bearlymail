@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { PRIORITY_LEVELS } from "../constants/domain-types";
 import { BRANDING, DISPLAY_LIMITS } from "./auto-responder-constants";
 import {
   AutoResponderConfig,
@@ -118,9 +119,9 @@ a:hover { text-decoration: underline; }
 
     // Select by priority
     switch (priorityLevel) {
-      case "high":
+      case PRIORITY_LEVELS.HIGH:
         return config.templates.highPriority;
-      case "low":
+      case PRIORITY_LEVELS.LOW:
         return config.templates.lowPriority;
       default:
         return config.templates.standard;

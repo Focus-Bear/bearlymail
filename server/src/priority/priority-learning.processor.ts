@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PriorityLearningService } from "./priority-learning.service";
@@ -14,7 +15,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
   private readonly learnConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private priorityLearningService: PriorityLearningService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,

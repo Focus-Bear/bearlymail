@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { DebugService } from "./debug.service";
 
 const DEBUG_CLEANUP_JOB = "debug-data-cleanup";
@@ -11,7 +12,7 @@ export class DebugCleanupService implements OnModuleInit {
   private readonly logger = new Logger(DebugCleanupService.name);
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly debugService: DebugService,
   ) {}
 

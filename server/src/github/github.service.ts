@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
+import { GITHUB_LINK_TYPES } from "../constants/domain-types";
+
 export interface ParsedGitHubLink {
   type: "issue" | "pr";
   owner: string;
@@ -35,7 +37,10 @@ export class GitHubService {
         if (!seenNormalized.has(url.toLowerCase())) {
           seenNormalized.add(url.toLowerCase());
           links.push({
-            type: match[3] === "pull" ? "pr" : "issue",
+            type:
+              match[3] === GITHUB_LINK_TYPES.PULL
+                ? GITHUB_LINK_TYPES.PR
+                : GITHUB_LINK_TYPES.ISSUE,
             owner: match[1],
             repo: match[2],
             number: parseInt(match[4], 10),
@@ -58,7 +63,10 @@ export class GitHubService {
         if (!seenNormalized.has(url.toLowerCase())) {
           seenNormalized.add(url.toLowerCase());
           links.push({
-            type: match[3] === "pull" ? "pr" : "issue",
+            type:
+              match[3] === GITHUB_LINK_TYPES.PULL
+                ? GITHUB_LINK_TYPES.PR
+                : GITHUB_LINK_TYPES.ISSUE,
             owner: match[1],
             repo: match[2],
             number: parseInt(match[4], 10),
@@ -80,7 +88,10 @@ export class GitHubService {
           if (!seenNormalized.has(url.toLowerCase())) {
             seenNormalized.add(url.toLowerCase());
             links.push({
-              type: linkMatch[3] === "pull" ? "pr" : "issue",
+              type:
+                linkMatch[3] === GITHUB_LINK_TYPES.PULL
+                  ? GITHUB_LINK_TYPES.PR
+                  : GITHUB_LINK_TYPES.ISSUE,
               owner: linkMatch[1],
               repo: linkMatch[2],
               number: parseInt(linkMatch[4], 10),

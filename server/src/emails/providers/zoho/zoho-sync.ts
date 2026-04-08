@@ -1,6 +1,10 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 
+import {
+  EMAIL_IMPORTANCE,
+  ZOHO_FOLDER_IDS,
+} from "../../../constants/domain-types";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
@@ -53,8 +57,9 @@ export async function verifyThreadStatusesInZoho(
           }
 
           const latestMessage = threadMessages[0];
-          const isImportant = latestMessage.importance === "high";
-          const isInInbox = latestMessage.folderId === "inbox";
+          const isImportant =
+            latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
+          const isInInbox = latestMessage.folderId === ZOHO_FOLDER_IDS.INBOX;
 
           updates.push({
             threadId,
@@ -135,8 +140,8 @@ export async function getExistingThreadUpdates(
       const latestMessage = threadMessages[0];
       updates.push({
         threadId: dbThread.threadId,
-        starCount: latestMessage.importance === "high" ? 3 : 0,
-        isArchived: latestMessage.folderId !== "inbox",
+        starCount: latestMessage.importance === EMAIL_IMPORTANCE.HIGH ? 3 : 0,
+        isArchived: latestMessage.folderId !== ZOHO_FOLDER_IDS.INBOX,
       });
     } catch (threadError: unknown) {
       if (

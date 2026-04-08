@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { AUTO_RESPONDER_TEMPLATE_TYPES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -19,10 +20,10 @@ import {
 } from "./types/auto-responder.types";
 
 function getPriorityLevel(templateType: string): "low" | "medium" | "high" {
-  if (templateType === "highPriority") {
+  if (templateType === AUTO_RESPONDER_TEMPLATE_TYPES.HIGH_PRIORITY) {
     return "high";
   }
-  if (templateType === "lowPriority") {
+  if (templateType === AUTO_RESPONDER_TEMPLATE_TYPES.LOW_PRIORITY) {
     return "low";
   }
   return "medium";

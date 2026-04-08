@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { MEMBER_ROLES } from "../constants/member-roles";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 
@@ -52,7 +53,7 @@ export class EmailAssignmentService {
 
     // Non-admins may only self-assign
     const isSelf = actingUserId === assigneeUserId;
-    if (!isSelf && actorMembership.role === "member") {
+    if (!isSelf && actorMembership.role === MEMBER_ROLES.MEMBER) {
       throw new ForbiddenException(
         "Only admins and owners may assign threads to other members",
       );

@@ -26,6 +26,7 @@ import {
 } from "./context-batch-analysis.helpers";
 
 export { classifyBatchError } from "./context-batch-analysis.helpers";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 
 interface BatchAnalysisJob {
@@ -71,7 +72,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
   private readonly batchConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private llmService: LLMService,
     @InjectRepository(ContextAnalysis)
     private contextAnalysisRepository: Repository<ContextAnalysis>,

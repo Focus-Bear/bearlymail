@@ -15,7 +15,9 @@ import {
   TOKEN_BYTES,
   TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
+import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { User } from "../database/entities/user.entity";
@@ -63,7 +65,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => WaitlistService))
     private waitlistService: WaitlistService,
     @Inject(forwardRef(() => EmailBacklogService))
@@ -566,7 +568,7 @@ export class AuthService {
   async login(user: UserWithoutPassword) {
     // Check if user is approved before allowing login
     // In development mode, auto-approve if not already approved
-    const isDev = process.env.NODE_ENV !== "production";
+    const isDev = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
     if (!user.isApproved) {
       if (isDev) {
         // Auto-approve in dev mode

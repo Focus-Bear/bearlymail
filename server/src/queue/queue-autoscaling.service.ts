@@ -9,6 +9,7 @@ import { StandardUnit } from "@aws-sdk/client-cloudwatch";
 import { DataSource } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
 import { JOB_NAMES } from "../constants/job-names";
 import { MS_PER_SECOND } from "../constants/time-constants";
 
@@ -44,7 +45,8 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
     private configService: ConfigService,
   ) {
     this.enabled =
-      this.configService.get<string>("AUTOSCALING_ENABLED") !== "false";
+      this.configService.get<string>("AUTOSCALING_ENABLED") !==
+      BOOLEAN_STRING_VALUES.FALSE;
     this.checkIntervalSeconds = parseInt(
       this.configService.get<string>("AUTOSCALING_CHECK_INTERVAL_SECONDS") ||
         "30",
@@ -79,7 +81,7 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
 
   private validateWorkerModeAndAutoscaling(): boolean {
     const workerMode = this.configService.get<string>("WORKER_MODE");
-    if (workerMode === "true") {
+    if (workerMode === BOOLEAN_STRING_VALUES.TRUE) {
       this.logger.log("Autoscaling service disabled (running in worker mode)");
       return false;
     }

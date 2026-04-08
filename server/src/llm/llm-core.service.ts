@@ -10,6 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 
+import { LLM_BLOCK_TYPES } from "../constants/domain-types";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -490,7 +491,7 @@ export class LLMCoreService {
       }
 
       const block = response.content[0];
-      if (!block || block.type !== "text") {
+      if (!block || block.type !== LLM_BLOCK_TYPES.TEXT) {
         throw new Error("Anthropic returned an unexpected content block type");
       }
       return block.text;

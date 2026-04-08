@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
 
+import { OAUTH_ERROR_CODES } from "../constants/domain-types";
 import { HTTP_STATUS } from "../constants/http-status";
 import { logError } from "../utils/logger";
 
@@ -192,9 +193,9 @@ export class AuthLogger {
 
   private isInvalidGrant(error: unknown): boolean {
     return (
-      (this.hasCode(error) && error.code === "invalid_grant") ||
+      (this.hasCode(error) && error.code === OAUTH_ERROR_CODES.INVALID_GRANT) ||
       (this.hasResponse(error) &&
-        error.response?.errorBody?.error === "invalid_grant")
+        error.response?.errorBody?.error === OAUTH_ERROR_CODES.INVALID_GRANT)
     );
   }
 

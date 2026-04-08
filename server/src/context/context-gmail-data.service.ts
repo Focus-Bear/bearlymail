@@ -384,7 +384,9 @@ export class ContextEmailDataService {
   ): Promise<string[]> {
     // For Office365 and Zoho, use searchEmails and extract thread IDs
     const userRecord = await this.usersService.findOne(userId);
-    const userEmailAddr = userRecord?.email ? userRecord.email.toLowerCase() : null;
+    const userEmailAddr = userRecord?.email
+      ? userRecord.email.toLowerCase()
+      : null;
 
     if (!userEmailAddr) {
       this.logger.warn(
@@ -399,7 +401,11 @@ export class ContextEmailDataService {
         `from:${userEmailAddr}`,
         limit * 2,
       );
-      const threadIds = new Set<string>(sentMessages.filter((msg: RawEmailMessage) => msg.threadId).map((msg) => msg.threadId));
+      const threadIds = new Set<string>(
+        sentMessages
+          .filter((msg: RawEmailMessage) => msg.threadId)
+          .map((msg) => msg.threadId),
+      );
       const sentThreadIds = Array.from(threadIds).slice(0, limit);
       this.logger.log(
         `[CONTEXT-ANALYSIS] ${providerType} returned ${sentThreadIds.length} sent thread IDs from ${sentMessages.length} messages`,
@@ -871,8 +877,9 @@ export class ContextEmailDataService {
     // Zoho), so the 2x over-fetch was redundant for Gmail and wasteful in general.
     // For non-Gmail providers where query filters may be less reliable, we keep a 1.5x
     // buffer to ensure we still get enough results after date filtering.
-    const fetchLimit =
-      provider.constructor.name.includes("Gmail") ? limit : Math.ceil(limit * NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER);
+    const fetchLimit = provider.constructor.name.includes("Gmail")
+      ? limit
+      : Math.ceil(limit * NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER);
     const messages = await provider.searchEmails(userId, sentQuery, fetchLimit);
 
     this.logger.log(

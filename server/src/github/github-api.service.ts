@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 
+import { GITHUB_LINK_TYPES } from "../constants/domain-types";
+import { GITHUB_FIELD_NAMES } from "../constants/domain-types";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { HTTP_STATUS } from "../constants/http-status";
 import { getErrorMessage, isApiError } from "../types/common";
@@ -188,7 +190,7 @@ export class GitHubApiService {
     for (const fieldValue of fieldValueNodes) {
       if (!fieldValue) continue;
       const fieldName = fieldValue.field?.name?.toLowerCase();
-      if (fieldName === "status") {
+      if (fieldName === GITHUB_FIELD_NAMES.STATUS) {
         return fieldValue.name;
       }
     }
@@ -586,7 +588,7 @@ export class GitHubApiService {
       try {
         let status: GitHubIssueStatus | GitHubPRStatus | null = null;
 
-        if (link.type === "issue") {
+        if (link.type === GITHUB_LINK_TYPES.ISSUE) {
           status = await this.fetchIssueStatus(
             token,
             link.owner,
@@ -850,7 +852,10 @@ export class GitHubApiService {
         for (const field of item.project.fields.nodes) {
           if (!field) continue;
           const fieldName = field.name?.toLowerCase();
-          if (fieldName === "status" && field.options?.length) {
+          if (
+            fieldName === GITHUB_FIELD_NAMES.STATUS &&
+            field.options?.length
+          ) {
             return field.options.map((opt) => ({ id: opt.id, name: opt.name }));
           }
         }

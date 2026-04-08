@@ -5,6 +5,10 @@ import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 import { Repository } from "typeorm";
 
+import {
+  BOOKING_STATUS,
+  CALENDAR_ENTRY_POINT_TYPES,
+} from "../constants/domain-statuses";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
@@ -322,7 +326,7 @@ Manage this booking:
 
       // Extract the Google Meet link from conferenceData entryPoints if present
       const meetEntryPoint = event.data.conferenceData?.entryPoints?.find(
-        (ep) => ep.entryPointType === "video",
+        (ep) => ep.entryPointType === CALENDAR_ENTRY_POINT_TYPES.VIDEO,
       );
       const meetLink = meetEntryPoint?.uri ?? null;
 
@@ -371,7 +375,7 @@ Manage this booking:
   ): Promise<calendar_v3.Schema$Event> {
     const booking = await this.getBookingByToken(bookingToken);
 
-    if (booking.status === "cancelled") {
+    if (booking.status === BOOKING_STATUS.CANCELLED) {
       throw new Error("Cannot reschedule a cancelled booking");
     }
 
@@ -429,7 +433,7 @@ Manage this booking:
   ): Promise<{ success: boolean; message: string }> {
     const booking = await this.getBookingByToken(bookingToken);
 
-    if (booking.status === "cancelled") {
+    if (booking.status === BOOKING_STATUS.CANCELLED) {
       throw new Error("Booking is already cancelled");
     }
 

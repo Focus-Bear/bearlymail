@@ -4,6 +4,7 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
   DAYS,
@@ -25,7 +26,7 @@ export class EmailSyncProcessor implements OnModuleInit {
   private readonly scanConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly emailProviderManager: EmailProviderManager,
     private readonly usersService: UsersService,
     private readonly gmailProvider: GmailProvider,

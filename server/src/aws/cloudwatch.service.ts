@@ -6,6 +6,11 @@ import {
   StandardUnit,
 } from "@aws-sdk/client-cloudwatch";
 
+import {
+  BOOLEAN_STRING_VALUES,
+  LOCALHOST_VALUES,
+  NODE_ENV_VALUES,
+} from "../constants/domain-types";
 import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Injectable()
@@ -17,7 +22,8 @@ export class CloudWatchService {
 
   constructor(private configService: ConfigService) {
     this.enabled =
-      this.configService.get<string>("AUTOSCALING_ENABLED") !== "false";
+      this.configService.get<string>("AUTOSCALING_ENABLED") !==
+      BOOLEAN_STRING_VALUES.FALSE;
     this.namespace =
       this.configService.get<string>("CLOUDWATCH_METRIC_NAMESPACE") ||
       "BearlyMail/Queue";
@@ -26,8 +32,8 @@ export class CloudWatchService {
     const nodeEnv = this.configService.get<string>("NODE_ENV");
     const dbHost = this.configService.get<string>("DB_HOST");
     const isLocalDev =
-      nodeEnv === "development" ||
-      dbHost === "localhost" ||
+      nodeEnv === NODE_ENV_VALUES.DEVELOPMENT ||
+      dbHost === LOCALHOST_VALUES.LOCALHOST ||
       dbHost === "127.0.0.1";
 
     if (this.enabled && !isLocalDev) {

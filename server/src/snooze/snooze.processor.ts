@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 import { LessThanOrEqual, Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -16,7 +17,7 @@ export class SnoozeProcessor implements OnModuleInit {
   private readonly logger = new Logger(SnoozeProcessor.name);
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 
+import { ACTION_ITEM_TYPES } from "../constants/domain-types";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -199,7 +200,7 @@ export class LLMActionsService {
 
     return actions.filter((action) => {
       const threshold =
-        action.type === "scheduling_request"
+        action.type === ACTION_ITEM_TYPES.SCHEDULING_REQUEST
           ? SCHEDULING_CONFIDENCE_THRESHOLD
           : DEFAULT_CONFIDENCE_THRESHOLD;
       if (action.confidence < threshold) return false;

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
 import { Equal, IsNull, LessThan, Not, Or, Repository } from "typeorm";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -38,7 +39,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
   private static readonly DETECTION_CRON = "*/15 * * * *";
 
   constructor(
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)

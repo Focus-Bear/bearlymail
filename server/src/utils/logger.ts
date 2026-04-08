@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 
+import { NODE_ENV_VALUES } from "../constants/domain-types";
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 
 /**
@@ -72,7 +73,7 @@ export function logWarn(
 
   // Capture warnings to PostHog as custom events (not exceptions)
   // Only in production to avoid noise
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION) {
     try {
       // Create a synthetic error for the warning to capture stack trace
       const syntheticError = new Error(message);
@@ -145,7 +146,7 @@ export function createLogger(contextName: string) {
     ) => {
       nestLogger.warn(message);
 
-      if (process.env.NODE_ENV === "production") {
+      if (process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION) {
         const syntheticError = new Error(message);
         captureGlobalError(syntheticError, {
           severity: "warning",

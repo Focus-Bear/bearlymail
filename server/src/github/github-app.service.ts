@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import axios from "axios";
 
+import { AUTH_ACTION_TYPES } from "../constants/domain-types";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { UsersService } from "../users/users.service";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
@@ -72,7 +73,7 @@ export class GitHubAppService {
   ): { userId: string; includeRepo?: boolean } | null {
     try {
       const payload = this.jwtService.verify(token);
-      if (payload.action !== "connect") {
+      if (payload.action !== AUTH_ACTION_TYPES.CONNECT) {
         this.logger.error("Invalid token action");
         return null;
       }

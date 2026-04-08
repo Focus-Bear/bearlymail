@@ -6,6 +6,7 @@ import { IsNull, Not, Repository } from "typeorm";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { MINUTES, MS_PER_SECOND } from "../constants/time-constants";
@@ -44,7 +45,7 @@ export class EmailLifecycleService {
     private batchScheduleService: BatchScheduleService,
     private emailThreadService: EmailThreadService,
     private usersService: UsersService,
-    @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
     @Inject(forwardRef(() => SuggestedRepliesService))

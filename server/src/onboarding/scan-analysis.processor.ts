@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss from "pg-boss";
 
+import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { ScanAnalysisService } from "./scan-analysis.service";
 
@@ -12,7 +13,7 @@ export class ScanAnalysisProcessor implements OnModuleInit {
   private readonly analysisConcurrency: number;
 
   constructor(
-    @Inject("PG_BOSS") private boss: PgBoss,
+    @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly scanAnalysisService: ScanAnalysisService,
     private configService: ConfigService,
   ) {

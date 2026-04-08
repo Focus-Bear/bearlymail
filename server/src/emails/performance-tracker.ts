@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { EMAIL_MODES, PERFORMANCE_OPERATIONS } from "../constants/domain-types";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 
 // Performance budgets in milliseconds
@@ -69,14 +70,16 @@ export class PerformanceTracker {
     const totalDuration = Date.now() - this.startTime;
     const exceededSpans = this.spans.filter((span) => span.exceeded);
     let budget: number;
-    if (this.operation === "priority-explanation") {
+    if (this.operation === PERFORMANCE_OPERATIONS.PRIORITY_EXPLANATION) {
       budget = PERF_BUDGETS.PRIORITY_EXPLANATION;
-    } else if (this.operation === "search-relevance-explanations") {
+    } else if (
+      this.operation === PERFORMANCE_OPERATIONS.SEARCH_RELEVANCE_EXPLANATIONS
+    ) {
       // 3 seconds for all search explanations
       budget = PERFORMANCE_BUDGETS.SEARCH_RELEVANCE_EXPLANATIONS;
     } else {
       budget =
-        mode === "action"
+        mode === EMAIL_MODES.ACTION
           ? PERF_BUDGETS.INBOX_PROCESS_TOTAL
           : PERF_BUDGETS.INBOX_TOTAL;
     }

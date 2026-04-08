@@ -25,13 +25,6 @@ export interface UseCategoryFetchParams {
   loadedCategoryNames: string[];
   loadingCategoryNames: string[];
   exhaustedCategoryNames?: string[];
-  /**
-   * When true, `useInboxInitialization` is running a background refresh via
-   * `refreshInPlace` — which already fetches all loaded categories inline.
-   * The auto-expand effect is suppressed while this flag is set to prevent
-   * duplicate API requests for the same categories. Fix #1665.
-   */
-  isBackgroundRefreshing?: boolean;
 }
 
 /**
@@ -52,7 +45,6 @@ export function useCategoryFetch({
   loadedCategoryNames,
   loadingCategoryNames,
   exhaustedCategoryNames = [],
-  isBackgroundRefreshing = false,
 }: UseCategoryFetchParams) {
   const dispatch = useDispatch<AppDispatch>();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -112,13 +104,6 @@ export function useCategoryFetch({
       return;
     }
 
-    // Skip while useInboxInitialization's refreshInPlace is running — it already fetches
-    // all loaded categories inline, so triggering our own fetches here would create
-    // duplicate parallel requests for the same categories. Fix #1665.
-    if (isBackgroundRefreshing) {
-      return;
-    }
-
     const keyToItem = new Map(
       categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat])
     );
@@ -167,7 +152,7 @@ export function useCategoryFetch({
           fetchSessionRef.current.delete(key);
         });
     });
-  }, [categorySummary, expandedCategories, fetchCategoryEmails, dispatch, isBackgroundRefreshing]);
+  }, [categorySummary, expandedCategories, fetchCategoryEmails, dispatch]);
 
   return {
     expandedCategories,

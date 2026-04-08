@@ -207,7 +207,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   isMobileRef.current = splitView.isMobile;
 
   // Initialization hook
-  const { hasInitiallyLoaded, hasRunAnalysis, isBackgroundRefreshing } = useInboxInitialization({
+  const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({
     authLoading,
     user,
     mode,
@@ -320,10 +320,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   });
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
-  // Pass isBackgroundRefreshing so useCategoryFetch suppresses duplicate fetches while
-  // refreshInPlace is already fetching the same categories inline. Fix #1665.
   const { expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, resetForModeChange } =
-    useCategoryFetch({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, isBackgroundRefreshing });
+    useCategoryFetch({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames });
 
   const setMode = useCallback(
     (newMode: InboxMode) => {

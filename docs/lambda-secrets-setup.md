@@ -29,15 +29,20 @@ aws cloudformation describe-stacks \
   --output text
 ```
 
-## 2. LLM Secret (`bearlymail/lambda/llm`)
+## 2. App / LLM Secret (`APP_SECRET_ARN` on ECS and Lambda)
+
+Use the **same JSON secret** the ECS tasks use (not a Lambda-only subset). The batch-analyzer Lambda reads LLM keys **and** `ENCRYPTION_KEY` from this secret: `context_analyses.stats` is encrypted with the same AES-256-GCM + scrypt derivation as the Nest app (`encryptedJsonTransformer`).
 
 Set the LLM provider API keys. Only the key for the active `LLM_PROVIDER` is required.
 If `LLM_PROVIDER` is omitted, the batch Lambda defaults to **`openai`**, matching the ECS app (`LLMCoreService`).
+
+`ENCRYPTION_KEY` must match the value in your main app secret (32+ characters as used by the server).
 
 ```bash
 aws secretsmanager put-secret-value \
   --secret-id bearlymail/lambda/llm \
   --secret-string '{
+    "ENCRYPTION_KEY": "<same-as-ecs-app-secret>",
     "OPENAI_API_KEY": "<your-openai-key>",
     "ANTHROPIC_API_KEY": "<your-anthropic-key>",
     "GEMINI_API_KEY": "<your-gemini-key>",

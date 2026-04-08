@@ -7,9 +7,18 @@
  * Connects via RDS Proxy to multiplex up to 30 concurrent Lambda invocations
  * through a small pool of actual DB connections (avoiding connection exhaustion
  * on t4g.micro with 112 max_connections).
+ *
+ * `context_analyses.stats` is encrypted at rest (TypeORM `encryptedJsonTransformer`
+ * in the main app). Updates must decrypt → merge → encrypt; raw `jsonb_set` is invalid.
  */
 import { Client } from "pg";
-import { getDbSecrets } from "./secrets";
+
+import {
+  deriveKey,
+  encryptStatsForDb,
+  parseStatsFromDb,
+} from "./encryption";
+import { getDbSecrets, getEncryptionKeyString } from "./secrets";
 
 let pgClient: Client | null = null;
 /**
@@ -23,6 +32,21 @@ const CONNECT_RETRY_DELAY_MS = 500;
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withTransaction<T>(
+  db: Client,
+  work: () => Promise<T>,
+): Promise<T> {
+  await db.query("BEGIN");
+  try {
+    const out = await work();
+    await db.query("COMMIT");
+    return out;
+  } catch (err) {
+    await db.query("ROLLBACK");
+    throw err;
+  }
 }
 
 export async function getDbClient(): Promise<Client> {
@@ -78,9 +102,17 @@ export async function getDbClient(): Promise<Client> {
   throw new Error("getDbClient: exhausted retry loop");
 }
 
+function getBatchResultsMap(stats: Record<string, unknown>): Record<string, unknown> {
+  const br = stats.batchResults;
+  if (br && typeof br === "object" && !Array.isArray(br)) {
+    return { ...(br as Record<string, unknown>) };
+  }
+  return {};
+}
+
 /**
- * Update a batch result in the context_analysis record's stats JSONB column.
- * Uses a merge strategy to avoid clobbering concurrent writes from other Lambdas.
+ * Update a batch result in the context_analyses record's stats JSONB column.
+ * Uses row lock + decrypt/encrypt so data matches TypeORM encryption on the server.
  */
 export async function saveBatchResult(
   analysisRecordId: string,
@@ -94,36 +126,48 @@ export async function saveBatchResult(
   batchSize: number,
 ): Promise<void> {
   const db = await getDbClient();
+  const encryptionKey = await getEncryptionKeyString();
+  const derivedKey = deriveKey(encryptionKey);
 
-  await db.query(
-    `
-    UPDATE context_analysis
-    SET
-      stats = jsonb_set(
-        COALESCE(stats, '{}'),
-        '{batchResults,' || $2::text || '}',
-        $3::jsonb,
-        true
-      ),
-      "analyzedCount" = COALESCE("analyzedCount", 0) + CASE
-        WHEN (stats->'batchResults'->>$2::text) IS NULL THEN $4
-        ELSE 0
-      END,
-      "updatedAt" = NOW()
-    WHERE id = $1
-      AND (stats->'batchResults'->>$2::text) IS NULL
-    `,
-    [analysisRecordId, batchIndex, JSON.stringify(result), batchSize],
-  );
+  await withTransaction(db, async () => {
+    const { rows } = await db.query<{ stats: unknown }>(
+      `SELECT stats FROM context_analyses WHERE id = $1 FOR UPDATE`,
+      [analysisRecordId],
+    );
+    if (rows.length === 0) {
+      throw new Error(`context_analyses row not found: ${analysisRecordId}`);
+    }
+
+    const stats = parseStatsFromDb(rows[0].stats, derivedKey);
+    const key = String(batchIndex);
+    const batchResults = getBatchResultsMap(stats);
+
+    if (batchResults[key] != null) {
+      return;
+    }
+
+    batchResults[key] = result;
+    const nextStats = { ...stats, batchResults };
+    const encrypted = encryptStatsForDb(nextStats, derivedKey);
+
+    await db.query(
+      `
+      UPDATE context_analyses
+      SET
+        stats = to_jsonb($2::text),
+        "analyzedCount" = COALESCE("analyzedCount", 0) + $3,
+        "updatedAt" = NOW()
+      WHERE id = $1
+      `,
+      [analysisRecordId, encrypted, batchSize],
+    );
+  });
 }
 
 /**
- * Mark a batch as failed in the context_analysis record.
+ * Mark a batch as failed in the context_analyses record.
  *
- * Idempotency guard: the WHERE clause only matches when no result has been
- * written for this batch index yet. This mirrors saveBatchResult so that the
- * first write (success or failure) is permanent and a Lambda retry cannot
- * overwrite a prior success with a failure record.
+ * Idempotency: if this batch index already has an entry in stats.batchResults, no-op.
  */
 export async function saveBatchFailure(
   analysisRecordId: string,
@@ -136,21 +180,39 @@ export async function saveBatchFailure(
   },
 ): Promise<void> {
   const db = await getDbClient();
+  const encryptionKey = await getEncryptionKeyString();
+  const derivedKey = deriveKey(encryptionKey);
 
-  await db.query(
-    `
-    UPDATE context_analysis
-    SET
-      stats = jsonb_set(
-        COALESCE(stats, '{}'),
-        '{batchResults,' || $2::text || '}',
-        $3::jsonb,
-        true
-      ),
-      "updatedAt" = NOW()
-    WHERE id = $1
-      AND (stats->'batchResults'->>$2::text) IS NULL
-    `,
-    [analysisRecordId, batchIndex, JSON.stringify(error)],
-  );
+  await withTransaction(db, async () => {
+    const { rows } = await db.query<{ stats: unknown }>(
+      `SELECT stats FROM context_analyses WHERE id = $1 FOR UPDATE`,
+      [analysisRecordId],
+    );
+    if (rows.length === 0) {
+      throw new Error(`context_analyses row not found: ${analysisRecordId}`);
+    }
+
+    const stats = parseStatsFromDb(rows[0].stats, derivedKey);
+    const key = String(batchIndex);
+    const batchResults = getBatchResultsMap(stats);
+
+    if (batchResults[key] != null) {
+      return;
+    }
+
+    batchResults[key] = error;
+    const nextStats = { ...stats, batchResults };
+    const encrypted = encryptStatsForDb(nextStats, derivedKey);
+
+    await db.query(
+      `
+      UPDATE context_analyses
+      SET
+        stats = to_jsonb($2::text),
+        "updatedAt" = NOW()
+      WHERE id = $1
+      `,
+      [analysisRecordId, encrypted],
+    );
+  });
 }

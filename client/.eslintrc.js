@@ -194,10 +194,12 @@ module.exports = {
     // ===========================================
     // MAGIC STRINGS ENFORCEMENT
     // ===========================================
-    // Warn about magic strings (string literals that should be constants)
+    // Error on magic strings (string literals that should be constants)
     // This uses no-restricted-syntax to flag string literals in certain contexts
+    // Promoted from 'warn' to 'error' to align with server config and block CI on violations.
+    // All existing violations are in files with explicit overrides (test/debug/stories/workflows).
     'no-restricted-syntax': [
-      'warn',
+      'error',
       {
         // Exclude typeof comparisons (e.g. typeof x === 'string') — these are valid
         // TypeScript type-narrowing patterns, not magic strings.

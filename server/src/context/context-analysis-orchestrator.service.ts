@@ -237,7 +237,7 @@ export class ContextAnalysisOrchestratorService {
       `[CONTEXT-ANALYSIS] 🚀 Dispatching all batches via SQS → Lambda (userId: ${userId})`,
     );
 
-    const { allProcessedBatches, jobResults, enqueueErrors, totalBatches } =
+    const { jobResults, enqueueErrors, totalBatches } =
       await this.enqueueAnalysisBatches({
         userId,
         analysisRecord,
@@ -260,7 +260,6 @@ export class ContextAnalysisOrchestratorService {
     ).length;
     await this.persistBatchState(
       analysisRecord,
-      allProcessedBatches,
       jobResults,
       totalBatches,
     );
@@ -348,7 +347,7 @@ export class ContextAnalysisOrchestratorService {
       ReturnType<ContextGmailDataService["fetchSentThreadsFromProvider"]>
     >;
     sentPayload: SentPayloadItem[];
-    analysisStats: AnalysisStats;
+    analysisStats: Omit<AnalysisStats, "totalThreads">;
   }> {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - DAYS.NINETY);
@@ -378,8 +377,7 @@ export class ContextAnalysisOrchestratorService {
     }));
 
     // totalThreads will be set by the caller after thread-ID fetch completes
-    const analysisStats: AnalysisStats = {
-      totalThreads: 0,
+    const analysisStats: Omit<AnalysisStats, "totalThreads"> = {
       outboundEmails: sentEmailsData.length,
       threadsNeverOpened: 0,
       threadsReadButNotReplied: 0,
@@ -403,7 +401,6 @@ export class ContextAnalysisOrchestratorService {
   private async enqueueAnalysisBatches(
     args: EnqueueBatchesArgs,
   ): Promise<EnqueueBatchesResult> {
-    const FETCH_BATCH_SIZE = 30;
     const ANALYSIS_BATCH_SIZE = 10;
     const {
       allProcessedBatches,
@@ -412,7 +409,6 @@ export class ContextAnalysisOrchestratorService {
       enqueueErrors,
     } = await this.contextEnqueueService.buildAndQueueBatchJobs(
       args,
-      FETCH_BATCH_SIZE,
       ANALYSIS_BATCH_SIZE,
     );
 
@@ -483,7 +479,6 @@ export class ContextAnalysisOrchestratorService {
 
   private async persistBatchState(
     analysisRecord: ContextAnalysis,
-    _allProcessedBatches: BatchPayloadItem[][],
     jobResults: Array<{ jobId: string | null; batchNum: number }>,
     totalBatches: number,
   ): Promise<void> {

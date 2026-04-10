@@ -43,7 +43,6 @@ export class ContextEnqueueService {
 
   async buildAndQueueBatchJobs(
     args: BuildAndQueueArgs,
-    _fetchBatchSize: number,
     analysisBatchSize: number,
   ): Promise<BatchQueueResult> {
     const { userId, threadIds, userEmail } = args;

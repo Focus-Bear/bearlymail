@@ -36,7 +36,10 @@ import {
   isGmailAuthError,
   isThreadStarred,
 } from "./gmail/gmail-sync";
-import { refreshAttachmentsFromGmailForUser } from "./gmail-sync.refresh-attachments";
+import {
+  refreshAttachmentsFromGmailForThread,
+  refreshAttachmentsFromGmailForUser,
+} from "./gmail-sync.refresh-attachments";
 import { verifyInboxStatusForUser } from "./gmail-sync.verify-inbox";
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
@@ -740,6 +743,29 @@ export class GmailSyncService {
     attachments: EmailAttachment[] | null;
   }> {
     return refreshAttachmentsFromGmailForUser(
+      {
+        emailsService: this.emailsService,
+        gmailProvider: this.gmailProvider,
+        logger: this.logger,
+      },
+      userId,
+      emailId,
+    );
+  }
+
+  async refreshAttachmentsFromGmailForThread(
+    userId: string,
+    emailId: string,
+  ): Promise<{
+    threadId: string;
+    results: Array<{
+      emailId: string;
+      gmailMessageId: string;
+      attachments: EmailAttachment[] | null;
+      error?: string;
+    }>;
+  }> {
+    return refreshAttachmentsFromGmailForThread(
       {
         emailsService: this.emailsService,
         gmailProvider: this.gmailProvider,

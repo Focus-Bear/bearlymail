@@ -145,7 +145,8 @@ export class EmailDebugController {
 
   @Post(":id/debug/refresh-attachments-from-gmail")
   async refreshAttachmentsFromGmail(@Request() req, @Param("id") id: string) {
-    return this.gmailSyncService.refreshAttachmentsFromGmail(
+    // Process entire thread, not just the single email
+    return this.gmailSyncService.refreshAttachmentsFromGmailForThread(
       req.user.userId,
       id,
     );

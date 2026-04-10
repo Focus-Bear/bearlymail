@@ -372,7 +372,7 @@ describe("EmailDebugService", () => {
 
       await expect(
         service.getCategoryDebugData(userId, emailId),
-      ).rejects.toThrow(`Email ${emailId} not found for user ${userId}`);
+      ).rejects.toThrow(`Email ${emailId} not found`);
     });
 
     it("should handle email with no thread", async () => {

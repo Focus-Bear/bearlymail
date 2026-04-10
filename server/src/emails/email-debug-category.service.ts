@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { CategoryRulesService } from "../category-rules/category-rules.service";
@@ -116,7 +116,7 @@ export class EmailDebugCategoryService {
     });
 
     if (!email) {
-      throw new Error(`Email ${emailId} not found for user ${userId}`);
+      throw new NotFoundException(`Email ${emailId} not found`);
     }
 
     const thread = email.emailThreadId

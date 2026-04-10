@@ -37,6 +37,7 @@ import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
+import { GmailSyncService } from "./providers/gmail-sync.service";
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)
@@ -48,6 +49,7 @@ export class EmailDebugAdminController {
     private readonly emailAdminService: EmailAdminService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly debugService: DebugService,
+    private readonly gmailSyncService: GmailSyncService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -180,6 +182,27 @@ export class EmailDebugAdminController {
     return this.emailsService.getCategoryDebugData(req.user.userId, id, {
       deep: wantDeep,
     });
+  }
+
+  // ─── Routes migrated from EmailDebugController (issue #1699) ─────────────────
+
+  /**
+   * Priority debug info endpoint.
+   * Returns per-mode bucket counts, priority score histogram, and fetch timestamp.
+   */
+  @Get("debug/priority-info")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getPriorityDebugInfo(@Request() req) {
+    return this.emailsService.getPriorityDebugInfo(req.user.userId);
+  }
+
+  @Post(":id/debug/refresh-attachments-from-gmail")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async refreshAttachmentsFromGmail(@Request() req, @Param("id") id: string) {
+    return this.gmailSyncService.refreshAttachmentsFromGmail(
+      req.user.userId,
+      id,
+    );
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────────

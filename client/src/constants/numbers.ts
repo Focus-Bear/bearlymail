@@ -189,6 +189,9 @@ export const NUMBER_FORMAT_MILLION = 1000000;
 // Animation/transition durations
 export const EXIT_ANIMATION_DURATION_MS = 300;
 export const ERROR_NOTIFICATION_DURATION_MS = 6000;
+export const UNDO_TOAST_DURATION_MS = 5000; // 5 seconds for undo-toast countdown before committing
+export const TOAST_ENTRANCE_DELAY_MS = 10; // Small delay to trigger entrance CSS animation
+export const TOAST_ACTION_FOCUS_DELAY_MS = 50; // Delay before focusing action button for accessibility
 export const AUTO_SAVE_INTERVAL_MS = 10000;
 export const SAVE_CONFIRMATION_DURATION_MS = 2000;
 export const POLLING_DELAY_MS = 500;

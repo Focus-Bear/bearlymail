@@ -382,6 +382,7 @@
     "back": "Atrás",
     "cancel": "Cancel",
     "close": "Cerca",
+    "closeNotification": "Cerrar notificación",
     "confirm": "Confirmar",
     "delete": "Eliminar",
     "deselectAll": "Deseleccionar todo",
@@ -2269,7 +2270,6 @@
       "bodyPhrasesPlaceholder": "número de factura\npago pendiente",
       "bodyPhrasesHelp": "Se busca en el texto plano del cuerpo (sin distinguir mayúsculas). Cualquier línea no vacía que aparezca en el mensaje cumple la condición de cuerpo.",
       "bodyPhraseSeparator": " · ",
-      "confirmDelete": "¿Eliminar esta regla de categoría de forma permanente?",
       "toggleSuccess": "Regla actualizada",
       "toggleError": "No se pudo actualizar la regla",
       "createSuccess": "Regla compuesta creada",
@@ -2277,7 +2277,8 @@
       "updateSuccess": "Regla compuesta actualizada",
       "updateError": "No se pudo actualizar la regla",
       "deleteSuccess": "Regla eliminada",
-      "deleteError": "No se pudo eliminar la regla"
+      "deleteError": "No se pudo eliminar la regla",
+      "undoDelete": "Regla eliminada — haz clic en Deshacer para restaurarla"
     },
     "protoCategories": {
       "viewButton": "Ver categorías sugeridas por IA",

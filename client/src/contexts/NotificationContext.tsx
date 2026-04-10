@@ -1,16 +1,22 @@
-import React, { createContext, ReactNode, useCallback, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
 
 import { NotificationToast } from 'components/notifications/NotificationToast';
-import { ERROR_NOTIFICATION_DURATION_MS } from 'constants/numbers';
+import { ERROR_NOTIFICATION_DURATION_MS, UNDO_TOAST_DURATION_MS } from 'constants/numbers';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';
+
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+}
 
 export interface Notification {
   id: string;
   message: string;
   type: NotificationType;
   duration?: number;
+  action?: NotificationAction;
 }
 
 interface NotificationContextType {
@@ -19,6 +25,8 @@ interface NotificationContextType {
   showError: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
   showWarning: (message: string, duration?: number) => void;
+  /** Shows a success toast with an Undo button. Returns a cancel function that aborts the deferred commit. */
+  showSuccessWithUndo: (message: string, onCommit: () => void, onUndo: () => void, duration?: number) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -27,9 +35,11 @@ const DEFAULT_DURATION = 4000; // 4 seconds
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const timerRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
+    timerRefs.current.delete(id);
   }, []);
 
   const showNotification = useCallback(
@@ -41,9 +51,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       // Auto-remove after duration
       if (duration > 0) {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           removeNotification(id);
         }, duration);
+        timerRefs.current.set(id, timer);
       }
     },
     [removeNotification]
@@ -77,8 +88,54 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     [showNotification]
   );
 
+  const showSuccessWithUndo = useCallback(
+    (message: string, onCommit: () => void, onUndo: () => void, duration: number = UNDO_TOAST_DURATION_MS): (() => void) => {
+      const id = `notification-${Date.now()}-${Math.random()}`;
+
+      let cancelled = false;
+
+      const cancel = () => {
+        cancelled = true;
+        const existing = timerRefs.current.get(id);
+        if (existing) {
+          clearTimeout(existing);
+          timerRefs.current.delete(id);
+        }
+        setNotifications(prev => prev.filter(notif => notif.id !== id));
+      };
+
+      const notification: Notification = {
+        id,
+        message,
+        type: 'success',
+        duration,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            cancel();
+            onUndo();
+          },
+        },
+      };
+
+      setNotifications(prev => [...prev, notification]);
+
+      const timer = setTimeout(() => {
+        if (!cancelled) {
+          setNotifications(prev => prev.filter(notif => notif.id !== id));
+          timerRefs.current.delete(id);
+          onCommit();
+        }
+      }, duration);
+      timerRefs.current.set(id, timer);
+
+      return cancel;
+    },
+    []
+  );
+
   return (
-    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning }}>
+    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning, showSuccessWithUndo }}>
       {children}
       <div
         style={{

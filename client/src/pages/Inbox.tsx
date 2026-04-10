@@ -151,6 +151,11 @@ const InboxView: React.FC = () => {
   const { isDebugModeEnabled } = useDebugMode();
   // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
+  // Fix #1571: fetch counts for all modes so priorityTotalCount reflects all emails,
+  // not just the current mode. Hooks must be called unconditionally, so we call all three.
+  const { counts: triagePriorityCounts } = usePriorityCounts('triage');
+  const { counts: actionPriorityCounts } = usePriorityCounts('action');
+  const { counts: followUpPriorityCounts } = usePriorityCounts('follow-up');
   // Fix #1466: track summary refetch so category pills can show a loading skeleton.
   const isSummaryLoading = useSelector(selectSummaryLoading);
   const {
@@ -169,7 +174,7 @@ const InboxView: React.FC = () => {
 
   // Fix #1571 Item 3: extract priorityTotalCount so it can be passed to the debug panel.
   // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
-  const priorityTotalCount = priorityCounts
+  const priorityTotalCount = (triagePriorityCounts && actionPriorityCounts && followUpPriorityCounts)
     ? PRIORITY_BUCKET_DEFS
         .filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
         .filter(bucket => {
@@ -181,7 +186,8 @@ const InboxView: React.FC = () => {
         })
         .reduce((sum, bucket) => {
           const key = PRIORITY_LABEL_TO_KEY[bucket.label];
-          return sum + (key ? (priorityCounts[key] ?? 0) : 0);
+          // Sum counts across all three modes
+          return sum + (key ? (triagePriorityCounts[key] ?? 0) + (actionPriorityCounts[key] ?? 0) + (followUpPriorityCounts[key] ?? 0) : 0);
         }, 0)
     : undefined;
 
@@ -259,13 +265,21 @@ const InboxView: React.FC = () => {
           hasActiveFilters={hasActiveFilters} setAccountFilter={setAccountFilter}
           setCategoryFilter={setCategoryFilter} setPriorityFilter={setPriorityFilter}
           categoryCounts={categorySummary ? Object.fromEntries(categorySummary.map(cat => [cat.id, cat.count])) : undefined}
-          bucketCounts={priorityCounts ? {
-            'Very Low': priorityCounts.veryLow,
-            'Low': priorityCounts.low,
-            'Medium': priorityCounts.medium,
-            'High': priorityCounts.high,
-            'Very High': priorityCounts.veryHigh,
-          } : undefined}
+          bucketCounts={(triagePriorityCounts && actionPriorityCounts && followUpPriorityCounts)
+            ? Object.fromEntries(
+                PRIORITY_BUCKET_DEFS
+                  .filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
+                  .map(bucket => {
+                    const key = PRIORITY_LABEL_TO_KEY[bucket.label];
+                    return [
+                      bucket.label,
+                      (triagePriorityCounts[key] ?? 0) +
+                        (actionPriorityCounts[key] ?? 0) +
+                        (followUpPriorityCounts[key] ?? 0),
+                    ];
+                  }),
+              )
+            : undefined}
           priorityTotalCount={priorityTotalCount}
           isSummaryLoading={isSummaryLoading}
         />

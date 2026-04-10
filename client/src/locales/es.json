@@ -1432,6 +1432,7 @@
       "priorityAll": "Todas las prioridades",
       "priorityMinHandle": "Prioridad mínima",
       "priorityMaxHandle": "Prioridad máxima",
+      "resetPriority": "Restablecer",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas",
       "noAccounts": "No se encontraron cuentas",

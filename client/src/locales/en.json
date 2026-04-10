@@ -351,6 +351,7 @@
       "priorityAll": "All priorities",
       "priorityMinHandle": "Minimum priority",
       "priorityMaxHandle": "Maximum priority",
+      "resetPriority": "Reset",
       "allAccounts": "All accounts",
       "allCategories": "All",
       "noAccounts": "No accounts found",

@@ -142,6 +142,7 @@ inboxFiltersI18n.use(initReactI18next).init({
         'inbox.filters.priorityAll': 'All priorities',
         'inbox.filters.priorityMinHandle': 'Minimum priority',
         'inbox.filters.priorityMaxHandle': 'Maximum priority',
+        'inbox.filters.resetPriority': 'Reset',
         'inbox.filters.moreCategories': 'more',
         'inbox.filters.showMoreCategories': 'Show {{count}} more categories',
         'inbox.filters.nCategoriesSelected': '{{count}} selected',

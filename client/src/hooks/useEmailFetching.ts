@@ -64,6 +64,8 @@ import {
 } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
+const ABORT_ERROR_NAME = 'AbortError';
+
 /** How long (ms) the inbox cache is considered fresh before a full re-fetch is needed. */
 export const INBOX_CACHE_TTL_MS = 60_000;
 
@@ -287,6 +289,8 @@ function serveCategoryFromCacheAndRefresh({
   dispatch,
   buildCategoryParams,
   fetchSessionRef,
+  loadingCategoryNamesRef,
+  categorySummaryRef,
 }: {
   cachedEmails: Email[];
   catKey: string;
@@ -295,12 +299,41 @@ function serveCategoryFromCacheAndRefresh({
   dispatch: AppDispatch;
   buildCategoryParams: (categoryKey: string) => URLSearchParams;
   fetchSessionRef: React.MutableRefObject<number>;
+  /** Ref to current loading category keys — used to skip background fetch when one is already in-flight. Fix #1665. */
+  loadingCategoryNamesRef: React.MutableRefObject<string[]>;
+  /** Ref to the latest categorySummary — used to resolve the spinner for genuinely empty categories. Fix #1689. */
+  categorySummaryRef: React.MutableRefObject<CategorySummaryItem[] | null>;
 }): void {
   dispatch(updateCategoryEmails({ categoryKey: catKey, emails: cachedEmails }));
   if (cachedEmails.length > 0) {
     dispatch(markCategoryLoaded(catKey));
+  } else {
+    // Fix #1689: Cache is empty. Check if the summary also confirms 0 emails.
+    // If summary agrees, the category is genuinely empty — mark loaded so the UI
+    // shows the empty state instead of an infinite spinner.
+    // If summary shows > 0, this is a stale-summary vs empty-cache race — fall
+    // through to the background refresh which will reconcile the two.
+    const summaryItem = categorySummaryRef.current?.find(
+      item => getCategoryKey(item.id, item.name) === catKey
+    );
+    // Fix: distinguish "summary not yet loaded" (undefined) from "summary confirms 0 emails".
+    // summaryItem?.count ?? 0 incorrectly treats undefined-summary as confirmed-0, causing
+    // markCategoryLoaded to fire before the summary has been fetched. Only mark loaded when
+    // the summaryItem is present AND its count is 0.
+    if (summaryItem !== undefined && summaryItem !== null && (summaryItem.count ?? 0) === 0) {
+      dispatch(markCategoryLoaded(catKey));
+      devLog('[Accordion] Cached category is empty and summary confirms 0 — marking loaded:', categoryName, '(key:', catKey, ')');
+      return; // no need for background refresh
+    }
+    // summaryItem undefined (not yet loaded) or count > 0 — fall through to background refresh
   }
-  // If cachedEmails is empty, leave the category in its current state — the background refresh will load it
+
+  // Guard: skip background refresh if a fetch is already in-flight for this category
+  // (e.g. refreshInPlace is fetching the same category concurrently). Fix #1665.
+  if (loadingCategoryNamesRef.current.includes(catKey)) {
+    devLog('[Accordion] Skipping background refresh for category (already in-flight):', categoryName, '(key:', catKey, ')');
+    return;
+  }
 
   const sessionId = fetchSessionRef.current;
   const params = buildCategoryParams(catKey);
@@ -314,6 +347,26 @@ function serveCategoryFromCacheAndRefresh({
       const freshEmails: Email[] = response.data.emails;
       dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
       setCachedCategoryEmails(mode, catKey, freshEmails);
+      // Fix #1689: resolve loading state for the background-refresh result.
+      if (freshEmails.length > 0) {
+        dispatch(markCategoryLoaded(catKey));
+      } else {
+        // API returned 0 — check summary to distinguish genuinely empty vs stale-summary race.
+        const summaryItem = categorySummaryRef.current?.find(
+          item => getCategoryKey(item.id, item.name) === catKey
+        );
+        // Fix: only treat as genuinely empty when summaryItem is present AND count === 0.
+        // If summaryItem is undefined, the summary hasn't loaded yet — don't mark loaded.
+        if (summaryItem !== undefined && summaryItem !== null && (summaryItem.count ?? 0) === 0) {
+          // Both API and summary agree: genuinely empty.
+          dispatch(markCategoryLoaded(catKey));
+          devLog('[Accordion] Background refresh confirmed empty category:', categoryName, '(key:', catKey, ')');
+        } else {
+          // Summary still shows > 0 (or not yet loaded) but API returned 0 — stale summary race.
+          // Mark failed so useCategoryFetch can retry after summary updates.
+          dispatch(markCategoryLoadFailed(catKey));
+        }
+      }
     })
     .catch(err => console.warn('[Accordion] Background refresh failed for category:', categoryName, err));
 }
@@ -342,6 +395,14 @@ function handleCategoryFetchError(
   sessionId: number
 ) {
   const { categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef, categorySummaryRef } = args;
+
+  // AbortError is an expected, non-actionable signal (e.g. component unmounted or fetch cancelled).
+  // Skip backoff/retry logic and swallow silently — logging it as an error would be misleading.
+  if (error instanceof DOMException && error.name === ABORT_ERROR_NAME) {
+    dispatch(markCategoryLoadFailed(catKey));
+    return;
+  }
+
   console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
   if (fetchSessionRef.current !== sessionId) {
 return;
@@ -383,7 +444,7 @@ function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boole
 
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
-  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, categorySummaryRef } = args;
+  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, loadingCategoryNamesRef, categorySummaryRef } = args;
   // Compute the stable key: UUID when available, name as fallback
   const catKey = getCategoryKey(categoryId, categoryName);
 
@@ -395,14 +456,14 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
   // Stale-while-revalidate for categories: show cached emails instantly, refresh in background
   const cachedEmails = getCachedCategoryEmails(mode, catKey);
   if (cachedEmails !== null) {
-    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef });
+    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef, loadingCategoryNamesRef, categorySummaryRef });
     return;
   }
 
   const sessionId = fetchSessionRef.current;
   categoryBackoff.markInFlight(catKey);
   dispatch(markCategoryLoading(catKey));
-  console.log('[Accordion] Fetching category:', categoryName, '(key:', catKey, ')');
+  devLog('[Accordion] Fetching category:', categoryName, '(key:', catKey, ')');
 
   try {
     const params = buildCategoryParams(catKey);
@@ -412,7 +473,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
     const emails: Email[] = response.data.emails;
 
     if (fetchSessionRef.current !== sessionId) {
-      console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
+      devLog('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
 
@@ -437,7 +498,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
         // The category cache entry will be naturally evicted (we just wrote [] below).
         clearCacheForMode(mode);
       } else {
-        console.log(
+        devLog(
           '[Accordion] Category returned 0 emails and summary also shows 0 — skipping cache bust for mode:',
           mode,
           '| category:', categoryName, '(key:', catKey, ')'
@@ -458,21 +519,19 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
       const summaryItem = categorySummaryRef.current?.find(
         (item) => item.id === categoryId || item.name === categoryName
       );
-      const summaryCount = summaryItem?.count ?? 0;
-      if (summaryCount > 0) {
-        console.warn(
-          '[Accordion] Category returned 0 emails but summary says', summaryCount,
-          '— marking load failed for limbo retry:', categoryName, '(key:', catKey, ')'
-        );
-        dispatch(markCategoryLoadFailed(catKey));
-      } else {
+      // Fix: distinguish "summary not yet loaded" from "summary confirms 0".
+      // Only mark loaded when summaryItem is present AND count is 0 (not when undefined).
+      if (summaryItem !== undefined && summaryItem !== null && (summaryItem.count ?? 0) === 0) {
         // Summary also shows 0 — category is genuinely empty; mark loaded so UI renders it.
         dispatch(markCategoryLoaded(catKey));
-        console.log('[Accordion] Loaded category (genuinely empty):', categoryName, '(key:', catKey, ')');
+        devLog('[Accordion] Loaded category (genuinely empty):', categoryName, '(key:', catKey, ')');
+      } else {
+        // Summary shows > 0, or hasn't loaded yet — mark failed for retry.
+        dispatch(markCategoryLoadFailed(catKey));
       }
     } else {
       dispatch(markCategoryLoaded(catKey));
-      console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
+      devLog('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
     }
   } catch (error: unknown) {
     handleCategoryFetchError(args, catKey, error, sessionId);

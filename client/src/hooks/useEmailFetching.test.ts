@@ -1,7 +1,7 @@
 import React from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { Email } from 'types/email';
 import * as emailCache from 'utils/emailCache';
@@ -501,12 +501,13 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
       React.createElement(Provider, { store, children });
   };
 
-  it('Bug 1: does NOT mark category as loaded when cache is empty', async () => {
-    // Empty cache — serveCategoryFromCacheAndRefresh must NOT call markCategoryLoaded.
-    // The category should remain un-loaded so the background refresh (or a retry) can populate it.
+  it('Bug 1: does NOT mark category as loaded when cache is empty and summary is undefined (not yet fetched)', async () => {
+    // Empty cache + summary not yet loaded — serveCategoryFromCacheAndRefresh must NOT call markCategoryLoaded.
+    // categorySummaryRef will be null/empty (no Redux categorySummary seeded), so summaryItem is undefined.
+    // The fix ensures undefined summaryItem does NOT trigger markCategoryLoaded (old ?? 0 bug).
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
 
-    // Background refresh returns empty too (deferred — we want to test the pre-resolve state)
+    // Background refresh returns empty too (fire-and-forget path — test the pre-resolve state)
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
     const { result } = renderHook(
@@ -517,8 +518,38 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     await result.current.fetchCategoryEmails('Other', 'uuid-other-0001');
 
     // After the cache path runs (synchronously), the category must NOT be in loadedCategoryNames
+    // because summaryItem is undefined — we cannot confirm the category is genuinely empty yet.
     const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
     expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-other-0001');
+  });
+
+  it('Bug 1 (new): marks category as loaded when cache is empty AND summary confirms count === 0', async () => {
+    // Empty cache + summary explicitly confirms count=0 → markCategoryLoaded should fire.
+    // This is the "genuinely empty category" fast-path added in fix #1689.
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+
+    // Seed Redux store with a categorySummary that confirms the category has 0 emails.
+    store.dispatch(
+      (await import('store/slices/inboxDataSlice')).setCategorySummary([
+        { id: 'uuid-empty-cat', name: 'Empty', count: 0 },
+      ])
+    );
+
+    // Background refresh won't be reached (function returns early) — but mock defensively.
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Empty', 'uuid-empty-cat');
+
+    // Summary explicitly confirms 0 — category must be marked loaded immediately.
+    const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(state.inboxData.loadedCategoryNames).toContain('uuid-empty-cat');
+    // And no background GET was fired.
+    expect(mockedAxios.get).not.toHaveBeenCalled();
   });
 
   it('Bug 1: DOES mark category as loaded when cache has emails', async () => {
@@ -738,5 +769,131 @@ describe('fetchEmails — cache invalidation on filter change (fix #846)', () =>
     const clearModeIdx = callOrder.indexOf('clearMode');
     const axiosIdx = callOrder.indexOf('axiosGet');
     expect(clearModeIdx).toBeLessThan(axiosIdx);
+  });
+});
+
+// ─── fix #1689: null-guard for summaryItem (rework) ──────────────────────────
+
+describe('fix #1689 – summaryItem null-guard in fetchCategoryEmailsImpl', () => {
+  // Verifies the fix to the critical logic bug: `summaryItem?.count ?? 0` was conflating
+  // "summary not loaded yet" with "confirmed 0 emails". The fix requires an explicit
+  // `summaryItem !== undefined && summaryItem !== null` check before treating count=0 as
+  // confirmation of genuine emptiness.
+
+  let store: ReturnType<typeof configureStore>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+    store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
+  });
+
+  const createWrapper = () =>
+    ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store, children });
+
+  it('empty cache + summary undefined → background refresh proceeds, NOT marked loaded', async () => {
+    // No categorySummary in Redux → summaryItem will be undefined.
+    // The old bug: ?? 0 treated undefined as 0, so markCategoryLoaded fired incorrectly.
+    // The fix: undefined summaryItem must fall through to background refresh (NOT mark loaded).
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+
+    // Use a never-resolving promise so the background GET stays pending — this lets us assert
+    // the state strictly AFTER the synchronous cache path, before any GET response arrives.
+    let resolveGet!: (v: unknown) => void;
+    const pendingGet = new Promise(resolve => {
+      resolveGet = resolve;
+    });
+    mockedAxios.get.mockReturnValueOnce(pendingGet as ReturnType<typeof mockedAxios.get>);
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await act(async () => {
+      await result.current.fetchCategoryEmails('Work', 'uuid-work-null-guard');
+    });
+
+    // Summary was undefined → null-guard prevents markCategoryLoaded from firing.
+    // Category must still be un-loaded (background GET is pending, hasn't resolved).
+    const stateBefore = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(stateBefore.inboxData.loadedCategoryNames).not.toContain('uuid-work-null-guard');
+
+    // Background GET must have been called (background refresh did proceed).
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+    // Resolve the GET with an email so the category gets loaded — cleans up the pending promise.
+    await act(async () => {
+      resolveGet({ data: { emails: [{ id: 'bg-1', threadId: 't1', subject: 'BG', from: 'a@b.com', to: 'c@d.com', body: '', isRead: false, isArchived: false, starCount: 0, receivedAt: new Date().toISOString(), category: 'Work', category_id: 'uuid-work-null-guard' }] } });
+      await pendingGet;
+    });
+  });
+
+  it('empty cache + summary confirms count=0 → markCategoryLoaded dispatched, no background GET', async () => {
+    // Summary explicitly present with count=0 → genuinely empty category.
+    // markCategoryLoaded must fire and no background GET should be made.
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+
+    const { setCategorySummary } = await import('store/slices/inboxDataSlice');
+    store.dispatch(setCategorySummary([{ id: 'uuid-confirmed-empty', name: 'Confirmed', count: 0 }]));
+
+    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await result.current.fetchCategoryEmails('Confirmed', 'uuid-confirmed-empty');
+
+    // Category must be marked loaded immediately (summary confirmed 0).
+    const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(state.inboxData.loadedCategoryNames).toContain('uuid-confirmed-empty');
+
+    // No background GET should have been fired.
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+  });
+
+  it('AbortError in fetchCategoryEmailsImpl → markCategoryLoadFailed dispatched, no console.error from app code', async () => {
+    // When the category fetch is aborted (e.g. component unmounted), the error handler
+    // must not emit a console.error from application code (AbortErrors are expected/non-actionable).
+    // markCategoryLoadFailed must still be dispatched so Effect 2 can retry if needed.
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+
+    const abortError = new DOMException('The user aborted a request.', 'AbortError');
+    mockedAxios.get.mockRejectedValueOnce(abortError);
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
+
+    // Seed summary with count > 0 so the fetch is not skipped.
+    const { setCategorySummary } = await import('store/slices/inboxDataSlice');
+    store.dispatch(setCategorySummary([{ id: 'uuid-abort-cat', name: 'Aborted', count: 3 }]));
+
+    const { result } = renderHook(
+      () => useEmailFetching({ mode: 'triage' }),
+      { wrapper: createWrapper() }
+    );
+
+    await act(async () => {
+      await result.current.fetchCategoryEmails('Aborted', 'uuid-abort-cat');
+      // Wait for the rejected promise to propagate through handleCategoryFetchError
+      await new Promise(resolve => setTimeout(resolve, 10));
+    });
+
+    // Category must not be in loadedCategoryNames after an abort.
+    const state = store.getState() as { inboxData: { loadedCategoryNames: string[] } };
+    expect(state.inboxData.loadedCategoryNames).not.toContain('uuid-abort-cat');
+
+    // No console.error calls from APPLICATION code (React act() warnings are React-internal,
+    // not from our code — we check that none of our own error messages appear).
+    const errorCalls = (console.error as jest.Mock).mock.calls;
+    const appErrorCalls = errorCalls.filter(
+      args => typeof args[0] === 'string' && args[0].includes('[Accordion]')
+    );
+    expect(appErrorCalls).toHaveLength(0);
   });
 });

@@ -4,6 +4,8 @@ import axios from 'axios';
 import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
 
+const ABORT_ERROR_NAME = 'AbortError';
+
 interface TabCounts {
   triage: number;
   action: number;
@@ -114,7 +116,35 @@ export function useTabCounts(): UseTabCountsReturn {
       };
       localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
     } catch (error) {
+      // Fix #1689: Handle AbortError silently — the request was cancelled due to
+      // navigation or React StrictMode double-mount. Restore stale cached counts
+      // (if available) so badges don't go blank.
+      if (
+        (error instanceof Error && error.name === ABORT_ERROR_NAME) ||
+        axios.isCancel(error)
+      ) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const cacheEntry: CacheEntry = JSON.parse(cached);
+            setTabCounts(cacheEntry.counts);
+          }
+        } catch {
+          // ignore cache read errors
+        }
+        return;
+      }
       console.error('Error fetching tab counts:', error);
+      // Fallback: restore last-known value from cache so badges don't go blank.
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const cacheEntry: CacheEntry = JSON.parse(cached);
+          setTabCounts(cacheEntry.counts);
+        }
+      } catch {
+        // ignore cache read errors
+      }
     } finally {
       setLoading(false);
     }

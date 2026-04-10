@@ -10,6 +10,7 @@ import {
   fetchSuccess as categoryFetchSuccess,
   resetAll as categoryResetAll,
 } from 'store/slices/categorySlice';
+import { markCategoryLoaded } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
 const INITIAL_PRELOAD_COUNT = 3;
@@ -17,6 +18,7 @@ const INITIAL_PRELOAD_COUNT = 3;
 interface CategorySummaryItem {
   id?: string | null;
   name: string;
+  count?: number;
 }
 
 export interface UseCategoryFetchParams {
@@ -120,6 +122,14 @@ export function useCategoryFetch({
 
       const item = keyToItem.get(key);
       if (!item) {
+        return;
+      }
+
+      // Fix #1689: Fast-path for categories the fresh summary says are empty.
+      // Avoids a redundant API call and resolves the spinner immediately when
+      // the category has 0 emails according to the current summary.
+      if ((item.count ?? 0) === 0) {
+        dispatch(markCategoryLoaded(key));
         return;
       }
 

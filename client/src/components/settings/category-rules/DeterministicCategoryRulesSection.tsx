@@ -25,6 +25,7 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
     prefillCategoryName,
     openAdd,
     openEdit,
+    openAddWithPrefill,
     closeModal,
     handleToggle,
     handleDelete,
@@ -68,6 +69,7 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
           onToggleEnabled={handleToggle}
           onDelete={handleDelete}
           onEditComposite={openEdit}
+          onUpgradeToComposite={rule => openAddWithPrefill(rule.categoryName)}
         />
       )}
 

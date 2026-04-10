@@ -10,6 +10,7 @@ export interface DeterministicCategoryRulesPanelProps {
   onToggleEnabled: (id: string, nextEnabled: boolean) => void;
   onDelete: (id: string) => void;
   onEditComposite?: (rule: CategoryRuleDto) => void;
+  onUpgradeToComposite?: (rule: CategoryRuleDto) => void;
 }
 
 export const DeterministicCategoryRulesPanel: React.FC<DeterministicCategoryRulesPanelProps> = ({
@@ -17,6 +18,7 @@ export const DeterministicCategoryRulesPanel: React.FC<DeterministicCategoryRule
   onToggleEnabled,
   onDelete,
   onEditComposite,
+  onUpgradeToComposite,
 }) => {
   const { t } = useTranslation();
 
@@ -40,6 +42,7 @@ export const DeterministicCategoryRulesPanel: React.FC<DeterministicCategoryRule
           onToggleEnabled={onToggleEnabled}
           onDelete={onDelete}
           onEditComposite={onEditComposite}
+          onUpgradeToComposite={onUpgradeToComposite}
         />
       ))}
     </div>

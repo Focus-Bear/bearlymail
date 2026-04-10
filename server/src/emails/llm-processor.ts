@@ -5,10 +5,8 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
-import {
-  CategoryRuleMatch,
-  CategoryRulesService,
-} from "../category-rules/category-rules.service";
+import { CategoryRuleMatch } from "../category-rules/category-rules.types";
+import { CategoryRulesService } from "../category-rules/category-rules.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
@@ -221,12 +219,18 @@ export class LLMProcessor implements OnModuleInit {
     categoryName: string,
     workerId: string,
   ): Promise<void> {
+    const bodyTextForMatch = cleanEmailContent(
+      email.body || "",
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
     const emailMetadata = {
       from: email.from || "",
       subject: email.subject || "",
+      bodyTextForMatch,
     };
     try {
-      await this.categoryRulesService.generateRuleFromEmail(
+      await this.categoryRulesService.generateCompositeRuleFromEmail(
         userId,
         emailMetadata,
         categoryName,
@@ -337,7 +341,7 @@ export class LLMProcessor implements OnModuleInit {
       workerId,
     );
     tracker.endPhase("dbUpdate");
-    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
+    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") { // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
       await this.tryGenerateCategoryRule(
         userId,
         emailId,

@@ -2278,6 +2278,12 @@
       "updateError": "No se pudo actualizar la regla",
       "deleteSuccess": "Regla eliminada",
       "deleteError": "No se pudo eliminar la regla",
+      "legacyWeakWarning": "Esta regla coincide con criterios limitados y puede producir falsos positivos. Considera crear una regla compuesta.",
+      "upgradeToComposite": "Actualizar a regla compuesta",
+      "allFieldsRequired": "Los tres campos (remitente, asunto, cuerpo) son necesarios para reducir los falsos positivos.",
+      "fieldRequiredError": "Este campo es obligatorio. Introduce al menos un valor.",
+      "kindLegacyWeak": "⚠ Regla automática débil",
+      "notApplicableMark": "—",
       "undoDelete": "Regla eliminada — haz clic en Deshacer para restaurarla"
     },
     "protoCategories": {

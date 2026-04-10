@@ -61,7 +61,7 @@ type PriorityResult = {
   goalAlignmentExplanation: string;
   category: string;
   categoryExplanation: string;
-  /** Confidence level the LLM assigned to its category decision. Used for deterministic rule generation (issue #1624). */
+  /** Confidence level the LLM assigned to its category decision. */
   categoryConfidence?: CategoryConfidence;
   reasoning: string;
   protoCategorySuggestion?: { name: string; description: string };

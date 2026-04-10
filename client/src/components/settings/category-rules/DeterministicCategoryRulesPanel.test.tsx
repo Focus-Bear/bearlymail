@@ -22,6 +22,8 @@ jest.mock('theme/theme', () => ({
       text: { primary: '#111', secondary: '#666', tertiary: '#999' },
       border: { light: '#e0e0e0', medium: '#ccc' },
       primary: { main: '#06c' },
+      warning: { light: '#fef3c7' },
+      accent: { warning: '#f59e0b' },
     },
     borderRadius: { sm: '4px' },
     typography: { fontSize: { xs: '11px', sm: '12px' }, fontWeight: { semibold: 600, normal: 400 } },

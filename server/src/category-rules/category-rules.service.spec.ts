@@ -179,6 +179,92 @@ describe("CategoryRulesService", () => {
     });
   });
 
+  describe("generateCompositeRuleFromEmail", () => {
+    const userId = "user-1";
+
+    it("creates a composite rule when sender, subject, and body yield phrases", async () => {
+      repo.find.mockResolvedValue([]);
+      const created = {
+        id: "comp-1",
+        ruleKind: "composite",
+        categoryName: "CI",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch:
+            "Pipeline step compile failed on branch main.\n\n— CI Bot",
+        },
+        "CI",
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ruleKind: "composite",
+          categoryName: "CI",
+          compositeSpec: expect.objectContaining({
+            v: 2,
+            senderMatchesAny: ["alerts@acmecorp.com"],
+            subjectContainsAny: ["Build failed"],
+            bodyContainsAny: ["Pipeline step compile failed on branch main."],
+          }),
+        }),
+      );
+      expect(result).toEqual(created);
+    });
+
+    it("returns null and does not persist when body text is too short", async () => {
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "a@b.co",
+          subject: "Hello",
+          bodyTextForMatch: "short",
+        },
+        "Cat",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("reuses an existing composite rule with the same spec and can update category", async () => {
+      const existing = {
+        id: "comp-2",
+        categoryName: "OldName",
+        ruleKind: "composite",
+        compositeSpec: {
+          v: 2 as const,
+          senderMatchesAny: ["alerts@acmecorp.com"],
+          subjectContainsAny: ["Build failed"],
+          bodyContainsAny: ["Pipeline step compile failed on branch main."],
+        },
+      };
+      repo.find.mockResolvedValue([existing]);
+      repo.save.mockImplementation((entity) => Promise.resolve(entity));
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch:
+            "Pipeline step compile failed on branch main.\n\n— CI Bot",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(existing.categoryName).toBe("CI");
+      expect(result?.id).toBe("comp-2");
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // findMatchingRule
   // ---------------------------------------------------------------------------
@@ -509,6 +595,86 @@ describe("CategoryRulesService", () => {
 
       expect(match?.categoryName).toBe("Legacy QA");
       expect(match?.ruleKind).toBe("composite");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // normalizeCompositeSpecDto
+  // ---------------------------------------------------------------------------
+
+  describe("normalizeCompositeSpecDto", () => {
+    const validDto = {
+      categoryName: "Test",
+      senderMatchesAny: ["billing@acme.com"],
+      subjectContainsAny: ["Invoice"],
+      bodyContainsAny: ["Amount due"],
+    };
+
+    it("accepts a valid DTO with all 3 condition types populated", () => {
+      expect(() => service.normalizeCompositeSpecDto(validDto)).not.toThrow();
+      const spec = service.normalizeCompositeSpecDto(validDto);
+      expect(spec.senderMatchesAny).toHaveLength(1);
+      expect(spec.subjectContainsAny).toHaveLength(1);
+      expect(spec.bodyContainsAny).toHaveLength(1);
+    });
+
+    it("rejects when senderMatchesAny is empty after trimming", () => {
+      expect(() =>
+        service.normalizeCompositeSpecDto({
+          ...validDto,
+          senderMatchesAny: ["   "],
+        }),
+      ).toThrow("senderMatchesAny must contain at least one non-empty sender");
+    });
+
+    it("rejects when subjectContainsAny is empty after trimming", () => {
+      expect(() =>
+        service.normalizeCompositeSpecDto({
+          ...validDto,
+          subjectContainsAny: ["  "],
+        }),
+      ).toThrow(
+        "subjectContainsAny must contain at least one non-empty phrase",
+      );
+    });
+
+    it("rejects when bodyContainsAny is empty after trimming", () => {
+      expect(() =>
+        service.normalizeCompositeSpecDto({
+          ...validDto,
+          bodyContainsAny: ["  "],
+        }),
+      ).toThrow("bodyContainsAny must contain at least one non-empty phrase");
+    });
+
+    it("rejects when bodyContainsAny is an empty array", () => {
+      expect(() =>
+        service.normalizeCompositeSpecDto({
+          ...validDto,
+          bodyContainsAny: [],
+        }),
+      ).toThrow();
+    });
+
+    it("normalises sender addresses to lowercase email format", () => {
+      const spec = service.normalizeCompositeSpecDto({
+        ...validDto,
+        senderMatchesAny: ["  Billing@ACME.COM  ", "Invoices@Acme.com"],
+      });
+      expect(spec.senderMatchesAny).toEqual([
+        "billing@acme.com",
+        "invoices@acme.com",
+      ]);
+    });
+
+    it("trims whitespace from subject and body phrases", () => {
+      const spec = service.normalizeCompositeSpecDto({
+        ...validDto,
+        subjectContainsAny: ["  Invoice  ", " Receipt "],
+        bodyContainsAny: ["  amount due  "],
+      });
+      expect(spec.subjectContainsAny).toEqual(["Invoice", "Receipt"]);
+      expect(spec.bodyContainsAny).toEqual(["amount due"]);
     });
   });
 });

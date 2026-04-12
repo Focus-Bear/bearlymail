@@ -21,6 +21,15 @@ export interface CompositeCategoryRuleFormModalProps {
   categoryOptions: CategoryOption[];
   initialCategoryName?: string;
   initialSpec?: CompositeSpec | null;
+  /**
+   * Pre-populated spec from a "Suggest for me" result (issue #1714).
+   * Takes precedence over `initialSpec` when provided.
+   */
+  initialSuggestedSpec?: {
+    senderMatchesAny: string[];
+    subjectContainsAny: string[];
+    bodyContainsAny: string[];
+  } | null;
   onClose: () => void;
   onSubmit: (payload: {
     categoryName: string;
@@ -36,6 +45,7 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
   categoryOptions,
   initialCategoryName = '',
   initialSpec,
+  initialSuggestedSpec,
   onClose,
   onSubmit,
 }) => {
@@ -59,6 +69,7 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
     mode,
     initialCategoryName,
     initialSpec,
+    initialSuggestedSpec,
     onSubmit,
     onClose,
     t,

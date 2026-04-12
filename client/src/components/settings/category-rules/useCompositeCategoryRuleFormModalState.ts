@@ -87,11 +87,20 @@ export function useCompositeCategoryRuleFormModalState(options: {
   mode: typeof COMPOSITE_RULE_FORM_MODE_ADD | typeof COMPOSITE_RULE_FORM_MODE_EDIT;
   initialCategoryName: string;
   initialSpec?: CompositeSpec | null;
+  /**
+   * Pre-populated spec from a "Suggest for me" result (issue #1714).
+   * When present, takes precedence over `initialSpec` for pre-filling the form.
+   */
+  initialSuggestedSpec?: {
+    senderMatchesAny: string[];
+    subjectContainsAny: string[];
+    bodyContainsAny: string[];
+  } | null;
   onSubmit: SubmitCompositeModalParams['onSubmit'];
   onClose: () => void;
   t: TFunction;
 }) {
-  const { open, mode, initialCategoryName, initialSpec, onSubmit, onClose, t } =
+  const { open, mode, initialCategoryName, initialSpec, initialSuggestedSpec, onSubmit, onClose, t } =
     options;
 
   const [categoryName, setCategoryName] = useState('');
@@ -110,10 +119,17 @@ export function useCompositeCategoryRuleFormModalState(options: {
     }
     setFieldErrors({});
     setCategoryName(initialCategoryName);
-    setSenderLines(initialSpec ? specSenders(initialSpec).join('\n') : '');
-    setSubjectLines(initialSpec ? specSubjects(initialSpec).join('\n') : '');
-    setBodyLines((initialSpec?.bodyContainsAny ?? []).join('\n'));
-  }, [open, initialCategoryName, initialSpec]);
+    if (initialSuggestedSpec) {
+      // Pre-fill all fields from the suggestion so the user can review/edit before saving.
+      setSenderLines(initialSuggestedSpec.senderMatchesAny.join('\n'));
+      setSubjectLines(initialSuggestedSpec.subjectContainsAny.join('\n'));
+      setBodyLines(initialSuggestedSpec.bodyContainsAny.join('\n'));
+    } else {
+      setSenderLines(initialSpec ? specSenders(initialSpec).join('\n') : '');
+      setSubjectLines(initialSpec ? specSubjects(initialSpec).join('\n') : '');
+      setBodyLines((initialSpec?.bodyContainsAny ?? []).join('\n'));
+    }
+  }, [open, initialCategoryName, initialSpec, initialSuggestedSpec]);
 
   const handleSubmit = async () => {
     await submitCompositeCategoryRuleModalForm({

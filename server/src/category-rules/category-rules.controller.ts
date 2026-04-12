@@ -15,6 +15,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CategoryRulesService } from "./category-rules.service";
 import { CreateCompositeCategoryRuleDto } from "./dto/create-composite-category-rule.dto";
 import { PatchCategoryRuleDto } from "./dto/patch-category-rule.dto";
+import { SuggestCategoryRulesDto } from "./dto/suggest-category-rules.dto";
 
 @Controller("category-rules")
 @UseGuards(JwtAuthGuard)
@@ -40,6 +41,25 @@ export class CategoryRulesController {
     @Body() body: CreateCompositeCategoryRuleDto,
   ) {
     return this.categoryRulesService.createCompositeRule(req.user.userId, body);
+  }
+
+  /**
+   * Suggest composite rules based on the user's email history.
+   * Senders must have >= SUGGEST_MIN_THREAD_COUNT distinct threads to appear.
+   * The client shows the suggestions for user confirmation; nothing is persisted
+   * until the user accepts and the normal POST /category-rules is called.
+   *
+   * POST /category-rules/suggest
+   */
+  @Post("suggest")
+  async suggestRules(
+    @Request() req,
+    @Body() body: SuggestCategoryRulesDto,
+  ) {
+    return this.categoryRulesService.suggestCategoryRules(
+      req.user.userId,
+      body,
+    );
   }
 
   /**

@@ -3,6 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import crypto from "crypto";
 
 import { CategoryRule } from "../database/entities/category-rule.entity";
+import { Email } from "../database/entities/email.entity";
 import { CategoryRulesService } from "./category-rules.service";
 
 const mockRuleRepo = () => ({
@@ -14,9 +15,29 @@ const mockRuleRepo = () => ({
   increment: jest.fn(),
 });
 
+/** Minimal query-builder stub used to mock countDistinctThreadsForSender. */
+const makeQbStub = (rawResult: { cnt: string }) => ({
+  select: jest.fn().mockReturnThis(),
+  addSelect: jest.fn().mockReturnThis(),
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  groupBy: jest.fn().mockReturnThis(),
+  having: jest.fn().mockReturnThis(),
+  orderBy: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+  getRawOne: jest.fn().mockResolvedValue(rawResult),
+  getRawMany: jest.fn().mockResolvedValue([]),
+});
+
+const mockEmailRepo = () => ({
+  find: jest.fn(),
+  createQueryBuilder: jest.fn(),
+});
+
 describe("CategoryRulesService", () => {
   let service: CategoryRulesService;
   let repo: ReturnType<typeof mockRuleRepo>;
+  let emailRepo: ReturnType<typeof mockEmailRepo>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,11 +47,19 @@ describe("CategoryRulesService", () => {
           provide: getRepositoryToken(CategoryRule),
           useFactory: mockRuleRepo,
         },
+        {
+          provide: getRepositoryToken(Email),
+          useFactory: mockEmailRepo,
+        },
       ],
     }).compile();
 
     service = module.get<CategoryRulesService>(CategoryRulesService);
     repo = module.get(getRepositoryToken(CategoryRule));
+    emailRepo = module.get(getRepositoryToken(Email));
+
+    // Default: sender has 15 threads — above both thresholds.
+    emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "15" }));
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -183,6 +212,7 @@ describe("CategoryRulesService", () => {
     const userId = "user-1";
 
     it("creates a composite rule when sender, subject, and body yield phrases", async () => {
+      // emailRepo default returns cnt=15 (above threshold)
       repo.find.mockResolvedValue([]);
       const created = {
         id: "comp-1",
@@ -218,7 +248,54 @@ describe("CategoryRulesService", () => {
       expect(result).toEqual(created);
     });
 
+    it("returns null when sender has fewer than AUTO_GENERATE_MIN_THREAD_COUNT threads", async () => {
+      // Override default to return only 3 threads (below threshold of 10).
+      emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "3" }));
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch:
+            "Pipeline step compile failed on branch main.\n\n— CI Bot",
+        },
+        "CI",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("creates a rule when sender is exactly at the AUTO_GENERATE_MIN_THREAD_COUNT threshold", async () => {
+      // Exactly 10 threads — should proceed.
+      emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "10" }));
+      repo.find.mockResolvedValue([]);
+      const created = {
+        id: "comp-threshold",
+        ruleKind: "composite",
+        categoryName: "CI",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch:
+            "Pipeline step compile failed on branch main.\n\n— CI Bot",
+        },
+        "CI",
+      );
+
+      expect(repo.create).toHaveBeenCalled();
+      expect(result).toEqual(created);
+    });
+
     it("returns null and does not persist when body text is too short", async () => {
+      // emailRepo default returns cnt=15 (above threshold)
       const result = await service.generateCompositeRuleFromEmail(
         userId,
         {
@@ -234,6 +311,7 @@ describe("CategoryRulesService", () => {
     });
 
     it("reuses an existing composite rule with the same spec and can update category", async () => {
+      // emailRepo default returns cnt=15 (above threshold)
       const existing = {
         id: "comp-2",
         categoryName: "OldName",

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCategoryContextQuery } from 'queries/useCategoryContextQuery';
-import type { CategoryRuleDto } from 'types/category-rules.types';
+import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rules.types';
 
 import { COMPOSITE_RULE_FORM_MODE_ADD, COMPOSITE_RULE_FORM_MODE_EDIT } from 'constants/category-rules';
 import { useNotifications } from 'contexts/NotificationContext';
@@ -11,7 +11,7 @@ import { useCategoryRules } from 'hooks/settings/useCategoryRules';
 export function useDeterministicCategoryRulesSectionState() {
   const { t } = useTranslation();
   const { showSuccess, showError, showSuccessWithUndo } = useNotifications();
-  const { rules, loading, createCompositeRule, patchRule, deleteRule } = useCategoryRules();
+  const { rules, loading, createCompositeRule, patchRule, deleteRule, suggestRules } = useCategoryRules();
   const { data: categoryOptions = [] } = useCategoryContextQuery();
 
   /** IDs that have been optimistically removed from the UI pending the undo timer */
@@ -28,15 +28,87 @@ export function useDeterministicCategoryRulesSectionState() {
   const [editingRule, setEditingRule] = useState<CategoryRuleDto | null>(null);
   const [prefillCategoryName, setPrefillCategoryName] = useState('');
 
+  // --- "Add rule" choice dialog ---
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+
+  // --- Suggest flow ---
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<CategoryRuleSuggestion[]>([]);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  /** Pre-populated spec from a suggestion — passed into the composite form. */
+  const [suggestedSpec, setSuggestedSpec] = useState<{
+    senderMatchesAny: string[];
+    subjectContainsAny: string[];
+    bodyContainsAny: string[];
+  } | null>(null);
+
+  /** Opens the "Add rule — how?" choice dialog (issue #1714). */
+  const openAddChoice = useCallback(() => {
+    setAddChoiceOpen(true);
+  }, []);
+
+  const closeAddChoice = useCallback(() => {
+    setAddChoiceOpen(false);
+  }, []);
+
+  /** User chose "Create manually" — open the blank composite form. */
   const openAdd = useCallback(() => {
+    setAddChoiceOpen(false);
     setPrefillCategoryName('');
     setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
     setEditingRule(null);
     setModalOpen(true);
   }, []);
 
+  /** User chose "Suggest for me" — fetch suggestions, then show confirmation dialog. */
+  const openSuggest = useCallback(async () => {
+    setAddChoiceOpen(false);
+    setSuggestError(null);
+    setSuggestions([]);
+    setSuggestDialogOpen(true);
+    setSuggestLoading(true);
+    try {
+      const results = await suggestRules();
+      setSuggestions(results);
+    } catch {
+      setSuggestError(t('settings.deterministicCategoryRules.suggestError'));
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, [suggestRules, t]);
+
+  const closeSuggestDialog = useCallback(() => {
+    setSuggestDialogOpen(false);
+    setSuggestions([]);
+    setSuggestError(null);
+  }, []);
+
+  /**
+   * User accepted a suggestion — pre-fill the composite form so they can
+   * review / edit before saving.
+   */
+  const acceptSuggestion = useCallback((suggestion: CategoryRuleSuggestion) => {
+    setSuggestDialogOpen(false);
+    setSuggestions([]);
+    setPrefillCategoryName(suggestion.categoryName);
+    setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
+    setEditingRule(null);
+    // Store the full suggestion for the form to pre-populate all fields.
+    // We abuse prefillCategoryName for category and pass suggestion via a
+    // dedicated state so CompositeCategoryRuleFormModal can receive it.
+    setSuggestedSpec({
+      senderMatchesAny: [suggestion.sender],
+      subjectContainsAny: suggestion.suggestedSubjectPhrases,
+      bodyContainsAny: suggestion.suggestedBodyPhrases,
+    });
+    setModalOpen(true);
+  }, []);
+
   const openAddWithPrefill = useCallback((categoryDisplayName: string) => {
     setPrefillCategoryName(categoryDisplayName.trim());
+    setSuggestedSpec(null);
     setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
     setEditingRule(null);
     setModalOpen(true);
@@ -44,6 +116,7 @@ export function useDeterministicCategoryRulesSectionState() {
 
   const openEdit = useCallback((rule: CategoryRuleDto) => {
     setPrefillCategoryName('');
+    setSuggestedSpec(null);
     setModalMode(COMPOSITE_RULE_FORM_MODE_EDIT);
     setEditingRule(rule);
     setModalOpen(true);
@@ -53,6 +126,7 @@ export function useDeterministicCategoryRulesSectionState() {
     setModalOpen(false);
     setEditingRule(null);
     setPrefillCategoryName('');
+    setSuggestedSpec(null);
   }, []);
 
   const handleToggle = useCallback(
@@ -143,7 +217,20 @@ export function useDeterministicCategoryRulesSectionState() {
     modalMode,
     editingRule,
     prefillCategoryName,
+    suggestedSpec,
+    // "Add rule" choice dialog
+    addChoiceOpen,
+    openAddChoice,
+    closeAddChoice,
+    // Suggest flow
+    suggestDialogOpen,
+    suggestLoading,
+    suggestions,
+    suggestError,
     openAdd,
+    openSuggest,
+    closeSuggestDialog,
+    acceptSuggestion,
     openAddWithPrefill,
     openEdit,
     closeModal,

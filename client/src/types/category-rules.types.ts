@@ -29,6 +29,19 @@ export function specSubjects(spec: CompositeSpec): string[] {
   return spec.v === 2 ? spec.subjectContainsAny : [spec.subjectContains];
 }
 
+/**
+ * A single auto-drafted composite rule suggestion returned by
+ * `POST /category-rules/suggest` (issue #1714).
+ * The user confirms before it is persisted via the normal create flow.
+ */
+export interface CategoryRuleSuggestion {
+  sender: string;
+  categoryName: string;
+  suggestedSubjectPhrases: string[];
+  suggestedBodyPhrases: string[];
+  threadCount: number;
+}
+
 export interface CategoryRuleDto {
   id: string;
   categoryName: string;

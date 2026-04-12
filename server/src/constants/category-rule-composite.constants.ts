@@ -17,4 +17,21 @@ export const CATEGORY_RULE_COMPOSITE = {
   MIN_DISTINCT_CONDITION_TYPES: 3,
   /** Minimum length for one auto-generated body line in a composite rule. */
   AUTO_COMPOSITE_RULE_MIN_BODY_PHRASE_CHARS: 6,
+  /**
+   * Minimum number of distinct threads a sender must have before a rule is
+   * automatically generated after LLM categorisation (issue #1714).
+   * Rules auto-created below this threshold are too specific / noisy.
+   */
+  AUTO_GENERATE_MIN_THREAD_COUNT: 10,
+  /**
+   * Minimum number of distinct threads a sender must have before it is
+   * included in the "Suggest rules for me" response (issue #1714).
+   * Lower than AUTO_GENERATE_MIN_THREAD_COUNT because the user confirms
+   * the suggestion before it is saved.
+   */
+  SUGGEST_MIN_THREAD_COUNT: 5,
+  /** Maximum number of rule suggestions returned by the suggest endpoint. */
+  SUGGEST_MAX_RESULTS: 10,
+  /** Number of recent emails per sender sampled when building suggestions. */
+  SUGGEST_SAMPLE_EMAILS_PER_SENDER: 5,
 } as const;

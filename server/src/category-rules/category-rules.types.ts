@@ -11,6 +11,24 @@ export interface EmailMetadata {
   bodyTextForMatch?: string;
 }
 
+/**
+ * A single auto-drafted composite rule suggestion returned by the
+ * `POST /category-rules/suggest` endpoint. The user must confirm before it
+ * is persisted (issue #1714).
+ */
+export interface CategoryRuleSuggestion {
+  /** Normalised sender email address for this suggestion. */
+  sender: string;
+  /** Category name inferred from recent LLM categorisations for this sender. */
+  categoryName: string;
+  /** Distinct subject phrases sampled from recent emails for this sender. */
+  suggestedSubjectPhrases: string[];
+  /** Distinct body phrases sampled from recent emails for this sender. */
+  suggestedBodyPhrases: string[];
+  /** Number of distinct threads seen from this sender (used to rank suggestions). */
+  threadCount: number;
+}
+
 export interface CategoryRuleMatch {
   categoryName: string;
   ruleId: string;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import type { CategoryRuleDto } from 'types/category-rules.types';
+import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rules.types';
 
 import { API_URL } from 'config/api';
 
@@ -69,6 +69,17 @@ export function useCategoryRules() {
     [fetchRules]
   );
 
+  const suggestRules = useCallback(
+    async (categoryName?: string): Promise<CategoryRuleSuggestion[]> => {
+      const response = await axios.post<CategoryRuleSuggestion[]>(
+        `${API_URL}/category-rules/suggest`,
+        categoryName ? { categoryName } : {},
+      );
+      return response.data;
+    },
+    []
+  );
+
   return {
     rules,
     loading,
@@ -76,5 +87,6 @@ export function useCategoryRules() {
     createCompositeRule,
     patchRule,
     deleteRule,
+    suggestRules,
   };
 }

@@ -48,6 +48,5 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: |
-            --model opus-4.6
             --append-system-prompt "NEVER commit to main. Create branches named claude/issue-${{ github.event.issue.number }}. Write unit tests. When you're done with the branch, open a draft PR referencing the issue - this is pre-approved. Make it "References #2344" not "Closes #4545" because I don't want the issue to auto-close when I merge the PR. You don't have to wait for approval to create a PR."
             --allowedTools "Edit,MultiEdit,Write,Read,Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(yarn:*)"

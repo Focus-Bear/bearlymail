@@ -8,7 +8,13 @@ import { FollowUpData } from 'hooks/useFollowUps';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
-import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from './inbox.types';
+import {
+  InboxEmailActions,
+  InboxKeyboardHint,
+  InboxModals,
+  InboxPriorityTooltip,
+  InboxSnoozeInput,
+} from './inbox.types';
 import { InboxEmailListPanel } from './InboxContentParts';
 import { useInboxContentState } from './useInboxContentState';
 
@@ -62,7 +68,14 @@ export interface InboxContentProps {
   /** Current active priority filter upper bound (null = no upper cap) */
   maxPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
-  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number } | null;
+  priorityCounts?: {
+    veryHigh: number;
+    high: number;
+    medium: number;
+    low: number;
+    veryLow: number;
+    unprioritised: number;
+  } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
@@ -71,31 +84,94 @@ export interface InboxContentProps {
   onClearFilters?: () => void;
 }
 
-export const InboxContent: React.FC<InboxContentProps> = (props) => {
+export const InboxContent: React.FC<InboxContentProps> = props => {
   const {
-    mode, emails, loading, hasInitiallyLoaded, loadingModeSwitch, decrypting, fetchError,
-    selectedEmailIndex, selectedEmailIds, triageSuggestions, followUpDataMap,
-    isGeneratingDrafts, followUpsError, priorityTooltip, keyboardHint, snoozeInput,
-    emailActions, modals, splitView, nextDelivery, lastUrgentCheck,
-    onEmailClick, onEmailSelect, onGenerateDrafts, onRetry, updateDraft, bulkSend,
-    fetchThreadsWithDrafts, emailListRef, emailDetailRef,
-    onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet, onBulkArchive,
-    expandedCategories, stableCategoryOrder, onToggleCategory, onUpdateStableCategoryOrder,
-    onLoadMore, hasMore, categorySummary, loadedCategoryNames,
-    minPriority, maxPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
+    mode,
+    emails,
+    loading,
+    hasInitiallyLoaded,
+    loadingModeSwitch,
+    decrypting,
+    fetchError,
+    selectedEmailIndex,
+    selectedEmailIds,
+    triageSuggestions,
+    followUpDataMap,
+    isGeneratingDrafts,
+    followUpsError,
+    priorityTooltip,
+    keyboardHint,
+    snoozeInput,
+    emailActions,
+    modals,
+    splitView,
+    nextDelivery,
+    lastUrgentCheck,
+    onEmailClick,
+    onEmailSelect,
+    onGenerateDrafts,
+    onRetry,
+    updateDraft,
+    bulkSend,
+    fetchThreadsWithDrafts,
+    emailListRef,
+    emailDetailRef,
+    onSplitViewArchive,
+    onSplitViewSnooze,
+    onSplitViewPrioritySet,
+    onBulkArchive,
+    expandedCategories,
+    stableCategoryOrder,
+    onToggleCategory,
+    onUpdateStableCategoryOrder,
+    onLoadMore,
+    hasMore,
+    categorySummary,
+    loadedCategoryNames,
+    minPriority,
+    maxPriority,
+    priorityCounts,
+    onUnlockPriorityTier,
+    onDismissUnlockPrompt,
+    onClearFilters,
   } = props;
 
   const {
-    isMobile, isRefetchingWithoutData, splitViewContainerRef, sentinelRef,
-    emailCategoryMap, otherProtoGroups, displayCategories,
-    protoCategories, isReanalysingOther, convertingProtoCategoryId, deletingProtoCategoryId,
-    handleReanalyseOther, handleConvertProtoCategory, handleDeleteProtoCategoryFromInbox,
-    recategorizeProgress, dismissRecategorizeProgress,
-    handleSplitViewArchive, handleSplitViewSnooze, handleSplitViewPrioritySet, handleSendFollowUp,
+    isMobile,
+    isRefetchingWithoutData,
+    splitViewContainerRef,
+    sentinelRef,
+    emailCategoryMap,
+    otherProtoGroups,
+    displayCategories,
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    handleReanalyseOther,
+    handleConvertProtoCategory,
+    handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress,
+    dismissRecategorizeProgress,
+    handleSplitViewArchive,
+    handleSplitViewSnooze,
+    handleSplitViewPrioritySet,
+    handleSendFollowUp,
   } = useInboxContentState({
-    mode, emails, categorySummary, stableCategoryOrder, expandedCategories,
-    onUpdateStableCategoryOrder, onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet,
-    updateDraft, bulkSend, fetchThreadsWithDrafts, onLoadMore, hasMore,
+    mode,
+    emails,
+    categorySummary,
+    stableCategoryOrder,
+    expandedCategories,
+    onUpdateStableCategoryOrder,
+    onSplitViewArchive,
+    onSplitViewSnooze,
+    onSplitViewPrioritySet,
+    updateDraft,
+    bulkSend,
+    fetchThreadsWithDrafts,
+    onLoadMore,
+    hasMore,
   });
 
   const selectedEmailForPanel = useMemo(
@@ -104,18 +180,59 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
   );
 
   const listPanelProps = {
-    emailListRef, sentinelRef, isMobile, splitView, mode, emails, loading,
-    isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, decrypting, fetchError,
-    nextDelivery, lastUrgentCheck, isGeneratingDrafts, followUpsError, categorySummary,
-    displayCategories, emailCategoryMap, otherProtoGroups, protoCategories, isReanalysingOther,
-    convertingProtoCategoryId, deletingProtoCategoryId, expandedCategories, loadedCategoryNames,
-    hasMore, selectedEmailIds, selectedEmailIndex, triageSuggestions, followUpDataMap,
-    priorityTooltip, keyboardHint, snoozeInput, emailActions, modals, updateDraft,
-    onEmailClick, onEmailSelect, onSendFollowUp: handleSendFollowUp, onGenerateDrafts, onRetry,
-    onToggleCategory, onBulkArchive, onConvertProtoCategory: handleConvertProtoCategory,
+    emailListRef,
+    sentinelRef,
+    isMobile,
+    splitView,
+    mode,
+    emails,
+    loading,
+    isRefetchingWithoutData,
+    hasInitiallyLoaded,
+    loadingModeSwitch,
+    decrypting,
+    fetchError,
+    nextDelivery,
+    lastUrgentCheck,
+    isGeneratingDrafts,
+    followUpsError,
+    categorySummary,
+    displayCategories,
+    emailCategoryMap,
+    otherProtoGroups,
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    expandedCategories,
+    loadedCategoryNames,
+    hasMore,
+    selectedEmailIds,
+    selectedEmailIndex,
+    triageSuggestions,
+    followUpDataMap,
+    priorityTooltip,
+    keyboardHint,
+    snoozeInput,
+    emailActions,
+    modals,
+    updateDraft,
+    onEmailClick,
+    onEmailSelect,
+    onSendFollowUp: handleSendFollowUp,
+    onGenerateDrafts,
+    onRetry,
+    onToggleCategory,
+    onBulkArchive,
+    onConvertProtoCategory: handleConvertProtoCategory,
     onDeleteProtoCategoryFromInbox: handleDeleteProtoCategoryFromInbox,
     onReanalyseOther: handleReanalyseOther,
-    minPriority, maxPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
+    minPriority,
+    maxPriority,
+    priorityCounts,
+    onUnlockPriorityTier,
+    onDismissUnlockPrompt,
+    onClearFilters,
     unprioritisedCount: priorityCounts?.unprioritised ?? 0,
   };
 
@@ -123,32 +240,32 @@ export const InboxContent: React.FC<InboxContentProps> = (props) => {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissRecategorizeProgress} />
       <div ref={splitViewContainerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
-      <InboxEmailListPanel {...listPanelProps} />
-      {!splitView.isMobile && splitView.selectedEmailId && !splitView.panelExpanded && (
-        <ResizableDivider
-          onResize={splitView.setSplitPosition}
-          onResizeStart={splitView.startResize}
-          onResizeEnd={splitView.endResize}
-          position={splitView.splitPosition}
-          containerRef={splitViewContainerRef}
-        />
-      )}
-      {!splitView.isMobile && splitView.selectedEmailId && (
-        <SplitViewPanel
-          selectedEmailId={splitView.selectedEmailId}
-          selectedEmail={selectedEmailForPanel}
-          panelExpanded={splitView.panelExpanded}
-          splitPosition={splitView.splitPosition}
-          isResizing={splitView.isResizing}
-          emailDetailRef={emailDetailRef}
-          onTogglePanel={splitView.togglePanel}
-          onClose={splitView.closeEmail}
-          onArchiveComplete={handleSplitViewArchive}
-          onSnoozeComplete={handleSplitViewSnooze}
-          onPrioritySet={handleSplitViewPrioritySet}
-          mode={mode}
-        />
-      )}
+        <InboxEmailListPanel {...listPanelProps} />
+        {!splitView.isMobile && splitView.selectedEmailId && !splitView.panelExpanded && (
+          <ResizableDivider
+            onResize={splitView.setSplitPosition}
+            onResizeStart={splitView.startResize}
+            onResizeEnd={splitView.endResize}
+            position={splitView.splitPosition}
+            containerRef={splitViewContainerRef}
+          />
+        )}
+        {!splitView.isMobile && splitView.selectedEmailId && (
+          <SplitViewPanel
+            selectedEmailId={splitView.selectedEmailId}
+            selectedEmail={selectedEmailForPanel}
+            panelExpanded={splitView.panelExpanded}
+            splitPosition={splitView.splitPosition}
+            isResizing={splitView.isResizing}
+            emailDetailRef={emailDetailRef}
+            onTogglePanel={splitView.togglePanel}
+            onClose={splitView.closeEmail}
+            onArchiveComplete={handleSplitViewArchive}
+            onSnoozeComplete={handleSplitViewSnooze}
+            onPrioritySet={handleSplitViewPrioritySet}
+            mode={mode}
+          />
+        )}
       </div>
     </div>
   );

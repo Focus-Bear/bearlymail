@@ -16,32 +16,42 @@ There is a **category key mismatch** between the summary-driven display path and
 the email-grouping path.
 
 ### Server side
+
 `email-inbox.service.ts` → `countRowsByCategory()` assigns category name
 `"Other"` for threads with no category. Because "Other" has no real UUID,
 `categoryUuidByName` never gets an entry for it, so the summary returns:
+
 ```json
 { "id": null, "name": "Other", "count": 3 }
 ```
 
 ### Client side — summary key
+
 `getCategoryKey(id, name)` in `useEmailFetching.ts` resolves `getCategoryKey(null, "Other")` → **`"uncategorized"`**.
 
 ### Client side — email grouping key
+
 `groupEmailsByCategory()` in `CategoryAccordion.tsx` groups emails using:
+
 ```ts
 const categoryKey = email.category_id ?? email.category ?? CATEGORY_OTHER;
 ```
+
 For "Other" emails, `category_id` is typically `null` and `category` is
 `"Other"`, so the group key is **`"Other"`** (the string).
 
 ### The mismatch
+
 `CategorySection` looks up emails via:
+
 ```ts
 const categoryKey = getCategoryKey(categoryItem.id, categoryName); // → "uncategorized"
-const group = emailCategoryMap.get(categoryKey);                   // → undefined (map has key "Other")
-const categoryEmails = group?.emails ?? [];                        // → []
+const group = emailCategoryMap.get(categoryKey); // → undefined (map has key "Other")
+const categoryEmails = group?.emails ?? []; // → []
 ```
+
 Then the accordion renders:
+
 ```ts
 count={isLoaded ? categoryEmails.length : categoryItem.count}
 //  → isLoaded=true, categoryEmails.length=0  →  shows 0
@@ -62,14 +72,18 @@ computation to use the same logic as `getCategoryKey`:
 const categoryKey = email.category_id ?? email.category ?? CATEGORY_OTHER;
 
 // After
-import { getCategoryKey } from 'hooks/useEmailFetching';
-const categoryKey = getCategoryKey(email.category_id, email.category ?? CATEGORY_OTHER);
+import { getCategoryKey } from "hooks/useEmailFetching";
+const categoryKey = getCategoryKey(
+  email.category_id,
+  email.category ?? CATEGORY_OTHER,
+);
 ```
 
 This ensures that when `category_id` is `null`, the key becomes
 `"uncategorized"` — matching the summary lookup key.
 
 ### Ripple effects
+
 - `buildEmailCategoryMap()` and `buildOtherProtoGroups()` in
   `inboxCategoryHelpers.ts` consume the map returned by
   `groupEmailsByCategory`. `buildOtherProtoGroups` currently does
@@ -87,11 +101,11 @@ or the constant `"uncategorized"`. Not recommended.
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/components/inbox/CategoryAccordion.tsx` | `groupEmailsByCategory`: use `getCategoryKey(email.category_id)` instead of raw fallback |
-| `client/src/components/inbox/inboxCategoryHelpers.ts` | `buildOtherProtoGroups`: look up `CATEGORY_KEY_UNCATEGORIZED` instead of `CATEGORY_OTHER` |
-| `client/src/components/inbox/inboxCategoryHelpers.test.ts` | Update test expectations for the new key |
+| File                                                       | Change                                                                                    |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `client/src/components/inbox/CategoryAccordion.tsx`        | `groupEmailsByCategory`: use `getCategoryKey(email.category_id)` instead of raw fallback  |
+| `client/src/components/inbox/inboxCategoryHelpers.ts`      | `buildOtherProtoGroups`: look up `CATEGORY_KEY_UNCATEGORIZED` instead of `CATEGORY_OTHER` |
+| `client/src/components/inbox/inboxCategoryHelpers.test.ts` | Update test expectations for the new key                                                  |
 
 ## Testing
 

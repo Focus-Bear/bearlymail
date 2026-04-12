@@ -84,9 +84,7 @@ function sanitizeStoredFilters(filters: InboxFilter): InboxFilter {
     return { ...filters, minPriority: null, maxPriority: null };
   }
 
-  const isValidRange = PRIORITY_RANGES.some(
-    range => range.min === minPriority && range.max === maxPriority
-  );
+  const isValidRange = PRIORITY_RANGES.some(range => range.min === minPriority && range.max === maxPriority);
 
   if (!isValidRange) {
     return { ...filters, minPriority: null, maxPriority: null };
@@ -172,10 +170,7 @@ export function useInboxFilters() {
   const [loadingCategories, setLoadingCategories] = useState(false);
 
   // Connected accounts served from the shared TanStack Query cache (staleTime: 5 min)
-  const {
-    data: connectedAccounts = [],
-    isFetching: loadingAccounts,
-  } = useConnectedAccountsQuery();
+  const { data: connectedAccounts = [], isFetching: loadingAccounts } = useConnectedAccountsQuery();
 
   // Persist filters to localStorage whenever they change
   useEffect(() => {
@@ -195,7 +190,12 @@ export function useInboxFilters() {
       // Each category must have a UUID id — if id is missing, that's a server-side data bug.
       // UUID-only: use category id as the filter key; "uncategorized" for items with no UUID.
       // Never use name as a key — name strings are for display only.
-      setAvailableCategories(cats.map((cat: { id?: string; name?: string }) => ({ id: cat.id ?? CATEGORY_KEY_UNCATEGORIZED, label: cat.name ?? cat.id ?? 'Uncategorized' })));
+      setAvailableCategories(
+        cats.map((cat: { id?: string; name?: string }) => ({
+          id: cat.id ?? CATEGORY_KEY_UNCATEGORIZED,
+          label: cat.name ?? cat.id ?? 'Uncategorized',
+        }))
+      );
     } catch (error) {
       console.error('Failed to fetch categories from inbox-summary:', error);
       // Do not fall back to the deprecated /emails/categories endpoint.
@@ -236,7 +236,10 @@ export function useInboxFilters() {
   }, []);
 
   const hasActiveFilters =
-    filters.accountIds.length > 0 || filters.categories.length > 0 || filters.minPriority !== null || filters.maxPriority !== null;
+    filters.accountIds.length > 0 ||
+    filters.categories.length > 0 ||
+    filters.minPriority !== null ||
+    filters.maxPriority !== null;
 
   return {
     isFilterBarVisible,

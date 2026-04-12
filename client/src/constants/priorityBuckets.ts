@@ -42,11 +42,11 @@ export const BUCKET_LABEL_ALL = 'All' as const;
 
 export const PRIORITY_BUCKET_DEFS: PriorityBucketDef[] = [
   { label: BUCKET_LABEL_ALL, min: null, max: null },
-  { label: 'Very Low',  min: null, max: 0    },
-  { label: 'Low',       min: 0,    max: 15   },
-  { label: 'Medium',    min: 15,   max: 30   },
-  { label: 'High',      min: 30,   max: 50   },
-  { label: 'Very High', min: 50,   max: null },
+  { label: 'Very Low', min: null, max: 0 },
+  { label: 'Low', min: 0, max: 15 },
+  { label: 'Medium', min: 15, max: 30 },
+  { label: 'High', min: 30, max: 50 },
+  { label: 'Very High', min: 50, max: null },
 ];
 
 /**
@@ -54,7 +54,7 @@ export const PRIORITY_BUCKET_DEFS: PriorityBucketDef[] = [
  * Used by `PriorityRangeSelector` as the visual track source.
  */
 export const PRIORITY_BUCKET_RANGES = PRIORITY_BUCKET_DEFS.filter(
-  (bucketDef): bucketDef is PriorityBucketDef => bucketDef.label !== BUCKET_LABEL_ALL,
+  (bucketDef): bucketDef is PriorityBucketDef => bucketDef.label !== BUCKET_LABEL_ALL
 );
 
 /**
@@ -63,10 +63,10 @@ export const PRIORITY_BUCKET_RANGES = PRIORITY_BUCKET_DEFS.filter(
  * The 'All' sentinel has no counts key and is excluded.
  */
 export const PRIORITY_LABEL_TO_KEY: Record<string, 'veryLow' | 'low' | 'medium' | 'high' | 'veryHigh'> = {
-  'Very Low':  'veryLow',
-  'Low':       'low',
-  'Medium':    'medium',
-  'High':      'high',
+  'Very Low': 'veryLow',
+  Low: 'low',
+  Medium: 'medium',
+  High: 'high',
   'Very High': 'veryHigh',
 };
 
@@ -97,11 +97,11 @@ interface ScoreVisualMapping {
 }
 
 export const SCORE_VISUAL_MAP: ScoreVisualMapping[] = [
-  { label: 'Very Low',  scoreMin: null, scoreMax: 0,    visualMin: 0,  visualMax: 20  },
-  { label: 'Low',       scoreMin: 0,    scoreMax: 15,   visualMin: 20, visualMax: 40  },
-  { label: 'Medium',    scoreMin: 15,   scoreMax: 30,   visualMin: 40, visualMax: 60  },
-  { label: 'High',      scoreMin: 30,   scoreMax: 50,   visualMin: 60, visualMax: 80  },
-  { label: 'Very High', scoreMin: 50,   scoreMax: null, visualMin: 80, visualMax: 100 },
+  { label: 'Very Low', scoreMin: null, scoreMax: 0, visualMin: 0, visualMax: 20 },
+  { label: 'Low', scoreMin: 0, scoreMax: 15, visualMin: 20, visualMax: 40 },
+  { label: 'Medium', scoreMin: 15, scoreMax: 30, visualMin: 40, visualMax: 60 },
+  { label: 'High', scoreMin: 30, scoreMax: 50, visualMin: 60, visualMax: 80 },
+  { label: 'Very High', scoreMin: 50, scoreMax: null, visualMin: 80, visualMax: 100 },
 ];
 
 /**

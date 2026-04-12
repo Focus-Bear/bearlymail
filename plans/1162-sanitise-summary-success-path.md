@@ -57,6 +57,7 @@ The success path (when JSON parse succeeds) returns `parsed.summary.trim()` with
 ### `extractPlainSummary` (lines 79–101)
 
 This function:
+
 - If input is plain text, returns it as-is
 - If input contains JSON (as a string), extracts the readable content
 - Handles nested JSON structures (arrays, objects) and converts to human-readable text
@@ -83,9 +84,9 @@ Note: `extractPlainSummary` already trims internally — the `.trim()` can be re
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/llm/llm.service.ts` | Line ~612: replace `parsed.summary.trim()` with `extractPlainSummary(parsed.summary)` |
+| File                                 | Change                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/llm/llm.service.ts`      | Line ~612: replace `parsed.summary.trim()` with `extractPlainSummary(parsed.summary)`                                         |
 | `server/src/llm/llm.service.spec.ts` | Add test: when LLM returns structured JSON with JSON string in `summary` field, `parseSummaryWithPhishing` returns clean text |
 
 ---
@@ -93,23 +94,24 @@ Note: `extractPlainSummary` already trims internally — the `.trim()` can be re
 ## Test Case to Add
 
 ```typescript
-it('sanitises summary in the success path when LLM embeds JSON in summary field', () => {
+it("sanitises summary in the success path when LLM embeds JSON in summary field", () => {
   // Simulate LLM returning a structured response where summary is itself a JSON string
   const response = JSON.stringify({
     summary: '{"key": "some embedded JSON value"}',
     phishing: null,
-    sentiment: { score: 0.1, explanation: 'neutral' },
-    category: 'Work',
+    sentiment: { score: 0.1, explanation: "neutral" },
+    category: "Work",
     categoryExplanation: null,
   });
   const result = service.callParseSummaryWithPhishing(response);
   // Should NOT return raw JSON string
-  expect(result.summary).not.toContain('{');
-  expect(result.summary).not.toContain('}');
+  expect(result.summary).not.toContain("{");
+  expect(result.summary).not.toContain("}");
 });
 ```
 
 Note: `parseSummaryWithPhishing` is `private`. Either:
+
 1. Use `(service as any).parseSummaryWithPhishing(response)` in the test, OR
 2. Test via a public method that calls it (e.g., by mocking `callLLM` to return the JSON response and calling `summarizeEmail`)
 
@@ -118,6 +120,7 @@ Note: `parseSummaryWithPhishing` is `private`. Either:
 ## Scope
 
 This is a minimal, low-risk fix:
+
 - **One line changed** in `llm.service.ts`
 - **One test added** in `llm.service.spec.ts`
 - No DB migration needed (dirty records remain; client-side guard in #1158 continues to protect the display layer)

@@ -31,7 +31,14 @@ const IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_S
 const PROGRESS_MAX_BEFORE_READY = 99;
 
 const TimeoutMessage: React.FC<{ t: (k: string) => string }> = ({ t }) => (
-  <p style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, textAlign: 'center', marginTop: theme.spacing.sm }}>
+  <p
+    style={{
+      color: theme.colors.text.tertiary,
+      fontSize: theme.typography.fontSize.xs,
+      textAlign: 'center',
+      marginTop: theme.spacing.sm,
+    }}
+  >
     {t('setupWizard.emailImport.timeoutMessage')}
   </p>
 );
@@ -45,7 +52,14 @@ interface ImportStatusCardProps {
   t: (k: string, options?: Record<string, unknown>) => string;
 }
 
-const ImportStatusCard: React.FC<ImportStatusCardProps> = ({ progress, progressPercent, error, fetchProgress, timedOut, t }) => (
+const ImportStatusCard: React.FC<ImportStatusCardProps> = ({
+  progress,
+  progressPercent,
+  error,
+  fetchProgress,
+  timedOut,
+  t,
+}) => (
   <div
     style={{
       backgroundColor: theme.colors.background.subtle,
@@ -205,13 +219,13 @@ const EmailImportContent: React.FC<EmailImportContentProps> = ({
       style={{
         width: '100%',
         padding: theme.spacing.lg,
-        backgroundColor: (progress.isReady || timedOut) ? theme.colors.primary.main : theme.colors.border.light,
-        color: (progress.isReady || timedOut) ? 'white' : theme.colors.text.disabled,
+        backgroundColor: progress.isReady || timedOut ? theme.colors.primary.main : theme.colors.border.light,
+        color: progress.isReady || timedOut ? 'white' : theme.colors.text.disabled,
         border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         fontSize: theme.typography.fontSize.base,
         fontWeight: theme.typography.fontWeight.semibold,
-        cursor: (progress.isReady || timedOut) ? 'pointer' : 'not-allowed',
+        cursor: progress.isReady || timedOut ? 'pointer' : 'not-allowed',
         transition: theme.transitions.default,
       }}
     >
@@ -286,7 +300,10 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
   // Show 100% when ready; otherwise cap at PROGRESS_MAX_BEFORE_READY so it doesn't look complete prematurely
   const progressPercent = progress.isReady
     ? PROGRESS_COMPLETE_PERCENT
-    : Math.min(PROGRESS_MAX_BEFORE_READY, Math.round((progress.prioritizedCount / TARGET_EMAILS) * PROGRESS_COMPLETE_PERCENT));
+    : Math.min(
+        PROGRESS_MAX_BEFORE_READY,
+        Math.round((progress.prioritizedCount / TARGET_EMAILS) * PROGRESS_COMPLETE_PERCENT)
+      );
 
   return (
     <EmailImportContent

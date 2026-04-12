@@ -31,10 +31,7 @@ interface InboxContactTypeBadgeProps {
 export const InboxContactTypeBadge: React.FC<InboxContactTypeBadgeProps> = ({ senderEmail }) => {
   const normalizedEmail = senderEmail?.toLowerCase() ?? null;
 
-  const emails = useMemo(
-    () => (normalizedEmail ? [normalizedEmail] : []),
-    [normalizedEmail]
-  );
+  const emails = useMemo(() => (normalizedEmail ? [normalizedEmail] : []), [normalizedEmail]);
 
   const { data: contactTypes } = useContactTypesQuery();
   const { data: typesByEmails } = useContactTypesByEmailsQuery(emails);

@@ -18,6 +18,7 @@ This is the **second** report today. It happens "every time infrastructure chang
 ### The Race
 
 **Current startup sequence in `main.ts`:**
+
 ```
 1. verifyEncryptionRoundTrip()     ← calls EncryptionHelper.encrypt() → getKey() → caches key
 2. NestFactory.create(AppModule)   ← initializes ConfigModule, TypeORM, entities
@@ -25,7 +26,7 @@ This is the **second** report today. It happens "every time infrastructure chang
 
 **This works when `ENCRYPTION_KEY` is in `process.env` from the start** (ECS injects secrets as env vars before the process starts). But here's the critical insight:
 
-### Why It *Actually* Breaks
+### Why It _Actually_ Breaks
 
 The boot-check at step 1 **succeeds** (proving the key IS in `process.env`). Yet TypeORM transformers return encrypted data. This means:
 
@@ -42,10 +43,12 @@ If ALL fields show encrypted, there's a deeper issue. Let me trace more carefull
 **Possible scenario: Worker process vs Web process**
 
 The ECS task definition has **two containers** or process types:
+
 - Web server (`CMD ["node", "dist/main.js"]`)
 - Worker (`WORKER_MODE=true`)
 
 Both read `ENCRYPTION_KEY` from the same Secrets Manager secret. But what if:
+
 - The web container's secret reference resolved correctly
 - The worker's did not (or there's a timing issue with Secrets Manager rotation)
 
@@ -82,7 +85,7 @@ import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 
 /**
  * Module-scoped encryption key provider.
- * 
+ *
  * The key is derived ONCE via initialize() during bootstrap, AFTER we've
  * confirmed ENCRYPTION_KEY is in process.env. TypeORM transformers read
  * from this provider — if it hasn't been initialized, they throw instead
@@ -100,9 +103,7 @@ class EncryptionKeyProvider {
   initialize(): void {
     const keyString = process.env.ENCRYPTION_KEY;
     if (!keyString) {
-      throw new Error(
-        "FATAL: ENCRYPTION_KEY environment variable is not set.",
-      );
+      throw new Error("FATAL: ENCRYPTION_KEY environment variable is not set.");
     }
 
     this.derivedKey = crypto.scryptSync(
@@ -125,8 +126,8 @@ class EncryptionKeyProvider {
     if (!this.initialized || !this.derivedKey) {
       throw new Error(
         "FATAL: EncryptionKeyProvider.getKey() called before initialize(). " +
-        "This means a TypeORM transformer fired before the encryption key was set up. " +
-        "Check NestJS module initialization order.",
+          "This means a TypeORM transformer fired before the encryption key was set up. " +
+          "Check NestJS module initialization order.",
       );
     }
     return this.derivedKey;
@@ -169,11 +170,13 @@ class EncryptionHelper {
 async function bootstrap() {
   // Step 1: Initialize the encryption key provider FIRST
   encryptionKeyProvider.initialize();
-  
+
   // Step 2: Verify round-trip works
   verifyEncryptionRoundTrip();
-  logger.log(`Encryption self-test passed (key fingerprint: ${encryptionKeyProvider.getFingerprint()})`);
-  
+  logger.log(
+    `Encryption self-test passed (key fingerprint: ${encryptionKeyProvider.getFingerprint()})`,
+  );
+
   // Step 3: NOW create the NestJS app (which loads TypeORM entities + transformers)
   const app = await NestFactory.create(AppModule);
   // ...
@@ -210,20 +213,21 @@ static tryDecrypt(encryptedText: string | null | undefined): string | null {
 ```
 
 On success, reset the counter:
+
 ```typescript
 EncryptionHelper.consecutiveFailures = 0;
 ```
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/encryption/encryption-key-provider.ts` | **NEW** — singleton key provider with explicit init |
-| `server/src/encryption/encryption.helper.ts` | Remove `keyCache`, use `encryptionKeyProvider.getKey()`, add consecutive failure circuit-breaker to `tryDecrypt()` |
-| `server/src/encryption/encryption-boot-check.ts` | Log key fingerprint on success |
-| `server/src/main.ts` | Call `encryptionKeyProvider.initialize()` before `verifyEncryptionRoundTrip()` |
-| `server/src/encryption/encryption.helper.spec.ts` | Update tests for new key provider pattern |
-| `server/src/encryption/encryption-boot-check.spec.ts` | Update if exists |
+| File                                                  | Change                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `server/src/encryption/encryption-key-provider.ts`    | **NEW** — singleton key provider with explicit init                                                                |
+| `server/src/encryption/encryption.helper.ts`          | Remove `keyCache`, use `encryptionKeyProvider.getKey()`, add consecutive failure circuit-breaker to `tryDecrypt()` |
+| `server/src/encryption/encryption-boot-check.ts`      | Log key fingerprint on success                                                                                     |
+| `server/src/main.ts`                                  | Call `encryptionKeyProvider.initialize()` before `verifyEncryptionRoundTrip()`                                     |
+| `server/src/encryption/encryption.helper.spec.ts`     | Update tests for new key provider pattern                                                                          |
+| `server/src/encryption/encryption-boot-check.spec.ts` | Update if exists                                                                                                   |
 
 ## Why This Fixes the Recurring Issue
 

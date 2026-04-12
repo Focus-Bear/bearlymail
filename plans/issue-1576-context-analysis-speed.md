@@ -8,7 +8,7 @@
 
 ## Background
 
-PR #1577 moved batch analysis from PgBoss (sequential on ECS) to SQS → Lambda (parallel). This dramatically sped up the **LLM analysis phase** (batches now run 30-way parallel instead of sequentially). However, the **orchestration phase** — everything that happens *before* batches are dispatched to SQS — is still slow. This phase fetches thread IDs, full thread content, and sent emails from the Gmail API, all sequentially. For a user with 300+ threads, this orchestration alone can take 30-90 seconds before a single Lambda is invoked.
+PR #1577 moved batch analysis from PgBoss (sequential on ECS) to SQS → Lambda (parallel). This dramatically sped up the **LLM analysis phase** (batches now run 30-way parallel instead of sequentially). However, the **orchestration phase** — everything that happens _before_ batches are dispatched to SQS — is still slow. This phase fetches thread IDs, full thread content, and sent emails from the Gmail API, all sequentially. For a user with 300+ threads, this orchestration alone can take 30-90 seconds before a single Lambda is invoked.
 
 ---
 
@@ -83,6 +83,7 @@ const analysisStats = { ...sentResult.analysisStats, totalThreads: threadIds.len
 ```
 
 **Changes:**
+
 - `fetchSentEmailsContext()` currently takes `totalThreads` as a param, but only uses it to set `analysisStats.totalThreads`. Decouple this: set `totalThreads` after the parallel block.
 - Wrap all three calls in `Promise.all()`.
 - This overlaps Gmail thread-ID pagination with sent-email fetching and DB context query.
@@ -95,7 +96,10 @@ Currently `buildAndQueueBatchJobs` processes fetch-batches of 30 **sequentially*
 
 ```typescript
 for (let start = 0; start < threadIds.length; start += fetchBatchSize) {
-  const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(userId, batchIds);
+  const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
+    userId,
+    batchIds,
+  );
   // ... process into analysis batches
 }
 ```
@@ -108,9 +112,16 @@ Fetch all thread content in one parallel pass before batching:
 
 ```typescript
 // Fetch ALL threads in parallel (fetchThreadsByIds already uses Promise.all internally)
-const allThreads = await this.gmailDataService.fetchThreadsByIds(userId, threadIds);
+const allThreads = await this.gmailDataService.fetchThreadsByIds(
+  userId,
+  threadIds,
+);
 // Then batch the already-fetched threads for SQS dispatch
-const processedBatches = this.batchPayloadService.buildBatchPayloads(allThreads, userEmail, analysisBatchSize);
+const processedBatches = this.batchPayloadService.buildBatchPayloads(
+  allThreads,
+  userEmail,
+  analysisBatchSize,
+);
 ```
 
 `fetchThreadsByIds` already parallelizes internally in sub-batches of 50. For 300 threads, this becomes 6 parallel sub-batches of 50 instead of 10 sequential rounds of 30. More importantly, **all 300 threads are fetched in a single pass** (~3-8s) rather than 10 sequential passes (~30-80s).
@@ -122,12 +133,14 @@ const processedBatches = this.batchPayloadService.buildBatchPayloads(allThreads,
 Use a concurrency limiter (e.g., `p-limit`) to fetch 3-4 rounds simultaneously instead of all at once:
 
 ```typescript
-import pLimit from 'p-limit';
+import pLimit from "p-limit";
 const limit = pLimit(3); // 3 concurrent fetch rounds
 const fetchPromises = [];
 for (let start = 0; start < threadIds.length; start += fetchBatchSize) {
   const batchIds = threadIds.slice(start, start + fetchBatchSize);
-  fetchPromises.push(limit(() => this.gmailDataService.fetchThreadsByIds(userId, batchIds)));
+  fetchPromises.push(
+    limit(() => this.gmailDataService.fetchThreadsByIds(userId, batchIds)),
+  );
 }
 const allFetchedBatches = await Promise.all(fetchPromises);
 ```
@@ -164,7 +177,7 @@ analysisRecord.stats = {
   ...existingStats,
   totalBatches,
   batchJobIds,
-  batchPayloadsForRetry,  // 1-3MB of redundant data
+  batchPayloadsForRetry, // 1-3MB of redundant data
 };
 
 // AFTER:
@@ -188,7 +201,7 @@ The finalization job is currently queued with a **30-second delay**:
 const finalizationDelayMs = 30_000;
 ```
 
-With Lambda processing batches in ~15-30s, this fixed delay means the user waits 30s after orchestration completes even if Lambda finishes in 10s. 
+With Lambda processing batches in ~15-30s, this fixed delay means the user waits 30s after orchestration completes even if Lambda finishes in 10s.
 
 **Change:** Reduce to 15 seconds, or better, use an event-driven approach where the finalization job polls for completion:
 
@@ -207,25 +220,25 @@ The finalization processor already handles the case where not all batches are co
 
 ## Files to Modify
 
-| File | Change | Phase |
-|------|--------|-------|
+| File                                                          | Change                                                                             | Phase      |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------- |
 | `server/src/context/context-analysis-orchestrator.service.ts` | Parallelize steps [1-3]; remove `batchPayloadsForRetry`; reduce finalization delay | P1, P4, P5 |
-| `server/src/context/context-enqueue.service.ts` | Single-pass thread fetch instead of sequential rounds | P2 |
-| `server/src/context/context-gmail-data.service.ts` | Reduce sent-email over-fetch multiplier | P3 |
-| `server/src/context/context.controller.ts` | Remove `batchPayloadsForRetry` from initial stats | P4 |
+| `server/src/context/context-enqueue.service.ts`               | Single-pass thread fetch instead of sequential rounds                              | P2         |
+| `server/src/context/context-gmail-data.service.ts`            | Reduce sent-email over-fetch multiplier                                            | P3         |
+| `server/src/context/context.controller.ts`                    | Remove `batchPayloadsForRetry` from initial stats                                  | P4         |
 
 ---
 
 ## Expected Impact
 
-| Phase | Estimated Time Saved | Risk |
-|-------|---------------------|------|
-| Phase 1: Parallelize orchestration | 5-15s | Low — independent operations |
-| Phase 2: Parallelize thread fetching | 10-30s | Medium — Gmail rate limits (mitigated by existing 50-concurrent cap) |
-| Phase 3: Reduce over-fetching | 2-5s | Low — query already includes date filter |
-| Phase 4: Remove payload bloat | 0.5-2s per DB save | Low — SQS DLQ handles retries |
-| Phase 5: Reduce finalization delay | ~15-25s perceived | Low — finalizer already handles incomplete batches |
-| **Total** | **~30-75s** | |
+| Phase                                | Estimated Time Saved | Risk                                                                 |
+| ------------------------------------ | -------------------- | -------------------------------------------------------------------- |
+| Phase 1: Parallelize orchestration   | 5-15s                | Low — independent operations                                         |
+| Phase 2: Parallelize thread fetching | 10-30s               | Medium — Gmail rate limits (mitigated by existing 50-concurrent cap) |
+| Phase 3: Reduce over-fetching        | 2-5s                 | Low — query already includes date filter                             |
+| Phase 4: Remove payload bloat        | 0.5-2s per DB save   | Low — SQS DLQ handles retries                                        |
+| Phase 5: Reduce finalization delay   | ~15-25s perceived    | Low — finalizer already handles incomplete batches                   |
+| **Total**                            | **~30-75s**          |                                                                      |
 
 Current total orchestration time: ~25-70s. Expected after optimization: ~5-15s.
 

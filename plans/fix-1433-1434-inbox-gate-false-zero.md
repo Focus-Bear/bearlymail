@@ -11,12 +11,14 @@
 ### #1433 — Gate inbox until emails prioritised + "Analysing priority..." category
 
 After signup, users see "inbox zero" because:
+
 1. Emails are fetched but not yet prioritised — `priorityScore` defaults to `0`/`null`, which `COALESCE(priorityScore, 0)` maps to the "Low" tier (0-15)
 2. The default filter for new users is `minPriority: 50` (Very High only) — set in `loadInitialFilters()` in `useInboxFilters.ts:131`
 3. Since all emails are scored 0 (unprioritised), zero match the "Very High" filter → user sees `EmptyState` ("No new emails to triage!")
 4. Unprioritised emails get `categoryId: null` → displayed as "Other" — no indication they're being analysed
 
 **Four required changes:**
+
 1. Default priority filter for brand-new users should be "All" (null/null), not "Very High (>50)"
 2. Unprioritised emails should appear in an "Analysing priority..." virtual category with a spinner, not "Other"
 3. Gate the inbox: don't show the email list until ≥20 emails have been prioritised; show a progress interstitial instead
@@ -27,6 +29,7 @@ After signup, users see "inbox zero" because:
 When the user's filter is "Very High" and all VH emails are cleared, `EmailListStates` checks `priorityCounts.high > 0` to offer progressive unlock. But if high is also 0, and medium/low have emails, the component falls through to `EmptyState` — showing "No new emails to triage!" which is misleading.
 
 The progressive unlock chain is:
+
 - VH → High (works ✅)
 - High → Medium (works ✅)
 - Medium → Low (works ✅)
@@ -38,24 +41,25 @@ The progressive unlock chain is:
 
 ### File Map
 
-| File | Role |
-|------|------|
-| `client/src/hooks/useInboxFilters.ts` | `loadInitialFilters()` — sets default filter to VH (>50) for new users (line 131) |
-| `client/src/components/inbox/EmailListStates.tsx` | Progressive unlock chain — only steps down one tier at a time, can't skip |
-| `client/src/components/inbox/states/EmptyState.tsx` | Generic "no emails" state — shown as fallback when no progressive unlock matches |
-| `client/src/components/inbox/states/AllCaughtUpState.tsx` | "All caught up 🏆" — only shown when `minPriority < MEDIUM_PRIORITY_THRESHOLD && low === 0` |
+| File                                                       | Role                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------- |
+| `client/src/hooks/useInboxFilters.ts`                      | `loadInitialFilters()` — sets default filter to VH (>50) for new users (line 131)               |
+| `client/src/components/inbox/EmailListStates.tsx`          | Progressive unlock chain — only steps down one tier at a time, can't skip                       |
+| `client/src/components/inbox/states/EmptyState.tsx`        | Generic "no emails" state — shown as fallback when no progressive unlock matches                |
+| `client/src/components/inbox/states/AllCaughtUpState.tsx`  | "All caught up 🏆" — only shown when `minPriority < MEDIUM_PRIORITY_THRESHOLD && low === 0`     |
 | `client/src/components/inbox/inboxContentParts.helpers.ts` | `computeIsEmailsEmpty()` — determines if inbox is empty based on categorySummary or email count |
-| `client/src/hooks/useOnboarding.ts` | Existing onboarding flow — scan modal, tour steps |
-| `server/src/emails/email-inbox.service.ts` | `getInboxSummary()` — SQL uses `COALESCE(priorityScore, 0)` for filtering |
-| `server/src/emails/email-status.service.ts:149` | `getPriorityCounts()` — same `COALESCE` pattern, unprioritised → "low" bucket |
-| `server/src/database/entities/email-thread.entity.ts:70` | `priorityScore: number | null` — defaults to 0, nullable |
-| `server/src/context/context.controller.ts` | `getAnalyzeProgress()` — returns progress percentage, batch counts, stage labels |
-| `server/src/emails/email-inbox.service.ts:40` | `OTHER_CATEGORY_NAME = "Other"` — display name for null-category threads |
-| `client/src/hooks/usePriorityCounts.ts` | Fetches `/emails/priority-counts` — provides tier counts for progressive unlock |
+| `client/src/hooks/useOnboarding.ts`                        | Existing onboarding flow — scan modal, tour steps                                               |
+| `server/src/emails/email-inbox.service.ts`                 | `getInboxSummary()` — SQL uses `COALESCE(priorityScore, 0)` for filtering                       |
+| `server/src/emails/email-status.service.ts:149`            | `getPriorityCounts()` — same `COALESCE` pattern, unprioritised → "low" bucket                   |
+| `server/src/database/entities/email-thread.entity.ts:70`   | `priorityScore: number                                                                          | null` — defaults to 0, nullable |
+| `server/src/context/context.controller.ts`                 | `getAnalyzeProgress()` — returns progress percentage, batch counts, stage labels                |
+| `server/src/emails/email-inbox.service.ts:40`              | `OTHER_CATEGORY_NAME = "Other"` — display name for null-category threads                        |
+| `client/src/hooks/usePriorityCounts.ts`                    | Fetches `/emails/priority-counts` — provides tier counts for progressive unlock                 |
 
 ### Key Insight: `COALESCE(priorityScore, 0)` Conflation
 
 The database treats unprioritised emails (`priorityScore IS NULL`) identically to genuinely low-priority emails (`priorityScore = 0`) via `COALESCE(priorityScore, 0)`. This means:
+
 - `getPriorityCounts()` counts unprioritised emails in the "low" bucket
 - `getInboxSummary()` with `minPriority=50` filters them out
 - There's no way for the client to distinguish "not yet scored" from "scored as low priority"
@@ -77,8 +81,16 @@ COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS "unprioritised"
 ```
 
 Return shape becomes:
+
 ```ts
-{ veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number }
+{
+  veryHigh: number;
+  high: number;
+  medium: number;
+  low: number;
+  veryLow: number;
+  unprioritised: number;
+}
 ```
 
 **1B. Add unprioritised count to inbox-summary response**
@@ -86,11 +98,13 @@ Return shape becomes:
 **File:** `server/src/emails/email-inbox.service.ts`
 
 In `getInboxSummary()`, add an `unprioritisedCount` field to the response that counts threads where `priorityScore IS NULL`:
+
 ```ts
 return { total, categories, unprioritisedCount };
 ```
 
 Add a separate count query or extend the existing one:
+
 ```sql
 COUNT(*) FILTER (WHERE thread."priorityScore" IS NULL) AS "unprioritisedCount"
 ```
@@ -100,10 +114,11 @@ COUNT(*) FILTER (WHERE thread."priorityScore" IS NULL) AS "unprioritisedCount"
 **File:** `server/src/emails/emails.controller.ts`
 
 Returns:
+
 ```ts
 {
-  totalThreads: number;       // all non-archived threads for user
-  prioritisedCount: number;   // threads where priorityScore IS NOT NULL
+  totalThreads: number; // all non-archived threads for user
+  prioritisedCount: number; // threads where priorityScore IS NOT NULL
   unprioritisedCount: number; // threads where priorityScore IS NULL
   isAnalysisRunning: boolean; // whether a context analysis job is active
 }
@@ -118,6 +133,7 @@ This gives the client everything it needs for the gate logic. Implementation: si
 **File:** `client/src/components/inbox/InboxContentParts.tsx` (around line 620-640, where `displayCategories` is used)
 
 When `unprioritisedCount > 0` from inbox-summary response:
+
 - Prepend an "Analysing priority..." virtual category to the category list
 - This category shows a spinner icon instead of a regular category icon
 - Count = `unprioritisedCount`
@@ -126,10 +142,14 @@ When `unprioritisedCount > 0` from inbox-summary response:
 **File:** `client/src/components/inbox/states/AnalysingPriorityCategory.tsx` (new file)
 
 New component for the virtual category row:
+
 ```tsx
 <div>
   <Spinner /> Analysing priority... ({count} emails)
-  <p>These emails are being processed. They'll appear in the right category once analysis completes.</p>
+  <p>
+    These emails are being processed. They'll appear in the right category once
+    analysis completes.
+  </p>
 </div>
 ```
 
@@ -160,6 +180,7 @@ export function usePrioritisationGate() {
 **File:** `client/src/components/inbox/PrioritisationInterstitial.tsx` (new file)
 
 Shown when `isGated === true`:
+
 ```
 ┌─────────────────────────────────────────┐
 │                                         │
@@ -183,7 +204,12 @@ Shown when `isGated === true`:
 const { isGated, prioritisedCount, totalCount } = usePrioritisationGate();
 
 if (isGated) {
-  return <PrioritisationInterstitial prioritised={prioritisedCount} total={Math.max(totalCount, 20)} />;
+  return (
+    <PrioritisationInterstitial
+      prioritised={prioritisedCount}
+      total={Math.max(totalCount, 20)}
+    />
+  );
 }
 ```
 
@@ -194,9 +220,15 @@ if (isGated) {
 **File:** `client/src/hooks/useInboxFilters.ts` (line 127-131)
 
 Change the first-visit default:
+
 ```ts
 // Before:
-return { accountIds: [], categories: [], minPriority: VERY_HIGH_PRIORITY_THRESHOLD, maxPriority: null };
+return {
+  accountIds: [],
+  categories: [],
+  minPriority: VERY_HIGH_PRIORITY_THRESHOLD,
+  maxPriority: null,
+};
 
 // After:
 return { accountIds: [], categories: [], minPriority: null, maxPriority: null };
@@ -207,6 +239,7 @@ return { accountIds: [], categories: [], minPriority: null, maxPriority: null };
 **File:** `client/src/hooks/usePrioritisationGate.ts`
 
 When the gate transitions from `isGated=true` to `isGated=false`:
+
 - Check if filters are still "All" (the new-user default)
 - If so, auto-switch to `minPriority: VERY_HIGH_PRIORITY_THRESHOLD` for the focused experience
 - Set a localStorage flag `inbox_gate_graduated` so this only happens once
@@ -224,14 +257,35 @@ Current logic checks one tier at a time. Refactor to find the **next non-empty t
 ```tsx
 // Replace the 3 sequential if-blocks with a tier chain:
 const TIER_CHAIN = [
-  { min: VERY_HIGH_PRIORITY_THRESHOLD, label: 'veryHighDone', countKey: 'high', nextMin: HIGH_PRIORITY_THRESHOLD, nextMax: VERY_HIGH_PRIORITY_THRESHOLD, nextLabel: 'highLabel' },
-  { min: HIGH_PRIORITY_THRESHOLD, label: 'highDone', countKey: 'medium', nextMin: MEDIUM_PRIORITY_THRESHOLD, nextMax: HIGH_PRIORITY_THRESHOLD, nextLabel: 'mediumLabel' },
-  { min: MEDIUM_PRIORITY_THRESHOLD, label: 'mediumDone', countKey: 'low', nextMin: LOW_PRIORITY_THRESHOLD, nextMax: MEDIUM_PRIORITY_THRESHOLD, nextLabel: 'lowLabel' },
+  {
+    min: VERY_HIGH_PRIORITY_THRESHOLD,
+    label: "veryHighDone",
+    countKey: "high",
+    nextMin: HIGH_PRIORITY_THRESHOLD,
+    nextMax: VERY_HIGH_PRIORITY_THRESHOLD,
+    nextLabel: "highLabel",
+  },
+  {
+    min: HIGH_PRIORITY_THRESHOLD,
+    label: "highDone",
+    countKey: "medium",
+    nextMin: MEDIUM_PRIORITY_THRESHOLD,
+    nextMax: HIGH_PRIORITY_THRESHOLD,
+    nextLabel: "mediumLabel",
+  },
+  {
+    min: MEDIUM_PRIORITY_THRESHOLD,
+    label: "mediumDone",
+    countKey: "low",
+    nextMin: LOW_PRIORITY_THRESHOLD,
+    nextMax: MEDIUM_PRIORITY_THRESHOLD,
+    nextLabel: "lowLabel",
+  },
 ];
 
 // Find first tier below current that has emails:
 function findNextNonEmptyTier(currentMin, priorityCounts) {
-  const currentTierIndex = TIER_CHAIN.findIndex(t => currentMin >= t.min);
+  const currentTierIndex = TIER_CHAIN.findIndex((t) => currentMin >= t.min);
   for (let i = currentTierIndex; i < TIER_CHAIN.length; i++) {
     const tier = TIER_CHAIN[i];
     if (priorityCounts[tier.countKey] > 0) return tier;
@@ -253,13 +307,14 @@ Should be: show AllCaughtUpState when **ALL** lower tiers are 0 (high + medium +
 When `emailsEmpty` is true and `minPriority >= VERY_HIGH_PRIORITY_THRESHOLD` and the next non-empty tier exists but user dismissed the progressive unlock, show a subtle hint instead of the generic EmptyState:
 
 ```
-"No high priority emails right now. There are X medium/low priority emails — 
+"No high priority emails right now. There are X medium/low priority emails —
 [Show all emails] to see them."
 ```
 
 **File:** `client/src/components/inbox/states/EmptyState.tsx`
 
 Add optional props for filtered-empty state:
+
 ```tsx
 interface EmptyStateProps {
   mode: InboxMode;
@@ -274,6 +329,7 @@ interface EmptyStateProps {
 **File:** `client/src/locales/en.json`
 
 Add new keys:
+
 ```json
 {
   "inbox": {
@@ -332,12 +388,12 @@ Add new keys:
 
 ## Risk Assessment
 
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| Existing users hit by default change | Medium | `FIRST_LOAD_KEY` and `PRIORITY_DEFAULT_FIX_KEY` already guard first-visit vs. returning user. New default only applies when no `STORAGE_KEY` exists in localStorage |
-| Gate gets stuck (analysis hangs) | Low | Gate has escape hatch: `isGated = false` when `!isAnalysisRunning` regardless of count. SessionStorage dismissed flag. |
-| Performance of new endpoint | Low | Simple COUNT query on indexed userId column. No joins. |
-| `COALESCE(priorityScore, 0)` in existing queries | Info | NOT changing existing queries — just adding new count. Avoids regression risk. |
+| Risk                                             | Severity | Mitigation                                                                                                                                                          |
+| ------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing users hit by default change             | Medium   | `FIRST_LOAD_KEY` and `PRIORITY_DEFAULT_FIX_KEY` already guard first-visit vs. returning user. New default only applies when no `STORAGE_KEY` exists in localStorage |
+| Gate gets stuck (analysis hangs)                 | Low      | Gate has escape hatch: `isGated = false` when `!isAnalysisRunning` regardless of count. SessionStorage dismissed flag.                                              |
+| Performance of new endpoint                      | Low      | Simple COUNT query on indexed userId column. No joins.                                                                                                              |
+| `COALESCE(priorityScore, 0)` in existing queries | Info     | NOT changing existing queries — just adding new count. Avoids regression risk.                                                                                      |
 
 ---
 

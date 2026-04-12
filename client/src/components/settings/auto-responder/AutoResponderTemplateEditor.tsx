@@ -165,7 +165,12 @@ function useTemplateEditorState({ config, queueStats, userName, onTemplateChange
   const [isSaving, setIsSaving] = useState(false);
   const [showMergeTags, setShowMergeTags] = useState(false);
 
-  const stats = queueStats || { actionCount: 37, triageCount: 21, avgResponseTime: '~4 days', urgentResponseTime: '12-24 hours' };
+  const stats = queueStats || {
+    actionCount: 37,
+    triageCount: 21,
+    avgResponseTime: '~4 days',
+    urgentResponseTime: '12-24 hours',
+  };
   const displayName = userName || 'Your Name';
 
   const getCurrentTemplate = useCallback(() => {
@@ -220,12 +225,21 @@ function useTemplateEditorState({ config, queueStats, userName, onTemplateChange
     : renderPreviewWithMergeTags(currentTemplate, displayName, stats);
 
   return {
-    isExpanded, setIsExpanded,
-    selectedTemplate, setSelectedTemplate,
-    isEditing, isSaving, showMergeTags,
-    editedTemplate, setEditedTemplate, setShowMergeTags,
-    currentTemplate, previewText,
-    handleEditClick, handleSaveTemplate, handleCancelEdit,
+    isExpanded,
+    setIsExpanded,
+    selectedTemplate,
+    setSelectedTemplate,
+    isEditing,
+    isSaving,
+    showMergeTags,
+    editedTemplate,
+    setEditedTemplate,
+    setShowMergeTags,
+    currentTemplate,
+    previewText,
+    handleEditClick,
+    handleSaveTemplate,
+    handleCancelEdit,
   };
 }
 
@@ -237,12 +251,21 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
 }) => {
   const { t } = useTranslation();
   const {
-    isExpanded, setIsExpanded,
-    selectedTemplate, setSelectedTemplate,
-    isEditing, isSaving, showMergeTags,
-    editedTemplate, setEditedTemplate, setShowMergeTags,
-    currentTemplate, previewText,
-    handleEditClick, handleSaveTemplate, handleCancelEdit,
+    isExpanded,
+    setIsExpanded,
+    selectedTemplate,
+    setSelectedTemplate,
+    isEditing,
+    isSaving,
+    showMergeTags,
+    editedTemplate,
+    setEditedTemplate,
+    setShowMergeTags,
+    currentTemplate,
+    previewText,
+    handleEditClick,
+    handleSaveTemplate,
+    handleCancelEdit,
   } = useTemplateEditorState({ config, queueStats, userName, onTemplateChange });
 
   return (

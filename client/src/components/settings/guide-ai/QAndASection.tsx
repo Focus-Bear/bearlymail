@@ -112,13 +112,23 @@ const PendingQAItem: React.FC<PendingQAItemProps> = ({
           />
           <button
             onClick={onUpdateContext}
-            style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE }}
+            style={{
+              cursor: 'pointer',
+              color: theme.colors.primary.main,
+              border: STRING_NONE,
+              background: STRING_NONE,
+            }}
           >
             {t('common.save')}
           </button>
           <button
             onClick={() => onEditingContextIdChange(null)}
-            style={{ cursor: 'pointer', color: theme.colors.text.secondary, border: STRING_NONE, background: STRING_NONE }}
+            style={{
+              cursor: 'pointer',
+              color: theme.colors.text.secondary,
+              border: STRING_NONE,
+              background: STRING_NONE,
+            }}
           >
             {t('common.cancel')}
           </button>
@@ -148,7 +158,9 @@ const PendingQAItem: React.FC<PendingQAItemProps> = ({
           {t('settings.context.answer')}: {answer}
         </div>
         {context.explanation && (
-          <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, fontStyle: 'italic' }}>
+          <span
+            style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, fontStyle: 'italic' }}
+          >
             {context.explanation}
           </span>
         )}
@@ -165,7 +177,8 @@ const PendingQAItem: React.FC<PendingQAItemProps> = ({
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          <span aria-hidden="true">{'✅ '}</span>{t('settings.context.approve')}
+          <span aria-hidden="true">{'✅ '}</span>
+          {t('settings.context.approve')}
         </button>
         <button
           onClick={() => onEdit(context.contextId, context.contextValue)}
@@ -178,7 +191,8 @@ const PendingQAItem: React.FC<PendingQAItemProps> = ({
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          <span aria-hidden="true">{'✏️ '}</span>{t('common.edit')}
+          <span aria-hidden="true">{'✏️ '}</span>
+          {t('common.edit')}
         </button>
         <button
           onClick={() => onReject(context.contextId)}
@@ -191,7 +205,8 @@ const PendingQAItem: React.FC<PendingQAItemProps> = ({
             fontSize: theme.typography.fontSize.sm,
           }}
         >
-          <span aria-hidden="true">{'❌ '}</span>{t('settings.context.reject')}
+          <span aria-hidden="true">{'❌ '}</span>
+          {t('settings.context.reject')}
         </button>
       </div>
     </div>
@@ -247,13 +262,23 @@ const ApprovedQAItem: React.FC<ApprovedQAItemProps> = ({
           />
           <button
             onClick={onUpdateContext}
-            style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE }}
+            style={{
+              cursor: 'pointer',
+              color: theme.colors.primary.main,
+              border: STRING_NONE,
+              background: STRING_NONE,
+            }}
           >
             {t('common.save')}
           </button>
           <button
             onClick={() => onEditingContextIdChange(null)}
-            style={{ cursor: 'pointer', color: theme.colors.text.secondary, border: STRING_NONE, background: STRING_NONE }}
+            style={{
+              cursor: 'pointer',
+              color: theme.colors.text.secondary,
+              border: STRING_NONE,
+              background: STRING_NONE,
+            }}
           >
             {t('common.cancel')}
           </button>
@@ -289,13 +314,25 @@ const ApprovedQAItem: React.FC<ApprovedQAItemProps> = ({
             onEditingContextIdChange(context.contextId);
             onEditContextValueChange(context.contextValue);
           }}
-          style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE, fontSize: theme.typography.fontSize.sm }}
+          style={{
+            cursor: 'pointer',
+            color: theme.colors.primary.main,
+            border: STRING_NONE,
+            background: STRING_NONE,
+            fontSize: theme.typography.fontSize.sm,
+          }}
         >
           {t('common.edit')}
         </button>
         <button
           onClick={() => onDeleteContext(context.contextId)}
-          style={{ cursor: 'pointer', color: theme.colors.accent.error, border: STRING_NONE, background: STRING_NONE, fontSize: theme.typography.fontSize.sm }}
+          style={{
+            cursor: 'pointer',
+            color: theme.colors.accent.error,
+            border: STRING_NONE,
+            background: STRING_NONE,
+            fontSize: theme.typography.fontSize.sm,
+          }}
         >
           {t('common.delete')}
         </button>
@@ -358,7 +395,13 @@ const AddQAInput: React.FC<AddQAInputProps> = ({
       </button>
       <button
         onClick={onCancel}
-        style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, cursor: 'pointer' }}
+        style={{
+          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+          backgroundColor: COLOR_TRANSPARENT,
+          color: theme.colors.text.secondary,
+          border: STRING_NONE,
+          cursor: 'pointer',
+        }}
       >
         {t('common.cancel')}
       </button>
@@ -644,7 +687,13 @@ const QAndASectionBody: React.FC<QAndASectionBodyProps> = ({
     approvedTabProps;
   return (
     <div>
-      <div style={{ display: 'flex', borderBottom: `1px solid ${theme.colors.border.light}`, padding: `0 ${theme.spacing.md}` }}>
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: `1px solid ${theme.colors.border.light}`,
+          padding: `0 ${theme.spacing.md}`,
+        }}
+      >
         <button style={makeTabStyle(activeTab === QA_TAB_PENDING)} onClick={() => onTabChange(QA_TAB_PENDING)}>
           {t('settings.context.pendingReview')}
           {pendingContexts.length > 0 && <span style={badgeStyle}>{pendingContexts.length}</span>}
@@ -670,9 +719,7 @@ const QAndASectionBody: React.FC<QAndASectionBodyProps> = ({
             onEditContextValueChange={onEditContextValueChange}
           />
         )}
-        {activeTab === QA_TAB_APPROVED && (
-          <ApprovedTab approvedContexts={approvedContexts} {...approvedTabProps} />
-        )}
+        {activeTab === QA_TAB_APPROVED && <ApprovedTab approvedContexts={approvedContexts} {...approvedTabProps} />}
       </div>
     </div>
   );
@@ -684,7 +731,7 @@ function useQAndAHandlers(
   onRefresh: (() => void) | undefined,
   onEditingContextIdChange: (id: string | null) => void,
   onEditContextValueChange: (value: string) => void,
-  setActiveTab: (tab: TabType) => void,
+  setActiveTab: (tab: TabType) => void
 ) {
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
@@ -759,8 +806,12 @@ export const QAndASection: React.FC<QAndASectionProps> = ({
   const pendingContexts = qaContexts.filter(ctx => ctx.source === CONTEXT_SOURCE_UNAPPROVED);
   const approvedContexts = qaContexts.filter(ctx => ctx.source !== CONTEXT_SOURCE_UNAPPROVED);
 
-  const { isApprovingAll, handleApprove, handleReject, handleEditAndApprove, handleApproveAll } =
-    useQAndAHandlers(onRefresh, onEditingContextIdChange, onEditContextValueChange, setActiveTab);
+  const { isApprovingAll, handleApprove, handleReject, handleEditAndApprove, handleApproveAll } = useQAndAHandlers(
+    onRefresh,
+    onEditingContextIdChange,
+    onEditContextValueChange,
+    setActiveTab
+  );
 
   return (
     <div

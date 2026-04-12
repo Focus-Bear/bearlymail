@@ -62,7 +62,13 @@ interface AnalysisListProps {
  * Renders the full list of context analysis cards, or an empty-state message
  * when no analyses match the current filter.
  */
-export const AnalysisList: React.FC<AnalysisListProps> = ({ analyses, expandedId, setExpandedId, copiedId, onCopy }) => {
+export const AnalysisList: React.FC<AnalysisListProps> = ({
+  analyses,
+  expandedId,
+  setExpandedId,
+  copiedId,
+  onCopy,
+}) => {
   const { t } = useTranslation();
 
   if (analyses.length === 0) {

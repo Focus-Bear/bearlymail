@@ -82,9 +82,7 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
         display: 'inline-flex',
         alignItems: 'center',
         gap: '5px',
-        padding: compact
-          ? `${theme.spacing.xs} ${theme.spacing.xs}`
-          : `${theme.spacing.xs} ${theme.spacing.sm}`,
+        padding: compact ? `${theme.spacing.xs} ${theme.spacing.xs}` : `${theme.spacing.xs} ${theme.spacing.sm}`,
         fontSize: compact ? theme.typography.fontSize.md : theme.typography.fontSize.lg,
         fontWeight: isSelected ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
         backgroundColor,
@@ -102,7 +100,8 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
         event.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary.main}44`;
       }}
       onBlur={event => {
-        event.currentTarget.style.boxShadow = isSelected && !isAll ? `0 0 0 2px ${theme.colors.primary.main}33` : 'none';
+        event.currentTarget.style.boxShadow =
+          isSelected && !isAll ? `0 0 0 2px ${theme.colors.primary.main}33` : 'none';
       }}
     >
       {isSelected && !isAll && (
@@ -129,9 +128,7 @@ const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = f
       >
         {label}
       </span>
-      {countSuffix && (
-        <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{countSuffix}</span>
-      )}
+      {countSuffix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{countSuffix}</span>}
     </button>
   );
 };
@@ -198,9 +195,7 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
-          padding: compact
-            ? `${theme.spacing.xs} ${theme.spacing.xs}`
-            : `${theme.spacing.xs} ${theme.spacing.sm}`,
+          padding: compact ? `${theme.spacing.xs} ${theme.spacing.xs}` : `${theme.spacing.xs} ${theme.spacing.sm}`,
           fontSize: compact ? theme.typography.fontSize.md : theme.typography.fontSize.lg,
           fontWeight: theme.typography.fontWeight.medium,
           backgroundColor: hasSelectedOverflow ? theme.colors.background.subtle : theme.colors.background.paper,
@@ -216,7 +211,9 @@ const OverflowDropdown: React.FC<OverflowDropdownProps> = ({
         }}
       >
         +{overflowCount} {t('inbox.filters.moreCategories', 'more')}
-        <span aria-hidden="true" style={{ fontSize: '10px' }}>{isOpen ? '▲' : '▼'}</span>
+        <span aria-hidden="true" style={{ fontSize: '10px' }}>
+          {isOpen ? '▲' : '▼'}
+        </span>
       </button>
 
       {isOpen && (
@@ -360,18 +357,19 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
     onChange([]);
   }, [onChange]);
 
-  const handleToggle = useCallback((id: string) => {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter(sid => sid !== id));
-    } else {
-      onChange([...selectedIds, id]);
-    }
-  }, [selectedIds, onChange]);
+  const handleToggle = useCallback(
+    (id: string) => {
+      if (selectedIds.includes(id)) {
+        onChange(selectedIds.filter(sid => sid !== id));
+      } else {
+        onChange([...selectedIds, id]);
+      }
+    },
+    [selectedIds, onChange]
+  );
 
   // Summary text for header
-  const selectedLabels = selectedIds
-    .map(id => categories.find(cat => cat.id === id)?.label)
-    .filter(Boolean);
+  const selectedLabels = selectedIds.map(id => categories.find(cat => cat.id === id)?.label).filter(Boolean);
   let summaryText: string;
   if (isAllSelected) {
     summaryText = t('inbox.filters.allCategories', 'All categories');
@@ -432,7 +430,8 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
             color: theme.colors.text.tertiary,
           }}
         >
-          {summaryText}{countText}
+          {summaryText}
+          {countText}
         </span>
       </div>
 
@@ -458,22 +457,23 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
         />
 
         {/* Fix #1526 bug 5: skeleton placeholder pills while categories load */}
-        {showSkeleton && Array.from({ length: SKELETON_PILL_COUNT }).map((_, i) => (
-          <div
-            key={`skeleton-${i}`}
-            aria-hidden="true"
-            style={{
-              display: 'inline-flex',
-              width: compact ? '60px' : '80px',
-              height: compact ? '44px' : '32px',
-              borderRadius: theme.borderRadius.full,
-              backgroundColor: theme.colors.background.subtle,
-              border: `1.5px solid ${theme.colors.border.light}`,
-              animation: 'bearlymail-skeleton-pulse 1.2s ease-in-out infinite',
-              opacity: 0.7,
-            }}
-          />
-        ))}
+        {showSkeleton &&
+          Array.from({ length: SKELETON_PILL_COUNT }).map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              aria-hidden="true"
+              style={{
+                display: 'inline-flex',
+                width: compact ? '60px' : '80px',
+                height: compact ? '44px' : '32px',
+                borderRadius: theme.borderRadius.full,
+                backgroundColor: theme.colors.background.subtle,
+                border: `1.5px solid ${theme.colors.border.light}`,
+                animation: 'bearlymail-skeleton-pulse 1.2s ease-in-out infinite',
+                opacity: 0.7,
+              }}
+            />
+          ))}
 
         {/* Visible category pills — suppress counts while summary is refetching (fix #1466) */}
         {visibleCategories.map(cat => (

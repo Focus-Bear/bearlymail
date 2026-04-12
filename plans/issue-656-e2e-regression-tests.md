@@ -3,6 +3,7 @@
 ## Goal
 
 Establish a Playwright test suite in the existing `e2e/` directory that:
+
 1. Verifies all critical app paths load without crashing
 2. Guards against known regressions (#650 `STRING_NONE`, #654 `index is not defined`)
 3. Runs automatically in CI on every PR
@@ -13,18 +14,19 @@ Establish a Playwright test suite in the existing `e2e/` directory that:
 
 The `e2e/` directory already contains:
 
-| Asset | Notes |
-|-------|-------|
-| `playwright.config.ts` | Configured for `https://dashboard.focusbear.io`, retries on CI, Chromium only |
-| `pages/LoginPage.ts` | Full login + register flow with API response detection |
-| `pages/InboxPage.ts` | Inbox load detection helpers |
-| `pages/BasePage.ts` | Base page class |
-| `pages/SearchPage.ts` | Search page helpers |
-| `utils/NetworkTracker.ts` | Network request tracking utility |
-| `tests/inbox-load-time.spec.ts` | Performance spec (existing) |
-| `tests/search-ci.spec.ts` | Search spec (existing) |
+| Asset                           | Notes                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `playwright.config.ts`          | Configured for `https://dashboard.focusbear.io`, retries on CI, Chromium only |
+| `pages/LoginPage.ts`            | Full login + register flow with API response detection                        |
+| `pages/InboxPage.ts`            | Inbox load detection helpers                                                  |
+| `pages/BasePage.ts`             | Base page class                                                               |
+| `pages/SearchPage.ts`           | Search page helpers                                                           |
+| `utils/NetworkTracker.ts`       | Network request tracking utility                                              |
+| `tests/inbox-load-time.spec.ts` | Performance spec (existing)                                                   |
+| `tests/search-ci.spec.ts`       | Search spec (existing)                                                        |
 
 **QA seed user** (from #651 / `plans/issue-651-qa-test-environment.md`):
+
 - Email: `internaltest+openclaw_qa@focusbear.io`
 - Password: `TestFocusBear2024!`
 - Pre-seeded with emails across multiple categories
@@ -38,12 +40,13 @@ Single spec file with clearly named `describe` blocks covering all required area
 ### File structure
 
 ```ts
-import { test, expect, Page } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
+import { test, expect, Page } from "@playwright/test";
+import { LoginPage } from "../pages/LoginPage";
 
-const QA_EMAIL    = 'internaltest+openclaw_qa@focusbear.io';
-const QA_PASSWORD = 'TestFocusBear2024!';
-const BASE_URL    = process.env.PLAYWRIGHT_BASE_URL || 'https://dashboard.focusbear.io';
+const QA_EMAIL = "internaltest+openclaw_qa@focusbear.io";
+const QA_PASSWORD = "TestFocusBear2024!";
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL || "https://dashboard.focusbear.io";
 
 // ─── Auth helper ────────────────────────────────────────────────────────────
 
@@ -51,7 +54,7 @@ async function loginAsQA(page: Page): Promise<void> {
   const loginPage = new LoginPage(page);
   await page.goto(`${BASE_URL}/login`);
   await loginPage.login(QA_EMAIL, QA_PASSWORD);
-  await page.waitForURL('**/inbox', { timeout: 15_000 });
+  await page.waitForURL("**/inbox", { timeout: 15_000 });
 }
 ```
 
@@ -60,29 +63,39 @@ async function loginAsQA(page: Page): Promise<void> {
 ### 1 — Smoke tests (app loads without crash)
 
 ```ts
-test.describe('Smoke: pages load', () => {
-  test.beforeEach(async ({ page }) => { await loginAsQA(page); });
+test.describe("Smoke: pages load", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsQA(page);
+  });
 
-  test('inbox loads', async ({ page }) => {
+  test("inbox loads", async ({ page }) => {
     await expect(page).toHaveURL(/\/inbox/);
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
   });
 
-  test('settings page loads', async ({ page }) => {
+  test("settings page loads", async ({ page }) => {
     await page.goto(`${BASE_URL}/settings`);
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
-    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
+    await expect(page.locator("body")).toBeVisible();
   });
 
-  test('stats page loads', async ({ page }) => {
+  test("stats page loads", async ({ page }) => {
     await page.goto(`${BASE_URL}/stats`);
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
   });
 
-  test('auto-responder settings page loads without crash', async ({ page }) => {
+  test("auto-responder settings page loads without crash", async ({ page }) => {
     await page.goto(`${BASE_URL}/settings/auto-responder`);
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
-    await expect(page.locator('body')).not.toContainText('ReferenceError');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
+    await expect(page.locator("body")).not.toContainText("ReferenceError");
   });
 });
 ```
@@ -92,53 +105,72 @@ test.describe('Smoke: pages load', () => {
 ### 2 — Critical flows
 
 ```ts
-test.describe('Critical flows', () => {
-  test.beforeEach(async ({ page }) => { await loginAsQA(page); });
+test.describe("Critical flows", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsQA(page);
+  });
 
-  test('login: valid credentials navigate to inbox', async ({ page }) => {
+  test("login: valid credentials navigate to inbox", async ({ page }) => {
     // loginAsQA already asserts navigation — this test documents the happy path
     await expect(page).toHaveURL(/\/inbox/);
   });
 
-  test('inbox: email list renders', async ({ page }) => {
+  test("inbox: email list renders", async ({ page }) => {
     // At least one email row should be visible (QA account is pre-seeded)
-    const emailRows = page.locator('[data-testid="email-row"], [role="listitem"]');
+    const emailRows = page.locator(
+      '[data-testid="email-row"], [role="listitem"]',
+    );
     await expect(emailRows.first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('inbox: can open an email', async ({ page }) => {
-    const firstEmail = page.locator('[data-testid="email-row"], [role="listitem"]').first();
+  test("inbox: can open an email", async ({ page }) => {
+    const firstEmail = page
+      .locator('[data-testid="email-row"], [role="listitem"]')
+      .first();
     await firstEmail.click();
     // Email detail panel should appear
     await expect(
-      page.locator('[data-testid="email-detail"], [role="main"]')
+      page.locator('[data-testid="email-detail"], [role="main"]'),
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('inbox: can switch between Triage and Follow-up tabs', async ({ page }) => {
-    const triageTab    = page.getByRole('tab', { name: /triage/i })
-                          .or(page.getByText(/triage/i).first());
-    const followUpTab  = page.getByRole('tab', { name: /follow.?up/i })
-                          .or(page.getByText(/follow.?up/i).first());
+  test("inbox: can switch between Triage and Follow-up tabs", async ({
+    page,
+  }) => {
+    const triageTab = page
+      .getByRole("tab", { name: /triage/i })
+      .or(page.getByText(/triage/i).first());
+    const followUpTab = page
+      .getByRole("tab", { name: /follow.?up/i })
+      .or(page.getByText(/follow.?up/i).first());
 
     await triageTab.click();
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
 
     await followUpTab.click();
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
   });
 
-  test('stats: leaderboard tab loads', async ({ page }) => {
+  test("stats: leaderboard tab loads", async ({ page }) => {
     await page.goto(`${BASE_URL}/stats`);
-    const leaderboardTab = page.getByRole('tab', { name: /leaderboard/i })
-                             .or(page.getByText(/leaderboard/i).first());
+    const leaderboardTab = page
+      .getByRole("tab", { name: /leaderboard/i })
+      .or(page.getByText(/leaderboard/i).first());
     if (await leaderboardTab.isVisible({ timeout: 5_000 })) {
       await leaderboardTab.click();
     }
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
   });
 
-  test('settings: auto-responder exclusion settings renders', async ({ page }) => {
+  test("settings: auto-responder exclusion settings renders", async ({
+    page,
+  }) => {
     await page.goto(`${BASE_URL}/settings/auto-responder`);
     // Look for exclusion rules section
     const exclusionSection = page.getByText(/exclusion/i).first();
@@ -152,40 +184,48 @@ test.describe('Critical flows', () => {
 ### 3 — Regression guards (specific past bugs)
 
 ```ts
-test.describe('Regression guards', () => {
+test.describe("Regression guards", () => {
   // Capture JS errors from the page
   let jsErrors: string[] = [];
   test.beforeEach(async ({ page }) => {
     jsErrors = [];
-    page.on('pageerror', (err) => jsErrors.push(err.message));
+    page.on("pageerror", (err) => jsErrors.push(err.message));
     await loginAsQA(page);
   });
 
-  test('#650 — STRING_NONE: inbox loads without JS crash', async ({ page }) => {
+  test("#650 — STRING_NONE: inbox loads without JS crash", async ({ page }) => {
     // Inbox must load without any ReferenceError for STRING_NONE
     await expect(page).toHaveURL(/\/inbox/);
     await page.waitForTimeout(2_000); // Let React settle
 
-    const stringNoneErrors = jsErrors.filter(e => e.includes('STRING_NONE'));
+    const stringNoneErrors = jsErrors.filter((e) => e.includes("STRING_NONE"));
     expect(stringNoneErrors).toHaveLength(0);
 
     // Also assert inbox content is present (not crash screen)
-    await expect(page.locator('body')).not.toContainText('GZQ39'); // error code from #650
-    await expect(page.locator('body')).not.toContainText('STRING_NONE');
+    await expect(page.locator("body")).not.toContainText("GZQ39"); // error code from #650
+    await expect(page.locator("body")).not.toContainText("STRING_NONE");
   });
 
-  test('#654 — index is not defined: auto-responder exclusion settings renders', async ({ page }) => {
+  test("#654 — index is not defined: auto-responder exclusion settings renders", async ({
+    page,
+  }) => {
     await page.goto(`${BASE_URL}/settings/auto-responder`);
     await page.waitForTimeout(2_000);
 
-    const indexErrors = jsErrors.filter(e =>
-      e.includes('index is not defined') || e.includes("ReferenceError: index")
+    const indexErrors = jsErrors.filter(
+      (e) =>
+        e.includes("index is not defined") ||
+        e.includes("ReferenceError: index"),
     );
     expect(indexErrors).toHaveLength(0);
 
     // Page must not show crash UI
-    await expect(page.locator('body')).not.toContainText('Something went wrong');
-    await expect(page.locator('body')).not.toContainText('index is not defined');
+    await expect(page.locator("body")).not.toContainText(
+      "Something went wrong",
+    );
+    await expect(page.locator("body")).not.toContainText(
+      "index is not defined",
+    );
   });
 });
 ```
@@ -220,8 +260,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: e2e/package-lock.json
 
       - name: Install e2e dependencies
@@ -253,6 +293,7 @@ jobs:
 ## Playwright Config Notes
 
 The existing `playwright.config.ts` already handles CI correctly:
+
 - `retries: process.env.CI ? 2 : 0` — retries on flaky network
 - `workers: process.env.CI ? 1 : undefined` — sequential in CI (avoids race conditions on shared QA account)
 - `timeout: 120000` — generous timeout for AI-powered operations

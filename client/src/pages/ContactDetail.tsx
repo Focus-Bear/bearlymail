@@ -243,7 +243,14 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
   return (
     <div style={{ display: STRING_GRID, gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
       <div>
-        <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            display: STRING_BLOCK,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {t('contacts.contactType')}
         </label>
         <select
@@ -253,7 +260,9 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
         >
           <option value="">--</option>
           {contactTypes.map(ct => (
-            <option key={ct.name} value={ct.name}>{ct.icon} {ct.label}</option>
+            <option key={ct.name} value={ct.name}>
+              {ct.icon} {ct.label}
+            </option>
           ))}
         </select>
       </div>
@@ -263,11 +272,13 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
         isEditing={editingField === FIELD_TYPE_PHONE}
         editValue={editValue}
         onStartEdit={() => {
- setEditingField(FIELD_TYPE_PHONE); setEditValue(contact.phone || ''); 
-}}
+          setEditingField(FIELD_TYPE_PHONE);
+          setEditValue(contact.phone || '');
+        }}
         onSave={() => {
- onUpdateField(FIELD_TYPE_PHONE, editValue); setEditingField(null); 
-}}
+          onUpdateField(FIELD_TYPE_PHONE, editValue);
+          setEditingField(null);
+        }}
         onCancel={() => setEditingField(null)}
         onEditValueChange={setEditValue}
         inputType={INPUT_TYPE_TEL}
@@ -283,11 +294,13 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
         isEditing={editingField === FIELD_TYPE_COMPANY}
         editValue={editValue}
         onStartEdit={() => {
- setEditingField(FIELD_TYPE_COMPANY); setEditValue(contact.company || ''); 
-}}
+          setEditingField(FIELD_TYPE_COMPANY);
+          setEditValue(contact.company || '');
+        }}
         onSave={() => {
- onUpdateField(FIELD_TYPE_COMPANY, editValue); setEditingField(null); 
-}}
+          onUpdateField(FIELD_TYPE_COMPANY, editValue);
+          setEditingField(null);
+        }}
         onCancel={() => setEditingField(null)}
         onEditValueChange={setEditValue}
         inputStyle={inputStyle}
@@ -302,11 +315,13 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
         isEditing={editingField === FIELD_JOB_TITLE}
         editValue={editValue}
         onStartEdit={() => {
- setEditingField(FIELD_JOB_TITLE); setEditValue(contact.jobTitle || ''); 
-}}
+          setEditingField(FIELD_JOB_TITLE);
+          setEditValue(contact.jobTitle || '');
+        }}
         onSave={() => {
- onUpdateField(FIELD_JOB_TITLE, editValue); setEditingField(null); 
-}}
+          onUpdateField(FIELD_JOB_TITLE, editValue);
+          setEditingField(null);
+        }}
         onCancel={() => setEditingField(null)}
         onEditValueChange={setEditValue}
         inputStyle={inputStyle}
@@ -316,15 +331,22 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({
         cancelLabel={t('contacts.cancel')}
       />
       <div>
-        <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+        <label
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            display: STRING_BLOCK,
+            marginBottom: theme.spacing.xs,
+          }}
+        >
           {t('contacts.followUpDate')}
         </label>
         <input
           type={INPUT_TYPE_DATE}
           value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''}
           onChange={event => {
- onUpdateField('followUpDate', event.target.value || null); 
-}}
+            onUpdateField('followUpDate', event.target.value || null);
+          }}
           style={inputStyle}
         />
       </div>
@@ -364,14 +386,33 @@ interface ContactCustomFieldsSectionProps {
 }
 
 const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
-  contact, editingField, editValue, showAddCustomField, newFieldName, newFieldType,
-  styles, t, setEditingField, setEditValue, setShowAddCustomField, setNewFieldName,
-  setNewFieldType, onSetCustomFieldValue, onAddCustomField,
+  contact,
+  editingField,
+  editValue,
+  showAddCustomField,
+  newFieldName,
+  newFieldType,
+  styles,
+  t,
+  setEditingField,
+  setEditValue,
+  setShowAddCustomField,
+  setNewFieldName,
+  setNewFieldType,
+  onSetCustomFieldValue,
+  onAddCustomField,
 }) => {
   const { inputStyle, buttonPrimary, buttonSecondary, sectionStyle } = styles;
   return (
     <div style={sectionStyle}>
-      <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.md }}>
+      <div
+        style={{
+          display: STRING_FLEX,
+          justifyContent: STRING_SPACE_BETWEEN,
+          alignItems: STRING_CENTER,
+          marginBottom: theme.spacing.md,
+        }}
+      >
         <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>
           {t('contacts.customFields')}
         </h2>
@@ -380,29 +421,64 @@ const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
         </button>
       </div>
       {showAddCustomField && (
-        <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md, alignItems: STRING_FLEX_END }}>
+        <div
+          style={{
+            display: STRING_FLEX,
+            gap: theme.spacing.sm,
+            marginBottom: theme.spacing.md,
+            alignItems: STRING_FLEX_END,
+          }}
+        >
           <div style={{ flex: 1 }}>
-            <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+            <label
+              style={{
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                display: STRING_BLOCK,
+                marginBottom: theme.spacing.xs,
+              }}
+            >
               {t('contacts.fieldName')}
             </label>
-            <input value={newFieldName} onChange={event => setNewFieldName(event.target.value)} placeholder={t('contacts.fieldName')} style={inputStyle} />
+            <input
+              value={newFieldName}
+              onChange={event => setNewFieldName(event.target.value)}
+              placeholder={t('contacts.fieldName')}
+              style={inputStyle}
+            />
           </div>
           <div style={{ width: '120px' }}>
-            <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+            <label
+              style={{
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                display: STRING_BLOCK,
+                marginBottom: theme.spacing.xs,
+              }}
+            >
               {t('contacts.fieldType')}
             </label>
-            <select value={newFieldType} onChange={event => setNewFieldType(event.target.value)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
+            <select
+              value={newFieldType}
+              onChange={event => setNewFieldType(event.target.value)}
+              style={{ ...inputStyle, cursor: STRING_POINTER }}
+            >
               <option value={FIELD_TYPE_TEXT}>{t('contacts.fieldTypeText')}</option>
               <option value={FIELD_TYPE_NUMBER}>{t('contacts.fieldTypeNumber')}</option>
               <option value={FIELD_TYPE_DATE}>{t('contacts.fieldTypeDate')}</option>
               <option value={FIELD_TYPE_URL}>{t('contacts.fieldTypeUrl')}</option>
             </select>
           </div>
-          <button onClick={() => {
- onAddCustomField(newFieldName, newFieldType, () => {
- setNewFieldName(''); setNewFieldType(FIELD_TYPE_TEXT); setShowAddCustomField(false); 
-}); 
-}} style={buttonPrimary}>
+          <button
+            onClick={() => {
+              onAddCustomField(newFieldName, newFieldType, () => {
+                setNewFieldName('');
+                setNewFieldType(FIELD_TYPE_TEXT);
+                setShowAddCustomField(false);
+              });
+            }}
+            style={buttonPrimary}
+          >
             {t('contacts.save')}
           </button>
           <button onClick={() => setShowAddCustomField(false)} style={buttonSecondary}>
@@ -418,7 +494,14 @@ const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
         <div style={{ display: STRING_GRID, gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
           {contact.customFields.map((cf: ContactCustomFieldValue) => (
             <div key={cf.fieldId}>
-              <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+              <label
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.sm,
+                  display: STRING_BLOCK,
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
                 {cf.fieldName}
               </label>
               {editingField === `cf-${cf.fieldId}` ? (
@@ -430,9 +513,13 @@ const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
                     style={inputStyle}
                     autoFocus
                   />
-                  <button onClick={() => {
- onSetCustomFieldValue(cf.fieldId, editValue); setEditingField(null); 
-}} style={buttonPrimary}>
+                  <button
+                    onClick={() => {
+                      onSetCustomFieldValue(cf.fieldId, editValue);
+                      setEditingField(null);
+                    }}
+                    style={buttonPrimary}
+                  >
                     {t('contacts.save')}
                   </button>
                   <button onClick={() => setEditingField(null)} style={buttonSecondary}>
@@ -442,9 +529,17 @@ const ContactCustomFieldsSection: React.FC<ContactCustomFieldsSectionProps> = ({
               ) : (
                 <div
                   onClick={() => {
- setEditingField(`cf-${cf.fieldId}`); setEditValue(cf.value || ''); 
-}}
-                  style={{ ...inputStyle, cursor: STRING_POINTER, color: cf.value ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}
+                    setEditingField(`cf-${cf.fieldId}`);
+                    setEditValue(cf.value || '');
+                  }}
+                  style={{
+                    ...inputStyle,
+                    cursor: STRING_POINTER,
+                    color: cf.value ? theme.colors.text.primary : theme.colors.text.tertiary,
+                    minHeight: '38px',
+                    display: STRING_FLEX,
+                    alignItems: STRING_CENTER,
+                  }}
                 >
                   {cf.value || '--'}
                 </div>
@@ -493,14 +588,27 @@ const ContactDetailPage: React.FC = () => {
     }
   }, [contact, editingField]);
 
-  const sidebarProps = { user, logout, isCollapsed, onToggleCollapse: toggleCollapse, isMobileMenuOpen, onCloseMobileMenu: closeMobileMenu };
+  const sidebarProps = {
+    user,
+    logout,
+    isCollapsed,
+    onToggleCollapse: toggleCollapse,
+    isMobileMenuOpen,
+    onCloseMobileMenu: closeMobileMenu,
+  };
 
   if (loading) {
     return <ContactDetailStateView {...sidebarProps} message={t('contacts.loading')} />;
   }
 
   if (error || !contact) {
-    return <ContactDetailStateView {...sidebarProps} message={error || t('contacts.notFound', { defaultValue: 'Contact not found' })} isError />;
+    return (
+      <ContactDetailStateView
+        {...sidebarProps}
+        message={error || t('contacts.notFound', { defaultValue: 'Contact not found' })}
+        isError
+      />
+    );
   }
 
   const typeConfig = getTypeConfig(contact.contactType);
@@ -545,12 +653,20 @@ const ContactDetailPage: React.FC = () => {
         )}
 
         <div style={{ maxWidth: `${MAX_WIDTH_800_PX}px`, margin: STRING_AUTO }}>
-          <button onClick={() => navigate('/crm/contacts')} style={{ ...buttonSecondary, marginBottom: theme.spacing.lg }}>
+          <button
+            onClick={() => navigate('/crm/contacts')}
+            style={{ ...buttonSecondary, marginBottom: theme.spacing.lg }}
+          >
             {t('contacts.backToContacts')}
           </button>
 
           <div style={sectionStyle}>
-            <ContactDetailHeader contact={contact} typeConfig={typeConfig} WIDTH_64_PX={WIDTH_64_PX} HEIGHT_64_PX={HEIGHT_64_PX} />
+            <ContactDetailHeader
+              contact={contact}
+              typeConfig={typeConfig}
+              WIDTH_64_PX={WIDTH_64_PX}
+              HEIGHT_64_PX={HEIGHT_64_PX}
+            />
             <ContactBasicFields
               contact={contact}
               contactTypes={contactTypes}

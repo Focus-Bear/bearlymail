@@ -10,6 +10,7 @@
 Let users define natural-language **workflow rules** that trigger automatically when matching emails arrive. Each rule has a **condition** (email matching criteria) and one or more **actions** (MCP tool calls, auto-replies, Focus Bear task creation, etc.). The AI fills in template variables from email context at execution time.
 
 **Example workflow:**
+
 > **Condition:** Upwork billing summary email arrives  
 > **Action:** Create a Focus Bear task — title: "Update Xero reconciliation for Upwork {date}", description filled intelligently by AI with category breakdowns and AUD conversion.
 
@@ -229,18 +230,18 @@ Use PgBoss `singletonKey: workflow-eval-${emailThreadId}` to prevent duplicate e
 
 ### 3.1 Built-in Variables
 
-| Variable | Source | Example |
-|----------|--------|---------|
-| `{{from}}` | Email `from` field | `billing@upwork.com` |
-| `{{fromName}}` | Email `fromName` field | `Upwork` |
-| `{{subject}}` | Email `subject` | `Your Weekly Billing Summary` |
-| `{{date}}` | Email received date (ISO) | `2026-03-25` |
-| `{{date:format}}` | Formatted date (dayjs) | `{{date:MMMM D, YYYY}}` → `March 25, 2026` |
-| `{{summary}}` | LLM-generated email summary | `Upwork billing for the week of...` |
-| `{{body}}` | Cleaned email body (truncated) | First 2000 chars of cleaned body |
-| `{{category}}` | Assigned email category | `Billing` |
-| `{{priority}}` | Priority level | `high` |
-| `{{threadId}}` | Email thread ID | `uuid` |
+| Variable          | Source                         | Example                                    |
+| ----------------- | ------------------------------ | ------------------------------------------ |
+| `{{from}}`        | Email `from` field             | `billing@upwork.com`                       |
+| `{{fromName}}`    | Email `fromName` field         | `Upwork`                                   |
+| `{{subject}}`     | Email `subject`                | `Your Weekly Billing Summary`              |
+| `{{date}}`        | Email received date (ISO)      | `2026-03-25`                               |
+| `{{date:format}}` | Formatted date (dayjs)         | `{{date:MMMM D, YYYY}}` → `March 25, 2026` |
+| `{{summary}}`     | LLM-generated email summary    | `Upwork billing for the week of...`        |
+| `{{body}}`        | Cleaned email body (truncated) | First 2000 chars of cleaned body           |
+| `{{category}}`    | Assigned email category        | `Billing`                                  |
+| `{{priority}}`    | Priority level                 | `high`                                     |
+| `{{threadId}}`    | Email thread ID                | `uuid`                                     |
 
 ### 3.2 AI-Generated Variables (`{{ai:...}}`)
 
@@ -251,6 +252,7 @@ For dynamic content that requires intelligence:
 ```
 
 **Resolution process:**
+
 1. Extract all `{{ai:...}}` placeholders from action parameters
 2. Build a single LLM prompt that includes:
    - The email body/summary as context
@@ -321,11 +323,19 @@ export class MCPServerConfig {
   @Column({ type: "text", transformer: encryptedColumnTransformer })
   serverUrl: string; // MCP server endpoint
 
-  @Column({ type: "text", nullable: true, transformer: encryptedColumnTransformer })
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
   apiKey: string | null; // Encrypted auth credential
 
   @Column({ type: "jsonb", nullable: true })
-  cachedTools: Array<{ name: string; description: string; inputSchema: object }>;
+  cachedTools: Array<{
+    name: string;
+    description: string;
+    inputSchema: object;
+  }>;
 
   @Column({ type: "timestamp", nullable: true })
   toolsCachedAt: Date;
@@ -384,14 +394,22 @@ export class WorkflowExecutionService {
     for (const [i, action] of rule.actions.entries()) {
       try {
         const result = await this.executeAction(action, context);
-        log.actionResults.push({ actionIndex: i, status: "success", ...result });
+        log.actionResults.push({
+          actionIndex: i,
+          status: "success",
+          ...result,
+        });
       } catch (error) {
-        log.actionResults.push({ actionIndex: i, status: "failed", error: error.message });
+        log.actionResults.push({
+          actionIndex: i,
+          status: "failed",
+          error: error.message,
+        });
         // Continue with remaining actions (partial failure is OK)
       }
     }
 
-    log.status = log.actionResults.every(r => r.status === "success")
+    log.status = log.actionResults.every((r) => r.status === "success")
       ? "success"
       : "partial_failure";
     return log;
@@ -399,9 +417,12 @@ export class WorkflowExecutionService {
 
   private async executeAction(action: WorkflowAction, ctx: WorkflowContext) {
     switch (action.type) {
-      case "reply": return this.executeReply(action, ctx);
-      case "mcp_tool": return this.executeMCPTool(action, ctx);
-      case "webhook": return this.executeWebhook(action, ctx);
+      case "reply":
+        return this.executeReply(action, ctx);
+      case "mcp_tool":
+        return this.executeMCPTool(action, ctx);
+      case "webhook":
+        return this.executeWebhook(action, ctx);
     }
   }
 }
@@ -415,10 +436,14 @@ export class WorkflowExecutionService {
 @Injectable()
 export class WorkflowProcessor implements OnModuleInit {
   async onModuleInit() {
-    await this.boss.work(JOB_NAMES.EVALUATE_WORKFLOWS, { teamConcurrency: 5 }, async (job) => {
-      const { userId, emailThreadId } = job.data;
-      // Load rules, evaluate conditions, execute matching workflow
-    });
+    await this.boss.work(
+      JOB_NAMES.EVALUATE_WORKFLOWS,
+      { teamConcurrency: 5 },
+      async (job) => {
+        const { userId, emailThreadId } = job.data;
+        // Load rules, evaluate conditions, execute matching workflow
+      },
+    );
   }
 }
 ```
@@ -466,6 +491,7 @@ WorkflowsSection
 ### 6.3 Natural Language Workflow Creation (Future)
 
 Allow users to describe workflows in plain English:
+
 > "When I get an Upwork billing email, create a Focus Bear task to reconcile Xero"
 
 LLM parses this into a `WorkflowCondition` + `WorkflowAction[]` and shows it for confirmation. This is a v2 feature — MVP uses the structured form.
@@ -562,18 +588,19 @@ client/src/components/settings/integrations/
 
 ### MVP (Phase 1)
 
-| Feature | Details |
-|---------|---------|
-| Workflow CRUD | Create, edit, delete, enable/disable rules |
+| Feature                  | Details                                                          |
+| ------------------------ | ---------------------------------------------------------------- |
+| Workflow CRUD            | Create, edit, delete, enable/disable rules                       |
 | Deterministic conditions | `fromPatterns`, `subjectPatterns`, `categories` via `matchAny()` |
-| MCP tool actions | Connect servers, discover tools, invoke with resolved params |
-| Built-in variables | `{{from}}`, `{{subject}}`, `{{date}}`, `{{summary}}`, `{{body}}` |
-| AI variables | `{{ai:...}}` resolved via single LLM call |
-| Execution logging | Full audit trail per execution |
-| Basic UI | Settings page section with structured form |
-| Focus Bear integration | Primary use case: create tasks from emails |
+| MCP tool actions         | Connect servers, discover tools, invoke with resolved params     |
+| Built-in variables       | `{{from}}`, `{{subject}}`, `{{date}}`, `{{summary}}`, `{{body}}` |
+| AI variables             | `{{ai:...}}` resolved via single LLM call                        |
+| Execution logging        | Full audit trail per execution                                   |
+| Basic UI                 | Settings page section with structured form                       |
+| Focus Bear integration   | Primary use case: create tasks from emails                       |
 
 **Estimated effort:** ~3-4 weeks (2 devs), split:
+
 - Backend entities + migration + CRUD: 3 days
 - Workflow evaluation pipeline + PgBoss integration: 3 days
 - MCP client infrastructure: 4 days
@@ -583,40 +610,40 @@ client/src/components/settings/integrations/
 
 ### Phase 2 (Future)
 
-| Feature | Details |
-|---------|---------|
-| Natural language conditions | LLM-evaluated `naturalLanguageCondition` |
-| Reply actions | Auto-reply with templated content |
-| Webhook actions | POST to arbitrary endpoints |
-| Natural language workflow creation | "Describe your workflow" → auto-generates rule |
-| Multi-match mode | Option to run multiple matching workflows (not just first-match) |
-| Workflow chaining | Output of one action feeds into next |
-| Conditional actions | If/else within action sequences |
-| Rate limiting | Per-workflow execution limits |
-| Workflow sharing | Export/import workflow templates |
-| Execution notifications | Pusher events when workflows fire |
+| Feature                            | Details                                                          |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| Natural language conditions        | LLM-evaluated `naturalLanguageCondition`                         |
+| Reply actions                      | Auto-reply with templated content                                |
+| Webhook actions                    | POST to arbitrary endpoints                                      |
+| Natural language workflow creation | "Describe your workflow" → auto-generates rule                   |
+| Multi-match mode                   | Option to run multiple matching workflows (not just first-match) |
+| Workflow chaining                  | Output of one action feeds into next                             |
+| Conditional actions                | If/else within action sequences                                  |
+| Rate limiting                      | Per-workflow execution limits                                    |
+| Workflow sharing                   | Export/import workflow templates                                 |
+| Execution notifications            | Pusher events when workflows fire                                |
 
 ### Phase 3 (Longer Term)
 
-| Feature | Details |
-|---------|---------|
-| Scheduled workflows | Time-based triggers (not just email arrival) |
-| Cross-thread workflows | Aggregate patterns across multiple emails |
-| Workflow marketplace | Community-shared workflow templates |
-| OAuth-based MCP auth | Beyond API keys |
+| Feature                | Details                                      |
+| ---------------------- | -------------------------------------------- |
+| Scheduled workflows    | Time-based triggers (not just email arrival) |
+| Cross-thread workflows | Aggregate patterns across multiple emails    |
+| Workflow marketplace   | Community-shared workflow templates          |
+| OAuth-based MCP auth   | Beyond API keys                              |
 
 ---
 
 ## 10. Risks & Mitigations
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| LLM hallucination in AI variables | Wrong data in Focus Bear tasks | Show preview before enabling; execution log for audit; user can review executions |
-| MCP server downtime | Actions fail silently | Retry once; log failures prominently; Pusher notification on failure |
-| Token cost from LLM condition checks | Expensive at scale | Deterministic patterns filter first; LLM only on pattern-matched emails; cap at 1 LLM call per workflow eval |
-| Race condition: workflow runs before summary/priority ready | Condition check fails or uses stale data | Delayed job start (60s) + retry with backoff; verify summary exists before evaluating |
-| Security: arbitrary webhook URLs | Data exfiltration | MVP: no webhook action (Phase 2); validate URLs when added |
-| Encryption: workflow rules contain user email patterns | Privacy concern | All text columns use `encryptedColumnTransformer` (existing pattern) |
+| Risk                                                        | Impact                                   | Mitigation                                                                                                   |
+| ----------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| LLM hallucination in AI variables                           | Wrong data in Focus Bear tasks           | Show preview before enabling; execution log for audit; user can review executions                            |
+| MCP server downtime                                         | Actions fail silently                    | Retry once; log failures prominently; Pusher notification on failure                                         |
+| Token cost from LLM condition checks                        | Expensive at scale                       | Deterministic patterns filter first; LLM only on pattern-matched emails; cap at 1 LLM call per workflow eval |
+| Race condition: workflow runs before summary/priority ready | Condition check fails or uses stale data | Delayed job start (60s) + retry with backoff; verify summary exists before evaluating                        |
+| Security: arbitrary webhook URLs                            | Data exfiltration                        | MVP: no webhook action (Phase 2); validate URLs when added                                                   |
+| Encryption: workflow rules contain user email patterns      | Privacy concern                          | All text columns use `encryptedColumnTransformer` (existing pattern)                                         |
 
 ---
 

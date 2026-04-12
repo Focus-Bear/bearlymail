@@ -15,6 +15,7 @@ loadTime = Date.now() - startTime         ← ~3040ms
 ```
 
 `waitForInboxToLoad()` resolves when EITHER:
+
 - `text=/Loading|Decrypting/` disappears, OR
 - `[data-priority-badge]` or email-text selectors appear, OR
 - loading indicator disappears
@@ -27,6 +28,7 @@ The time is spent in the **frontend rendering pipeline**:
 #### 1. Accordion loading architecture (primary cause)
 
 The inbox uses a **two-phase load**:
+
 1. `fetchInboxSummary` → gets category list + counts
 2. Per-category `fetchCategoryEmails` → fetches emails per category accordion
 
@@ -61,6 +63,7 @@ decryptions. Each is ~0.01ms, so total is ~1.4ms — **not a bottleneck**.
 #### 4. SQL query structure (minor contributor in CI, but worth noting)
 
 The inbox query in `email-inbox-query.helpers.ts` uses **3 LATERAL JOINs**:
+
 - Latest email per thread (CROSS JOIN LATERAL)
 - Correspondent email for reply display (LEFT JOIN LATERAL)
 - Thread labels aggregation (LEFT JOIN LATERAL)
@@ -71,6 +74,7 @@ which is technically N+1-adjacent. Not the bottleneck for 12 emails but
 would matter at scale.
 
 Existing indexes are adequate:
+
 - `IDX_emails_emailThreadId_priority_received` covers the latest-email lateral
 - `IDX_emails_userId_triage` covers the thread filter
 - `IDX_email_threads_userId_triage` covers triage mode
@@ -132,6 +136,7 @@ be done together.
 ### What the test expects
 
 The e2e priority popup test:
+
 1. Hovers over `[data-priority-badge]` → tooltip shell appears
 2. Expects `text=/Priority Score:/i` visible within 2000ms
 3. Expects `🔥.*Urgency`, `🎯.*Goal Alignment`, `⭐.*VIP Contact` in text
@@ -158,23 +163,49 @@ The API endpoint loads via TypeORM `findOne` which auto-decrypts.
 **However, the seeded breakdown factor names don't match what the e2e test expects.**
 
 #### Seeded data (seed-test-user.ts):
+
 ```json
 {
   "breakdown": [
-    { "factor": "urgency", "value": 70, "description": "Message appears time-sensitive" },
-    { "factor": "goalAlignment", "value": 85, "description": "Aligned with current goals" },
-    { "factor": "vipContact", "value": 90, "description": "Contact is important" },
-    { "factor": "sentiment", "value": 60, "description": "Neutral professional tone" }
+    {
+      "factor": "urgency",
+      "value": 70,
+      "description": "Message appears time-sensitive"
+    },
+    {
+      "factor": "goalAlignment",
+      "value": 85,
+      "description": "Aligned with current goals"
+    },
+    {
+      "factor": "vipContact",
+      "value": 90,
+      "description": "Contact is important"
+    },
+    {
+      "factor": "sentiment",
+      "value": 60,
+      "description": "Neutral professional tone"
+    }
   ]
 }
 ```
 
 #### What the real system produces (buildExplanationDimensions):
+
 ```json
 {
   "breakdown": [
-    { "factor": "⭐ VIP Contact", "value": 15, "description": "From VIP: alice@example.com" },
-    { "factor": "🎯 Goal Alignment", "value": 0, "description": "Calculating..." },
+    {
+      "factor": "⭐ VIP Contact",
+      "value": 15,
+      "description": "From VIP: alice@example.com"
+    },
+    {
+      "factor": "🎯 Goal Alignment",
+      "value": 0,
+      "description": "Calculating..."
+    },
     { "factor": "🔥 Urgency", "value": 0, "description": "Calculating..." },
     { "factor": "😊 Sentiment", "value": 0, "description": "Neutral sentiment" }
   ]
@@ -182,6 +213,7 @@ The API endpoint loads via TypeORM `findOne` which auto-decrypts.
 ```
 
 The e2e `PriorityTooltip` page object checks:
+
 - `text=/🔥.*Urgency/i` → **fails** (seeded factor is just `"urgency"`)
 - `text=/🎯.*Goal Alignment/i` → **fails** (seeded factor is just `"goalAlignment"`)
 - `text=/⭐.*VIP Contact/i` → **fails** (seeded factor is just `"vipContact"`)
@@ -216,16 +248,35 @@ factor names matching the real system:
 const PRIORITY_EXPLANATION = {
   score: 80,
   dimensions: {
-    urgency: { score: 70, reasons: ['Deadline mentioned', 'Time-sensitive content'] },
-    goalAlignment: { score: 85, reasons: ['Related to active project'] },
-    vipContact: { score: 90, reasons: ['Known contact'] },
-    sentiment: { score: 60, type: 'neutral', reasons: ['Professional tone'] },
+    urgency: {
+      score: 70,
+      reasons: ["Deadline mentioned", "Time-sensitive content"],
+    },
+    goalAlignment: { score: 85, reasons: ["Related to active project"] },
+    vipContact: { score: 90, reasons: ["Known contact"] },
+    sentiment: { score: 60, type: "neutral", reasons: ["Professional tone"] },
   },
   breakdown: [
-    { factor: '🔥 Urgency', value: 25, description: 'Message appears time-sensitive' },
-    { factor: '🎯 Goal Alignment', value: 30, description: 'Aligned with current goals' },
-    { factor: '⭐ VIP Contact', value: 15, description: 'Contact is important' },
-    { factor: '😊 Sentiment', value: 10, description: 'Neutral professional tone' },
+    {
+      factor: "🔥 Urgency",
+      value: 25,
+      description: "Message appears time-sensitive",
+    },
+    {
+      factor: "🎯 Goal Alignment",
+      value: 30,
+      description: "Aligned with current goals",
+    },
+    {
+      factor: "⭐ VIP Contact",
+      value: 15,
+      description: "Contact is important",
+    },
+    {
+      factor: "😊 Sentiment",
+      value: 10,
+      description: "Neutral professional tone",
+    },
   ],
   calculatedAt: new Date().toISOString(),
 };
@@ -241,9 +292,12 @@ priority-explanation endpoint and asserts a 200 response.
 
 **File:** `e2e/tests/inbox-load-time.spec.ts`
 **Change:** Before the hover test, do a direct API call to verify the endpoint works:
+
 ```typescript
 const emailId = firstEmailId; // from inbox response
-const explResponse = await page.request.get(`${API_URL}/emails/${emailId}/priority-explanation`);
+const explResponse = await page.request.get(
+  `${API_URL}/emails/${emailId}/priority-explanation`,
+);
 expect(explResponse.status()).toBe(200);
 ```
 
@@ -258,22 +312,24 @@ instead of `priorityBadge.hover()` → fallback click.
 
 ### Root cause summary for tooltip
 
-| Symptom | Cause |
-|---------|-------|
-| Tooltip shell appears | Badge click works → `hoveredPriorityEmailId` set → tooltip container renders |
-| Content never renders | API call to `/priority-explanation` returns data, but `loadingPriorityExplanation` stays true (race condition in `usePriorityTooltip`) OR API call fails silently |
-| Dimension verification fails | Seeded breakdown factor names are plain text (`urgency`) instead of emoji-prefixed (`🔥 Urgency`) |
+| Symptom                      | Cause                                                                                                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tooltip shell appears        | Badge click works → `hoveredPriorityEmailId` set → tooltip container renders                                                                                      |
+| Content never renders        | API call to `/priority-explanation` returns data, but `loadingPriorityExplanation` stays true (race condition in `usePriorityTooltip`) OR API call fails silently |
+| Dimension verification fails | Seeded breakdown factor names are plain text (`urgency`) instead of emoji-prefixed (`🔥 Urgency`)                                                                 |
 
 ---
 
 ## Implementation checklist
 
 ### Performance (Issue 1)
+
 - [ ] **Fix 1C**: Adjust test timer start to measure render-after-API, not full accordion load
 - [ ] **Fix 1A**: In `useEmailFetching`, bypass per-category fetching when total ≤ pageSize
 - [ ] Consider removing the misleading "Decrypting..." state (Fix 1B)
 
 ### Tooltip (Issue 2)
+
 - [ ] **Fix 2A**: Update `PRIORITY_EXPLANATION` breakdown factors to use emoji prefixes
 - [ ] **Fix 2A**: Ensure breakdown values sum to `score` field value
 - [ ] **Fix 2B**: Add diagnostic API call in e2e test to verify endpoint before hover test
@@ -281,11 +337,11 @@ instead of `priorityBadge.hover()` → fallback click.
 
 ### Files to modify
 
-| File | Change |
-|------|--------|
-| `server/scripts/seed-test-user.ts` | Fix PRIORITY_EXPLANATION breakdown factor names and score sums |
-| `e2e/tests/inbox-load-time.spec.ts` | Adjust perf timer, add API smoke test for priority-explanation |
-| `client/src/hooks/useEmailFetching.ts` | (optional) Skip accordion loading for small inboxes |
+| File                                   | Change                                                         |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `server/scripts/seed-test-user.ts`     | Fix PRIORITY_EXPLANATION breakdown factor names and score sums |
+| `e2e/tests/inbox-load-time.spec.ts`    | Adjust perf timer, add API smoke test for priority-explanation |
+| `client/src/hooks/useEmailFetching.ts` | (optional) Skip accordion loading for small inboxes            |
 
 ### Risk assessment
 
@@ -295,4 +351,4 @@ instead of `priorityBadge.hover()` → fallback click.
 
 ---
 
-*Investigation by Monk of Modularity 🧘 — #1610 follow-up*
+_Investigation by Monk of Modularity 🧘 — #1610 follow-up_

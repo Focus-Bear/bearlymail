@@ -31,8 +31,8 @@ interface IcsInviteCardProps {
  */
 function safeTimezone(timezone?: string): string | undefined {
   if (!timezone) {
-return undefined;
-}
+    return undefined;
+  }
   return isValidIANATimezone(timezone) ? timezone : undefined;
 }
 
@@ -67,7 +67,7 @@ const AttendeesList: React.FC<{ attendees: IcsEventData['attendees']; t: (k: str
   const overflow = attendees.length - MAX_VISIBLE_ATTENDEES;
   return (
     <div style={{ marginTop: theme.spacing.xs }}>
-      {visible.map((att) => (
+      {visible.map(att => (
         <div key={att.email} style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
           {att.name ? `${att.name} <${att.email}>` : att.email}
           {att.status && att.status !== ICS_STATUS_NEEDS_ACTION && (
@@ -105,11 +105,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
 
   // Find the ICS attachment
   const icsAttachment = Array.isArray(email.attachments)
-    ? email.attachments.find(
-        (att) =>
-          att.mimeType === ICS_MIME_TYPE ||
-          att.filename?.toLowerCase().endsWith('.ics'),
-      )
+    ? email.attachments.find(att => att.mimeType === ICS_MIME_TYPE || att.filename?.toLowerCase().endsWith('.ics'))
     : undefined;
 
   const fetchIcsInfo = useCallback(async () => {
@@ -120,18 +116,14 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
     setError(null);
     try {
       const response = await axios.get<IcsInfoResponse>(
-        `${API_URL}/calendar/ics-info/${email.id}/${icsAttachment.attachmentId}`,
+        `${API_URL}/calendar/ics-info/${email.id}/${icsAttachment.attachmentId}`
       );
       setInfo(response.data);
       setRsvpStatus(response.data.userResponseStatus);
     } catch (err) {
       console.error('[IcsInviteCard] Failed to fetch ICS info:', err);
       const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
-      setError(
-        serverMessage
-          ? `Could not parse calendar invite: ${serverMessage}`
-          : t('emailDetail.icsInvite.error'),
-      );
+      setError(serverMessage ? `Could not parse calendar invite: ${serverMessage}` : t('emailDetail.icsInvite.error'));
     } finally {
       setLoading(false);
     }
@@ -148,7 +140,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
     setAdding(true);
     try {
       const response = await axios.post<{ success: boolean; eventLink?: string }>(
-        `${API_URL}/calendar/add-ics-event/${email.id}/${icsAttachment.attachmentId}`,
+        `${API_URL}/calendar/add-ics-event/${email.id}/${icsAttachment.attachmentId}`
       );
       if (response.data.success) {
         setAdded(true);
@@ -157,11 +149,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
     } catch (err) {
       console.error('[IcsInviteCard] Failed to add ICS event to calendar:', err);
       const serverMessage = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
-      setError(
-        serverMessage
-          ? `Could not add event to calendar: ${serverMessage}`
-          : t('emailDetail.icsInvite.error'),
-      );
+      setError(serverMessage ? `Could not add event to calendar: ${serverMessage}` : t('emailDetail.icsInvite.error'));
     } finally {
       setAdding(false);
     }
@@ -176,7 +164,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
     try {
       const result = await axios.post<{ userResponseStatus: string; htmlLink?: string }>(
         `${API_URL}/calendar/event/${info.calendarEventId}/rsvp`,
-        { response },
+        { response }
       );
       setRsvpStatus(result.data.userResponseStatus as GoogleResponseStatus);
       if (result.data.htmlLink && info) {
@@ -236,9 +224,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
       )}
 
       {error && !loading && (
-        <div style={{ color: theme.colors.accent.error, fontSize: theme.typography.fontSize.sm }}>
-          {error}
-        </div>
+        <div style={{ color: theme.colors.accent.error, fontSize: theme.typography.fontSize.sm }}>{error}</div>
       )}
 
       {info && !loading && !error && (
@@ -401,16 +387,17 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    {(['accepted', 'tentative', 'declined'] as const).map((response) => {
+                    {(['accepted', 'tentative', 'declined'] as const).map(response => {
                       const isActive = rsvpStatus === response;
                       const isThisPending = rsvpPending === response;
                       const isAnyPending = rsvpPending !== null;
                       const RSVP_DISABLED_OPACITY = 0.6;
-                      const labelKey = response === ICS_RSVP_ACCEPTED
-                        ? 'emailDetail.icsInvite.rsvpAccept'
-                        : response === ICS_RSVP_TENTATIVE
-                          ? 'emailDetail.icsInvite.rsvpTentative'
-                          : 'emailDetail.icsInvite.rsvpDecline';
+                      const labelKey =
+                        response === ICS_RSVP_ACCEPTED
+                          ? 'emailDetail.icsInvite.rsvpAccept'
+                          : response === ICS_RSVP_TENTATIVE
+                            ? 'emailDetail.icsInvite.rsvpTentative'
+                            : 'emailDetail.icsInvite.rsvpDecline';
                       return (
                         <button
                           key={response}
@@ -419,12 +406,8 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                           data-testid={`rsvp-btn-${response}`}
                           style={{
                             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                            backgroundColor: isActive
-                              ? theme.colors.primary.main
-                              : theme.colors.background.paper,
-                            color: isActive
-                              ? theme.colors.common.white
-                              : theme.colors.text.primary,
+                            backgroundColor: isActive ? theme.colors.primary.main : theme.colors.background.paper,
+                            color: isActive ? theme.colors.common.white : theme.colors.text.primary,
                             border: `1px solid ${isActive ? theme.colors.primary.main : theme.colors.border.medium}`,
                             borderRadius: theme.borderRadius.md,
                             cursor: isActive || isAnyPending ? 'not-allowed' : 'pointer',
@@ -477,9 +460,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                 disabled={adding}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: adding
-                    ? theme.colors.border.medium
-                    : theme.colors.primary.main,
+                  backgroundColor: adding ? theme.colors.border.medium : theme.colors.primary.main,
                   color: theme.colors.common.white,
                   border: 'none',
                   borderRadius: theme.borderRadius.md,
@@ -488,9 +469,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                   fontWeight: theme.typography.fontWeight.semibold,
                 }}
               >
-                {adding
-                  ? t('emailDetail.icsInvite.adding')
-                  : t('emailDetail.icsInvite.addToCalendar')}
+                {adding ? t('emailDetail.icsInvite.adding') : t('emailDetail.icsInvite.addToCalendar')}
               </button>
             )}
           </div>

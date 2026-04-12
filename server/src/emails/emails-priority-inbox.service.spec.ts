@@ -251,10 +251,18 @@ describe("priority inbox thread filter (fix #1088)", () => {
       rawScore: number | null,
     ): "veryHigh" | "high" | "medium" | "low" | "veryLow" {
       const score = rawScore ?? 0;
-      if (score >= 50) return "veryHigh";
-      if (score >= 30) return "high";
-      if (score >= 15) return "medium";
-      if (score >= 0) return "low";
+      if (score >= 50) {
+        return "veryHigh";
+      }
+      if (score >= 30) {
+        return "high";
+      }
+      if (score >= 15) {
+        return "medium";
+      }
+      if (score >= 0) {
+        return "low";
+      }
       return "veryLow";
     }
 

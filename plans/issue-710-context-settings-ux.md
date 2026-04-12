@@ -33,7 +33,7 @@ const handleCompressContext = async () => {
     await axios.post(`${API_URL}/context/compress`);
     // ← nothing! no toast, no refresh
   } catch (error) {
-    console.error('Failed to compress context:', error);
+    console.error("Failed to compress context:", error);
     // ← no user-visible error
   } finally {
     setIsCompressing(false);
@@ -54,10 +54,10 @@ const handleCompressContext = async () => {
     await axios.post(`${API_URL}/context/compress`);
     // Fetch updated contexts from parent
     await onRefreshContexts?.();
-    showToast(t('settings.context.compressSuccess'), 'success');
+    showToast(t("settings.context.compressSuccess"), "success");
   } catch (error) {
-    console.error('Failed to compress context:', error);
-    showToast(t('settings.context.compressError'), 'error');
+    console.error("Failed to compress context:", error);
+    showToast(t("settings.context.compressError"), "error");
   } finally {
     setIsCompressing(false);
   }
@@ -67,6 +67,7 @@ const handleCompressContext = async () => {
 **Required changes:**
 
 a. **Add `onRefreshContexts` prop to `ContextSectionsList`:**
+
 ```tsx
 interface ContextSectionsListProps {
   // ...existing props...
@@ -79,6 +80,7 @@ b. **Wire it from `GuideOurAISection` → `ContextSectionsList`**, where the par
 c. **Add toast utility** — BearlyMail appears to use inline error display; check if there's a global toast/notification system (e.g., `react-hot-toast`, `react-toastify`). If not, add simple inline success message within the button area.
 
 d. **New i18n keys:**
+
 ```json
 "settings": {
   "context": {
@@ -95,6 +97,7 @@ d. **New i18n keys:**
 ### Current Behaviour
 
 The `analyze-email-patterns.md` prompt instructs the LLM to generate entries like:
+
 ```
 { "key": "VIP_CONTACT", "value": "Sarah Chen - consistently replies within 5-10 minutes, often multiple emails per day, highly engaged" }
 ```
@@ -106,6 +109,7 @@ These descriptions are overly long and make the context UI hard to scan.
 Update the `value` format guidance in `analyze-email-patterns.md` to enforce concise noun-phrase style:
 
 **Current instruction (in VIP_CONTACT section):**
+
 ```
 { "key": "VIP_CONTACT", "value": "Sarah Chen - consistently replies within 5-10 minutes", "source": "email_analysis" }
 ```
@@ -119,6 +123,7 @@ Add a constraint block under the Output JSON section:
 CRITICAL: Keep context values SHORT and scannable. Maximum 10 words per value.
 
 Format guidelines:
+
 - **VIP_CONTACT**: `<Name> — <2-3 word descriptor>` (e.g., "Sarah Chen — daily, quick replies")
 - **USER_INFO**: `<Noun phrase>` (e.g., "Plumber based in NYC", "Founder of Focus Bear")
 - **NOT_IMPORTANT**: `<Category> <pattern>` (e.g., "Newsletter emails — consistently ignored")
@@ -131,12 +136,14 @@ Use concrete, scannable noun phrases instead.
 ```
 
 Also update the existing example:
+
 ```markdown
 Example context item format:
 { "key": "VIP_CONTACT", "value": "Sarah Chen — quick replies, daily", "source": "email_analysis" }
 ```
 
 **Also update the compress context endpoint** in `server/src/context/context.service.ts` to apply similar brevity constraints when compressing existing verbose entries. The compress prompt should include:
+
 ```
 Rewrite each context entry value to be ≤10 words, noun-phrase style. Remove filler words like "consistently", "often", "tends to".
 ```
@@ -152,9 +159,9 @@ const handleConsolidateCategories = async () => {
   setIsConsolidating(true);
   try {
     await axios.post(`${API_URL}/context/consolidate-categories`);
-    window.location.reload();  // ← sudden page reload, no warning
+    window.location.reload(); // ← sudden page reload, no warning
   } catch (error) {
-    console.error('Failed to consolidate categories:', error);
+    console.error("Failed to consolidate categories:", error);
     // ← no user-visible error
   } finally {
     setIsConsolidating(false);
@@ -168,19 +175,21 @@ Show a confirmation dialog before triggering consolidation, and show an error if
 
 ```tsx
 const handleConsolidateCategories = async () => {
-  const confirmed = window.confirm(t('settings.emailCategories.consolidateWarning'));
+  const confirmed = window.confirm(
+    t("settings.emailCategories.consolidateWarning"),
+  );
   if (!confirmed) return;
 
   setIsConsolidating(true);
   try {
     await axios.post(`${API_URL}/context/consolidate-categories`);
-    showToast(t('settings.emailCategories.consolidateSuccess'), 'success');
+    showToast(t("settings.emailCategories.consolidateSuccess"), "success");
     // Small delay so user can see the success toast before reload
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     window.location.reload();
   } catch (error) {
-    console.error('Failed to consolidate categories:', error);
-    showToast(t('settings.emailCategories.consolidateError'), 'error');
+    console.error("Failed to consolidate categories:", error);
+    showToast(t("settings.emailCategories.consolidateError"), "error");
   } finally {
     setIsConsolidating(false);
   }
@@ -188,6 +197,7 @@ const handleConsolidateCategories = async () => {
 ```
 
 **New i18n keys:**
+
 ```json
 "settings": {
   "emailCategories": {
@@ -204,32 +214,35 @@ const handleConsolidateCategories = async () => {
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/components/settings/guide-ai/ContextSectionsList.tsx` | Compress feedback + consolidation warning |
-| `client/src/components/settings/GuideOurAISection.tsx` | Pass `onRefreshContexts` prop down to `ContextSectionsList` |
-| `client/src/hooks/useSettingsData.ts` | Expose `refreshContexts` callback |
-| `server/promptfoo/prompts/analyze-email-patterns.md` | Add brevity constraints for context values |
-| `server/src/context/context.service.ts` | Update compress prompt for brevity |
-| `client/public/locales/en/translation.json` | Add new i18n keys |
+| File                                                              | Change                                                      |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `client/src/components/settings/guide-ai/ContextSectionsList.tsx` | Compress feedback + consolidation warning                   |
+| `client/src/components/settings/GuideOurAISection.tsx`            | Pass `onRefreshContexts` prop down to `ContextSectionsList` |
+| `client/src/hooks/useSettingsData.ts`                             | Expose `refreshContexts` callback                           |
+| `server/promptfoo/prompts/analyze-email-patterns.md`              | Add brevity constraints for context values                  |
+| `server/src/context/context.service.ts`                           | Update compress prompt for brevity                          |
+| `client/public/locales/en/translation.json`                       | Add new i18n keys                                           |
 
 ---
 
 ## Testing
 
 ### Compress Context
+
 1. Add several verbose context entries manually.
 2. Click "Compress" button.
 3. **Expected:** Button shows "Compressing..." → success toast appears → context list updates in place with simplified values.
 4. Simulate server error → **Expected:** Error toast appears, no page reload.
 
 ### Verbose Context Entries (prompt change)
+
 1. Trigger email analysis (Analyze Context button).
 2. Inspect newly generated VIP_CONTACT entries.
 3. **Expected:** Values are ≤10 words, noun-phrase style (e.g., "Sarah Chen — quick replies").
 4. Run promptfoo tests: `cd server && npm run promptfoo`.
 
 ### Consolidation Warning
+
 1. Click "Consolidate" button.
 2. **Expected:** Confirmation dialog appears with explanatory message.
 3. Click "Cancel" → nothing happens.

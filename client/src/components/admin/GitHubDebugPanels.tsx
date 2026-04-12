@@ -153,10 +153,22 @@ const SilentFailuresTable: React.FC<SilentFailuresTableProps> = ({ failures, for
               >
                 {failure.threadId.slice(0, 8)}...
               </td>
-              <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+              <td
+                style={{
+                  padding: theme.spacing.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.primary,
+                }}
+              >
                 {failure.links}
               </td>
-              <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+              <td
+                style={{
+                  padding: theme.spacing.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.secondary,
+                }}
+              >
                 {formatDate(failure.lastAttempted)}
               </td>
             </tr>
@@ -246,9 +258,12 @@ export const TokenTestResultDisplay: React.FC<TokenTestResultDisplayProps> = ({ 
             style={{ margin: 0, color: theme.colors.accent.success, fontWeight: theme.typography.fontWeight.semibold }}
           >
             {result.name
-              ? t('admin.githubDebug.tokenValidWithName', { status: t('admin.githubDebug.tokenValid'), login: result.login, name: result.name })
-              : `${t('admin.githubDebug.tokenValid')} — @${result.login}`
-            }
+              ? t('admin.githubDebug.tokenValidWithName', {
+                  status: t('admin.githubDebug.tokenValid'),
+                  login: result.login,
+                  name: result.name,
+                })
+              : `${t('admin.githubDebug.tokenValid')} — @${result.login}`}
           </p>
           {result.scopes && result.scopes.length > 0 && (
             <p style={{ margin: 0, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
@@ -437,19 +452,42 @@ const FailedJobRow: React.FC<FailedJobRowProps> = ({ job, index, formatDate }) =
       borderBottom: `1px solid ${theme.colors.border.light}`,
     }}
   >
-    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', color: theme.colors.text.secondary }}>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        fontSize: theme.typography.fontSize.xs,
+        fontFamily: 'monospace',
+        color: theme.colors.text.secondary,
+      }}
+    >
       {job.id.slice(0, 8)}...
     </td>
-    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', color: theme.colors.text.secondary }}>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        fontSize: theme.typography.fontSize.xs,
+        fontFamily: 'monospace',
+        color: theme.colors.text.secondary,
+      }}
+    >
       {job.emailId?.slice(0, 8)}...
     </td>
     <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.accent.error }}>
       {job.error}
     </td>
-    <td style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+    <td
+      style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}
+    >
       {formatDate(job.createdAt)}
     </td>
-    <td style={{ padding: theme.spacing.md, textAlign: 'center', fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+    <td
+      style={{
+        padding: theme.spacing.md,
+        textAlign: 'center',
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.primary,
+      }}
+    >
       {job.retryCount}/{job.retryLimit}
     </td>
   </tr>
@@ -493,9 +531,18 @@ const FailedJobsTable: React.FC<FailedJobsTableProps> = ({ jobs, formatDate }) =
             }}
           >
             {FAILED_JOBS_LEFT_TH_KEYS.map(key => (
-              <th key={key} style={thStyle}>{t(key)}</th>
+              <th key={key} style={thStyle}>
+                {t(key)}
+              </th>
             ))}
-            <th style={{ padding: theme.spacing.md, textAlign: 'center', fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+            <th
+              style={{
+                padding: theme.spacing.md,
+                textAlign: 'center',
+                fontWeight: theme.typography.fontWeight.semibold,
+                color: theme.colors.text.primary,
+              }}
+            >
               {t('admin.githubDebug.retries')}
             </th>
           </tr>

@@ -1,6 +1,7 @@
 # Plan: Fix #1400 — Backend Analysis Job Hangs
 
 ## Issue
+
 After PR #1401 fixed frontend polling, Jeremy reports analysis **still gets stuck** at the loading screen. The frontend fix is working correctly (polling resumes on reload, backoff is stable), but the backend analysis job never reaches "completed" status.
 
 ## Root Cause Analysis
@@ -15,6 +16,7 @@ const jobData = job.payload as FinalizationJob;
 ```
 
 Every other processor in the codebase uses `job.data`:
+
 - `context-analysis.processor.ts:54` → `job.data as { userId, analysisId }`
 - `context-batch-analysis.processor.ts:715` → `const jobData = job.data`
 - `follow-ups.processor.ts:223` → `job.data as { ... }`
@@ -45,16 +47,19 @@ const jobId = await this.boss.send(
 ```
 
 But the batch processor destructures:
+
 ```typescript
 // context-batch-analysis.processor.ts:715-718
 const jobData = job.data;
-const { userId, batchIndex, analysisRecordId, totalBatches, threadIds } = jobData;
-const legacyBatch = jobData.batch;  // ← expects "batch", not "emailBatch"
+const { userId, batchIndex, analysisRecordId, totalBatches, threadIds } =
+  jobData;
+const legacyBatch = jobData.batch; // ← expects "batch", not "emailBatch"
 ```
 
 **Impact:** Re-queued jobs (from `checkAndSyncJobs`) arrive with `emailBatch` set but `batch` undefined and `threadIds` undefined. The `resolveBatch` method throws `"No threadIds or batch provided"`. Additionally, `analysisId` should be `analysisRecordId`, and `totalBatches` is not provided at all.
 
 **Fix:** Match the field names in the re-queue payload to what the processor expects:
+
 ```typescript
 {
   userId,
@@ -78,7 +83,7 @@ When batches aren't complete, `requeueFinalizationJob` re-queues itself every 10
 ```typescript
 interface FinalizationJob {
   // ... existing fields
-  retryCount?: number;  // track re-queue attempts
+  retryCount?: number; // track re-queue attempts
 }
 
 // In requeueFinalizationJob:
@@ -87,12 +92,17 @@ const currentRetryCount = (jobData.retryCount || 0) + 1;
 if (currentRetryCount > MAX_FINALIZATION_RETRIES) {
   // Mark analysis as failed
   analysisRecord.status = "failed";
-  analysisRecord.errorMessage = "Analysis timed out waiting for batch completion";
+  analysisRecord.errorMessage =
+    "Analysis timed out waiting for batch completion";
   await this.contextAnalysisRepository.save(analysisRecord);
   return;
 }
 // Include retryCount in re-queued job
-const updatedJobData = { ...jobData, totalBatches: actualTotalBatches, retryCount: currentRetryCount };
+const updatedJobData = {
+  ...jobData,
+  totalBatches: actualTotalBatches,
+  retryCount: currentRetryCount,
+};
 ```
 
 ### Bug #4 (P2): No global timeout for stuck "running" analyses
@@ -100,6 +110,7 @@ const updatedJobData = { ...jobData, totalBatches: actualTotalBatches, retryCoun
 There is no scheduled job or mechanism to detect analyses that have been in "running" status for an unreasonable amount of time (e.g., > 1 hour) and mark them as failed. If PgBoss loses a job or the worker crashes, the analysis stays "running" forever.
 
 **Fix:** Add a periodic cleanup job (via PgBoss schedule or NestJS `@Cron`) that:
+
 1. Finds all analyses with `status = "running"` older than 1 hour
 2. Marks them as `status = "failed"` with `errorMessage = "Analysis timed out. Please try again."`
 3. Runs every 15 minutes
@@ -107,6 +118,7 @@ There is no scheduled job or mechanism to detect analyses that have been in "run
 ## Implementation Plan
 
 ### Step 1: Fix P0 — `job.payload` → `job.data` (Bug #1)
+
 - **File:** `server/src/context/context-finalization.processor.ts`
 - Remove custom `PgBossJob` interface
 - Change `job as unknown as PgBossJob` to `job as PgBoss.Job<FinalizationJob>`
@@ -114,10 +126,12 @@ There is no scheduled job or mechanism to detect analyses that have been in "run
 - Add PgBoss import for the Job type
 
 ### Step 2: Fix P1 — Re-queue payload field names (Bug #2)
+
 - **File:** `server/src/context/context-analysis-progress.service.ts`
 - In `requeueMissingBatches`: change `emailBatch` → `batch`, `analysisId` → `analysisRecordId`, add `totalBatches`, `sentPayload`, `currentContextForPrompt`
 
 ### Step 3: Fix P1 — Add finalization re-queue limit (Bug #3)
+
 - **File:** `server/src/context/context-finalization.processor.ts`
 - Add `retryCount` to `FinalizationJob` interface
 - Track and increment retry count on each re-queue
@@ -125,6 +139,7 @@ There is no scheduled job or mechanism to detect analyses that have been in "run
 - Add constant `MAX_FINALIZATION_RETRIES` to `server/src/constants/service-constants.ts`
 
 ### Step 4: Fix P2 — Add stuck analysis cleanup (Bug #4)
+
 - **File:** New `server/src/context/context-analysis-cleanup.service.ts`
 - Schedule a periodic job (every 15 min) to detect and fail stuck analyses
 - Criteria: `status = "running"` AND `updatedAt < NOW() - 1 hour`
@@ -147,13 +162,13 @@ There is no scheduled job or mechanism to detect analyses that have been in "run
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `server/src/context/context-finalization.processor.ts` | Fix `.payload` → `.data`, add retry limit |
-| `server/src/context/context-analysis-progress.service.ts` | Fix re-queue payload field names |
-| `server/src/constants/service-constants.ts` | Add `MAX_FINALIZATION_RETRIES` constant |
-| `server/src/context/context-analysis-cleanup.service.ts` | NEW: stuck analysis cleanup |
-| `server/src/context/context.module.ts` | Register cleanup service |
+| File                                                      | Change                                    |
+| --------------------------------------------------------- | ----------------------------------------- |
+| `server/src/context/context-finalization.processor.ts`    | Fix `.payload` → `.data`, add retry limit |
+| `server/src/context/context-analysis-progress.service.ts` | Fix re-queue payload field names          |
+| `server/src/constants/service-constants.ts`               | Add `MAX_FINALIZATION_RETRIES` constant   |
+| `server/src/context/context-analysis-cleanup.service.ts`  | NEW: stuck analysis cleanup               |
+| `server/src/context/context.module.ts`                    | Register cleanup service                  |
 
 ## References
 

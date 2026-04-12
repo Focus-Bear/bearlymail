@@ -17,6 +17,7 @@ When a user clicks "Send" in the reply composer or the full Compose page, a tone
 - The UI appears frozen — users may click Send again or be confused about whether the action was registered.
 
 Affected surfaces:
+
 1. **Reply composer** (`email-detail-inline/ButtonRow.tsx`) — inline reply footer
 2. **Full Compose page** (`pages/Compose.tsx` + `components/compose/ComposeActions.tsx`)
 
@@ -38,8 +39,12 @@ The `checkingTone` state was tracked in `useEmailDetailToneCheck` and `useEmailD
 Added an `InlineSpinner` component to the send button that renders when `checkingTone || sending`:
 
 ```tsx
-{(checkingTone || sending) && <InlineSpinner size={14} />}
-{buttonText}
+{
+  (checkingTone || sending) && <InlineSpinner size={14} />;
+}
+{
+  buttonText;
+}
 ```
 
 The `getButtonText()` helper in `useReplyComposerFooter.ts` already returns `t('emailDetail.checkingTone')` when `checkingTone` is true — so the text changes to "Checking tone…" and a spinner appears.
@@ -53,7 +58,7 @@ if (checkingTone) {
   return (
     <>
       <span style={SPINNER_STYLE} />
-      {t('emailDetail.checkingTone')}
+      {t("emailDetail.checkingTone")}
     </>
   );
 }
@@ -71,10 +76,10 @@ The `SPIN_KEYFRAMES` CSS animation and inline `SPINNER_STYLE` were already prese
 
 ## Files Changed (in PR #898)
 
-| File | Change |
-|------|--------|
+| File                                                      | Change                                                                                                    |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `client/src/components/email-detail-inline/ButtonRow.tsx` | Added `InlineSpinner` during `checkingTone \|\| sending`; imported `InlineSpinner` from common components |
-| `client/src/components/compose/ComposeActions.tsx` | Added `checkingTone` branch to `SendButtonContent` with spinner + i18n label |
+| `client/src/components/compose/ComposeActions.tsx`        | Added `checkingTone` branch to `SendButtonContent` with spinner + i18n label                              |
 
 No server-side changes. No new components created.
 

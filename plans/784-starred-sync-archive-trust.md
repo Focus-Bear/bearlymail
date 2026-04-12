@@ -22,13 +22,13 @@ Two changes needed:
 
 The codebase already implements a `syncStatus` mechanism:
 
-| Component | What it does | File |
-|-----------|-------------|------|
-| `EmailThread.syncStatus` | `"synced"` or `"unsynced"` column on the thread entity | `server/src/database/entities/email-thread.entity.ts:199` |
-| Archive action | Sets `isArchived=true, syncStatus="unsynced"` in DB | `server/src/emails/emails.service.ts:2286` |
-| `archive-email-provider-sync` job | Syncs archive to Gmail, then marks `syncStatus="synced"` | `server/src/emails/archive-email.processor.ts:118` |
-| `syncThreadArchivedStatus` | Only updates threads where `syncStatus === "synced"` | `server/src/emails/providers/gmail.provider.ts:843` |
-| `batchUpdateThreadStatus` | All update queries include `AND syncStatus = 'synced'` | `server/src/emails/email-thread.service.ts:492` |
+| Component                         | What it does                                             | File                                                      |
+| --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| `EmailThread.syncStatus`          | `"synced"` or `"unsynced"` column on the thread entity   | `server/src/database/entities/email-thread.entity.ts:199` |
+| Archive action                    | Sets `isArchived=true, syncStatus="unsynced"` in DB      | `server/src/emails/emails.service.ts:2286`                |
+| `archive-email-provider-sync` job | Syncs archive to Gmail, then marks `syncStatus="synced"` | `server/src/emails/archive-email.processor.ts:118`        |
+| `syncThreadArchivedStatus`        | Only updates threads where `syncStatus === "synced"`     | `server/src/emails/providers/gmail.provider.ts:843`       |
+| `batchUpdateThreadStatus`         | All update queries include `AND syncStatus = 'synced'`   | `server/src/emails/email-thread.service.ts:492`           |
 
 **The safety mechanism exists.** Threads with `syncStatus="unsynced"` are NOT overwritten by Gmail sync. The bug Jeremy is seeing is likely caused by one of:
 
@@ -41,9 +41,11 @@ The codebase already implements a `syncStatus` mechanism:
 **Hypothesis B: Initial sync sets `isArchived` incorrectly**
 
 In `gmail-sync.ts`, the initial per-thread fetch checks `latestMessage.labelIds`:
+
 ```typescript
-isArchived: !latestLabelIds.includes("INBOX")
+isArchived: !latestLabelIds.includes("INBOX");
 ```
+
 This is correct for Gmail. But `getOrCreateEmailThread()` may not clear `isArchived` when a thread reappears in the inbox (e.g. someone replies to an archived thread).
 
 **Hypothesis C: No "was archived in BearlyMail vs Gmail" distinction in the data model**
@@ -59,6 +61,7 @@ The current model stores one `isArchived` boolean that gets written by BOTH user
 Enhance `debugStarredThreads()` to include Gmail's actual inbox status alongside BearlyMail's local status. The data is already being fetched in `syncThreadArchivedStatus` (the `inboxThreadIds` set), but the debug endpoint doesn't currently cross-reference it.
 
 Add to each thread in the response:
+
 ```typescript
 {
   // Existing fields...
@@ -66,11 +69,11 @@ Add to each thread in the response:
   inDb: boolean;
   isStarredInDb: boolean;
   // NEW fields:
-  isArchivedInDb: boolean;           // BearlyMail's local isArchived flag
-  isInGmailInbox: boolean;           // Whether Gmail considers this thread in INBOX
-  syncStatus: 'synced' | 'unsynced'; // Current sync status
-  hasUnsyncedChanges: boolean;       // syncStatus === 'unsynced'
-  archiveStatusConflict: boolean;    // isArchivedInDb !== !isInGmailInbox AND syncStatus === 'synced'
+  isArchivedInDb: boolean; // BearlyMail's local isArchived flag
+  isInGmailInbox: boolean; // Whether Gmail considers this thread in INBOX
+  syncStatus: "synced" | "unsynced"; // Current sync status
+  hasUnsyncedChanges: boolean; // syncStatus === 'unsynced'
+  archiveStatusConflict: boolean; // isArchivedInDb !== !isInGmailInbox AND syncStatus === 'synced'
 }
 ```
 
@@ -79,12 +82,13 @@ Implementation: The debug endpoint already calls `gmailProvider.getStarredInboxT
 ```typescript
 const [gmailStarredThreadIds, gmailInboxThreadIds] = await Promise.all([
   this.gmailProvider.getStarredInboxThreadIds(userId),
-  this.gmailProvider.getInboxThreadIds(userId),  // NEW method — see Step 2
+  this.gmailProvider.getInboxThreadIds(userId), // NEW method — see Step 2
 ]);
 const gmailInboxSet = new Set(gmailInboxThreadIds);
 ```
 
 Then for each thread, compute:
+
 ```typescript
 isInGmailInbox: gmailInboxSet.has(thread.threadId),
 archiveStatusConflict: thread.isArchived && gmailInboxSet.has(thread.threadId) && thread.syncStatus === 'synced',
@@ -97,6 +101,7 @@ archiveStatusConflict: thread.isArchived && gmailInboxSet.has(thread.threadId) &
 **File:** `server/src/emails/providers/gmail.provider.ts`
 
 Add a lightweight method (mirrors `getStarredInboxThreadIds`):
+
 ```typescript
 async getInboxThreadIds(userId: string): Promise<string[]> {
   const gmail = await this.createGmailClient(userId);
@@ -143,6 +148,7 @@ await this.syncThreadArchivedStatus(userId, gmail);
 **File:** `server/src/emails/email-debug.service.ts`
 
 Instead of blindly marking stale unsynced threads as "synced," the fix button should:
+
 1. For each stale unsynced thread, re-check Gmail's actual status
 2. Update `isArchived` to match Gmail
 3. THEN mark as `synced`
@@ -180,12 +186,12 @@ The `StarredThreadsList` component renders ALL threads in a single `<details>` (
 
 Replace with four accordion groups, each showing count in the header:
 
-| Group | Filter logic | Colour |
-|-------|-------------|--------|
-| **In Action** | `inDb && isStarredInDb && appearsInActionOrFollowUp` | Green (`#D4EDDA`) |
-| **In Follow Up** | `inDb && isStarredInDb && !appearsInActionOrFollowUp && !isArchivedInDb` (visible but not in action — snoozed, batched, etc.) | Blue (`#E6F0FF`) |
-| **Archived in BearlyMail** | `inDb && isArchivedInDb` — with ⚠️ flag if `archiveStatusConflict` | Yellow/Warning (`#FFF3CD`) for conflicts, Grey for expected archives |
-| **Missing in BearlyMail** | `!inDb` | Red (`#FFE6E6`) |
+| Group                      | Filter logic                                                                                                                  | Colour                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **In Action**              | `inDb && isStarredInDb && appearsInActionOrFollowUp`                                                                          | Green (`#D4EDDA`)                                                    |
+| **In Follow Up**           | `inDb && isStarredInDb && !appearsInActionOrFollowUp && !isArchivedInDb` (visible but not in action — snoozed, batched, etc.) | Blue (`#E6F0FF`)                                                     |
+| **Archived in BearlyMail** | `inDb && isArchivedInDb` — with ⚠️ flag if `archiveStatusConflict`                                                            | Yellow/Warning (`#FFF3CD`) for conflicts, Grey for expected archives |
+| **Missing in BearlyMail**  | `!inDb`                                                                                                                       | Red (`#FFE6E6`)                                                      |
 
 ### Implementation
 
@@ -194,26 +200,28 @@ Replace with four accordion groups, each showing count in the header:
 **File:** `client/src/components/inbox/debug/types.ts`
 
 Add the new per-thread fields:
+
 ```typescript
 threads: Array<{
   // ... existing fields ...
   // NEW:
   isArchivedInDb: boolean;
   isInGmailInbox: boolean;
-  syncStatus: 'synced' | 'unsynced';
+  syncStatus: "synced" | "unsynced";
   hasUnsyncedChanges: boolean;
   archiveStatusConflict: boolean;
 }>;
 ```
 
 Add new summary fields:
+
 ```typescript
 summary: {
   // ... existing ...
   // NEW:
   archivedInBearlyMail: number;
-  archiveConflicts: number;  // archived in BM but not in Gmail (syncStatus=synced)
-};
+  archiveConflicts: number; // archived in BM but not in Gmail (syncStatus=synced)
+}
 ```
 
 #### Step 2: Create `AccordionGroup` component
@@ -221,6 +229,7 @@ summary: {
 **New file:** `client/src/components/inbox/debug/AccordionGroup.tsx`
 
 A reusable collapsible section:
+
 ```tsx
 interface AccordionGroupProps {
   title: string;
@@ -231,22 +240,26 @@ interface AccordionGroupProps {
 }
 
 export const AccordionGroup: React.FC<AccordionGroupProps> = ({
-  title, count, defaultOpen = false, headerColor, children
+  title,
+  count,
+  defaultOpen = false,
+  headerColor,
+  children,
 }) => (
   <details open={defaultOpen}>
-    <summary style={{
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      padding: '8px 12px',
-      backgroundColor: headerColor || '#f5f5f5',
-      borderRadius: '4px',
-      marginBottom: '4px',
-    }}>
+    <summary
+      style={{
+        cursor: "pointer",
+        fontWeight: "bold",
+        padding: "8px 12px",
+        backgroundColor: headerColor || "#f5f5f5",
+        borderRadius: "4px",
+        marginBottom: "4px",
+      }}
+    >
       {title} ({count})
     </summary>
-    <div style={{ paddingLeft: '12px' }}>
-      {children}
-    </div>
+    <div style={{ paddingLeft: "12px" }}>{children}</div>
   </details>
 );
 ```
@@ -258,25 +271,59 @@ export const AccordionGroup: React.FC<AccordionGroupProps> = ({
 Group threads into the four categories and render each in an `AccordionGroup`:
 
 ```tsx
-export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads = [] }) => {
-  const inAction = threads.filter(t => t.inDb && t.isStarredInDb && t.appearsInActionOrFollowUp);
-  const inFollowUp = threads.filter(t => t.inDb && t.isStarredInDb && !t.appearsInActionOrFollowUp && !t.isArchivedInDb);
-  const archived = threads.filter(t => t.inDb && t.isArchivedInDb);
-  const missing = threads.filter(t => !t.inDb);
+export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({
+  threads = [],
+}) => {
+  const inAction = threads.filter(
+    (t) => t.inDb && t.isStarredInDb && t.appearsInActionOrFollowUp,
+  );
+  const inFollowUp = threads.filter(
+    (t) =>
+      t.inDb &&
+      t.isStarredInDb &&
+      !t.appearsInActionOrFollowUp &&
+      !t.isArchivedInDb,
+  );
+  const archived = threads.filter((t) => t.inDb && t.isArchivedInDb);
+  const missing = threads.filter((t) => !t.inDb);
 
   return (
     <div>
-      <AccordionGroup title="In Action" count={inAction.length} headerColor="#D4EDDA">
-        {inAction.map(t => <ThreadRow key={t.threadId} thread={t} />)}
+      <AccordionGroup
+        title="In Action"
+        count={inAction.length}
+        headerColor="#D4EDDA"
+      >
+        {inAction.map((t) => (
+          <ThreadRow key={t.threadId} thread={t} />
+        ))}
       </AccordionGroup>
-      <AccordionGroup title="In Follow Up" count={inFollowUp.length} headerColor="#E6F0FF">
-        {inFollowUp.map(t => <ThreadRow key={t.threadId} thread={t} />)}
+      <AccordionGroup
+        title="In Follow Up"
+        count={inFollowUp.length}
+        headerColor="#E6F0FF"
+      >
+        {inFollowUp.map((t) => (
+          <ThreadRow key={t.threadId} thread={t} />
+        ))}
       </AccordionGroup>
-      <AccordionGroup title="Archived in BearlyMail" count={archived.length} headerColor="#FFF3CD">
-        {archived.map(t => <ThreadRow key={t.threadId} thread={t} showConflictFlag />)}
+      <AccordionGroup
+        title="Archived in BearlyMail"
+        count={archived.length}
+        headerColor="#FFF3CD"
+      >
+        {archived.map((t) => (
+          <ThreadRow key={t.threadId} thread={t} showConflictFlag />
+        ))}
       </AccordionGroup>
-      <AccordionGroup title="Missing in BearlyMail" count={missing.length} headerColor="#FFE6E6">
-        {missing.map(t => <ThreadRow key={t.threadId} thread={t} />)}
+      <AccordionGroup
+        title="Missing in BearlyMail"
+        count={missing.length}
+        headerColor="#FFE6E6"
+      >
+        {missing.map((t) => (
+          <ThreadRow key={t.threadId} thread={t} />
+        ))}
       </AccordionGroup>
     </div>
   );
@@ -288,16 +335,20 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({ threads 
 For threads in the "Archived in BearlyMail" group where `archiveStatusConflict` is true, show a prominent warning:
 
 ```tsx
-{thread.archiveStatusConflict && (
-  <span style={{ color: '#d32f2f', fontWeight: 'bold' }}>
-    ⚠️ Gmail says INBOX — unsynced change pending
-  </span>
-)}
-{thread.hasUnsyncedChanges && !thread.archiveStatusConflict && (
-  <span style={{ color: '#f57c00' }}>
-    🔄 Unsynced change pending ({thread.syncStatus})
-  </span>
-)}
+{
+  thread.archiveStatusConflict && (
+    <span style={{ color: "#d32f2f", fontWeight: "bold" }}>
+      ⚠️ Gmail says INBOX — unsynced change pending
+    </span>
+  );
+}
+{
+  thread.hasUnsyncedChanges && !thread.archiveStatusConflict && (
+    <span style={{ color: "#f57c00" }}>
+      🔄 Unsynced change pending ({thread.syncStatus})
+    </span>
+  );
+}
 ```
 
 #### Step 5: Update the sync popup modal
@@ -311,17 +362,19 @@ Replace the flat thread list in the popup with the same `StarredThreadsList` com
 ## Files to Change
 
 ### Server
-| File | Change |
-|------|--------|
-| `server/src/emails/email-debug.service.ts` | Add `isArchivedInDb`, `isInGmailInbox`, `syncStatus`, `hasUnsyncedChanges`, `archiveStatusConflict` to thread response; update `fixStaleUnsyncedThreads` to reconcile with Gmail first |
-| `server/src/emails/providers/gmail.provider.ts` | Add `getInboxThreadIds()` method; consider running `syncThreadArchivedStatus` on every sync (not just extended) |
+
+| File                                            | Change                                                                                                                                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/emails/email-debug.service.ts`      | Add `isArchivedInDb`, `isInGmailInbox`, `syncStatus`, `hasUnsyncedChanges`, `archiveStatusConflict` to thread response; update `fixStaleUnsyncedThreads` to reconcile with Gmail first |
+| `server/src/emails/providers/gmail.provider.ts` | Add `getInboxThreadIds()` method; consider running `syncThreadArchivedStatus` on every sync (not just extended)                                                                        |
 
 ### Client
-| File | Change |
-|------|--------|
-| `client/src/components/inbox/debug/types.ts` | Add new fields to `DebugStarredData` |
-| `client/src/components/inbox/debug/AccordionGroup.tsx` | NEW — reusable accordion component |
-| `client/src/components/inbox/debug/StarredThreadsList.tsx` | Rewrite to use AccordionGroup with 4 sections |
+
+| File                                                        | Change                                                            |
+| ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| `client/src/components/inbox/debug/types.ts`                | Add new fields to `DebugStarredData`                              |
+| `client/src/components/inbox/debug/AccordionGroup.tsx`      | NEW — reusable accordion component                                |
+| `client/src/components/inbox/debug/StarredThreadsList.tsx`  | Rewrite to use AccordionGroup with 4 sections                     |
 | `client/src/components/inbox/debug/DebugStarredSection.tsx` | Use StarredThreadsList in the popup instead of inline duplication |
 
 ---

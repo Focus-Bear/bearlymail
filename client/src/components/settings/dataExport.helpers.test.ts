@@ -66,9 +66,7 @@ describe('formatImportDetails', () => {
   });
 
   it('includes multiple imported items as comma-joined string', () => {
-    const result = formatImportDetails(
-      makeResult({ profile: true, blockedSenders: 3, contexts: 1 }),
-    );
+    const result = formatImportDetails(makeResult({ profile: true, blockedSenders: 3, contexts: 1 }));
     expect(result).toBe('profile, 3 blocked sender(s), 1 context(s)');
   });
 

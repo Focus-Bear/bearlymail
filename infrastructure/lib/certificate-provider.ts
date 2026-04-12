@@ -1,8 +1,8 @@
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import { Construct } from "constructs";
 
 /**
  * Lambda function code for creating ACM certificate in us-east-1 for CloudFront
@@ -11,11 +11,11 @@ import { Construct } from 'constructs';
 export function getCertificateProviderFunction(
   scope: Construct,
   id: string,
-  hostedZone: route53.IHostedZone
+  hostedZone: route53.IHostedZone,
 ): lambda.Function {
   const certificateProvider = new lambda.Function(scope, id, {
     runtime: lambda.Runtime.PYTHON_3_12,
-    handler: 'index.handler',
+    handler: "index.handler",
     timeout: cdk.Duration.minutes(15),
     code: lambda.Code.fromInline(`
 import boto3
@@ -115,29 +115,25 @@ def handler(event, context):
     new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        'acm:RequestCertificate',
-        'acm:DescribeCertificate',
-        'acm:DeleteCertificate',
-        'acm:ListCertificates',
+        "acm:RequestCertificate",
+        "acm:DescribeCertificate",
+        "acm:DeleteCertificate",
+        "acm:ListCertificates",
       ],
-      resources: ['*'],
-    })
+      resources: ["*"],
+    }),
   );
 
   certificateProvider.addToRolePolicy(
     new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: [
-        'route53:ChangeResourceRecordSets',
-        'route53:GetChange',
-      ],
+      actions: ["route53:ChangeResourceRecordSets", "route53:GetChange"],
       resources: [
         `arn:aws:route53:::hostedzone/${hostedZone.hostedZoneId}`,
-        'arn:aws:route53:::change/*',
+        "arn:aws:route53:::change/*",
       ],
-    })
+    }),
   );
 
   return certificateProvider;
 }
-

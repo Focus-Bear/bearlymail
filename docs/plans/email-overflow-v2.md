@@ -63,6 +63,7 @@ Add text truncation to prevent long subjects from creating horizontal overflow:
 ### 3. `client/src/components/inbox/email-card/EmailCardBody.tsx` — CLEANUP
 
 This component is **orphaned** (not imported by `EmailListItem`). Verify it is not used anywhere, then either:
+
 - Add a comment noting it's unused
 - Or delete it (preferred, to avoid future confusion)
 

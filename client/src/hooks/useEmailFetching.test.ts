@@ -18,7 +18,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 jest.mock('utils/emailCache', () => ({
   clearCacheForMode: jest.fn(),
-  filterHash: jest.fn((filters) => `hash_${filters?.minPriority ?? 'none'}_${filters?.maxPriority ?? 'none'}`),
+  filterHash: jest.fn(filters => `hash_${filters?.minPriority ?? 'none'}_${filters?.maxPriority ?? 'none'}`),
   getCachedCategoryEmails: jest.fn().mockReturnValue(null),
   getCachedSummary: jest.fn().mockReturnValue(null),
   invalidateSummaryCache: jest.fn(),
@@ -279,9 +279,7 @@ describe.skip('useEmailFetching', () => {
         { id: '1', subject: 'Test Email' }, // No threadId
       ];
 
-      mockedAxios.get
-        .mockResolvedValueOnce({ data: mockEmails })
-        .mockResolvedValueOnce({ data: [] }); // action items only
+      mockedAxios.get.mockResolvedValueOnce({ data: mockEmails }).mockResolvedValueOnce({ data: [] }); // action items only
 
       const { result } = renderHook(() => useEmailFetching(defaultProps), { wrapper: createWrapper() });
 
@@ -390,8 +388,7 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
 
   const createWrapper = () => {
     const store = configureStore({ reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer } });
-    const Wrapper = ({ children }: { children: React.ReactNode }) =>
-      React.createElement(Provider, { store, children });
+    const Wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store, children });
     return Wrapper;
   };
 
@@ -413,10 +410,7 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
 
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: WrapperWithSummary }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: WrapperWithSummary });
 
     await result.current.fetchCategoryEmails('Work', 'uuid-stale-1234');
 
@@ -443,10 +437,7 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
     };
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [mockEmail] } });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     await result.current.fetchCategoryEmails('Work', 'uuid-valid-5678');
 
@@ -462,10 +453,7 @@ describe('fetchCategoryEmails – stale UUID self-healing', () => {
     // Self-healing should only trigger when a UUID was provided.
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     // No categoryId passed — name-only category
     await result.current.fetchCategoryEmails('Work', null);
@@ -497,8 +485,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
   });
 
   const createWrapper = () => {
-    return ({ children }: { children: React.ReactNode }) =>
-      React.createElement(Provider, { store, children });
+    return ({ children }: { children: React.ReactNode }) => React.createElement(Provider, { store, children });
   };
 
   it('Bug 1: does NOT mark category as loaded when cache is empty and summary is undefined (not yet fetched)', async () => {
@@ -510,10 +497,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     // Background refresh returns empty too (fire-and-forget path — test the pre-resolve state)
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     await result.current.fetchCategoryEmails('Other', 'uuid-other-0001');
 
@@ -573,10 +557,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     // Background refresh (fire and forget)
     mockedAxios.get.mockResolvedValueOnce({ data: { emails: [cachedEmail] } });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     await result.current.fetchCategoryEmails('Work', 'uuid-work-0002');
 
@@ -598,10 +579,7 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     });
     mockedAxios.get.mockReturnValueOnce(pendingRefresh as ReturnType<typeof mockedAxios.get>);
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     // Start the first fetch — background refresh is now pending
     await result.current.fetchCategoryEmails('Other', 'uuid-other-0003');
@@ -634,10 +612,7 @@ describe('fetchEmails — cache invalidation on overrideFilters', () => {
       data: { total: 0, categories: [] },
     });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     await result.current.fetchEmails({ minPriority: 50, maxPriority: null });
 
@@ -649,10 +624,7 @@ describe('fetchEmails — cache invalidation on overrideFilters', () => {
       data: { total: 0, categories: [] },
     });
 
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 
     await result.current.fetchEmails();
 
@@ -694,9 +666,10 @@ describe('appendFilterParams', () => {
 
 describe('fetchEmails — cache invalidation on filter change (fix #846)', () => {
   // Helper: create a minimal Redux store and wrapper for these tests
-  const makeStore = () => configureStore({
-    reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
-  });
+  const makeStore = () =>
+    configureStore({
+      reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
+    });
 
   const makeWrapper = (testStore: ReturnType<typeof makeStore>) => {
     const Wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -713,10 +686,7 @@ describe('fetchEmails — cache invalidation on filter change (fix #846)', () =>
 
   it('clears mode cache when overrideFilters are provided', async () => {
     const testStore = makeStore();
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: makeWrapper(testStore) }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: makeWrapper(testStore) });
 
     await result.current.fetchEmails({ minPriority: 50, maxPriority: null });
 
@@ -727,10 +697,7 @@ describe('fetchEmails — cache invalidation on filter change (fix #846)', () =>
 
   it('does NOT clear cache when no overrideFilters are provided', async () => {
     const testStore = makeStore();
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: makeWrapper(testStore) }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: makeWrapper(testStore) });
 
     await result.current.fetchEmails();
 
@@ -754,10 +721,7 @@ describe('fetchEmails — cache invalidation on filter change (fix #846)', () =>
     });
 
     const testStore = makeStore();
-    const { result } = renderHook(
-      () => useEmailFetching({ mode: 'triage' }),
-      { wrapper: makeWrapper(testStore) }
-    );
+    const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: makeWrapper(testStore) });
 
     await result.current.fetchEmails({ minPriority: 50 });
 

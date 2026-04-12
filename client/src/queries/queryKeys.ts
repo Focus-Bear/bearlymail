@@ -10,8 +10,7 @@
 export const contactKeys = {
   all: ['contacts'] as const,
   types: ['contact-types'] as const,
-  typesByEmails: (emails: string[]) =>
-    ['contact-types-by-emails', [...emails].sort().join(',')] as const,
+  typesByEmails: (emails: string[]) => ['contact-types-by-emails', [...emails].sort().join(',')] as const,
   frequent: (limit: number) => ['contacts', 'frequent', limit] as const,
 } as const;
 

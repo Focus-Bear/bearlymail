@@ -18,8 +18,5 @@ interface SanitizedHTMLProps {
  * auditable and testable in one location.
  */
 export const SanitizedHTML: React.FC<SanitizedHTMLProps> = ({ html, className }) => (
-  <div
-    className={className}
-    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
-  />
+  <div className={className} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
 );

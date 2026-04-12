@@ -18,8 +18,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
   const hasCategoryExplanation = isOtherCategory && email.categoryExplanation;
   // Detect when the explanation reveals a category mismatch (LLM suggested X but it didn't match).
   const isMatchFailExplanation =
-    hasCategoryExplanation &&
-    email.categoryExplanation?.includes('not found in your category list');
+    hasCategoryExplanation && email.categoryExplanation?.includes('not found in your category list');
 
   return (
     <div style={{ marginBottom: theme.spacing.sm }}>
@@ -117,9 +116,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
       {hasCategoryExplanation && (
         <div
           style={{
-            color: isMatchFailExplanation
-              ? theme.colors.text.secondary
-              : theme.colors.text.tertiary,
+            color: isMatchFailExplanation ? theme.colors.text.secondary : theme.colors.text.tertiary,
             fontSize: theme.typography.fontSize.sm,
             marginTop: theme.spacing.xs,
             fontStyle: 'italic',

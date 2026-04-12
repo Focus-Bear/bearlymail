@@ -154,7 +154,13 @@ const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRu
       <div style={{ fontWeight: theme.typography.fontWeight.semibold, marginBottom: theme.spacing.xs }}>
         {translate('priority.categoryDebug.traceShortlist')}
       </div>
-      <p style={{ margin: `0 0 ${theme.spacing.xs} 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.xs} 0`,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.secondary,
+        }}
+      >
         {winningRule
           ? translate('priority.categoryDebug.traceShortlistAfterRule')
           : translate('priority.categoryDebug.traceShortlistNoRule')}
@@ -168,7 +174,13 @@ const TraceShortlistSection: React.FC<TraceShortlistSectionProps> = ({ winningRu
         <p style={{ fontSize: theme.typography.fontSize.sm, marginTop: 0 }}>{shortlist.skipReason}</p>
       ) : null}
       {showOrderedList ? (
-        <ol style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg, fontSize: theme.typography.fontSize.sm }}>
+        <ol
+          style={{
+            margin: `${theme.spacing.xs} 0 0`,
+            paddingLeft: theme.spacing.lg,
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
           {shortlist.categoryNames.map(name => (
             <li key={name} style={{ marginBottom: theme.spacing.xs }}>
               {name}
@@ -210,7 +222,13 @@ const TraceFinalDecisionSection: React.FC<TraceFinalDecisionSectionProps> = ({ s
           </p>
         ) : null}
         {smartModel.categoryExplanation ? (
-          <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+          <p
+            style={{
+              margin: `${theme.spacing.xs} 0 0`,
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+            }}
+          >
             {smartModel.categoryExplanation}
           </p>
         ) : null}
@@ -272,7 +290,13 @@ const DeterministicRulesSection: React.FC<DeterministicRulesSectionProps> = ({
           {translate('priority.categoryDebug.traceNoRuleMatch')}
         </p>
       )}
-      <p style={{ margin: `0 0 ${theme.spacing.xs} 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.xs} 0`,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.tertiary,
+        }}
+      >
         {translate('priority.categoryDebug.traceRulesAccordionHint')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
@@ -297,7 +321,13 @@ export const CategoryDebugTracePanel: React.FC<CategoryDebugTracePanelProps> = (
       <h3 style={{ margin: `0 0 ${theme.spacing.sm} 0`, fontSize: theme.typography.fontSize.base }}>
         {translate('priority.categoryDebug.traceTitle')}
       </h3>
-      <p style={{ margin: `0 0 ${theme.spacing.sm} 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+      <p
+        style={{
+          margin: `0 0 ${theme.spacing.sm} 0`,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.secondary,
+        }}
+      >
         {translate('priority.categoryDebug.traceIntro')}
       </p>
 

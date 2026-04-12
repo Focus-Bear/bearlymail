@@ -239,7 +239,12 @@ interface SplitViewPriorityBarProps {
   t: (key: string) => string;
 }
 
-const SplitViewPriorityBar: React.FC<SplitViewPriorityBarProps> = ({ selectedEmailId, starCount, onSetStarCount, t }) => (
+const SplitViewPriorityBar: React.FC<SplitViewPriorityBarProps> = ({
+  selectedEmailId,
+  starCount,
+  onSetStarCount,
+  t,
+}) => (
   <div
     style={{
       display: 'flex',
@@ -426,9 +431,7 @@ export const SplitViewPanelShell: React.FC<SplitViewPanelShellProps> = ({
       )}
 
       {/* Email detail body (injected via children slot) */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-        {children}
-      </div>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>{children}</div>
     </div>
   );
 };

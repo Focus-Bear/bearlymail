@@ -21,6 +21,7 @@ The following sensitive data is encrypted:
 ## Email Querying
 
 Email addresses are encrypted, but we need to query by them for login. To enable this:
+
 - A SHA-256 hash of the email is stored in the `emailHash` column (not encrypted)
 - Queries use the hash instead of the encrypted email
 - The actual email is stored encrypted in the `email` column
@@ -33,7 +34,8 @@ You **must** set the `ENCRYPTION_KEY` environment variable in production. This k
 ENCRYPTION_KEY=your-secure-random-32-character-key-here
 ```
 
-**⚠️ WARNING:** 
+**⚠️ WARNING:**
+
 - If you lose this key, all encrypted data becomes unrecoverable
 - Do not change this key after data is encrypted (data will become unreadable)
 - Use a cryptographically secure random string (at least 32 characters)
@@ -56,6 +58,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## Migration Notes
 
 If you're migrating existing plaintext data:
+
 1. Set `ENCRYPTION_KEY` in your environment
 2. Restart the application - TypeORM will encrypt data on write
 3. Existing plaintext data will be automatically encrypted when entities are saved
@@ -64,10 +67,3 @@ If you're migrating existing plaintext data:
 ## Passwords
 
 Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operation and passwords cannot be recovered.
-
-
-
-
-
-
-

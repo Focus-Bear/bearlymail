@@ -90,7 +90,12 @@ const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const Default: Story = {
   render: () => (
     <Wrapper>
-      <DeterministicCategoryRulesPanel rules={MOCK_RULES} onToggleEnabled={noop} onDelete={noop} onEditComposite={noop} />
+      <DeterministicCategoryRulesPanel
+        rules={MOCK_RULES}
+        onToggleEnabled={noop}
+        onDelete={noop}
+        onEditComposite={noop}
+      />
     </Wrapper>
   ),
 };
@@ -159,7 +164,12 @@ const MULTI_RULES_SAME_CATEGORY: CategoryRuleDto[] = [
 export const MultipleRulesPerCategory: Story = {
   render: () => (
     <Wrapper>
-      <DeterministicCategoryRulesPanel rules={MULTI_RULES_SAME_CATEGORY} onToggleEnabled={noop} onDelete={noop} onEditComposite={noop} />
+      <DeterministicCategoryRulesPanel
+        rules={MULTI_RULES_SAME_CATEGORY}
+        onToggleEnabled={noop}
+        onDelete={noop}
+        onEditComposite={noop}
+      />
     </Wrapper>
   ),
 };

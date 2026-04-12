@@ -99,7 +99,7 @@ describe('replaceBlobUrlsWithCids', () => {
         '<p>See attached:</p>' +
           '<img src="cid:inline-img1@bearlymail" data-cid="inline-img1@bearlymail">' +
           '<p>And also:</p>' +
-          '<img src="cid:inline-img2@bearlymail" data-cid="inline-img2@bearlymail">',
+          '<img src="cid:inline-img2@bearlymail" data-cid="inline-img2@bearlymail">'
       );
     });
   });

@@ -68,8 +68,12 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
         icon="🚫"
         title={t('inbox.blockConfirm.title', { defaultValue: 'Block Sender' })}
         message={t('inbox.blockConfirm.message', {
-          from: modals.blockConfirmEmail?.fromName || modals.blockConfirmEmail?.from || t('inbox.blockConfirm.thisSender', { defaultValue: 'this sender' }),
-          defaultValue: 'Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.',
+          from:
+            modals.blockConfirmEmail?.fromName ||
+            modals.blockConfirmEmail?.from ||
+            t('inbox.blockConfirm.thisSender', { defaultValue: 'this sender' }),
+          defaultValue:
+            'Block all future emails from {{from}}? This email and any future emails from them will be automatically archived.',
         })}
         confirmLabel={t('inbox.blockConfirm.confirm', { defaultValue: 'Block Sender' })}
         cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}

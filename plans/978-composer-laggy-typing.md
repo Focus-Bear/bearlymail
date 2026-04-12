@@ -34,6 +34,7 @@ The paste handler is created once when `useEditor` initializes. If `onPasteFiles
 **Issue 3: `useEditor` extensions array rebuilt on every render**
 
 The extensions array in `useEditor` is defined inline:
+
 ```tsx
 extensions: [
   StarterKit.configure({ ... }),
@@ -66,9 +67,12 @@ In `Compose.tsx` line 329: `onBodyChange={form.setBody}`. `setBody` is a `useSta
 
 ```tsx
 // In ReplyComposer.tsx, useReplyComposerState:
-const handleDraftChange = useCallback((newDraft: string) => {
-  onDraftChange(newDraft);
-}, [onDraftChange]);
+const handleDraftChange = useCallback(
+  (newDraft: string) => {
+    onDraftChange(newDraft);
+  },
+  [onDraftChange],
+);
 ```
 
 ### Fix 2: Stabilize `RichTextEditor` extensions with `useMemo`
@@ -89,21 +93,30 @@ const editor = useEditor({ extensions, content: content || '', ... });
 ```tsx
 const onPasteFilesRef = useRef(onPasteFiles);
 const onInlineImageRef = useRef(onInlineImage);
-useEffect(() => { onPasteFilesRef.current = onPasteFiles; }, [onPasteFiles]);
-useEffect(() => { onInlineImageRef.current = onInlineImage; }, [onInlineImage]);
+useEffect(() => {
+  onPasteFilesRef.current = onPasteFiles;
+}, [onPasteFiles]);
+useEffect(() => {
+  onInlineImageRef.current = onInlineImage;
+}, [onInlineImage]);
 
 // In useEditor editorProps:
 editorProps: {
-  handlePaste: (_view, event) => buildPasteHandler(
-    onPasteFilesRef.current, 
-    onInlineImageRef.current
-  )(_view, event)
+  handlePaste: (_view, event) =>
+    buildPasteHandler(onPasteFilesRef.current, onInlineImageRef.current)(
+      _view,
+      event,
+    );
 }
 ```
 
 Or more cleanly: build the paste handler once with refs:
+
 ```tsx
-const pasteHandler = useMemo(() => buildPasteHandlerWithRefs(onPasteFilesRef, onInlineImageRef), []);
+const pasteHandler = useMemo(
+  () => buildPasteHandlerWithRefs(onPasteFilesRef, onInlineImageRef),
+  [],
+);
 ```
 
 ### Fix 4: Wrap `ReplyDraftTextarea` with `React.memo`
@@ -118,11 +131,11 @@ This prevents re-renders when parent re-renders but props are stable.
 
 ## Files to Change
 
-| File | Change |
-|---|---|
-| `client/src/components/email-detail-inline/ReplyComposer.tsx` | Wrap `handleDraftChange` in `useCallback` |
-| `client/src/components/rich-text/RichTextEditor.tsx` | Memoize extensions array; use refs for paste handler closures |
-| `client/src/components/email-detail-inline/ReplyDraftTextarea.tsx` | Wrap with `React.memo` |
+| File                                                               | Change                                                        |
+| ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `client/src/components/email-detail-inline/ReplyComposer.tsx`      | Wrap `handleDraftChange` in `useCallback`                     |
+| `client/src/components/rich-text/RichTextEditor.tsx`               | Memoize extensions array; use refs for paste handler closures |
+| `client/src/components/email-detail-inline/ReplyDraftTextarea.tsx` | Wrap with `React.memo`                                        |
 
 ## Status Note
 

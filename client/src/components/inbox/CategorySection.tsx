@@ -4,7 +4,13 @@ import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types
 
 import { CategoryAccordion } from 'components/inbox/CategoryAccordion';
 import { EmailListItem } from 'components/inbox/EmailListItem';
-import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from 'components/inbox/inbox.types';
+import {
+  InboxEmailActions,
+  InboxKeyboardHint,
+  InboxModals,
+  InboxPriorityTooltip,
+  InboxSnoozeInput,
+} from 'components/inbox/inbox.types';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
@@ -156,55 +162,59 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
   return (
     <>
-    <CategoryAccordion
-      key={categoryKey}
-      category={categoryName}
-      emails={categoryEmails}
-      count={isLoaded ? categoryEmails.length : categoryItem.count}
-      isLoadingContent={isExpanded && !isLoaded}
-      isExpanded={isExpanded}
-      onToggle={() => onToggleCategory(categoryKey)}
-      onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
-      onReanalyseOther={handleReanalyseOther}
-      isReanalysingOther={isReanalysingOther}
-      onNavigateToSettings={handleNavigateToSettings}
-    >
-      {hasProtoGroups
-        ? (() => {
-            let offset = 0;
-            return (
-              <>
-                {otherProtoGroups.map(grp => {
-                  const groupStart = offset;
-                  offset += grp.emails.length;
-                  const protoCategory = protoCategories.find(pc => pc.name === grp.name);
-                  return (
-                    <ProtoCategorySubAccordion
-                      key={grp.name}
-                      name={grp.name}
-                      description={protoCategory?.description}
-                      emailCount={grp.emails.length}
-                      onConvertToCategory={async () => {
+      <CategoryAccordion
+        key={categoryKey}
+        category={categoryName}
+        emails={categoryEmails}
+        count={isLoaded ? categoryEmails.length : categoryItem.count}
+        isLoadingContent={isExpanded && !isLoaded}
+        isExpanded={isExpanded}
+        onToggle={() => onToggleCategory(categoryKey)}
+        onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
+        onReanalyseOther={handleReanalyseOther}
+        isReanalysingOther={isReanalysingOther}
+        onNavigateToSettings={handleNavigateToSettings}
+      >
+        {hasProtoGroups
+          ? (() => {
+              let offset = 0;
+              return (
+                <>
+                  {otherProtoGroups.map(grp => {
+                    const groupStart = offset;
+                    offset += grp.emails.length;
+                    const protoCategory = protoCategories.find(pc => pc.name === grp.name);
+                    return (
+                      <ProtoCategorySubAccordion
+                        key={grp.name}
+                        name={grp.name}
+                        description={protoCategory?.description}
+                        emailCount={grp.emails.length}
+                        onConvertToCategory={async () => {
                           handleConvertProtoCategory(protoCategory?.id ?? '', grp.name);
                         }}
-                      isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
-                      onArchiveAll={onBulkArchive}
-                      emailIds={grp.emails.map(email => email.id)}
-                      onDelete={protoCategory ? async () => {
-                          handleDeleteProtoCategoryFromInbox(protoCategory.id);
-                        } : undefined}
-                      isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
-                    >
-                      {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}
-                    </ProtoCategorySubAccordion>
-                  );
-                })}
-                {uncategorizedOtherEmails.map((email, idx) => renderEmailItem(email, globalIndex + offset + idx))}
-              </>
-            );
-          })()
-        : categoryEmails.map((email, idx) => renderEmailItem(email, globalIndex + idx))}
-    </CategoryAccordion>
+                        isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                        onArchiveAll={onBulkArchive}
+                        emailIds={grp.emails.map(email => email.id)}
+                        onDelete={
+                          protoCategory
+                            ? async () => {
+                                handleDeleteProtoCategoryFromInbox(protoCategory.id);
+                              }
+                            : undefined
+                        }
+                        isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                      >
+                        {grp.emails.map((email, idx) => renderEmailItem(email, globalIndex + groupStart + idx))}
+                      </ProtoCategorySubAccordion>
+                    );
+                  })}
+                  {uncategorizedOtherEmails.map((email, idx) => renderEmailItem(email, globalIndex + offset + idx))}
+                </>
+              );
+            })()
+          : categoryEmails.map((email, idx) => renderEmailItem(email, globalIndex + idx))}
+      </CategoryAccordion>
     </>
   );
 };

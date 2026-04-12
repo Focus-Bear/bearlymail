@@ -76,9 +76,7 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({ su
           {t('debug.starred.starredInDbButHidden')}
         </div>
         <div>
-          <strong style={{ color: summary.notStarredInDb > 0 ? 'orange' : 'green' }}>
-            {summary.notStarredInDb}
-          </strong>{' '}
+          <strong style={{ color: summary.notStarredInDb > 0 ? 'orange' : 'green' }}>{summary.notStarredInDb}</strong>{' '}
           {t('debug.starred.notStarredInDb')}
         </div>
       </div>

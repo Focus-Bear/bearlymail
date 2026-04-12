@@ -22,11 +22,16 @@ the localStorage cache removal). Investigation reveals **two independent bugs**:
 `getInboxSummary()`
 
 **Code path:**
+
 ```ts
 // useInboxFilters.ts
 function loadInitialFilters(): InboxFilter {
   // First visit: defaults to high-priority filter
-  return { accountIds: [], categories: [], minPriority: HIGH_PRIORITY_THRESHOLD }; // 50
+  return {
+    accountIds: [],
+    categories: [],
+    minPriority: HIGH_PRIORITY_THRESHOLD,
+  }; // 50
 }
 ```
 
@@ -36,7 +41,7 @@ const priorityModeActive =
   filters?.minPriority !== undefined && mode !== "blocked";
 
 let threadFilter = priorityModeActive
-  ? 'AND thread."isArchived" = false'                    // ← NO starCount filter!
+  ? 'AND thread."isArchived" = false' // ← NO starCount filter!
   : 'AND thread."isArchived" = false AND thread."starCount" > 0';
 
 if (!priorityModeActive) {
@@ -55,9 +60,9 @@ The same logic exists in `getInboxSummary()` in the `threadFilter` assignment.
 
 **Why it was written this way:** PR #1056 introduced priority filtering so
 that a combined "priority inbox" across all modes (triage + action + follow-up)
-could show all high-priority threads. The comment in the code explains: *"Without
+could show all high-priority threads. The comment in the code explains: _"Without
 this, combining starCount = 0 with priorityScore >= N returns 0 results because
-high-priority threads have typically been actioned (starCount > 0)."*
+high-priority threads have typically been actioned (starCount > 0)."_
 
 This logic is correct for an **explicit priority filter the user has actively
 set**. But it is **wrong when applied to the default filter state**, because
@@ -77,6 +82,7 @@ the minPriority filter) will see starred emails polluting their Triage view.
 specifically the `categoryNameToId` map construction.
 
 **Code path:**
+
 ```ts
 // getInboxSummary() builds the lookup map:
 const categoryContexts = await this.userContextRepository.find({
@@ -85,7 +91,7 @@ const categoryContexts = await this.userContextRepository.find({
 });
 const categoryNameToId = new Map<string, string>();
 for (const ctx of categoryContexts) {
-  const categoryName = ctx.contextValue.split(" - ")[0].trim();  // ← name part only
+  const categoryName = ctx.contextValue.split(" - ")[0].trim(); // ← name part only
   categoryNameToId.set(categoryName, ctx.contextId);
 }
 ```
@@ -97,9 +103,11 @@ code paths that can produce **different string values**:
 
 **Path A — LLM summarization (`summarize-email-tldr.md` prompt):**
 The TLDR prompt hardcodes a fixed set of category names:
+
 ```
 "category": "<one of: Newsletters, Sales & Marketing, Customer Support, …>"
 ```
+
 These are generic categories — not the user's custom categories stored in
 `user_contexts`. So when the summarization LLM runs before `refine-priority`
 has had a chance to categorise with the user's actual category list, the thread
@@ -121,13 +129,13 @@ promotion path** (`proto-categories.service.ts` → `promoteToCategory()`):
 // promoteToCategory() stores full description:
 const categoryValue = protoCategory.description
   ? `${protoCategory.name} - ${protoCategory.description}`
-  : protoCategory.name;   // ← if no description, just the name
+  : protoCategory.name; // ← if no description, just the name
 
 // Then assigns to threads:
 await this.emailThreadRepository.update(
   { protoCategoryId: protoCategory.id },
   {
-    category: protoCategory.name,   // ← just the name
+    category: protoCategory.name, // ← just the name
     protoCategoryId: null,
   },
 );
@@ -158,6 +166,7 @@ stores the full string, and the map lookup fails → `id: null`.
 **The second scenario (more likely):** The category was written to
 `email_threads.category` by a path that stored the **full contextValue** rather
 than just the name. Possible culprits:
+
 - `context.service.ts` consolidation step at line ~2794 sets
   `value: \`${cat.name} - ${cat.description}\`` — if that value were ever written
   directly to a thread's category column (it isn't in current code, but may have
@@ -197,7 +206,8 @@ defensively, always stripping the description portion on write.
 
    if (!priorityModeActive) {
      if (mode === "triage") {
-       threadFilter = 'AND thread."isArchived" = false AND thread."starCount" = 0';
+       threadFilter =
+         'AND thread."isArchived" = false AND thread."starCount" = 0';
      }
    }
 
@@ -208,7 +218,8 @@ defensively, always stripping the description portion on write.
    let threadFilter: string;
    if (mode === "triage") {
      // Triage always shows only unstarred threads, regardless of priority filter
-     threadFilter = 'AND thread."isArchived" = false AND thread."starCount" = 0';
+     threadFilter =
+       'AND thread."isArchived" = false AND thread."starCount" = 0';
    } else if (mode === "action" || mode === "follow-up") {
      threadFilter = priorityModeActive
        ? 'AND thread."isArchived" = false'
@@ -235,7 +246,7 @@ defensively, always stripping the description portion on write.
    // Normalise: strip description suffix if present (defensive against threads
    // that stored the full contextValue "Name - Description")
    const category = rawDecrypted
-     ? (rawDecrypted.split(" - ")[0].trim() || rawDecrypted)
+     ? rawDecrypted.split(" - ")[0].trim() || rawDecrypted
      : "Other";
    ```
 
@@ -244,6 +255,7 @@ defensively, always stripping the description portion on write.
    **Fix Bug 2b — defensive write in `runInboxQuery` & thread updates:**
    In `resolveCategoryAndProtoCategory` (in `llm-processor.ts`), add a
    defensive normalisation before writing to the thread:
+
    ```ts
    // Strip any accidental " - description" suffix before persisting
    const safeCategory = finalCategory?.split(" - ")[0].trim() ?? null;
@@ -344,10 +356,9 @@ issues that PR #1111 did not cover.
 
 ## Summary of Changes
 
-| File | Change |
-|------|--------|
+| File                                  | Change                                                                                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `server/src/emails/emails.service.ts` | Fix `priorityModeActive` in both `runInboxQuery` and `getInboxSummary`; add defensive category name normalisation in `getInboxSummary` |
-| `server/src/emails/llm-processor.ts` | Defensive strip of " - description" suffix before writing to `email_threads.category` |
-| `client/src/hooks/useInboxFilters.ts` | Change first-visit default from `minPriority: 50` to `minPriority: null` |
-| `server/src/db/migrations/` | One-time repair: strip " - description" from existing thread categories that contain it |
-
+| `server/src/emails/llm-processor.ts`  | Defensive strip of " - description" suffix before writing to `email_threads.category`                                                  |
+| `client/src/hooks/useInboxFilters.ts` | Change first-visit default from `minPriority: 50` to `minPriority: null`                                                               |
+| `server/src/db/migrations/`           | One-time repair: strip " - description" from existing thread categories that contain it                                                |

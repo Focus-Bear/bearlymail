@@ -211,9 +211,7 @@ const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
         </span>
       </button>
 
-      {mode !== MODE_TRIAGE && !isSnoozeInputVisible && (
-        <SnoozeButton email={email} onShowSnooze={onShowSnooze} />
-      )}
+      {mode !== MODE_TRIAGE && !isSnoozeInputVisible && <SnoozeButton email={email} onShowSnooze={onShowSnooze} />}
 
       <UnsubscribeOrBlock email={email} t={t} onBlockSender={onBlockSender} />
     </div>

@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import {
-  useDeleteContactGroupMutation,
-  useUpdateContactGroupMutation,
-} from 'queries/contactGroups';
+import { useDeleteContactGroupMutation, useUpdateContactGroupMutation } from 'queries/contactGroups';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { ContactGroup } from 'types/contactGroup';
@@ -23,12 +20,10 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
   const [editName, setEditName] = useState(group.name);
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<Contact[]>([]);
-  const [editMemberIds, setEditMemberIds] = useState<string[]>(
-    group.members.map((member) => member.contactId),
+  const [editMemberIds, setEditMemberIds] = useState<string[]>(group.members.map(member => member.contactId));
+  const [editMemberDetails, setEditMemberDetails] = useState<{ contactId: string; email: string; name?: string }[]>(
+    group.members
   );
-  const [editMemberDetails, setEditMemberDetails] = useState<
-    { contactId: string; email: string; name?: string }[]
-  >(group.members);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const updateMutation = useUpdateContactGroupMutation();
@@ -41,10 +36,8 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
       return;
     }
     try {
-      const res = await axios.get<Contact[]>(
-        `${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`,
-      );
-      setContactResults(res.data.filter((contact) => contact.id && !editMemberIds.includes(contact.id)));
+      const res = await axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
+      setContactResults(res.data.filter(contact => contact.id && !editMemberIds.includes(contact.id)));
     } catch {
       setContactResults([]);
     }
@@ -54,18 +47,15 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
     if (!contact.id || editMemberIds.includes(contact.id)) {
       return;
     }
-    setEditMemberIds((prev) => [...prev, contact.id!]);
-    setEditMemberDetails((prev) => [
-      ...prev,
-      { contactId: contact.id!, email: contact.email, name: contact.name },
-    ]);
+    setEditMemberIds(prev => [...prev, contact.id!]);
+    setEditMemberDetails(prev => [...prev, { contactId: contact.id!, email: contact.email, name: contact.name }]);
     setContactSearch('');
     setContactResults([]);
   };
 
   const removeMember = (contactId: string) => {
-    setEditMemberIds((prev) => prev.filter((id) => id !== contactId));
-    setEditMemberDetails((prev) => prev.filter((member) => member.contactId !== contactId));
+    setEditMemberIds(prev => prev.filter(id => id !== contactId));
+    setEditMemberDetails(prev => prev.filter(member => member.contactId !== contactId));
   };
 
   const handleSave = async () => {
@@ -92,7 +82,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
       >
         <input
           value={editName}
-          onChange={(event) => setEditName(event.target.value)}
+          onChange={event => setEditName(event.target.value)}
           placeholder={t('settings.contactGroups.namePlaceholder')}
           style={{
             width: '100%',
@@ -110,7 +100,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
             {t('settings.contactGroups.members')} ({editMemberIds.length})
           </strong>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-            {editMemberDetails.map((member) => (
+            {editMemberDetails.map(member => (
               <span
                 key={member.contactId}
                 style={{
@@ -126,7 +116,13 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
                 {member.name || member.email}
                 <button
                   onClick={() => removeMember(member.contactId)}
-                  style={{ background: STRING_NONE, border: STRING_NONE, cursor: 'pointer', padding: 0, color: theme.colors.text.secondary }}
+                  style={{
+                    background: STRING_NONE,
+                    border: STRING_NONE,
+                    cursor: 'pointer',
+                    padding: 0,
+                    color: theme.colors.text.secondary,
+                  }}
                 >
                   ×
                 </button>
@@ -138,7 +134,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
         <div style={{ position: 'relative', marginBottom: theme.spacing.sm }}>
           <input
             value={contactSearch}
-            onChange={(event) => searchContacts(event.target.value)}
+            onChange={event => searchContacts(event.target.value)}
             placeholder={t('settings.contactGroups.searchContacts')}
             style={{
               width: '100%',
@@ -165,10 +161,10 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
                 overflowY: 'auto',
               }}
             >
-              {contactResults.map((contact) => (
+              {contactResults.map(contact => (
                 <div
                   key={contact.id || contact.email}
-                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseDown={event => event.preventDefault()}
                   onClick={() => addMember(contact)}
                   style={{
                     padding: '8px 12px',
@@ -179,9 +175,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
                 >
                   {contact.name || contact.email}
                   {contact.name && (
-                    <span style={{ color: theme.colors.text.secondary, marginLeft: '6px' }}>
-                      {contact.email}
-                    </span>
+                    <span style={{ color: theme.colors.text.secondary, marginLeft: '6px' }}>{contact.email}</span>
                   )}
                 </div>
               ))}
@@ -237,9 +231,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
       }}
     >
       <div>
-        <span
-          style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}
-        >
+        <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
           {group.name}
         </span>
         <span
@@ -258,7 +250,7 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
           onClick={() => {
             setEditing(true);
             setEditName(group.name);
-            setEditMemberIds(group.members.map((member) => member.contactId));
+            setEditMemberIds(group.members.map(member => member.contactId));
             setEditMemberDetails(group.members);
           }}
           style={{

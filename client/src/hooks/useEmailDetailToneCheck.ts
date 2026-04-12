@@ -59,11 +59,15 @@ export function useEmailDetailToneCheck() {
     setDisputeResult(null);
     try {
       const currentTime = getCurrentTimeInTimezone(timezoneRef.current);
-      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
-        text: draft,
-        currentTime,
-        scheduledSendAt: scheduledSendAt ?? null,
-      }, { signal: controller.signal });
+      const toneResponse = await axios.post(
+        `${API_URL}/llm/check-tone`,
+        {
+          text: draft,
+          currentTime,
+          scheduledSendAt: scheduledSendAt ?? null,
+        },
+        { signal: controller.signal }
+      );
 
       setToneCheckResult(toneResponse.data);
 

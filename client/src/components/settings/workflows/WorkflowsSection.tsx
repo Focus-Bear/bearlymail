@@ -5,12 +5,7 @@ import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 
 import { MCPServerManager } from './MCPServerManager';
-import {
-  MCPServerConfig,
-  WorkflowExecutionLog,
-  WorkflowRule,
-  WorkflowRuleFormValues,
-} from './types';
+import { MCPServerConfig, WorkflowExecutionLog, WorkflowRule, WorkflowRuleFormValues } from './types';
 import { WorkflowEditor } from './WorkflowEditor';
 import { WorkflowExecutionHistory } from './WorkflowExecutionHistory';
 import { WorkflowsList } from './WorkflowsList';
@@ -134,9 +129,7 @@ export const WorkflowsSection: React.FC = () => {
   };
 
   const handleTestMCPServer = async (id: string) => {
-    const res = await axios.post<{ ok: boolean; toolCount: number }>(
-      `${API_URL}/mcp-servers/${id}/test`,
-    );
+    const res = await axios.post<{ ok: boolean; toolCount: number }>(`${API_URL}/mcp-servers/${id}/test`);
     return res.data;
   };
 
@@ -154,11 +147,19 @@ export const WorkflowsSection: React.FC = () => {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: theme.spacing.lg,
+        }}
+      >
         <div>
           <h2 style={{ ...theme.typography.heading.h2, margin: 0 }}>Workflows</h2>
           <p style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, marginTop: 4 }}>
-            Automate actions when matching emails arrive — create Focus Bear tasks, send replies, call webhooks, and more.
+            Automate actions when matching emails arrive — create Focus Bear tasks, send replies, call webhooks, and
+            more.
           </p>
         </div>
         <button
@@ -181,7 +182,16 @@ export const WorkflowsSection: React.FC = () => {
       </div>
 
       {error && (
-        <div style={{ padding: '8px 12px', background: theme.colors.error.light, borderRadius: 6, color: theme.colors.error.dark, fontSize: 13, marginBottom: theme.spacing.md }}>
+        <div
+          style={{
+            padding: '8px 12px',
+            background: theme.colors.error.light,
+            borderRadius: 6,
+            color: theme.colors.error.dark,
+            fontSize: 13,
+            marginBottom: theme.spacing.md,
+          }}
+        >
           {error}
         </div>
       )}
@@ -189,12 +199,7 @@ export const WorkflowsSection: React.FC = () => {
       {loading ? (
         <p style={{ color: theme.colors.text.secondary }}>Loading workflows…</p>
       ) : (
-        <WorkflowsList
-          rules={rules}
-          onToggle={handleToggle}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        <WorkflowsList rules={rules} onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
       {/* MCP Servers */}

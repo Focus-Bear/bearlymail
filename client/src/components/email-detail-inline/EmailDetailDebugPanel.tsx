@@ -32,7 +32,11 @@ const GmailApiLabelsInfo: React.FC<{ gmailLabels: any; isMatch: boolean; hasLabe
         <div style={{ marginTop: theme.spacing.xs }}>
           <strong>{t('debug.adminPanel.labelMapping')}:</strong>
           <div
-            style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}
+            style={{
+              marginLeft: theme.spacing.md,
+              marginTop: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.xs,
+            }}
           >
             {gmailLabels.labelMapping.map((mapping: any) => (
               <div key={mapping.id}>
@@ -87,7 +91,8 @@ const AdminDebugGmailLabels: React.FC<{ gmailLabels: any; emailData: any; loadin
         <strong>{t('debug.adminPanel.emailIdRef')}:</strong> {emailData.id}
       </div>
       <div>
-        <strong>{t('debug.adminPanel.messageIdGmail')}:</strong> {emailData.messageId || t('debug.adminPanel.notAvailable')}
+        <strong>{t('debug.adminPanel.messageIdGmail')}:</strong>{' '}
+        {emailData.messageId || t('debug.adminPanel.notAvailable')}
       </div>
       <div style={{ marginTop: theme.spacing.xs }}>
         <strong>{t('debug.adminPanel.dbLabels')}:</strong>
@@ -124,7 +129,8 @@ export const AdminDebugPanel: React.FC<{
   loadingStarStatus: boolean;
 }> = ({ emailData, gmailLabels, gmailStarStatus, loadingLabels, loadingStarStatus }) => {
   const { t } = useTranslation();
-  const starCountDisplay = gmailStarStatus?.dbStarCount ?? (loadingStarStatus ? t('debug.stats.loading') : t('debug.adminPanel.notAvailable'));
+  const starCountDisplay =
+    gmailStarStatus?.dbStarCount ?? (loadingStarStatus ? t('debug.stats.loading') : t('debug.adminPanel.notAvailable'));
   return (
     <div
       style={{
@@ -161,10 +167,12 @@ export const AdminDebugPanel: React.FC<{
           <strong>{t('debug.adminPanel.threadId')}:</strong> {emailData.threadId || t('debug.adminPanel.notAvailable')}
         </div>
         <div>
-          <strong>{t('debug.adminPanel.emailThreadId')}:</strong> {emailData.emailThreadId || t('debug.adminPanel.notAvailable')}
+          <strong>{t('debug.adminPanel.emailThreadId')}:</strong>{' '}
+          {emailData.emailThreadId || t('debug.adminPanel.notAvailable')}
         </div>
         <div>
-          <strong>{t('debug.adminPanel.messageId')}:</strong> {emailData.messageId || t('debug.adminPanel.notAvailable')}
+          <strong>{t('debug.adminPanel.messageId')}:</strong>{' '}
+          {emailData.messageId || t('debug.adminPanel.notAvailable')}
         </div>
         <div>
           <strong>{t('debug.adminPanel.attachments')}:</strong>{' '}
@@ -188,10 +196,12 @@ export const AdminDebugPanel: React.FC<{
           <strong>{t('debug.adminPanel.receivedAt')}:</strong> {emailData.receivedAt}
         </div>
         <div>
-          <strong>{t('debug.adminPanel.isRead')}:</strong> {emailData.isRead ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
+          <strong>{t('debug.adminPanel.isRead')}:</strong>{' '}
+          {emailData.isRead ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
         </div>
         <div>
-          <strong>{t('debug.adminPanel.isArchived')}:</strong> {emailData.isArchived ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
+          <strong>{t('debug.adminPanel.isArchived')}:</strong>{' '}
+          {emailData.isArchived ? t('debug.adminPanel.true') : t('debug.adminPanel.false')}
         </div>
         <div
           style={{

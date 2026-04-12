@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddCategorySourceToEmailThread1790200000000
-  implements MigrationInterface
-{
+export class AddCategorySourceToEmailThread1790200000000 implements MigrationInterface {
   name = "AddCategorySourceToEmailThread1790200000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

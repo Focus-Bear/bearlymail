@@ -57,10 +57,7 @@ const ResetPassword: React.FC = () => {
     } catch (err: unknown) {
       if (import.meta.env.MODE !== ENV_PRODUCTION) {
         // eslint-disable-next-line no-console
-        console.error(
-          '[ResetPassword] Backend error:',
-          err instanceof Error ? err.message : String(err),
-        );
+        console.error('[ResetPassword] Backend error:', err instanceof Error ? err.message : String(err));
       }
       setError(t('auth.resetPasswordError'));
     } finally {
@@ -238,10 +235,7 @@ const ResetPassword: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: theme.spacing.md,
-                  backgroundColor:
-                    loading || !token
-                      ? theme.colors.border.medium
-                      : theme.colors.primary.main,
+                  backgroundColor: loading || !token ? theme.colors.border.medium : theme.colors.primary.main,
                   color: COLOR_NAMED_WHITE,
                   border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
@@ -252,20 +246,16 @@ const ResetPassword: React.FC = () => {
                 }}
                 onMouseOver={event => {
                   if (!loading && token) {
-                    event.currentTarget.style.backgroundColor =
-                      theme.colors.primary.dark;
+                    event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
                   }
                 }}
                 onMouseOut={event => {
                   if (!loading && token) {
-                    event.currentTarget.style.backgroundColor =
-                      theme.colors.primary.main;
+                    event.currentTarget.style.backgroundColor = theme.colors.primary.main;
                   }
                 }}
               >
-                {loading
-                  ? t('auth.resettingPassword')
-                  : t('auth.resetPassword.submit')}
+                {loading ? t('auth.resettingPassword') : t('auth.resetPassword.submit')}
               </button>
             </form>
 

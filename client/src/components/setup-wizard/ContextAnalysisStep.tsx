@@ -165,10 +165,9 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
     onComplete();
   }, [onComplete]);
 
-  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(
-    handleAnalysisComplete,
-    { isNewUserOnboarding: true },
-  );
+  const { analyzing, analyzeProgress, startAnalysis } = useAnalysisProgress(handleAnalysisComplete, {
+    isNewUserOnboarding: true,
+  });
 
   const hasStartedRef = useRef(false);
 
@@ -231,7 +230,7 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                   {analyzeProgress.progress.insights
                     .slice(-CONTEXT_ANALYSIS_RECENT_COUNT)
                     .reverse()
-                    .map((insight) => (
+                    .map(insight => (
                       <div key={`${insight.type}-${insight.message}`} style={insightItemStyle}>
                         {insight.message}
                       </div>

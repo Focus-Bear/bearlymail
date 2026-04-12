@@ -81,23 +81,26 @@ function useUserProfile() {
   const [emailSignature, setEmailSignature] = useState<string>('');
   const [savingSignature, setSavingSignature] = useState(false);
 
-  const updateProfile = useCallback(async (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => {
-    try {
-      await axios.put(`${API_URL}/users/me`, updates);
-      if (updates.displayName !== undefined) {
-        setDisplayName(updates.displayName);
+  const updateProfile = useCallback(
+    async (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => {
+      try {
+        await axios.put(`${API_URL}/users/me`, updates);
+        if (updates.displayName !== undefined) {
+          setDisplayName(updates.displayName);
+        }
+        if (updates.jobTitle !== undefined) {
+          setJobTitle(updates.jobTitle);
+        }
+        if (updates.calendarBookingUrl !== undefined) {
+          setCalendarBookingUrl(updates.calendarBookingUrl);
+        }
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        throw error;
       }
-      if (updates.jobTitle !== undefined) {
-        setJobTitle(updates.jobTitle);
-      }
-      if (updates.calendarBookingUrl !== undefined) {
-        setCalendarBookingUrl(updates.calendarBookingUrl);
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      throw error;
-    }
-  }, []);
+    },
+    []
+  );
 
   const handleSaveEmailSignature = useCallback(async (signature: string) => {
     try {
@@ -204,11 +207,21 @@ export function useSettingsData() {
     try {
       await Promise.all([
         fetchUserAndAccounts({
-          setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
-          setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature,
+          setGoogleAccounts,
+          setOffice365Accounts,
+          setZohoAccounts,
+          setDisplayName,
+          setJobTitle,
+          setCalendarBookingUrl,
+          setEmailSignature,
         }),
-        fetchSummarizationRules(), fetchContexts(), fetchBlockedSenders(),
-        fetchBlockedKeywords(), fetchBatchSchedule(), fetchToneRules(), fetchApiKeys(),
+        fetchSummarizationRules(),
+        fetchContexts(),
+        fetchBlockedSenders(),
+        fetchBlockedKeywords(),
+        fetchBatchSchedule(),
+        fetchToneRules(),
+        fetchApiKeys(),
       ]);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -216,27 +229,52 @@ export function useSettingsData() {
       setLoading(false);
     }
   }, [
-    fetchSummarizationRules, fetchContexts, fetchBlockedSenders, fetchBlockedKeywords,
-    fetchBatchSchedule, fetchToneRules, fetchApiKeys,
-    setGoogleAccounts, setOffice365Accounts, setZohoAccounts,
-    setDisplayName, setJobTitle, setCalendarBookingUrl, setEmailSignature,
+    fetchSummarizationRules,
+    fetchContexts,
+    fetchBlockedSenders,
+    fetchBlockedKeywords,
+    fetchBatchSchedule,
+    fetchToneRules,
+    fetchApiKeys,
+    setGoogleAccounts,
+    setOffice365Accounts,
+    setZohoAccounts,
+    setDisplayName,
+    setJobTitle,
+    setCalendarBookingUrl,
+    setEmailSignature,
   ]);
 
   const analysisProgress = useAnalysisProgress(fetchData);
 
   useEffect(() => {
-    captureEvent(ANALYTICS_EVENTS.SETTINGS_VIEWED, { section: window.location.hash ? window.location.hash.substring(1) : undefined });
+    captureEvent(ANALYTICS_EVENTS.SETTINGS_VIEWED, {
+      section: window.location.hash ? window.location.hash.substring(1) : undefined,
+    });
     fetchData();
   }, [fetchData]);
 
   const aliases = buildSettingsAliases({
-    analysisProgress, contextManagement, toneRules, apiKeys, summarizationRules, blockedSenders, blockedKeywords,
+    analysisProgress,
+    contextManagement,
+    toneRules,
+    apiKeys,
+    summarizationRules,
+    blockedSenders,
+    blockedKeywords,
   });
 
   return {
-    ...summarizationRules, ...blockedSenders, ...blockedKeywords,
-    ...contextManagement, ...batchSchedule, ...toneRules, ...apiKeys,
-    ...analysisProgress, ...accounts, ...aliases,
+    ...summarizationRules,
+    ...blockedSenders,
+    ...blockedKeywords,
+    ...contextManagement,
+    ...batchSchedule,
+    ...toneRules,
+    ...apiKeys,
+    ...analysisProgress,
+    ...accounts,
+    ...aliases,
     loading,
     displayName: profile.displayName,
     jobTitle: profile.jobTitle,

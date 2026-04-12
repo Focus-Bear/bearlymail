@@ -41,11 +41,9 @@ export function deduplicatedGet(url: string, signal?: AbortSignal): Promise<Axio
     return pending.get(key)!;
   }
 
-  const promise = axios
-    .get(url, { signal })
-    .finally(() => {
-      pending.delete(key);
-    });
+  const promise = axios.get(url, { signal }).finally(() => {
+    pending.delete(key);
+  });
 
   pending.set(key, promise);
   return promise;

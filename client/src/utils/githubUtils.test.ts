@@ -22,9 +22,7 @@ describe('emailMentionsGitHub', () => {
   });
 
   it('returns true when htmlBody contains "github"', () => {
-    expect(emailMentionsGitHub('Hi', 'Plain text', '<a href="https://github.com/org/repo">View PR</a>')).toBe(
-      true,
-    );
+    expect(emailMentionsGitHub('Hi', 'Plain text', '<a href="https://github.com/org/repo">View PR</a>')).toBe(true);
   });
 
   it('is case-insensitive — matches GitHub, GITHUB, gitHub', () => {

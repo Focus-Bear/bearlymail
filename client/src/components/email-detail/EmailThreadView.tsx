@@ -287,10 +287,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
               }
             />
             {singleCleanHtmlResult?.wasTruncated && (
-              <ExpandCollapseButton
-                isExpanded={isSingleBodyExpanded}
-                onToggle={() => toggleExpandedBody(email.id)}
-              />
+              <ExpandCollapseButton isExpanded={isSingleBodyExpanded} onToggle={() => toggleExpandedBody(email.id)} />
             )}
           </>
         ) : (
@@ -299,10 +296,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = React.memo(
               {isSingleBodyExpanded ? email.body : singleCleanBodyResult.text || email.body || ''}
             </div>
             {singleCleanBodyResult.wasTruncated && (
-              <ExpandCollapseButton
-                isExpanded={isSingleBodyExpanded}
-                onToggle={() => toggleExpandedBody(email.id)}
-              />
+              <ExpandCollapseButton isExpanded={isSingleBodyExpanded} onToggle={() => toggleExpandedBody(email.id)} />
             )}
           </>
         )}

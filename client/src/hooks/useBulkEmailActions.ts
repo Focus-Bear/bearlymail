@@ -137,14 +137,26 @@ export function useBulkEmailActions({
       captureEvent(ANALYTICS_EVENTS.BULK_ARCHIVE_CLICKED, { selected_count: emailIdsToArchive.length });
 
       const { emailsToArchive, categoryCountChanges } = collectArchiveTargets(emailIdsToArchive, emails);
-      applyOptimisticArchiveUpdates(dispatch, emailIdsToArchive, categoryCountChanges, mode, onTabCountsUpdateOptimistically);
+      applyOptimisticArchiveUpdates(
+        dispatch,
+        emailIdsToArchive,
+        categoryCountChanges,
+        mode,
+        onTabCountsUpdateOptimistically
+      );
 
       try {
         await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds: emailIdsToArchive });
         console.log(`[BulkArchive] Successfully archived ${emailIdsToArchive.length} emails`);
       } catch (error) {
         console.error('[BulkArchive] Failed to archive emails:', error);
-        revertOptimisticArchiveUpdates(dispatch, emailsToArchive, categoryCountChanges, mode, onTabCountsUpdateOptimistically);
+        revertOptimisticArchiveUpdates(
+          dispatch,
+          emailsToArchive,
+          categoryCountChanges,
+          mode,
+          onTabCountsUpdateOptimistically
+        );
       }
     },
     [dispatch, emails, onTabCountsUpdateOptimistically, mode]

@@ -46,7 +46,9 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
         }}
       >
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: '4px' }}>{email.subject}</div>
+          <div style={{ fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: '4px' }}>
+            {email.subject}
+          </div>
           <div style={{ fontSize: '14px', color: theme.colors.text.secondary, marginBottom: '4px' }}>
             {t('scheduledEmails.to')}: {formatRecipients(email)}
           </div>
@@ -81,7 +83,9 @@ const ScheduledEmailCard: React.FC<ScheduledEmailCardProps> = ({ email, onCancel
         <span
           style={{
             backgroundColor:
-              email.emailType === ACTION_TYPE_REPLY ? `${theme.colors.primary.main}20` : `${theme.colors.secondary.main}20`,
+              email.emailType === ACTION_TYPE_REPLY
+                ? `${theme.colors.primary.main}20`
+                : `${theme.colors.secondary.main}20`,
             padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '11px',

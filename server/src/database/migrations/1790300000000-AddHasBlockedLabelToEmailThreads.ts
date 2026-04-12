@@ -22,9 +22,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  *
  * Fixes: Issue #615 ("Show blocked emails" loads forever)
  */
-export class AddHasBlockedLabelToEmailThreads1790300000000
-  implements MigrationInterface
-{
+export class AddHasBlockedLabelToEmailThreads1790300000000 implements MigrationInterface {
   name = "AddHasBlockedLabelToEmailThreads1790300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

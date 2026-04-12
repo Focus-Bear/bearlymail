@@ -7,23 +7,23 @@
 
 ### ESLint Rule Configuration
 
-| Location | Setting | Notes |
-|----------|---------|-------|
-| `server/.eslintrc.js` | `'error'` | Already enforced in production code |
-| `server/.eslintrc.js` (tests) | `'warn'` | Override for `*.spec.ts` / `*.test.ts` — stays as-is |
-| `client/.eslintrc.js` | `'error'` ✅ **Phase 1 done** | Enabled in Phase 1 |
-| `client/.eslintrc.js` (tests) | `'warn'` | Override kept — tests excluded from this requirement |
-| `client/.eslintrc.js` (debug files) | `'off'` | Debug panels display raw internal state — `any` acceptable |
+| Location                            | Setting                       | Notes                                                      |
+| ----------------------------------- | ----------------------------- | ---------------------------------------------------------- |
+| `server/.eslintrc.js`               | `'error'`                     | Already enforced in production code                        |
+| `server/.eslintrc.js` (tests)       | `'warn'`                      | Override for `*.spec.ts` / `*.test.ts` — stays as-is       |
+| `client/.eslintrc.js`               | `'error'` ✅ **Phase 1 done** | Enabled in Phase 1                                         |
+| `client/.eslintrc.js` (tests)       | `'warn'`                      | Override kept — tests excluded from this requirement       |
+| `client/.eslintrc.js` (debug files) | `'off'`                       | Debug panels display raw internal state — `any` acceptable |
 
 ### Violation Census (Updated)
 
-| Scope | Files | Occurrences | Status |
-|-------|-------|-------------|--------|
-| **Server production code** | 0 | 0 | ✅ Already clean |
-| **Server test files** | ~25 | ~341 | ✅ Excluded (tests OK) |
-| **Client production code** | ~55 | ~184 | ✅ Phase 1 complete |
-| **Client test files** | 0 | 0 | ✅ Already clean |
-| **Client debug panels** | ~3 | ~15 | ✅ Excluded via ESLint override |
+| Scope                      | Files | Occurrences | Status                          |
+| -------------------------- | ----- | ----------- | ------------------------------- |
+| **Server production code** | 0     | 0           | ✅ Already clean                |
+| **Server test files**      | ~25   | ~341        | ✅ Excluded (tests OK)          |
+| **Client production code** | ~55   | ~184        | ✅ Phase 1 complete             |
+| **Client test files**      | 0     | 0           | ✅ Already clean                |
+| **Client debug panels**    | ~3    | ~15         | ✅ Excluded via ESLint override |
 
 ---
 
@@ -44,14 +44,17 @@
 ### Files Fixed (Phase 1)
 
 **Type infrastructure:**
+
 - `types/email.ts` — added `debugInfo`, `otherPersonName` fields
 - `components/inbox/inbox.types.ts` — NEW: derived `InboxPriorityTooltip`, `InboxKeyboardHint`, `InboxSnoozeInput`, `InboxEmailActions`, `InboxModals` types
 
 **Utilities:**
+
 - `utils/dev-logger.ts` — `any[]` → `unknown[]` for variadic log args
 - `hooks/usePollingWithBackoff.ts` — `(error as any)?.response` → typed narrowing
 
 **Components:**
+
 - `components/inbox/CategorySection.tsx` — all `any` props replaced with proper types
 - `components/inbox/InboxContent.tsx` — all `any` props replaced
 - `components/inbox/InboxContentParts.tsx` — all `any` props replaced; `(email as any)` casts removed
@@ -81,6 +84,7 @@
 - `components/quick-actions/modals/GitHubSearchIssuesModal.tsx` — `any[]` → `IssueResult[]`
 
 **Hooks:**
+
 - `hooks/buildReplyAllRecipients.ts` — `latestEmail: any` → `Email`
 - `hooks/settings/useAnalysisProgress.ts` — `progressData: any` → `NonNullable<AnalyzeProgress['progress']>`
 - `hooks/useEmailDetailArchiveOps.ts` — `emailToArchive: any`, `emailToSnooze: any`, `emails: any[]` → typed
@@ -107,6 +111,7 @@
 - `hooks/useSettingsData.ts` — account types defined and used
 
 **Pages:**
+
 - `pages/Compose.tsx` — `(err: any)` → `(err: unknown)` with typed Axios narrowing
 - `pages/EmailDetail.tsx` — comprehensive: `React.FC<any>` → proper interfaces; `st.email as any` removed; `action: any` callbacks typed
 - `pages/Inbox.tsx` — `emails: any[]` → `Email[]`
@@ -125,4 +130,4 @@ Server test files remain with `'warn'` (intentionally excluded per Jeremy's inst
 
 ---
 
-*Implemented by Captain Codebeard 🐻☠️ — "Ship working code, not promises."*
+_Implemented by Captain Codebeard 🐻☠️ — "Ship working code, not promises."_

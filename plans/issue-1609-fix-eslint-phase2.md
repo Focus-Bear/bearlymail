@@ -18,33 +18,34 @@
 
 ### Client — 212 Warnings Remaining
 
-| Count | Rule | Category |
-|------:|------|----------|
-| 83 | `max-lines-per-function` | Function too long (>100 lines) |
-| 59 | `no-restricted-syntax` | Magic strings (comparisons, colors, i18n) |
-| 26 | `id-denylist` | Generic variable names (`data`, `val`, etc.) |
-| 13 | `no-nested-ternary` | Nested ternary expressions |
-| 10 | `max-statements` | Too many statements (>30) |
-| 8 | `react-hooks/exhaustive-deps` | Missing hook dependencies |
-| 6 | `complexity` | Cyclomatic complexity >20 |
-| 5 | `react/no-array-index-key` | Array index used as React key |
-| 1 | `max-lines` | File >800 lines |
-| 1 | `no-restricted-imports` | Relative import in story file |
+| Count | Rule                          | Category                                     |
+| ----: | ----------------------------- | -------------------------------------------- |
+|    83 | `max-lines-per-function`      | Function too long (>100 lines)               |
+|    59 | `no-restricted-syntax`        | Magic strings (comparisons, colors, i18n)    |
+|    26 | `id-denylist`                 | Generic variable names (`data`, `val`, etc.) |
+|    13 | `no-nested-ternary`           | Nested ternary expressions                   |
+|    10 | `max-statements`              | Too many statements (>30)                    |
+|     8 | `react-hooks/exhaustive-deps` | Missing hook dependencies                    |
+|     6 | `complexity`                  | Cyclomatic complexity >20                    |
+|     5 | `react/no-array-index-key`    | Array index used as React key                |
+|     1 | `max-lines`                   | File >800 lines                              |
+|     1 | `no-restricted-imports`       | Relative import in story file                |
 
 #### `no-restricted-syntax` Breakdown (59 total)
 
-| Count | Sub-category |
-|------:|-------------|
-| 45 | Magic strings in comparisons (`===`, `!==` with string literals) |
-| 10 | Inline color magic strings in JSX `style` props |
-| 2 | Inline color magic strings in style assignments |
-| 2 | String literals in JSX ternary (should use `t()` for i18n) |
+| Count | Sub-category                                                     |
+| ----: | ---------------------------------------------------------------- |
+|    45 | Magic strings in comparisons (`===`, `!==` with string literals) |
+|    10 | Inline color magic strings in JSX `style` props                  |
+|     2 | Inline color magic strings in style assignments                  |
+|     2 | String literals in JSX ternary (should use `t()` for i18n)       |
 
 ---
 
 ## Phased Fix Plan
 
 ### Phase 2A — Quick Wins (est. 1–2 hours)
+
 **Target: 15 warnings eliminated**
 
 1. **`no-restricted-imports` (1 warning)**
@@ -60,6 +61,7 @@
    - Extract helper functions or split into focused hooks
 
 ### Phase 2B — Magic Strings & Colors (est. 3–4 hours)
+
 **Target: 59 warnings eliminated**
 
 Priority sub-phases:
@@ -78,6 +80,7 @@ Priority sub-phases:
    - Already in JSX expression containers — straightforward i18n wrapping
 
 ### Phase 2C — Variable Renames (est. 1–2 hours)
+
 **Target: 26 warnings eliminated**
 
 - Rename generic identifiers (`data`, `val`, `cb`, etc.) to descriptive names
@@ -93,6 +96,7 @@ Priority sub-phases:
 ⚠️ **Note:** `DebugPrioritySection.tsx` is in the `debug/` directory but NOT under the glob `**/debug/**/*.tsx` — verify if the override applies. If not, either add to the override or rename the variables.
 
 ### Phase 2D — React Best Practices (est. 2–3 hours)
+
 **Target: 13 warnings eliminated**
 
 1. **`react-hooks/exhaustive-deps` (8 warnings)**
@@ -105,6 +109,7 @@ Priority sub-phases:
    - Files: `ActionBuilder.tsx` (2), `VisualCategoryFilter.tsx` (1), `ConditionBuilder.tsx` (1), `WorkflowExecutionHistory.tsx` (1)
 
 ### Phase 2E — Function Complexity (est. 4–6 hours)
+
 **Target: 99 warnings eliminated**
 
 This is the largest batch and should be done incrementally.
@@ -124,6 +129,7 @@ This is the largest batch and should be done incrementally.
    - Files: `EmailDetailActions.tsx`, `IcsInviteCard.tsx`, `CategoryDebugModal.tsx`, `TeamSettingsSection.tsx`, `useInboxKeyboardNavigation.ts`, `mockEmail.ts`
 
 ### Phase 2F — Lock It Down (est. 30 min)
+
 **Target: Prevent future regressions**
 
 1. Promote all client `warn` rules to `error`:
@@ -180,6 +186,7 @@ Total: ~7-9 PRs across ~12-18 hours of work
 > Also review overrides in server — I think we're not blocking magic strings or numbers yet + some other bad practices that are being allowed.
 
 **Finding:** Server ESLint config already enforces:
+
 - `@typescript-eslint/no-magic-numbers` → `error` ✅
 - `no-restricted-syntax` with `getPrompt()`, `captureEvent()`, and `tier`/`eventName` selectors → `error` ✅
 - `no-nested-ternary` → `error` ✅
@@ -193,10 +200,10 @@ Server overrides are appropriately scoped (test files, config files, scripts, ty
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| `exhaustive-deps` fixes cause infinite loops | Test each hook change in isolation; add integration tests |
-| Function splits break component state | Keep state in parent; pass via props to extracted children |
-| Magic string constants create import churn | Group constants by domain (e.g., `constants/ics.ts`, `constants/priorities.ts`) |
-| Large number of PRs creates merge conflicts | Merge each phase before starting next; rebase frequently |
-| `DebugPrioritySection` may already be covered by override | Verify before renaming — if override applies, skip |
+| Risk                                                      | Mitigation                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `exhaustive-deps` fixes cause infinite loops              | Test each hook change in isolation; add integration tests                       |
+| Function splits break component state                     | Keep state in parent; pass via props to extracted children                      |
+| Magic string constants create import churn                | Group constants by domain (e.g., `constants/ics.ts`, `constants/priorities.ts`) |
+| Large number of PRs creates merge conflicts               | Merge each phase before starting next; rebase frequently                        |
+| `DebugPrioritySection` may already be covered by override | Verify before renaming — if override applies, skip                              |

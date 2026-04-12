@@ -24,7 +24,7 @@ describe('useFollowUps', () => {
     jest.useFakeTimers();
     console.error = jest.fn();
     // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
-    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation((err) => err?.isAxiosError === true);
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation(err => err?.isAxiosError === true);
     mockedUseFollowUpPolling.mockReturnValue({
       startGenerationPolling: mockStartGenerationPolling,
     });

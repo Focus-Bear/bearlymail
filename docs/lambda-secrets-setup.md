@@ -87,24 +87,24 @@ Add the following steps to `.github/workflows/deploy.yml` in the `deploy` job,
 **before** the "CDK Deploy (infrastructure changes only)" section:
 
 ```yaml
-      # ============================================
-      # Lambda: Build batch-analyzer for deployment
-      # ============================================
-      - name: Install Lambda dependencies
-        working-directory: lambda/batch-analyzer
-        run: npm ci --legacy-peer-deps
+# ============================================
+# Lambda: Build batch-analyzer for deployment
+# ============================================
+- name: Install Lambda dependencies
+  working-directory: lambda/batch-analyzer
+  run: npm ci --legacy-peer-deps
 
-      - name: Build Lambda
-        working-directory: lambda/batch-analyzer
-        run: npm run build
+- name: Build Lambda
+  working-directory: lambda/batch-analyzer
+  run: npm run build
 ```
 
 And **after** the `CDK Deploy Application Stack` step, add:
 
 ```yaml
-      - name: CDK Deploy Context Analysis Stack
-        working-directory: infrastructure
-        run: |
-          cdk deploy BearlyMailContextAnalysisStack \
-            --require-approval never
+- name: CDK Deploy Context Analysis Stack
+  working-directory: infrastructure
+  run: |
+    cdk deploy BearlyMailContextAnalysisStack \
+      --require-approval never
 ```

@@ -68,10 +68,7 @@ export interface ItemDemoProps {
   animating?: 'archive' | 'priority' | null;
 }
 
-export const ItemDemo: React.FC<ItemDemoProps> = ({
-  isSelected = false,
-  animating = null,
-}) => (
+export const ItemDemo: React.FC<ItemDemoProps> = ({ isSelected = false, animating = null }) => (
   <I18nextProvider i18n={emailListItemI18n}>
     <div style={{ maxWidth: 700 }}>
       <EmailListItemView
@@ -80,9 +77,7 @@ export const ItemDemo: React.FC<ItemDemoProps> = ({
         mode="triage"
         isSelected={isSelected}
         suggestion={null}
-        animatingOutType={
-          animating === 'archive' ? 'archive' : animating === 'priority' ? 'priority' : null
-        }
+        animatingOutType={animating === 'archive' ? 'archive' : animating === 'priority' ? 'priority' : null}
         animatingOutStarCount={animating === 'priority' ? 3 : undefined}
         priorityTooltip={defaultPriorityTooltip}
         keyboardHint={defaultKeyboardHint}
@@ -92,7 +87,7 @@ export const ItemDemo: React.FC<ItemDemoProps> = ({
         onSetStarCount={async (_id, count) => console.log('Set star count:', count)}
         onArchive={async (_id, _evt) => console.log('Archive')}
         onBlockSender={(_id, _evt) => console.log('Block sender')}
-        onSnooze={async (_id) => console.log('Snooze')}
+        onSnooze={async _id => console.log('Snooze')}
       />
     </div>
   </I18nextProvider>

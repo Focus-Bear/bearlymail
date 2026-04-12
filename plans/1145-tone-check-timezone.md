@@ -14,10 +14,10 @@
 
 Two call sites both create `currentTime` using bare `new Date().toISOString()` (UTC):
 
-| File | Line | Code |
-|------|------|------|
-| `client/src/hooks/useEmailDetailToneCheck.ts` | 32 | `const currentTime = new Date().toISOString();` |
-| `client/src/hooks/useEmailDetailOperations.ts` | 785 | `currentTime: new Date().toISOString(),` |
+| File                                           | Line | Code                                            |
+| ---------------------------------------------- | ---- | ----------------------------------------------- |
+| `client/src/hooks/useEmailDetailToneCheck.ts`  | 32   | `const currentTime = new Date().toISOString();` |
+| `client/src/hooks/useEmailDetailOperations.ts` | 785  | `currentTime: new Date().toISOString(),`        |
 
 Both pass this UTC timestamp to `POST /llm/check-tone` as `{ currentTime, ... }`.
 
@@ -37,10 +37,12 @@ The LLM then interprets "Current local time" as the user's local time — but th
 The user's timezone is stored in the `BatchSchedule` entity as `timezone: string` (IANA format, e.g. `"Australia/Melbourne"`).
 
 On the client, it is loaded via:
+
 - `client/src/hooks/settings/useBatchSchedule.ts` → `batchSchedule.timezone`
 - Available throughout the settings page via `useSettingsData`
 
 **However**, it is NOT currently accessible in the tone check hooks:
+
 - `useEmailDetailToneCheck` and `useEmailDetailOperations` do not receive or reference `batchSchedule`.
 
 ### The fix approach
@@ -69,23 +71,24 @@ export function getCurrentTimeInTimezone(timezone?: string): string {
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   try {
     // Format the current moment as a local ISO-like string in the given timezone
-    const formatter = new Intl.DateTimeFormat('en-CA', {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: false,
     });
     // en-CA gives us YYYY-MM-DD; combine with time parts
     const parts = formatter.formatToParts(new Date());
-    const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
-    return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`;
+    const get = (type: string) =>
+      parts.find((p) => p.type === type)?.value ?? "00";
+    return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
   } catch {
     // If the timezone is invalid, fall back to browser local
-    return new Date().toLocaleString('sv').replace(' ', 'T');
+    return new Date().toLocaleString("sv").replace(" ", "T");
   }
 }
 ```
@@ -133,6 +136,7 @@ currentTime: getCurrentTimeInTimezone(batchSchedule?.timezone),
 ### Step 4 — Pass timezone from call sites
 
 **Files to update:**
+
 - `client/src/hooks/useEmailDetailReplies.ts` — calls `checkTone(draft, scheduledSendAt)`, needs to pass `timezone`
 - `client/src/pages/Compose.tsx` — calls `checkTone(form.body.trim())`, needs to pass `timezone`
 
@@ -147,15 +151,18 @@ In both cases, the `batchSchedule.timezone` must be available. Options:
 ```ts
 // useEmailDetailToneCheck.ts additions:
 const [userTimezone, setUserTimezone] = useState<string>(
-  Intl.DateTimeFormat().resolvedOptions().timeZone
+  Intl.DateTimeFormat().resolvedOptions().timeZone,
 );
 
 useEffect(() => {
-  axios.get(`${API_URL}/batch-schedule`)
-    .then(res => {
+  axios
+    .get(`${API_URL}/batch-schedule`)
+    .then((res) => {
       if (res.data?.timezone) setUserTimezone(res.data.timezone);
     })
-    .catch(() => { /* silently fall back to browser timezone */ });
+    .catch(() => {
+      /* silently fall back to browser timezone */
+    });
 }, []);
 ```
 
@@ -168,6 +175,7 @@ Do the same in `useEmailDetailOperations.ts` if it's not refactored to delegate 
 **File:** `client/src/utils/timezoneUtils.test.ts` (new file)
 
 Test cases:
+
 - Returns a string with correct local hour for `Australia/Melbourne` vs UTC (use a fixed mock `Date`)
 - Falls back to browser timezone for invalid/empty timezone
 - Output format is ISO 8601 without timezone offset suffix
@@ -175,6 +183,7 @@ Test cases:
 **File:** `client/src/hooks/useEmailDetailToneCheck.test.ts` (new or update existing)
 
 Test cases:
+
 - When batch schedule timezone is `Australia/Melbourne`, `currentTime` sent to the API uses Melbourne local time, not UTC
 - When batch schedule is unavailable, falls back to browser timezone
 
@@ -182,14 +191,14 @@ Test cases:
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/utils/timezoneUtils.ts` | **New** — `getCurrentTimeInTimezone(timezone?)` helper |
-| `client/src/utils/timezoneUtils.test.ts` | **New** — unit tests for helper |
-| `client/src/hooks/useEmailDetailToneCheck.ts` | Fetch user timezone on mount; use `getCurrentTimeInTimezone` |
+| File                                           | Change                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------- |
+| `client/src/utils/timezoneUtils.ts`            | **New** — `getCurrentTimeInTimezone(timezone?)` helper                           |
+| `client/src/utils/timezoneUtils.test.ts`       | **New** — unit tests for helper                                                  |
+| `client/src/hooks/useEmailDetailToneCheck.ts`  | Fetch user timezone on mount; use `getCurrentTimeInTimezone`                     |
 | `client/src/hooks/useEmailDetailOperations.ts` | Replace `new Date().toISOString()` with `getCurrentTimeInTimezone(userTimezone)` |
-| `client/src/hooks/useEmailDetailReplies.ts` | Pass timezone to `checkTone` if signature changes |
-| `client/src/pages/Compose.tsx` | Pass timezone to `checkTone` if signature changes |
+| `client/src/hooks/useEmailDetailReplies.ts`    | Pass timezone to `checkTone` if signature changes                                |
+| `client/src/pages/Compose.tsx`                 | Pass timezone to `checkTone` if signature changes                                |
 
 **Server-side changes: NONE required.**  
 The LLM prompt already says "Current local time" and interprets it correctly once the client sends the right value. No server prompt changes needed.
@@ -216,4 +225,4 @@ The LLM prompt already says "Current local time" and interprets it correctly onc
 
 ---
 
-*Plan by Monk of Modularity (OpenClaw agent) for issue #1145*
+_Plan by Monk of Modularity (OpenClaw agent) for issue #1145_

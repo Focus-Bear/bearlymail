@@ -28,7 +28,7 @@ import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { AuthContext } from 'contexts/AuthContext';
 import emailReducer from 'store/slices/emailSlice';
 
-import { makeMockEmail,MOCK_EMAIL_NEWSLETTER, MOCK_EMAIL_WORK } from './storyHelpers/mockEmail';
+import { makeMockEmail, MOCK_EMAIL_NEWSLETTER, MOCK_EMAIL_WORK } from './storyHelpers/mockEmail';
 
 // ---------------------------------------------------------------------------
 // Mock Redux store (email slice with pre-loaded emails)
@@ -72,8 +72,8 @@ const SplitViewPanelWrapper: React.FC<{
   const emailDetailRef = createRef<HTMLDivElement | null>();
   const getDetailFlex = () => {
     if (isMobile || panelExpanded) {
- return '1'; 
-}
+      return '1';
+    }
     return `0 0 ${100 - splitPosition}%`;
   };
   const detailFlex = getDetailFlex();

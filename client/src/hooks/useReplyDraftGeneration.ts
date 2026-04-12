@@ -157,9 +157,18 @@ function useReplyGenerationState(): ReplyGenerationState {
   const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
   const [debugInfo, setDebugInfo] = useState<ReplyGenerationDebugInfo | null>(null);
   return {
-    replyOptions, setReplyOptions, selectedReplyOption, setSelectedReplyOption,
-    draft, setDraft, loadingReplies, setLoadingReplies,
-    isGeneratingInBackground, setIsGeneratingInBackground, debugInfo, setDebugInfo,
+    replyOptions,
+    setReplyOptions,
+    selectedReplyOption,
+    setSelectedReplyOption,
+    draft,
+    setDraft,
+    loadingReplies,
+    setLoadingReplies,
+    isGeneratingInBackground,
+    setIsGeneratingInBackground,
+    debugInfo,
+    setDebugInfo,
   };
 }
 
@@ -194,9 +203,18 @@ export function useReplyDraftGeneration(
 ) {
   const { autoGenerate = false } = options;
   const {
-    replyOptions, setReplyOptions, selectedReplyOption, setSelectedReplyOption,
-    draft, setDraft, loadingReplies, setLoadingReplies,
-    isGeneratingInBackground, setIsGeneratingInBackground, debugInfo, setDebugInfo,
+    replyOptions,
+    setReplyOptions,
+    selectedReplyOption,
+    setSelectedReplyOption,
+    draft,
+    setDraft,
+    loadingReplies,
+    setLoadingReplies,
+    isGeneratingInBackground,
+    setIsGeneratingInBackground,
+    debugInfo,
+    setDebugInfo,
   } = useReplyGenerationState();
   const lastGeneratedEmailId = useRef<string | null>(null);
   const currentGenerationEmailIdRef = useRef<string | null>(null);
@@ -215,7 +233,14 @@ export function useReplyDraftGeneration(
       }
       currentGenerationEmailIdRef.current = null;
       threadIdUsedForFetchRef.current = null;
-      resetReplyGenerationState({ setReplyOptions, setSelectedReplyOption, setDraft, setLoadingReplies, setIsGeneratingInBackground, setDebugInfo });
+      resetReplyGenerationState({
+        setReplyOptions,
+        setSelectedReplyOption,
+        setDraft,
+        setLoadingReplies,
+        setIsGeneratingInBackground,
+        setDebugInfo,
+      });
     }
     previousEmailIdRef.current = newEmailId;
   };
@@ -280,7 +305,17 @@ export function useReplyDraftGeneration(
         setIsGeneratingInBackground(false);
       }
     }
-  }, [emailId, email, fetchPreGeneratedReplies, generateRepliesOnDemand, setDebugInfo, setIsGeneratingInBackground, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
+  }, [
+    emailId,
+    email,
+    fetchPreGeneratedReplies,
+    generateRepliesOnDemand,
+    setDebugInfo,
+    setIsGeneratingInBackground,
+    setLoadingReplies,
+    setReplyOptions,
+    setSelectedReplyOption,
+  ]);
 
   useEffect(() => {
     if (autoGenerate && emailId && email && lastGeneratedEmailId.current !== emailId) {
@@ -288,5 +323,16 @@ export function useReplyDraftGeneration(
     }
   }, [autoGenerate, emailId, email, handleGenerateDraft]);
 
-  return { replyOptions, selectedReplyOption, draft, loadingReplies, isGeneratingInBackground, debugInfo, setReplyOptions, setDraft, setSelectedReplyOption, handleGenerateDraft };
+  return {
+    replyOptions,
+    selectedReplyOption,
+    draft,
+    loadingReplies,
+    isGeneratingInBackground,
+    debugInfo,
+    setReplyOptions,
+    setDraft,
+    setSelectedReplyOption,
+    handleGenerateDraft,
+  };
 }

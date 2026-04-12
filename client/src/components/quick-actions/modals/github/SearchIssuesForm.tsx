@@ -42,8 +42,10 @@ export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({ query, loadi
             cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,
           }}
->
-          {loading ? t('quickActions.searching', { defaultValue: 'Searching...' }) : t('common.search', { defaultValue: 'Search' })}
+        >
+          {loading
+            ? t('quickActions.searching', { defaultValue: 'Searching...' })
+            : t('common.search', { defaultValue: 'Search' })}
         </button>
       </div>
     </form>

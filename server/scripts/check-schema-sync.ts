@@ -24,15 +24,17 @@ async function checkSchemaSync(): Promise<void> {
   await dataSource.initialize();
 
   try {
-    console.log(`[${SCHEMA_SYNC_SCRIPT}] Comparing entity definitions to live schema…`);
-    const sqlInMemory = await dataSource.driver
-      .createSchemaBuilder()
-      .log();
+    console.log(
+      `[${SCHEMA_SYNC_SCRIPT}] Comparing entity definitions to live schema…`,
+    );
+    const sqlInMemory = await dataSource.driver.createSchemaBuilder().log();
 
     const pendingQueries = sqlInMemory.upQueries;
 
     if (pendingQueries.length === 0) {
-      console.log(`[${SCHEMA_SYNC_SCRIPT}] ✅ Schema is in sync — no drift detected.`);
+      console.log(
+        `[${SCHEMA_SYNC_SCRIPT}] ✅ Schema is in sync — no drift detected.`,
+      );
       return;
     }
 

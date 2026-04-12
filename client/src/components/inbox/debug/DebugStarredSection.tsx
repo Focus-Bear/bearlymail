@@ -117,14 +117,12 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
               Starred Sync Check Results — {debugStarredData.summary?.gmailStarredCount ?? 0} Gmail starred threads
             </h4>
             {debugStarredData.gmailError && (
-              <p style={{ color: 'red', marginTop: 0 }}>
-                Gmail error: {debugStarredData.gmailError}
-              </p>
+              <p style={{ color: 'red', marginTop: 0 }}>Gmail error: {debugStarredData.gmailError}</p>
             )}
             {debugStarredData.summary && (
               <p style={{ marginTop: 0 }}>
                 {debugStarredData.summary.foundInDb} of {debugStarredData.summary.gmailStarredCount} starred Gmail
-                threads are in the DB. {debugStarredData.summary.notInDb} are missing. {' '}
+                threads are in the DB. {debugStarredData.summary.notInDb} are missing.{' '}
                 {debugStarredData.summary.inActionOrFollowUp} appear in Action/Follow-up.
               </p>
             )}

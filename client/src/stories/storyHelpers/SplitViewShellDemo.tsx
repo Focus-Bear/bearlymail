@@ -26,9 +26,8 @@ export const MockEmailDetailPane: React.FC<{ emailId?: string }> = ({ emailId })
     <div style={{ marginBottom: '8px', fontWeight: 600, color: '#111827' }}>📧 Mock Email Detail</div>
     <div>Email ID: {emailId ?? 'email-001'}</div>
     <div style={{ marginTop: '12px' }}>
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut
-      labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
-      laboris.
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore
+      magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
     </div>
     <div style={{ marginTop: '12px', padding: '12px', background: '#F3F4F6', borderRadius: '8px' }}>
       <strong>Reply from Alice:</strong> Thanks for following up! I'll get back to you by end of week.
@@ -59,9 +58,7 @@ export const ShellDemo: React.FC<ShellDemoProps> = ({
   const [archived, setArchived] = useState(false);
 
   if (archived) {
-    return (
-      <div style={{ padding: '16px', color: '#059669', fontWeight: 500 }}>✅ Email archived!</div>
-    );
+    return <div style={{ padding: '16px', color: '#059669', fontWeight: 500 }}>✅ Email archived!</div>;
   }
 
   const selectedEmail = showEmail

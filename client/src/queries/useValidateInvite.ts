@@ -12,9 +12,7 @@ export interface InviteInfo {
 }
 
 async function validateInvite(token: string): Promise<InviteInfo> {
-  const { data } = await axios.get<InviteInfo>(
-    `${API_URL}/organizations/invite/${token}`,
-  );
+  const { data } = await axios.get<InviteInfo>(`${API_URL}/organizations/invite/${token}`);
   return data;
 }
 

@@ -162,10 +162,7 @@ const TokenUsageTableRow: React.FC<UsageTableRowProps> = ({ item, index, noDataL
         padding: theme.spacing.md,
         textAlign: 'center',
         color: item.htmlCallCount > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
-        fontWeight:
-          item.htmlCallCount > 0
-            ? theme.typography.fontWeight.semibold
-            : theme.typography.fontWeight.normal,
+        fontWeight: item.htmlCallCount > 0 ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
         borderRight: TD_BORDER_RIGHT,
       }}
     >

@@ -87,9 +87,7 @@ const InteractiveEmailCategorySection: React.FC<{
 }> = ({ initialContexts, initialEditingId = null, initialAdding = false, isInitiallyExpanded = true }) => {
   const { t } = useTranslation();
   const [contexts, setContexts] = useState<UserContextRow[]>(initialContexts);
-  const [addingContextType, setAddingContextType] = useState<string | null>(
-    initialAdding ? 'EMAIL_CATEGORY' : null
-  );
+  const [addingContextType, setAddingContextType] = useState<string | null>(initialAdding ? 'EMAIL_CATEGORY' : null);
   const [editingContextId, setEditingContextId] = useState<string | null>(initialEditingId);
   const [editContextValue, setEditContextValue] = useState(() => {
     if (initialEditingId) {
@@ -182,10 +180,7 @@ export const EmptyAddCategory: Story = {
 export const EditingCategoryName: Story = {
   render: () => (
     <Wrapper>
-      <InteractiveEmailCategorySection
-        initialContexts={MOCK_CATEGORIES}
-        initialEditingId="cat-finance"
-      />
+      <InteractiveEmailCategorySection initialContexts={MOCK_CATEGORIES} initialEditingId="cat-finance" />
     </Wrapper>
   ),
 };

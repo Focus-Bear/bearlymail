@@ -35,9 +35,7 @@ function appendCategoriesList(lines: string[], categories: CategoryDebugData['em
   } else {
     categories.forEach(cat => {
       const keyPart = cat.categoryKey ? ` [key: ${cat.categoryKey}]` : '';
-      lines.push(
-        `- **${cat.name}** (context ${cat.id})${keyPart}${cat.description ? `: ${cat.description}` : ''}`,
-      );
+      lines.push(`- **${cat.name}** (context ${cat.id})${keyPart}${cat.description ? `: ${cat.description}` : ''}`);
     });
   }
   lines.push('');
@@ -105,23 +103,27 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
     lines.push(
       win
         ? `- **Deterministic winner**: ${win.categoryName} (${winLabel}, id ${win.ruleId})`
-        : '- **Deterministic winner**: none',
+        : '- **Deterministic winner**: none'
     );
     lines.push('- **Rule evaluations**:');
     tr.deterministicRules.evaluations.forEach(evaluation => {
       const kindLabel =
         evaluation.ruleKind === CATEGORY_RULE_KIND_COMPOSITE
           ? CATEGORY_RULE_KIND_COMPOSITE
-          : evaluation.ruleType ?? 'legacy';
+          : (evaluation.ruleType ?? 'legacy');
       let extra = '';
       if (evaluation.ruleKind === CATEGORY_RULE_KIND_COMPOSITE && evaluation.compositeDetail) {
         const compositeDetail = evaluation.compositeDetail;
-        const matchedSender = compositeDetail.senderMatchedValue ? ` matchedSender=${compositeDetail.senderMatchedValue}` : '';
-        const matchedSubject = compositeDetail.subjectMatchedValue ? ` matchedSubject=${compositeDetail.subjectMatchedValue}` : '';
+        const matchedSender = compositeDetail.senderMatchedValue
+          ? ` matchedSender=${compositeDetail.senderMatchedValue}`
+          : '';
+        const matchedSubject = compositeDetail.subjectMatchedValue
+          ? ` matchedSubject=${compositeDetail.subjectMatchedValue}`
+          : '';
         extra = ` | sender=${compositeDetail.senderMatch}${matchedSender} subject=${compositeDetail.subjectMatch}${matchedSubject} body=${compositeDetail.bodyMatch} phrase=${compositeDetail.bodyMatchedPhrase ?? '—'}`;
       }
       lines.push(
-        `  - [${kindLabel}] ${evaluation.categoryName} | patternMatch=${evaluation.patternMatches} enabled=${evaluation.isEnabled} winning=${evaluation.isWinningRule} hits=${evaluation.hitCount}${extra}`,
+        `  - [${kindLabel}] ${evaluation.categoryName} | patternMatch=${evaluation.patternMatches} enabled=${evaluation.isEnabled} winning=${evaluation.isWinningRule} hits=${evaluation.hitCount}${extra}`
       );
     });
     lines.push(`- **Shortlist skipped**: ${tr.shortlist.skipped}`);
@@ -141,9 +143,7 @@ export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
         lines.push(`- **Smart model confidence**: ${tr.smartModel.categoryConfidence}`);
       }
       if (tr.smartModel.llmCategoryBeforeRuleOverride !== undefined) {
-        lines.push(
-          `- **LLM category before rule override**: ${tr.smartModel.llmCategoryBeforeRuleOverride || 'None'}`,
-        );
+        lines.push(`- **LLM category before rule override**: ${tr.smartModel.llmCategoryBeforeRuleOverride || 'None'}`);
         if (tr.smartModel.llmExplanationBeforeRuleOverride) {
           lines.push(`  - ${tr.smartModel.llmExplanationBeforeRuleOverride}`);
         }

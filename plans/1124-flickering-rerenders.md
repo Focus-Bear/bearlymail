@@ -51,18 +51,24 @@ This `logout` is passed directly to `useAuthInitialization` as a parameter. Insi
 ```ts
 // useEmailProcessingPolling.ts
 useEffect(() => {
-  const processingEmails = emails.filter(e => e.isProcessingPriority || e.isProcessingSummary);
+  const processingEmails = emails.filter(
+    (e) => e.isProcessingPriority || e.isProcessingSummary,
+  );
   if (processingEmails.length === 0) return;
 
   const interval = setInterval(() => {
-    const stillProcessing = emails.some(e => e.isProcessingPriority || e.isProcessingSummary);
+    const stillProcessing = emails.some(
+      (e) => e.isProcessingPriority || e.isProcessingSummary,
+    );
     if (stillProcessing) {
       onPoll();
     }
   }, LONG_TIMEOUT_MS);
 
   return () => clearInterval(interval);
-}, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]);
+}, [
+  emails.filter((e) => e.isProcessingPriority || e.isProcessingSummary).length,
+]);
 ```
 
 **The dep array expression `emails.filter(...).length` is computed inline.** While `.length` is a primitive (safe), the filter call runs on every render pass through the hook. This is not the flickering cause itself, but it means the effect is sensitive to `emails` array identity changes.
@@ -73,7 +79,10 @@ useEffect(() => {
 
 ```ts
 // useGitHubBatchFetch.ts
-const emailIdsKey = emails.map(e => e.id).sort().join(',');
+const emailIdsKey = emails
+  .map((e) => e.id)
+  .sort()
+  .join(",");
 if (fetchedForRef.current === emailIdsKey) return;
 ```
 
@@ -97,7 +106,8 @@ Check `client/src/store/selectors/emailSelectors.ts` — if `selectVisibleEmails
 
 ```tsx
 if (import.meta.env.DEV) {
-  const { default: whyDidYouRender } = await import('@welldone-software/why-did-you-render');
+  const { default: whyDidYouRender } =
+    await import("@welldone-software/why-did-you-render");
   whyDidYouRender(React, {
     trackAllPureComponents: true,
     logOnDifferentValues: true,
@@ -110,7 +120,12 @@ if (import.meta.env.DEV) {
 ```ts
 const renderCountRef = useRef(0);
 renderCountRef.current++;
-console.log('[useEmailProcessingPolling] render #', renderCountRef.current, 'emails.length=', emails.length);
+console.log(
+  "[useEmailProcessingPolling] render #",
+  renderCountRef.current,
+  "emails.length=",
+  emails.length,
+);
 ```
 
 3. `client/src/hooks/useInboxInitialization.ts` — add effect firing log:
@@ -136,12 +151,15 @@ useEffect(() => {
 ```ts
 // If it looks like this (NOT memoized):
 export const selectVisibleEmails = (state: RootState) =>
-  state.email.emails.filter(e => !state.email.optimisticArchives.has(e.id));
+  state.email.emails.filter((e) => !state.email.optimisticArchives.has(e.id));
 
 // It should be:
 export const selectVisibleEmails = createSelector(
-  [(state: RootState) => state.email.emails, (state: RootState) => state.email.optimisticArchives],
-  (emails, archives) => emails.filter(e => !archives.has(e.id))
+  [
+    (state: RootState) => state.email.emails,
+    (state: RootState) => state.email.optimisticArchives,
+  ],
+  (emails, archives) => emails.filter((e) => !archives.has(e.id)),
 );
 ```
 
@@ -156,25 +174,34 @@ Based on what the debug logs reveal, implement one or more of the following. The
 **File:** `client/src/store/selectors/emailSelectors.ts`
 
 Check if `selectVisibleEmails` uses `createSelector`. If not:
+
 - Import `createSelector` from `@reduxjs/toolkit` or `reselect`
 - Wrap the selector with `createSelector` so it only recomputes when `emails` or `optimisticArchives` actually changes
 - Do the same for any other selector that filters/maps and is consumed in component hooks
 
 **Before:**
+
 ```ts
 export const selectVisibleEmails = (state: RootState) =>
-  state.email.emails.filter(e => !state.email.optimisticArchives.includes(e.id));
+  state.email.emails.filter(
+    (e) => !state.email.optimisticArchives.includes(e.id),
+  );
 ```
 
 **After:**
+
 ```ts
 export const selectVisibleEmails = createSelector(
-  [(s: RootState) => s.email.emails, (s: RootState) => s.email.optimisticArchives],
-  (emails, archives) => emails.filter(e => !archives.includes(e.id))
+  [
+    (s: RootState) => s.email.emails,
+    (s: RootState) => s.email.optimisticArchives,
+  ],
+  (emails, archives) => emails.filter((e) => !archives.includes(e.id)),
 );
 ```
 
 Apply same treatment to:
+
 - `selectLoadedCategoryNames`
 - `selectLoadingCategoryNames`
 - `selectExhaustedCategoryNames`
@@ -187,11 +214,13 @@ Apply same treatment to:
 Replace inline computed dep with a stable count variable:
 
 **Before:**
+
 ```ts
 }, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]);
 ```
 
 **After:**
+
 ```ts
 const processingCount = emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length;
 // ...
@@ -209,8 +238,8 @@ Note: `onPoll` (`refreshInPlace`) should also be checked for stability — it sh
 const logout = () => {
   captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
   resetPostHog();
-  localStorage.removeItem('token');
-  delete axios.defaults.headers.common['Authorization'];
+  localStorage.removeItem("token");
+  delete axios.defaults.headers.common["Authorization"];
   setUser(null);
 };
 
@@ -218,8 +247,8 @@ const logout = () => {
 const logout = useCallback(() => {
   captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
   resetPostHog();
-  localStorage.removeItem('token');
-  delete axios.defaults.headers.common['Authorization'];
+  localStorage.removeItem("token");
+  delete axios.defaults.headers.common["Authorization"];
   setUser(null);
 }, []); // setUser is stable
 ```
@@ -250,9 +279,11 @@ useEffect(() => {
 ## Files to Create / Modify / Delete
 
 ### Create
+
 - `plans/1124-flickering-rerenders.md` (this file)
 
 ### Modify
+
 1. `client/src/hooks/useEmailProcessingPolling.ts`
    - Add render count log (Phase 0)
    - Fix dep array (Phase 1, Fix B)
@@ -268,6 +299,7 @@ useEffect(() => {
    - Add `why-did-you-render` in dev mode (Phase 0)
 
 ### Delete
+
 - None
 
 ---

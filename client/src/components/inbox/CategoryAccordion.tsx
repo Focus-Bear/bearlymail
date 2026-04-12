@@ -43,8 +43,6 @@ interface CategoryAccordionProps {
   onNavigateToSettings?: () => void;
 }
 
-
-
 const EDIT_ICON = '⚙️';
 
 const REANALYSE_ICON = '🔄';
@@ -86,8 +84,6 @@ const ReanalyseButton: React.FC<ReanalyseButtonProps> = ({ onClick, isReanalysin
     </button>
   );
 };
-
-
 
 interface CategoryAccordionHeaderProps {
   category: string;
@@ -163,26 +159,26 @@ const CategoryHeaderLeft: React.FC<CategoryHeaderLeftProps> = ({
         {emailCount}
       </span>
       <button
-          onClick={onEditCategoryClick}
-          onMouseEnter={() => setIsPencilHovered(true)}
-          onMouseLeave={() => setIsPencilHovered(false)}
-          style={{
-            padding: theme.spacing.xs,
-            borderRadius: theme.borderRadius.sm,
-            border: STRING_NONE,
-            backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.lg,
-            cursor: 'pointer',
-            transition: theme.transitions.fast,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          title={t('inbox.category.editCategories')}
-        >
-          {EDIT_ICON}
-        </button>
+        onClick={onEditCategoryClick}
+        onMouseEnter={() => setIsPencilHovered(true)}
+        onMouseLeave={() => setIsPencilHovered(false)}
+        style={{
+          padding: theme.spacing.xs,
+          borderRadius: theme.borderRadius.sm,
+          border: STRING_NONE,
+          backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.lg,
+          cursor: 'pointer',
+          transition: theme.transitions.fast,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title={t('inbox.category.editCategories')}
+      >
+        {EDIT_ICON}
+      </button>
       {isOtherCategory && onReanalyseOther && (
         <ReanalyseButton
           onClick={onReanalyseClick}
@@ -282,7 +278,9 @@ const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
   loadingLabel,
   children,
 }) => (
-  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md, minWidth: 0 }}>
+  <div
+    style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md, minWidth: 0 }}
+  >
     {isLoadingContent ? (
       <div
         style={{
@@ -429,7 +427,10 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         }}
       >
         <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-          <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')}>
+          <CategoryAccordionContent
+            isLoadingContent={isLoadingContent}
+            loadingLabel={t('inbox.category.loadingContent')}
+          >
             {children}
           </CategoryAccordionContent>
         </div>

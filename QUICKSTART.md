@@ -34,6 +34,7 @@ npm run db:up
 ```
 
 **Useful database commands:**
+
 ```bash
 # Start database
 npm run db:up
@@ -52,6 +53,7 @@ npm run db:psql
 ```
 
 **After starting the database, run migrations:**
+
 ```bash
 cd server
 npm run migration:run
@@ -71,6 +73,7 @@ CREATE DATABASE adhd_email_client;
 ```
 
 **After creating the database, run migrations:**
+
 ```bash
 cd server
 npm run migration:run
@@ -85,6 +88,7 @@ cd server
 ```
 
 Create a `.env` file with these settings (for Docker Compose setup):
+
 ```env
 # Server Configuration
 PORT=3001
@@ -135,6 +139,7 @@ ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL=your-cliq-channel-name
 **Note:** Make sure to generate a secure `ENCRYPTION_KEY` and update other API keys as needed.
 
 **Frontend** - Copy `client/.env.example` to `client/.env`:
+
 ```bash
 cd client
 cp .env.example .env
@@ -143,11 +148,13 @@ cp .env.example .env
 ### 4. Start Development Servers
 
 From the root directory:
+
 ```bash
 npm run dev
 ```
 
 Or separately:
+
 ```bash
 # Terminal 1 - Backend
 cd server
@@ -168,7 +175,7 @@ npm start
 
 1. **Register an Account**: Navigate to http://localhost:3000 and create an account
 2. **Explore Settings**: Go to Settings to configure email batching and view priority rules
-3. **Test Features**: 
+3. **Test Features**:
    - Create a test email (via API or import)
    - Try snoozing an email with natural language (e.g., "2h", "wed")
    - Generate a summary
@@ -197,6 +204,7 @@ curl -X GET http://localhost:3001/emails/inbox \
 ## Common Issues
 
 ### Database Connection Error
+
 - **If using Docker Compose:**
   - Ensure Docker is running: `docker ps`
   - Start the database: `npm run db:up`
@@ -208,10 +216,12 @@ curl -X GET http://localhost:3001/emails/inbox \
   - Verify database exists: `psql -l | grep adhd_email_client`
 
 ### Port Already in Use
+
 - Change `PORT` in `server/.env` or `server/src/main.ts`
 - Kill process using port: `lsof -ti:3001 | xargs kill`
 
 ### CORS Errors
+
 - Ensure `FRONTEND_URL` in `server/.env` matches your frontend URL
 - Check that frontend `.env` has correct `REACT_APP_API_URL`
 
@@ -221,4 +231,3 @@ curl -X GET http://localhost:3001/emails/inbox \
 - Configure email provider integration (IMAP/SMTP or API)
 - Customize priority rules based on your needs
 - Analyze your email history to build context
-

@@ -157,9 +157,7 @@ describe('useEmailDetailDraftSync — auto-save behaviour (fix #978)', () => {
     let draft = 'a';
     const params = makeBaseParams({ draft, saveDraft });
 
-    const { rerender } = renderHook(() =>
-      useEmailDetailDraftSync({ ...params, draft })
-    );
+    const { rerender } = renderHook(() => useEmailDetailDraftSync({ ...params, draft }));
 
     // Simulate 20 keystrokes within the interval window
     act(() => {

@@ -24,12 +24,14 @@ id: raw.providerId,  // e.g. "people/c12345678901234567"
 ### Navigation breaks due to slash in ID
 
 `Contacts.tsx` navigates on click:
+
 ```ts
-navigate(`/crm/contacts/${contact.id}`)
+navigate(`/crm/contacts/${contact.id}`);
 // → navigate('/crm/contacts/people/c12345678901234567')
 ```
 
 The route is defined as:
+
 ```tsx
 <Route path="/crm/contacts/:contactId" element={...} />
 ```
@@ -42,6 +44,7 @@ match → falls through to NotFound (or renders nothing) → **blank screen**.
 ### Even if routing matched, the API would fail
 
 `getContactDetail()` does:
+
 ```ts
 const contact = await this.contactRepository.findOne({
   where: { id: contactId, userId },
@@ -110,6 +113,7 @@ search result is clicked. This is more complex but provides the best UX:
 ### Step 2: Show a meaningful state for non-navigable contacts
 
 For contacts that can't be navigated to (Gmail-only, no local record), either:
+
 - Show a tooltip: "Sync contacts to view details"
 - Show a different cursor (`default` instead of `pointer`)
 - Show a mini detail popover inline
@@ -121,19 +125,19 @@ future-proofs the search result API for other consumers.
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
+| File                                      | Change                                                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `server/src/contacts/contacts.service.ts` | Add `isLocal` field to `ContactSearchResult`; set `true` in `toSearchResult()`, `false` for Gmail-only |
-| `client/src/types/contact.ts` | Add `isLocal?: boolean` to `Contact` interface |
-| `client/src/pages/Contacts.tsx` | Gate navigation on `contact.isLocal` |
-| `client/src/hooks/useContactSearch.ts` | No changes needed (passes through results) |
+| `client/src/types/contact.ts`             | Add `isLocal?: boolean` to `Contact` interface                                                         |
+| `client/src/pages/Contacts.tsx`           | Gate navigation on `contact.isLocal`                                                                   |
+| `client/src/hooks/useContactSearch.ts`    | No changes needed (passes through results)                                                             |
 
 ### Defensive hardening (optional but recommended)
 
-| File | Change |
-|------|--------|
-| `client/src/pages/contact-detail/hooks/useContactDetailData.tsx` | Validate `contactId` format before API call; show "Invalid contact" for non-UUID IDs |
-| `client/src/App.tsx` | Consider adding a catch-all or wildcard sub-route under `/crm/contacts/` to handle malformed IDs gracefully |
+| File                                                             | Change                                                                                                      |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `client/src/pages/contact-detail/hooks/useContactDetailData.tsx` | Validate `contactId` format before API call; show "Invalid contact" for non-UUID IDs                        |
+| `client/src/App.tsx`                                             | Consider adding a catch-all or wildcard sub-route under `/crm/contacts/` to handle malformed IDs gracefully |
 
 ## Testing
 
@@ -153,5 +157,5 @@ future-proofs the search result API for other consumers.
   search results. To handle this gracefully, default `isLocal` to `true` on the
   client when undefined:
   ```ts
-  const canNavigate = contact.id && (contact.isLocal !== false);
+  const canNavigate = contact.id && contact.isLocal !== false;
   ```

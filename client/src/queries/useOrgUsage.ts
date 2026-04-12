@@ -22,17 +22,14 @@ async function fetchSeatUsage(): Promise<SeatUsage> {
 }
 
 async function fetchVolumeUsage(): Promise<VolumeUsage> {
-  const response = await axios.get<VolumeUsage>(
-    `${API_URL}/organizations/usage`,
-  );
+  const response = await axios.get<VolumeUsage>(`${API_URL}/organizations/usage`);
   return response.data;
 }
 
 async function applyPromoCode(promoCode: string): Promise<{ success: boolean; message: string }> {
-  const response = await axios.post<{ success: boolean; message: string }>(
-    `${API_URL}/subscriptions/apply-promo`,
-    { promoCode },
-  );
+  const response = await axios.post<{ success: boolean; message: string }>(`${API_URL}/subscriptions/apply-promo`, {
+    promoCode,
+  });
   return response.data;
 }
 

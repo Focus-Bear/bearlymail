@@ -71,7 +71,7 @@ const categoryNameToId = new Map<string, string>();
 for (const [name, contexts] of categoryContextsByName.entries()) {
   if (contexts.length > 1) {
     this.logger.warn(
-      `[getInboxSummary] Duplicate category name "${name}" found: ${contexts.length} entries (${contexts.map(c => c.contextId).join(', ')}). Using oldest.`,
+      `[getInboxSummary] Duplicate category name "${name}" found: ${contexts.length} entries (${contexts.map((c) => c.contextId).join(", ")}). Using oldest.`,
     );
   }
   // Sort by createdAt ascending, pick first (oldest = canonical)
@@ -164,11 +164,11 @@ export function buildDisplayCategories(
   summaryCategories: CategorySummaryItem[] | null,
   filteredEmails: Email[],
   stableCategoryOrder: string[],
-  mode: InboxMode
+  mode: InboxMode,
 ): Array<{ id: string | null; name: string; count: number }> {
   const source: Array<{ id: string | null; name: string; count: number }> =
     summaryCategories ??
-    groupEmailsByCategory(filteredEmails, mode).map(grp => ({
+    groupEmailsByCategory(filteredEmails, mode).map((grp) => ({
       id: null,
       name: grp.category,
       count: grp.emails.length,
@@ -176,7 +176,10 @@ export function buildDisplayCategories(
 
   // Merge entries with duplicate display names (server-side dedup is the
   // primary fix; this is a defensive frontend layer).
-  const mergedByName = new Map<string, { id: string | null; name: string; count: number }>();
+  const mergedByName = new Map<
+    string,
+    { id: string | null; name: string; count: number }
+  >();
   for (const cat of source) {
     const existing = mergedByName.get(cat.name);
     if (existing) {
@@ -188,7 +191,7 @@ export function buildDisplayCategories(
   }
   const mergedSource = Array.from(mergedByName.values());
 
-  const nonEmptySource = mergedSource.filter(cat => cat.count > 0);
+  const nonEmptySource = mergedSource.filter((cat) => cat.count > 0);
   if (stableCategoryOrder.length === 0) {
     return nonEmptySource;
   }
@@ -227,15 +230,15 @@ export function buildDisplayCategories(
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.service.ts` | Dedup `categoryNameToId` in `getInboxSummary()` |
-| `server/src/context/context-category.service.ts` | Name uniqueness check in `saveCategoriesToDb()` |
-| `server/src/context/context.service.ts` | Filter name collisions with user-edited categories before bulk save |
-| `client/src/components/inbox/inboxCategoryHelpers.ts` | Merge duplicate names in `buildDisplayCategories()` |
-| `client/src/components/inbox/inboxCategoryHelpers.test.ts` | Add test for duplicate name merging |
-| `server/src/emails/emails.service.spec.ts` | Add test for dedup behavior |
-| New migration file | Data cleanup for existing duplicate categories |
+| File                                                       | Change                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| `server/src/emails/emails.service.ts`                      | Dedup `categoryNameToId` in `getInboxSummary()`                     |
+| `server/src/context/context-category.service.ts`           | Name uniqueness check in `saveCategoriesToDb()`                     |
+| `server/src/context/context.service.ts`                    | Filter name collisions with user-edited categories before bulk save |
+| `client/src/components/inbox/inboxCategoryHelpers.ts`      | Merge duplicate names in `buildDisplayCategories()`                 |
+| `client/src/components/inbox/inboxCategoryHelpers.test.ts` | Add test for duplicate name merging                                 |
+| `server/src/emails/emails.service.spec.ts`                 | Add test for dedup behavior                                         |
+| New migration file                                         | Data cleanup for existing duplicate categories                      |
 
 ---
 
@@ -248,5 +251,5 @@ export function buildDisplayCategories(
 
 ---
 
-*Plan authored by Monk of Modularity 🧘*
-*AI-generated plan — review before implementation*
+_Plan authored by Monk of Modularity 🧘_
+_AI-generated plan — review before implementation_

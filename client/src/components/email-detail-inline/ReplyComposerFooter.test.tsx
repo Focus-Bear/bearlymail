@@ -7,8 +7,8 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (params) {
-return `${key} ${JSON.stringify(params)}`;
-}
+        return `${key} ${JSON.stringify(params)}`;
+      }
       return key;
     },
   }),
@@ -222,8 +222,8 @@ describe('ReplyComposerFooter', () => {
       expect(screen.getByRole('tooltip')).toBeInTheDocument();
       fireEvent.mouseLeave(triggers[0]);
       act(() => {
- jest.runAllTimers(); 
-});
+        jest.runAllTimers();
+      });
       expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
       jest.useRealTimers();
     });

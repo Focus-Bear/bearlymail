@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddInactivityTrackingColumns1788000000000
-  implements MigrationInterface
-{
+export class AddInactivityTrackingColumns1788000000000 implements MigrationInterface {
   name = "AddInactivityTrackingColumns1788000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -31,8 +29,6 @@ export class AddInactivityTrackingColumns1788000000000
 
     await queryRunner.query(`DROP INDEX "IDX_users_lastActivityAt"`);
 
-    await queryRunner.query(
-      `ALTER TABLE "users" DROP COLUMN "lastActivityAt"`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "lastActivityAt"`);
   }
 }

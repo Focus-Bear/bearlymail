@@ -1,6 +1,6 @@
-import * as cdk from 'aws-cdk-lib';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import { Construct } from "constructs";
 
 /**
  * Application secrets only. Database secret lives in BearlyMailDatabaseStack
@@ -16,8 +16,8 @@ export class BearlyMailSecretsStack extends cdk.Stack {
     // ============================================
     // Application Secrets
     // ============================================
-    this.appSecrets = new secretsmanager.Secret(this, 'AppSecrets', {
-      description: 'Application secrets (JWT, encryption keys, API keys)',
+    this.appSecrets = new secretsmanager.Secret(this, "AppSecrets", {
+      description: "Application secrets (JWT, encryption keys, API keys)",
     });
 
     // IMPORTANT: AppSecrets must be valid JSON (double-quoted keys and values).
@@ -52,10 +52,10 @@ export class BearlyMailSecretsStack extends cdk.Stack {
     // ============================================
     // Outputs
     // ============================================
-    new cdk.CfnOutput(this, 'AppSecretsArn', {
+    new cdk.CfnOutput(this, "AppSecretsArn", {
       value: this.appSecrets.secretArn,
-      description: 'Application secrets ARN',
-      exportName: 'BearlyMail-App-Secrets-ARN',
+      description: "Application secrets ARN",
+      exportName: "BearlyMail-App-Secrets-ARN",
     });
   }
 }

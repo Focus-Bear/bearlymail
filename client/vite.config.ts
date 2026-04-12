@@ -12,9 +12,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 function resolveCommitHashForBuild(): string {
   const trimmedExplicit = process.env.COMMIT_HASH?.trim();
   if (trimmedExplicit) {
-    return trimmedExplicit.length > 7
-      ? trimmedExplicit.slice(0, 7)
-      : trimmedExplicit;
+    return trimmedExplicit.length > 7 ? trimmedExplicit.slice(0, 7) : trimmedExplicit;
   }
 
   const ghSha = process.env.GITHUB_SHA?.trim();

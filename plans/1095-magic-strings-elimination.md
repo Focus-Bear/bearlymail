@@ -79,7 +79,8 @@ export const ERROR_MESSAGES = {
   GITHUB_TOKEN_NOT_CONFIGURED: "GitHub token not configured",
   GITHUB_TOKEN_INVALID: "GitHub token is invalid or expired",
   REFRESH_TOKEN_MISSING: "Refresh token missing - please log in again",
-  GMAIL_ACCESS_TOKEN_MISSING: "Gmail access token missing - please log in again",
+  GMAIL_ACCESS_TOKEN_MISSING:
+    "Gmail access token missing - please log in again",
   NO_EMAIL_PROVIDER: "No email provider connected",
   CUSTOM_FIELD_NOT_FOUND: "Custom field not found",
   FAILED_TO_SEND_REPLY: "Failed to send reply",
@@ -157,11 +158,13 @@ export const ENV_KEYS = {
 **Why:** `GMAIL_LABELS` constant exists but isn't used everywhere (20+ scattered uses of `"SENT"`, `"INBOX"`, `"UNREAD"`, etc.). Pusher event names (`"contacts-sync-started"` etc.) and `@Inject("PG_BOSS")` tokens need constants too.
 
 **Scope:**
+
 - Email labels: ~20 scattered uses not using `GMAIL_LABELS`
 - Pusher events: 3 unique names
 - Inject tokens: `"PG_BOSS"` used 38 times
 
 **Deliverables:**
+
 - Update all label usages to import from `server/src/constants/email-labels.ts`
 - `server/src/constants/pusher-events.ts`
 - `server/src/constants/inject-tokens.ts`
@@ -189,6 +192,7 @@ export const INJECT_TOKENS = {
 **Why:** These are relatively stable but still benefit from centralized constants for IDE navigation and refactoring. 35 controller paths, ~40 entity table names, dozens of sub-route decorators.
 
 **Deliverables:**
+
 - `server/src/constants/route-paths.ts` — Controller base paths
 - `server/src/constants/entity-names.ts` — TypeORM entity table names (replace `@Entity("table_name")` strings)
 
@@ -224,11 +228,13 @@ export const ENTITY_NAMES = {
 **Why:** Client has fewer magic strings (~470) but still has scattered literals. Also the final enforcement step — extend the ESLint `no-restricted-syntax` rule to cover ALL the categories above.
 
 **Scope:**
+
 - Client: Replace remaining magic strings in components/hooks with constants from `client/src/constants/`
 - Server ESLint: Extend `no-restricted-syntax` to catch job names, error messages, env keys, route paths, inject tokens
 - Client ESLint: Add equivalent rule if not present
 
 **Deliverables:**
+
 - Updated `server/.eslintrc.js` with expanded `no-restricted-syntax` selectors
 - Updated `client/.eslintrc.js` (if applicable)
 - Client string constant cleanup (move remaining literals to `client/src/constants/strings.ts` or new domain-specific files)
@@ -240,14 +246,14 @@ export const ENTITY_NAMES = {
 
 ## Summary table
 
-| Phase | Category | Risk | Unique strings | Estimated file edits | Depends on |
-|-------|----------|------|---------------|---------------------|------------|
-| 1 | PG Boss job names | 🔴 HIGH | ~20 | ~40 | — |
-| 2 | Error messages | 🔴 HIGH | ~15 | ~100 | — |
-| 3 | Env var / config keys | 🟡 MEDIUM | ~35 | ~80 | — |
-| 4 | Email labels, Pusher, inject tokens | 🟡 MEDIUM | ~25 | ~60 | — |
-| 5 | Route paths, entity names, query aliases | 🟢 LOWER | ~80 | ~80 | — |
-| 6 | Client cleanup & ESLint enforcement | 🟢 LOWER | ~50 | ~50 | 1-5 |
+| Phase | Category                                 | Risk      | Unique strings | Estimated file edits | Depends on |
+| ----- | ---------------------------------------- | --------- | -------------- | -------------------- | ---------- |
+| 1     | PG Boss job names                        | 🔴 HIGH   | ~20            | ~40                  | —          |
+| 2     | Error messages                           | 🔴 HIGH   | ~15            | ~100                 | —          |
+| 3     | Env var / config keys                    | 🟡 MEDIUM | ~35            | ~80                  | —          |
+| 4     | Email labels, Pusher, inject tokens      | 🟡 MEDIUM | ~25            | ~60                  | —          |
+| 5     | Route paths, entity names, query aliases | 🟢 LOWER  | ~80            | ~80                  | —          |
+| 6     | Client cleanup & ESLint enforcement      | 🟢 LOWER  | ~50            | ~50                  | 1-5        |
 
 **Total estimated: ~410 file edits across 6 PRs.**
 

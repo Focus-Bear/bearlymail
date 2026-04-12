@@ -62,7 +62,7 @@ reqOauth2.setCredentials({
   access_token: user.googleCalendarAccessToken,
   refresh_token: user.googleCalendarRefreshToken,
 });
-const calendar = google.calendar({ version: 'v3', auth: reqOauth2 });
+const calendar = google.calendar({ version: "v3", auth: reqOauth2 });
 ```
 
 This fixes the race condition. The existing singleton on `this.oauth2Client` can be kept for other purposes (e.g., the shared auth flow) but should not be mutated per-request.
@@ -102,11 +102,11 @@ Convert the error in `addIcsEventToCalendar` to `BadRequestException` / `Interna
 
 ## Files to Change
 
-| File | Change |
-|---|---|
-| `server/src/calendar/calendar.service.ts` | Per-request OAuth2 client in `addIcsEventToCalendar`; fix all-day end date; better error classification |
-| `server/src/calendar/calendar.service.ts` | Apply same per-request OAuth2 fix to `getIcsInfo` and other methods that mutate `this.oauth2Client` |
-| `server/src/calendar/calendar.service.spec.ts` | Add tests for expired token path and all-day event end date |
+| File                                           | Change                                                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `server/src/calendar/calendar.service.ts`      | Per-request OAuth2 client in `addIcsEventToCalendar`; fix all-day end date; better error classification |
+| `server/src/calendar/calendar.service.ts`      | Apply same per-request OAuth2 fix to `getIcsInfo` and other methods that mutate `this.oauth2Client`     |
+| `server/src/calendar/calendar.service.spec.ts` | Add tests for expired token path and all-day event end date                                             |
 
 ## Testing
 

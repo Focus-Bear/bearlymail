@@ -34,7 +34,7 @@ import {
   PARAM_CATEGORY_IDS,
 } from 'constants/strings';
 import { InboxFilter } from 'hooks/useInboxFilters';
-import { BackoffContext,usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
+import { BackoffContext, usePollingWithBackoff } from 'hooks/usePollingWithBackoff';
 import {
   selectCategorySummary,
   selectCurrentOffset,
@@ -80,7 +80,7 @@ interface UseEmailFetchingProps {
  * NEVER falls back to the name — name-based keys are gone.
  */
 export function getCategoryKey(id: string | null | undefined, _name?: string): string {
-  return id ?? "uncategorized";
+  return id ?? 'uncategorized';
 }
 
 async function fetchAutoRespondedEmails(
@@ -156,7 +156,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
 
   const buildSummaryParams = useCallback(
     (overrideFilters?: Partial<InboxFilter>) =>
-      buildSummaryParamsImpl(mode, overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters),
+      buildSummaryParamsImpl(mode, overrideFilters ? ({ ...filters, ...overrideFilters } as InboxFilter) : filters),
     [mode, filters]
   );
   const buildCategoryParams = useCallback(
@@ -165,7 +165,7 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   );
   const buildAutoRespondedParams = useCallback(
     (overrideFilters?: Partial<InboxFilter>) =>
-      buildAutoRespondedParamsImpl(overrideFilters ? { ...filters, ...overrideFilters } as InboxFilter : filters),
+      buildAutoRespondedParamsImpl(overrideFilters ? ({ ...filters, ...overrideFilters } as InboxFilter) : filters),
     [filters]
   );
   const buildAutoRespondedSummary = useCallback((emails: Email[]) => buildAutoRespondedSummaryImpl(emails), []);
@@ -181,36 +181,40 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
    *   Pass the new filter values directly so the API call uses them without waiting for
    *   the next render cycle. Fixes: #1165 (stale closure sends wrong minPriority).
    */
-  const fetchEmails = useCallback(async (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => {
-    // Support two call signatures:
-    //   fetchEmails(signal?)                      — called by useInboxInitialization with an AbortSignal
-    //   fetchEmails(overrideFilters?)             — called internally with filter overrides
-    const signal = signalOrOverride instanceof AbortSignal ? signalOrOverride : undefined;
-    const effectiveOverride = signalOrOverride instanceof AbortSignal ? overrideFilters : signalOrOverride;
+  const fetchEmails = useCallback(
+    async (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => {
+      // Support two call signatures:
+      //   fetchEmails(signal?)                      — called by useInboxInitialization with an AbortSignal
+      //   fetchEmails(overrideFilters?)             — called internally with filter overrides
+      const signal = signalOrOverride instanceof AbortSignal ? signalOrOverride : undefined;
+      const effectiveOverride = signalOrOverride instanceof AbortSignal ? overrideFilters : signalOrOverride;
 
-    fetchSessionRef.current += 1;
-    isLoadingMoreRef.current = false;
-    // Fix #846: when filters change, the cached summary and per-category emails are stale
-    // by definition (they were fetched with different filter params). Invalidate all cached
-    // data for this mode so fetchEmailsImpl always hits the network with the new filter
-    // values instead of serving wrong data from the stale-while-revalidate cache.
-    if (effectiveOverride) {
-      clearCacheForMode(mode);
-    }
-    const effectiveFilters = effectiveOverride ? { ...filters, ...effectiveOverride } as InboxFilter : filters;
-    const buildSummaryParamsWithOverride = () => buildSummaryParamsImpl(mode, effectiveFilters);
-    const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);
-    await fetchEmailsImpl({
-      mode, dispatch,
-      filters: effectiveFilters,
-      buildSummaryParams: buildSummaryParamsWithOverride,
-      buildAutoRespondedParams: buildAutoRespondedParamsWithOverride,
-      buildAutoRespondedSummary,
-      // Fix #1571 Bug 1: pass effective filters so the cache key is scoped to the filter hash.
-      activeFilters: effectiveFilters,
-      signal,
-    });
-  }, [mode, dispatch, filters, buildAutoRespondedSummary]);
+      fetchSessionRef.current += 1;
+      isLoadingMoreRef.current = false;
+      // Fix #846: when filters change, the cached summary and per-category emails are stale
+      // by definition (they were fetched with different filter params). Invalidate all cached
+      // data for this mode so fetchEmailsImpl always hits the network with the new filter
+      // values instead of serving wrong data from the stale-while-revalidate cache.
+      if (effectiveOverride) {
+        clearCacheForMode(mode);
+      }
+      const effectiveFilters = effectiveOverride ? ({ ...filters, ...effectiveOverride } as InboxFilter) : filters;
+      const buildSummaryParamsWithOverride = () => buildSummaryParamsImpl(mode, effectiveFilters);
+      const buildAutoRespondedParamsWithOverride = () => buildAutoRespondedParamsImpl(effectiveFilters);
+      await fetchEmailsImpl({
+        mode,
+        dispatch,
+        filters: effectiveFilters,
+        buildSummaryParams: buildSummaryParamsWithOverride,
+        buildAutoRespondedParams: buildAutoRespondedParamsWithOverride,
+        buildAutoRespondedSummary,
+        // Fix #1571 Bug 1: pass effective filters so the cache key is scoped to the filter hash.
+        activeFilters: effectiveFilters,
+        signal,
+      });
+    },
+    [mode, dispatch, filters, buildAutoRespondedSummary]
+  );
 
   /**
    * Fetch emails for a single category on accordion expand.
@@ -261,8 +265,23 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
     }
   }, [currentOffset]);
 
-  const refreshInPlace = useCallback(async (signal?: AbortSignal) => {
-    await refreshInPlaceImpl({
+  const refreshInPlace = useCallback(
+    async (signal?: AbortSignal) => {
+      await refreshInPlaceImpl({
+        mode,
+        dispatch,
+        filters,
+        buildSummaryParams,
+        buildCategoryParams,
+        buildAutoRespondedParams,
+        buildAutoRespondedSummary,
+        loadedCategoryNamesRef,
+        // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
+        activeFilters: filters,
+        signal,
+      });
+    },
+    [
       mode,
       dispatch,
       filters,
@@ -270,12 +289,8 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
       buildCategoryParams,
       buildAutoRespondedParams,
       buildAutoRespondedSummary,
-      loadedCategoryNamesRef,
-      // Fix #1571 Bug 1: pass current filters so cache write-back is scoped to filter hash.
-      activeFilters: filters,
-      signal,
-    });
-  }, [mode, dispatch, filters, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
+    ]
+  );
 
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }
@@ -402,11 +417,10 @@ function handleCategoryFetchError(
     dispatch(markCategoryLoadFailed(catKey));
     return;
   }
-
   console.error('[Accordion] Failed to load category:', categoryName, '(key:', catKey, ')', error);
   if (fetchSessionRef.current !== sessionId) {
-return;
-}
+    return;
+  }
 
   const backoffState = categoryBackoff.onError(catKey, error);
   if (backoffState.exhausted) {
@@ -425,8 +439,19 @@ return;
 
   const retryTimer = setTimeout(() => {
     pendingRetryTimersRef.current.delete(retryTimer);
-    fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef, categoryBackoff, pendingRetryTimersRef, categorySummaryRef })
-      .catch(err => console.error('[limbo-recovery] Backoff retry failed:', err));
+    fetchCategoryEmailsImpl({
+      categoryName,
+      categoryId,
+      mode,
+      dispatch,
+      buildCategoryParams,
+      loadedCategoryNamesRef,
+      loadingCategoryNamesRef,
+      fetchSessionRef,
+      categoryBackoff,
+      pendingRetryTimersRef,
+      categorySummaryRef,
+    }).catch(err => console.error('[limbo-recovery] Backoff retry failed:', err));
   }, delayMs + BACKOFF_RETRY_BUFFER_MS);
   pendingRetryTimersRef.current.add(retryTimer);
 }
@@ -444,7 +469,7 @@ function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boole
 
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
-  const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, loadingCategoryNamesRef, categorySummaryRef } = args;
+const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, loadingCategoryNamesRef, categorySummaryRef } = args;
   // Compute the stable key: UUID when available, name as fallback
   const catKey = getCategoryKey(categoryId, categoryName);
 
@@ -456,7 +481,7 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
   // Stale-while-revalidate for categories: show cached emails instantly, refresh in background
   const cachedEmails = getCachedCategoryEmails(mode, catKey);
   if (cachedEmails !== null) {
-    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef, loadingCategoryNamesRef, categorySummaryRef });
+serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef, loadingCategoryNamesRef, categorySummaryRef });
     return;
   }
 
@@ -484,15 +509,20 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
     // unnecessary cache invalidation on every expand of an empty category.
     if (emails.length === 0 && categoryId) {
       const summaryItem = categorySummaryRef.current?.find(
-        (item) => item.id === categoryId || item.name === categoryName
+        item => item.id === categoryId || item.name === categoryName
       );
       const summaryCount = summaryItem?.count ?? 0;
       if (summaryCount > 0) {
         console.warn(
-          '[Accordion] Category returned 0 emails but summary says', summaryCount,
+          '[Accordion] Category returned 0 emails but summary says',
+          summaryCount,
           '— possible stale UUID, busting summary cache for mode:',
           mode,
-          '| category:', categoryName, '(key:', catKey, ')'
+          '| category:',
+          categoryName,
+          '(key:',
+          catKey,
+          ')'
         );
         // Clear the summary cache so the next inbox load re-fetches fresh UUIDs.
         // The category cache entry will be naturally evicted (we just wrote [] below).
@@ -501,7 +531,11 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
         devLog(
           '[Accordion] Category returned 0 emails and summary also shows 0 — skipping cache bust for mode:',
           mode,
-          '| category:', categoryName, '(key:', catKey, ')'
+          '| category:',
+          categoryName,
+          '(key:',
+          catKey,
+          ')'
         );
       }
     }
@@ -517,9 +551,9 @@ async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
     // mode-switches) or when the server returns a stale empty response.
     if (emails.length === 0) {
       const summaryItem = categorySummaryRef.current?.find(
-        (item) => item.id === categoryId || item.name === categoryName
+        item => item.id === categoryId || item.name === categoryName
       );
-      // Fix: distinguish "summary not yet loaded" from "summary confirms 0".
+// Fix: distinguish "summary not yet loaded" from "summary confirms 0".
       // Only mark loaded when summaryItem is present AND count is 0 (not when undefined).
       if (summaryItem !== undefined && summaryItem !== null && (summaryItem.count ?? 0) === 0) {
         // Summary also shows 0 — category is genuinely empty; mark loaded so UI renders it.
@@ -827,9 +861,7 @@ function handleFetchError(dispatch: AppDispatch, error: unknown) {
         )
       );
     } else {
-      dispatch(
-        setFetchError(getAxiosErrorMessage(error, 'Failed to load emails. Please try again.'))
-      );
+      dispatch(setFetchError(getAxiosErrorMessage(error, 'Failed to load emails. Please try again.')));
     }
   } else if (error instanceof Error && error.message.includes(ERROR_NETWORK)) {
     dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));

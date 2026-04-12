@@ -53,9 +53,15 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
           <strong>{t('debug.replyComposer.currentState')}:</strong>
         </div>
         <div style={{ marginLeft: theme.spacing.md }}>
-          <div>{t('debug.replyComposer.propEmailId')}: {currentEmailId || t('debug.replyComposer.notAvailable')}</div>
-          <div>{t('debug.replyComposer.emailObjectId')}: {currentEmailObjectId || t('debug.replyComposer.notAvailable')}</div>
-          <div>{t('debug.replyComposer.emailThreadId')}: {currentEmailThreadId || t('debug.replyComposer.notAvailable')}</div>
+          <div>
+            {t('debug.replyComposer.propEmailId')}: {currentEmailId || t('debug.replyComposer.notAvailable')}
+          </div>
+          <div>
+            {t('debug.replyComposer.emailObjectId')}: {currentEmailObjectId || t('debug.replyComposer.notAvailable')}
+          </div>
+          <div>
+            {t('debug.replyComposer.emailThreadId')}: {currentEmailThreadId || t('debug.replyComposer.notAvailable')}
+          </div>
           <div
             style={{
               backgroundColor: idMatch ? theme.colors.success.light : theme.colors.error.light,
@@ -64,7 +70,8 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
               display: 'inline-block',
             }}
           >
-            {t('debug.replyComposer.idMatch')}: {idMatch ? t('debug.replyComposer.idMatchYes') : t('debug.replyComposer.idMatchNo')}
+            {t('debug.replyComposer.idMatch')}:{' '}
+            {idMatch ? t('debug.replyComposer.idMatchYes') : t('debug.replyComposer.idMatchNo')}
           </div>
         </div>
         {debugInfo && (
@@ -73,11 +80,24 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
               <strong>{t('debug.replyComposer.generationDebug')}:</strong>
             </div>
             <div style={{ marginLeft: theme.spacing.md }}>
-              <div>{t('debug.replyComposer.generatedForEmailId')}: {debugInfo.propEmailId}</div>
-              <div>{t('debug.replyComposer.emailObjectIdAtGeneration')}: {debugInfo.emailObjectId || t('debug.replyComposer.notAvailable')}</div>
-              <div>{t('debug.replyComposer.threadIdUsedForFetch')}: {debugInfo.threadIdUsedForFetch || t('debug.replyComposer.notAvailable')}</div>
-              <div>{t('debug.replyComposer.lastGeneratedFor')}: {debugInfo.lastGeneratedForEmailId || t('debug.replyComposer.notAvailable')}</div>
-              <div>{t('debug.replyComposer.timestamp')}: {debugInfo.timestamp}</div>
+              <div>
+                {t('debug.replyComposer.generatedForEmailId')}: {debugInfo.propEmailId}
+              </div>
+              <div>
+                {t('debug.replyComposer.emailObjectIdAtGeneration')}:{' '}
+                {debugInfo.emailObjectId || t('debug.replyComposer.notAvailable')}
+              </div>
+              <div>
+                {t('debug.replyComposer.threadIdUsedForFetch')}:{' '}
+                {debugInfo.threadIdUsedForFetch || t('debug.replyComposer.notAvailable')}
+              </div>
+              <div>
+                {t('debug.replyComposer.lastGeneratedFor')}:{' '}
+                {debugInfo.lastGeneratedForEmailId || t('debug.replyComposer.notAvailable')}
+              </div>
+              <div>
+                {t('debug.replyComposer.timestamp')}: {debugInfo.timestamp}
+              </div>
               <div
                 style={{
                   backgroundColor: genForCurrent ? theme.colors.success.light : theme.colors.error.light,
@@ -87,7 +107,10 @@ export const ReplyComposerDebugPanel: React.FC<ReplyDebugPanelProps> = ({
                   marginTop: '4px',
                 }}
               >
-                {t('debug.replyComposer.generatedForCurrent')}: {genForCurrent ? t('debug.replyComposer.generatedForCurrentYes') : t('debug.replyComposer.generatedForCurrentNo')}
+                {t('debug.replyComposer.generatedForCurrent')}:{' '}
+                {genForCurrent
+                  ? t('debug.replyComposer.generatedForCurrentYes')
+                  : t('debug.replyComposer.generatedForCurrentNo')}
               </div>
             </div>
           </>

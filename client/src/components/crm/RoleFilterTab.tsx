@@ -11,12 +11,7 @@ export interface RoleFilterTabProps {
   onClick: (role: ContactThreadRoleFilter) => void;
 }
 
-export const RoleFilterTab: React.FC<RoleFilterTabProps> = ({
-  label,
-  value,
-  active,
-  onClick,
-}) => (
+export const RoleFilterTab: React.FC<RoleFilterTabProps> = ({ label, value, active, onClick }) => (
   <button
     onClick={() => onClick(value)}
     style={{
@@ -27,9 +22,7 @@ export const RoleFilterTab: React.FC<RoleFilterTabProps> = ({
       color: active ? '#fff' : theme.colors.text.secondary,
       cursor: STRING_POINTER,
       fontSize: theme.typography.fontSize.sm,
-      fontWeight: active
-        ? theme.typography.fontWeight.medium
-        : theme.typography.fontWeight.normal,
+      fontWeight: active ? theme.typography.fontWeight.medium : theme.typography.fontWeight.normal,
     }}
   >
     {label}

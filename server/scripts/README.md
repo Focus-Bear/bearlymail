@@ -3,27 +3,32 @@
 ## Available Scripts
 
 ### 1. `check-indexes` - Verify and Create Missing Indexes
+
 ```bash
 npm run check-indexes
 ```
 
 **What it does:**
+
 - Checks if all required performance indexes exist
 - Creates missing indexes automatically
 - Shows table statistics
 - Runs EXPLAIN ANALYZE on the getInbox query
 
 **Use when:**
+
 - After running migrations
 - When performance degrades
 - To verify indexes were created correctly
 
 ### 2. `analyze-queries` - Analyze Slow Query Performance
+
 ```bash
 npm run analyze-queries
 ```
 
 **What it does:**
+
 - Runs EXPLAIN ANALYZE on the slow queries from performance.log
 - Shows execution plans and timing
 - Checks index usage statistics
@@ -31,6 +36,7 @@ npm run analyze-queries
 - Provides performance recommendations
 
 **Use when:**
+
 - Investigating performance issues
 - After seeing slow queries in performance.log
 - To understand query execution plans
@@ -50,31 +56,37 @@ All endpoints now have performance budgets and log to `server/logs/performance.l
 Based on `performance.log` analysis:
 
 ### 1. getInbox(triage) - 1662ms (3.3x over budget)
+
 - **thread_query**: 551ms (5.5x over 100ms budget)
 - **email_query**: 834ms (8.3x over 100ms budget)
 
 **Root Cause**: Encryption/decryption overhead on encrypted columns (`from`, `fromName`, `subject`)
 
 **Potential Solutions**:
+
 - Cache decrypted values for frequently accessed emails
 - Use raw queries for list views (skip TypeORM entity hydration)
 - Consider materialized views for inbox data
 
 ### 2. triage-suggestions - 1122ms (122ms over budget)
+
 - **context_query**: 273ms (173ms over 100ms budget) - despite index existing
 - **history_query**: 565ms (265ms over 300ms budget)
 
-**Root Cause**: 
+**Root Cause**:
+
 - Encryption overhead on `contextValue` field
 - Encryption overhead on email fields in history query
 
 ### 3. consent-status - 276ms (76ms over budget)
+
 - Simple user lookup slightly over budget
 - May need user table index optimization
 
 ## Index Status
 
 ✅ All required indexes exist:
+
 - `IDX_user_contexts_userId`
 - `IDX_user_contexts_userId_contextKey`
 - `IDX_emails_userId_isBatched_batchReleaseAt`
@@ -128,16 +140,16 @@ Creates `qa@bearlymail.test` / `QaPassword123!` (name: **Professor Reproducible*
 
 ### Required env vars
 
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `DB_HOST` | `localhost` | |
-| `DB_PORT` | `5432` | |
-| `DB_USERNAME` | `postgres` | |
-| `DB_PASSWORD` | `postgres` | |
-| `DB_NAME` | `adhd_email_client` | |
-| `DB_SSL` | — | Set to `true` for non-local DBs |
-| `ENCRYPTION_KEY` | dev default | Must match the app's key |
-| `QA_TEST_PASSWORD` | `QaPassword123!` | Override QA password via env |
+| Variable           | Default             | Notes                           |
+| ------------------ | ------------------- | ------------------------------- |
+| `DB_HOST`          | `localhost`         |                                 |
+| `DB_PORT`          | `5432`              |                                 |
+| `DB_USERNAME`      | `postgres`          |                                 |
+| `DB_PASSWORD`      | `postgres`          |                                 |
+| `DB_NAME`          | `adhd_email_client` |                                 |
+| `DB_SSL`           | —                   | Set to `true` for non-local DBs |
+| `ENCRYPTION_KEY`   | dev default         | Must match the app's key        |
+| `QA_TEST_PASSWORD` | `QaPassword123!`    | Override QA password via env    |
 
 ## `seed:qa:reset` — Full wipe + reseed
 
@@ -151,9 +163,9 @@ Deletes **all** data owned by the QA user (emails, threads, contexts, rules, blo
 
 ### When to use each
 
-| Command | Use case |
-|---------|----------|
-| `seed:qa` | First-time setup, or after tests that only _read_ data |
+| Command         | Use case                                                |
+| --------------- | ------------------------------------------------------- |
+| `seed:qa`       | First-time setup, or after tests that only _read_ data  |
 | `seed:qa:reset` | After tests that _mutate_ data (to restore known state) |
 
 ### Playwright integration (optional)
@@ -161,17 +173,11 @@ Deletes **all** data owned by the QA user (emails, threads, contexts, rules, blo
 To reset the QA environment before every CI run, add to `test/global-setup.ts`:
 
 ```typescript
-import { execSync } from 'child_process';
-import * as path from 'path';
+import { execSync } from "child_process";
+import * as path from "path";
 
-execSync('npm run seed:qa:reset', {
-  cwd: path.join(__dirname, '../server'),
-  stdio: 'inherit',
+execSync("npm run seed:qa:reset", {
+  cwd: path.join(__dirname, "../server"),
+  stdio: "inherit",
 });
 ```
-
-
-
-
-
-

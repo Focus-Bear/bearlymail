@@ -104,9 +104,7 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
         />
       ))
     ) : (
-      <div
-        style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}
-      />
+      <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }} />
     )}
     {addingContextType === addType ? (
       <ContextAddInput
@@ -395,13 +393,23 @@ const ContextItem: React.FC<ContextItemProps> = ({
           alignItems: 'center',
           padding: theme.spacing.sm,
           backgroundColor: theme.colors.background.subtle,
-          borderRadius: showRulesAccordion ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          borderRadius: showRulesAccordion
+            ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0`
+            : theme.borderRadius.md,
           border: `1px solid ${theme.colors.border.light}`,
           borderBottom: showRulesAccordion ? 'none' : `1px solid ${theme.colors.border.light}`,
         }}
       >
         <ContextItemContent context={context} />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: theme.spacing.sm,
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+          }}
+        >
           {isEmailCategory && ruleCount > 0 && (
             <button
               type="button"

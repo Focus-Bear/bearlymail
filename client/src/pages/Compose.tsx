@@ -33,8 +33,16 @@ const Compose: React.FC = () => {
   const form = useComposeForm();
   const search = useContactSearch();
   const { showError } = useNotifications();
-  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, cancelToneCheck, disputing, disputeResult, disputeToneCheck } =
-    useEmailDetailToneCheck();
+  const {
+    checkingTone,
+    toneCheckResult,
+    setToneCheckResult,
+    checkTone,
+    cancelToneCheck,
+    disputing,
+    disputeResult,
+    disputeToneCheck,
+  } = useEmailDetailToneCheck();
   const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
 
   const [sending, setSending] = useState(false);

@@ -34,7 +34,7 @@ function navigateToNextEmailAfterAction(
   removedEmailId: string,
   emails: Email[],
   splitView: { openEmail: (id: string) => void; closeEmail: () => void },
-  setSelectedEmailIndex: (index: number) => void,
+  setSelectedEmailIndex: (index: number) => void
 ): void {
   const removedEmail = emails.find(event => event.id === removedEmailId);
   // Prefer category_id (UUID) as stable group key (fixes #1293 — display name is fallback).
@@ -146,16 +146,17 @@ const InboxView: React.FC = () => {
     },
   } = useInboxFiltersCtx();
 
-  const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
+  const {
+    isCollapsed: isSidebarCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse: handleToggleSidebarCollapse,
+    openMobileMenu,
+    closeMobileMenu: handleCloseMobileMenu,
+  } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
 
   const { isDebugModeEnabled } = useDebugMode();
   // Pass current inbox mode so bucket counts match the tab total (fix #1452 bug 3).
   const { counts: priorityCounts, fetchCounts: fetchPriorityCounts } = usePriorityCounts(mode);
-  // Fix #1571: fetch counts for all modes so priorityTotalCount reflects all emails,
-  // not just the current mode. Hooks must be called unconditionally, so we call all three.
-  const { counts: triagePriorityCounts } = usePriorityCounts('triage');
-  const { counts: actionPriorityCounts } = usePriorityCounts('action');
-  const { counts: followUpPriorityCounts } = usePriorityCounts('follow-up');
   // Fix #1466: track summary refetch so category pills can show a loading skeleton.
   const isSummaryLoading = useSelector(selectSummaryLoading);
   const {
@@ -174,9 +175,8 @@ const InboxView: React.FC = () => {
 
   // Fix #1571 Item 3: extract priorityTotalCount so it can be passed to the debug panel.
   // PRIORITY_LABEL_TO_KEY is now imported from constants/priorityBuckets (single source of truth).
-  const priorityTotalCount = (triagePriorityCounts && actionPriorityCounts && followUpPriorityCounts)
-    ? PRIORITY_BUCKET_DEFS
-        .filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
+  const priorityTotalCount = priorityCounts
+    ? PRIORITY_BUCKET_DEFS.filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
         .filter(bucket => {
           const bucketMin = bucket.min ?? -Infinity;
           const bucketMax = bucket.max ?? Infinity;
@@ -186,8 +186,7 @@ const InboxView: React.FC = () => {
         })
         .reduce((sum, bucket) => {
           const key = PRIORITY_LABEL_TO_KEY[bucket.label];
-          // Sum counts across all three modes
-          return sum + (key ? (triagePriorityCounts[key] ?? 0) + (actionPriorityCounts[key] ?? 0) + (followUpPriorityCounts[key] ?? 0) : 0);
+          return sum + (key ? (priorityCounts[key] ?? 0) : 0);
         }, 0)
     : undefined;
 
@@ -197,10 +196,10 @@ const InboxView: React.FC = () => {
     if (justUngated) {
       const hasAlreadySwitched = (() => {
         try {
- return !!localStorage.getItem(GATE_FILTER_SWITCHED_KEY); 
-} catch {
- return false; 
-}
+          return !!localStorage.getItem(GATE_FILTER_SWITCHED_KEY);
+        } catch {
+          return false;
+        }
       })();
       if (!hasAlreadySwitched && filters.minPriority === null && filters.maxPriority === null) {
         setPriorityFilter(VERY_HIGH_PRIORITY_THRESHOLD, null);
@@ -219,15 +218,38 @@ const InboxView: React.FC = () => {
   }
 
   return (
-    <div className="h-dvh" style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}>
-      <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={handleCloseMobileMenu} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', minWidth: 0 }}>
+    <div
+      className="h-dvh"
+      style={{ display: 'flex', backgroundColor: theme.colors.background.default, overflow: 'hidden' }}
+    >
+      <Sidebar
+        user={user}
+        logout={logout}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={handleCloseMobileMenu}
+      />
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          position: 'relative',
+          minWidth: 0,
+        }}
+      >
         <InboxOverlays
-          tourStep={onboarding.tourStep} tourSteps={tourSteps}
+          tourStep={onboarding.tourStep}
+          tourSteps={tourSteps}
           onSkipTour={() => onboarding.handleSkipTour()}
           onNextTourStep={() => onboarding.handleNextTourStep(tourSteps.length)}
-          triageTabRef={triageTabRef} actionTabRef={actionTabRef} deliverBtnRef={deliverBtnRef}
-          showScanModal={onboarding.showScanModal} isScanning={onboarding.isScanning}
+          triageTabRef={triageTabRef}
+          actionTabRef={actionTabRef}
+          deliverBtnRef={deliverBtnRef}
+          showScanModal={onboarding.showScanModal}
+          isScanning={onboarding.isScanning}
           onStartScan={onboarding.handleStartScan}
           onDismissScan={async () => {
             try {
@@ -241,67 +263,101 @@ const InboxView: React.FC = () => {
           scanNotification={{ show: !!onboarding.scanProgress, progress: onboarding.scanProgress }}
           urgentNotification={urgentNotification.urgentNotification}
           onDismissUrgent={urgentNotification.hideUrgentNotification}
-          needsRelogin={user?.needsRelogin} onLogout={logout}
+          needsRelogin={user?.needsRelogin}
+          onLogout={logout}
         />
         <InboxHeader
-          mode={mode} setMode={setMode} loadingModeSwitch={loadingModeSwitch}
-          triageTabRef={triageTabRef} actionTabRef={actionTabRef} followUpTabRef={followUpTabRef} tabCounts={tabCounts}
-          actionTabPulsing={actionTabPulsing} onActionTabPulseEnd={() => setActionTabPulsing(false)}
-          onToggleMobileMenu={openMobileMenu} isFilterBarVisible={isFilterBarVisible}
-          hasActiveFilters={hasActiveFilters} activeFilterCount={activeFilterCount} onToggleFilterBar={toggleFilterBar}
+          mode={mode}
+          setMode={setMode}
+          loadingModeSwitch={loadingModeSwitch}
+          triageTabRef={triageTabRef}
+          actionTabRef={actionTabRef}
+          followUpTabRef={followUpTabRef}
+          tabCounts={tabCounts}
+          actionTabPulsing={actionTabPulsing}
+          onActionTabPulseEnd={() => setActionTabPulsing(false)}
+          onToggleMobileMenu={openMobileMenu}
+          isFilterBarVisible={isFilterBarVisible}
+          hasActiveFilters={hasActiveFilters}
+          activeFilterCount={activeFilterCount}
+          onToggleFilterBar={toggleFilterBar}
           onClearFilters={() => {
             clearFilters();
             fetchEmails();
           }}
-          isAdmin={user?.isAdmin} debugViewOpen={debugPanel.debugViewOpen}
+          isAdmin={user?.isAdmin}
+          debugViewOpen={debugPanel.debugViewOpen}
           onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
           onViewBlockedEmails={() => setMode('blocked')}
           onViewAutoRespondedEmails={() => setMode('autoresponded')}
         />
         <InboxFilters
-          onFilterChange={fetchEmails} isFilterBarVisible={isFilterBarVisible} filters={filters}
-          connectedAccounts={connectedAccounts} availableCategories={availableCategories}
-          loadingAccounts={loadingAccounts} loadingCategories={loadingCategories}
-          hasActiveFilters={hasActiveFilters} setAccountFilter={setAccountFilter}
-          setCategoryFilter={setCategoryFilter} setPriorityFilter={setPriorityFilter}
-          categoryCounts={categorySummary ? Object.fromEntries(categorySummary.map(cat => [cat.id, cat.count])) : undefined}
-          bucketCounts={(triagePriorityCounts && actionPriorityCounts && followUpPriorityCounts)
-            ? Object.fromEntries(
-                PRIORITY_BUCKET_DEFS
-                  .filter(bucket => bucket.label !== BUCKET_LABEL_ALL)
-                  .map(bucket => {
-                    const key = PRIORITY_LABEL_TO_KEY[bucket.label];
-                    return [
-                      bucket.label,
-                      (triagePriorityCounts[key] ?? 0) +
-                        (actionPriorityCounts[key] ?? 0) +
-                        (followUpPriorityCounts[key] ?? 0),
-                    ];
-                  }),
-              )
-            : undefined}
+          onFilterChange={fetchEmails}
+          isFilterBarVisible={isFilterBarVisible}
+          filters={filters}
+          connectedAccounts={connectedAccounts}
+          availableCategories={availableCategories}
+          loadingAccounts={loadingAccounts}
+          loadingCategories={loadingCategories}
+          hasActiveFilters={hasActiveFilters}
+          setAccountFilter={setAccountFilter}
+          setCategoryFilter={setCategoryFilter}
+          setPriorityFilter={setPriorityFilter}
+          categoryCounts={
+            categorySummary ? Object.fromEntries(categorySummary.map(cat => [cat.id, cat.count])) : undefined
+          }
+          bucketCounts={
+            priorityCounts
+              ? {
+                  'Very Low': priorityCounts.veryLow,
+                  Low: priorityCounts.low,
+                  Medium: priorityCounts.medium,
+                  High: priorityCounts.high,
+                  'Very High': priorityCounts.veryHigh,
+                }
+              : undefined
+          }
           priorityTotalCount={priorityTotalCount}
           isSummaryLoading={isSummaryLoading}
         />
         {(user?.isAdmin || isDebugModeEnabled) && debugPanel.debugViewOpen && (
           <DebugPanel
-            mode={mode} emails={emails} allEmails={debugPanel.allEmails} loadingAllEmails={debugPanel.loadingAllEmails}
-            isOpen={debugPanel.debugViewOpen} onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
-            onFetchAllEmails={() => debugPanel.fetchAllEmails(mode)} syncStatus={debugPanel.syncStatus}
-            loadingSyncStatus={debugPanel.loadingSyncStatus} syncHistory={debugPanel.syncHistory}
-            loadingSyncHistory={debugPanel.loadingSyncHistory} onFetchSyncHistory={debugPanel.fetchSyncHistory}
-            debugStarredData={debugPanel.debugStarredData} loadingDebugData={debugPanel.loadingDebugData}
-            onFetchDebugStarred={debugPanel.fetchDebugStarredThreads} debugOrphanData={debugPanel.debugOrphanData}
-            loadingOrphanData={debugPanel.loadingOrphanData} onFetchDebugOrphan={debugPanel.fetchDebugOrphanEmails}
-            fixingOrphans={debugPanel.fixingOrphans} onFixOrphans={() => debugPanel.handleFixOrphanEmails()}
-            threadLookupResult={debugPanel.threadLookupResult} loadingThreadLookup={debugPanel.loadingThreadLookup}
-            onLookupThread={debugPanel.lookupThread} categorySummary={categorySummary}
-            loadedCategoryNames={loadedCategoryNames} loadingCategoryNames={loadingCategoryNames}
+            mode={mode}
+            emails={emails}
+            allEmails={debugPanel.allEmails}
+            loadingAllEmails={debugPanel.loadingAllEmails}
+            isOpen={debugPanel.debugViewOpen}
+            onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
+            onFetchAllEmails={() => debugPanel.fetchAllEmails(mode)}
+            syncStatus={debugPanel.syncStatus}
+            loadingSyncStatus={debugPanel.loadingSyncStatus}
+            syncHistory={debugPanel.syncHistory}
+            loadingSyncHistory={debugPanel.loadingSyncHistory}
+            onFetchSyncHistory={debugPanel.fetchSyncHistory}
+            debugStarredData={debugPanel.debugStarredData}
+            loadingDebugData={debugPanel.loadingDebugData}
+            onFetchDebugStarred={debugPanel.fetchDebugStarredThreads}
+            debugOrphanData={debugPanel.debugOrphanData}
+            loadingOrphanData={debugPanel.loadingOrphanData}
+            onFetchDebugOrphan={debugPanel.fetchDebugOrphanEmails}
+            fixingOrphans={debugPanel.fixingOrphans}
+            onFixOrphans={() => debugPanel.handleFixOrphanEmails()}
+            threadLookupResult={debugPanel.threadLookupResult}
+            loadingThreadLookup={debugPanel.loadingThreadLookup}
+            onLookupThread={debugPanel.lookupThread}
+            categorySummary={categorySummary}
+            loadedCategoryNames={loadedCategoryNames}
+            loadingCategoryNames={loadingCategoryNames}
             expandedCategories={expandedCategories}
-            filters={filters} priorityTotalCount={priorityTotalCount}
+            filters={filters}
+            priorityTotalCount={priorityTotalCount}
           />
         )}
-        <BulkOperationsBar selectedCount={selectedEmailIds.size} onBulkArchive={emailActions.handleBulkArchive} onClearSelection={() => setSelectedEmailIds(new Set())} />
+        <BulkOperationsBar
+          selectedCount={selectedEmailIds.size}
+          onBulkArchive={emailActions.handleBulkArchive}
+          onClearSelection={() => setSelectedEmailIds(new Set())}
+        />
         {keyboardHint.showKeyboardHint && <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />}
         {keyboardShortcuts.pendingArchive && (
           <ArchiveConfirmationToast
@@ -328,12 +384,22 @@ const InboxView: React.FC = () => {
               </div>
             )}
             <InboxContent
-              mode={mode} emails={emails} loading={loading} hasInitiallyLoaded={hasInitiallyLoaded}
-              loadingModeSwitch={loadingModeSwitch} decrypting={decrypting} fetchError={fetchError}
-              selectedEmailIndex={selectedEmailIndex} selectedEmailIds={selectedEmailIds}
-              triageSuggestions={triageSuggestions} followUpDataMap={followUpDataMap}
-              isGeneratingDrafts={isGeneratingDrafts} followUpsError={followUpsError}
-              priorityTooltip={priorityTooltip} keyboardHint={keyboardHint} snoozeInput={snoozeInput}
+              mode={mode}
+              emails={emails}
+              loading={loading}
+              hasInitiallyLoaded={hasInitiallyLoaded}
+              loadingModeSwitch={loadingModeSwitch}
+              decrypting={decrypting}
+              fetchError={fetchError}
+              selectedEmailIndex={selectedEmailIndex}
+              selectedEmailIds={selectedEmailIds}
+              triageSuggestions={triageSuggestions}
+              followUpDataMap={followUpDataMap}
+              isGeneratingDrafts={isGeneratingDrafts}
+              followUpsError={followUpsError}
+              priorityTooltip={priorityTooltip}
+              keyboardHint={keyboardHint}
+              snoozeInput={snoozeInput}
               emailActions={{
                 ...emailActions,
                 // Refresh priority counts after individual email archive so the progressive
@@ -344,23 +410,37 @@ const InboxView: React.FC = () => {
                   await emailActions.handleArchive(emailId, event);
                   fetchPriorityCounts();
                 },
-              }} modals={modals} splitView={splitView}
-              nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck}
-              onEmailClick={handleEmailClick} onEmailSelect={handleEmailSelect}
+              }}
+              modals={modals}
+              splitView={splitView}
+              nextDelivery={nextDelivery}
+              lastUrgentCheck={lastUrgentCheck}
+              onEmailClick={handleEmailClick}
+              onEmailSelect={handleEmailSelect}
               onGenerateDrafts={async () => {
                 const threadIds = emails.filter(email => !email.isArchived).map(email => email.threadId);
                 await generateDrafts(threadIds);
               }}
-              onRetry={fetchEmails} updateDraft={updateDraft} bulkSend={bulkSend}
-              fetchThreadsWithDrafts={fetchThreadsWithDrafts} emailListRef={emailListRef} emailDetailRef={emailDetailRef}
+              onRetry={fetchEmails}
+              updateDraft={updateDraft}
+              bulkSend={bulkSend}
+              fetchThreadsWithDrafts={fetchThreadsWithDrafts}
+              emailListRef={emailListRef}
+              emailDetailRef={emailDetailRef}
               onBulkArchive={async (emailIds: string[]) => {
                 await emailActions.handleBulkArchiveByIds(emailIds);
                 fetchPriorityCounts();
-              }} expandedCategories={expandedCategories}
-              stableCategoryOrder={stableCategoryOrder} onToggleCategory={toggleCategory}
-              onUpdateStableCategoryOrder={updateStableCategoryOrder} onLoadMore={loadMore} hasMore={hasMore}
-              categorySummary={categorySummary} loadedCategoryNames={loadedCategoryNames}
-              loadingCategoryNames={loadingCategoryNames} fetchCategoryEmails={fetchCategoryEmails}
+              }}
+              expandedCategories={expandedCategories}
+              stableCategoryOrder={stableCategoryOrder}
+              onToggleCategory={toggleCategory}
+              onUpdateStableCategoryOrder={updateStableCategoryOrder}
+              onLoadMore={loadMore}
+              hasMore={hasMore}
+              categorySummary={categorySummary}
+              loadedCategoryNames={loadedCategoryNames}
+              loadingCategoryNames={loadingCategoryNames}
+              fetchCategoryEmails={fetchCategoryEmails}
               minPriority={filters.minPriority}
               maxPriority={filters.maxPriority}
               priorityCounts={priorityCounts}
@@ -389,10 +469,19 @@ const InboxView: React.FC = () => {
         )}
       </div>
       <InboxModals
-        modals={{ blockConfirmEmail: modals.blockConfirmEmail, starDiscrepancyModal: modals.starDiscrepancyModal, priorityOverrideModal: modals.priorityOverrideModal, urgencyOverrideModal: modals.urgencyOverrideModal, priorityFeedbackModal: modals.priorityFeedbackModal }}
-        onHideBlockConfirm={() => modals.hideBlockConfirm()} onConfirmBlockSender={emailActions.confirmBlockSender}
-        onHideStarDiscrepancy={() => modals.hideStarDiscrepancy()} onHidePriorityOverride={() => modals.hidePriorityOverride()}
-        onHideUrgencyOverride={() => modals.hideUrgencyOverride()} onHidePriorityFeedback={() => modals.hidePriorityFeedback()}
+        modals={{
+          blockConfirmEmail: modals.blockConfirmEmail,
+          starDiscrepancyModal: modals.starDiscrepancyModal,
+          priorityOverrideModal: modals.priorityOverrideModal,
+          urgencyOverrideModal: modals.urgencyOverrideModal,
+          priorityFeedbackModal: modals.priorityFeedbackModal,
+        }}
+        onHideBlockConfirm={() => modals.hideBlockConfirm()}
+        onConfirmBlockSender={emailActions.confirmBlockSender}
+        onHideStarDiscrepancy={() => modals.hideStarDiscrepancy()}
+        onHidePriorityOverride={() => modals.hidePriorityOverride()}
+        onHideUrgencyOverride={() => modals.hideUrgencyOverride()}
+        onHidePriorityFeedback={() => modals.hidePriorityFeedback()}
         onRefreshEmails={() => fetchEmails()}
       />
     </div>

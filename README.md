@@ -42,12 +42,14 @@ A non-distracting, highly efficient email client designed specifically for users
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd email-client
 ```
 
 2. Install dependencies:
+
 ```bash
 npm run install-all
 ```
@@ -55,6 +57,7 @@ npm run install-all
 3. Set up environment variables:
 
 **Backend** (`server/.env`):
+
 ```env
 PORT=3001
 NODE_ENV=development
@@ -100,6 +103,7 @@ ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL=your-cliq-channel-name
 ```
 
 **Frontend** (`client/.env`):
+
 ```env
 REACT_APP_API_URL=http://localhost:3001
 
@@ -112,22 +116,26 @@ REACT_APP_REVENUECAT_API_KEY=your-revenuecat-public-api-key
 ```
 
 4. Set up PostgreSQL database:
+
 ```bash
 createdb adhd_email_client
 ```
 
 5. Start the development servers:
+
 ```bash
 npm run dev
 ```
 
 This will start:
+
 - Backend API on `http://localhost:3001`
 - Frontend on `http://localhost:3000`
 
 ## Deployment
 
 Deploy using your preferred platform. The server requires Node.js and a PostgreSQL database.
+
 ## Project Structure
 
 ```
@@ -160,6 +168,7 @@ email-client/
 ## Color Scheme
 
 The application uses a calming, ADHD-friendly color palette inspired by focusbear.io:
+
 - **Primary**: Soft blue (#4A90E2)
 - **Secondary**: Gentle green (#5CB85C)
 - **Background**: Clean neutrals (#F8F9FA, #FFFFFF)
@@ -168,10 +177,12 @@ The application uses a calming, ADHD-friendly color palette inspired by focusbea
 ## API Endpoints
 
 ### Authentication
+
 - `POST /auth/register` - Register new user
 - `POST /auth/login` - Login user
 
 ### Emails
+
 - `GET /emails/inbox` - Get inbox emails (prioritized)
 - `GET /emails/:id` - Get email details
 - `POST /emails` - Create email (for testing)
@@ -180,35 +191,43 @@ The application uses a calming, ADHD-friendly color palette inspired by focusbea
 - `POST /emails/force-check` - Force check for new emails
 
 ### Priority
+
 - `GET /priority/rules` - Get priority rules
 - `POST /priority/rules` - Create priority rule
 - `PUT /priority/rules/:id` - Update priority rule
 - `DELETE /priority/rules/:id` - Delete priority rule
 
 ### Snooze
+
 - `POST /snooze/:id` - Snooze email
 - `DELETE /snooze/:id` - Unsnooze email
 
 ### Notes
+
 - `GET /notes/thread/:threadId` - Get note for thread
 - `POST /notes/thread/:threadId` - Create/update note
 
 ### Summarization
+
 - `POST /summarize/:id` - Summarize email (supports `provider` in body: 'gemini' or 'openai')
 
 ### Replies
+
 - `POST /replies/draft/:id` - Generate reply draft (supports `provider` in body: 'gemini' or 'openai')
 - `POST /replies/learn` - Learn from modification
 - `GET /replies/rules` - Get reply rules
 
 ### Calendar
+
 - `GET /calendar/slots` - Get available time slots
 - `POST /calendar/meeting-reply/:id` - Generate meeting reply (supports `provider` in body: 'gemini' or 'openai')
 
 ### LLM
+
 - `GET /llm/providers` - Get available LLM providers and default
 
 ### Context
+
 - `GET /context` - Get user context
 - `POST /context/analyze` - Analyze emails for context
 - `POST /context` - Create context entry
@@ -216,12 +235,14 @@ The application uses a calming, ADHD-friendly color palette inspired by focusbea
 ## Development
 
 ### Running Tests
+
 ```bash
 cd server
 npm test
 ```
 
 ### Building for Production
+
 ```bash
 # Backend
 cd server
@@ -247,4 +268,3 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-

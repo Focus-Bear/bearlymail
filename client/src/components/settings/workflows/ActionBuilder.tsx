@@ -27,11 +27,7 @@ const ACTION_TYPE_LABELS: Record<ActionType, string> = {
  * Builds the "Then" action list for a workflow rule.
  * Supports MCP tool calls, auto-replies, and webhooks.
  */
-export const ActionBuilder: React.FC<ActionBuilderProps> = ({
-  actions,
-  mcpServers,
-  onChange,
-}) => {
+export const ActionBuilder: React.FC<ActionBuilderProps> = ({ actions, mcpServers, onChange }) => {
   const [adding, setAdding] = useState<ActionType | null>(null);
 
   const addAction = (type: ActionType) => {
@@ -67,33 +63,28 @@ export const ActionBuilder: React.FC<ActionBuilderProps> = ({
           index={idx}
           action={action}
           mcpServers={mcpServers}
-          onUpdate={(updated) => updateAction(idx, updated)}
+          onUpdate={updated => updateAction(idx, updated)}
           onRemove={() => removeAction(idx)}
         />
       ))}
 
       {adding ? (
         <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-          {(Object.keys(ACTION_TYPE_LABELS) as ActionType[]).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => addAction(type)}
-              style={addButtonStyle}
-            >
+          {(Object.keys(ACTION_TYPE_LABELS) as ActionType[]).map(type => (
+            <button key={type} type="button" onClick={() => addAction(type)} style={addButtonStyle}>
               {ACTION_TYPE_LABELS[type]}
             </button>
           ))}
-          <button type="button" onClick={() => setAdding(null)} style={{ ...addButtonStyle, color: theme.colors.text.secondary }}>
+          <button
+            type="button"
+            onClick={() => setAdding(null)}
+            style={{ ...addButtonStyle, color: theme.colors.text.secondary }}
+          >
             Cancel
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setAdding('mcp_tool')}
-          style={addButtonStyle}
-        >
+        <button type="button" onClick={() => setAdding('mcp_tool')} style={addButtonStyle}>
           + Add Action
         </button>
       )}
@@ -110,7 +101,13 @@ interface ActionFormProps {
 }
 
 const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUpdate, onRemove }) => {
-  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: theme.colors.text.secondary, marginBottom: 2, display: 'block' };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 600,
+    color: theme.colors.text.secondary,
+    marginBottom: 2,
+    display: 'block',
+  };
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '6px 10px',
@@ -121,12 +118,36 @@ const ActionForm: React.FC<ActionFormProps> = ({ index, action, mcpServers, onUp
   };
 
   return (
-    <div style={{ padding: theme.spacing.md, background: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.default}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
+    <div
+      style={{
+        padding: theme.spacing.md,
+        background: theme.colors.background.subtle,
+        borderRadius: theme.borderRadius.md,
+        border: `1px solid ${theme.colors.border.default}`,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+        }}
+      >
         <span style={{ fontWeight: 600, fontSize: 13 }}>
           Action {index + 1}: {ACTION_TYPE_LABELS[action.type as keyof typeof ACTION_TYPE_LABELS] ?? action.type}
         </span>
-        <button type="button" onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.error.main, fontSize: 13 }}>
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.colors.error.main,
+            fontSize: 13,
+          }}
+        >
           Remove
         </button>
       </div>
@@ -169,7 +190,7 @@ const MCPToolActionForm: React.FC<{
   inputStyle: React.CSSProperties;
   labelStyle: React.CSSProperties;
 }> = ({ action, mcpServers, onChange, inputStyle, labelStyle }) => {
-  const selectedServer = mcpServers.find((server) => server.id === action.serverId);
+  const selectedServer = mcpServers.find(server => server.id === action.serverId);
   const tools = selectedServer?.cachedTools ?? [];
 
   const updateParam = (key: string, value: string) => {
@@ -186,12 +207,14 @@ const MCPToolActionForm: React.FC<{
         <label style={labelStyle}>MCP Server</label>
         <select
           value={action.serverId}
-          onChange={(evt) => onChange({ ...action, serverId: evt.target.value, toolName: '' })}
+          onChange={evt => onChange({ ...action, serverId: evt.target.value, toolName: '' })}
           style={inputStyle}
         >
           <option value="">— Select server —</option>
-          {mcpServers.map((server) => (
-            <option key={server.id} value={server.id}>{server.name}</option>
+          {mcpServers.map(server => (
+            <option key={server.id} value={server.id}>
+              {server.name}
+            </option>
           ))}
         </select>
       </div>
@@ -201,27 +224,34 @@ const MCPToolActionForm: React.FC<{
           <label style={labelStyle}>Tool</label>
           <select
             value={action.toolName}
-            onChange={(evt) => onChange({ ...action, toolName: evt.target.value })}
+            onChange={evt => onChange({ ...action, toolName: evt.target.value })}
             style={inputStyle}
           >
             <option value="">— Select tool —</option>
-            {tools.map((tool) => (
-              <option key={tool.name} value={tool.name}>{tool.name} — {tool.description}</option>
+            {tools.map(tool => (
+              <option key={tool.name} value={tool.name}>
+                {tool.name} — {tool.description}
+              </option>
             ))}
           </select>
         </div>
       )}
 
       <div>
-        <label style={labelStyle}>Parameters (supports {'{{variables}}'} and {'{{ai:instruction}}'})</label>
+        <label style={labelStyle}>
+          Parameters (supports {'{{variables}}'} and {'{{ai:instruction}}'})
+        </label>
         {Object.entries(action.parameters).map(([key, value], paramIdx) => (
           <div key={paramIdx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
             <input
               type="text"
               value={key}
-              onChange={(evt) => {
+              onChange={evt => {
                 const newParams = Object.fromEntries(
-                  Object.entries(action.parameters).map(([paramKey, paramVal], idx) => [idx === paramIdx ? evt.target.value : paramKey, paramVal])
+                  Object.entries(action.parameters).map(([paramKey, paramVal], idx) => [
+                    idx === paramIdx ? evt.target.value : paramKey,
+                    paramVal,
+                  ])
                 );
                 onChange({ ...action, parameters: newParams });
               }}
@@ -232,13 +262,24 @@ const MCPToolActionForm: React.FC<{
             <input
               type="text"
               value={value}
-              onChange={(evt) => updateParam(key, evt.target.value)}
+              onChange={evt => updateParam(key, evt.target.value)}
               placeholder="{{subject}} or {{ai:instruction}}"
               style={{ ...inputStyle, flex: 2 }}
             />
           </div>
         ))}
-        <button type="button" onClick={addParamRow} style={{ fontSize: 12, color: theme.colors.primary.main, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+        <button
+          type="button"
+          onClick={addParamRow}
+          style={{
+            fontSize: 12,
+            color: theme.colors.primary.main,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
           + Add parameter
         </button>
       </div>
@@ -253,10 +294,12 @@ const ReplyActionForm: React.FC<{
   labelStyle: React.CSSProperties;
 }> = ({ action, onChange, inputStyle, labelStyle }) => (
   <div>
-    <label style={labelStyle}>Reply template body (supports {'{{variables}}'} and {'{{ai:...}}'})</label>
+    <label style={labelStyle}>
+      Reply template body (supports {'{{variables}}'} and {'{{ai:...}}'})
+    </label>
     <textarea
       value={action.templateBody}
-      onChange={(evt) => onChange({ ...action, templateBody: evt.target.value })}
+      onChange={evt => onChange({ ...action, templateBody: evt.target.value })}
       placeholder="Hi {{fromName}},&#10;&#10;{{ai:Write a brief acknowledgement of this email.}}"
       style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
     />
@@ -272,18 +315,33 @@ const WebhookActionForm: React.FC<{
   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
     <div>
       <label style={labelStyle}>URL</label>
-      <input type="url" value={action.url} onChange={(evt) => onChange({ ...action, url: evt.target.value })} placeholder="https://..." style={inputStyle} />
+      <input
+        type="url"
+        value={action.url}
+        onChange={evt => onChange({ ...action, url: evt.target.value })}
+        placeholder="https://..."
+        style={inputStyle}
+      />
     </div>
     <div>
       <label style={labelStyle}>Method</label>
-      <select value={action.method} onChange={(evt) => onChange({ ...action, method: evt.target.value as 'POST' | 'PUT' })} style={inputStyle}>
+      <select
+        value={action.method}
+        onChange={evt => onChange({ ...action, method: evt.target.value as 'POST' | 'PUT' })}
+        style={inputStyle}
+      >
         <option value="POST">POST</option>
         <option value="PUT">PUT</option>
       </select>
     </div>
     <div>
       <label style={labelStyle}>Body template (JSON with {'{{variables}}'})</label>
-      <textarea value={action.bodyTemplate} onChange={(evt) => onChange({ ...action, bodyTemplate: evt.target.value })} placeholder='{"subject": "{{subject}}", "summary": "{{summary}}"}' style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+      <textarea
+        value={action.bodyTemplate}
+        onChange={evt => onChange({ ...action, bodyTemplate: evt.target.value })}
+        placeholder='{"subject": "{{subject}}", "summary": "{{summary}}"}'
+        style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+      />
     </div>
   </div>
 );

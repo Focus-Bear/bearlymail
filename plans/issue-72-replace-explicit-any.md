@@ -17,31 +17,33 @@ The ESLint config relaxes the rule to `'warn'` for test files, but client code a
 ## Current State (as of 2026-03-23)
 
 ### Server Production Code: ✅ Clean
+
 Zero `any` type annotations remain in `server/src/` (excluding `.spec.ts` files). The `@typescript-eslint/no-explicit-any: 'error'` rule is enforced. A `types/common.ts` file provides proper replacement types (e.g., `AuthenticatedRequest`).
 
 ### Client Code: 307 instances
 
 **Top offenders by file:**
 
-| File | Count | Primary Pattern |
-|------|-------|-----------------|
-| `useEmailDetailInitialization.ts` | 26 | `as any` casts for state management |
-| `InboxContentParts.tsx` | 20 | Untyped props and event handlers |
-| `useEmailDetailOperations.ts` | 14 | `as any` for store operations |
-| `EmailDetail.tsx` | 13 | `React.FC<any>`, untyped props |
-| `CategorySection.tsx` | 11 | Untyped drag-and-drop handlers |
-| `useEmailDetailOperations.types.ts` | 8 | Type definition file using `any` |
-| `ContactDetail.tsx` | 7 | `contact: any`, untyped props |
-| `InboxContent.tsx` | 7 | Untyped callback props |
-| `useSettingsData.ts` | 6 | Untyped API responses |
-| `EmailDetailDebugPanel.tsx` | 6 | Debug data types |
-| `useEmailDetailDraftOps.ts` | 5 | Draft state management |
-| `useSearch.ts` | 4 | Search result typing |
-| `ContactActivityList.tsx` | 4 | `contact: any` props |
-| `dev-logger.ts` | 4 | Logger argument types |
-| `Login.tsx / SetupPassword.tsx` | 3 | `catch (err: any)` |
+| File                                | Count | Primary Pattern                     |
+| ----------------------------------- | ----- | ----------------------------------- |
+| `useEmailDetailInitialization.ts`   | 26    | `as any` casts for state management |
+| `InboxContentParts.tsx`             | 20    | Untyped props and event handlers    |
+| `useEmailDetailOperations.ts`       | 14    | `as any` for store operations       |
+| `EmailDetail.tsx`                   | 13    | `React.FC<any>`, untyped props      |
+| `CategorySection.tsx`               | 11    | Untyped drag-and-drop handlers      |
+| `useEmailDetailOperations.types.ts` | 8     | Type definition file using `any`    |
+| `ContactDetail.tsx`                 | 7     | `contact: any`, untyped props       |
+| `InboxContent.tsx`                  | 7     | Untyped callback props              |
+| `useSettingsData.ts`                | 6     | Untyped API responses               |
+| `EmailDetailDebugPanel.tsx`         | 6     | Debug data types                    |
+| `useEmailDetailDraftOps.ts`         | 5     | Draft state management              |
+| `useSearch.ts`                      | 4     | Search result typing                |
+| `ContactActivityList.tsx`           | 4     | `contact: any` props                |
+| `dev-logger.ts`                     | 4     | Logger argument types               |
+| `Login.tsx / SetupPassword.tsx`     | 3     | `catch (err: any)`                  |
 
 **Common patterns:**
+
 - `catch (err: any)` → should use `unknown` + type narrowing
 - `contact: any` → should define a `Contact` interface
 - `React.FC<any>` → should use proper props interface
@@ -53,20 +55,21 @@ Zero `any` type annotations remain in `server/src/` (excluding `.spec.ts` files)
 
 **Top offenders by file:**
 
-| File | Count |
-|------|-------|
-| `calendar.service.spec.ts` | 52 |
-| `auto-responder.service.spec.ts` | 26 |
-| `scan-analysis.service.spec.ts` | 24 |
-| `replies.service.spec.ts` | 20 |
-| `resource-monitor.service.spec.ts` | 19 |
-| `queue-autoscaling.service.spec.ts` | 17 |
-| `follow-ups.service.spec.ts` | 16 |
-| `waitlist.service.spec.ts` | 14 |
-| `gmail.provider.spec.ts` | 14 |
-| `subscriptions.service.spec.ts` | 10 |
+| File                                | Count |
+| ----------------------------------- | ----- |
+| `calendar.service.spec.ts`          | 52    |
+| `auto-responder.service.spec.ts`    | 26    |
+| `scan-analysis.service.spec.ts`     | 24    |
+| `replies.service.spec.ts`           | 20    |
+| `resource-monitor.service.spec.ts`  | 19    |
+| `queue-autoscaling.service.spec.ts` | 17    |
+| `follow-ups.service.spec.ts`        | 16    |
+| `waitlist.service.spec.ts`          | 14    |
+| `gmail.provider.spec.ts`            | 14    |
+| `subscriptions.service.spec.ts`     | 10    |
 
 **Common patterns in tests:**
+
 - `as any` to mock partial objects → should use `Partial<T>` or `jest.Mocked<T>`
 - `as any` to access private members → should test through public API or use accessor helpers
 - Untyped mock return values → should use `jest.fn<ReturnType, Args>()`
@@ -88,7 +91,7 @@ interface Contact {
   // ... based on actual API response shape
 }
 
-// client/src/types/email.ts  
+// client/src/types/email.ts
 interface EmailDetailProps {
   emailId: string;
   // ... actual props
@@ -106,8 +109,8 @@ Replace all `catch (err: any)` with `catch (err: unknown)` + type narrowing:
 catch (err: any) { setError(err.message); }
 
 // After:
-catch (err: unknown) { 
-  setError(err instanceof Error ? err.message : 'Unknown error'); 
+catch (err: unknown) {
+  setError(err instanceof Error ? err.message : 'Unknown error');
 }
 ```
 
@@ -143,14 +146,14 @@ Lower priority since tests use `'warn'` not `'error'`, but improves maintainabil
 
 ## Implementation Order
 
-| Phase | Scope | Estimated PRs | Priority |
-|-------|-------|---------------|----------|
-| 1 | Client foundation types | 1 | High |
-| 2 | Client error handling | 1 | High |
-| 3 | Client component props | 2 | Medium |
-| 4 | Client hooks & state | 2–3 | Medium |
-| 5 | Client utility types | 1 | Low |
-| 6 | Server test cleanup | 3–5 | Low |
+| Phase | Scope                   | Estimated PRs | Priority |
+| ----- | ----------------------- | ------------- | -------- |
+| 1     | Client foundation types | 1             | High     |
+| 2     | Client error handling   | 1             | High     |
+| 3     | Client component props  | 2             | Medium   |
+| 4     | Client hooks & state    | 2–3           | Medium   |
+| 5     | Client utility types    | 1             | Low      |
+| 6     | Server test cleanup     | 3–5           | Low      |
 
 Phases 1–2 can ship together as a single PR (~30 instances fixed).
 Phases 3–4 are the bulk of the work (~250 instances).
@@ -176,4 +179,5 @@ Phase 6 is best done incrementally alongside other test changes.
 The original issue description mentioned "~80+ instances of explicit-any suppressions across the server codebase." Investigation shows the server production code has already been cleaned (0 instances). The remaining work is in client code (307) and server tests (285). The plan has been adjusted accordingly.
 
 ---
-*Plan authored by monk-of-modularity[bot] 🧘 — "Type safety is not a constraint — it is a compass."*
+
+_Plan authored by monk-of-modularity[bot] 🧘 — "Type safety is not a constraint — it is a compass."_

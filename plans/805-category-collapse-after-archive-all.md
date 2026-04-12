@@ -34,7 +34,7 @@ Add a new effect that watches `displayCategories` (or `emailCategoryMap`) and co
 // After all categories are loaded and rendered, auto-collapse empty ones
 useEffect(() => {
   if (!displayCategories.length) return;
-  setExpandedCategories(prev => {
+  setExpandedCategories((prev) => {
     let changed = false;
     const next = new Set(prev);
     for (const cat of displayCategories) {
@@ -56,8 +56,11 @@ useEffect(() => {
 **File:** `client/src/components/inbox/InboxContentParts.tsx` (or where `CategoryAccordion` is rendered)
 
 Filter out categories with 0 emails before rendering:
+
 ```typescript
-const nonEmptyCategories = displayCategories.filter(cat => cat.count > 0 || loadingCategoryNames.includes(key));
+const nonEmptyCategories = displayCategories.filter(
+  (cat) => cat.count > 0 || loadingCategoryNames.includes(key),
+);
 ```
 
 Only hide if `count === 0` AND the category is not currently loading (to avoid flicker during load).
@@ -67,6 +70,7 @@ Only hide if `count === 0` AND the category is not currently loading (to avoid f
 **Context:** If the category disappears from DOM when all emails are archived, any in-category archive feedback toast disappears too.
 
 **Check:** Does `ArchiveConfirmationToast` render inside `CategoryAccordion`? If yes:
+
 - Move it to a React portal (`ReactDOM.createPortal(toast, document.body)`) so it persists regardless of accordion state.
 - OR: Render the toast at the `Inbox.tsx` / `FocusedInbox.tsx` level, controlled by state lifted up from the category.
 
@@ -80,12 +84,12 @@ Add a CSS fade-out when a category collapses to avoid jarring removal. Use an `o
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useInboxCategoryAccordion.ts` | Add useEffect to auto-collapse categories with 0 emails |
-| `client/src/components/inbox/InboxContentParts.tsx` | Filter out empty categories from rendered list |
-| `client/src/components/inbox/ArchiveConfirmationToast.tsx` | Portal-ify if needed for toast persistence |
-| `client/src/components/inbox/CategoryAccordion.tsx` | Optional: add collapse transition |
+| File                                                       | Change                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------- |
+| `client/src/hooks/useInboxCategoryAccordion.ts`            | Add useEffect to auto-collapse categories with 0 emails |
+| `client/src/components/inbox/InboxContentParts.tsx`        | Filter out empty categories from rendered list          |
+| `client/src/components/inbox/ArchiveConfirmationToast.tsx` | Portal-ify if needed for toast persistence              |
+| `client/src/components/inbox/CategoryAccordion.tsx`        | Optional: add collapse transition                       |
 
 ---
 

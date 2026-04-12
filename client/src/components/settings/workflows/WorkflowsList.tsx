@@ -20,15 +20,17 @@ const statusBadgeStyle = (enabled: boolean): React.CSSProperties => ({
   color: enabled ? theme.colors.success.main : theme.colors.error.dark,
 });
 
-export const WorkflowsList: React.FC<WorkflowsListProps> = ({
-  rules,
-  onToggle,
-  onEdit,
-  onDelete,
-}) => {
+export const WorkflowsList: React.FC<WorkflowsListProps> = ({ rules, onToggle, onEdit, onDelete }) => {
   if (rules.length === 0) {
     return (
-      <p style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, textAlign: 'center', padding: theme.spacing.xl }}>
+      <p
+        style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.text.secondary,
+          textAlign: 'center',
+          padding: theme.spacing.xl,
+        }}
+      >
         No workflows yet. Click &quot;Add Workflow&quot; to create your first automation rule.
       </p>
     );
@@ -36,7 +38,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-      {rules.map((rule) => (
+      {rules.map(rule => (
         <div
           key={rule.id}
           style={{
@@ -54,9 +56,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
               <span style={{ ...theme.typography.body.large, fontWeight: 600, color: theme.colors.text.primary }}>
                 {rule.name}
               </span>
-              <span style={statusBadgeStyle(rule.enabled)}>
-                {rule.enabled ? 'Active' : 'Disabled'}
-              </span>
+              <span style={statusBadgeStyle(rule.enabled)}>{rule.enabled ? 'Active' : 'Disabled'}</span>
             </div>
             <div style={{ marginTop: 4, ...theme.typography.body.small, color: theme.colors.text.secondary }}>
               {describeCondition(rule)}
@@ -73,16 +73,10 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             >
               {rule.enabled ? 'Disable' : 'Enable'}
             </button>
-            <button
-              onClick={() => onEdit(rule)}
-              style={buttonStyle('secondary')}
-            >
+            <button onClick={() => onEdit(rule)} style={buttonStyle('secondary')}>
               Edit
             </button>
-            <button
-              onClick={() => onDelete(rule.id)}
-              style={buttonStyle('danger')}
-            >
+            <button onClick={() => onDelete(rule.id)} style={buttonStyle('danger')}>
               Delete
             </button>
           </div>
@@ -116,10 +110,25 @@ function buttonStyle(variant: 'primary' | 'secondary' | 'danger'): React.CSSProp
     fontWeight: 500,
   };
   if (variant === 'primary') {
-    return { ...base, background: theme.colors.primary.main, color: theme.colors.background.paper, borderColor: theme.colors.primary.main };
+    return {
+      ...base,
+      background: theme.colors.primary.main,
+      color: theme.colors.background.paper,
+      borderColor: theme.colors.primary.main,
+    };
   }
   if (variant === 'danger') {
-    return { ...base, background: theme.colors.background.paper, color: theme.colors.error.main, borderColor: theme.colors.error.main };
+    return {
+      ...base,
+      background: theme.colors.background.paper,
+      color: theme.colors.error.main,
+      borderColor: theme.colors.error.main,
+    };
   }
-  return { ...base, background: theme.colors.background.paper, color: theme.colors.text.primary, borderColor: theme.colors.border.default };
+  return {
+    ...base,
+    background: theme.colors.background.paper,
+    color: theme.colors.text.primary,
+    borderColor: theme.colors.border.default,
+  };
 }

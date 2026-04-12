@@ -18,7 +18,16 @@ The `useEffect` in `useAnalysisProgress.ts` (line ~159) has `backoff` in its dep
 The `usePollingWithBackoff` hook (line 219 of `usePollingWithBackoff.ts`) returns a **new object literal on every render**:
 
 ```ts
-return { getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll };
+return {
+  getState,
+  onSuccess,
+  onError,
+  isInFlight,
+  markInFlight,
+  clearInFlight,
+  shouldSkip,
+  cancelAll,
+};
 ```
 
 While the individual functions are stable (`useCallback`), the **container object** is recreated each render. Since JavaScript uses referential equality, `backoff !== prevBackoff` on every render, causing the `useEffect` to:
@@ -33,20 +42,40 @@ Additionally, each render-triggered poll restart resets the local `retryCount` a
 
 ### Files to Change
 
-| File | Line(s) | Change |
-|------|---------|--------|
-| `client/src/hooks/usePollingWithBackoff.ts` | 219 | Wrap return value in `useMemo` to stabilize the object reference |
-| `client/src/hooks/settings/useAnalysisProgress.ts` | ~310 | Remove `backoff` from the dependency array (the individual backoff functions are already stable refs) |
+| File                                               | Line(s) | Change                                                                                                |
+| -------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `client/src/hooks/usePollingWithBackoff.ts`        | 219     | Wrap return value in `useMemo` to stabilize the object reference                                      |
+| `client/src/hooks/settings/useAnalysisProgress.ts` | ~310    | Remove `backoff` from the dependency array (the individual backoff functions are already stable refs) |
 
 ### Implementation Steps
 
 1. **In `usePollingWithBackoff.ts`**, replace the bare return with:
+
    ```ts
    return useMemo(
-     () => ({ getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll }),
-     [getState, onSuccess, onError, isInFlight, markInFlight, clearInFlight, shouldSkip, cancelAll]
+     () => ({
+       getState,
+       onSuccess,
+       onError,
+       isInFlight,
+       markInFlight,
+       clearInFlight,
+       shouldSkip,
+       cancelAll,
+     }),
+     [
+       getState,
+       onSuccess,
+       onError,
+       isInFlight,
+       markInFlight,
+       clearInFlight,
+       shouldSkip,
+       cancelAll,
+     ],
    );
    ```
+
    Import `useMemo` from React.
 
 2. **In `useAnalysisProgress.ts`**, update the effect dependency array from:
@@ -66,6 +95,7 @@ Additionally, each render-triggered poll restart resets the local `retryCount` a
 ### Root Cause
 
 `useAnalysisProgress` (line ~100) initializes with:
+
 ```ts
 const [analyzing, setAnalyzing] = useState(false);
 const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -77,10 +107,10 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
 
 ### Files to Change
 
-| File | Line(s) | Change |
-|------|---------|--------|
-| `client/src/hooks/settings/useAnalysisProgress.ts` | New code near top of hook | Add a mount-time effect to check for active analysis |
-| `server/src/context/context.controller.ts` | Existing `getAnalyzeProgress` endpoint | No change needed — it already supports querying without `analysisId` and finds running analyses |
+| File                                               | Line(s)                                | Change                                                                                          |
+| -------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `client/src/hooks/settings/useAnalysisProgress.ts` | New code near top of hook              | Add a mount-time effect to check for active analysis                                            |
+| `server/src/context/context.controller.ts`         | Existing `getAnalyzeProgress` endpoint | No change needed — it already supports querying without `analysisId` and finds running analyses |
 
 ### Implementation Steps
 
@@ -92,14 +122,16 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
      let cancelled = false;
      const checkForActiveAnalysis = async () => {
        try {
-         const response = await axios.get(`${API_URL}/context/analyze-progress`);
+         const response = await axios.get(
+           `${API_URL}/context/analyze-progress`,
+         );
          if (cancelled) return;
-         
+
          // If there's an active analysis with progress, resume polling
          if (response.data.progress && !response.data.error) {
            const { current, total } = response.data.progress;
            const isComplete = total > 0 && current >= total;
-           
+
            if (!isComplete) {
              // There's an active analysis — resume tracking it
              // We don't have the analysisId, but the backend will find the running one
@@ -119,9 +151,11 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
          // Silently ignore — if we can't check, we just won't resume
        }
      };
-     
+
      checkForActiveAnalysis();
-     return () => { cancelled = true; };
+     return () => {
+       cancelled = true;
+     };
    }, []); // Run only on mount
    ```
 
@@ -130,6 +164,7 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
    - Change the guard to: if `!analyzing` return; if `!analysisId`, poll without the `?analysisId=` query parameter (the backend already handles this — see `getAnalysisProgress` fallback logic at context.service.ts line ~118).
 
    Specifically, update the poll URL construction (line ~280):
+
    ```ts
    const url = analysisId
      ? `${API_URL}/context/analyze-progress?analysisId=${analysisId}`
@@ -137,6 +172,7 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
    ```
 
    And remove or adjust the early return at line ~163:
+
    ```ts
    // Remove this block:
    // if (!analysisId) {
@@ -144,6 +180,7 @@ On reload, the frontend starts fresh with `analyzing: false`, so it never polls.
    //   return;
    // }
    ```
+
    Instead, just check `if (!analyzing) return;` and let the poll URL handle the presence/absence of `analysisId`.
 
 ---
@@ -189,8 +226,9 @@ The third screenshot in the issue shows an error that appears separate from the 
 ### Recommendation
 
 Since the screenshot is not viewable, Codebeard should ask Jeremy to describe the error text or re-upload the screenshot. Alternatively, reproduce by:
+
 1. Starting an analysis on the Settings page
-2. Looking for any error banners/toasts that appear *outside* the AnalysisProgressModal
+2. Looking for any error banners/toasts that appear _outside_ the AnalysisProgressModal
 3. Checking browser console for unhandled errors during analysis
 
 If the error is the GitHub callback error, it's a URL parameter issue — navigating to `/settings` from the inbox "Analyze emails" button appends `#context` but not `?error=...`, so this is unlikely unless the user has OAuth callback residue in their URL.
@@ -199,13 +237,13 @@ If the error is the GitHub callback error, it's a URL parameter issue — naviga
 
 ## Summary of Changes
 
-| Priority | File | Change | Bugs Fixed |
-|----------|------|--------|------------|
-| P0 | `client/src/hooks/usePollingWithBackoff.ts` | Wrap return in `useMemo` | #1, #3 |
-| P0 | `client/src/hooks/settings/useAnalysisProgress.ts` | Remove `backoff` from useEffect deps | #1, #3 |
-| P1 | `client/src/hooks/settings/useAnalysisProgress.ts` | Add mount-time resume effect | #2 |
-| P1 | `client/src/hooks/settings/useAnalysisProgress.ts` | Allow polling without `analysisId` for resumed analyses | #2 |
-| P2 | TBD (need screenshot) | Fix unrelated error | #4 |
+| Priority | File                                               | Change                                                  | Bugs Fixed |
+| -------- | -------------------------------------------------- | ------------------------------------------------------- | ---------- |
+| P0       | `client/src/hooks/usePollingWithBackoff.ts`        | Wrap return in `useMemo`                                | #1, #3     |
+| P0       | `client/src/hooks/settings/useAnalysisProgress.ts` | Remove `backoff` from useEffect deps                    | #1, #3     |
+| P1       | `client/src/hooks/settings/useAnalysisProgress.ts` | Add mount-time resume effect                            | #2         |
+| P1       | `client/src/hooks/settings/useAnalysisProgress.ts` | Allow polling without `analysisId` for resumed analyses | #2         |
+| P2       | TBD (need screenshot)                              | Fix unrelated error                                     | #4         |
 
 ## Testing Checklist
 

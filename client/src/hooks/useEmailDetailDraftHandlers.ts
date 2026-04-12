@@ -37,10 +37,13 @@ export function useEmailDetailDraftHandlers(options: {
   setDraft: (d: string) => void;
   setSelectedReplyOption: (idx: number) => void;
   setReplyOptions: (opts: ReplyOption[] | null) => void;
-  setToneCheckResult: (r: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null) => void;
+  setToneCheckResult: (
+    r: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null
+  ) => void;
   setShowReplyComposer: (show: boolean) => void;
 }) {
-  const { replyOptions, setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult, setShowReplyComposer } = options;
+  const { replyOptions, setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult, setShowReplyComposer } =
+    options;
   // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
   const customDraftRef = useRef<string>('');
 

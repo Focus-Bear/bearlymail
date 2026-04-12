@@ -13,18 +13,13 @@ export { getScheduleSuggestions } from './scheduleUtils';
  * Footer for the reply composer: scheduled-time banner, expected-reply selector,
  * keep-in-action checkbox, and cancel/send/schedule buttons.
  */
-export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = (props) => {
+export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = props => {
   const { onClose, onClearSchedule, scheduledSendAt, sending, checkingTone } = props;
   const hook = useReplyComposerFooter(props);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
-      {scheduledSendAt && (
-        <ScheduledTimeBanner
-          scheduledSendAt={scheduledSendAt}
-          onClearSchedule={onClearSchedule}
-        />
-      )}
+      {scheduledSendAt && <ScheduledTimeBanner scheduledSendAt={scheduledSendAt} onClearSchedule={onClearSchedule} />}
 
       <ExpectedReplyRow
         expectedReplyHours={hook.expectedReplyHours}
@@ -39,7 +34,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = (props) =
         keepInAction={hook.keepInAction}
         sending={sending}
         checkingTone={checkingTone}
-        onChange={(event) => hook.setKeepInAction(event.target.checked)}
+        onChange={event => hook.setKeepInAction(event.target.checked)}
       />
 
       <ButtonRow

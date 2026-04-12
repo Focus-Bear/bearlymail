@@ -21,8 +21,24 @@ const mockedUseEmailFetching = useEmailFetchingModule as jest.Mocked<typeof useE
 const mockedUseEmailActionsBase = useEmailActionsBaseModule as jest.Mocked<typeof useEmailActionsBaseModule>;
 
 // Helper to create a test store
-const createTestStore = (preloadedState: Partial<import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState> = {}) => {
-  const { emails, hasMore, totalCount, currentOffset, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, lastFetchedAt, ...uiState } = preloadedState as unknown as import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState;
+const createTestStore = (
+  preloadedState: Partial<
+    import('store/slices/inboxDataSlice').InboxDataState & import('store/slices/inboxUISlice').InboxUIState
+  > = {}
+) => {
+  const {
+    emails,
+    hasMore,
+    totalCount,
+    currentOffset,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    exhaustedCategoryNames,
+    lastFetchedAt,
+    ...uiState
+  } = preloadedState as unknown as import('store/slices/inboxDataSlice').InboxDataState &
+    import('store/slices/inboxUISlice').InboxUIState;
   return configureStore({
     reducer: {
       inboxData: inboxDataReducer,
@@ -127,7 +143,10 @@ describe('useEmailManagement', () => {
       });
 
       // Set initial emails
-      result.current.setEmails([{ id: '1', isRead: false } as unknown as Email, { id: '2', isRead: false } as unknown as Email]);
+      result.current.setEmails([
+        { id: '1', isRead: false } as unknown as Email,
+        { id: '2', isRead: false } as unknown as Email,
+      ]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
@@ -171,7 +190,10 @@ describe('useEmailManagement', () => {
         wrapper: createWrapper(testStore),
       });
 
-      result.current.setEmails([{ id: '1', isRead: true } as unknown as Email, { id: '2', isRead: true } as unknown as Email]);
+      result.current.setEmails([
+        { id: '1', isRead: true } as unknown as Email,
+        { id: '2', isRead: true } as unknown as Email,
+      ]);
 
       mockedAxios.put.mockResolvedValue({ data: {} });
 
@@ -301,7 +323,10 @@ describe('useEmailManagement', () => {
         { wrapper: createWrapper(testStore) }
       );
 
-      result.current.setEmails([{ id: '1', isRead: true } as unknown as Email, { id: '2', isRead: true } as unknown as Email]);
+      result.current.setEmails([
+        { id: '1', isRead: true } as unknown as Email,
+        { id: '2', isRead: true } as unknown as Email,
+      ]);
 
       mockedAxios.post.mockResolvedValue({ data: {} });
 

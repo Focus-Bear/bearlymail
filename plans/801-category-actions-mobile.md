@@ -18,12 +18,15 @@ The `EmailCategoryControls` component in `client/src/components/settings/guide-a
 ## Root Cause Hypothesis
 
 ### Wrong button placement
+
 `handleCompressContext` lives inside `useCategoryActions` and `EmailCategoryControls` renders it inline with Recategorize/Consolidate. The issue says it should be at the top of the context section — meaning it should be a standalone button above all the `ContextSection` components in `ContextSectionsList`, not bundled with the email-category-specific controls.
 
 ### Always visible
+
 The `CompressStatusBadge` has a visibility guard but the compress button itself has no conditional rendering. A `contexts.length > THRESHOLD` check is needed.
 
 ### Mobile layout
+
 The button row has `minWidth: 260px` and `marginLeft: 'auto'` which pushes it off-screen or causes overflow on mobile. The flex container wrapping is insufficient.
 
 ---
@@ -67,10 +70,10 @@ The button row has `minWidth: 260px` and `marginLeft: 'auto'` which pushes it of
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
+| File                                                              | Change                                                              |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------- |
 | `client/src/components/settings/guide-ai/ContextSectionsList.tsx` | Move compress button to top, add threshold guard, fix mobile layout |
-| `client/src/components/settings/guide-ai/ContextSection.tsx` | Fix header flex layout for mobile |
+| `client/src/components/settings/guide-ai/ContextSection.tsx`      | Fix header flex layout for mobile                                   |
 
 ---
 

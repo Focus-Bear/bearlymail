@@ -62,6 +62,7 @@ guard plus conditional link inclusion:
 
 ```markdown
 ## Scheduling Rules (ALWAYS APPLY)
+
 NEVER propose specific dates, times, or time ranges for meetings or calls. You have NO
 access to the user's calendar and MUST NOT hallucinate availability.
 
@@ -99,12 +100,14 @@ If relevant, include this booking link: {{schedulingLinkUrl}}
 ### File 3: `server/src/llm/llm.service.ts`
 
 In `generateFollowUpDraft()` (~L1624):
+
 - Add `calendarBookingUrl?: string` parameter
 - Pass `schedulingLinkUrl: calendarBookingUrl || ""` to `renderPrompt()`
 
 ### File 4: `server/src/suggested-replies/suggested-replies.processor.ts`
 
 In `generateReplySuggestions()`, the follow-up branch (~L218):
+
 - Pass `user.calendarBookingUrl` (via `userContext.calendarLink`) to
   `generateFollowUpDraft()` as the new `calendarBookingUrl` parameter
 
@@ -119,12 +122,13 @@ In `generateReplySuggestions()`, the follow-up branch (~L218):
 
 ## Files Summary
 
-| File | Change |
-|------|--------|
-| `server/promptfoo/prompts/generate-multiple-replies.md` | Replace conditional scheduling block with unconditional guard |
-| `server/promptfoo/prompts/generate-follow-up.md` | Add scheduling guard |
-| `server/src/llm/llm.service.ts` | Add `calendarBookingUrl` param to `generateFollowUpDraft()` |
-| `server/src/suggested-replies/suggested-replies.processor.ts` | Pass booking link to follow-up generation |
+| File                                                          | Change                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------- |
+| `server/promptfoo/prompts/generate-multiple-replies.md`       | Replace conditional scheduling block with unconditional guard |
+| `server/promptfoo/prompts/generate-follow-up.md`              | Add scheduling guard                                          |
+| `server/src/llm/llm.service.ts`                               | Add `calendarBookingUrl` param to `generateFollowUpDraft()`   |
+| `server/src/suggested-replies/suggested-replies.processor.ts` | Pass booking link to follow-up generation                     |
 
 ---
-*Planned by Monk of Modularity 🧘 via OpenClaw*
+
+_Planned by Monk of Modularity 🧘 via OpenClaw_

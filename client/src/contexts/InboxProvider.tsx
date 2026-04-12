@@ -202,9 +202,7 @@ export function InboxProvider({ children, isFocusedMode = false }: InboxProvider
     <InboxFiltersContext.Provider value={filtersValue}>
       <InboxDataContext.Provider value={dataValue}>
         <InboxActionsContext.Provider value={actionsValue}>
-          <InboxUIContext.Provider value={uiValue}>
-            {children}
-          </InboxUIContext.Provider>
+          <InboxUIContext.Provider value={uiValue}>{children}</InboxUIContext.Provider>
         </InboxActionsContext.Provider>
       </InboxDataContext.Provider>
     </InboxFiltersContext.Provider>

@@ -34,12 +34,14 @@ The infrastructure is split into **4 separate stacks** for faster, more modular 
 ## Setup
 
 1. **Install dependencies**:
+
    ```bash
    cd infrastructure
    npm install
    ```
 
 2. **Bootstrap CDK** (first time only):
+
    ```bash
    cdk bootstrap aws://ACCOUNT-ID/ap-southeast-2
    ```
@@ -128,6 +130,7 @@ cdk diff BearlyMailStack
 ### Environment Variables
 
 The stack automatically configures:
+
 - Database connection (from RDS)
 - Secrets from Secrets Manager
 - Port configuration
@@ -144,15 +147,18 @@ You can customize the stack by modifying `lib/bearlymail-stack.ts`:
 ## Services
 
 ### Web Service
+
 - **Port**: 3001
 - **Health Check**: `/health`
 - **Load Balancer**: Public-facing ALB
 
 ### Worker Service
+
 - Runs background jobs (email sync, priority calculation, etc.)
 - No public access, only needs database access
 
 ### Cron Jobs
+
 - Scheduled tasks via EventBridge
 - Currently configured for email sync every 6 hours
 - Add more rules as needed
@@ -162,12 +168,14 @@ You can customize the stack by modifying `lib/bearlymail-stack.ts`:
 The frontend is deployed to S3 and served via CloudFront. To update:
 
 1. Build the React app:
+
    ```bash
    cd client
    npm run build
    ```
 
 2. Deploy to S3:
+
    ```bash
    aws s3 sync build/ s3://<FrontendBucketName> --delete
    ```
@@ -186,11 +194,13 @@ Or use the CDK deployment which handles this automatically.
 Run migrations after deployment:
 
 1. **Get database connection details**:
+
    ```bash
    aws secretsmanager get-secret-value --secret-id <DatabaseSecretArn>
    ```
 
 2. **Run migrations** (from a local machine or ECS task):
+
    ```bash
    # Set environment variables
    export DB_HOST=<database-endpoint>
@@ -198,7 +208,7 @@ Run migrations after deployment:
    export DB_PASSWORD=<password>
    export DB_NAME=bearlymail
    export DB_SSL=true
-   
+
    # Run migrations
    cd server
    npm run migration:run
@@ -229,17 +239,20 @@ Run migrations after deployment:
 ## Troubleshooting
 
 ### View logs:
+
 ```bash
 aws logs tail /ecs/bearlymail/web --follow
 aws logs tail /ecs/bearlymail/worker --follow
 ```
 
 ### Check service status:
+
 ```bash
 aws ecs describe-services --cluster BearlyMailCluster --services WebService
 ```
 
 ### Scale services:
+
 ```bash
 aws ecs update-service --cluster BearlyMailCluster --service WebService --desired-count 2
 ```
@@ -267,9 +280,3 @@ cdk destroy BearlyMailNetworkingStack
 ```
 
 **Note**: The RDS database has `removalPolicy: RETAIN`, so it won't be deleted even when destroying the database stack. Delete it manually if needed.
-
-
-
-
-
-

@@ -27,10 +27,14 @@ async getEmailImportProgress(userId: string): Promise<{
 **`isReady` is hardcoded to `count >= 100`.** If a user has fewer than 100 email threads total, `isReady` will **never** be `true`. The user is stuck on the "Importing and prioritizing emails..." screen forever.
 
 The frontend (`client/src/components/setup-wizard/EmailImportStep.tsx`) also has a matching hardcoded constant:
+
 ```typescript
 const TARGET_EMAILS = 100;
 // ...
-const progressPercent = Math.min(100, Math.round((progress.prioritizedCount / TARGET_EMAILS) * 100));
+const progressPercent = Math.min(
+  100,
+  Math.round((progress.prioritizedCount / TARGET_EMAILS) * 100),
+);
 ```
 
 The button to proceed is gated on `disabled={!progress.isReady}`, so users with few emails are permanently blocked.
@@ -78,6 +82,7 @@ async getEmailImportProgress(userId: string): Promise<{
 ```
 
 This ensures:
+
 - Users with < 100 emails proceed once analysis completes (or fails).
 - Users with ≥ 100 emails still proceed at the 100-email mark (backwards-compatible).
 - Failed analyses don't block the user indefinitely.
@@ -106,6 +111,7 @@ useEffect(() => {
 ```
 
 Also update the progress display to show a message when timed out:
+
 ```typescript
 {timedOut && !progress.isReady && (
   <p>{t('setupWizard.emailImport.timeoutMessage')}</p>
@@ -119,6 +125,7 @@ Also update the progress display to show a message when timed out:
 The progress bar should reflect actual completion rather than distance to an arbitrary 100-email target. Return `totalCount` from the backend (once known) and use that:
 
 Option A (simpler): Just use `isReady` to show 100%:
+
 ```typescript
 const progressPercent = progress.isReady
   ? 100
@@ -129,11 +136,11 @@ Option B (better UX — requires backend change): Return an estimated total from
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/onboarding/onboarding.service.ts` | Inject `ContextAnalysis` repo, check analysis status for `isReady` |
-| `server/src/onboarding/onboarding.module.ts` | Add `ContextAnalysis` entity to module imports (if not already) |
-| `client/src/components/setup-wizard/EmailImportStep.tsx` | Add timeout fallback, fix progress % for `isReady` |
+| File                                                     | Change                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `server/src/onboarding/onboarding.service.ts`            | Inject `ContextAnalysis` repo, check analysis status for `isReady` |
+| `server/src/onboarding/onboarding.module.ts`             | Add `ContextAnalysis` entity to module imports (if not already)    |
+| `client/src/components/setup-wizard/EmailImportStep.tsx` | Add timeout fallback, fix progress % for `isReady`                 |
 
 ## Testing
 

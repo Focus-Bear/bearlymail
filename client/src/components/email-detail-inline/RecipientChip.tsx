@@ -12,7 +12,13 @@ interface RecipientChipProps {
   onDragStart?: (event: React.DragEvent) => void;
 }
 
-export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemove, draggable = false, onDragStart }) => (
+export const RecipientChip: React.FC<RecipientChipProps> = ({
+  tag,
+  index,
+  onRemove,
+  draggable = false,
+  onDragStart,
+}) => (
   <span
     key={tag}
     draggable={draggable}

@@ -85,30 +85,30 @@ function setValueByKey(obj, key, value) {
  */
 async function translateWithGoogle(text, targetLanguage) {
   const targetCode = GOOGLE_LANGUAGE_CODES[targetLanguage] || targetLanguage;
-  
+
   // Preserve placeholders by replacing them temporarily
   const placeholders = [];
-  const processedText = text.replace(/\{\{([^}]+)\}\}/g, (match) => {
+  const processedText = text.replace(/\{\{([^}]+)\}\}/g, match => {
     placeholders.push(match);
     return `__PLACEHOLDER_${placeholders.length - 1}__`;
   });
-  
+
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetCode}&dt=t&q=${encodeURIComponent(processedText)}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Google Translate error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     let translated = data[0].map(item => item[0]).join('');
-    
+
     // Restore placeholders
     placeholders.forEach((placeholder, index) => {
       translated = translated.replace(new RegExp(`__PLACEHOLDER_${index}__`, 'gi'), placeholder);
     });
-    
+
     return translated;
   } catch (error) {
     console.error(`   Warning: Translation failed for "${text.substring(0, 30)}...": ${error.message}`);
@@ -122,14 +122,14 @@ async function translateWithGoogle(text, targetLanguage) {
 async function translateBatchWithGoogle(texts, targetLanguage) {
   const results = [];
   const batchSize = 20;
-  
+
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
     const batchIndex = Math.floor(i / batchSize) + 1;
     const totalBatches = Math.ceil(texts.length / batchSize);
-    
+
     console.log(`   Translating batch ${batchIndex}/${totalBatches} (${batch.length} texts)...`);
-    
+
     // Translate each text in the batch with a small delay to avoid rate limiting
     for (const text of batch) {
       const translated = await translateWithGoogle(text, targetLanguage);
@@ -138,7 +138,7 @@ async function translateBatchWithGoogle(texts, targetLanguage) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
-  
+
   return results;
 }
 
@@ -147,18 +147,18 @@ async function translateBatchWithGoogle(texts, targetLanguage) {
  */
 async function translateWithOpenAI(texts, targetLanguage, apiKey) {
   const languageName = LANGUAGE_NAMES[targetLanguage] || targetLanguage;
-  
+
   // Batch texts for efficiency (max 50 at a time)
   const batchSize = 50;
   const results = [];
-  
+
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
     const batchIndex = Math.floor(i / batchSize) + 1;
     const totalBatches = Math.ceil(texts.length / batchSize);
-    
+
     console.log(`   Translating batch ${batchIndex}/${totalBatches} (${batch.length} texts)...`);
-    
+
     const prompt = `Translate the following JSON values from English to ${languageName}. 
 Keep the same JSON structure and preserve any placeholders like {{variable}} or {{count}}.
 Only translate the values, not the keys.
@@ -172,7 +172,7 @@ ${JSON.stringify(batch, null, 2)}`;
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: 'gpt-5.4-mini',
@@ -197,7 +197,7 @@ ${JSON.stringify(batch, null, 2)}`;
 
       const data = await response.json();
       const translatedText = data.choices[0].message.content.trim();
-      
+
       // Parse the JSON response
       let translated;
       try {
@@ -212,7 +212,7 @@ ${JSON.stringify(batch, null, 2)}`;
         console.error(`   Warning: Failed to parse translation response, using original texts`);
         translated = batch;
       }
-      
+
       results.push(...translated);
     } catch (error) {
       console.error(`   Error translating batch: ${error.message}`);
@@ -220,7 +220,7 @@ ${JSON.stringify(batch, null, 2)}`;
       results.push(...batch);
     }
   }
-  
+
   return results;
 }
 
@@ -230,7 +230,7 @@ ${JSON.stringify(batch, null, 2)}`;
 function findMissingKeys(baseLocale, targetLocale) {
   const baseKeys = new Set(getAllKeys(baseLocale));
   const targetKeys = new Set(getAllKeys(targetLocale));
-  
+
   const missing = [];
   for (const key of baseKeys) {
     if (!targetKeys.has(key)) {
@@ -240,7 +240,7 @@ function findMissingKeys(baseLocale, targetLocale) {
       });
     }
   }
-  
+
   return missing;
 }
 
@@ -251,14 +251,14 @@ function sortObjectKeys(obj) {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
     return obj;
   }
-  
+
   const sorted = {};
   const keys = Object.keys(obj).sort();
-  
+
   for (const key of keys) {
     sorted[key] = sortObjectKeys(obj[key]);
   }
-  
+
   return sorted;
 }
 
@@ -270,23 +270,23 @@ async function main() {
   const checkOnly = args.includes('--check');
   const useGoogle = args.includes('--google');
   const apiKey = process.env.OPENAI_API_KEY;
-  
+
   console.log('🌍 Translation Fixer\n');
-  
+
   if (!checkOnly && !apiKey && !useGoogle) {
     console.log('⚠️  No OPENAI_API_KEY found. Running in check-only mode.');
     console.log('   Options:');
     console.log('   - Set OPENAI_API_KEY environment variable for OpenAI translation');
     console.log('   - Use --google flag for free Google Translate\n');
   }
-  
+
   // Load base locale
   const baseLocalePath = path.join(LOCALES_DIR, `${BASE_LOCALE}.json`);
   if (!fs.existsSync(baseLocalePath)) {
     console.error(`❌ Base locale file not found: ${baseLocalePath}`);
     process.exit(1);
   }
-  
+
   let baseLocale;
   try {
     baseLocale = JSON.parse(fs.readFileSync(baseLocalePath, 'utf8'));
@@ -294,24 +294,24 @@ async function main() {
     console.error(`❌ Failed to parse base locale: ${error.message}`);
     process.exit(1);
   }
-  
+
   const baseKeyCount = getAllKeys(baseLocale).length;
   console.log(`📄 Base locale (${BASE_LOCALE}): ${baseKeyCount} keys\n`);
-  
+
   let hasIssues = false;
-  
+
   // Process each target locale
   for (const targetLocaleCode of TARGET_LOCALES) {
     const targetLocalePath = path.join(LOCALES_DIR, `${targetLocaleCode}.json`);
-    
+
     console.log(`🔍 Checking ${targetLocaleCode}.json...`);
-    
+
     if (!fs.existsSync(targetLocalePath)) {
       console.error(`   ❌ Target locale file not found: ${targetLocalePath}`);
       hasIssues = true;
       continue;
     }
-    
+
     let targetLocale;
     try {
       targetLocale = JSON.parse(fs.readFileSync(targetLocalePath, 'utf8'));
@@ -320,28 +320,26 @@ async function main() {
       hasIssues = true;
       continue;
     }
-    
+
     const targetKeyCount = getAllKeys(targetLocale).length;
     console.log(`   Current keys: ${targetKeyCount}`);
-    
+
     // Find missing keys
     const missingKeys = findMissingKeys(baseLocale, targetLocale);
-    
+
     if (missingKeys.length === 0) {
       console.log(`   ✅ All keys present!\n`);
       continue;
     }
-    
+
     console.log(`   ⚠️  Missing ${missingKeys.length} key(s)`);
     hasIssues = true;
-    
+
     if (checkOnly || (!apiKey && !useGoogle)) {
       // Just report missing keys
       console.log(`\n   Missing keys:`);
       missingKeys.slice(0, 30).forEach(({ key, value }) => {
-        const displayValue = typeof value === 'string' && value.length > 50 
-          ? `${value.substring(0, 50)}...` 
-          : value;
+        const displayValue = typeof value === 'string' && value.length > 50 ? `${value.substring(0, 50)}...` : value;
         console.log(`      - ${key}: "${displayValue}"`);
       });
       if (missingKeys.length > 30) {
@@ -350,13 +348,13 @@ async function main() {
       console.log('');
       continue;
     }
-    
+
     // Translate missing keys
     console.log(`\n   🔄 Translating ${missingKeys.length} missing key(s)...`);
-    
+
     const textsToTranslate = missingKeys.map(({ value }) => value);
     let translatedTexts;
-    
+
     if (useGoogle) {
       console.log('   Using Google Translate...');
       translatedTexts = await translateBatchWithGoogle(textsToTranslate, targetLocaleCode);
@@ -364,24 +362,24 @@ async function main() {
       console.log('   Using OpenAI...');
       translatedTexts = await translateWithOpenAI(textsToTranslate, targetLocaleCode, apiKey);
     }
-    
+
     // Add translated keys to target locale
     for (let i = 0; i < missingKeys.length; i++) {
       const { key } = missingKeys[i];
       const translatedValue = translatedTexts[i];
       setValueByKey(targetLocale, key, translatedValue);
     }
-    
+
     // Sort keys for consistent ordering
     const sortedLocale = sortObjectKeys(targetLocale);
-    
+
     // Write updated locale file
     fs.writeFileSync(targetLocalePath, `${JSON.stringify(sortedLocale, null, 2)}\n`, 'utf8');
-    
+
     const newKeyCount = getAllKeys(sortedLocale).length;
     console.log(`   ✅ Added ${missingKeys.length} translations. Total keys: ${newKeyCount}\n`);
   }
-  
+
   // Summary
   console.log('='.repeat(50));
   if (hasIssues) {

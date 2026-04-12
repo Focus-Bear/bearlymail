@@ -34,12 +34,14 @@
 **Recommendation: Remove the `react/no-danger` rule from the ESLint config entirely (or at the project level).**
 
 **Rationale:**
+
 - The project's architecture explicitly channels ALL HTML rendering through `SanitizedHTML.tsx` with DOMPurify
 - The `react/no-danger` rule's purpose is to flag unsafe HTML injection — but the project has already solved this architecturally
 - Keeping the rule means the one legitimate, auditable, safe use needs a permanent disable comment
 - The rule adds no safety value when DOMPurify is always used
 
 **Action:**
+
 - Add `'react/no-danger': 'off'` to `client/.eslintrc.js` rules section
 - Add a comment: `// Disabled: all HTML rendering goes through SanitizedHTML.tsx with DOMPurify. See issue #939.`
 - Remove the `// eslint-disable-next-line react/no-danger` comment from `SanitizedHTML.tsx`
@@ -56,6 +58,7 @@ The only other option is to rewrite `SanitizedHTML.tsx` to NOT use `dangerouslyS
 **Current violations:** `max-lines-per-function` (handleBatchAnalysisJob ~600 lines), `complexity`, `max-statements`
 
 **The `handleBatchAnalysisJob` method does 4 distinct phases in one enormous function:**
+
 1. Fetch threads by ID (lines ~250–310) — fetches thread data from Gmail
 2. Process threads into analysis payloads (lines ~310–400) — maps raw threads to batch payloads
 3. Call LLM for analysis (lines ~440–490) — fires LLM call and records metrics
@@ -90,6 +93,7 @@ Plus retry loop wrapping, error handling, and CloudWatch metric emission through
    - Extract lines ~640–660
 
 **After extraction, `handleBatchAnalysisJob` becomes a ~80-line orchestrator:**
+
 ```
 - Destructure job data
 - Initialize tracker
@@ -105,10 +109,10 @@ Plus retry loop wrapping, error handling, and CloudWatch metric emission through
   - catch: retry logic or store failure
 ```
 
-**Also extract the thread-to-payload mapping (lines ~310–400) into a standalone pure function:**
-6. **`mapThreadToAnalysisPayload(thread, userEmail)`** → the batch item type or null
-   - The `.map()` callback that computes quickestReply, userReplied, etc.
-   - This is a pure function — can be unit tested independently
+**Also extract the thread-to-payload mapping (lines ~310–400) into a standalone pure function:** 6. **`mapThreadToAnalysisPayload(thread, userEmail)`** → the batch item type or null
+
+- The `.map()` callback that computes quickestReply, userReplied, etc.
+- This is a pure function — can be unit tested independently
 
 **File stays under 800 lines after these changes (no file split needed).**
 
@@ -161,6 +165,7 @@ Plus retry loop wrapping, error handling, and CloudWatch metric emission through
 **Current violations:** `max-params` (constructor has 15 parameters, limit is 13)
 
 **The constructor has 15 injected services.** However, looking at the actual methods, `emails.service.ts` is a **facade** — almost every method is a one-line delegation:
+
 ```ts
 async queueBatchPriorityRefinement(...) { return this.emailLifecycleService.queueBatchPriorityRefinement(...); }
 ```
@@ -170,6 +175,7 @@ async queueBatchPriorityRefinement(...) { return this.emailLifecycleService.queu
 **Option A (preferred): Group related services into a config/services object.**
 
 Create `EmailServiceDependencies` interface:
+
 ```ts
 interface EmailServiceDependencies {
   emailRepository: Repository<Email>;
@@ -193,6 +199,7 @@ interface EmailServiceDependencies {
 Use NestJS `@Inject()` with a custom provider token to inject the grouped dependencies as a single object. Constructor becomes: `constructor(@Inject(EMAIL_DEPS) private deps: EmailServiceDependencies)`.
 
 Register a factory provider in the module:
+
 ```ts
 {
   provide: EMAIL_DEPS,
@@ -215,6 +222,7 @@ The current limit is 13. Since this is a NestJS facade pattern where DI construc
 **Current violations:** `max-lines` (955 > 800 limit)
 
 **The file has clear domain boundaries:**
+
 - Issue operations: `fetchIssueStatus`, `fetchIssueProjects`, `createIssue`, `updateIssueStatus`, `addIssueComment`, `searchIssues` + helpers
 - PR operations: `fetchPRStatus`, `fetchPRApiData`, `determineReviewStatus`, `logPR404Context`
 - Project operations: `fetchProjectStatusOptions`, `executeProjectItemsQuery`, `extractStatusFromFieldValues`, `extractProjectsFromNodes` + GraphQL queries
@@ -360,6 +368,7 @@ The current limit is 13. Since this is a NestJS facade pattern where DI construc
 **Current violations:** `max-lines` (3758 >> 800), `max-lines-per-function` (multiple functions 250–1150 lines), `complexity`, `max-statements`
 
 **This is the second-largest file. Contains massive functions:**
+
 - `getAnalysisProgress` ~486 lines
 - `analyzeAndLearnFromEmails` ~1068 lines
 - `checkAndSyncJobs` ~248 lines
@@ -513,6 +522,7 @@ Hook body becomes composition of these + the existing useSelector calls.
 The overrides currently disable `react-hooks/exhaustive-deps` for the large hooks. After splitting:
 
 **For each `useCallback`/`useEffect` with missing deps:**
+
 1. If adding the dep causes infinite re-renders → wrap the dep in `useRef` (for values that don't need to trigger re-renders) or `useMemo` (for derived values)
 2. If the dep is a dispatch function → it's stable, add it (React guarantees dispatch stability)
 3. If the dep is a function from props → wrap in `useCallback` at the call site or accept it as a ref
@@ -529,6 +539,7 @@ The following components have file-level overrides. **Most are under 500 lines**
 ### Strategy: Extract JSX sections and event handlers
 
 For each component, the pattern is the same:
+
 1. **Extract complex event handlers** into custom hooks (e.g., `useEmailDetailActionsHandlers()`)
 2. **Extract JSX sections** into child components (e.g., `<ActionButtonGroup />`, `<ReplyControls />`)
 3. **Extract conditional rendering logic** into helper functions
@@ -536,12 +547,14 @@ For each component, the pattern is the same:
 ### Specific instructions per component:
 
 **`EmailDetailActions.tsx` (428 lines)**
+
 - Extract: `useEmailActionHandlers()` hook for the action callbacks
 - Extract: `<ActionButtonRow />` for the button group JSX
 - Extract: `<ArchiveButton />`, `<StarButton />`, `<MoreActionsMenu />` as sub-components
 - Target: main component under 100 lines of JSX
 
 **`DealFormModal.tsx` (685 lines)** — most urgent, nearly at file limit
+
 - Extract: `useDealFormState()` hook for form state management
 - Extract: `useDealFormValidation()` hook for validation logic
 - Extract: `<DealFormFields />` component for the form fields JSX
@@ -549,38 +562,47 @@ For each component, the pattern is the same:
 - Target: modal under 150 lines
 
 **`SearchResults.tsx` (385 lines)**
+
 - Extract: `<SearchResultItem />` component
 - Extract: `<SearchResultsHeader />` with filter controls
 - Extract: `useSearchResultsData()` hook
 
 **`SchedulingPreferencesSection.tsx` (386 lines)**
+
 - Extract: `<ScheduleTimeSlot />`, `<ScheduleDaySelector />` sub-components
 - Extract: `useSchedulingPreferences()` hook for state/handlers
 
 **`GitHubConnectionStatusSection.tsx` (366 lines)**
+
 - Extract: `<GitHubTokenStatus />`, `<GitHubRepoList />` sub-components
 - Extract: `useGitHubConnectionState()` hook
 
 **`RecipientFields.tsx` (344 lines)**
+
 - Extract: `<RecipientInput />` sub-component (the autocomplete input)
 - Extract: `<RecipientChip />` sub-component
 - Extract: `useRecipientSearch()` hook
 
 **`GitHubRepoMappingsSection.tsx` (329 lines)**
+
 - Extract: `<RepoMappingRow />` sub-component
 - Extract: `useRepoMappings()` hook
 
 **`TimePicker.tsx` (323 lines)**
+
 - Extract: `<TimePickerDropdown />`, `<TimePickerInput />` sub-components
 
 **`GitHubProjectBadges.tsx` (307 lines)**
+
 - Extract: `<ProjectBadge />` sub-component
 - Extract: `useProjectBadgeData()` hook
 
 **`SummarizationRulesSection.tsx` (303 lines)**
+
 - Extract: `<RuleListItem />` sub-component
 
 **Components under 275 lines** (`AnalysisProgressModal`, `RichTextEditor`, `DataExportSection`, `SummarizationRuleEditForm`, `CategoryOverrideModal`, `KanbanColumn`, `SummarySection`, `EmailThreadView`, `GuideOurAISection`, `SummarizationRuleAddForm`, `DebugSyncHistorySection`, `CategorySection`, `CTAButton`, `SummarizationRuleDisplay`, `CustomRuleModal`, `GitHubIntegrationSection`, `EmailDetailHeader`):
+
 - These are close to or within the 100-line function limit if they use sub-components
 - Review each: if the main component function body exceeds 100 lines, extract the largest JSX section into a sub-component
 - If within limits after extracting handlers, remove from override list
@@ -594,6 +616,7 @@ For each component, the pattern is the same:
 ### Refactoring Instructions
 
 **Identify the large functions** (likely email body parsing/cleaning utilities) and extract:
+
 1. HTML-to-text conversion logic → `htmlToTextUtils.ts`
 2. Quote detection/stripping → `emailQuoteUtils.ts`
 3. Signature detection → `emailSignatureUtils.ts`
@@ -628,33 +651,20 @@ After all refactoring is complete, these override blocks must be **deleted** fro
 ## Implementation Order (Suggested)
 
 **Phase 5a — Quick wins (1-2 PRs):**
+
 1. `react/no-danger` config fix + SanitizedHTML cleanup
 2. `emails.service.ts` constructor refactor
 3. `priority-analysis.service.ts` function extraction
 
-**Phase 5b — Medium files (3-4 PRs):**
-4. `context-batch-analysis.processor.ts` function extraction
-5. `github-api.service.ts` file split
-6. `context-gmail-data.service.ts` file split
+**Phase 5b — Medium files (3-4 PRs):** 4. `context-batch-analysis.processor.ts` function extraction 5. `github-api.service.ts` file split 6. `context-gmail-data.service.ts` file split
 
-**Phase 5c — Large files (4-5 PRs):**
-7. `llm.service.ts` split into 8 domain services
-8. `llm-processor.ts` split into 3 processors
-9. `gmail.provider.ts` split into 3 files
-10. `context.service.ts` split into 5 services
+**Phase 5c — Large files (4-5 PRs):** 7. `llm.service.ts` split into 8 domain services 8. `llm-processor.ts` split into 3 processors 9. `gmail.provider.ts` split into 3 files 10. `context.service.ts` split into 5 services
 
-**Phase 5d — Client hooks & components (3-4 PRs):**
-11. `useEmailDetailOperations.ts` split into 5 hooks
-12. Remaining hook splits + exhaustive-deps fixes
-13. Component extractions (batch by area: email-detail, settings, compose, etc.)
-14. `emailBodyUtils.ts` split
+**Phase 5d — Client hooks & components (3-4 PRs):** 11. `useEmailDetailOperations.ts` split into 5 hooks 12. Remaining hook splits + exhaustive-deps fixes 13. Component extractions (batch by area: email-detail, settings, compose, etc.) 14. `emailBodyUtils.ts` split
 
-**Phase 5e — Final cleanup:**
-15. Remove all override blocks from both ESLint configs
-16. Run `npm run lint` in both client and server — verify 0 errors with 0 overrides
-17. Close #939
+**Phase 5e — Final cleanup:** 15. Remove all override blocks from both ESLint configs 16. Run `npm run lint` in both client and server — verify 0 errors with 0 overrides 17. Close #939
 
 ---
 
-*Plan authored by Monk of Modularity 🧘 — AI agent (Focus Bear crew)*
-*PR filed by OpenClaw automation*
+_Plan authored by Monk of Modularity 🧘 — AI agent (Focus Bear crew)_
+_PR filed by OpenClaw automation_

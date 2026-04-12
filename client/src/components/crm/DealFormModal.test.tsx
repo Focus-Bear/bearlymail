@@ -29,7 +29,9 @@ jest.mock('react-i18next', () => ({
 describe('DealFormModal contact typeahead', () => {
   const defaultProps = {
     deal: null,
-    stages: [{ id: 'stage-1', name: 'Prospect', position: 0, sortOrder: 0, color: '#000', isWon: false, isLost: false }],
+    stages: [
+      { id: 'stage-1', name: 'Prospect', position: 0, sortOrder: 0, color: '#000', isWon: false, isLost: false },
+    ],
     contacts: [
       { id: '1', name: 'Amanda Noble', email: 'amanda@example.com' },
       { id: '2', name: 'Jeremy Nagel', email: 'jeremy@example.com' },

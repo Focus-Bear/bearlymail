@@ -24,9 +24,7 @@ export const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onNavigate }) => {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: theme.spacing.md,
-        backgroundColor: thread.isRead
-          ? theme.colors.background.default
-          : theme.colors.background.paper,
+        backgroundColor: thread.isRead ? theme.colors.background.default : theme.colors.background.paper,
         borderRadius: theme.borderRadius.md,
         border: `1px solid ${theme.colors.border.light}`,
         cursor: STRING_POINTER,
@@ -37,9 +35,7 @@ export const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onNavigate }) => {
         <div
           style={{
             color: theme.colors.text.primary,
-            fontWeight: thread.isRead
-              ? theme.typography.fontWeight.normal
-              : theme.typography.fontWeight.semibold,
+            fontWeight: thread.isRead ? theme.typography.fontWeight.normal : theme.typography.fontWeight.semibold,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -62,19 +58,12 @@ export const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onNavigate }) => {
       </div>
 
       <div style={{ flexShrink: 0, textAlign: 'right' }}>
-        <div
-          style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}
-        >
-          {displayDate}
-        </div>
+        <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>{displayDate}</div>
         <div
           style={{
             marginTop: theme.spacing.xs,
             fontSize: theme.typography.fontSize.xs,
-            color:
-              thread.role === THREAD_ROLE_FROM
-                ? theme.colors.primary.main
-                : theme.colors.text.tertiary,
+            color: thread.role === THREAD_ROLE_FROM ? theme.colors.primary.main : theme.colors.text.tertiary,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}

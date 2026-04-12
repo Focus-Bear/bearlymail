@@ -26,7 +26,6 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup, SettingsSubNavItem } from './sidebar.helpers';
 
-
 interface SidebarItemProps {
   label: string;
   path: string;
@@ -215,7 +214,9 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
 
   return (
     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-      {navItems.map(item => renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup: handleToggleGroup }))}
+      {navItems.map(item =>
+        renderNavItem({ item, hash, expandedGroups, scrollToSection, onToggleGroup: handleToggleGroup })
+      )}
     </div>
   );
 };

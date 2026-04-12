@@ -57,7 +57,7 @@ Power users with 15–30+ email categories inflate every priority analysis promp
 
 4. **Shortlist prompt included "Other"** as a required output. Jeremy said: "I don't think it needs to return Other. The smart prompt can handle that." The shortlist's job is to narrow real categories — "Other" is the smart model's fallback.
 
-5. **Batch prompt embedded per-email category lists.** This made the batch prompt *longer*, not shorter — defeating the purpose. Jeremy said: "I don't think it would work to include categories for each email in this batch prompt. It would make the prompt even longer."
+5. **Batch prompt embedded per-email category lists.** This made the batch prompt _longer_, not shorter — defeating the purpose. Jeremy said: "I don't think it would work to include categories for each email in this batch prompt. It would make the prompt even longer."
 
 6. **Batch prompt tried to choose categories.** Jeremy said it should "only check if the category and priority needs to change from what it was before. It shouldn't choose the new category, just flag whether it should change."
 
@@ -73,7 +73,9 @@ Power users with 15–30+ email categories inflate every priority analysis promp
 You are a fast email categoriser. Given a list of categories and an email summary,
 return the {{topN}} most relevant categories as a JSON object.
 Do NOT include "Other" — only return real categories from the list.
----SYSTEM---
+---
+
+SYSTEM---
 
 **Available Categories:**
 {{categories}}
@@ -90,6 +92,7 @@ category names from the list above, ordered by relevance.
 ```
 
 Key changes from v1:
+
 - Uses `{{summary}}` not `{{bodyPreview}}`
 - Output is `{ "categories": [...] }` (JSON object), not bare array
 - No mention of "Other"
@@ -97,6 +100,7 @@ Key changes from v1:
 ### 2. Update `CategoryShortlistService.getShortlist()`
 
 **Changes:**
+
 - Accept `summary: string` instead of `body: string` in the email input
 - Pass `summary` to the prompt template as `{{summary}}`
 - Remove `cleanEmailContent` / `BODY_PREVIEW_LENGTHS.SHORTLIST_PREVIEW` — the caller provides the pre-computed summary
@@ -104,6 +108,7 @@ Key changes from v1:
 - Remove the "always append Other" logic — smart prompt handles that
 
 **Method signature change:**
+
 ```typescript
 async getShortlist(
   email: {
@@ -120,6 +125,7 @@ async getShortlist(
 ### 3. Update `PriorityAnalysisService.buildPriorityPrompt()` (single email)
 
 **Changes:**
+
 - When shortlisting is enabled and category count exceeds threshold:
   1. Call `categoryShortlistService.getShortlist()` with the email's **summary** (which is already available or computed from the cleaned body)
   2. Pass the shortlisted categories into `buildUserContextTexts()` as the effective category list
@@ -129,6 +135,7 @@ async getShortlist(
 ### 4. Rework batch analysis — DO NOT embed per-email categories
 
 **The batch prompt (`buildBatchPriorityPrompt`) changes:**
+
 - **Remove** all per-email shortlisting logic (the `Promise.all` + per-email `getShortlist` calls)
 - **Remove** per-email category list embedding in email descriptions
 - The batch prompt continues to use the shared category list (no per-email customization)
@@ -141,11 +148,13 @@ The existing `incremental-priority-check.md` prompt already does most of what Je
 > "Batch prompt can only be used to check if the category and priority needs to change from what it was before. It shouldn't choose the new category, just flag whether it should change. If it does change, it would trigger individual analysis."
 
 **This means:**
+
 - The `analyzePriorityBatch()` method should be the **triage** step — it checks if category/priority needs changing
 - If flagged for change → call `analyzePriority()` individually (which now uses Step 1 shortlist + Step 2 smart analysis)
 - The batch prompt should be lightweight: include email summaries + existing category/priority, ask only "does this need to change?"
 
 **Implementation approach:**
+
 - `buildBatchPriorityPrompt()` should be refactored to produce a triage-style prompt:
   - For each email: include summary, existing category, existing priority score
   - Ask: "For each email, does the category or priority need to change? Return `{ "results": [{ "key": "...", "needsReanalysis": true/false, "reason": "..." }] }`"
@@ -160,6 +169,7 @@ The existing `incremental-priority-check.md` prompt already does most of what Je
 New file: `server/promptfoo/prompts/batch-priority-triage.md`
 
 This replaces the batch usage of `prioritise-email.md`. The triage prompt:
+
 - Receives: list of emails with their current category + priority + summary
 - Returns: which emails need full reanalysis
 - Does NOT: choose new categories, compute scores, or do any deep analysis
@@ -169,7 +179,9 @@ This replaces the batch usage of `prioritise-email.md`. The triage prompt:
 You are an email triage assistant. For each email, determine whether its existing
 category and priority need to be re-evaluated based on the current summary.
 Do NOT choose new categories or scores — only flag which emails need reanalysis.
----SYSTEM---
+---
+
+SYSTEM---
 
 **Emails to triage:**
 {{emailList}}
@@ -177,10 +189,10 @@ Do NOT choose new categories or scores — only flag which emails need reanalysi
 For each email, return whether it needs full reanalysis.
 Return a JSON object:
 {
-  "results": [
-    { "key": "email-key-1", "needsReanalysis": true, "reason": "topic shifted from support to billing" },
-    { "key": "email-key-2", "needsReanalysis": false, "reason": "routine follow-up, same topic" }
-  ]
+"results": [
+{ "key": "email-key-1", "needsReanalysis": true, "reason": "topic shifted from support to billing" },
+{ "key": "email-key-2", "needsReanalysis": false, "reason": "routine follow-up, same topic" }
+]
 }
 ```
 
@@ -196,16 +208,16 @@ Return a JSON object:
 
 ## Files to modify
 
-| File | Change |
-|------|--------|
-| `server/promptfoo/prompts/category-shortlist.md` | Rewrite: summary input, JSON object output, no "Other" |
-| `server/promptfoo/prompts/batch-priority-triage.md` | **NEW**: lightweight triage-only prompt for batch |
-| `server/src/llm/category-shortlist.service.ts` | Accept summary, parse JSON object, remove "Other" append |
-| `server/src/llm/category-shortlist.service.spec.ts` | Update tests for new interface |
-| `server/src/llm/priority-analysis.service.ts` | Refactor batch to triage-only, individual analysis uses shortlist |
-| `server/src/llm/priority-analysis.service.spec.ts` | Update batch tests |
-| `server/src/llm/prompts.ts` | Register `batch_priority_triage` prompt |
-| `server/src/llm/llm-operations.ts` | Add `LLM_OP_BATCH_TRIAGE` operation |
+| File                                                | Change                                                            |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| `server/promptfoo/prompts/category-shortlist.md`    | Rewrite: summary input, JSON object output, no "Other"            |
+| `server/promptfoo/prompts/batch-priority-triage.md` | **NEW**: lightweight triage-only prompt for batch                 |
+| `server/src/llm/category-shortlist.service.ts`      | Accept summary, parse JSON object, remove "Other" append          |
+| `server/src/llm/category-shortlist.service.spec.ts` | Update tests for new interface                                    |
+| `server/src/llm/priority-analysis.service.ts`       | Refactor batch to triage-only, individual analysis uses shortlist |
+| `server/src/llm/priority-analysis.service.spec.ts`  | Update batch tests                                                |
+| `server/src/llm/prompts.ts`                         | Register `batch_priority_triage` prompt                           |
+| `server/src/llm/llm-operations.ts`                  | Add `LLM_OP_BATCH_TRIAGE` operation                               |
 
 ## Token savings estimate
 

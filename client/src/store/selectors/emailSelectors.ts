@@ -10,7 +10,8 @@ export const selectEmails = (state: RootState): Email[] => state.inboxData.email
 export const selectHasMore = (state: RootState): boolean => state.inboxData.hasMore;
 export const selectTotalCount = (state: RootState): number => state.inboxData.totalCount;
 export const selectCurrentOffset = (state: RootState): number => state.inboxData.currentOffset;
-export const selectCategorySummary = (state: RootState): CategorySummaryItem[] | null => state.inboxData.categorySummary;
+export const selectCategorySummary = (state: RootState): CategorySummaryItem[] | null =>
+  state.inboxData.categorySummary;
 export const selectLoadedCategoryNames = (state: RootState): string[] => state.inboxData.loadedCategoryNames;
 export const selectLoadingCategoryNames = (state: RootState): string[] => state.inboxData.loadingCategoryNames;
 // Memoized: `?? []` without createSelector returns a new array reference every call.

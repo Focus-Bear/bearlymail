@@ -48,6 +48,7 @@ By default, the system uses Gemini. All LLM-powered features will use the defaul
 You can specify a provider for individual requests:
 
 **Summarization:**
+
 ```bash
 curl -X POST http://localhost:3001/summarize/123 \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -59,6 +60,7 @@ curl -X POST http://localhost:3001/summarize/123 \
 ```
 
 **Reply Drafting:**
+
 ```bash
 curl -X POST http://localhost:3001/replies/draft/123 \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -69,6 +71,7 @@ curl -X POST http://localhost:3001/replies/draft/123 \
 ```
 
 **Meeting Reply:**
+
 ```bash
 curl -X POST http://localhost:3001/calendar/meeting-reply/123 \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -81,6 +84,7 @@ curl -X POST http://localhost:3001/calendar/meeting-reply/123 \
 ## Features Using LLM
 
 ### 1. Email Summarization
+
 - **TL;DR**: Concise summary of email content
 - **Bullet Points**: Key points extracted as bullets
 - **Action Items**: Specific tasks and requests identified
@@ -88,12 +92,14 @@ curl -X POST http://localhost:3001/calendar/meeting-reply/123 \
 - **Custom**: User-defined summarization prompts
 
 ### 2. Reply Drafting
+
 - Generates contextually appropriate replies
 - Uses learned user writing style and tone
 - Incorporates common phrases from user's email history
 - Adapts to email content and sender relationship
 
 ### 3. Email Prioritization
+
 - Analyzes email content for urgency
 - Considers sender importance and job title
 - Uses user's historical response patterns
@@ -101,6 +107,7 @@ curl -X POST http://localhost:3001/calendar/meeting-reply/123 \
 - Provides reasoning for priority score
 
 ### 4. Meeting Scheduling
+
 - Generates professional meeting scheduling replies
 - Formats available time slots clearly
 - Handles no-availability scenarios gracefully
@@ -109,6 +116,7 @@ curl -X POST http://localhost:3001/calendar/meeting-reply/123 \
 ## Fallback Behavior
 
 If the selected LLM provider fails or is unavailable:
+
 1. The system automatically tries the other provider (if configured)
 2. If both fail, falls back to rule-based algorithms
 3. Logs errors for debugging
@@ -116,11 +124,13 @@ If the selected LLM provider fails or is unavailable:
 ## Cost Considerations
 
 ### Gemini
+
 - Free tier: 60 requests per minute
 - Paid: Very cost-effective, pay-per-use
 - Best for: High-volume usage, cost-sensitive applications
 
 ### OpenAI
+
 - Free tier: Limited credits for new accounts
 - Paid: Pay-per-token pricing
 - Best for: Maximum quality, specific use cases
@@ -128,12 +138,14 @@ If the selected LLM provider fails or is unavailable:
 ## Monitoring
 
 Check available providers:
+
 ```bash
 curl -X GET http://localhost:3001/llm/providers \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 Response:
+
 ```json
 {
   "available": ["gemini", "openai"],
@@ -144,17 +156,20 @@ Response:
 ## Troubleshooting
 
 ### "LLM client not initialized" error
+
 - Check that your API key is correctly set in `.env`
 - Verify the API key is valid and has proper permissions
 - Restart the server after adding API keys
 
 ### Fallback to rule-based systems
+
 - Check server logs for LLM errors
 - Verify API keys are valid
 - Check API rate limits haven't been exceeded
 - Ensure internet connectivity for API calls
 
 ### Poor quality results
+
 - Try switching providers (Gemini vs OpenAI)
 - Adjust model selection (e.g., `gpt-5-mini`)
 - Review prompts in the LLM service for customization
@@ -174,9 +189,9 @@ OPENAI_REASONING_EFFORT=medium  # Increase reasoning effort for better quality (
 ### Temperature Settings
 
 Temperature controls randomness in responses. Current settings:
+
 - **Summarization**: 0.5 (more focused)
 - **Replies**: 0.7 (balanced creativity)
 - **Prioritization**: 0.3 (more consistent)
 
 These can be adjusted in `server/src/llm/llm.service.ts`.
-

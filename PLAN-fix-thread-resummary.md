@@ -11,6 +11,7 @@ When a new email arrives in an existing thread, the thread's summary, priority s
 **File:** `server/src/emails/llm-processor.ts` — `collectSummaryJobsToProcess()` (line ~985-1007)
 
 When a new email arrives in a thread that already has summarized emails, the summary generation job:
+
 1. Finds any sibling email in the same thread that has a summary
 2. **Copies that existing (stale) summary** to the new email
 3. Increments `skipCount.alreadyHasSummary` and skips LLM processing
@@ -23,12 +24,15 @@ const emailWithSummary = await this.emailRepository.findOne({
 });
 if (emailWithSummary?.summary && emailWithSummary.summary.trim() !== "") {
   // Copies OLD summary to new email — never regenerates!
-  await this.emailRepository.update({ id: emailId }, {
-    summary: emailWithSummary.summary,
-    isProcessingSummary: false,
-    phishingConfidence: emailWithSummary.phishingConfidence ?? null,
-    phishingReason: emailWithSummary.phishingReason ?? null,
-  });
+  await this.emailRepository.update(
+    { id: emailId },
+    {
+      summary: emailWithSummary.summary,
+      isProcessingSummary: false,
+      phishingConfidence: emailWithSummary.phishingConfidence ?? null,
+      phishingReason: emailWithSummary.phishingReason ?? null,
+    },
+  );
   skipCount.alreadyHasSummary++;
   continue; // <--- SKIPS re-summarization entirely
 }
@@ -41,10 +45,12 @@ if (emailWithSummary?.summary && emailWithSummary.summary.trim() !== "") {
 **File:** `server/src/emails/llm-processor.ts` — `handleRefinePriorityBatchJob()` / `runBatchRefinement()`
 
 The single-email priority refinement path (`handleRefinePriorityJob`) correctly calls `tryIncrementalAnalysis()`, which:
+
 1. Checks if full recalc is needed via `IncrementalAnalysisService.checkIfRecalcNeeded()`
 2. Updates the summary incrementally via `updateSummaryIncrementally()`
 
 But the **batch** priority refinement path (`handleRefinePriorityBatchJob`) does NOT:
+
 - It calls `prepareBatchEmails()` → `shouldSkipPriorityRecalculation()` → batch LLM → `applyBatchResults()`
 - **No call to `tryIncrementalAnalysis()` or `updateSummaryIncrementally()`**
 
@@ -85,17 +91,35 @@ In `collectSummaryJobsToProcess()`, when a sibling email already has a summary A
 
 ```typescript
 // Instead of just copying the stale summary, check if this is a NEW email
-const isNewerThanSummary = email.receivedAt > (emailWithSummary.updatedAt ?? emailWithSummary.createdAt);
+const isNewerThanSummary =
+  email.receivedAt > (emailWithSummary.updatedAt ?? emailWithSummary.createdAt);
 
-if (emailWithSummary?.summary && emailWithSummary.summary.trim() !== "" && isNewerThanSummary) {
+if (
+  emailWithSummary?.summary &&
+  emailWithSummary.summary.trim() !== "" &&
+  isNewerThanSummary
+) {
   // Queue incremental summary update instead of just copying
-  jobsToProcess.push({ job, userId, emailId, email, incrementalUpdate: true, existingSummary: emailWithSummary.summary });
-} else if (emailWithSummary?.summary && emailWithSummary.summary.trim() !== "") {
-  // Older email in thread — safe to copy existing summary
-  await this.emailRepository.update({ id: emailId }, {
-    summary: emailWithSummary.summary,
-    isProcessingSummary: false,
+  jobsToProcess.push({
+    job,
+    userId,
+    emailId,
+    email,
+    incrementalUpdate: true,
+    existingSummary: emailWithSummary.summary,
   });
+} else if (
+  emailWithSummary?.summary &&
+  emailWithSummary.summary.trim() !== ""
+) {
+  // Older email in thread — safe to copy existing summary
+  await this.emailRepository.update(
+    { id: emailId },
+    {
+      summary: emailWithSummary.summary,
+      isProcessingSummary: false,
+    },
+  );
   skipCount.alreadyHasSummary++;
   continue;
 }
@@ -114,6 +138,7 @@ In `tryIncrementalAnalysis()`, when `incrementalResult.categoryMightChange` is t
 ### Fix 4: Thread-level summary tracking
 
 Add `lastSummarizedAt` timestamp to `EmailThread` entity to track when the thread was last summarized. Use this to efficiently detect stale summaries:
+
 - Set after any successful summary generation/update
 - Compare with newest email's `receivedAt` to detect staleness
 

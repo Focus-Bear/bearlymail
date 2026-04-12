@@ -26,10 +26,7 @@ describe('usePriorityCounts', () => {
     });
 
     // Fix #1452 bug 3: mode param is passed so bucket counts match the inbox tab total.
-    expect(mockedAxios.get).toHaveBeenCalledWith(
-      `${API_URL}/emails/priority-counts`,
-      { params: { mode: 'triage' } },
-    );
+    expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/priority-counts`, { params: { mode: 'triage' } });
   });
 
   it('passes the given mode as a query param', async () => {
@@ -41,10 +38,7 @@ describe('usePriorityCounts', () => {
       expect(result.current.counts?.high).toBe(1);
     });
 
-    expect(mockedAxios.get).toHaveBeenCalledWith(
-      `${API_URL}/emails/priority-counts`,
-      { params: { mode: 'action' } },
-    );
+    expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/priority-counts`, { params: { mode: 'action' } });
   });
 
   it('starts with null counts and isLoading true', () => {

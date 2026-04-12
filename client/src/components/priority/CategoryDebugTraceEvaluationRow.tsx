@@ -48,21 +48,27 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
       <br />
       {ev.ruleKind === CATEGORY_RULE_KIND_COMPOSITE && detail ? (
         <>
-          <span style={{ color: theme.colors.text.secondary }}>{translate('priority.categoryDebug.traceCompositeSender')}:</span>{' '}
+          <span style={{ color: theme.colors.text.secondary }}>
+            {translate('priority.categoryDebug.traceCompositeSender')}:
+          </span>{' '}
           <span style={monoStyle}>
             {detail.senderMatch
               ? translate('priority.categoryDebug.traceCompositeYes')
               : translate('priority.categoryDebug.traceCompositeNo')}
           </span>
           <br />
-          <span style={{ color: theme.colors.text.secondary }}>{translate('priority.categoryDebug.traceCompositeSubject')}:</span>{' '}
+          <span style={{ color: theme.colors.text.secondary }}>
+            {translate('priority.categoryDebug.traceCompositeSubject')}:
+          </span>{' '}
           <span style={monoStyle}>
             {detail.subjectMatch
               ? translate('priority.categoryDebug.traceCompositeYes')
               : translate('priority.categoryDebug.traceCompositeNo')}
           </span>
           <br />
-          <span style={{ color: theme.colors.text.secondary }}>{translate('priority.categoryDebug.traceCompositeBody')}:</span>{' '}
+          <span style={{ color: theme.colors.text.secondary }}>
+            {translate('priority.categoryDebug.traceCompositeBody')}:
+          </span>{' '}
           <span style={monoStyle}>
             {detail.bodyMatch
               ? translate('priority.categoryDebug.traceCompositeYes')
@@ -106,7 +112,9 @@ export const CategoryDebugTraceEvaluationRow: React.FC<CategoryDebugTraceEvaluat
           {ev.subjectPrefix ? (
             <>
               <br />
-              <span style={{ color: theme.colors.text.secondary }}>{translate('priority.categoryDebug.traceSubjectPrefix')}</span>{' '}
+              <span style={{ color: theme.colors.text.secondary }}>
+                {translate('priority.categoryDebug.traceSubjectPrefix')}
+              </span>{' '}
               <span style={monoStyle}>{ev.subjectPrefix}</span>
             </>
           ) : null}

@@ -32,7 +32,13 @@ export const DeterministicCategoryRulesPanel: React.FC<DeterministicCategoryRule
 
   return (
     <div>
-      <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, margin: `0 0 ${theme.spacing.md} 0` }}>
+      <p
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          margin: `0 0 ${theme.spacing.md} 0`,
+        }}
+      >
         {t('settings.deterministicCategoryRules.intro')}
       </p>
       {rules.map(rule => (

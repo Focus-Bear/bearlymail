@@ -35,7 +35,7 @@ function partitionActions(all: Array<{ type: string }>) {
     githubActions: all.filter(action => GITHUB_ACTION_TYPES.has(action.type)),
     schedulingActions: all.filter(action => SCHEDULING_ACTION_TYPES.has(action.type)),
     otherActions: all.filter(
-      action => !GITHUB_ACTION_TYPES.has(action.type) && !SCHEDULING_ACTION_TYPES.has(action.type),
+      action => !GITHUB_ACTION_TYPES.has(action.type) && !SCHEDULING_ACTION_TYPES.has(action.type)
     ),
   };
 }

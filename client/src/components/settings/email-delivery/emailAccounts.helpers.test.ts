@@ -6,31 +6,19 @@ import { buildAllAccounts, getDisconnectConfirmKey, getProviderName } from './em
 
 describe('buildAllAccounts', () => {
   it('stamps each Google account with PROVIDER_GMAIL', () => {
-    const result = buildAllAccounts(
-      [{ id: 'g1', email: 'alice@gmail.com' }],
-      [],
-      [],
-    );
+    const result = buildAllAccounts([{ id: 'g1', email: 'alice@gmail.com' }], [], []);
     expect(result).toHaveLength(1);
     expect(result[0].provider).toBe('gmail');
     expect(result[0].email).toBe('alice@gmail.com');
   });
 
   it('stamps each Office 365 account with PROVIDER_OFFICE365', () => {
-    const result = buildAllAccounts(
-      [],
-      [{ id: 'o1', email: 'bob@company.com' }],
-      [],
-    );
+    const result = buildAllAccounts([], [{ id: 'o1', email: 'bob@company.com' }], []);
     expect(result[0].provider).toBe('office365');
   });
 
   it('stamps each Zoho account with PROVIDER_ZOHO', () => {
-    const result = buildAllAccounts(
-      [],
-      [],
-      [{ id: 'z1', email: 'carol@zoho.com' }],
-    );
+    const result = buildAllAccounts([], [], [{ id: 'z1', email: 'carol@zoho.com' }]);
     expect(result[0].provider).toBe('zoho');
   });
 
@@ -42,18 +30,14 @@ describe('buildAllAccounts', () => {
     const result = buildAllAccounts(
       [{ id: 'g1', email: 'a@gmail.com' }],
       [{ id: 'o1', email: 'b@office.com' }],
-      [{ id: 'z1', email: 'c@zoho.com' }],
+      [{ id: 'z1', email: 'c@zoho.com' }]
     );
     expect(result).toHaveLength(3);
     expect(result.map(acc => acc.provider)).toEqual(['gmail', 'office365', 'zoho']);
   });
 
   it('preserves additional fields like name and isPrimary', () => {
-    const result = buildAllAccounts(
-      [{ id: 'g1', email: 'a@gmail.com', name: 'Alice', isPrimary: true }],
-      [],
-      [],
-    );
+    const result = buildAllAccounts([{ id: 'g1', email: 'a@gmail.com', name: 'Alice', isPrimary: true }], [], []);
     expect(result[0].name).toBe('Alice');
     expect(result[0].isPrimary).toBe(true);
   });

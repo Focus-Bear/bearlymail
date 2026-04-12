@@ -39,8 +39,7 @@ const ThirdPartyServicesSection: React.FC = () => (
           <strong>Google Calendar API:</strong> For calendar booking functionality
         </>,
         <>
-          <strong>OpenAI/Gemini:</strong> For AI-powered email analysis and summaries (you may use your own API
-          keys)
+          <strong>OpenAI/Gemini:</strong> For AI-powered email analysis and summaries (you may use your own API keys)
         </>,
         <>
           <strong>PostHog:</strong> For analytics and product insights
@@ -50,9 +49,7 @@ const ThirdPartyServicesSection: React.FC = () => (
         </>,
       ]}
     />
-    <LegalParagraph>
-      These services have their own privacy policies. We encourage you to review them.
-    </LegalParagraph>
+    <LegalParagraph>These services have their own privacy policies. We encourage you to review them.</LegalParagraph>
   </LegalSection>
 );
 

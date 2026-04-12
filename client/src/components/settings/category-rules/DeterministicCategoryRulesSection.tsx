@@ -53,7 +53,15 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
         borderTop: `1px solid ${theme.colors.border.light}`,
       }}
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          marginBottom: theme.spacing.md,
+        }}
+      >
         <h3 style={{ margin: 0, fontSize: theme.typography.fontSize.lg, flex: '1 1 auto' }}>
           {t('settings.deterministicCategoryRules.sectionTitle')}
         </h3>
@@ -76,7 +84,9 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
       </div>
 
       {loading ? (
-        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{t('common.loading')}</p>
+        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+          {t('common.loading')}
+        </p>
       ) : (
         <DeterministicCategoryRulesPanel
           rules={rules}

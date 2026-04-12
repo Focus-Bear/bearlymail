@@ -24,17 +24,10 @@ const emptyCondition: WorkflowCondition = {
  * Modal-style editor for creating and editing workflow rules.
  * Part of feature #1483 — Automated Email Workflows.
  */
-export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
-  rule,
-  mcpServers,
-  onSave,
-  onCancel,
-}) => {
+export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ rule, mcpServers, onSave, onCancel }) => {
   const [name, setName] = useState(rule?.name ?? '');
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
-  const [condition, setCondition] = useState<WorkflowCondition>(
-    rule?.condition ?? { ...emptyCondition },
-  );
+  const [condition, setCondition] = useState<WorkflowCondition>(rule?.condition ?? { ...emptyCondition });
   const [actions, setActions] = useState<WorkflowAction[]>(rule?.actions ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,13 +103,11 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
 
         {/* Name */}
         <div style={{ marginBottom: theme.spacing.lg }}>
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
-            Name
-          </label>
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>Name</label>
           <input
             type="text"
             value={name}
-            onChange={(evt) => setName(evt.target.value)}
+            onChange={evt => setName(evt.target.value)}
             placeholder="e.g. Upwork billing → Focus Bear task"
             style={{
               width: '100%',
@@ -147,7 +138,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
             id="workflow-enabled"
             type="checkbox"
             checked={enabled}
-            onChange={(evt) => setEnabled(evt.target.checked)}
+            onChange={evt => setEnabled(evt.target.checked)}
           />
           <label htmlFor="workflow-enabled" style={{ fontSize: 14, cursor: 'pointer' }}>
             Enable this workflow immediately
@@ -155,7 +146,16 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
         </div>
 
         {error && (
-          <div style={{ padding: '8px 12px', background: theme.colors.error.light, borderRadius: 6, color: theme.colors.error.dark, fontSize: 13, marginBottom: theme.spacing.md }}>
+          <div
+            style={{
+              padding: '8px 12px',
+              background: theme.colors.error.light,
+              borderRadius: 6,
+              color: theme.colors.error.dark,
+              fontSize: 13,
+              marginBottom: theme.spacing.md,
+            }}
+          >
             {error}
           </div>
         )}
@@ -164,7 +164,14 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            style={{ padding: '8px 20px', borderRadius: 6, border: `1px solid ${theme.colors.border.default}`, background: theme.colors.background.paper, cursor: 'pointer', fontSize: 14 }}
+            style={{
+              padding: '8px 20px',
+              borderRadius: 6,
+              border: `1px solid ${theme.colors.border.default}`,
+              background: theme.colors.background.paper,
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
           >
             Cancel
           </button>

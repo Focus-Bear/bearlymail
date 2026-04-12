@@ -52,22 +52,34 @@ export function useInboxContentState({
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
 
   const {
-    protoCategories, isReanalysingOther, convertingProtoCategoryId, deletingProtoCategoryId,
-    fetchProtoCategories, handleReanalyseOther, handleConvertProtoCategory, handleDeleteProtoCategoryFromInbox,
-    recategorizeProgress, dismissRecategorizeProgress,
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    fetchProtoCategories,
+    handleReanalyseOther,
+    handleConvertProtoCategory,
+    handleDeleteProtoCategoryFromInbox,
+    recategorizeProgress,
+    dismissRecategorizeProgress,
   } = useProtoCategoryManagement();
 
   const { sentinelRef } = useInboxScrollObserver({ hasMore: hasMore ?? false, onLoadMore });
 
   const splitViewHandlers = useInboxSplitViewHandlers({
-    mode, onSplitViewArchive, onSplitViewSnooze, onSplitViewPrioritySet,
-    updateDraft, bulkSend, fetchThreadsWithDrafts,
+    mode,
+    onSplitViewArchive,
+    onSplitViewSnooze,
+    onSplitViewPrioritySet,
+    updateDraft,
+    bulkSend,
+    fetchThreadsWithDrafts,
   });
 
   // Blocked-mode emails are archived by definition (isArchived=true), so we must
   // skip the isArchived filter when in blocked mode or the list would always be empty.
   const filteredEmails = useMemo(
-    () => mode === MODE_BLOCKED ? emails : emails.filter(email => !email.isArchived),
+    () => (mode === MODE_BLOCKED ? emails : emails.filter(email => !email.isArchived)),
     [emails, mode]
   );
   const emailCategoryMap = useMemo(

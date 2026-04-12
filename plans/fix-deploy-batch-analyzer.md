@@ -27,11 +27,11 @@ so the missing `dist/` directory causes a hard failure.
 Add:
 
 ```yaml
-      - name: Build batch-analyzer Lambda
-        working-directory: lambda/batch-analyzer
-        run: |
-          npm ci
-          npm run build
+- name: Build batch-analyzer Lambda
+  working-directory: lambda/batch-analyzer
+  run: |
+    npm ci
+    npm run build
 ```
 
 This runs `tsc` and copies prompt files into `dist/`, producing the asset CDK needs.
@@ -44,17 +44,17 @@ This runs `tsc` and copies prompt files into `dist/`, producing the asset CDK ne
 Change:
 
 ```yaml
-          cdk deploy BearlyMailStack \
-            --require-approval never \
-            --outputs-file cdk-outputs.json
+cdk deploy BearlyMailStack \
+--require-approval never \
+--outputs-file cdk-outputs.json
 ```
 
 To:
 
 ```yaml
-          cdk deploy BearlyMailStack BearlyMailContextAnalysisStack \
-            --require-approval never \
-            --outputs-file cdk-outputs.json
+cdk deploy BearlyMailStack BearlyMailContextAnalysisStack \
+--require-approval never \
+--outputs-file cdk-outputs.json
 ```
 
 Without this, the new stack will never actually deploy even after the build fix.
@@ -75,6 +75,7 @@ No other Lambda directories exist, so no other functions have this problem.
 ## Verification
 
 After the fix:
+
 1. The deploy workflow should successfully run `cdk synth` (which validates all stacks)
 2. Both `BearlyMailStack` and `BearlyMailContextAnalysisStack` should deploy
 3. The batch-analyzer Lambda should appear in AWS Lambda console

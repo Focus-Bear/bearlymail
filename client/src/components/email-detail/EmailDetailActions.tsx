@@ -87,9 +87,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing.xs,
-    ...(mobile
-      ? { flex: 1, minHeight: `${TOUCH_TARGET_MIN_PX}px` }
-      : {}),
+    ...(mobile ? { flex: 1, minHeight: `${TOUCH_TARGET_MIN_PX}px` } : {}),
   };
 
   const variantStyle: React.CSSProperties =
@@ -100,17 +98,17 @@ const ActionButton: React.FC<ActionButtonProps> = ({
           fontWeight: theme.typography.fontWeight.semibold,
         }
       : variant === BUTTON_VARIANT_SECONDARY
-      ? {
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          border: `1px solid ${theme.colors.border.medium}`,
-          fontWeight: theme.typography.fontWeight.medium,
-        }
-      : /* ghost */ {
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        };
+        ? {
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            fontWeight: theme.typography.fontWeight.medium,
+          }
+        : /* ghost */ {
+            backgroundColor: COLOR_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            fontWeight: theme.typography.fontWeight.medium,
+          };
 
   return (
     <button style={{ ...baseStyle, ...variantStyle, ...extraStyle }} {...rest}>
@@ -167,12 +165,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const hasIcsAttachment = useMemo(
     () =>
       Array.isArray(email.attachments) &&
-      email.attachments.some(
-        (att) =>
-          att.mimeType === ICS_MIME_TYPE ||
-          att.filename?.toLowerCase().endsWith('.ics'),
-      ),
-    [email.attachments],
+      email.attachments.some(att => att.mimeType === ICS_MIME_TYPE || att.filename?.toLowerCase().endsWith('.ics')),
+    [email.attachments]
   );
 
   // Derive hasSchedulingRequest from the pre-partitioned schedulingActions list (not from
@@ -182,8 +176,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const hasSchedulingRequest = useMemo(
     () =>
       schedulingActions.some(
-        action =>
-          action.type === ACTION_TYPE_SCHEDULING_REQUEST || action.type === ACTION_TYPE_CALENDAR_CREATE_INVITE,
+        action => action.type === ACTION_TYPE_SCHEDULING_REQUEST || action.type === ACTION_TYPE_CALENDAR_CREATE_INVITE
       ),
     [schedulingActions]
   );
@@ -305,7 +298,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           onDecline={() => onRespondToInvitation(email.id, 'declined')}
         />
       )}
-      {hasSchedulingRequest && !isInvitation && !hasIcsAttachment && <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />}
+      {hasSchedulingRequest && !isInvitation && !hasIcsAttachment && (
+        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />
+      )}
 
       <QuickActionsSection
         suggestedActions={suggestedActions}
@@ -340,10 +335,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
                 {replyAllButton}
                 {forwardButton}
                 {/* Overflow menu (⋮) — 44×44px touch target */}
-                <OverflowMenu
-                  items={overflowMenuItems}
-                  aria-label={t('emailDetail.moreOptions')}
-                />
+                <OverflowMenu items={overflowMenuItems} aria-label={t('emailDetail.moreOptions')} />
               </div>
 
               {/* Row 2: Archive · Snooze · Unsubscribe/Block */}
@@ -380,10 +372,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               {snoozeButton}
 
               {/* Overflow menu (⋮) — Save as PDF and future actions */}
-              <OverflowMenu
-                items={overflowMenuItems}
-                aria-label={t('emailDetail.moreOptions')}
-              />
+              <OverflowMenu items={overflowMenuItems} aria-label={t('emailDetail.moreOptions')} />
 
               {unsubscribeOrBlockButton}
             </div>

@@ -44,7 +44,7 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   const isDisabled = !draft || sending || checkingTone;
 
-  const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[number]): string => {
+  const getOptionLabel = (option: (typeof EXPECTED_REPLY_OPTIONS)[number]): string => {
     if (option.labelKey === LABEL_KEY_NONE) {
       return t('emailDetail.expectedReply.none');
     }
@@ -52,7 +52,7 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
   };
 
   const getSelectedOptionLabel = (): string => {
-    const selected = EXPECTED_REPLY_OPTIONS.find((opt) => opt.value === expectedReplyHours);
+    const selected = EXPECTED_REPLY_OPTIONS.find(opt => opt.value === expectedReplyHours);
     if (!selected || selected.value === 0) {
       return '';
     }
@@ -67,7 +67,9 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
   };
 
   const handleSend = () => {
-    captureEvent(ANALYTICS_EVENTS.REPLY_SENT, { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
+    captureEvent(ANALYTICS_EVENTS.REPLY_SENT, {
+      expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null,
+    });
     onSend(expectedReplyHours, undefined, scheduledSendAt || undefined, keepInAction);
   };
 
@@ -77,13 +79,15 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
 
   const handleScheduleIconClick = () => {
     if (!isDisabled) {
-      setShowSchedulePopup((prev) => !prev);
+      setShowSchedulePopup(prev => !prev);
     }
   };
 
   const handleSelectSuggestion = (date: Date) => {
     setShowSchedulePopup(false);
-    captureEvent(ANALYTICS_EVENTS.REPLY_SCHEDULED, { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
+    captureEvent(ANALYTICS_EVENTS.REPLY_SCHEDULED, {
+      expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null,
+    });
     onSend(expectedReplyHours, undefined, date, keepInAction);
   };
 
@@ -94,9 +98,10 @@ export const useReplyComposerFooter = (props: ReplyComposerFooterProps) => {
     }
   };
 
-  const expectedReplyTooltip = expectedReplyHours > 0
-    ? t('emailDetail.expectedReply.tooltip', { time: getSelectedOptionLabel() })
-    : t('emailDetail.expectedReply.tooltipNoFollowUp');
+  const expectedReplyTooltip =
+    expectedReplyHours > 0
+      ? t('emailDetail.expectedReply.tooltip', { time: getSelectedOptionLabel() })
+      : t('emailDetail.expectedReply.tooltipNoFollowUp');
 
   return {
     expectedReplyHours,

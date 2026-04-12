@@ -35,9 +35,7 @@ const MergeTagsPanel: React.FC<MergeTagsPanelProps> = ({ t }) => (
       zIndex: 20,
     }}
   >
-    <p
-      style={{ ...theme.typography.body.small, color: theme.colors.text.tertiary, marginBottom: theme.spacing.xs }}
-    >
+    <p style={{ ...theme.typography.body.small, color: theme.colors.text.tertiary, marginBottom: theme.spacing.xs }}>
       {t('settings.autoResponder.templates.mergeTagsHelp')}
     </p>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.xs }}>

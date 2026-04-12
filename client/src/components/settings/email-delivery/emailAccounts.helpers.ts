@@ -38,7 +38,7 @@ export function getProviderName(provider: string): string {
 export function buildAllAccounts(
   googleAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean; isSSO?: boolean }>,
   office365Accounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>,
-  zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>,
+  zohoAccounts: Array<{ id: string; email: string; name?: string; isPrimary?: boolean }>
 ): EmailAccount[] {
   return [
     ...googleAccounts.map(acc => ({ ...acc, provider: PROVIDER_GMAIL })),

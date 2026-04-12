@@ -229,7 +229,6 @@ describe('clearCacheForMode — filter change invalidation', () => {
     expect(getCachedSummary('action')).toEqual(actionSummary);
     expect(getCachedCategoryEmails('action', 'uuid-nl-0003')).toEqual(actionEmails);
   });
-
 });
 
 // ─── filterHash ───────────────────────────────────────────────────────────────

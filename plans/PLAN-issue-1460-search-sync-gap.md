@@ -38,6 +38,7 @@ Phase 3 (`POST /emails/search/expand`) generates alternative queries but also on
 #### Changes Required
 
 **1. `server/src/emails/emails.controller.ts` (line ~315-320)**
+
 - Stop coupling `skipSync` to `skipLlm`
 - Instead, always allow sync but with a small cap when in fast-path mode
 
@@ -50,6 +51,7 @@ skipSync: false,  // Always allow sync; service caps thread count
 ```
 
 **2. `server/src/emails/email-search.service.ts` — `syncAndFetchMatchedEmails()`**
+
 - When Phase 1 (fast path), limit sync to the top N threads (e.g. 5-10) instead of the current MAX_THREADS_TO_SYNC (10)
 - This keeps sync bounded while still returning some results
 - Add a `maxSyncThreads` option to `SearchEmailsOptions` for fine-grained control
@@ -61,6 +63,7 @@ const threadIds = [...threadIdSet].slice(0, syncLimit);
 ```
 
 **3. `server/src/emails/email-search.service.ts` — `searchEmails()`**
+
 - Pass `maxSyncThreads: 5` when in fast-path mode to keep Phase 1 bounded
 - This syncs up to 5 threads (~1-2s) and returns those results immediately
 
@@ -71,6 +74,7 @@ The existing `MAX_THREADS_TO_SYNC = 10` already caps sync work. The real issue i
 ### Option B: Add a Phase 1.5 sync step (Alternative)
 
 Add a new endpoint `POST /emails/search/sync` that:
+
 1. Receives the raw Gmail message IDs from Phase 1
 2. Syncs them to local DB
 3. Returns the synced emails
@@ -86,11 +90,11 @@ Option A is simpler, requires fewer changes, and the existing sync infrastructur
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.controller.ts` | Stop passing `skipSync: skipLlmRanking` |
+| File                                        | Change                                                  |
+| ------------------------------------------- | ------------------------------------------------------- |
+| `server/src/emails/emails.controller.ts`    | Stop passing `skipSync: skipLlmRanking`                 |
 | `server/src/emails/email-search.service.ts` | Add `maxSyncThreads` option; use smaller cap in Phase 1 |
-| `server/src/emails/email-search.types.ts` | Add `maxSyncThreads` to `SearchEmailsOptions` |
+| `server/src/emails/email-search.types.ts`   | Add `maxSyncThreads` to `SearchEmailsOptions`           |
 
 ## Edge Cases
 
@@ -122,12 +126,14 @@ After this fix was implemented, Jeremy clarified a better long-term approach:
 > "Why do we need to sync emails? Can't we just immediately show the results in the UI?"
 
 **Proposed approach:**
+
 1. Gmail search returns message IDs + metadata (subject, from, date, snippet) — show these **immediately** in the UI without waiting for sync
 2. Render unsynced search results in a lightweight format (subject/sender/date/snippet from Gmail API)
 3. Sync/AI-enrich those threads in the **background**
 4. UI updates in-place as enrichment completes (add priority badge, category, summary)
 
 This means the backend `/emails/search` endpoint needs to return a **mixed result type**:
+
 - Locally stored emails (fully enriched, current shape)
 - Gmail-only results (raw metadata, marked `synced: false`)
 

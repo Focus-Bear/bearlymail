@@ -42,9 +42,7 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({ enable
             marginTop: theme.spacing.xs,
           }}
         >
-          {enabled
-            ? t('settings.autoResponder.enabledDesc')
-            : t('settings.autoResponder.disabledDesc')}
+          {enabled ? t('settings.autoResponder.enabledDesc') : t('settings.autoResponder.disabledDesc')}
         </div>
       </div>
 

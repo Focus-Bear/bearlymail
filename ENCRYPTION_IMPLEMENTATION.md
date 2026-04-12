@@ -64,12 +64,14 @@ Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operati
 ## Files Modified
 
 ### New Files:
+
 - `server/src/encryption/encryption.service.ts` - Encryption service (DI)
 - `server/src/encryption/encryption.helper.ts` - Static encryption helpers for TypeORM transformers
 - `server/src/encryption/encryption.module.ts` - Encryption module
 - `ENCRYPTION.md` - Documentation
 
 ### Modified Entities:
+
 - `server/src/database/entities/user.entity.ts` - Added encryption transformers
 - `server/src/database/entities/email.entity.ts` - Added encryption transformers
 - `server/src/database/entities/user-context.entity.ts` - Added encryption transformers
@@ -79,16 +81,19 @@ Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operati
 - `server/src/database/entities/waitlist.entity.ts` - Added encryption transformers and emailHash
 
 ### Modified Services:
+
 - `server/src/users/users.service.ts` - Added email hash generation
 - `server/src/waitlist/waitlist.service.ts` - Added email hash generation
 - `server/src/emails/emails.service.ts` - Added updateEmail method
 
 ### Modified Configuration:
+
 - `server/src/app.module.ts` - Added EncryptionModule
 
 ## Next Steps
 
 1. **Set ENCRYPTION_KEY** in your environment:
+
    ```bash
    ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
    ```
@@ -110,10 +115,3 @@ Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operati
 - ✅ Encryption is automatic and transparent to application code
 - ✅ Each encrypted value has a unique IV (Initialization Vector)
 - ✅ Authentication tag prevents tampering
-
-
-
-
-
-
-

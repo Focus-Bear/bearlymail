@@ -18,8 +18,12 @@ const emails = useSelector(selectEmails);
 
 const existingCategories = useMemo(() => {
   const categories = new Set<string>();
-  emails.forEach(email => {
-    if (email.category && email.category !== currentCategory && email.category !== ADD_NEW_VALUE) {
+  emails.forEach((email) => {
+    if (
+      email.category &&
+      email.category !== currentCategory &&
+      email.category !== ADD_NEW_VALUE
+    ) {
       categories.add(email.category);
     }
   });
@@ -38,6 +42,7 @@ the derived `existingCategories` list is a tiny subset of their real category li
 The backend already exposes a purpose-built endpoint:
 
 **`server/src/emails/emails.controller.ts` line 134:**
+
 ```ts
 @Get("categories")
 async getCategories(@Request() req) {
@@ -47,6 +52,7 @@ async getCategories(@Request() req) {
 ```
 
 **`server/src/emails/emails.service.ts` line 243:**
+
 ```ts
 async getCategories(userId: string): Promise<string[]> {
   const categories = await this.emailThreadRepository.query(
@@ -61,6 +67,7 @@ This returns **all** unique categories across the user's entire mailbox — exac
 the dropdown needs.
 
 The same endpoint is already consumed correctly by `useInboxFilters.ts` (line 85):
+
 ```ts
 const response = await axios.get<string[]>(`${API_URL}/emails/categories`);
 ```
@@ -75,15 +82,19 @@ Replace the `useMemo` + Redux selector pattern with a `useEffect` that fetches f
 ### Before
 
 ```ts
-import { useSelector } from 'react-redux';
-import { selectEmails } from 'store/selectors/emailSelectors';
+import { useSelector } from "react-redux";
+import { selectEmails } from "store/selectors/emailSelectors";
 
 const emails = useSelector(selectEmails);
 
 const existingCategories = useMemo(() => {
   const categories = new Set<string>();
-  emails.forEach(email => {
-    if (email.category && email.category !== currentCategory && email.category !== ADD_NEW_VALUE) {
+  emails.forEach((email) => {
+    if (
+      email.category &&
+      email.category !== currentCategory &&
+      email.category !== ADD_NEW_VALUE
+    ) {
       categories.add(email.category);
     }
   });
@@ -94,7 +105,7 @@ const existingCategories = useMemo(() => {
 ### After
 
 ```ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 // Remove: import { useSelector } from 'react-redux';
 // Remove: import { selectEmails } from 'store/selectors/emailSelectors';
 
@@ -115,7 +126,7 @@ useEffect(() => {
       }
     })
     .catch((err) => {
-      console.error('Failed to load categories:', err);
+      console.error("Failed to load categories:", err);
     })
     .finally(() => {
       if (!cancelled) setLoadingCategories(false);
@@ -142,19 +153,22 @@ While the API call is in-flight, the `<select>` should communicate loading:
 >
   <option value="" disabled>
     {loadingCategories
-      ? t('priority.categoryOverride.loadingCategories')   // new i18n key
-      : t('priority.categoryOverride.selectPlaceholder')}
+      ? t("priority.categoryOverride.loadingCategories") // new i18n key
+      : t("priority.categoryOverride.selectPlaceholder")}
   </option>
   {existingCategories.map((cat) => (
-    <option key={cat} value={cat}>{cat}</option>
+    <option key={cat} value={cat}>
+      {cat}
+    </option>
   ))}
   <option value={ADD_NEW_VALUE}>
-    {t('priority.categoryOverride.addNewCategory')}
+    {t("priority.categoryOverride.addNewCategory")}
   </option>
 </select>
 ```
 
 **i18n key to add** (e.g. `en.json`):
+
 ```json
 "loadingCategories": "Loading categories…"
 ```
@@ -163,10 +177,10 @@ While the API call is in-flight, the `<select>` should communicate loading:
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
+| File                                                       | Change                                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `client/src/components/priority/CategoryOverrideModal.tsx` | Replace Redux `useMemo` with `useEffect` + API fetch; add `loadingCategories` state; disable select while loading |
-| `client/src/locales/en/translation.json` (or equivalent) | Add `priority.categoryOverride.loadingCategories` i18n key |
+| `client/src/locales/en/translation.json` (or equivalent)   | Add `priority.categoryOverride.loadingCategories` i18n key                                                        |
 
 ### Files **not** changed
 
@@ -177,13 +191,13 @@ While the API call is in-flight, the `<select>` should communicate loading:
 
 ## Edge Cases
 
-| Scenario | Behaviour |
-|----------|-----------|
-| API returns empty list | Select shows only "Add new category" — still functional |
-| API error | `console.error`, categories list stays empty, user can still type a new category |
-| Modal unmounts before fetch completes | Cleanup flag prevents setState on unmounted component |
-| `currentCategory` changes (shouldn't happen mid-modal) | `useEffect` re-runs, list refreshes |
-| User has no categories yet | Returns `[]`, only "Add new" option shown |
+| Scenario                                               | Behaviour                                                                        |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| API returns empty list                                 | Select shows only "Add new category" — still functional                          |
+| API error                                              | `console.error`, categories list stays empty, user can still type a new category |
+| Modal unmounts before fetch completes                  | Cleanup flag prevents setState on unmounted component                            |
+| `currentCategory` changes (shouldn't happen mid-modal) | `useEffect` re-runs, list refreshes                                              |
+| User has no categories yet                             | Returns `[]`, only "Add new" option shown                                        |
 
 ---
 
@@ -198,16 +212,21 @@ While the API call is in-flight, the `<select>` should communicate loading:
 ### Regression test (e2e — pairs with #656 plan)
 
 Add to `e2e/tests/regression.spec.ts`:
+
 ```ts
-test('category dropdown shows all categories, not just loaded emails', async ({ page }) => {
+test("category dropdown shows all categories, not just loaded emails", async ({
+  page,
+}) => {
   // login, navigate to inbox
   // open any email → change category modal
   // assert dropdown has > 1 option (beyond "Add new")
-  const options = page.locator('select option:not([disabled]):not([value="__add_new__"])');
+  const options = page.locator(
+    'select option:not([disabled]):not([value="__add_new__"])',
+  );
   await expect(options).toHaveCount.greaterThan(0);
   // No JS errors should appear
   const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
+  page.on("pageerror", (e) => errors.push(e.message));
   expect(errors).toHaveLength(0);
 });
 ```

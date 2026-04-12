@@ -108,8 +108,7 @@ export const useRecategorizeProgress = () => {
       // after several polls (avoids infinite spinner when PgBoss rows are filtered out).
       const isComplete =
         (total > 0 && pending === 0) ||
-        (zeroTotalStreakRef.current >= RECATEGORIZE_ZERO_TOTAL_MAX_POLLS &&
-          storedTotal > 0);
+        (zeroTotalStreakRef.current >= RECATEGORIZE_ZERO_TOTAL_MAX_POLLS && storedTotal > 0);
 
       setProgress({
         batchId,

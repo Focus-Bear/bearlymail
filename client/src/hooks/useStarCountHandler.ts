@@ -19,7 +19,12 @@ interface UseStarCountHandlerProps {
     starCount: number,
     event?: React.MouseEvent
   ) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
-  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
+  onShowStarDiscrepancy: (
+    emailId: string,
+    userStarCount: number,
+    predictedStarCount: number,
+    emailSubject?: string
+  ) => void;
   onShowPriorityOverride: (
     emailId: string,
     originalPriorityScore: number,

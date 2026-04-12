@@ -10,13 +10,14 @@
 
 ### #1248 — Category names sent as `categoryIds` (THE ROOT CAUSE)
 
-**What happens:** The network tab shows requests like `categoryIds=New+Github+issues+ba...` — category *names* being sent where UUIDs are expected.
+**What happens:** The network tab shows requests like `categoryIds=New+Github+issues+ba...` — category _names_ being sent where UUIDs are expected.
 
-**Why:** The entire client keys categories using `getCategoryKey(id, name)` which returns `id ?? name`. When the server's `getInboxSummary` returns `id: null` for a category, the key becomes the category *name*. That name then gets sent as `categoryIds=<name>` in `buildCategoryParamsImpl()`, which always sends `categoryIds=<catKey>`. The server expects UUIDs, so name-based requests either return 304 (not modified) or empty results.
+**Why:** The entire client keys categories using `getCategoryKey(id, name)` which returns `id ?? name`. When the server's `getInboxSummary` returns `id: null` for a category, the key becomes the category _name_. That name then gets sent as `categoryIds=<name>` in `buildCategoryParamsImpl()`, which always sends `categoryIds=<catKey>`. The server expects UUIDs, so name-based requests either return 304 (not modified) or empty results.
 
 **When does `id` come back null?** In `getInboxSummary` (server), the `lookupCategoryId(name)` function does an exact/prefix/parenthetical match against `UserContext` entries. Categories whose encrypted name was stored with LLM-deviated text (extra whitespace, different casing, parenthetical suffixes that don't match the normalization logic) return `null`.
 
 **The real question:** Why are there still threads with encrypted category names that don't match any `UserContext.contextValue`? The `repairEncryptedCategoryNames` migration was supposed to fix this. Either:
+
 1. New threads are being categorized with names that don't exactly match an existing `UserContext` entry (LLM output drift), OR
 2. The repair migration didn't catch all edge cases (e.g. Unicode normalization, em-dash vs en-dash).
 
@@ -26,20 +27,21 @@
 
 **Why (two contributing causes):**
 
-1. **Stale cache serving:** `fetchEmailsImpl` checks `getCachedSummary(mode, INBOX_CACHE_TTL_MS)` — if a cached summary exists within 60s, it serves it and does a background refresh only. On tab switch, `useInboxModeChanges` calls `fetchEmails()`, but if the *new* mode also has a cached summary, the stale cached data is shown immediately and the background refresh may not complete before the user notices.
+1. **Stale cache serving:** `fetchEmailsImpl` checks `getCachedSummary(mode, INBOX_CACHE_TTL_MS)` — if a cached summary exists within 60s, it serves it and does a background refresh only. On tab switch, `useInboxModeChanges` calls `fetchEmails()`, but if the _new_ mode also has a cached summary, the stale cached data is shown immediately and the background refresh may not complete before the user notices.
 
-2. **fetchEmails closure staleness:** `useInboxModeChanges` has `fetchEmails` intentionally NOT in its deps (`// Note: fetchEmails is intentionally not in dependencies`). The comment says "fetchEmails uses mode from its closure." But `fetchEmails` is a `useCallback` with `mode` in its deps — so it IS recreated when mode changes. However, the effect captures the *old* `fetchEmails` from the previous render. When the effect fires with the new `mode`, it calls the old `fetchEmails` which closes over the old `mode` value. **This is the actual bug: the effect calls a stale closure of `fetchEmails` that references the previous mode.**
+2. **fetchEmails closure staleness:** `useInboxModeChanges` has `fetchEmails` intentionally NOT in its deps (`// Note: fetchEmails is intentionally not in dependencies`). The comment says "fetchEmails uses mode from its closure." But `fetchEmails` is a `useCallback` with `mode` in its deps — so it IS recreated when mode changes. However, the effect captures the _old_ `fetchEmails` from the previous render. When the effect fires with the new `mode`, it calls the old `fetchEmails` which closes over the old `mode` value. **This is the actual bug: the effect calls a stale closure of `fetchEmails` that references the previous mode.**
 
 ### #1245 — First accordion doesn't open when clicked
 
 **What happens:** The first (and sometimes second/third) accordion in the inbox doesn't respond to clicks.
 
 **Why (cascade from #1248):**
+
 1. Inbox loads → `getInboxSummary` returns categories, some with `id: null`
 2. `useCategoryFetch.updateStableCategoryOrder` auto-expands first 3 categories
 3. For null-id categories, `fetchCategoryEmails` sends `categoryIds=<name>` → server returns 0 emails
 4. `CategoryAccordion` has auto-collapse effect: when `emails.length === 0` and `wasExpandedWithEmailsRef.current && isExpanded` → calls `onToggle()` to collapse
-5. But wait — `wasExpandedWithEmailsRef.current` is only set to `true` when `emails.length > 0`. So the *first* auto-collapse doesn't fire from `CategoryAccordion`. Instead, `InboxCategoryItem`'s auto-collapse fires: `isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0`.
+5. But wait — `wasExpandedWithEmailsRef.current` is only set to `true` when `emails.length > 0`. So the _first_ auto-collapse doesn't fire from `CategoryAccordion`. Instead, `InboxCategoryItem`'s auto-collapse fires: `isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0`.
 6. Actually, the count is NOT 0 (summary says e.g. 5 emails), so this guard doesn't fire either. The accordion stays expanded but empty.
 7. The **real issue**: the category is in a "limbo" state — expanded, marked loaded (because `fetchCategoryEmails` dispatches `markCategoryLoaded` even for 0-email responses when summary count > 0... wait, no, it dispatches `markCategoryLoadFailed` in that case).
 8. Re-examining: when 0 emails return but summary count > 0, `fetchCategoryEmailsImpl` calls `markCategoryLoadFailed(catKey)`. This removes from `loadingCategoryNames` but doesn't add to `loadedCategoryNames`. The accordion shows the loading spinner forever OR limbo-recovery kicks in and retries, getting 0 again, eventually hitting `markCategoryFetchExhausted`. At that point clicking the accordion to collapse/expand does work for toggle, but expanding just shows nothing.
@@ -49,12 +51,14 @@
 **Most likely cause:** The auto-expand sets the first 3 categories as expanded. The fetch for category 1 starts. While loading, the user clicks category 1's header. `onToggle` fires → removes from expanded set → accordion collapses. But then the Effect in `useCategoryFetch` re-fires (because `expandedCategories` changed) and... wait, it checks `loadedCategoryNamesRef.current.includes(key)` — if the category is loading, it skips. So the fetch completes, marks loaded, accordion shows as collapsed with data loaded. User clicks again → accordion expands, data is there. That should work.
 
 **Revised theory for #1245:** The issue is specific to the **first** accordion. Looking at `InboxCategoryItem`:
+
 ```tsx
 <CategoryAccordion
   ...
   onToggle={() => onToggleCategory(categoryKey)}
 >
 ```
+
 The `onToggle` is `() => onToggleCategory(categoryKey)`. And `onToggleCategory` comes from the parent `InboxCategoryList` which passes `onToggleCategory` from props. This traces back to `toggleCategory` from `useCategoryFetch`. The toggle itself should work.
 
 **Possible event propagation issue:** In `CategoryAccordionHeader`, the header div has `onClick={onToggle}`. Inside it, there are buttons with `event.stopPropagation()` (edit, reanalyse, archive-all). If the click target is one of these buttons, `stopPropagation` prevents the header's onClick from firing. But this would affect all accordions, not just the first.
@@ -67,7 +71,7 @@ Specifically: if the auto-collapse effect in `CategoryAccordion` fires AND the p
 
 **What happens:** After archiving all emails in a category one by one, the empty accordion remains visible.
 
-**Why:** The hide guard in `InboxCategoryList` requires ALL of: `isLoaded && categoryEmails.length === 0 && categoryItem.count === 0`. The `decrementCategorySummaryCount` reducer matches by `cat.name === categoryName`. But the `categoryName` comes from `emailToArchive.category || CATEGORY_OTHER` — the email's category *name* string. If this doesn't exactly match the summary item's `.name` (encoding diffs, LLM-deviated names), the count is never decremented to 0.
+**Why:** The hide guard in `InboxCategoryList` requires ALL of: `isLoaded && categoryEmails.length === 0 && categoryItem.count === 0`. The `decrementCategorySummaryCount` reducer matches by `cat.name === categoryName`. But the `categoryName` comes from `emailToArchive.category || CATEGORY_OTHER` — the email's category _name_ string. If this doesn't exactly match the summary item's `.name` (encoding diffs, LLM-deviated names), the count is never decremented to 0.
 
 **Additionally:** Even when names match perfectly, the `categoryItem.count` is decremented in Redux, but the hide guard also checks `categoryEmails.length === 0`. The `removeEmail` action removes the email from the flat `emails` array, which should make `categoryEmails.length` drop. But `filteredEmails` is memoized: `useMemo(() => emails.filter(email => !email.isArchived), [emails])`. The email is removed from Redux AFTER the animation timeout (800ms). During those 800ms, the email is still in the array with `isArchived` potentially not set.
 
@@ -84,10 +88,12 @@ Actually looking more carefully: `dispatch(removeEmail(emailId))` is called insi
 **File:** `server/src/emails/emails.service.ts`
 
 The `lookupCategoryId` function already does prefix/parenthetical matching. But it can still return `null` when:
+
 - The encrypted category name on the thread is completely different from any UserContext entry
 - Unicode normalization differences (em-dash vs en-dash, smart quotes, etc.)
 
 **Changes:**
+
 1. In `getInboxSummary`, after the per-row grouping loop, do a **second pass** on categories that ended up with `id: null`. For each, query `email_threads` to find the most common `categoryId` UUID among threads in that category name group. This handles the case where some threads have the UUID (from backfill) but the name lookup fails.
 
 2. Add Unicode normalization (NFC/NFKD) to `lookupCategoryId` for both the input name and the context keys.
@@ -108,12 +114,14 @@ const categories = visibleCategories.map((name) => ({
 This is the simplest and most correct fix: `categoryUuidByName` is populated from `row.categoryId` which is the actual UUID stored on the thread. It should be the primary source. `lookupCategoryId` is only needed as a fallback for pre-backfill threads.
 
 **Wait — re-reading the code:** `categoryUuidByName` is already populated in the loop:
+
 ```typescript
 if (row.categoryId && !categoryUuidByName.has(category)) {
   categoryUuidByName.set(category, row.categoryId as string);
 }
 ```
-But it's only used for *filtering*, not for the return value. The return uses `lookupCategoryId(name)`. **Fix: use `categoryUuidByName.get(name) ?? lookupCategoryId(name)` as the `id` in the return value.**
+
+But it's only used for _filtering_, not for the return value. The return uses `lookupCategoryId(name)`. **Fix: use `categoryUuidByName.get(name) ?? lookupCategoryId(name)` as the `id` in the return value.**
 
 ### Fix 2: Client-side — Fix `fetchEmails` stale closure in mode changes (fix #1244)
 
@@ -140,15 +148,17 @@ In `fetchEmailsImpl`, the stale-while-revalidate cache check uses the **new mode
 Actually, the simpler fix: `useInboxModeChanges` already calls `setEmails([])` before `fetchEmails()`. The stale-cache issue is that `fetchEmails` serves from cache. Since mode switches should always show fresh data, add an `overrideFilters` or a `skipCache` flag to `fetchEmails`, or just clear the mode's cache before fetching:
 
 In `useInboxModeChanges`, before `fetchEmails()`:
+
 ```typescript
-import { clearCacheForMode } from 'utils/emailCache';
+import { clearCacheForMode } from "utils/emailCache";
 // ...
 clearCacheForMode(mode); // Clear cache for the NEW mode before fetching
 ```
 
 ### Fix 4: Client-side — Remove duplicate auto-collapse effects (fix #1245)
 
-**Files:** 
+**Files:**
+
 - `client/src/components/inbox/CategoryAccordion.tsx`
 - `client/src/components/inbox/InboxContentParts.tsx` (InboxCategoryItem)
 
@@ -171,11 +181,11 @@ The `decrementCategorySummaryCount` and `incrementCategorySummaryCount` reducers
 
 ```typescript
 decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryKey?: string; categoryName: string; count: number }>) => {
-  const payload = typeof action.payload === 'string' 
-    ? { categoryKey: undefined, categoryName: action.payload, count: 1 } 
+  const payload = typeof action.payload === 'string'
+    ? { categoryKey: undefined, categoryName: action.payload, count: 1 }
     : action.payload;
   if (state.categorySummary) {
-    const category = state.categorySummary.find(cat => 
+    const category = state.categorySummary.find(cat =>
       (payload.categoryKey && cat.id === payload.categoryKey) || cat.name === payload.categoryName
     );
     if (category) {
@@ -186,6 +196,7 @@ decrementCategorySummaryCount: (state, action: PayloadAction<string | { category
 ```
 
 **Also update callers** to pass `categoryKey` when available:
+
 - `useEmailActionsBase.ts` `handleArchive`: pass `email.category_id` as `categoryKey`
 
 ### Fix 6: Client-side — Remove empty categories from summary state (fix #1246, non-hacky)
@@ -201,7 +212,7 @@ decrementCategorySummaryCount: (state, action) => {
   // ... find and decrement ...
   if (category && category.count === 0) {
     // Check if any emails still exist for this category
-    const hasEmails = state.emails.some(email => 
+    const hasEmails = state.emails.some(email =>
       email.category_id === category.id || email.category === category.name
     );
     if (!hasEmails) {
@@ -223,11 +234,11 @@ removeEmail: (state, action: PayloadAction<string>) => {
     state.emails = state.emails.filter(e => e.id !== action.payload);
     // Clean up category summary if this was the last email
     if (state.categorySummary) {
-      const remaining = state.emails.filter(e => 
+      const remaining = state.emails.filter(e =>
         (e.category_id || e.category || 'Other') === catKey
       );
       if (remaining.length === 0) {
-        const summaryItem = state.categorySummary.find(cat => 
+        const summaryItem = state.categorySummary.find(cat =>
           cat.id === catKey || cat.name === catKey
         );
         if (summaryItem) {
@@ -248,14 +259,14 @@ This is the **non-hacky** fix: when the data model (Redux state) loses all email
 
 ## Files to Change
 
-| File | Changes |
-|------|---------|
-| `server/src/emails/emails.service.ts` | Use `categoryUuidByName` as primary UUID source in `getInboxSummary` return |
-| `client/src/hooks/useInboxModeChanges.ts` | Add `fetchEmails` to effect deps, clear cache for new mode before fetch |
-| `client/src/components/inbox/CategoryAccordion.tsx` | Remove auto-collapse useEffect (defer to parent) |
-| `client/src/components/inbox/InboxContentParts.tsx` | Add loading guard to InboxCategoryItem auto-collapse |
-| `client/src/store/slices/inboxDataSlice.ts` | Fix `decrementCategorySummaryCount` to match by UUID; auto-remove empty categories from summary in both `decrementCategorySummaryCount` and `removeEmail` |
-| `client/src/hooks/useEmailActionsBase.ts` | Pass `category_id` (UUID) to decrement action |
+| File                                                | Changes                                                                                                                                                   |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/emails/emails.service.ts`               | Use `categoryUuidByName` as primary UUID source in `getInboxSummary` return                                                                               |
+| `client/src/hooks/useInboxModeChanges.ts`           | Add `fetchEmails` to effect deps, clear cache for new mode before fetch                                                                                   |
+| `client/src/components/inbox/CategoryAccordion.tsx` | Remove auto-collapse useEffect (defer to parent)                                                                                                          |
+| `client/src/components/inbox/InboxContentParts.tsx` | Add loading guard to InboxCategoryItem auto-collapse                                                                                                      |
+| `client/src/store/slices/inboxDataSlice.ts`         | Fix `decrementCategorySummaryCount` to match by UUID; auto-remove empty categories from summary in both `decrementCategorySummaryCount` and `removeEmail` |
+| `client/src/hooks/useEmailActionsBase.ts`           | Pass `category_id` (UUID) to decrement action                                                                                                             |
 
 ## Testing
 
@@ -276,4 +287,4 @@ This is the **non-hacky** fix: when the data model (Redux state) loses all email
 
 ---
 
-*Monk of Modularity — 🧘 Understanding the root before pruning the branches.*
+_Monk of Modularity — 🧘 Understanding the root before pruning the branches._

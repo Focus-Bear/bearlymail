@@ -75,6 +75,7 @@ The accordion header has `position: sticky; top: 0; zIndex: 10` (already handles
 When a category collapses (either via archive-all or archive one-by-one), scroll the email list container so the **next category header** after the collapsed one is at the top of the viewport. If the collapsed category was the last one, scroll to the **previous** category header.
 
 This is the cleanest approach because:
+
 - No need to capture `offsetTop` before archiving (the DOM changes are predictable after collapse)
 - The next sibling category header will already be visible and correctly positioned after the grid-row animation completes
 - Consistent with UX patterns (e.g. after deleting a file in a list, the cursor moves to the next item)
@@ -87,25 +88,26 @@ Add a forwarded ref (or expose the container `div` ref via a callback) so the pa
 
 ```tsx
 // Export the component with forwardRef
-export const CategoryAccordion = React.forwardRef<HTMLDivElement, CategoryAccordionProps>(
-  (props, ref) => {
-    // ... existing logic ...
-    return (
-      <div
-        ref={ref}   // ← add this
-        style={{
-          marginBottom: theme.spacing.md,
-          borderRadius: theme.borderRadius.lg,
-          border: `1px solid ${theme.colors.border.light}`,
-          backgroundColor: theme.colors.background.paper,
-        }}
-      >
-        {/* existing children */}
-      </div>
-    );
-  }
-);
-CategoryAccordion.displayName = 'CategoryAccordion';
+export const CategoryAccordion = React.forwardRef<
+  HTMLDivElement,
+  CategoryAccordionProps
+>((props, ref) => {
+  // ... existing logic ...
+  return (
+    <div
+      ref={ref} // ← add this
+      style={{
+        marginBottom: theme.spacing.md,
+        borderRadius: theme.borderRadius.lg,
+        border: `1px solid ${theme.colors.border.light}`,
+        backgroundColor: theme.colors.background.paper,
+      }}
+    >
+      {/* existing children */}
+    </div>
+  );
+});
+CategoryAccordion.displayName = "CategoryAccordion";
 ```
 
 ### Step 2 — Add `onAfterCollapse` callback to `CategoryAccordion` props
@@ -113,13 +115,14 @@ CategoryAccordion.displayName = 'CategoryAccordion';
 **File:** `client/src/components/inbox/CategoryAccordion.tsx`
 
 Add an optional `onAfterCollapse?: () => void` prop that is called after both:
+
 - The confirm-archive path (`handleConfirmArchive`) after `onToggle()`
 - The auto-collapse path (`useEffect` that monitors `emails.length`)
 
 ```tsx
 interface CategoryAccordionProps {
   // ...existing props...
-  onAfterCollapse?: () => void;   // ← new
+  onAfterCollapse?: () => void; // ← new
 }
 
 // In handleConfirmArchive:
@@ -128,7 +131,7 @@ const handleConfirmArchive = useCallback(async () => {
   if (onArchiveAll) {
     await onArchiveAll(category, emailIds);
     onToggle();
-    onAfterCollapse?.();   // ← call after toggle
+    onAfterCollapse?.(); // ← call after toggle
   }
 }, [onArchiveAll, category, emailIds, onToggle, onAfterCollapse]);
 
@@ -139,7 +142,7 @@ useEffect(() => {
   } else if (wasExpandedWithEmailsRef.current && isExpanded) {
     wasExpandedWithEmailsRef.current = false;
     onToggle();
-    onAfterCollapse?.();   // ← call after toggle
+    onAfterCollapse?.(); // ← call after toggle
   }
 }, [emails.length, isExpanded, onToggle, onAfterCollapse]);
 ```
@@ -149,6 +152,7 @@ useEffect(() => {
 **File:** `client/src/components/inbox/InboxContentParts.tsx`
 
 `InboxCategoryItem` needs:
+
 1. A ref to the scrollable container (`emailListRef`)
 2. Its own index in the display list (to find the next/previous category)
 3. A ref to its own `CategoryAccordion` DOM node
@@ -158,10 +162,12 @@ Add to `InboxCategoryItemProps`:
 ```tsx
 interface InboxCategoryItemProps {
   // ...existing props...
-  emailListRef: React.RefObject<HTMLDivElement | null>;    // ← new
-  categoryIndex: number;                                   // ← new (position in displayCategories)
-  totalCategories: number;                                 // ← new (total count for boundary check)
-  getCategoryAccordionRef: (index: number) => React.RefObject<HTMLDivElement | null>; // ← new
+  emailListRef: React.RefObject<HTMLDivElement | null>; // ← new
+  categoryIndex: number; // ← new (position in displayCategories)
+  totalCategories: number; // ← new (total count for boundary check)
+  getCategoryAccordionRef: (
+    index: number,
+  ) => React.RefObject<HTMLDivElement | null>; // ← new
 }
 ```
 
@@ -177,34 +183,40 @@ Alternatively (simpler): pass `onAfterCollapse` as a direct callback prop from `
 // In InboxCategoryList:
 const accordionRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
-const makeAfterCollapseHandler = (categoryKey: string, catIdx: number) => () => {
-  const scrollContainer = emailListRef.current;
-  if (!scrollContainer) return;
+const makeAfterCollapseHandler =
+  (categoryKey: string, catIdx: number) => () => {
+    const scrollContainer = emailListRef.current;
+    if (!scrollContainer) return;
 
-  // Find the next visible category after the collapsed one
-  const nextCategoryKey = displayCategories
-    .slice(catIdx + 1)
-    .find(cat => getCategoryKey(cat.id, cat.name) !== categoryKey)
-    ?.id
-    ? getCategoryKey(/* next item */)
-    : null;
+    // Find the next visible category after the collapsed one
+    const nextCategoryKey = displayCategories
+      .slice(catIdx + 1)
+      .find((cat) => getCategoryKey(cat.id, cat.name) !== categoryKey)?.id
+      ? getCategoryKey(/* next item */)
+      : null;
 
-  // Prefer scrolling to next category; fall back to previous
-  const targetKey = nextCategoryKey
-    ?? (catIdx > 0 ? getCategoryKey(displayCategories[catIdx - 1].id, displayCategories[catIdx - 1].name) : null);
+    // Prefer scrolling to next category; fall back to previous
+    const targetKey =
+      nextCategoryKey ??
+      (catIdx > 0
+        ? getCategoryKey(
+            displayCategories[catIdx - 1].id,
+            displayCategories[catIdx - 1].name,
+          )
+        : null);
 
-  if (!targetKey) return;
+    if (!targetKey) return;
 
-  const targetEl = accordionRefs.current.get(targetKey);
-  if (!targetEl) return;
+    const targetEl = accordionRefs.current.get(targetKey);
+    if (!targetEl) return;
 
-  // Scroll so the target header is at the top of the scroll container
-  const containerTop = scrollContainer.getBoundingClientRect().top;
-  const targetTop = targetEl.getBoundingClientRect().top;
-  const scrollDelta = targetTop - containerTop;
+    // Scroll so the target header is at the top of the scroll container
+    const containerTop = scrollContainer.getBoundingClientRect().top;
+    const targetTop = targetEl.getBoundingClientRect().top;
+    const scrollDelta = targetTop - containerTop;
 
-  scrollContainer.scrollBy({ top: scrollDelta, behavior: 'smooth' });
-};
+    scrollContainer.scrollBy({ top: scrollDelta, behavior: "smooth" });
+  };
 ```
 
 Pass `emailListRef` down through `InboxEmailListPanel` → `InboxCategoryList`.
@@ -242,11 +254,24 @@ The existing auto-collapse `useEffect` in `InboxCategoryItem` also needs to trig
 
 ```tsx
 useEffect(() => {
-  if (isLoaded && categoryEmails.length === 0 && isExpanded && categoryItem.count === 0) {
+  if (
+    isLoaded &&
+    categoryEmails.length === 0 &&
+    isExpanded &&
+    categoryItem.count === 0
+  ) {
     onToggleCategory(categoryKey);
-    onAfterCollapse?.();   // ← trigger scroll
+    onAfterCollapse?.(); // ← trigger scroll
   }
-}, [isLoaded, categoryEmails.length, categoryKey, isExpanded, onToggleCategory, categoryItem.count, onAfterCollapse]);
+}, [
+  isLoaded,
+  categoryEmails.length,
+  categoryKey,
+  isExpanded,
+  onToggleCategory,
+  categoryItem.count,
+  onAfterCollapse,
+]);
 ```
 
 ### Step 7 — Timing: wait for CSS grid collapse animation
@@ -266,14 +291,14 @@ setTimeout(() => {
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/components/inbox/CategoryAccordion.tsx` | Add `React.forwardRef` wrapper; add `onAfterCollapse?: () => void` prop; call it in `handleConfirmArchive` and auto-collapse `useEffect` |
-| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryItemProps` | Add `accordionRef`, `onAfterCollapse` props |
-| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryItem` | Pass `accordionRef` to `CategoryAccordion`; pass `onAfterCollapse` to `CategoryAccordion` and to the auto-collapse `useEffect` |
-| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryListProps` | Add `emailListRef: React.RefObject<HTMLDivElement \| null>` |
-| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryList` | Create `accordionRefs` map; implement `makeAfterCollapseHandler`; pass ref + callback to each `InboxCategoryItem` |
-| `client/src/components/inbox/InboxContentParts.tsx` — `InboxEmailListPanel` | Pass `emailListRef` down to `InboxCategoryList` |
+| File                                                                           | Change                                                                                                                                   |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/components/inbox/CategoryAccordion.tsx`                            | Add `React.forwardRef` wrapper; add `onAfterCollapse?: () => void` prop; call it in `handleConfirmArchive` and auto-collapse `useEffect` |
+| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryItemProps` | Add `accordionRef`, `onAfterCollapse` props                                                                                              |
+| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryItem`      | Pass `accordionRef` to `CategoryAccordion`; pass `onAfterCollapse` to `CategoryAccordion` and to the auto-collapse `useEffect`           |
+| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryListProps` | Add `emailListRef: React.RefObject<HTMLDivElement \| null>`                                                                              |
+| `client/src/components/inbox/InboxContentParts.tsx` — `InboxCategoryList`      | Create `accordionRefs` map; implement `makeAfterCollapseHandler`; pass ref + callback to each `InboxCategoryItem`                        |
+| `client/src/components/inbox/InboxContentParts.tsx` — `InboxEmailListPanel`    | Pass `emailListRef` down to `InboxCategoryList`                                                                                          |
 
 ---
 
@@ -284,7 +309,7 @@ setTimeout(() => {
 **File:** `client/src/components/inbox/categoryAccordion.helpers.test.ts` or new `CategoryAccordion.test.tsx`
 
 ```ts
-it('calls onAfterCollapse after archive-all confirm', async () => {
+it("calls onAfterCollapse after archive-all confirm", async () => {
   const onAfterCollapse = jest.fn();
   const onArchiveAll = jest.fn().mockResolvedValue(undefined);
   const onToggle = jest.fn();
@@ -292,7 +317,7 @@ it('calls onAfterCollapse after archive-all confirm', async () => {
   // expect onAfterCollapse to have been called
 });
 
-it('calls onAfterCollapse when auto-collapse fires (emails drop to zero)', async () => {
+it("calls onAfterCollapse when auto-collapse fires (emails drop to zero)", async () => {
   const onAfterCollapse = jest.fn();
   // render with emails, rerender with empty emails while isExpanded=true
   // expect onAfterCollapse to have been called
@@ -315,19 +340,31 @@ it('calls onAfterCollapse when auto-collapsed by empty email list', async () => 
 Extract `makeAfterCollapseHandler` to a pure helper function (e.g. `inboxContentParts.helpers.ts`) and unit-test it:
 
 ```ts
-it('scrolls to next category when one exists', () => {
-  const scrollContainer = { scrollBy: jest.fn(), getBoundingClientRect: () => ({ top: 0 }) };
+it("scrolls to next category when one exists", () => {
+  const scrollContainer = {
+    scrollBy: jest.fn(),
+    getBoundingClientRect: () => ({ top: 0 }),
+  };
   const nextEl = { getBoundingClientRect: () => ({ top: 200 }) };
-  const accordionRefs = new Map([['cat-2', nextEl]]);
-  makeAfterCollapseHandler(scrollContainer, accordionRefs, 'cat-1', 0, displayCategories)();
-  expect(scrollContainer.scrollBy).toHaveBeenCalledWith({ top: 200, behavior: 'smooth' });
+  const accordionRefs = new Map([["cat-2", nextEl]]);
+  makeAfterCollapseHandler(
+    scrollContainer,
+    accordionRefs,
+    "cat-1",
+    0,
+    displayCategories,
+  )();
+  expect(scrollContainer.scrollBy).toHaveBeenCalledWith({
+    top: 200,
+    behavior: "smooth",
+  });
 });
 
-it('falls back to previous category when archived category was last', () => {
+it("falls back to previous category when archived category was last", () => {
   // similar setup with catIdx = last index
 });
 
-it('does nothing when no sibling categories exist', () => {
+it("does nothing when no sibling categories exist", () => {
   // single-category inbox — no scroll
 });
 ```
@@ -370,7 +407,7 @@ Then in `InboxCategoryList`'s `makeAfterCollapseHandler`:
 
 ```ts
 const targetEl = emailListRef.current?.querySelector(
-  `[data-category-key="${CSS.escape(targetKey)}"]`
+  `[data-category-key="${CSS.escape(targetKey)}"]`,
 ) as HTMLElement | null;
 ```
 

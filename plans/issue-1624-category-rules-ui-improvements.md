@@ -11,21 +11,25 @@ When a user has already created deterministic category rules for a category, the
 ## Current Architecture
 
 ### Where "Add matching rule" is rendered
+
 - **`client/src/components/settings/guide-ai/ContextSection.tsx`** → `ContextItem` component (lines ~270-310)
 - The button appears for every `EMAIL_CATEGORY` context item when `CategoryRuleFromCategoryContext` is available
 - It calls `categoryRuleFromCategory.openAddRuleForCategoryDisplayName(categoryDisplayNameForRule)` to open the composite rule modal
 
 ### How categories map to rules
+
 - `getEmailCategoryDisplayNameFromContextValue(contextValue)` extracts the category display name from the context value (e.g., `"Newsletters"` from `"Newsletters - Regular subscription emails"`)
 - Category rules (`CategoryRuleDto`) have a `categoryName` field that matches this display name
 - Rules are fetched via `useCategoryRules()` hook → `GET /api/category-rules`
 
 ### Where rules are currently managed
+
 - **`DeterministicCategoryRulesSection`** — standalone section in GuideOurAI that lists all rules
 - **`DeterministicCategoryRuleRow`** — renders individual rule details (sender, subject, body patterns)
 - **`useDeterministicCategoryRulesSectionState`** — manages modal state, CRUD operations
 
 ### Icon library
+
 - Project uses **`react-icons/fi`** (Feather Icons) throughout — e.g., `FiEdit2`, `FiMoreVertical`, `FiTrash2`
 
 ## Implementation Plan
@@ -39,7 +43,7 @@ Extend the context value type to also expose the rules array:
 ```ts
 export type CategoryRuleFromCategoryContextValue = {
   openAddRuleForCategoryDisplayName: (displayName: string) => void;
-  rules: CategoryRuleDto[];  // <-- ADD
+  rules: CategoryRuleDto[]; // <-- ADD
 };
 ```
 
@@ -64,8 +68,9 @@ In the `ContextItem` component, replace the current "Add matching rule" button l
 
 ```tsx
 // Inside ContextItem, after getting categoryDisplayNameForRule:
-const matchingRules = (categoryRuleFromCategory?.rules ?? [])
-  .filter(r => r.categoryName === categoryDisplayNameForRule);
+const matchingRules = (categoryRuleFromCategory?.rules ?? []).filter(
+  (r) => r.categoryName === categoryDisplayNameForRule,
+);
 const ruleCount = matchingRules.length;
 ```
 
@@ -79,6 +84,7 @@ Replace the existing `showAddMatchingRuleButton && (...)` block:
 **File:** `client/src/components/settings/guide-ai/ContextSection.tsx`
 
 Add a new state to `ContextItem`:
+
 ```tsx
 const [showRulesAccordion, setShowRulesAccordion] = useState(false);
 ```
@@ -86,26 +92,30 @@ const [showRulesAccordion, setShowRulesAccordion] = useState(false);
 Below the existing `ContextItem` div, when `showRulesAccordion` is true, render a collapsible panel listing the matching rules. Reuse the rendering logic from `DeterministicCategoryRuleRow` (import it) but in a compact read-only style:
 
 ```tsx
-{showRulesAccordion && matchingRules.length > 0 && (
-  <div style={{
-    marginTop: theme.spacing.xs,
-    marginLeft: theme.spacing.lg,
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.sm,
-    border: `1px solid ${theme.colors.border.light}`,
-  }}>
-    {matchingRules.map(rule => (
-      <DeterministicCategoryRuleRow
-        key={rule.id}
-        rule={rule}
-        onToggleEnabled={/* from context or pass through */}
-        onDelete={/* from context or pass through */}
-        onEditComposite={/* from context or pass through */}
-      />
-    ))}
-  </div>
-)}
+{
+  showRulesAccordion && matchingRules.length > 0 && (
+    <div
+      style={{
+        marginTop: theme.spacing.xs,
+        marginLeft: theme.spacing.lg,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.sm,
+        border: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      {matchingRules.map((rule) => (
+        <DeterministicCategoryRuleRow
+          key={rule.id}
+          rule={rule}
+          onToggleEnabled={/* from context or pass through */}
+          onDelete={/* from context or pass through */}
+          onEditComposite={/* from context or pass through */}
+        />
+      ))}
+    </div>
+  );
+}
 ```
 
 **Important:** To support edit/delete/toggle from the accordion, extend `CategoryRuleFromCategoryContextValue` to expose these callbacks too:
@@ -121,6 +131,7 @@ export type CategoryRuleFromCategoryContextValue = {
 ```
 
 Wire these from `deterministicCategoryRulesController` in `GuideOurAISection.tsx`:
+
 ```tsx
 value={{
   openAddRuleForCategoryDisplayName: deterministicCategoryRulesController.openAddWithPrefill,
@@ -138,7 +149,7 @@ value={{
 In the `ContextItem` component, replace the Edit and Delete text buttons with icon buttons:
 
 ```tsx
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
 // Replace:
 //   {t('common.edit')}
@@ -152,6 +163,7 @@ import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 ```
 
 Keep the existing `onClick` handlers, `style` for cursor/color, and add `title` attributes for accessibility:
+
 ```tsx
 <button title={t('common.edit')} aria-label={t('common.edit')} ...>
   <FiEdit2 size={14} />
@@ -166,6 +178,7 @@ Keep the existing `onClick` handlers, `style` for cursor/color, and add `title` 
 **Files:** `client/src/locales/en.json`, `client/src/locales/es.json`
 
 Add under `settings.emailCategories`:
+
 ```json
 "rulesCount": "{{count}} rule",
 "rulesCount_plural": "{{count}} rules"
@@ -179,13 +192,13 @@ When `ruleCount > 0` and the accordion is expanded, add a small "+ Add rule" lin
 
 ## Files Changed (Summary)
 
-| File | Change |
-|------|--------|
-| `client/src/contexts/CategoryRuleFromCategoryContext.tsx` | Extend context type with `rules`, `onToggleEnabled`, `onDeleteRule`, `onEditRule` |
-| `client/src/components/settings/GuideOurAISection.tsx` | Pass additional controller methods to context provider |
-| `client/src/components/settings/guide-ai/ContextSection.tsx` | Main changes: conditional "{n} rules" button, accordion, icon buttons |
-| `client/src/locales/en.json` | Add `rulesCount` i18n key |
-| `client/src/locales/es.json` | Add `rulesCount` i18n key (Spanish) |
+| File                                                         | Change                                                                            |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `client/src/contexts/CategoryRuleFromCategoryContext.tsx`    | Extend context type with `rules`, `onToggleEnabled`, `onDeleteRule`, `onEditRule` |
+| `client/src/components/settings/GuideOurAISection.tsx`       | Pass additional controller methods to context provider                            |
+| `client/src/components/settings/guide-ai/ContextSection.tsx` | Main changes: conditional "{n} rules" button, accordion, icon buttons             |
+| `client/src/locales/en.json`                                 | Add `rulesCount` i18n key                                                         |
+| `client/src/locales/es.json`                                 | Add `rulesCount` i18n key (Spanish)                                               |
 
 ## Testing
 

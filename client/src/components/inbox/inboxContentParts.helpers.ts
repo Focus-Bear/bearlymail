@@ -11,7 +11,7 @@ export function computeEmailListBorderRight(
     selectedEmailId: string | null | undefined;
     panelExpanded: boolean;
   },
-  isMobile: boolean,
+  isMobile: boolean
 ): string {
   if (!isMobile && splitView.selectedEmailId && !splitView.panelExpanded) {
     return `1px solid ${theme.colors.border.light}`;
@@ -27,7 +27,8 @@ export function computeCanRenderCategories(options: {
   fetchError: string | null | undefined;
   categoriesCount: number;
 }): boolean {
-  const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } = options;
+  const { loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount } =
+    options;
   if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) {
     return false;
   }
@@ -56,7 +57,7 @@ export function computeIsEmailsEmpty(
   categorySummary: CategorySummaryItem[] | null | undefined,
   loading: boolean,
   loadingModeSwitch: boolean,
-  emailsCount: number,
+  emailsCount: number
 ): boolean {
   if (isRefetchingWithoutData) {
     return false;
@@ -65,7 +66,9 @@ export function computeIsEmailsEmpty(
     // Either the summary has no categories, or all categories have count ≤ 0 (post-archive
     // optimistic state where animation is still running but list is visually empty).
     const allCategoriesEmpty = categorySummary.every(cat => cat.count <= 0);
-    return (categorySummary.length === 0 || (allCategoriesEmpty && emailsCount === 0)) && !loading && !loadingModeSwitch;
+    return (
+      (categorySummary.length === 0 || (allCategoriesEmpty && emailsCount === 0)) && !loading && !loadingModeSwitch
+    );
   }
   return emailsCount === 0 && !loading && !loadingModeSwitch;
 }

@@ -197,9 +197,7 @@ export function clearCacheForMode(mode: string): void {
       // The trailing-delimited check avoids hypothetical `_summary_triage2_` false-positives.
       if (
         key?.startsWith(prefix) &&
-        (key.includes(`_cat_${mode}_`) ||
-          key.includes(`_summary_${mode}_`) ||
-          key.endsWith(`_summary_${mode}`))
+        (key.includes(`_cat_${mode}_`) || key.includes(`_summary_${mode}_`) || key.endsWith(`_summary_${mode}`))
       ) {
         keysToRemove.push(key);
       }

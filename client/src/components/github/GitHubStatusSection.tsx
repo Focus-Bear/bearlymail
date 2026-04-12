@@ -96,12 +96,7 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
       {loading ? (
         <GitHubStatusLoading />
       ) : (
-        <GitHubLinksList
-          links={links}
-          suggestedActions={suggestedGitHubActions}
-          onRefresh={onRefresh}
-          email={email}
-        />
+        <GitHubLinksList links={links} suggestedActions={suggestedGitHubActions} onRefresh={onRefresh} email={email} />
       )}
     </CollapsibleSection>
   );

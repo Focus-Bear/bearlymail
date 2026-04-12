@@ -41,17 +41,20 @@ Two separate bugs that share the same root cause: `useInboxUrlSync` has a feedba
 6. But now the URL is `/inbox/triage/` with no email, and Effect 3's condition `urlThreadId && urlThreadId !== splitViewSelectedEmailId` is checked again on any subsequent re-render... and if `urlThreadId` gets restored (e.g. stale closure), it reopens → loop resumes.
 
 **The core bug is in Effect 3:**
+
 ```ts
 // useInboxUrlSync.ts line 73-85
 useEffect(() => {
-  if (isInitialMount.current) { return; }
+  if (isInitialMount.current) {
+    return;
+  }
   if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
     onUrlModeChange(urlMode);
   }
   if (urlThreadId && urlThreadId !== splitViewSelectedEmailId) {
     openEmail(urlThreadId);
   } else if (!urlThreadId && splitViewSelectedEmailId) {
-    closeEmail();  // ← THIS fires when navigate() in Effect 2 produces a transient undefined urlThreadId
+    closeEmail(); // ← THIS fires when navigate() in Effect 2 produces a transient undefined urlThreadId
   }
 }, [urlMode, urlThreadId]);
 ```
@@ -63,6 +66,7 @@ useEffect(() => {
 **Trigger:** User clicks email B while email A is open in the split panel.
 
 **Flow:**
+
 1. `handleEmailSelect` → `splitView.openEmail(emailB.id)` → `selectedEmailId = emailB.id`
 2. `SplitViewPanel` receives `selectedEmailId = emailB.id` as prop → passes to `EmailDetail` as `emailId={selectedEmailId}`
 3. `EmailDetail` receives `id = emailB.id` — correct.
@@ -90,18 +94,23 @@ Since the URL loop opens the email panel repeatedly (each loop iteration calls `
 **Problem:** Effect 2 calls `navigate(sameUrl, { replace: true })` even when the URL is already correct, generating a new router location object that spuriously re-triggers Effect 3. Effect 3's `closeEmail()` branch fires based on stale `splitViewSelectedEmailId`.
 
 **Fix A:** In Effect 2, seed `lastUrlRef.current` with the current URL on first run so the no-op navigate is skipped:
+
 ```ts
 // After isInitialMount guard, before computing newPath:
-if (lastUrlRef.current === '') {
+if (lastUrlRef.current === "") {
   lastUrlRef.current = window.location.pathname;
 }
 ```
+
 This prevents the spurious navigate on the first post-mount render.
 
 **Fix B:** In Effect 3, add `splitViewSelectedEmailId` to the deps array (or capture it via `useEffectEvent`) so it is never stale when the close branch evaluates:
+
 ```ts
 useEffect(() => {
-  if (isInitialMount.current) { return; }
+  if (isInitialMount.current) {
+    return;
+  }
   if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
     onUrlModeChange(urlMode);
   }
@@ -116,6 +125,7 @@ useEffect(() => {
 > **Note:** Adding `splitViewSelectedEmailId` to deps may cause Effect 3 to fire when the email is opened/closed via `openEmail`/`closeEmail` directly. Guard against re-entry: only call `openEmail`/`closeEmail` when the URL and state are genuinely mismatched. The existing conditions already handle this (`urlThreadId !== splitViewSelectedEmailId` and `!urlThreadId && splitViewSelectedEmailId`), so adding the dep is safe — it will short-circuit correctly.
 
 **Fix C:** Alternatively (cleaner), use `useEffectEvent` for the URL→state sync effect body so it always reads fresh values without needing them in deps:
+
 ```ts
 const syncFromUrl = useEffectEvent(() => {
   if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
@@ -129,21 +139,26 @@ const syncFromUrl = useEffectEvent(() => {
 });
 
 useEffect(() => {
-  if (isInitialMount.current) { return; }
+  if (isInitialMount.current) {
+    return;
+  }
   syncFromUrl();
 }, [urlMode, urlThreadId]);
 ```
+
 This is the preferred approach — matches the pattern already used in `useEmailDetailFetching` and `useInboxInitialization`.
 
 ### Fix 2 — `useInboxUrlSync.ts` Effect 2: seed `lastUrlRef` from current URL (prevents spurious navigate)
 
 ```ts
 useEffect(() => {
-  if (isInitialMount.current) { return; }
+  if (isInitialMount.current) {
+    return;
+  }
   // Seed lastUrlRef on first post-mount render to avoid a no-op navigate
   // that would generate a new router location object and spuriously re-trigger Effect 3.
-  if (lastUrlRef.current === '') {
-    lastUrlRef.current = `${basePath}/${mode}${splitViewSelectedEmailId ? `/${splitViewSelectedEmailId}` : ''}`;
+  if (lastUrlRef.current === "") {
+    lastUrlRef.current = `${basePath}/${mode}${splitViewSelectedEmailId ? `/${splitViewSelectedEmailId}` : ""}`;
   }
   const newPath = splitViewSelectedEmailId
     ? `${basePath}/${mode}/${splitViewSelectedEmailId}`
@@ -166,8 +181,11 @@ const lastAcceleratedRef = useRef<string | null>(null);
 // Inside onEmailIdChanged / fetchEmail, guard the accelerate call:
 if (lastAcceleratedRef.current !== emailId) {
   lastAcceleratedRef.current = emailId;
-  axios.post(`${API_URL}/emails/${emailId}/accelerate`)
-    .catch(err => console.debug('Job acceleration not available:', err.message));
+  axios
+    .post(`${API_URL}/emails/${emailId}/accelerate`)
+    .catch((err) =>
+      console.debug("Job acceleration not available:", err.message),
+    );
 }
 ```
 
@@ -201,11 +219,11 @@ Same guard should be applied in `useEmailDetailOperations.ts` `fetchEmail` (line
 
 ## Affected Files
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useInboxUrlSync.ts` | Seed `lastUrlRef` from current URL on first Effect 2 run; use `useEffectEvent` in Effect 3 to prevent stale closure on `splitViewSelectedEmailId` |
-| `client/src/hooks/useEmailDetailFetching.ts` | Add `lastAcceleratedRef` dedup guard before `/accelerate` POST |
-| `client/src/hooks/useEmailDetailOperations.ts` | Same dedup guard before `/accelerate` POST in `fetchEmail` |
+| File                                           | Change                                                                                                                                            |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/hooks/useInboxUrlSync.ts`          | Seed `lastUrlRef` from current URL on first Effect 2 run; use `useEffectEvent` in Effect 3 to prevent stale closure on `splitViewSelectedEmailId` |
+| `client/src/hooks/useEmailDetailFetching.ts`   | Add `lastAcceleratedRef` dedup guard before `/accelerate` POST                                                                                    |
+| `client/src/hooks/useEmailDetailOperations.ts` | Same dedup guard before `/accelerate` POST in `fetchEmail`                                                                                        |
 
 ---
 

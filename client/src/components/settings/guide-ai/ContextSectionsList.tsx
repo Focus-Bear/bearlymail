@@ -15,7 +15,6 @@ import { CONTEXT_KEY_EMAIL_CATEGORY, CONTEXT_KEY_Q_AND_A, STRING_NONE } from 'co
 import { useNotifications } from 'contexts/NotificationContext';
 import { RecategorizeProgressState, useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 
-
 const CONSOLIDATE_RELOAD_DELAY_MS = 1500;
 
 interface UserContext {
@@ -263,9 +262,13 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const {
-    isConsolidating, isRecategorizing,
-    recategorizeProgress, dismissProgress, showProtoCategoriesModal,
-    setShowProtoCategoriesModal, handleConsolidateCategories,
+    isConsolidating,
+    isRecategorizing,
+    recategorizeProgress,
+    dismissProgress,
+    showProtoCategoriesModal,
+    setShowProtoCategoriesModal,
+    handleConsolidateCategories,
     handleRecategorize,
   } = actions as CategoryActionsState & { handleConsolidateCategories: () => void };
 
@@ -354,7 +357,9 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
                 setMenuOpen(false);
               }}
             >
-              {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+              {isConsolidating
+                ? t('settings.emailCategories.consolidating')
+                : t('settings.emailCategories.consolidate')}
             </button>
             <button
               style={isRecategorizing ? menuItemDisabledStyle : menuItemStyle}
@@ -364,7 +369,9 @@ const EmailCategoryControls: React.FC<EmailCategoryControlsProps> = ({ actions }
                 setMenuOpen(false);
               }}
             >
-              {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+              {isRecategorizing
+                ? t('settings.emailCategories.recategorizing')
+                : t('settings.emailCategories.recategorize')}
             </button>
           </div>
         )}
@@ -435,9 +442,18 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   const { showConsolidateConfirm, setShowConsolidateConfirm, handleConsolidateConfirmed } = actions;
 
   const commonProps = {
-    contexts, addingContextType, editingContextId, editContextValue, newContextValue,
-    onAddContext, onUpdateContext, onDeleteContext, onNewContextValueChange,
-    onAddingContextTypeChange, onEditingContextIdChange, onEditContextValueChange,
+    contexts,
+    addingContextType,
+    editingContextId,
+    editContextValue,
+    newContextValue,
+    onAddContext,
+    onUpdateContext,
+    onDeleteContext,
+    onNewContextValueChange,
+    onAddingContextTypeChange,
+    onEditingContextIdChange,
+    onEditContextValueChange,
   };
 
   const actionsWithConsolidate = {
@@ -486,13 +502,21 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
-            actionButton={isEmailCategory ? <EmailCategoryControls actions={actionsWithConsolidate as CategoryActionsState} /> : undefined}
+            actionButton={
+              isEmailCategory ? (
+                <EmailCategoryControls actions={actionsWithConsolidate as CategoryActionsState} />
+              ) : undefined
+            }
             isInitiallyExpanded={isAnchoredMatch}
             {...commonProps}
           />
         );
         if (config.anchorId) {
-          return <div key={key} id={config.anchorId}>{sectionElement}</div>;
+          return (
+            <div key={key} id={config.anchorId}>
+              {sectionElement}
+            </div>
+          );
         }
         return sectionElement;
       })}

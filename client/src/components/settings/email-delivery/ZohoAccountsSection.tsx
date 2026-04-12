@@ -41,9 +41,7 @@ const ZohoAccountRow: React.FC<ZohoAccountRowProps> = ({ account, t, onSetPrimar
     <div>
       <div style={{ fontWeight: theme.typography.fontWeight.medium }}>{account.email}</div>
       {account.name && (
-        <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-          {account.name}
-        </div>
+        <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{account.name}</div>
       )}
       {account.isPrimary && (
         <span

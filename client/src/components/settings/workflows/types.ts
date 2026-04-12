@@ -5,12 +5,7 @@
  * Part of feature #1483 — Automated Email Workflows.
  */
 
-export type WorkflowPriorityLevel =
-  | "veryHigh"
-  | "high"
-  | "medium"
-  | "low"
-  | "veryLow";
+export type WorkflowPriorityLevel = 'veryHigh' | 'high' | 'medium' | 'low' | 'veryLow';
 
 export interface WorkflowCondition {
   fromPatterns: string[];
@@ -26,29 +21,26 @@ export interface WorkflowActionBase {
 }
 
 export interface WorkflowActionReply extends WorkflowActionBase {
-  type: "reply";
+  type: 'reply';
   templateBody: string;
 }
 
 export interface WorkflowActionMCPTool extends WorkflowActionBase {
-  type: "mcp_tool";
+  type: 'mcp_tool';
   serverId: string;
   toolName: string;
   parameters: Record<string, string>;
 }
 
 export interface WorkflowActionWebhook extends WorkflowActionBase {
-  type: "webhook";
+  type: 'webhook';
   url: string;
-  method: "POST" | "PUT";
+  method: 'POST' | 'PUT';
   headers?: Record<string, string>;
   bodyTemplate: string;
 }
 
-export type WorkflowAction =
-  | WorkflowActionReply
-  | WorkflowActionMCPTool
-  | WorkflowActionWebhook;
+export type WorkflowAction = WorkflowActionReply | WorkflowActionMCPTool | WorkflowActionWebhook;
 
 export interface WorkflowRule {
   id: string;
@@ -67,10 +59,10 @@ export interface WorkflowExecutionLog {
   workflowRuleId: string;
   userId: string;
   emailThreadId: string;
-  status: "pending" | "running" | "success" | "partial_failure" | "failed";
+  status: 'pending' | 'running' | 'success' | 'partial_failure' | 'failed';
   actionResults: Array<{
     actionIndex: number;
-    status: "success" | "failed" | "skipped";
+    status: 'success' | 'failed' | 'skipped';
     output?: unknown;
     error?: string;
     durationMs: number;

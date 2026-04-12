@@ -257,9 +257,18 @@ function useExclusionRulesState(customExclusionRules: string[], onChange: (rules
   };
 
   return {
-    isAdding, setIsAdding, newRule, setNewRule,
-    editingIndex, editValue, setEditValue,
-    handleAddRule, handleDeleteRule, handleEditRule, handleSaveEdit, handleCancelEdit,
+    isAdding,
+    setIsAdding,
+    newRule,
+    setNewRule,
+    editingIndex,
+    editValue,
+    setEditValue,
+    handleAddRule,
+    handleDeleteRule,
+    handleEditRule,
+    handleSaveEdit,
+    handleCancelEdit,
   };
 }
 
@@ -269,9 +278,18 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
 }) => {
   const { t } = useTranslation();
   const {
-    isAdding, setIsAdding, newRule, setNewRule,
-    editingIndex, editValue, setEditValue,
-    handleAddRule, handleDeleteRule, handleEditRule, handleSaveEdit, handleCancelEdit,
+    isAdding,
+    setIsAdding,
+    newRule,
+    setNewRule,
+    editingIndex,
+    editValue,
+    setEditValue,
+    handleAddRule,
+    handleDeleteRule,
+    handleEditRule,
+    handleSaveEdit,
+    handleCancelEdit,
   } = useExclusionRulesState(customExclusionRules, onChange);
 
   return (

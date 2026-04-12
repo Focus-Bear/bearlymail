@@ -33,11 +33,7 @@ interface DebugCategorySummaryProps {
 const getLoadedEmailsForCategory = (categoryKey: string, emails: Email[]): Email[] => {
   if (categoryKey === CATEGORY_KEY_UNCATEGORIZED) {
     // "Other" / uncategorized emails have a null category_id
-    return emails.filter(
-      event =>
-        !event.isArchived &&
-        (!event.category_id || event.category_id === null)
-    );
+    return emails.filter(event => !event.isArchived && (!event.category_id || event.category_id === null));
   }
   // UUID-based lookup: match by category_id (consistent with how inboxDataSlice keys emails)
   return emails.filter(event => !event.isArchived && event.category_id === categoryKey);
@@ -64,12 +60,12 @@ interface CategoryTableProps extends DebugCategorySummaryProps {
 }
 
 const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-  idle:      { bg: '#E0E0E0', text: '#616161' },
-  loading:   { bg: '#FFF9C4', text: '#F57F17' },
-  loaded:    { bg: '#E8F5E9', text: '#2E7D32' },
-  error:     { bg: '#FFEBEE', text: '#C62828' },
+  idle: { bg: '#E0E0E0', text: '#616161' },
+  loading: { bg: '#FFF9C4', text: '#F57F17' },
+  loaded: { bg: '#E8F5E9', text: '#2E7D32' },
+  error: { bg: '#FFEBEE', text: '#C62828' },
   exhausted: { bg: '#EDE7F6', text: '#4527A0' },
-  stale:     { bg: '#FFF3E0', text: '#E65100' },
+  stale: { bg: '#FFF3E0', text: '#E65100' },
 };
 
 const CategorySummaryTable: React.FC<CategoryTableProps> = ({
@@ -191,19 +187,25 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                     {(() => {
                       const sliceStatus = categoryStates?.[categoryKey]?.status;
                       if (!sliceStatus) {
-                        return <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>—</span>;
+                        return (
+                          <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
+                            —
+                          </span>
+                        );
                       }
                       const colors = STATUS_BADGE_COLORS[sliceStatus] ?? { bg: '#E0E0E0', text: '#616161' };
                       return (
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          fontSize: theme.typography.fontSize.xs,
-                          fontWeight: 'bold',
-                          backgroundColor: colors.bg,
-                          color: colors.text,
-                        }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: theme.typography.fontSize.xs,
+                            fontWeight: 'bold',
+                            backgroundColor: colors.bg,
+                            color: colors.text,
+                          }}
+                        >
                           {sliceStatus}
                         </span>
                       );
@@ -350,7 +352,9 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                               color: COLOR_ERROR_DARK,
                             }}
                           >
-                            <strong>{EMOJI_WARNING} {t('debug.categorySummary.mismatchExplanation')}:</strong>
+                            <strong>
+                              {EMOJI_WARNING} {t('debug.categorySummary.mismatchExplanation')}:
+                            </strong>
                             <br />
                             {t('debug.categorySummary.summaryShows')} {category.count}{' '}
                             {t('debug.categorySummary.emailsButLoaded')} {loadedEmails.length}

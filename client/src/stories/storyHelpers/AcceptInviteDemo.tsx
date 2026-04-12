@@ -35,7 +35,8 @@ inviteI18n.use(initReactI18next).init({
       translation: {
         'team.invite.validating': 'Validating invite link…',
         'team.invite.invalidTitle': 'Invalid or Expired Invite',
-        'team.invite.invalidBody': 'This invite link is invalid or has already expired. Please ask your team admin for a new invite.',
+        'team.invite.invalidBody':
+          'This invite link is invalid or has already expired. Please ask your team admin for a new invite.',
         'team.invite.goToLogin': 'Go to Login',
         'team.invite.title': "You've been invited!",
         'team.invite.body': '{{inviter}} has invited you to join {{org}} as a {{role}}.',
@@ -144,9 +145,8 @@ export interface AcceptInviteDemoProps {
 
 export const AcceptInviteDemo: React.FC<AcceptInviteDemoProps> = ({ scenario }) => {
   const queryClient = React.useMemo(() => buildQueryClient(scenario), [scenario]);
-  const authValue = scenario === 'readyLoggedIn' || scenario === 'accepting' || scenario === 'acceptError'
-    ? loggedInAuth
-    : noUserAuth;
+  const authValue =
+    scenario === 'readyLoggedIn' || scenario === 'accepting' || scenario === 'acceptError' ? loggedInAuth : noUserAuth;
 
   return (
     <I18nextProvider i18n={inviteI18n}>
@@ -155,10 +155,7 @@ export const AcceptInviteDemo: React.FC<AcceptInviteDemoProps> = ({ scenario }) 
         <QueryClientProvider client={queryClient}>
           <MemoryRouter initialEntries={[`/accept-invite/${FAKE_TOKEN}`]}>
             <Routes>
-              <Route
-                path="/accept-invite/:token"
-                element={<AcceptInviteWithMutation scenario={scenario} />}
-              />
+              <Route path="/accept-invite/:token" element={<AcceptInviteWithMutation scenario={scenario} />} />
             </Routes>
           </MemoryRouter>
         </QueryClientProvider>

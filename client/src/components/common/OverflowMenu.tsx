@@ -80,61 +80,62 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({ items, 'aria-label':
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, close]);
 
-  const dropdown = isOpen && dropdownPos
-    ? ReactDOM.createPortal(
-        <div
-          role="menu"
-          aria-label={ariaLabel}
-          style={{
-            position: 'fixed',
-            top: `${dropdownPos.top}px`,
-            right: `${dropdownPos.right}px`,
-            zIndex: 10000,
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.light}`,
-            borderRadius: theme.borderRadius.md,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-            minWidth: '160px',
-            overflow: 'hidden',
-          }}
-        >
-          {items.map(item => (
-            <button
-              key={item.key}
-              role="menuitem"
-              type="button"
-              onClick={() => {
-                item.onClick();
-                close();
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                width: '100%',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.text.primary,
-                border: STRING_NONE,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                textAlign: 'left',
-              }}
-              onMouseEnter={event => {
-                (event.currentTarget as HTMLButtonElement).style.backgroundColor = theme.colors.background.default;
-              }}
-              onMouseLeave={event => {
-                (event.currentTarget as HTMLButtonElement).style.backgroundColor = COLOR_TRANSPARENT;
-              }}
-            >
-              {item.icon && <span style={{ flexShrink: 0 }}>{item.icon}</span>}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )
-    : null;
+  const dropdown =
+    isOpen && dropdownPos
+      ? ReactDOM.createPortal(
+          <div
+            role="menu"
+            aria-label={ariaLabel}
+            style={{
+              position: 'fixed',
+              top: `${dropdownPos.top}px`,
+              right: `${dropdownPos.right}px`,
+              zIndex: 10000,
+              backgroundColor: theme.colors.background.paper,
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.md,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+              minWidth: '160px',
+              overflow: 'hidden',
+            }}
+          >
+            {items.map(item => (
+              <button
+                key={item.key}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  item.onClick();
+                  close();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.sm,
+                  width: '100%',
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: COLOR_TRANSPARENT,
+                  color: theme.colors.text.primary,
+                  border: STRING_NONE,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  textAlign: 'left',
+                }}
+                onMouseEnter={event => {
+                  (event.currentTarget as HTMLButtonElement).style.backgroundColor = theme.colors.background.default;
+                }}
+                onMouseLeave={event => {
+                  (event.currentTarget as HTMLButtonElement).style.backgroundColor = COLOR_TRANSPARENT;
+                }}
+              >
+                {item.icon && <span style={{ flexShrink: 0 }}>{item.icon}</span>}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex' }}>

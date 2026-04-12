@@ -13,9 +13,7 @@ export function getDedupeKey(link: GitHubLink): string {
 
 /** Build a dedupeKey from suggested-action metadata (issueInfo or defaultRepo). */
 export function getActionKey(action: SuggestedAction): string | null {
-  const info = action.metadata?.issueInfo as
-    | { owner: string; repo: string; number?: number }
-    | undefined;
+  const info = action.metadata?.issueInfo as { owner: string; repo: string; number?: number } | undefined;
   if (info?.owner && info?.repo && info?.number != null) {
     return `${info.owner}/${info.repo}#${info.number}`.toLowerCase();
   }
@@ -23,9 +21,7 @@ export function getActionKey(action: SuggestedAction): string | null {
     // Create-issue action targets a repo, not a specific issue
     return `${info.owner}/${info.repo}`.toLowerCase();
   }
-  const defaultRepo = action.metadata?.defaultRepo as
-    | { owner: string; repo: string }
-    | undefined;
+  const defaultRepo = action.metadata?.defaultRepo as { owner: string; repo: string } | undefined;
   if (defaultRepo?.owner && defaultRepo?.repo) {
     return `${defaultRepo.owner}/${defaultRepo.repo}`.toLowerCase();
   }

@@ -25,9 +25,7 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
   const stableOnPollRef = useRef<() => void>(() => {});
   stableOnPollRef.current = () => onPoll();
 
-  const processingCount = emails.filter(
-    event => event.isProcessingPriority || event.isProcessingSummary
-  ).length;
+  const processingCount = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length;
 
   useEffect(() => {
     if (processingCount === 0) {
@@ -36,9 +34,7 @@ export function useEmailProcessingPolling({ emails, onPoll }: UseEmailProcessing
 
     const interval = setInterval(() => {
       // Always read from ref to get current emails — avoids stale closure capture
-      const stillProcessing = emailsRef.current.some(
-        event => event.isProcessingPriority || event.isProcessingSummary
-      );
+      const stillProcessing = emailsRef.current.some(event => event.isProcessingPriority || event.isProcessingSummary);
       devLog('[ProcessingPoll] tick — stillProcessing:', stillProcessing);
       if (stillProcessing) {
         stableOnPollRef.current();

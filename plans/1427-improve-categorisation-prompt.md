@@ -3,7 +3,7 @@
 **Branch:** `plan/1427-improve-categorisation-prompt`  
 **Author:** Monk of Modularity (AI agent), subagent of Laoban  
 **Priority:** P2 — miscategorisation erodes user trust in the inbox  
-**Linked issue:** #1427  
+**Linked issue:** #1427
 
 ---
 
@@ -30,6 +30,7 @@ The prompt jumps from "identify sender type" straight to "parse category names a
 ### Weakness 2: Over-reliance on sender-name heuristics for automated detection
 
 Step 1 identifies bots by checking for `[bot]`, `noreply`, `notifications` etc. in the sender name. But many automated emails (GitHub, Jira, Linear, Notion, Figma comments) come from sender names like `"Jeremy Nagel (via GitHub)" <notifications@github.com>` — which contain a human name. The prompt doesn't instruct the LLM to also check:
+
 - The **email address domain** (e.g., `notifications@github.com`, `noreply@linear.app`)
 - **Email headers and footer patterns** (e.g., "You are receiving this because you were mentioned", "Reply to this email directly or view it on GitHub")
 - The **structural format** of the body (notification templates vs. free-form human writing)
@@ -43,14 +44,16 @@ The prompt has GitHub-specific guidance but no general principle for identifying
 ### Weakness 4: Category selection favours "topic match" over "source match"
 
 When an email is a GitHub notification about a user reporting a bug, there are two possible matches:
-- **Topic match:** "Customer feedback" (someone is giving feedback about a bug)  
-- **Source match:** A GitHub/developer notifications category  
+
+- **Topic match:** "Customer feedback" (someone is giving feedback about a bug)
+- **Source match:** A GitHub/developer notifications category
 
 The prompt doesn't establish a clear **hierarchy of matching signals**. Source/platform should generally outweigh topic for automated notifications, because the user set up those categories to group emails by where they come from, not what the underlying conversation is about.
 
 ### Weakness 5: The prompt has no "think step by step" structure for category reasoning
 
 The `categoryExplanation` field asks the LLM to explain its choice, but this explanation happens **after** the choice. Research shows that asking LLMs to reason **before** committing to an answer improves accuracy. The prompt should instruct the LLM to:
+
 1. Extract signals (sender, platform, format, topic)
 2. List the top 3 candidate categories with reasoning
 3. Select the best one
@@ -68,29 +71,31 @@ Replace the current Steps 1–3 with a **5-step general-purpose categorisation f
 ```markdown
 **Step 1: Extract email metadata signals.**
 Before selecting a category, identify these signals from the email:
-- **Source platform**: What system sent this email? Check the sender email address 
+
+- **Source platform**: What system sent this email? Check the sender email address
   domain (e.g., notifications@github.com → GitHub, noreply@linear.app → Linear),
-  notification boilerplate in the body (e.g., "View it on GitHub", "Unsubscribe from 
+  notification boilerplate in the body (e.g., "View it on GitHub", "Unsubscribe from
   these notifications"), and the structural format (template vs. free-form prose).
-- **Sender role**: Is the sender a human writing directly, a human acting through a 
-  platform (e.g., someone commenting on GitHub which triggers a notification), or a 
+- **Sender role**: Is the sender a human writing directly, a human acting through a
+  platform (e.g., someone commenting on GitHub which triggers a notification), or a
   fully automated system (CI, monitoring, scheduled reports)?
-- **Email purpose**: What is this email trying to communicate? (notification of activity, 
+- **Email purpose**: What is this email trying to communicate? (notification of activity,
   direct request, informational update, marketing, transactional receipt, etc.)
-- **Content topic**: What is the email actually about? (code review, bug report, 
+- **Content topic**: What is the email actually about? (code review, bug report,
   meeting, sales pitch, etc.)
 
 **Step 2: Match against categories using signal priority.**
 When selecting a category, apply signals in this priority order:
-1. **Source-platform match** — If a category exists for the email's source platform 
-   (e.g., "GitHub notifications", "Jira tickets", "Sentry alerts"), prefer it over 
-   a topic-based category. Users create platform-specific categories because they 
-   want to group all emails from that platform together, regardless of the specific 
+
+1. **Source-platform match** — If a category exists for the email's source platform
+   (e.g., "GitHub notifications", "Jira tickets", "Sentry alerts"), prefer it over
+   a topic-based category. Users create platform-specific categories because they
+   want to group all emails from that platform together, regardless of the specific
    topic within it.
-2. **Purpose/function match** — If no platform-specific category exists, match on 
-   the email's purpose (e.g., "Customer support" for support requests, "Sales" for 
+2. **Purpose/function match** — If no platform-specific category exists, match on
+   the email's purpose (e.g., "Customer support" for support requests, "Sales" for
    sales outreach).
-3. **Topic match** — Only if neither platform nor purpose produces a strong match, 
+3. **Topic match** — Only if neither platform nor purpose produces a strong match,
    fall back to topic-based matching.
 
 **Step 3: Parse category names carefully and eliminate incompatible categories.**
@@ -104,13 +109,14 @@ When selecting a category, apply signals in this priority order:
 
 **Step 5: Validate your choice.**
 Before finalising, check:
-- Did you consider the email's SOURCE PLATFORM? If the email is an automated 
-  notification from a platform (GitHub, Jira, Linear, Sentry, etc.), it should 
-  almost never be categorised as "Customer feedback", "Sales", or other categories 
-  meant for direct human-to-human communication — unless the user has explicitly 
+
+- Did you consider the email's SOURCE PLATFORM? If the email is an automated
+  notification from a platform (GitHub, Jira, Linear, Sentry, etc.), it should
+  almost never be categorised as "Customer feedback", "Sales", or other categories
+  meant for direct human-to-human communication — unless the user has explicitly
   set up those categories to include platform notifications.
-- Is your category based on the email's ACTUAL purpose, or did you match on 
-  surface-level content similarity? (e.g., a GitHub issue about a bug is NOT 
+- Is your category based on the email's ACTUAL purpose, or did you match on
+  surface-level content similarity? (e.g., a GitHub issue about a bug is NOT
   "Customer feedback" — it's a developer notification about a bug report)
 ```
 
@@ -215,12 +221,12 @@ tests:
 
 ## Files to Change
 
-| File | Change |
-|---|---|
-| `server/promptfoo/prompts/prioritise-email.md` | Restructure Steps 1–3 → Steps 1–5 with generic signal-extraction framework; condense GitHub-specific rules into examples; update `categoryExplanation` format |
-| `server/promptfoo/categorize-email-batch.yaml` | Add/expand test cases for cross-platform categorisation accuracy |
-| `server/promptfoo/prompts/consolidate-email-categories.md` | No changes needed — consolidation is a separate concern |
-| `server/promptfoo/prompts/generate-categories-from-other.md` | No changes needed |
+| File                                                         | Change                                                                                                                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/promptfoo/prompts/prioritise-email.md`               | Restructure Steps 1–3 → Steps 1–5 with generic signal-extraction framework; condense GitHub-specific rules into examples; update `categoryExplanation` format |
+| `server/promptfoo/categorize-email-batch.yaml`               | Add/expand test cases for cross-platform categorisation accuracy                                                                                              |
+| `server/promptfoo/prompts/consolidate-email-categories.md`   | No changes needed — consolidation is a separate concern                                                                                                       |
+| `server/promptfoo/prompts/generate-categories-from-other.md` | No changes needed                                                                                                                                             |
 
 **Estimated scope:** Small — primarily prompt text changes in one file, plus test cases. No TypeScript code changes required (the prompt is loaded from the .md file at runtime).
 

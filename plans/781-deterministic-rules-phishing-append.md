@@ -28,38 +28,38 @@ The fix: add structured `from_patterns` and `subject_patterns` columns to `summa
 
 ### Backend
 
-| File | Change |
-|------|--------|
-| `server/src/database/entities/summarization-rule.entity.ts` | Add `fromPatterns`, `subjectPatterns`, `priority` columns |
-| New migration `~1778000000000-AddMatchPatternsToSummarizationRules.ts` | ALTER TABLE adds three columns |
-| `server/src/summarization/summarization.service.ts` | Replace `matchRuleFast()` + `matchRuleForEmail()` with `matchRuleDeterministic()`; remove `summarizeEmailWithCustomPromptAndPhishing()` private method; simplify `summarizeEmailWithPhishing()` |
-| `server/src/summarization/summarization.controller.ts` | Update DTOs for create/update to accept `fromPatterns`, `subjectPatterns`, `priority` |
-| `server/src/llm/llm.service.ts` | Add `summarizeCustomPromptWithPhishing()`; remove `checkPhishingOnly()` |
-| `server/src/llm/prompts.ts` | Remove `check_phishing_only` entry from `PROMPT_FILE_MAP` |
-| `server/promptfoo/prompts/check-phishing-only.md` | **DELETE** |
-| `server/promptfoo/check-phishing-only.yaml` | **DELETE** |
+| File                                                                   | Change                                                                                                                                                                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/database/entities/summarization-rule.entity.ts`            | Add `fromPatterns`, `subjectPatterns`, `priority` columns                                                                                                                                       |
+| New migration `~1778000000000-AddMatchPatternsToSummarizationRules.ts` | ALTER TABLE adds three columns                                                                                                                                                                  |
+| `server/src/summarization/summarization.service.ts`                    | Replace `matchRuleFast()` + `matchRuleForEmail()` with `matchRuleDeterministic()`; remove `summarizeEmailWithCustomPromptAndPhishing()` private method; simplify `summarizeEmailWithPhishing()` |
+| `server/src/summarization/summarization.controller.ts`                 | Update DTOs for create/update to accept `fromPatterns`, `subjectPatterns`, `priority`                                                                                                           |
+| `server/src/llm/llm.service.ts`                                        | Add `summarizeCustomPromptWithPhishing()`; remove `checkPhishingOnly()`                                                                                                                         |
+| `server/src/llm/prompts.ts`                                            | Remove `check_phishing_only` entry from `PROMPT_FILE_MAP`                                                                                                                                       |
+| `server/promptfoo/prompts/check-phishing-only.md`                      | **DELETE**                                                                                                                                                                                      |
+| `server/promptfoo/check-phishing-only.yaml`                            | **DELETE**                                                                                                                                                                                      |
 
 ### Frontend (client)
 
-| File | Change |
-|------|--------|
-| `client/src/components/settings/guide-ai/SummarizationRuleAddForm.tsx` | Add `fromPatterns` + `subjectPatterns` inputs |
-| `client/src/components/settings/guide-ai/SummarizationRuleEditForm.tsx` | Same additions |
-| `client/src/components/settings/guide-ai/SummarizationRuleDisplay.tsx` | Show pattern chips in display view |
-| `client/src/components/settings/guide-ai/SummarizationRuleItem.tsx` | Update `SummarizationRule` interface |
-| `client/src/components/settings/guide-ai/SummarizationRulesSection.tsx` | Update `SummarizationRule` interface + state for new fields |
-| `client/src/pages/Settings.tsx` | Update handlers to pass `fromPatterns`, `subjectPatterns`, `priority` to API |
-| i18n locale files (e.g. `en.json`) | Add translation keys (see UI section) |
+| File                                                                    | Change                                                                       |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `client/src/components/settings/guide-ai/SummarizationRuleAddForm.tsx`  | Add `fromPatterns` + `subjectPatterns` inputs                                |
+| `client/src/components/settings/guide-ai/SummarizationRuleEditForm.tsx` | Same additions                                                               |
+| `client/src/components/settings/guide-ai/SummarizationRuleDisplay.tsx`  | Show pattern chips in display view                                           |
+| `client/src/components/settings/guide-ai/SummarizationRuleItem.tsx`     | Update `SummarizationRule` interface                                         |
+| `client/src/components/settings/guide-ai/SummarizationRulesSection.tsx` | Update `SummarizationRule` interface + state for new fields                  |
+| `client/src/pages/Settings.tsx`                                         | Update handlers to pass `fromPatterns`, `subjectPatterns`, `priority` to API |
+| i18n locale files (e.g. `en.json`)                                      | Add translation keys (see UI section)                                        |
 
 ### Promptfoo Tests
 
-| File | Change |
-|------|--------|
-| `server/promptfoo/summarize-email-tldr.yaml` | Update assertions to validate `{ summary, phishing }` JSON shape |
-| `server/promptfoo/summarize-email-bullets.yaml` | Same |
-| `server/promptfoo/summarize-email-actions.yaml` | Same |
-| `server/promptfoo/summarize-email-phishing.yaml` | Update var declarations if needed |
-| New `server/promptfoo/summarize-email-custom-phishing.yaml` | Test that custom prompts return `{ summary, phishing }` JSON |
+| File                                                        | Change                                                           |
+| ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| `server/promptfoo/summarize-email-tldr.yaml`                | Update assertions to validate `{ summary, phishing }` JSON shape |
+| `server/promptfoo/summarize-email-bullets.yaml`             | Same                                                             |
+| `server/promptfoo/summarize-email-actions.yaml`             | Same                                                             |
+| `server/promptfoo/summarize-email-phishing.yaml`            | Update var declarations if needed                                |
+| New `server/promptfoo/summarize-email-custom-phishing.yaml` | Test that custom prompts return `{ summary, phishing }` JSON     |
 
 ---
 
@@ -70,28 +70,37 @@ The fix: add structured `from_patterns` and `subject_patterns` columns to `summa
 Create `server/src/database/migrations/1778000000000-AddMatchPatternsToSummarizationRules.ts`:
 
 ```typescript
-await queryRunner.addColumn("summarization_rules", new TableColumn({
-  name: "from_patterns",
-  type: "text",
-  isArray: true,
-  default: "'{}'",
-  isNullable: false,
-}));
+await queryRunner.addColumn(
+  "summarization_rules",
+  new TableColumn({
+    name: "from_patterns",
+    type: "text",
+    isArray: true,
+    default: "'{}'",
+    isNullable: false,
+  }),
+);
 
-await queryRunner.addColumn("summarization_rules", new TableColumn({
-  name: "subject_patterns",
-  type: "text",
-  isArray: true,
-  default: "'{}'",
-  isNullable: false,
-}));
+await queryRunner.addColumn(
+  "summarization_rules",
+  new TableColumn({
+    name: "subject_patterns",
+    type: "text",
+    isArray: true,
+    default: "'{}'",
+    isNullable: false,
+  }),
+);
 
-await queryRunner.addColumn("summarization_rules", new TableColumn({
-  name: "priority",
-  type: "integer",
-  default: "0",
-  isNullable: false,
-}));
+await queryRunner.addColumn(
+  "summarization_rules",
+  new TableColumn({
+    name: "priority",
+    type: "integer",
+    default: "0",
+    isNullable: false,
+  }),
+);
 ```
 
 Down migration: drop the three columns.
@@ -119,13 +128,13 @@ Keep `whenToUse` as-is — repurpose it as a human-readable "description" label 
 
 #### Pattern Syntax (supported formats)
 
-| Pattern | Meaning |
-|---------|---------|
-| `*@github.com` | Any address ending in `@github.com` |
-| `noreply@linear.app` | Exact email match |
-| `*@*.atlassian.net` | Glob: any subdomain of atlassian.net |
-| `/\[Pull Request\]/i` | JavaScript regex (delimited by `/`) |
-| `invoice` | Case-insensitive substring match (no delimiters) |
+| Pattern               | Meaning                                          |
+| --------------------- | ------------------------------------------------ |
+| `*@github.com`        | Any address ending in `@github.com`              |
+| `noreply@linear.app`  | Exact email match                                |
+| `*@*.atlassian.net`   | Glob: any subdomain of atlassian.net             |
+| `/\[Pull Request\]/i` | JavaScript regex (delimited by `/`)              |
+| `invoice`             | Case-insensitive substring match (no delimiters) |
 
 #### Matching Logic
 
@@ -180,6 +189,7 @@ matchRuleDeterministic(
 ```
 
 **Remove:**
+
 - `matchRuleFast()` — entirely replaced
 - `matchRuleForEmail()` — LLM-based matching eliminated
 - The `POST summarize/match-rule/:id` controller route that called `matchRuleForEmail()` — no longer needed (or repurpose to call `matchRuleDeterministic` for debugging)
@@ -363,12 +373,12 @@ The prompts already return `{ summary, phishing }` JSON, but the current test as
 Example assertion update for `summarize-email-tldr.yaml`:
 
 ```javascript
-const parsed = typeof output === 'object' ? output : JSON.parse(output);
-if (typeof parsed.summary !== 'string' || parsed.summary.length < 10) {
+const parsed = typeof output === "object" ? output : JSON.parse(output);
+if (typeof parsed.summary !== "string" || parsed.summary.length < 10) {
   throw new Error(`Expected summary string, got: ${JSON.stringify(parsed)}`);
 }
 // phishing field must be null or a valid object
-if (parsed.phishing !== null && typeof parsed.phishing !== 'object') {
+if (parsed.phishing !== null && typeof parsed.phishing !== "object") {
   throw new Error(`Invalid phishing field: ${JSON.stringify(parsed.phishing)}`);
 }
 return true;
@@ -377,6 +387,7 @@ return true;
 #### New `server/promptfoo/summarize-email-custom-phishing.yaml`
 
 Tests that a custom prompt + phishing footer combination:
+
 1. Returns `{ summary, phishing }` JSON (not plain text)
 2. Custom summary respects the user's instructions
 3. Detects phishing in phishing samples

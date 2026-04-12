@@ -115,7 +115,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: unknown) {
       // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
       // render a specific, actionable message.
-      if (axios.isAxiosError(err) && (err.response?.data as { error?: string } | undefined)?.error === AUTH_ERROR_OAUTH_ONLY) {
+      if (
+        axios.isAxiosError(err) &&
+        (err.response?.data as { error?: string } | undefined)?.error === AUTH_ERROR_OAUTH_ONLY
+      ) {
         throw new OAuthOnlyAccountError();
       }
       throw err;

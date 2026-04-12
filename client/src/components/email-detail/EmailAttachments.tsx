@@ -175,7 +175,9 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
                 {formatFileSize(attachment.size)} • {attachment.mimeType}
               </div>
             </div>
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>{EMOJI_DOWNLOAD}</span>
+            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>
+              {EMOJI_DOWNLOAD}
+            </span>
           </button>
         ))}
       </div>

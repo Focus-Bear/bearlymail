@@ -117,7 +117,10 @@ export const normalizeAiReplyPlaintext = (raw: string): string => {
     return text;
   }
 
-  text = text.replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\n/g, '\n');
+  text = text
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\n/g, '\n');
 
   const trailingCipher = /,?\s*[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i;
   text = text.replace(trailingCipher, match => (match.startsWith(',') ? ',' : ''));
@@ -131,14 +134,14 @@ export const normalizeAiReplyPlaintext = (raw: string): string => {
 
   const closingAfterPunct = new RegExp(
     '([.!?])\\s+((?:cheers|best regards|kind regards|warm regards|warmly|sincerely|yours truly|many thanks))\\s*,',
-    'gi',
+    'gi'
   );
   text = text.replace(closingAfterPunct, '$1\n\n$2,');
 
   if (!text.includes('\n')) {
     text = text.replace(
       /\s+((?:cheers|best regards|kind regards|warm regards|warmly|sincerely|yours truly|many thanks))\s*,\s*/gi,
-      '\n\n$1,\n',
+      '\n\n$1,\n'
     );
   }
 
@@ -157,7 +160,10 @@ export const plainTextToHtml = (text: string): string => {
   }
   // Normalize escaped newline sequences (e.g., "\\n" -> actual newline) so that LLMs
   // that return escaped newlines render correctly.
-  const normalized = text.replace(/\\r\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\n/g, '\n');
+  const normalized = text
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\n/g, '\n');
   const paragraphs = normalized.split(/\n\n+/);
   return paragraphs.map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`).join('');
 };

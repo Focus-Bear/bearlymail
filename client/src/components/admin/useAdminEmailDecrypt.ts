@@ -37,13 +37,10 @@ export function useAdminEmailDecrypt() {
       }
       setLoading(true);
       try {
-        const response = await axios.post<DecryptResponsePayload>(
-          `${API_URL}/admin/encryption/decrypt-email-preview`,
-          {
-            emailId: trimmedId,
-            ...(encryptionKey.trim() ? { encryptionKey: encryptionKey.trim() } : {}),
-          },
-        );
+        const response = await axios.post<DecryptResponsePayload>(`${API_URL}/admin/encryption/decrypt-email-preview`, {
+          emailId: trimmedId,
+          ...(encryptionKey.trim() ? { encryptionKey: encryptionKey.trim() } : {}),
+        });
         setResult(response.data);
       } catch (requestError) {
         setError(getAxiosErrorMessage(requestError, t('admin.emailDecrypt.requestFailed')));
@@ -51,7 +48,7 @@ export function useAdminEmailDecrypt() {
         setLoading(false);
       }
     },
-    [emailId, encryptionKey, t],
+    [emailId, encryptionKey, t]
   );
 
   return {

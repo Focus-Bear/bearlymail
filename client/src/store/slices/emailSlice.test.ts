@@ -8,11 +8,7 @@ import { Email } from 'types/email';
 import { selectAnimatingOut, selectVisibleEmails } from 'store/selectors/emailSelectors';
 import { RootState } from 'store/store';
 
-import inboxDataReducer, {
-  InboxDataState,
-  removeEmail,
-  updateCategoryEmails,
-} from './inboxDataSlice';
+import inboxDataReducer, { InboxDataState, removeEmail, updateCategoryEmails } from './inboxDataSlice';
 import inboxUIReducer, {
   addAnimatingOut,
   addOptimisticArchive,

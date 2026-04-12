@@ -127,6 +127,7 @@ Compact Summary + actionItems (stored to DB)
 ### Change 1: Summary prompt — add `actionItems[]` to response (HIGH VALUE)
 
 **Files:**
+
 - `server/promptfoo/prompts/summarize-email-tldr.md`
 - `server/promptfoo/prompts/summarize-email-bullets.md`
 - `server/promptfoo/prompts/summarize-email-actions.md`
@@ -137,6 +138,7 @@ Compact Summary + actionItems (stored to DB)
 
 **What changes in the prompt:**
 Add to the JSON response schema in all three summary prompt templates:
+
 ```json
 "actionItems": [
   { "description": "<task the recipient needs to do>", "confidence": 0.0-1.0 }
@@ -158,6 +160,7 @@ Store the action items array as `actionItemsJson` (JSONB column) on the `emails`
 **File:** `server/src/suggested-actions/suggested-actions.service.ts` (lines 193–214)
 
 **Current:**
+
 ```typescript
 const actions = await this.llmService.detectSuggestedActions({
   subject: email.subject,
@@ -169,6 +172,7 @@ const actions = await this.llmService.detectSuggestedActions({
 ```
 
 **Proposed:**
+
 ```typescript
 const actions = await this.llmService.detectSuggestedActions({
   subject: email.subject,
@@ -180,6 +184,7 @@ const actions = await this.llmService.detectSuggestedActions({
 ```
 
 **Notes:**
+
 - The `detectSuggestedActions()` function cleans body via `cleanEmailContent()` to 1000 chars anyway. Replacing with the summary (typically 200–400 chars) is a strict improvement.
 - The GitHub link parsing (`parseGitHubLinks`) runs against `email.body` and `email.htmlBody` and should **stay** on the raw body — it's regex-based, not LLM-based, and needs URLs from the original HTML.
 - `suggest-actions.md` prompt receives `body` only; the `githubContext` variable is constructed separately from `parseGitHubLinks`. This change is safe.
@@ -191,41 +196,50 @@ const actions = await this.llmService.detectSuggestedActions({
 **File:** `server/src/suggested-replies/suggested-replies.processor.ts` (lines 314–326)
 
 **Current:**
+
 ```typescript
 return this.llmService.generateReplyOptions(
   {
     from: latestEmail.from || "",
     fromName: latestEmail.fromName || undefined,
     subject: latestEmail.subject || "",
-    body: latestEmail.body || "",   // ← RAW BODY
+    body: latestEmail.body || "", // ← RAW BODY
   },
   userContext,
   undefined,
   userId,
-  threadMessages,  // threadMessages[].body is also raw
+  threadMessages, // threadMessages[].body is also raw
 );
 ```
 
 **Proposed:**
+
 ```typescript
 return this.llmService.generateReplyOptions(
   {
     from: latestEmail.from || "",
     fromName: latestEmail.fromName || undefined,
     subject: latestEmail.subject || "",
-    body: latestEmail.summary || cleanEmailContent(latestEmail.body || "", null, BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW),
+    body:
+      latestEmail.summary ||
+      cleanEmailContent(
+        latestEmail.body || "",
+        null,
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      ),
   },
   userContext,
   undefined,
   userId,
-  threadMessages.map(msg => ({
+  threadMessages.map((msg) => ({
     ...msg,
-    body: msg.summary || msg.body,  // prefer summary if available on thread message
+    body: msg.summary || msg.body, // prefer summary if available on thread message
   })),
 );
 ```
 
 **Caveats:**
+
 - Reply generation benefits from the **actual email wording** — tone, phrasing, specific language the sender used. A summary may lose nuance needed for high-quality replies.
 - **Recommendation:** Use summary for the main email body only if a summary exists. Keep raw body as fallback. For `threadMessages`, the existing approach (raw body with `SUBSTRING_BODY_PREVIEW` cap) is already reasonably bounded.
 - This is lower risk than the suggested-actions change since the reply generator is not running in the background pipeline.
@@ -242,14 +256,14 @@ Same pattern as Change 3 — pass `email.summary || cleanedBody` instead of raw 
 
 ## What Does NOT Need to Change
 
-| Component | Reason |
-|---|---|
-| `analyzePriority()` / `analyzePriorityBatch()` | Already uses `email.summary` with fallback ✅ |
-| `checkIfRecalcNeeded()` | Receives the new delta email (not full thread) — correct ✅ |
-| `updateSummaryIncrementally()` | Receives the new message to update summary — correct ✅ |
-| `extractActionItems()` API endpoint | On-demand only; not in pipeline. Keep for backward compat. |
-| GitHub link parsing in SuggestedActionsService | Regex-based on HTML — must keep raw body ✅ |
-| Contact type auto-classification | Uses `email.body` in `saveSummaryResults` — this is fine because it runs IN the summary step ✅ |
+| Component                                      | Reason                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `analyzePriority()` / `analyzePriorityBatch()` | Already uses `email.summary` with fallback ✅                                                   |
+| `checkIfRecalcNeeded()`                        | Receives the new delta email (not full thread) — correct ✅                                     |
+| `updateSummaryIncrementally()`                 | Receives the new message to update summary — correct ✅                                         |
+| `extractActionItems()` API endpoint            | On-demand only; not in pipeline. Keep for backward compat.                                      |
+| GitHub link parsing in SuggestedActionsService | Regex-based on HTML — must keep raw body ✅                                                     |
+| Contact type auto-classification               | Uses `email.body` in `saveSummaryResults` — this is fine because it runs IN the summary step ✅ |
 
 ---
 
@@ -260,6 +274,7 @@ Same pattern as Change 3 — pass `email.summary || cleanedBody` instead of raw 
 **Yes — strongly recommended for TLDR and bullet summary types.**
 
 Rationale:
+
 - The LLM sees the full thread during the summary step. It's the ideal time to identify action items.
 - Adding a structured `actionItems` array to the JSON response costs ~50–100 extra output tokens.
 - The summary field quality is unaffected — the model produces both independently.
@@ -269,12 +284,12 @@ Rationale:
 
 ### Token / latency tradeoffs
 
-| Scenario | Current | Proposed |
-|---|---|---|
-| Summary call output tokens | ~300 (TLDR) | ~400 (TLDR + actionItems) |
-| Separate `extractActionItems` call | ~800 input + ~200 output = ~1,000 tokens | Eliminated from pipeline |
-| Net change per email (if pipeline-integrated) | baseline | **−600 tokens** (saves separate call) |
-| Net change (on-demand endpoint only) | no pipeline call | +100 output tokens to summary |
+| Scenario                                      | Current                                  | Proposed                              |
+| --------------------------------------------- | ---------------------------------------- | ------------------------------------- |
+| Summary call output tokens                    | ~300 (TLDR)                              | ~400 (TLDR + actionItems)             |
+| Separate `extractActionItems` call            | ~800 input + ~200 output = ~1,000 tokens | Eliminated from pipeline              |
+| Net change per email (if pipeline-integrated) | baseline                                 | **−600 tokens** (saves separate call) |
+| Net change (on-demand endpoint only)          | no pipeline call                         | +100 output tokens to summary         |
 
 **Conclusion:** If action items are generated during the summary pass and stored, the on-demand `POST /llm/extract-actions` endpoint can read from the cache instead of making a fresh LLM call. Net saving ≈ 600 tokens per email that users request action items for.
 
@@ -282,15 +297,15 @@ Rationale:
 
 ## Risk Assessment
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| Summary not yet generated when suggested-actions is called | Medium | Fallback to cleanEmailContent() already in place |
-| Reply quality degraded if summary is used instead of raw body | Medium | Use raw body as fallback; only switch when summary exists |
-| Action items in summary pass may miss context present only deep in thread | Low | Summary step already receives full thread; same LLM context |
-| Schema change to summary JSON breaks parseSummaryWithPhishing() | Low | `actionItems` parsed with `parsed.actionItems || []` — safe default |
-| DB migration for storing action items from summary | Low | JSONB column with nullable default; backward compatible |
-| Custom prompt phishing footer schema must include actionItems | Low | One additional line in the injected footer |
-| `summarize-email-actions.md` has dual role (display text + structured array) | Medium | After this change, `summary` field remains human-readable list; `actionItems` is structured. Keep both. |
+| Risk                                                                         | Severity | Mitigation                                                                                              |
+| ---------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | --- | ------------------ |
+| Summary not yet generated when suggested-actions is called                   | Medium   | Fallback to cleanEmailContent() already in place                                                        |
+| Reply quality degraded if summary is used instead of raw body                | Medium   | Use raw body as fallback; only switch when summary exists                                               |
+| Action items in summary pass may miss context present only deep in thread    | Low      | Summary step already receives full thread; same LLM context                                             |
+| Schema change to summary JSON breaks parseSummaryWithPhishing()              | Low      | `actionItems` parsed with `parsed.actionItems                                                           |     | []` — safe default |
+| DB migration for storing action items from summary                           | Low      | JSONB column with nullable default; backward compatible                                                 |
+| Custom prompt phishing footer schema must include actionItems                | Low      | One additional line in the injected footer                                                              |
+| `summarize-email-actions.md` has dual role (display text + structured array) | Medium   | After this change, `summary` field remains human-readable list; `actionItems` is structured. Keep both. |
 
 ---
 
@@ -312,21 +327,21 @@ Rationale:
 
 ## Files Changed Summary
 
-| File | Change Type |
-|---|---|
-| `server/promptfoo/prompts/summarize-email-tldr.md` | Add `actionItems` to JSON schema |
-| `server/promptfoo/prompts/summarize-email-bullets.md` | Add `actionItems` to JSON schema |
-| `server/promptfoo/prompts/summarize-email-actions.md` | Add `actionItems` to JSON schema |
-| `server/src/llm/llm.service.ts` | Update `parseSummaryWithPhishing()` return type + parsing; update `summarizeCustomPromptWithPhishing()` phishing footer |
-| `server/src/emails/llm-processor.ts` | Update `saveSummaryResults()` to store action items |
-| `server/src/database/entities/email.entity.ts` | Add `actionItemsJson?: object[]` JSONB column |
-| `server/src/database/migrations/XXXXXXXXX-AddActionItemsJsonToEmails.ts` | DB migration |
-| `server/src/suggested-actions/suggested-actions.service.ts` | Use `email.summary` in `detectSuggestedActions()` call |
-| `server/src/suggested-replies/suggested-replies.processor.ts` | Use `email.summary` in `generateReplyOptions()` call |
-| `server/src/replies/replies.service.ts` | Use `email.summary` in `generateReplyDraft()` call |
-| `server/src/llm/llm.controller.ts` | (Optional) Read from stored action items before LLM call |
+| File                                                                     | Change Type                                                                                                             |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `server/promptfoo/prompts/summarize-email-tldr.md`                       | Add `actionItems` to JSON schema                                                                                        |
+| `server/promptfoo/prompts/summarize-email-bullets.md`                    | Add `actionItems` to JSON schema                                                                                        |
+| `server/promptfoo/prompts/summarize-email-actions.md`                    | Add `actionItems` to JSON schema                                                                                        |
+| `server/src/llm/llm.service.ts`                                          | Update `parseSummaryWithPhishing()` return type + parsing; update `summarizeCustomPromptWithPhishing()` phishing footer |
+| `server/src/emails/llm-processor.ts`                                     | Update `saveSummaryResults()` to store action items                                                                     |
+| `server/src/database/entities/email.entity.ts`                           | Add `actionItemsJson?: object[]` JSONB column                                                                           |
+| `server/src/database/migrations/XXXXXXXXX-AddActionItemsJsonToEmails.ts` | DB migration                                                                                                            |
+| `server/src/suggested-actions/suggested-actions.service.ts`              | Use `email.summary` in `detectSuggestedActions()` call                                                                  |
+| `server/src/suggested-replies/suggested-replies.processor.ts`            | Use `email.summary` in `generateReplyOptions()` call                                                                    |
+| `server/src/replies/replies.service.ts`                                  | Use `email.summary` in `generateReplyDraft()` call                                                                      |
+| `server/src/llm/llm.controller.ts`                                       | (Optional) Read from stored action items before LLM call                                                                |
 
 ---
 
-*Authored by: Monk of Modularity (OpenClaw subagent)*  
-*Investigation commit: pipeline audit against `main` branch, 2026-03-18*
+_Authored by: Monk of Modularity (OpenClaw subagent)_  
+_Investigation commit: pipeline audit against `main` branch, 2026-03-18_

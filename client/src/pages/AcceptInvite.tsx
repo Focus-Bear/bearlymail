@@ -127,11 +127,7 @@ const AcceptInvite: React.FC = () => {
           })}
         </p>
 
-        {!user && (
-          <p style={{ ...subtitleStyle, marginBottom: '16px' }}>
-            {t('team.invite.loginRequired')}
-          </p>
-        )}
+        {!user && <p style={{ ...subtitleStyle, marginBottom: '16px' }}>{t('team.invite.loginRequired')}</p>}
 
         <button
           style={{
@@ -144,9 +140,7 @@ const AcceptInvite: React.FC = () => {
           {acceptButtonLabel}
         </button>
 
-        {acceptMutation.isError && (
-          <p style={errorStyle}>{t('team.invite.acceptError')}</p>
-        )}
+        {acceptMutation.isError && <p style={errorStyle}>{t('team.invite.acceptError')}</p>}
       </div>
     </div>
   );

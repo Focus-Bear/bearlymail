@@ -7,6 +7,7 @@
 ## Problem
 
 `emailSlice` has 30 exported actions managing 6 different concerns in a single slice:
+
 - Email data (set, append, update, remove, restore)
 - Optimistic updates (archive, snooze — add/remove)
 - Animations (animatingOut — add/remove)
@@ -19,26 +20,32 @@ The `EmailState` interface has 19 fields. The `updateCategoryEmails` reducer alo
 ## Current Actions (30 total)
 
 ### Email Data (6)
+
 - `setEmails`, `appendEmails`, `updateCategoryEmails`
 - `removeEmail`, `updateEmail`, `restoreEmail`
 
 ### Optimistic Updates (4)
+
 - `addOptimisticArchive`, `removeOptimisticArchive`
 - `addOptimisticSnooze`, `removeOptimisticSnooze`
 
 ### Animations (2)
+
 - `addAnimatingOut`, `removeAnimatingOut`
 
 ### Loading States (6)
+
 - `setLoading`, `setDecrypting`, `setRefreshing`, `setLoadingModeSwitch`
 - `setFetchError`, `setSummaryLoading`
 
 ### Category Management (7)
+
 - `setCategorySummary`, `decrementCategorySummaryCount`, `incrementCategorySummaryCount`
 - `markCategoryLoaded`, `markCategoryLoading`, `markCategoryLoadFailed`, `markCategoryFetchExhausted`
 - `resetCategoryExhausted`, `clearCategoryState`
 
 ### Pagination + Cache (5)
+
 - `setHasMore`, `setTotalCount`, `setCurrentOffset`
 - `setLastFetchedAt`, `invalidateInboxCache`
 
@@ -49,18 +56,20 @@ The `EmailState` interface has 19 fields. The `updateCategoryEmails` reducer alo
 Most of this slice disappears. After TanStack Query owns server state:
 
 **Keep in Redux (as `inboxUISlice`):**
+
 ```typescript
 interface InboxUIState {
   optimisticallyArchived: string[];
   optimisticallySnoozed: string[];
   animatingOut: AnimatingOutItem[];
-  loadingModeSwitch: boolean;  // UI transition flag
+  loadingModeSwitch: boolean; // UI transition flag
 }
-// 8 actions: add/remove optimistic archive/snooze, add/remove animatingOut, 
+// 8 actions: add/remove optimistic archive/snooze, add/remove animatingOut,
 //            setLoadingModeSwitch, clearOptimisticState
 ```
 
 **Delete from Redux (moved to React Query):**
+
 - `emails`, `categorySummary`, `loading`, `decrypting`, `refreshing`, `fetchError`
 - `hasMore`, `totalCount`, `currentOffset`
 - `loadedCategoryNames`, `loadingCategoryNames`, `exhaustedCategoryNames`
@@ -74,6 +83,7 @@ interface InboxUIState {
 Split into 3 focused slices:
 
 #### `inboxDataSlice` — Core email data
+
 ```typescript
 interface InboxDataState {
   emails: Email[];
@@ -86,7 +96,7 @@ interface InboxDataState {
   exhaustedCategoryNames: string[];
   lastFetchedAt: number | null;
 }
-// 17 actions: setEmails, appendEmails, updateCategoryEmails, removeEmail, 
+// 17 actions: setEmails, appendEmails, updateCategoryEmails, removeEmail,
 //             updateEmail, restoreEmail, setHasMore, setTotalCount, setCurrentOffset,
 //             setCategorySummary, markCategoryLoaded, markCategoryLoading,
 //             markCategoryLoadFailed, markCategoryFetchExhausted, resetCategoryExhausted,
@@ -94,6 +104,7 @@ interface InboxDataState {
 ```
 
 #### `inboxUISlice` — UI state (optimistic + animations + loading)
+
 ```typescript
 interface InboxUIState {
   optimisticallyArchived: string[];
@@ -112,9 +123,17 @@ interface InboxUIState {
 ```
 
 #### Consolidate loading flags
+
 Replace 4 booleans + 1 error with a state machine:
+
 ```typescript
-type InboxFetchStatus = 'idle' | 'loading' | 'decrypting' | 'refreshing' | 'switching-mode' | 'error';
+type InboxFetchStatus =
+  | "idle"
+  | "loading"
+  | "decrypting"
+  | "refreshing"
+  | "switching-mode"
+  | "error";
 
 interface InboxUIState {
   fetchStatus: InboxFetchStatus;
@@ -126,6 +145,7 @@ interface InboxUIState {
 ### Selector Updates
 
 Current `selectVisibleEmails` crosses optimistic + data concerns:
+
 ```typescript
 // Before: reads from single emailSlice
 const selectVisibleEmails = createSelector(
@@ -150,6 +170,7 @@ const selectVisibleEmails = createSelector(
 6. Delete old `emailSlice.ts`
 
 **Import count to update:**
+
 ```
 grep -rn "from.*emailSlice" client/src/ --include="*.ts" --include="*.tsx" | wc -l
 → ~25 files
@@ -160,9 +181,11 @@ grep -rn "from.*emailSlice" client/src/ --include="*.ts" --include="*.tsx" | wc 
 **Do this AFTER React Query adoption (Plan PR #1236).** With React Query owning server state, this becomes trivial — just extract the 4 UI fields and 8 actions into `inboxUISlice` and delete everything else. Without React Query, the split is more complex and less impactful.
 
 ## Estimated Effort
+
 - With React Query first: **S** (< 1 day)
 - Standalone: **M** (2-3 days)
 
 ## Dependencies
+
 - Recommended after: #1236 (TanStack Query adoption)
 - Independent of: #1235 (InboxContext)

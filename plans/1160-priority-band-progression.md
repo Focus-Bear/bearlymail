@@ -3,6 +3,7 @@
 **Issue:** "Show medium priority" fetches with `minPriority=50` (HIGH) instead of medium range.
 
 **Linked PRs already merged:**
+
 - #1103 — added `maxPriority` param to backend filter
 - #1133 — added `maxPriority` to `filtersChanged` detection in `useInboxState`
 
@@ -26,6 +27,7 @@ onUnlockPriorityTier={(newMinPriority: number) => {
 ```
 
 **What happens:**
+
 1. User clicks "Show medium priority emails"
 2. `setPriorityFilter(20)` is called → schedules a React state update
 3. `fetchEmails()` is called immediately in the same synchronous callback
@@ -43,6 +45,7 @@ After the state update propagates (next render), `filtersChanged` in `useInboxSt
 **Location:** `EmailListStates.tsx` → high-done `onYes` handler → `Inbox.tsx` `onUnlockPriorityTier`
 
 When the user clicks "Show medium priority emails" from the high-done prompt:
+
 - `EmailListStates.tsx` calls `onUnlockPriorityTier(MEDIUM_PRIORITY_THRESHOLD)` → `onUnlockPriorityTier(20)`
 - `Inbox.tsx` calls `setPriorityFilter(20)` → signature `(minPriority, maxPriority = null)` → sets `{minPriority: 20, maxPriority: null}`
 - API gets `minPriority=20` with **no `maxPriority`** → returns ALL emails with score ≥ 20 (both medium AND high)
@@ -55,13 +58,14 @@ The low band (unlock from medium-done) has the same problem: `onUnlockPriorityTi
 
 ### Priority Thresholds (current)
 
-| Threshold | Value | Defined In |
-|-----------|-------|-----------|
-| `HIGH_PRIORITY_THRESHOLD` | 50 | `useInboxFilters.ts` (exported) |
-| `MEDIUM_PRIORITY_THRESHOLD` | 20 | `EmailListStates.tsx` (local const, not exported) |
-| Low band minimum | 0 | Hardcoded in `EmailListStates.tsx` `onYes={() => onUnlockPriorityTier(0)}` |
+| Threshold                   | Value | Defined In                                                                 |
+| --------------------------- | ----- | -------------------------------------------------------------------------- |
+| `HIGH_PRIORITY_THRESHOLD`   | 50    | `useInboxFilters.ts` (exported)                                            |
+| `MEDIUM_PRIORITY_THRESHOLD` | 20    | `EmailListStates.tsx` (local const, not exported)                          |
+| Low band minimum            | 0     | Hardcoded in `EmailListStates.tsx` `onYes={() => onUnlockPriorityTier(0)}` |
 
 The priority bands as they should behave:
+
 - **High band:** score ≥ 50 → `minPriority=50, maxPriority=null`
 - **Medium band:** 20 ≤ score < 50 → `minPriority=20, maxPriority=50`
 - **Low band:** score < 20 → `minPriority=null, maxPriority=20` (or `minPriority=0, maxPriority=20`)
@@ -73,11 +77,12 @@ The component checks `minPriority` from filter state (passed as prop) to decide 
 ```tsx
 // "medium done" condition
 minPriority >= MEDIUM_PRIORITY_THRESHOLD &&
-minPriority < HIGH_PRIORITY_THRESHOLD
+  minPriority < HIGH_PRIORITY_THRESHOLD;
 // i.e. 20 <= minPriority < 50
 ```
 
 This is a UI-level check on the filter state value, **not** on what the API actually returned. So:
+
 - Due to Bug 2, even when `minPriority=20` is correctly set, without `maxPriority=50`, the API returns high+medium mixed
 - The "medium done" empty state fires correctly when all those emails are processed, but the inbox was showing the wrong superset of emails the whole time
 
@@ -167,17 +172,17 @@ export const LOW_PRIORITY_THRESHOLD = 0;
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useEmailFetching.ts` | Add optional `overrideFilters` param to `fetchEmails` callback and `fetchEmailsImpl` |
-| `client/src/hooks/useEmailManagement.ts` | Thread `overrideFilters` through `fetchEmails` signature |
-| `client/src/hooks/useInboxFilters.ts` | Export `MEDIUM_PRIORITY_THRESHOLD = 20` and `LOW_PRIORITY_THRESHOLD = 0` |
-| `client/src/components/inbox/EmailListStates.tsx` | Change `onUnlockPriorityTier` to `(min, max)`, update `onYes` calls to pass both bounds, import thresholds from `useInboxFilters` |
-| `client/src/components/inbox/InboxContentParts.tsx` | Update `onUnlockPriorityTier` prop type |
-| `client/src/components/inbox/InboxContent.tsx` | Update `onUnlockPriorityTier` prop type |
-| `client/src/pages/Inbox.tsx` | Update `onUnlockPriorityTier` handler to pass `(min, max)` and pass `newFilters` to `fetchEmails` |
-| `client/src/hooks/useEmailFetching.test.ts` | Add regression test: fetchEmails with overrideFilters uses override, not stale filters |
-| `client/src/components/inbox/EmailListStates.test.tsx` | Add test: high-done onYes passes (20, 50); medium-done onYes passes (0, 20) |
+| File                                                   | Change                                                                                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/hooks/useEmailFetching.ts`                 | Add optional `overrideFilters` param to `fetchEmails` callback and `fetchEmailsImpl`                                              |
+| `client/src/hooks/useEmailManagement.ts`               | Thread `overrideFilters` through `fetchEmails` signature                                                                          |
+| `client/src/hooks/useInboxFilters.ts`                  | Export `MEDIUM_PRIORITY_THRESHOLD = 20` and `LOW_PRIORITY_THRESHOLD = 0`                                                          |
+| `client/src/components/inbox/EmailListStates.tsx`      | Change `onUnlockPriorityTier` to `(min, max)`, update `onYes` calls to pass both bounds, import thresholds from `useInboxFilters` |
+| `client/src/components/inbox/InboxContentParts.tsx`    | Update `onUnlockPriorityTier` prop type                                                                                           |
+| `client/src/components/inbox/InboxContent.tsx`         | Update `onUnlockPriorityTier` prop type                                                                                           |
+| `client/src/pages/Inbox.tsx`                           | Update `onUnlockPriorityTier` handler to pass `(min, max)` and pass `newFilters` to `fetchEmails`                                 |
+| `client/src/hooks/useEmailFetching.test.ts`            | Add regression test: fetchEmails with overrideFilters uses override, not stale filters                                            |
+| `client/src/components/inbox/EmailListStates.test.tsx` | Add test: high-done onYes passes (20, 50); medium-done onYes passes (0, 20)                                                       |
 
 ---
 

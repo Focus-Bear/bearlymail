@@ -68,9 +68,7 @@ export const BookingErrorState: React.FC<BookingErrorStateProps> = ({
               marginBottom: theme.spacing.md,
             }}
           >
-            {showHostDiagnostic
-              ? t('booking.error.hostHeadline')
-              : t('booking.error.headline')}
+            {showHostDiagnostic ? t('booking.error.hostHeadline') : t('booking.error.headline')}
           </h2>
           {showHostDiagnostic ? (
             <>
@@ -97,9 +95,7 @@ export const BookingErrorState: React.FC<BookingErrorStateProps> = ({
                   margin: 0,
                 }}
               >
-                {hostDiagnosticText?.trim()
-                  ? hostDiagnosticText
-                  : t('booking.error.ownerFallback')}
+                {hostDiagnosticText?.trim() ? hostDiagnosticText : t('booking.error.ownerFallback')}
               </pre>
             </>
           ) : (

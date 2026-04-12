@@ -2,10 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import {
-  CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN,
-  CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS,
-} from 'constants/numbers';
+import { CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN, CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS } from 'constants/numbers';
 
 import { CategoryDebugData } from './CategoryDebugModal.types';
 
@@ -94,7 +91,13 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ thread }) => {
           {thread.category || <span style={emptyStyle}>{t('priority.categoryDebug.none')}</span>}
         </div>
         {thread.categorySource ? (
-          <div style={{ marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
+          <div
+            style={{
+              marginTop: theme.spacing.xs,
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+            }}
+          >
             <strong>{t('priority.categoryDebug.categorySourceLabel')}:</strong> {thread.categorySource}
           </div>
         ) : null}
@@ -115,10 +118,7 @@ function categoryNameLooksLikeOpaqueId(name: string): boolean {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)) {
     return true;
   }
-  return (
-    name.length >= CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN &&
-    /^[0-9a-f]+$/i.test(name.replace(/-/g, ''))
-  );
+  return name.length >= CATEGORY_DEBUG_OPAQUE_HEX_MIN_LEN && /^[0-9a-f]+$/i.test(name.replace(/-/g, ''));
 }
 
 // --- CategoriesList ---
@@ -160,12 +160,19 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                 <li key={cat.id}>
                   <strong>{title}</strong>
                   {opaque ? (
-                    <span style={{ color: theme.colors.text.tertiary, fontFamily: 'ui-monospace, monospace', fontSize: '10px' }}>
+                    <span
+                      style={{
+                        color: theme.colors.text.tertiary,
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '10px',
+                      }}
+                    >
                       {' '}
                       ({t('priority.categoryDebug.categoryRawValue')}:{' '}
                       {cat.name.length > CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS
                         ? `${cat.name.slice(0, CATEGORY_DEBUG_RAW_NAME_PREVIEW_CHARS)}…`
-                        : cat.name})
+                        : cat.name}
+                      )
                     </span>
                   ) : null}
                   {!opaque && cat.description ? (
@@ -200,10 +207,7 @@ interface UserContextSectionProps {
   includeHeading?: boolean;
 }
 
-export const UserContextSection: React.FC<UserContextSectionProps> = ({
-  userContext,
-  includeHeading = true,
-}) => {
+export const UserContextSection: React.FC<UserContextSectionProps> = ({ userContext, includeHeading = true }) => {
   const { t } = useTranslation();
   const { urgentItems, notUrgentItems, goals, workingOn, dontCare } = userContext;
   const hasNoContext =

@@ -8,12 +8,25 @@
  * Designed to run 30 concurrent invocations in parallel, completing
  * what PgBoss would do sequentially in 5-15 minutes in ~30-60 seconds.
  */
-import type { SQSEvent, SQSRecord, SQSBatchResponse, Context } from "aws-lambda";
-import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
+import type {
+  SQSEvent,
+  SQSRecord,
+  SQSBatchResponse,
+  Context,
+} from "aws-lambda";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+} from "@aws-sdk/client-cloudwatch";
 import { randomUUID } from "crypto";
 
 import { saveBatchResult, saveBatchFailure } from "./db";
-import { analyzeEmailPatterns, ThreadPayload, SentPayload, ContextItem } from "./llm";
+import {
+  analyzeEmailPatterns,
+  ThreadPayload,
+  SentPayload,
+  ContextItem,
+} from "./llm";
 import { getDbSecrets, getLlmSecrets, resolveLlmProvider } from "./secrets";
 import type { ContextBatchPayload } from "./types";
 
@@ -29,8 +42,16 @@ async function validateSecrets(): Promise<void> {
     getLlmSecrets(),
   ]);
 
-  const DB_PLACEHOLDERS = ["REPLACE_WITH_RDS_PROXY_ENDPOINT", "REPLACE_WITH_", "REPLACE"];
-  if (DB_PLACEHOLDERS.some((p) => dbSecrets.host?.includes(p) || dbSecrets.password?.includes(p))) {
+  const DB_PLACEHOLDERS = [
+    "REPLACE_WITH_RDS_PROXY_ENDPOINT",
+    "REPLACE_WITH_",
+    "REPLACE",
+  ];
+  if (
+    DB_PLACEHOLDERS.some(
+      (p) => dbSecrets.host?.includes(p) || dbSecrets.password?.includes(p),
+    )
+  ) {
     throw new Error(
       "DB secret still has placeholder values — run the steps in infrastructure/DEPLOYMENT.md (Lambda Context Analysis section)",
     );
@@ -139,13 +160,14 @@ async function processBatch(
 
   console.log(
     `[LAMBDA][Worker ${workerId}] Starting batch ${batchIndex + 1}/${totalBatches} ` +
-    `for user ${userId} (analysis ${analysisRecordId}, ${batch.length} threads)`,
+      `for user ${userId} (analysis ${analysisRecordId}, ${batch.length} threads)`,
   );
 
   const llmStart = Date.now();
 
   let lastError: unknown;
-  let batchAnalysis: Awaited<ReturnType<typeof analyzeEmailPatterns>> | null = null;
+  let batchAnalysis: Awaited<ReturnType<typeof analyzeEmailPatterns>> | null =
+    null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
@@ -208,7 +230,7 @@ async function processBatch(
 
   console.log(
     `[LAMBDA][Worker ${workerId}] ✅ Completed batch ${batchIndex + 1}/${totalBatches} ` +
-    `in ${totalDuration}ms (llm: ${llmDuration}ms, save: ${saveDuration}ms)`,
+      `in ${totalDuration}ms (llm: ${llmDuration}ms, save: ${saveDuration}ms)`,
   );
 
   await emitMetric("LambdaBatchTotal", totalDuration, "Milliseconds", {
@@ -257,7 +279,7 @@ export const handler = async (
 
       console.error(
         `[LAMBDA][Worker ${workerId}] Batch ${batchIndex} failed for analysis ${analysisRecordId}: ` +
-        `${errorMessage} [correlation: ${correlationId}]`,
+          `${errorMessage} [correlation: ${correlationId}]`,
       );
 
       // Record failure in DB so finalization can account for it

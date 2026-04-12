@@ -21,10 +21,9 @@ import { STALE_TIME_2_MIN } from './constants';
 import { contactKeys } from './queryKeys';
 
 async function fetchContactTypesByEmails(emails: string[]): Promise<Record<string, string>> {
-  const response = await axios.get<Record<string, string>>(
-    `${API_URL}/contacts/contact-types-by-emails`,
-    { params: { emails: emails.join(',') } }
-  );
+  const response = await axios.get<Record<string, string>>(`${API_URL}/contacts/contact-types-by-emails`, {
+    params: { emails: emails.join(',') },
+  });
   return response.data;
 }
 

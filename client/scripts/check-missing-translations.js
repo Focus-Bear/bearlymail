@@ -148,18 +148,20 @@ function main() {
   });
 
   // Print grouped results
-  Object.keys(groupedByNamespace).sort().forEach(namespace => {
-    console.log(`\n📦 Namespace: ${namespace}`);
-    console.log('─'.repeat(50));
-    groupedByNamespace[namespace].forEach(({ key, files }) => {
-      console.log(`\n  Missing key: ${key}`);
-      console.log(`  Used in:`);
-      files.forEach(file => {
-        const relativePath = path.relative(process.cwd(), file);
-        console.log(`    - ${relativePath}`);
+  Object.keys(groupedByNamespace)
+    .sort()
+    .forEach(namespace => {
+      console.log(`\n📦 Namespace: ${namespace}`);
+      console.log('─'.repeat(50));
+      groupedByNamespace[namespace].forEach(({ key, files }) => {
+        console.log(`\n  Missing key: ${key}`);
+        console.log(`  Used in:`);
+        files.forEach(file => {
+          const relativePath = path.relative(process.cwd(), file);
+          console.log(`    - ${relativePath}`);
+        });
       });
     });
-  });
 
   console.log(`\n\n❌ Total missing keys: ${missingKeys.length}`);
   console.log('💡 Add these keys to your locale file to fix the missing translations.\n');
@@ -168,4 +170,3 @@ function main() {
 
 // Run the script
 main();
-

@@ -32,9 +32,7 @@ export function useContactThreads(contactId?: string) {
     setIsLoading(true);
     setHasError(false);
     try {
-      const response = await axios.get<ContactThread[]>(
-        `${API_URL}/contacts/${contactId}/threads`,
-      );
+      const response = await axios.get<ContactThread[]>(`${API_URL}/contacts/${contactId}/threads`);
       setThreads(response.data);
     } catch {
       setHasError(true);

@@ -14,6 +14,7 @@ Every time the user navigates away from the inbox and returns (or performs an ac
 3. Disrupted UX: user loses their scroll position and category state.
 
 The desired behaviour:
+
 - Returning to inbox shows the cached list instantly (stale-while-revalidate pattern).
 - Archiving an email removes it locally (optimistic update) without triggering a full re-fetch.
 - Incremental updates instead of full re-fetch on navigation.
@@ -25,6 +26,7 @@ The desired behaviour:
 The inbox currently fetches emails via a Redux thunk (or direct axios call) on component mount. There is no caching layer — each mount triggers a fresh API call. The Redux store holds emails, but the fetch is triggered on mount regardless of what's already in the store.
 
 Key files to investigate:
+
 - `client/src/hooks/useInboxState.ts` — manages email fetch
 - `client/src/store/slices/emailSlice.ts` — Redux store for emails
 - `client/src/pages/Inbox.tsx` — triggers fetch on mount
@@ -36,10 +38,12 @@ Key files to investigate:
 ### Step 1: Cache emails in Redux with a "last fetched" timestamp
 
 **File:** `client/src/store/slices/emailSlice.ts`
+
 - Add `lastFetchedAt: number | null` to the slice state (Unix timestamp ms).
 - Update it when emails are successfully loaded.
 
 **File:** `client/src/hooks/useInboxState.ts` (or wherever fetch is triggered)
+
 - Before fetching, check: `if (lastFetchedAt && Date.now() - lastFetchedAt < CACHE_TTL_MS) return;`
 - Define `CACHE_TTL_MS = 60_000` (1 minute) as the staleness threshold.
 - On return navigation, if cache is fresh, skip the fetch and use the cached data (instant render).
@@ -48,16 +52,19 @@ Key files to investigate:
 ### Step 2: Incremental update after archive
 
 **File:** `client/src/store/slices/emailSlice.ts`
+
 - The `removeEmail` and `addOptimisticArchive` actions already exist — these update the store without a full re-fetch.
 - Ensure these are the only mutations triggered on archive (no full re-fetch on archive action).
 
 **File:** `client/src/hooks/useInboxState.ts`
+
 - Remove any `fetchEmails()` call triggered by archive events.
 - Trust the optimistic update as the source of truth until the next background sync.
 
 ### Step 3: Stale-while-revalidate on navigation
 
 **File:** `client/src/hooks/useInboxState.ts`
+
 - When the inbox mounts and cache exists (even if stale):
   1. Immediately render the cached data (no spinner).
   2. Fire a background fetch to get fresh data.
@@ -65,6 +72,7 @@ Key files to investigate:
   4. Update `lastFetchedAt`.
 
 **File:** `client/src/store/slices/emailSlice.ts`
+
 - Add a `mergeEmails(newEmails)` action that merges server emails with the current state while respecting `optimisticArchives` (don't restore archived emails).
 
 ### Step 4: Persist cache across page refreshes (optional, phase 2)
@@ -76,12 +84,14 @@ Key files to investigate:
 ### Step 5: Cache invalidation
 
 The cache should be invalidated (force re-fetch) on:
+
 - Email delivery (new emails arrive via polling/webhook).
 - Manual "Refresh" action by user.
 - After a configurable TTL (1 minute).
 - After re-categorise or re-analyse operations complete.
 
 **File:** `client/src/hooks/useInboxState.ts`
+
 - Add a `refreshInbox()` function that clears `lastFetchedAt` and triggers a full fetch.
 - Expose this via context or hook for use by delivery and other operations.
 
@@ -89,12 +99,12 @@ The cache should be invalidated (force re-fetch) on:
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/store/slices/emailSlice.ts` | Add `lastFetchedAt`, `mergeEmails` action |
-| `client/src/hooks/useInboxState.ts` | Implement cache check, background revalidation, incremental merge |
-| `client/src/pages/Inbox.tsx` | Remove any full-fetch on archive; use `refreshInbox()` for explicit refreshes only |
-| `client/src/store/selectors/emailSelectors.ts` | Add `selectLastFetchedAt` selector |
+| File                                           | Change                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `client/src/store/slices/emailSlice.ts`        | Add `lastFetchedAt`, `mergeEmails` action                                          |
+| `client/src/hooks/useInboxState.ts`            | Implement cache check, background revalidation, incremental merge                  |
+| `client/src/pages/Inbox.tsx`                   | Remove any full-fetch on archive; use `refreshInbox()` for explicit refreshes only |
+| `client/src/store/selectors/emailSelectors.ts` | Add `selectLastFetchedAt` selector                                                 |
 
 ---
 

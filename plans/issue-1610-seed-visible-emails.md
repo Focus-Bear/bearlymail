@@ -27,6 +27,7 @@ The test user seeder only creates a `User` record. There are no `Email` or
 `EmailThread` records seeded for `test@example.com`. The inbox is literally empty.
 
 **Cause 2: `seed-search-data.ts` seeds incomplete thread records**
+
 - Creates `EmailThread` with only `starCount`, `isArchived`, `urgencyScore`,
   `priorityScore` — missing `categoryId`, `priorityExplanation`, `updatedAt` etc.
 - Uses raw SQL inserts with plaintext fields (no encryption) — works for search
@@ -52,6 +53,7 @@ the emails technically appeared.
 ### Approach: Enhance `seed-test-user.ts` to seed a complete inbox
 
 Model after `seed-qa-user.ts` which already does this correctly — it seeds:
+
 - User with proper flags (`hasSeenTour`, `hasCompletedOnboarding`, `hasScannedHistory`)
 - `EmailThread` records with priority scores, star counts, archive state
 - `Email` records via TypeORM `create`/`save` (which triggers `encryptedColumnTransformer`)
@@ -72,7 +74,6 @@ Extend `seed-test-user.ts` to also seed emails after creating the user:
    - 2 action/starred emails (`starCount: 1+`, `isArchived: false`)
    - 2 archived emails (`isArchived: true`)
    - 1 multi-email thread (3 emails in same thread)
-   
 2. **Add `UserContext` seeding** — create 2-3 `EMAIL_CATEGORY` contexts so
    category filtering is testable.
 
@@ -99,7 +100,6 @@ ensures emails appear under the correct category tab.
    - Remove the non-200 status skip (guard is already bypassed)
    - Remove the `CI=true && NODE_ENV=test` skip
    - Remove the 0-emails skip
-   
 2. **`inbox-load-time.spec.ts` priority popup** — remove the CI skip.
    Keep the "no priority badges found" skip as a safety net but it should
    no longer trigger with properly seeded data.
@@ -112,9 +112,10 @@ ensures emails appear under the correct category tab.
 #### Step 4: Add `regression.spec.ts` to CI workflow
 
 Update `.github/workflows/ci.yml` to also run regression tests:
+
 ```yaml
 npx playwright test search-ci.spec.ts inbox-load-time.spec.ts regression.spec.ts \
-  --reporter=html,github
+--reporter=html,github
 ```
 
 Update `regression.spec.ts` to use `TEST_EMAIL`/`TEST_PASSWORD` env vars
@@ -134,7 +135,7 @@ different ciphertext). For `seed-test-user.ts`, this should be investigated:
 - If the seed script runs as a separate `ts-node` process (like it does now),
   the same mismatch may occur.
 - **Mitigation**: The seed script and server both use the same `ENCRYPTION_KEY`
-  env var and the same `crypto.scryptSync('salt')` derivation. The key *should*
+  env var and the same `crypto.scryptSync('salt')` derivation. The key _should_
   be deterministic. The mismatch noted in `seed-search-data.ts` may have been
   a transient issue or a different encryption key env var.
 - **Test**: After implementation, verify that emails seeded by `seed-test-user.ts`
@@ -149,40 +150,54 @@ different ciphertext). For `seed-test-user.ts`, this should be investigated:
 const SEED_EMAILS: SeedEmailSpec[] = [
   // ── Triage (visible in inbox, starCount=0) ───────────────
   {
-    messageId: 'ci-inbox-001', threadId: 'ci-thread-001',
-    from: 'alice@example.com', fromName: 'Alice Smith',
-    subject: 'Q3 roadmap review', body: '...',
-    receivedAt: daysAgo(1), isRead: false,
-    starCount: 0, isArchived: false,
-    urgencyScore: 70, priorityScore: 80,
+    messageId: "ci-inbox-001",
+    threadId: "ci-thread-001",
+    from: "alice@example.com",
+    fromName: "Alice Smith",
+    subject: "Q3 roadmap review",
+    body: "...",
+    receivedAt: daysAgo(1),
+    isRead: false,
+    starCount: 0,
+    isArchived: false,
+    urgencyScore: 70,
+    priorityScore: 80,
   },
   // ... 4 more triage emails
-  
+
   // ── Action (starred, starCount>0) ────────────────────────
   {
-    messageId: 'ci-inbox-006', threadId: 'ci-thread-006',
-    from: 'boss@example.com', fromName: 'The Boss',
-    subject: 'Urgent: approval needed', body: '...',
-    receivedAt: daysAgo(0), isRead: false,
-    starCount: 1, isArchived: false,
-    urgencyScore: 90, priorityScore: 95,
+    messageId: "ci-inbox-006",
+    threadId: "ci-thread-006",
+    from: "boss@example.com",
+    fromName: "The Boss",
+    subject: "Urgent: approval needed",
+    body: "...",
+    receivedAt: daysAgo(0),
+    isRead: false,
+    starCount: 1,
+    isArchived: false,
+    urgencyScore: 90,
+    priorityScore: 95,
   },
   // ... 1 more action email
-  
+
   // ── Archived ─────────────────────────────────────────────
-  { /* ... 2 archived emails */ },
+  {
+    /* ... 2 archived emails */
+  },
 ];
 ```
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/scripts/seed-test-user.ts` | Add email/thread/context seeding after user creation |
-| `e2e/tests/inbox-load-time.spec.ts` | Remove `test.skip()` blocks for CI |
-| `e2e/tests/regression.spec.ts` | Use env vars for credentials instead of hardcoded QA email |
-| `.github/workflows/ci.yml` | Add `regression.spec.ts` to Playwright test list |
-| `server/scripts/seed-search-data.ts` | (minor) Set `categoryId` on threads |
+| File                                 | Change                                                     |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `server/scripts/seed-test-user.ts`   | Add email/thread/context seeding after user creation       |
+| `e2e/tests/inbox-load-time.spec.ts`  | Remove `test.skip()` blocks for CI                         |
+| `e2e/tests/regression.spec.ts`       | Use env vars for credentials instead of hardcoded QA email |
+| `.github/workflows/ci.yml`           | Add `regression.spec.ts` to Playwright test list           |
+| `server/scripts/seed-search-data.ts` | (minor) Set `categoryId` on threads                        |
 
 ### Testing
 
@@ -200,4 +215,4 @@ const SEED_EMAILS: SeedEmailSpec[] = [
 
 ---
 
-*Plan authored by Monk of Modularity 🧘 — issue #1610*
+_Plan authored by Monk of Modularity 🧘 — issue #1610_

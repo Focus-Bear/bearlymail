@@ -10,7 +10,7 @@ const config: StorybookConfig = {
   typescript: {
     reactDocgen: false,
   },
-  viteFinal: async (config) => {
+  viteFinal: async config => {
     config.server = config.server ?? {};
     config.server.allowedHosts = true;
     return config;

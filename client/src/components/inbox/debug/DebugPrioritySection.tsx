@@ -116,10 +116,7 @@ function getCacheDebugInfo(): Array<{ key: string; ageMs: number | null }> {
   return results;
 }
 
-export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
-  filters,
-  priorityTotalCount,
-}) => {
+export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({ filters, priorityTotalCount }) => {
   const [data, setData] = useState<PriorityDebugInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,8 +197,7 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
       </div>
 
       <div style={{ marginBottom: theme.spacing.sm, fontSize: theme.typography.fontSize.xs, wordBreak: 'break-all' }}>
-        <strong>localStorage raw:</strong>{' '}
-        <span style={VALUE_STYLE}>{rawLocalStorage ?? '(not set)'}</span>
+        <strong>localStorage raw:</strong> <span style={VALUE_STYLE}>{rawLocalStorage ?? '(not set)'}</span>
       </div>
 
       {/* Cache state */}
@@ -220,9 +216,7 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
       </div>
 
       {error && (
-        <div style={{ color: theme.colors.error?.main ?? 'red', marginBottom: theme.spacing.sm }}>
-          Error: {error}
-        </div>
+        <div style={{ color: theme.colors.error?.main ?? 'red', marginBottom: theme.spacing.sm }}>Error: {error}</div>
       )}
 
       {data && (
@@ -246,7 +240,13 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({
               <tbody>
                 {(['triage', 'action', 'followUp'] as const).map(modeKey => {
                   const buckets = data.bucketsByMode[modeKey];
-                  const total = buckets.veryHigh + buckets.high + buckets.medium + buckets.low + buckets.veryLow + buckets.unprioritised;
+                  const total =
+                    buckets.veryHigh +
+                    buckets.high +
+                    buckets.medium +
+                    buckets.low +
+                    buckets.veryLow +
+                    buckets.unprioritised;
                   return (
                     <tr key={modeKey}>
                       <td style={{ ...TABLE_CELL, textAlign: 'left' as const }}>{modeKey}</td>

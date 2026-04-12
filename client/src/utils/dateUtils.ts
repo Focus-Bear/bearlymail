@@ -8,7 +8,6 @@ import {
   SECONDS_PER_MINUTE,
 } from 'constants/numbers';
 
-
 /**
  * Returns 9:00 AM the next business day in browser-local time.
  * Skips Saturday (→ Monday) and Sunday (→ Monday).
@@ -46,10 +45,7 @@ export const formatScheduledTime = (date: Date): string =>
  * @param options.showAbsoluteDate - When true, appends the absolute date in brackets,
  *   e.g. "4 weeks ago [Feb 14]". Defaults to false for backward compatibility.
  */
-export function humanizeTimestamp(
-  date: Date | string,
-  options: { showAbsoluteDate?: boolean } = {}
-): string {
+export function humanizeTimestamp(date: Date | string, options: { showAbsoluteDate?: boolean } = {}): string {
   const now = new Date();
   const timestamp = date instanceof Date ? date : new Date(date);
 

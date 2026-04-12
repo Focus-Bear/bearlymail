@@ -38,7 +38,7 @@ describe('useSearch', () => {
     window.alert = jest.fn();
     mockedUseNavigate.mockReturnValue(mockNavigate);
     // axios.isAxiosError is auto-mocked; restore real behaviour so error narrowing works
-    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation((err) => err?.isAxiosError === true);
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockImplementation(err => err?.isAxiosError === true);
     // Mock connected-accounts call that happens on mount
     mockedAxios.get.mockResolvedValue({ data: [] });
   });
@@ -64,7 +64,6 @@ describe('useSearch', () => {
     it('should not search when query is empty', async () => {
       const { result } = renderHook(() => useSearch());
 
-
       const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
@@ -76,7 +75,6 @@ describe('useSearch', () => {
 
     it('should not search when query is only whitespace', async () => {
       const { result } = renderHook(() => useSearch());
-
 
       act(() => {
         result.current.setQuery('   ');
@@ -92,7 +90,6 @@ describe('useSearch', () => {
 
     it('should perform search successfully', async () => {
       const { result } = renderHook(() => useSearch());
-
 
       const mockResults = [{ id: '1', subject: 'Test', from: 'test@example.com' }];
 
@@ -126,7 +123,6 @@ describe('useSearch', () => {
     it('should show progress steps during search', async () => {
       const { result } = renderHook(() => useSearch());
 
-
       act(() => {
         result.current.setQuery('test');
       });
@@ -149,7 +145,6 @@ describe('useSearch', () => {
 
     it('should handle empty results', async () => {
       const { result } = renderHook(() => useSearch());
-
 
       act(() => {
         result.current.setQuery('test');
@@ -174,7 +169,6 @@ describe('useSearch', () => {
     it('should handle null response data', async () => {
       const { result } = renderHook(() => useSearch());
 
-
       act(() => {
         result.current.setQuery('test');
       });
@@ -196,7 +190,6 @@ describe('useSearch', () => {
 
     it('should handle 401 unauthorized error', async () => {
       const { result } = renderHook(() => useSearch());
-
 
       act(() => {
         result.current.setQuery('test');
@@ -224,7 +217,6 @@ describe('useSearch', () => {
     it('should handle other errors', async () => {
       const { result } = renderHook(() => useSearch());
 
-
       act(() => {
         result.current.setQuery('test');
       });
@@ -249,7 +241,6 @@ describe('useSearch', () => {
     it('should clear progress step after search completes', async () => {
       const { result } = renderHook(() => useSearch());
 
-
       act(() => {
         result.current.setQuery('test');
       });
@@ -268,7 +259,6 @@ describe('useSearch', () => {
 
     it('should clear progress step on error', async () => {
       const { result } = renderHook(() => useSearch());
-
 
       act(() => {
         result.current.setQuery('test');
@@ -357,9 +347,7 @@ describe('search performance tracking (#1115)', () => {
     });
 
     await waitFor(() => {
-      const slowCalls = mockedCaptureEvent.mock.calls.filter(
-        ([eventName]) => eventName === 'search_slow'
-      );
+      const slowCalls = mockedCaptureEvent.mock.calls.filter(([eventName]) => eventName === 'search_slow');
       expect(slowCalls.length).toBeGreaterThan(0);
       expect(slowCalls[0][1]).toMatchObject({
         duration_ms: expect.any(Number),
@@ -391,9 +379,7 @@ describe('search performance tracking (#1115)', () => {
     });
 
     await waitFor(() => {
-      const slowCalls = mockedCaptureEvent.mock.calls.filter(
-        ([eventName]) => eventName === 'search_slow'
-      );
+      const slowCalls = mockedCaptureEvent.mock.calls.filter(([eventName]) => eventName === 'search_slow');
       expect(slowCalls).toHaveLength(0);
     });
 

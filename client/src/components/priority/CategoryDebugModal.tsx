@@ -172,7 +172,13 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
                 </div>
               )}
               {traceLoading && (
-                <div style={{ padding: theme.spacing.md, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+                <div
+                  style={{
+                    padding: theme.spacing.md,
+                    color: theme.colors.text.secondary,
+                    fontSize: theme.typography.fontSize.sm,
+                  }}
+                >
                   {t('priority.categoryDebug.traceLoading')}
                 </div>
               )}

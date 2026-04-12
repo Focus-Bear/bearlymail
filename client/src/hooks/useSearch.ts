@@ -97,8 +97,8 @@ function mergeEnrichedResults(
   current: Array<GmailSearchResult | Email>,
   enriched: EnrichedSearchResult[]
 ): Array<GmailSearchResult | Email> {
-  const enrichedMap = new Map(enriched.map((enrichedItem) => [enrichedItem.messageId, enrichedItem]));
-  return current.map((result) => {
+  const enrichedMap = new Map(enriched.map(enrichedItem => [enrichedItem.messageId, enrichedItem]));
+  return current.map(result => {
     const messageId = (result as GmailSearchResult).messageId;
     if (!messageId) {
       return result;
@@ -121,7 +121,7 @@ async function pollEnrichmentUpdates(options: {
   const { jobId, currentSession, searchSessionRef, setInstantResults, setEnrichmentProgress } = options;
 
   for (let i = 0; i < MAX_POLLS; i++) {
-    await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    await new Promise<void>(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
 
     // Bail if user started a new search
     if (currentSession !== searchSessionRef.current) {
@@ -129,9 +129,7 @@ async function pollEnrichmentUpdates(options: {
     }
 
     try {
-      const response = await axios.get<EnrichmentStatusResponse>(
-        `${API_URL}/emails/search/enrichment/${jobId}`
-      );
+      const response = await axios.get<EnrichmentStatusResponse>(`${API_URL}/emails/search/enrichment/${jobId}`);
       const { enrichedResults, status, progress } = response.data;
 
       if (currentSession !== searchSessionRef.current) {
@@ -139,7 +137,7 @@ async function pollEnrichmentUpdates(options: {
       }
 
       if (enrichedResults.length > 0) {
-        setInstantResults((prev) => mergeEnrichedResults(prev, enrichedResults) as Array<GmailSearchResult | Email>);
+        setInstantResults(prev => mergeEnrichedResults(prev, enrichedResults) as Array<GmailSearchResult | Email>);
       }
 
       setEnrichmentProgress({ total: progress.total, enriched: progress.enriched });
@@ -267,7 +265,8 @@ async function processSearchResults(options: {
   setters: SearchStateSetters;
   searchStartMs: number;
 }): Promise<void> {
-  const { responseData, query, currentSession, searchSessionRef, selectedAccountTypes, setters, searchStartMs } = options;
+  const { responseData, query, currentSession, searchSessionRef, selectedAccountTypes, setters, searchStartMs } =
+    options;
   const queriesTried = responseData[0]?.debugInfo?.queriesTried;
   if (Array.isArray(queriesTried)) {
     setters.setQueriesTried(queriesTried as Array<{ query: string; resultCount: number; accountType?: string }>);

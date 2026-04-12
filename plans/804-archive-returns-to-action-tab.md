@@ -58,10 +58,10 @@ Similarly, in the snooze path, `navigate('/inbox')` is hardcoded in `executeSnoo
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
+| File                                           | Change                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
 | `client/src/hooks/useEmailDetailArchiveOps.ts` | Add `getInboxPath` param; replace all hardcoded `/inbox` navigations |
-| `client/src/hooks/useEmailDetailOperations.ts` | Pass `getInboxPath` when calling `useEmailDetailArchiveOps` |
+| `client/src/hooks/useEmailDetailOperations.ts` | Pass `getInboxPath` when calling `useEmailDetailArchiveOps`          |
 
 ---
 
@@ -69,12 +69,14 @@ Similarly, in the snooze path, `navigate('/inbox')` is hardcoded in `executeSnoo
 
 **Existing tests:**
 `client/src/hooks/useEmailDetailOperations.test.ts` — check for tests covering `fromMode` navigation after archive/snooze. Add if missing:
+
 - `handleArchive` with `fromMode = 'action'` → navigates to `/inbox/action`
 - `handleArchive` with `fromMode = undefined` → navigates to `/inbox`
 - `handleSnooze` with `fromMode = 'action'` → navigates to `/inbox/action`
 - `handleDelete` with `fromMode = 'action'` → navigates to `/inbox/action`
 
 **Manual test:**
+
 1. Navigate to `/inbox/action`
 2. Click an email (mobile) → opens full page at `/email/:id`
 3. Click Archive

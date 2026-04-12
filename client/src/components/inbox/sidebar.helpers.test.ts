@@ -1,4 +1,9 @@
-import { getSettingsNavItems, makeScrollToSection, SettingsSubNavGroup,SIDEBAR_SCROLL_DELAY_MS } from './sidebar.helpers';
+import {
+  getSettingsNavItems,
+  makeScrollToSection,
+  SettingsSubNavGroup,
+  SIDEBAR_SCROLL_DELAY_MS,
+} from './sidebar.helpers';
 
 const translateMock = (key: string): string => key;
 

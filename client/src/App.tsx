@@ -175,24 +175,136 @@ const AppRoutes: React.FC = () => (
     <Route path="/accept-invite/:token" element={<AcceptInvite />} />
     <Route path="/privacy" element={<PrivacyPolicy />} />
     <Route path="/terms" element={<TermsOfUse />} />
-    <Route path="/inbox" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-    <Route path="/inbox/:mode" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-    <Route path="/inbox/:mode/:threadId" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-    <Route path="/focused-inbox/:mode" element={<PrivateRoute><FocusedInbox /></PrivateRoute>} />
-    <Route path="/focused-inbox/:mode/:threadId" element={<PrivateRoute><FocusedInbox /></PrivateRoute>} />
-    <Route path="/email/:id" element={<PrivateRoute><EmailDetail /></PrivateRoute>} />
-    <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-    <Route path="/search" element={<PrivateRoute><Search /></PrivateRoute>} />
+    <Route
+      path="/inbox"
+      element={
+        <PrivateRoute>
+          <Inbox />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/inbox/:mode"
+      element={
+        <PrivateRoute>
+          <Inbox />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/inbox/:mode/:threadId"
+      element={
+        <PrivateRoute>
+          <Inbox />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/focused-inbox/:mode"
+      element={
+        <PrivateRoute>
+          <FocusedInbox />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/focused-inbox/:mode/:threadId"
+      element={
+        <PrivateRoute>
+          <FocusedInbox />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/email/:id"
+      element={
+        <PrivateRoute>
+          <EmailDetail />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/settings"
+      element={
+        <PrivateRoute>
+          <Settings />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/search"
+      element={
+        <PrivateRoute>
+          <Search />
+        </PrivateRoute>
+      }
+    />
     <Route path="/contacts" element={<Navigate to="/crm/contacts" />} />
-    <Route path="/crm/contacts" element={<PrivateRoute><Contacts /></PrivateRoute>} />
-    <Route path="/crm/contacts/:contactId" element={<PrivateRoute><ContactDetail /></PrivateRoute>} />
-    <Route path="/crm/deals" element={<PrivateRoute><Deals /></PrivateRoute>} />
-    <Route path="/stats" element={<PrivateRoute><Stats /></PrivateRoute>} />
+    <Route
+      path="/crm/contacts"
+      element={
+        <PrivateRoute>
+          <Contacts />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/crm/contacts/:contactId"
+      element={
+        <PrivateRoute>
+          <ContactDetail />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/crm/deals"
+      element={
+        <PrivateRoute>
+          <Deals />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/stats"
+      element={
+        <PrivateRoute>
+          <Stats />
+        </PrivateRoute>
+      }
+    />
     <Route path="/scheduled" element={<Navigate to="/inbox/scheduled" replace />} />
-    <Route path="/compose" element={<PrivateRoute><Compose /></PrivateRoute>} />
-    <Route path="/help" element={<PrivateRoute><Help /></PrivateRoute>} />
-    <Route path="/help/:articleId" element={<PrivateRoute><HelpArticle /></PrivateRoute>} />
-    <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+    <Route
+      path="/compose"
+      element={
+        <PrivateRoute>
+          <Compose />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/help"
+      element={
+        <PrivateRoute>
+          <Help />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/help/:articleId"
+      element={
+        <PrivateRoute>
+          <HelpArticle />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/admin"
+      element={
+        <AdminRoute>
+          <AdminDashboard />
+        </AdminRoute>
+      }
+    />
     <Route path="/book/:userId" element={<BookingPage />} />
     <Route path="/booking/:token/reschedule" element={<BookingReschedulePage />} />
     <Route path="/booking/:token/cancel" element={<BookingCancelPage />} />
@@ -206,7 +318,7 @@ function App() {
       <QueryProvider>
         <AuthProvider>
           <NotificationProvider>
-              <Router>
+            <Router>
               <div
                 className="App"
                 style={{

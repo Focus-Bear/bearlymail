@@ -46,7 +46,13 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
     >
       {t('auth.setupAccountTitle')}
     </h1>
-    <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.base }}>
+    <p
+      style={{
+        color: theme.colors.text.secondary,
+        marginBottom: theme.spacing.lg,
+        fontSize: theme.typography.fontSize.base,
+      }}
+    >
       {t('auth.setupAccountDescription')}
     </p>
     {error && (
@@ -64,7 +70,16 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
     )}
     <form onSubmit={onSubmit}>
       <div style={{ marginBottom: theme.spacing.md }}>
-        <label htmlFor="setup-password-new" style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
+        <label
+          htmlFor="setup-password-new"
+          style={{
+            display: 'block',
+            marginBottom: theme.spacing.sm,
+            color: theme.colors.text.primary,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
           {t('auth.password')}
         </label>
         <input
@@ -76,14 +91,36 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
           onChange={event => onPasswordChange(event.target.value)}
           required
           minLength={8}
-          style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontFamily: theme.typography.fontFamily }}
+          style={{
+            width: '100%',
+            padding: theme.spacing.md,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.base,
+            fontFamily: theme.typography.fontFamily,
+          }}
         />
-        <p style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>
+        <p
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.secondary,
+            marginTop: theme.spacing.xs,
+          }}
+        >
           {t('auth.passwordMinLength')}
         </p>
       </div>
       <div style={{ marginBottom: theme.spacing.lg }}>
-        <label htmlFor="setup-password-confirm" style={{ display: 'block', marginBottom: theme.spacing.sm, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
+        <label
+          htmlFor="setup-password-confirm"
+          style={{
+            display: 'block',
+            marginBottom: theme.spacing.sm,
+            color: theme.colors.text.primary,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
           {t('auth.confirmPassword')}
         </label>
         <input
@@ -95,7 +132,14 @@ const SetupPasswordForm: React.FC<SetupPasswordFormProps> = ({
           onChange={event => onConfirmChange(event.target.value)}
           required
           minLength={8}
-          style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontFamily: theme.typography.fontFamily }}
+          style={{
+            width: '100%',
+            padding: theme.spacing.md,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            fontSize: theme.typography.fontSize.base,
+            fontFamily: theme.typography.fontFamily,
+          }}
         />
       </div>
       <button

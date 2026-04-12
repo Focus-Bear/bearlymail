@@ -15,9 +15,7 @@ module.exports = {
           // External packages: react first, then @-scoped, then others
           ['^react', '^@?\\w'],
           // Internal path-alias imports (src/ root folders used as aliases)
-          [
-            '^(components|config|constants|contexts|hooks|pages|store|stories|locales)(/.*|$)',
-          ],
+          ['^(components|config|constants|contexts|hooks|pages|store|stories|locales)(/.*|$)'],
           // Relative imports
           ['^\\.'],
         ],
@@ -116,9 +114,7 @@ module.exports = {
     'no-magic-numbers': [
       'error',
       {
-        ignore: [
-          0, 1, -1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100,
-        ],
+        ignore: [0, 1, -1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100],
         ignoreArrayIndexes: true,
         ignoreDefaultValues: true,
         enforceConst: true,
@@ -175,20 +171,20 @@ module.exports = {
     // and this rule will NOT fire — only unimported usage is flagged.
     'no-restricted-globals': [
       'error',
-      { name: 'useState',              message: 'Import useState explicitly from "react".' },
-      { name: 'useEffect',             message: 'Import useEffect explicitly from "react".' },
-      { name: 'useRef',                message: 'Import useRef explicitly from "react".' },
-      { name: 'useCallback',           message: 'Import useCallback explicitly from "react".' },
-      { name: 'useMemo',               message: 'Import useMemo explicitly from "react".' },
-      { name: 'useContext',            message: 'Import useContext explicitly from "react".' },
-      { name: 'useReducer',            message: 'Import useReducer explicitly from "react".' },
-      { name: 'useLayoutEffect',       message: 'Import useLayoutEffect explicitly from "react".' },
-      { name: 'useImperativeHandle',   message: 'Import useImperativeHandle explicitly from "react".' },
-      { name: 'useDebugValue',         message: 'Import useDebugValue explicitly from "react".' },
-      { name: 'useId',                 message: 'Import useId explicitly from "react".' },
-      { name: 'useTransition',         message: 'Import useTransition explicitly from "react".' },
-      { name: 'useDeferredValue',      message: 'Import useDeferredValue explicitly from "react".' },
-      { name: 'useSyncExternalStore',  message: 'Import useSyncExternalStore explicitly from "react".' },
+      { name: 'useState', message: 'Import useState explicitly from "react".' },
+      { name: 'useEffect', message: 'Import useEffect explicitly from "react".' },
+      { name: 'useRef', message: 'Import useRef explicitly from "react".' },
+      { name: 'useCallback', message: 'Import useCallback explicitly from "react".' },
+      { name: 'useMemo', message: 'Import useMemo explicitly from "react".' },
+      { name: 'useContext', message: 'Import useContext explicitly from "react".' },
+      { name: 'useReducer', message: 'Import useReducer explicitly from "react".' },
+      { name: 'useLayoutEffect', message: 'Import useLayoutEffect explicitly from "react".' },
+      { name: 'useImperativeHandle', message: 'Import useImperativeHandle explicitly from "react".' },
+      { name: 'useDebugValue', message: 'Import useDebugValue explicitly from "react".' },
+      { name: 'useId', message: 'Import useId explicitly from "react".' },
+      { name: 'useTransition', message: 'Import useTransition explicitly from "react".' },
+      { name: 'useDeferredValue', message: 'Import useDeferredValue explicitly from "react".' },
+      { name: 'useSyncExternalStore', message: 'Import useSyncExternalStore explicitly from "react".' },
     ],
 
     // ===========================================
@@ -203,7 +199,8 @@ module.exports = {
       {
         // Exclude typeof comparisons (e.g. typeof x === 'string') — these are valid
         // TypeScript type-narrowing patterns, not magic strings.
-        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/]:not(:has(UnaryExpression[operator="typeof"])) > Literal[value=/[a-zA-Z]/]',
+        selector:
+          'BinaryExpression[operator=/^(===|!==|==|!=)$/]:not(:has(UnaryExpression[operator="typeof"])) > Literal[value=/[a-zA-Z]/]',
         message: 'Avoid magic strings in comparisons. Define them as constants instead.',
       },
       {
@@ -215,16 +212,19 @@ module.exports = {
         message: 'Avoid magic strings in switch cases. Define them as constants instead.',
       },
       {
-        selector: "JSXAttribute[name.name='style'] Property[key.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
+        selector:
+          "JSXAttribute[name.name='style'] Property[key.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
         message: 'Avoid inline color magic strings in style props. Use a named constant or theme token instead.',
       },
       {
-        selector: "AssignmentExpression[left.property.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
+        selector:
+          'AssignmentExpression[left.property.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]',
         message: 'Avoid inline color magic strings in style assignments. Use a named constant or theme token instead.',
       },
       {
         selector: "CallExpression[callee.name='captureEvent'] > Literal",
-        message: "Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.",
+        message:
+          'Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.',
       },
       // Catch user-facing string literals inside JSX TEXT expression containers.
       // Targets only JSXExpressionContainers that appear as element children (text content),
@@ -234,12 +234,14 @@ module.exports = {
       // Examples caught: {isSaving ? 'saving' : 'save'}, {hasError && 'Something went wrong'}
       // Examples NOT caught: type={show ? 'text' : 'password'}, title={x ? 'hint' : undefined}
       {
-        selector: "JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > ConditionalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]",
-        message: "String literals in JSX ternary expressions must use t() for i18n.",
+        selector:
+          'JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > ConditionalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]',
+        message: 'String literals in JSX ternary expressions must use t() for i18n.',
       },
       {
-        selector: "JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > LogicalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]",
-        message: "String literals in JSX logical expressions must use t() for i18n.",
+        selector:
+          'JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > LogicalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]',
+        message: 'String literals in JSX logical expressions must use t() for i18n.',
       },
     ],
 
@@ -326,7 +328,8 @@ module.exports = {
         patterns: [
           {
             group: ['../*', '../../*', '../../../*', '../../../../*'],
-            message: 'Use absolute imports from src/ instead of relative imports (e.g., use "components/..." instead of "../components/...")',
+            message:
+              'Use absolute imports from src/ instead of relative imports (e.g., use "components/..." instead of "../components/...")',
           },
         ],
       },

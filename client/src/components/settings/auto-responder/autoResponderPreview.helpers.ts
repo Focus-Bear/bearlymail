@@ -26,10 +26,7 @@ export function getFirstName(fullName: string | undefined): string {
   return firstName || fullName;
 }
 
-export function buildTemplatePreviews(
-  firstName: string,
-  stats: QueueStats,
-): Record<TemplateKey, TemplatePreview> {
+export function buildTemplatePreviews(firstName: string, stats: QueueStats): Record<TemplateKey, TemplatePreview> {
   return {
     standard: {
       label: 'Standard Priority',

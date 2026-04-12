@@ -17,15 +17,10 @@ const TIMING_KEYWORDS = [
 ];
 
 /** Returns true if there is an inappropriate timing suggestion (from the dedicated field or legacy keyword scan). */
-export function hasSendTimingSuggestion(
-  suggestions: string[],
-  inappropriateTiming?: string | null,
-): boolean {
+export function hasSendTimingSuggestion(suggestions: string[], inappropriateTiming?: string | null): boolean {
   if (inappropriateTiming) {
     return true;
   }
   // Fallback: legacy keyword scan for old API responses that may still embed timing in suggestions
-  return suggestions.some(suggestion =>
-    TIMING_KEYWORDS.some(kw => suggestion.toLowerCase().includes(kw)),
-  );
+  return suggestions.some(suggestion => TIMING_KEYWORDS.some(kw => suggestion.toLowerCase().includes(kw)));
 }

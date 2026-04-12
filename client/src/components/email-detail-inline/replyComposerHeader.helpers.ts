@@ -6,10 +6,7 @@
 const REPLY_MODE_FORWARD = 'forward' as const;
 const REPLY_MODE_REPLY_ALL = 'replyAll' as const;
 
-export function getHeaderTitle(
-  replyMode: 'reply' | 'replyAll' | 'forward',
-  tFunc: (key: string) => string,
-): string {
+export function getHeaderTitle(replyMode: 'reply' | 'replyAll' | 'forward', tFunc: (key: string) => string): string {
   if (replyMode === REPLY_MODE_FORWARD) {
     return tFunc('emailDetail.forward');
   }

@@ -11,6 +11,7 @@ In the action tab, "Newsletters" appears above "Automated system events" despite
 The `getInboxSummary` endpoint builds the `categoryOrder` array by **insertion order** as it iterates through SQL rows. The SQL query orders individual threads by `COALESCE(thread."priorityScore", 0) DESC`, so the first thread encountered for each category determines that category's position in the list.
 
 This approach is fragile because:
+
 1. A category's position depends on its **single highest-priority thread** that survives `shouldSkipSummaryRow` filtering — not on a deliberate category-level sort.
 2. In the action tab, `shouldSkipSummaryRow` filters out threads where the user sent the last message. After filtering, the iteration order can produce unexpected category ordering. If all high-priority threads from a category get filtered out, a lower-priority category might appear first simply because its surviving threads are encountered earlier.
 3. Categories with only very low priority threads (like Newsletters at -1) can appear above categories with many high-priority threads if the filtering and iteration order happen to produce that result.
@@ -50,12 +51,14 @@ categoryOrder.sort((a, b) => {
 The SQL query already selects thread data but does NOT currently include `priorityScore` in the row projection. We need to add it:
 
 **In `getInboxSummary()` SQL query** (~line 103):
+
 - Add `thread."priorityScore"` to the SELECT clause
 - Add `priorityScore` to the row type definition
 
 ### Detailed changes
 
 1. **`getInboxSummary()` SQL query** — Add `thread."priorityScore"` to SELECT:
+
    ```sql
    SELECT thread."categoryId", uc."contextValue" AS "categoryName",
           latest_email."latestFrom",
@@ -97,7 +100,7 @@ The frontend's `stableCategoryOrder` and `buildDisplayCategories` already faithf
 
 ## Files to modify
 
-| File | Change |
-|------|--------|
-| `server/src/emails/email-inbox.service.ts` | Add `priorityScore` to SQL SELECT, row type, and `countRowsByCategory`; sort `categoryOrder` by max priority |
-| `server/src/emails/email-inbox.service.spec.ts` | Add tests for category sort order |
+| File                                            | Change                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `server/src/emails/email-inbox.service.ts`      | Add `priorityScore` to SQL SELECT, row type, and `countRowsByCategory`; sort `categoryOrder` by max priority |
+| `server/src/emails/email-inbox.service.spec.ts` | Add tests for category sort order                                                                            |

@@ -64,15 +64,15 @@ The `calendarLink` template variable exists in the prompt, but it's only used in
 
 ## Code Locations
 
-| File | Relevance |
-|------|-----------|
-| `server/promptfoo/prompts/generate-multiple-replies.md` | Prompt for multi-option replies (has formatting rules but they may not be followed) |
-| `server/promptfoo/prompts/generate-meeting-reply.md` | Prompt for meeting replies (has `calendarLink` var but it's never passed) |
-| `server/src/suggested-replies/suggested-replies.processor.ts` | Builds `replyContext` — doesn't include booking link |
-| `server/src/llm/llm.service.ts` | `generateReplyOptions()` — passes `userContext` to prompt |
-| `client/src/hooks/useReplyDraftGeneration.ts` | `applyGeneratedOptions()` — converts text to HTML for display |
-| `client/src/utils/emailUtils.ts` | `plainTextToHtml()` — converts `\n` to `<br>` |
-| `server/src/database/entities/user.entity.ts` | User profile — no booking link field currently |
+| File                                                          | Relevance                                                                           |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `server/promptfoo/prompts/generate-multiple-replies.md`       | Prompt for multi-option replies (has formatting rules but they may not be followed) |
+| `server/promptfoo/prompts/generate-meeting-reply.md`          | Prompt for meeting replies (has `calendarLink` var but it's never passed)           |
+| `server/src/suggested-replies/suggested-replies.processor.ts` | Builds `replyContext` — doesn't include booking link                                |
+| `server/src/llm/llm.service.ts`                               | `generateReplyOptions()` — passes `userContext` to prompt                           |
+| `client/src/hooks/useReplyDraftGeneration.ts`                 | `applyGeneratedOptions()` — converts text to HTML for display                       |
+| `client/src/utils/emailUtils.ts`                              | `plainTextToHtml()` — converts `\n` to `<br>`                                       |
+| `server/src/database/entities/user.entity.ts`                 | User profile — no booking link field currently                                      |
 
 ---
 
@@ -83,6 +83,7 @@ The `calendarLink` template variable exists in the prompt, but it's only used in
 **1a. Verify the actual LLM output format**
 
 Add debug logging (or use the existing `ReplyComposerDebugPanel`) to inspect the raw text returned from the LLM before `plainTextToHtml()` is called. This will confirm whether:
+
 - The LLM returns real `\n` characters, or
 - It returns literal `\\n` string sequences in JSON
 
@@ -93,11 +94,11 @@ In `client/src/utils/emailUtils.ts`, ensure `plainTextToHtml` handles both cases
 ```typescript
 export function plainTextToHtml(text: string): string {
   // Normalize both real newlines and escaped \n sequences
-  const normalized = text.replace(/\\n/g, '\n');
+  const normalized = text.replace(/\\n/g, "\n");
   return normalized
-    .split('\n')
-    .map(line => line === '' ? '<br>' : `<p>${escapeHtml(line)}</p>`)
-    .join('');
+    .split("\n")
+    .map((line) => (line === "" ? "<br>" : `<p>${escapeHtml(line)}</p>`))
+    .join("");
 }
 ```
 

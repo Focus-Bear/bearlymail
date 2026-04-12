@@ -53,30 +53,41 @@ interface AnalyticsSummarySectionProps {
   escalationRate: number;
 }
 
-const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({ totalSent, qaAnswerRate, escalationRate }) => {
+const AnalyticsSummarySection: React.FC<AnalyticsSummarySectionProps> = ({
+  totalSent,
+  qaAnswerRate,
+  escalationRate,
+}) => {
   const { t } = useTranslation();
-  return (<div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-      gap: theme.spacing.md,
-      marginBottom: theme.spacing.lg,
-    }}
-  >
-    <StatCard label={t('settings.autoResponder.analytics.totalSent', { defaultValue: 'Total Sent' })} value={totalSent.toString()} emoji="📤" />
-    <StatCard
-      label={t('settings.autoResponder.analytics.qaAnswerRate', { defaultValue: 'Q&A Answer Rate' })}
-      value={`${Math.round(qaAnswerRate * 100)}%`}
-      emoji="🧠"
-      subtext={t('settings.autoResponder.analytics.qaSubtext', { defaultValue: 'of responses included AI answers' })}
-    />
-    <StatCard
-      label={t('settings.autoResponder.analytics.escalationRate', { defaultValue: 'Escalation Rate' })}
-      value={`${Math.round(escalationRate * 100)}%`}
-      emoji="⚡"
-      subtext={t('settings.autoResponder.analytics.escalationSubtext', { defaultValue: 'of senders requested priority bump' })}
-    />
-  </div>
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: theme.spacing.md,
+        marginBottom: theme.spacing.lg,
+      }}
+    >
+      <StatCard
+        label={t('settings.autoResponder.analytics.totalSent', { defaultValue: 'Total Sent' })}
+        value={totalSent.toString()}
+        emoji="📤"
+      />
+      <StatCard
+        label={t('settings.autoResponder.analytics.qaAnswerRate', { defaultValue: 'Q&A Answer Rate' })}
+        value={`${Math.round(qaAnswerRate * 100)}%`}
+        emoji="🧠"
+        subtext={t('settings.autoResponder.analytics.qaSubtext', { defaultValue: 'of responses included AI answers' })}
+      />
+      <StatCard
+        label={t('settings.autoResponder.analytics.escalationRate', { defaultValue: 'Escalation Rate' })}
+        value={`${Math.round(escalationRate * 100)}%`}
+        emoji="⚡"
+        subtext={t('settings.autoResponder.analytics.escalationSubtext', {
+          defaultValue: 'of senders requested priority bump',
+        })}
+      />
+    </div>
   );
 };
 
@@ -178,7 +189,12 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({ 
       }}
     >
       <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.md,
+        }}
       >
         <h3 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
           📊 {t('settings.autoResponder.analytics.title')}

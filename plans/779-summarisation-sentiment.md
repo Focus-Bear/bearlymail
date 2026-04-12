@@ -18,11 +18,13 @@ Two related issues with the LLM pipeline:
 ## Root Cause Hypothesis
 
 ### Issue 1 — Sentiment not in prioritisation flow
+
 - The summary step computes `sentiment.score` and stores it.
 - The priority analysis step receives `sentimentScore: 0` as a fallback because the sentiment from the summary is not being passed as an argument to `analyzePriority`.
 - The `analyzePriority` return type accepts `sentimentScore` but its prompt explicitly says not to compute it — meaning the value should come from the caller, but the caller (in `llm-processor.ts` or similar) may not be passing the cached sentiment.
 
 ### Issue 2 — Priority analysis uses full email body
+
 - In `PriorityAnalysisService.analyzePriority`, the email body is cleaned with `cleanEmailContent` and passed to the prompt as `{{body}}`. The prompt labels this field as "Summary" (in the template: `Summary: {{body}}`), but the actual content being passed is the original email body, not the LLM-generated summary.
 - The batch analysis in `analyzePriorityBatch` similarly uses `cleanedBody` labeled as `Summary` in the email description.
 
@@ -46,17 +48,20 @@ Two related issues with the LLM pipeline:
 - This avoids asking the LLM to compute sentiment again (it's already instructed not to).
 
 **File:** `server/src/emails/llm-processor.ts` (or wherever priority is called)
+
 - Extract the `sentiment.score` from the completed summary and pass it to `analyzePriority`.
 
 ### Step 3: Ensure sentiment in summarisation prompt output (if missing)
 
 **File:** `server/promptfoo/prompts/summarize-email-tldr.md`
+
 - Verify the `sentiment` field is present in the returned JSON schema. It currently is — the prompt includes `"sentiment": { "score": ..., "explanation": ... }`.
 - No changes needed here if sentiment is already being computed and stored.
 
 ### Step 4: Update batch priority analysis
 
 **File:** `server/src/llm/priority-analysis.service.ts` — `analyzePriorityBatch`
+
 - Similarly accept pre-computed summaries and sentiment scores per email in the batch input.
 - The `emailKey` input array already has a `body` field — add an optional `summary` and `sentimentScore` field.
 - If `summary` is provided, use it as the email body passed to the LLM.
@@ -65,11 +70,11 @@ Two related issues with the LLM pipeline:
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/llm/priority-analysis.service.ts` | Accept optional `sentimentScore` + optional `summary` params; use summary as body if provided |
-| `server/src/emails/llm-processor.ts` | Pass summary text and sentiment score from summary result into priority analysis calls |
-| `server/promptfoo/prompts/prioritise-email.md` | Minor: confirm the `{{body}}` field description says "Summary" (already does) |
+| File                                           | Change                                                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `server/src/llm/priority-analysis.service.ts`  | Accept optional `sentimentScore` + optional `summary` params; use summary as body if provided |
+| `server/src/emails/llm-processor.ts`           | Pass summary text and sentiment score from summary result into priority analysis calls        |
+| `server/promptfoo/prompts/prioritise-email.md` | Minor: confirm the `{{body}}` field description says "Summary" (already does)                 |
 
 ---
 

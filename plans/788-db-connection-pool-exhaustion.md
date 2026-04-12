@@ -3,7 +3,7 @@
 **Branch:** `plan/788-db-connection-pool-exhaustion`  
 **Author:** Monk of Modularity (AI agent), subagent of Laoban  
 **Priority:** P1 — intermittent production outages under load  
-**Linked issue:** #788  
+**Linked issue:** #788
 
 ---
 
@@ -12,10 +12,12 @@
 ### 1. Connection Pool Accounting
 
 Two separate pg connection pools are created per process:
+
 - **TypeORM pool**: `DB_POOL_SIZE` env var, default `10` (`extra.max` in `typeorm-config.factory.ts`)
 - **PgBoss pool**: `DB_PGBOSS_POOL_SIZE` env var, default `10` (`max:` in `queue.module.ts`)
 
 With the deployment config:
+
 - **Web instances**: scale min 1 → max **3** (each with TypeORM + PgBoss pools)
 - **Worker instance**: 1 (TypeORM + PgBoss pools)
 
@@ -38,7 +40,7 @@ At 80 out of 112 (71%), the pool is uncomfortably close to the limit. Under any 
 // BUG: CPU_CRITICAL is 80 (percent), but totalConnections is an absolute count, not a percent
 if (dbMetrics.totalConnections > RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL) {
   this.logger.warn(
-    `⚠️ High database connections: ${dbMetrics.totalConnections} total, ...`
+    `⚠️ High database connections: ${dbMetrics.totalConnections} total, ...`,
   );
 }
 ```
@@ -71,8 +73,8 @@ export const RESOURCE_MONITOR_CONSTANTS = {
   // Database connection thresholds (absolute counts, not percentages)
   // Tune based on RDS instance's max_connections limit
   // t4g.micro (1GB RAM): max_connections ≈ 112; warn at 80%, critical at 90%
-  DB_CONNECTIONS_WARNING: 90,    // warn when > 90 connections
-  DB_CONNECTIONS_CRITICAL: 100,  // critical when > 100 connections
+  DB_CONNECTIONS_WARNING: 90, // warn when > 90 connections
+  DB_CONNECTIONS_CRITICAL: 100, // critical when > 100 connections
 } as const;
 ```
 
@@ -105,13 +107,7 @@ if (dbMetrics.totalConnections > RESOURCE_MONITOR_CONSTANTS.DB_CONNECTIONS_CRITI
 Add pool size env var validation with sane maximums to prevent accidental misconfiguration:
 
 ```typescript
-import {
-  IsOptional,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-} from "class-validator";
+import { IsOptional, IsString, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 
 export class EnvironmentVariables {
@@ -193,7 +189,7 @@ const pgBossPoolSize = parseInt(
 
 // AFTER:
 const pgBossPoolSize = parseInt(
-  configService.get<string>("DB_PGBOSS_POOL_SIZE") || "5",  // Safer default
+  configService.get<string>("DB_PGBOSS_POOL_SIZE") || "5", // Safer default
   10,
 );
 ```
@@ -204,7 +200,7 @@ Also add PgBoss idle connection timeout configuration (PgBoss uses `pg.Pool` und
 const boss = new PgBoss({
   // ...existing...
   max: pgBossPoolSize,
-  idleTimeoutMillis: 15000,   // ← ADD: release idle connections after 15s
+  idleTimeoutMillis: 15000, // ← ADD: release idle connections after 15s
   connectionTimeoutMillis: 5000,
 });
 ```
@@ -235,12 +231,12 @@ services:
 
 ## Connection Budget Summary (After Fix)
 
-| Scenario | Connections |
-|---|---|
+| Scenario                                   | Connections                     |
+| ------------------------------------------ | ------------------------------- |
 | Current (3 web + 1 worker, defaults 10+10) | **80 connections** (71% of 112) |
 | Fixed (3 web + 1 worker, new defaults 5+5) | **40 connections** (36% of 112) |
-| Fixed with min:0 (idle) | 0 idle, up to 40 active |
-| RDS t4g.micro max_connections | 112 |
+| Fixed with min:0 (idle)                    | 0 idle, up to 40 active         |
+| RDS t4g.micro max_connections              | 112                             |
 
 ---
 

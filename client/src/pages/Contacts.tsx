@@ -40,55 +40,55 @@ interface ContactsEmptyStateProps {
 const ContactsEmptyState: React.FC<ContactsEmptyStateProps> = ({ searchQuery, syncing, onSync }) => {
   const { t } = useTranslation();
   return (
-  <div
-    style={{
-      textAlign: STRING_CENTER,
-      padding: theme.spacing.xl,
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      boxShadow: theme.shadows.sm,
-    }}
-  >
-    <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>👤</div>
-    <h3
+    <div
       style={{
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.semibold,
-        marginBottom: theme.spacing.sm,
+        textAlign: STRING_CENTER,
+        padding: theme.spacing.xl,
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        boxShadow: theme.shadows.sm,
       }}
     >
-      {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
-    </h3>
-    <p
-      style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.base,
-        marginBottom: theme.spacing.lg,
-      }}
-    >
-      {searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}
-    </p>
-    {!searchQuery && (
-      <button
-        onClick={onSync}
-        disabled={syncing}
+      <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>👤</div>
+      <h3
         style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          backgroundColor: theme.colors.primary.main,
-          color: STRING_WHITE,
-          border: STRING_NONE,
-          borderRadius: theme.borderRadius.md,
-          cursor: syncing ? 'not-allowed' : STRING_POINTER,
-          fontSize: theme.typography.fontSize.base,
-          fontWeight: theme.typography.fontWeight.medium,
-          opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
+          color: theme.colors.text.primary,
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.sm,
         }}
       >
-        {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
-      </button>
-    )}
-  </div>
+        {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
+      </h3>
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.base,
+          marginBottom: theme.spacing.lg,
+        }}
+      >
+        {searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}
+      </p>
+      {!searchQuery && (
+        <button
+          onClick={onSync}
+          disabled={syncing}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            backgroundColor: theme.colors.primary.main,
+            color: STRING_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.md,
+            cursor: syncing ? 'not-allowed' : STRING_POINTER,
+            fontSize: theme.typography.fontSize.base,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
+          }}
+        >
+          {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -215,7 +215,13 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, getContactTypeCon
                 )}
               </div>
               {contact.company && (
-                <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, whiteSpace: STRING_NOWRAP }}>
+                <div
+                  style={{
+                    color: theme.colors.text.tertiary,
+                    fontSize: theme.typography.fontSize.sm,
+                    whiteSpace: STRING_NOWRAP,
+                  }}
+                >
                   {contact.company}
                 </div>
               )}

@@ -22,13 +22,14 @@ rendering in the inbox. Root cause: **the filter state is split across two indep
    `useInboxModeChanges`. This is the instance that controls what `fetchEmails` sends
    to the API.
 
-2. **`Inbox.tsx` component** (line 230) — creates a *separate* `useInboxFilters()`
+2. **`Inbox.tsx` component** (line 230) — creates a _separate_ `useInboxFilters()`
    instance as `filterState` and passes it to `InboxView` props. This is the instance
    whose `setPriorityFilter` is called by `InboxFilters.tsx` when the user changes the
    dropdown.
 
 These two instances are independent React state objects. When the user selects
 "Very High (>50)":
+
 - `filterState.setPriorityFilter(50, null)` updates `filterState.filters.minPriority = 50`
 - `inboxState.inboxFilters.filters.minPriority` **stays `null`** (different state)
 - `fetchEmails(overrideFilters)` in `InboxFilters.tsx` is wired to `inboxState.fetchEmails`
@@ -41,7 +42,7 @@ These two instances are independent React state objects. When the user selects
 
 PR #1166 fixed the **intra-instance** stale closure: when `setPriorityFilter` is called,
 the new `minPriority` value is now passed as `overrideFilters` to `fetchEmails` directly
-(bypassing the stale React state). That correctly solved the case where *one* instance
+(bypassing the stale React state). That correctly solved the case where _one_ instance
 is used for both filter state and fetch state.
 
 But the dual-instance architecture means the `overrideFilters` patch arrives at
@@ -108,7 +109,7 @@ filter state as a parameter (or accept just `filters: InboxFilter`).
 
 2. **`Inbox.tsx`**: Create `filterState` first (already there at line 230). Pass
    `filterState.filters` (or the full `filterState`) into `useInboxState({ filters: filterState.filters })`.
-   
+
    This ensures both `fetchEmails` closure and the filter UI read the **same** state object.
 
 3. **`useEmailManagement.ts`**, **`useEmailFetching.ts`**: No changes needed — they
@@ -118,6 +119,7 @@ filter state as a parameter (or accept just `filters: InboxFilter`).
    they already accept `filters` as a prop.
 
 **Why this is the right fix:**
+
 - Single source of truth for filter state
 - No stale closures possible — `fetchEmails` always reads the current filter object
 - The `overrideFilters` workaround in `handlePriorityChange` becomes unnecessary
@@ -149,7 +151,7 @@ render. `fetchEmails` reads from the ref, not the closure.
 ```typescript
 interface UseInboxStateOptions {
   isFocusedMode?: boolean;
-  filters: InboxFilter;  // ← add this
+  filters: InboxFilter; // ← add this
 }
 ```
 
@@ -194,14 +196,14 @@ the prop is still needed for InboxView — just ensure it comes from the same so
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/pages/Inbox.tsx` | Move `filterState = useInboxFilters()` before `useInboxState()`, pass it as prop |
-| `client/src/hooks/useInboxState.ts` | Accept `inboxFilters` as option param instead of calling `useInboxFilters()` internally |
-| `client/src/hooks/useEmailFetching.ts` | No change needed (already accepts `filters` as prop) |
-| `client/src/hooks/useEmailManagement.ts` | No change needed |
-| `client/src/hooks/useInboxInitialization.ts` | No change needed |
-| `client/src/hooks/useInboxModeChanges.ts` | No change needed |
+| File                                         | Change                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `client/src/pages/Inbox.tsx`                 | Move `filterState = useInboxFilters()` before `useInboxState()`, pass it as prop        |
+| `client/src/hooks/useInboxState.ts`          | Accept `inboxFilters` as option param instead of calling `useInboxFilters()` internally |
+| `client/src/hooks/useEmailFetching.ts`       | No change needed (already accepts `filters` as prop)                                    |
+| `client/src/hooks/useEmailManagement.ts`     | No change needed                                                                        |
+| `client/src/hooks/useInboxInitialization.ts` | No change needed                                                                        |
+| `client/src/hooks/useInboxModeChanges.ts`    | No change needed                                                                        |
 
 ---
 
@@ -225,4 +227,4 @@ the prop is still needed for InboxView — just ensure it comes from the same so
 
 ---
 
-*Authored by Monk of Modularity — investigation only, no code changes in this PR.*
+_Authored by Monk of Modularity — investigation only, no code changes in this PR._

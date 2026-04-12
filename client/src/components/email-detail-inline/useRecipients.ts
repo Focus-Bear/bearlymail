@@ -126,10 +126,21 @@ function processRecipientKeyDown(params: {
   setActiveField: (f: FieldType | null) => void;
 }): void {
   const {
-    event, field, inputValue, searchResults, selectedIdx,
-    toTags, ccTags, bccTags, dispatch,
-    handleRemoveTagFn, handleSelectContactFn,
-    setInputValues, setSearchResults, setSelectedSuggestionIndex, setActiveField,
+    event,
+    field,
+    inputValue,
+    searchResults,
+    selectedIdx,
+    toTags,
+    ccTags,
+    bccTags,
+    dispatch,
+    handleRemoveTagFn,
+    handleSelectContactFn,
+    setInputValues,
+    setSearchResults,
+    setSelectedSuggestionIndex,
+    setActiveField,
   } = params;
 
   if (event.key === KEY_BACKSPACE && inputValue === '') {
@@ -140,7 +151,12 @@ function processRecipientKeyDown(params: {
     return;
   }
 
-  if (event.key === KEY_ENTER && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
+  if (
+    event.key === KEY_ENTER &&
+    inputValue.trim() &&
+    !/[\r\n]/.test(inputValue.trim()) &&
+    isValidEmail(inputValue.trim())
+  ) {
     event.preventDefault();
     if (selectedIdx >= 0 && searchResults.length > 0) {
       handleSelectContactFn(searchResults[selectedIdx], field);
@@ -184,7 +200,18 @@ function processFieldInputChange(params: {
   setInputValues: React.Dispatch<React.SetStateAction<Record<FieldType, string>>>;
   setActiveField: (f: FieldType | null) => void;
 }): void {
-  const { value, field, toTags, ccTags, bccTags, dispatch, searchTimeoutRef, searchContacts, setInputValues, setActiveField } = params;
+  const {
+    value,
+    field,
+    toTags,
+    ccTags,
+    bccTags,
+    dispatch,
+    searchTimeoutRef,
+    searchContacts,
+    setInputValues,
+    setActiveField,
+  } = params;
   setInputValues(prev => ({ ...prev, [field]: value }));
   setActiveField(field);
   if (searchTimeoutRef.current) {
@@ -209,7 +236,8 @@ function processFieldBlur(params: {
   setSearchResults: (r: Contact[]) => void;
   setActiveField: (f: FieldType | null) => void;
 }): void {
-  const { field, inputValues, toTags, ccTags, bccTags, dispatch, setInputValues, setSearchResults, setActiveField } = params;
+  const { field, inputValues, toTags, ccTags, bccTags, dispatch, setInputValues, setSearchResults, setActiveField } =
+    params;
   const inputValue = inputValues[field]?.trim();
   if (inputValue && !/[\r\n]/.test(inputValue) && isValidEmail(inputValue)) {
     dispatchToField(field, [...getTagsForField(field, toTags, ccTags, bccTags), inputValue].join(', '), dispatch);
@@ -255,10 +283,15 @@ function useRecipientSearch() {
   }, []);
 
   return {
-    activeField, setActiveField,
-    searchResults, setSearchResults,
-    selectedSuggestionIndex, setSelectedSuggestionIndex,
-    searchTimeoutRef, dropdownRef, searchContacts,
+    activeField,
+    setActiveField,
+    searchResults,
+    setSearchResults,
+    selectedSuggestionIndex,
+    setSelectedSuggestionIndex,
+    searchTimeoutRef,
+    dropdownRef,
+    searchContacts,
   };
 }
 
@@ -286,12 +319,21 @@ export const useRecipients = ({
   });
 
   const {
-    activeField, setActiveField, searchResults, setSearchResults,
-    selectedSuggestionIndex, setSelectedSuggestionIndex,
-    searchTimeoutRef, dropdownRef, searchContacts,
+    activeField,
+    setActiveField,
+    searchResults,
+    setSearchResults,
+    selectedSuggestionIndex,
+    setSelectedSuggestionIndex,
+    searchTimeoutRef,
+    dropdownRef,
+    searchContacts,
   } = useRecipientSearch();
 
-  const dispatch = useMemo<DispatchFns>(() => ({ onRecipientsChange, onCcChange, onBccChange }), [onRecipientsChange, onCcChange, onBccChange]);
+  const dispatch = useMemo<DispatchFns>(
+    () => ({ onRecipientsChange, onCcChange, onBccChange }),
+    [onRecipientsChange, onCcChange, onBccChange]
+  );
   const toTags = useMemo(() => parseEmailsToTags(replyRecipients), [replyRecipients]);
   const ccTags = useMemo(() => parseEmailsToTags(replyCc), [replyCc]);
   const bccTags = useMemo(() => parseEmailsToTags(replyBcc), [replyBcc]);
@@ -301,33 +343,85 @@ export const useRecipients = ({
     [toTags, ccTags, bccTags, dispatch]
   );
 
-  const handleSelectContact = useCallback((contact: Contact, field: FieldType) => {
-    applySelectContact(contact, field, { toTags, ccTags, bccTags }, dispatch);
-    setInputValues(prev => ({ ...prev, [field]: '' }));
-    setSearchResults([]);
-    setActiveField(null);
-  }, [toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]);
+  const handleSelectContact = useCallback(
+    (contact: Contact, field: FieldType) => {
+      applySelectContact(contact, field, { toTags, ccTags, bccTags }, dispatch);
+      setInputValues(prev => ({ ...prev, [field]: '' }));
+      setSearchResults([]);
+      setActiveField(null);
+    },
+    [toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]
+  );
 
   const handleInputChange = useCallback(
     (value: string, field: FieldType) =>
-      processFieldInputChange({ value, field, toTags, ccTags, bccTags, dispatch, searchTimeoutRef, searchContacts, setInputValues, setActiveField }),
+      processFieldInputChange({
+        value,
+        field,
+        toTags,
+        ccTags,
+        bccTags,
+        dispatch,
+        searchTimeoutRef,
+        searchContacts,
+        setInputValues,
+        setActiveField,
+      }),
     [toTags, ccTags, bccTags, dispatch, searchContacts, setActiveField, searchTimeoutRef]
   );
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent, field: FieldType, searchResultsLocal: Contact[], selectedIdx: number, handleRemoveTagLocal: (i: number, f: FieldType) => void) => {
+    (
+      event: React.KeyboardEvent,
+      field: FieldType,
+      searchResultsLocal: Contact[],
+      selectedIdx: number,
+      handleRemoveTagLocal: (i: number, f: FieldType) => void
+    ) => {
       processRecipientKeyDown({
-        event, field, inputValue: inputValues[field], searchResults: searchResultsLocal, selectedIdx,
-        toTags, ccTags, bccTags, dispatch,
-        handleRemoveTagFn: handleRemoveTagLocal, handleSelectContactFn: handleSelectContact,
-        setInputValues, setSearchResults, setSelectedSuggestionIndex, setActiveField,
+        event,
+        field,
+        inputValue: inputValues[field],
+        searchResults: searchResultsLocal,
+        selectedIdx,
+        toTags,
+        ccTags,
+        bccTags,
+        dispatch,
+        handleRemoveTagFn: handleRemoveTagLocal,
+        handleSelectContactFn: handleSelectContact,
+        setInputValues,
+        setSearchResults,
+        setSelectedSuggestionIndex,
+        setActiveField,
       });
     },
-    [inputValues, toTags, ccTags, bccTags, dispatch, handleSelectContact, setSearchResults, setSelectedSuggestionIndex, setActiveField]
+    [
+      inputValues,
+      toTags,
+      ccTags,
+      bccTags,
+      dispatch,
+      handleSelectContact,
+      setSearchResults,
+      setSelectedSuggestionIndex,
+      setActiveField,
+    ]
   );
 
   const handleBlur = useCallback(
-    (field: FieldType) => processFieldBlur({ field, inputValues, toTags, ccTags, bccTags, dispatch, setInputValues, setSearchResults, setActiveField }),
+    (field: FieldType) =>
+      processFieldBlur({
+        field,
+        inputValues,
+        toTags,
+        ccTags,
+        bccTags,
+        dispatch,
+        setInputValues,
+        setSearchResults,
+        setActiveField,
+      }),
     [inputValues, toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]
   );
 
@@ -362,12 +456,25 @@ export const useRecipients = ({
   );
 
   return {
-    toTags, ccTags, bccTags,
-    activeField, setActiveField,
-    searchResults, setSearchResults,
-    selectedSuggestionIndex, setSelectedSuggestionIndex,
-    inputValues, setInputValues, dropdownRef,
-    handleInputChange, handleKeyDown, handleSelectContact, handleRemoveTag, handleBlur,
-    dragSource, handleDragStart, handleDrop,
+    toTags,
+    ccTags,
+    bccTags,
+    activeField,
+    setActiveField,
+    searchResults,
+    setSearchResults,
+    selectedSuggestionIndex,
+    setSelectedSuggestionIndex,
+    inputValues,
+    setInputValues,
+    dropdownRef,
+    handleInputChange,
+    handleKeyDown,
+    handleSelectContact,
+    handleRemoveTag,
+    handleBlur,
+    dragSource,
+    handleDragStart,
+    handleDrop,
   } as const;
 };

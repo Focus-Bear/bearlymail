@@ -65,7 +65,14 @@ export const useSummarizationRules = () => {
     } catch (error) {
       console.error('Error adding summarization rule:', error);
     }
-  }, [newSummarizationWhen, newSummarizationHow, newFromPatterns, newSubjectPatterns, newPriority, fetchSummarizationRules]);
+  }, [
+    newSummarizationWhen,
+    newSummarizationHow,
+    newFromPatterns,
+    newSubjectPatterns,
+    newPriority,
+    fetchSummarizationRules,
+  ]);
 
   const updateSummarizationRule = useCallback(
     async (ruleId: string) => {
@@ -89,7 +96,14 @@ export const useSummarizationRules = () => {
         console.error('Error updating summarization rule:', error);
       }
     },
-    [editSummarizationWhen, editSummarizationHow, editFromPatterns, editSubjectPatterns, editPriority, fetchSummarizationRules]
+    [
+      editSummarizationWhen,
+      editSummarizationHow,
+      editFromPatterns,
+      editSubjectPatterns,
+      editPriority,
+      fetchSummarizationRules,
+    ]
   );
 
   const deleteSummarizationRule = useCallback(

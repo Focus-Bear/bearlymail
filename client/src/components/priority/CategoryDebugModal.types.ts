@@ -60,7 +60,7 @@ export interface CategoryDebugData {
   thread: {
     category: string | null;
     categoryExplanation: string | null;
-    categorySource: "summary" | "priority" | null;
+    categorySource: 'summary' | 'priority' | null;
   };
   emailCategories: Array<{
     id: string;

@@ -9,6 +9,7 @@
 ## Summary
 
 Three problems reported plus a feature request:
+
 1. **Emails not loading initially** — 114 emails exist but don't show until page reload
 2. **Filter UI looks bad** — priority filter dropdown/UI needs visual cleanup
 3. **Category and Priority filters need same height** — inconsistent heights
@@ -25,6 +26,7 @@ After thorough investigation, **two likely root causes** have been identified:
 #### Root Cause A: Stale localStorage cache serving empty data on first navigation
 
 **Flow:**
+
 1. `InboxProvider` → `useInboxFilters()` → loads filters from localStorage (default: `minPriority: 50, maxPriority: null` = "Very High")
 2. `useInboxState` → `useEmailManagement({ filters })` → `useEmailFetching({ mode, filters })`
 3. `useInboxInitialization` fires on mount, calls `fetchEmails()` (or `refreshInPlace()`)
@@ -33,6 +35,7 @@ After thorough investigation, **two likely root causes** have been identified:
 **Problem:** The localStorage summary cache (`getCachedSummary`) is keyed **only by mode** (e.g., `"triage"`), NOT by filter params. If a user previously loaded the inbox with different priority filters (e.g., "All"), the cache contains summary data for ALL priorities. On the next visit with the default VH filter (`minPriority: 50`), the stale-while-revalidate path serves this cached summary immediately, then refreshes in background. But the cached summary has categories/counts from the old "All" filter — the category UUIDs and counts don't match what the server would return for VH-only.
 
 When `serveSummaryFromCacheAndRefresh` fires, it:
+
 1. Dispatches the old (wrong-filter) summary to Redux
 2. Kicks off `fetchInboxSummary()` in background
 3. Meanwhile, `useCategoryFetch` auto-expands the first 3 categories and fetches their emails
@@ -42,6 +45,7 @@ When `serveSummaryFromCacheAndRefresh` fires, it:
 This creates a race where the initial render shows categories from the stale cache (possibly with wrong counts), and the emails within those categories are fetched with different filter params than the summary was built with. If the stale cache had categories that are now empty under the VH filter, you get accordions with 0 emails.
 
 **The page reload works** because:
+
 - On reload, `loadInitialFilters()` reads the same filters from localStorage
 - But the summary cache TTL (60s) may have expired, forcing a fresh fetch
 - OR the cache was updated by the background refresh from the previous (broken) load
@@ -50,6 +54,7 @@ This creates a race where the initial render shows categories from the stale cac
 #### Root Cause B: `minPriority=0` parsed as falsy on server controller
 
 In `emails.controller.ts` line ~189:
+
 ```ts
 const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 ```
@@ -57,9 +62,11 @@ const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 The query string value `"0"` is **falsy in JavaScript**, so `minPriority=0` (the "Low" bucket's lower bound) is silently dropped — the server applies no `minPriority` filter. This doesn't directly cause the "114 emails not showing" bug (since default is VH=50, not 0), but it means the "Low" and "Medium" bucket boundaries behave incorrectly when selected, potentially causing count mismatches.
 
 Similarly for `maxPriority`:
+
 ```ts
 const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
 ```
+
 `maxPriority=0` (the "Very Low" bucket's upper bound) would also be dropped.
 
 ### Fix Plan
@@ -69,6 +76,7 @@ const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
 In `client/src/utils/emailCache.ts`, modify the cache key for summary data to include the serialized filter params (minPriority, maxPriority, accountIds, categories). This ensures that changing filters invalidates the stale-while-revalidate cache.
 
 Files to modify:
+
 - `client/src/utils/emailCache.ts` — change `getCachedSummary()` and `setCachedSummary()` to accept filter params and include them in the cache key
 - `client/src/hooks/useEmailFetching.ts` — pass filter params to cache get/set calls
 - Also consider: `clearCacheForMode()` should clear all filter variants for a mode
@@ -78,19 +86,27 @@ Alternative (simpler): When `fetchEmails` is called with override filters, it al
 **Fix B — Fix falsy `0` parsing:**
 
 In `server/src/emails/emails.controller.ts`, change:
+
 ```ts
 // Before:
 const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 const maxPriorityValue = maxPriority ? parseFloat(maxPriority) : undefined;
 
 // After:
-const minPriorityValue = minPriority !== undefined && minPriority !== '' ? parseFloat(minPriority) : undefined;
-const maxPriorityValue = maxPriority !== undefined && maxPriority !== '' ? parseFloat(maxPriority) : undefined;
+const minPriorityValue =
+  minPriority !== undefined && minPriority !== ""
+    ? parseFloat(minPriority)
+    : undefined;
+const maxPriorityValue =
+  maxPriority !== undefined && maxPriority !== ""
+    ? parseFloat(maxPriority)
+    : undefined;
 ```
 
 Also apply the same fix in the `/emails/inbox` controller endpoint if it has the same pattern.
 
 Files to modify:
+
 - `server/src/emails/emails.controller.ts` — lines ~189-190, fix `minPriority`/`maxPriority` parsing
 - Check `/emails/inbox` endpoint for same issue
 
@@ -108,6 +124,7 @@ The `PriorityRangeSelector` is a dual-thumb range slider. Comparing it with `Vis
 Both use `flex: 1` in the parent `InboxFilters.tsx` row, so they should take equal width.
 
 The "looks bad" complaint likely refers to:
+
 - The slider thumb handles being small (20px) and hard to grab on mobile
 - The bucket labels below the slider being tiny (`fontSize.sm`) and cramped
 - The overall visual weight being lighter than the category pills (pills are chunky 44px touch targets; the slider is a thin 6px track)
@@ -117,6 +134,7 @@ The "looks bad" complaint likely refers to:
 ### Fix Plan
 
 Visual improvements to `PriorityRangeSelector`:
+
 1. Increase slider track height from 6px to 8px
 2. Increase thumb handles from 20px to 24px
 3. Add a subtle filled overlay between the two thumbs to make the selected range more obvious
@@ -125,6 +143,7 @@ Visual improvements to `PriorityRangeSelector`:
 6. Consider: add a "Reset" or "All" quick button to clear the priority filter
 
 Files to modify:
+
 - `client/src/components/inbox/PriorityRangeSelector.tsx` — visual tweaks to track, thumbs, labels
 
 ---
@@ -134,6 +153,7 @@ Files to modify:
 ### Analysis
 
 Both `VisualCategoryFilter` and `PriorityRangeSelector` are rendered as sibling `<div>` elements in `InboxFilters.tsx`:
+
 ```tsx
 <div style={{ flex: 1, minWidth: 0 }}>
   <VisualCategoryFilter ... />
@@ -146,10 +166,12 @@ Both `VisualCategoryFilter` and `PriorityRangeSelector` are rendered as sibling 
 The parent uses `display: 'flex'` with `alignItems: 'flex-start'`. This means each child grows to its natural content height independently.
 
 **Height difference sources:**
+
 - **VisualCategoryFilter**: Header (1 line) + pill row (44px min pills, wrapping). Total ≈ 80-120px depending on number of categories and wrapping
 - **PriorityRangeSelector**: Header (1 line) + slider track (24px area) + bucket labels (dot 6px + label + optional count). Total ≈ 100-130px
 
 The heights differ because:
+
 - Category pills wrap to multiple rows when there are many categories, making the category filter taller
 - Priority slider has a fixed height (header + track + labels)
 - When there are few categories (≤5, all fit on one row), the priority filter may actually be taller
@@ -159,6 +181,7 @@ The heights differ because:
 Change `alignItems: 'flex-start'` to `alignItems: 'stretch'` in the parent flex container. This forces both children to match the taller one's height. Both inner components already have their content vertically spaced, so stretching won't break layouts.
 
 Files to modify:
+
 - `client/src/components/inbox/InboxFilters.tsx` — change `alignItems` in the Row 2 flex container from `'flex-start'` to `'stretch'`
 
 Both `VisualCategoryFilter` and `PriorityRangeSelector` outer containers already have `flex: '1'` and card-like styling, so stretching will simply make the shorter one's background/border fill to match.
@@ -170,6 +193,7 @@ Both `VisualCategoryFilter` and `PriorityRangeSelector` outer containers already
 ### Analysis
 
 The existing `DebugPanel` (`client/src/components/inbox/DebugPanel.tsx`) has sections for:
+
 - Sync Status
 - Sync History
 - Category Summary
@@ -179,6 +203,7 @@ The existing `DebugPanel` (`client/src/components/inbox/DebugPanel.tsx`) has sec
 - All Emails list
 
 A **Priority Debug Section** should show:
+
 1. **Current filter state**: active `minPriority`, `maxPriority` values, the corresponding bucket label
 2. **Priority distribution**: count of emails in each bucket (VL/L/M/H/VH) — reuse `usePriorityCounts`
 3. **Unprioritised count**: how many threads have `priorityScore = null` or are still being processed
@@ -194,6 +219,7 @@ A **Priority Debug Section** should show:
 4. Add it to `useDebugPanel.ts` data if additional API calls are needed (likely not — most data is already available from `usePriorityCounts` and the filter state)
 
 Files to modify:
+
 - `client/src/components/inbox/debug/DebugPrioritySection.tsx` — **new file**
 - `client/src/components/inbox/debug/index.ts` — export the new section
 - `client/src/components/inbox/DebugPanel.tsx` — add the new section with priority filter props
@@ -211,17 +237,17 @@ Files to modify:
 
 ## Files Changed Summary
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.controller.ts` | Fix falsy `0` parsing for minPriority/maxPriority |
-| `client/src/utils/emailCache.ts` | Include filter params in cache key |
-| `client/src/hooks/useEmailFetching.ts` | Pass filter params to cache get/set |
-| `client/src/components/inbox/InboxFilters.tsx` | Change alignItems to stretch |
-| `client/src/components/inbox/PriorityRangeSelector.tsx` | Visual improvements (track, thumbs, labels) |
-| `client/src/components/inbox/debug/DebugPrioritySection.tsx` | **New file** — priority debug section |
-| `client/src/components/inbox/debug/index.ts` | Export new section |
-| `client/src/components/inbox/DebugPanel.tsx` | Add priority debug section |
-| `client/src/pages/Inbox.tsx` | Pass priority data to DebugPanel |
+| File                                                         | Change                                            |
+| ------------------------------------------------------------ | ------------------------------------------------- |
+| `server/src/emails/emails.controller.ts`                     | Fix falsy `0` parsing for minPriority/maxPriority |
+| `client/src/utils/emailCache.ts`                             | Include filter params in cache key                |
+| `client/src/hooks/useEmailFetching.ts`                       | Pass filter params to cache get/set               |
+| `client/src/components/inbox/InboxFilters.tsx`               | Change alignItems to stretch                      |
+| `client/src/components/inbox/PriorityRangeSelector.tsx`      | Visual improvements (track, thumbs, labels)       |
+| `client/src/components/inbox/debug/DebugPrioritySection.tsx` | **New file** — priority debug section             |
+| `client/src/components/inbox/debug/index.ts`                 | Export new section                                |
+| `client/src/components/inbox/DebugPanel.tsx`                 | Add priority debug section                        |
+| `client/src/pages/Inbox.tsx`                                 | Pass priority data to DebugPanel                  |
 
 ## Risk Assessment
 
@@ -233,4 +259,4 @@ Files to modify:
 
 ---
 
-*Planned by Monk of Modularity (AI) 🧘*
+_Planned by Monk of Modularity (AI) 🧘_

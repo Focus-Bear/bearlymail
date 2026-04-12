@@ -35,12 +35,13 @@ Some `localStorage.getItem()` → `JSON.parse()` patterns lack try-catch or hand
 // client/src/hooks/useTabCounts.ts line ~42 — inside try-catch ✓
 // client/src/hooks/useInboxFilters.ts line ~38 — inside try-catch ✓
 // client/src/contexts/useAuthInitialization.ts line ~32 — NO try-catch:
-const payload = JSON.parse(atob(token.split('.')[1]));  // ← throws if token is malformed
+const payload = JSON.parse(atob(token.split(".")[1])); // ← throws if token is malformed
 ```
 
 The `axios-interceptors.ts` has the same pattern:
+
 ```typescript
-const payload = JSON.parse(atob(token.split('.')[1]));  // line 14 — in try-catch ✓
+const payload = JSON.parse(atob(token.split(".")[1])); // line 14 — in try-catch ✓
 ```
 
 `useAuthInitialization.ts` parses a JWT payload — if the token string is malformed (partial write to localStorage, corrupted data), this throws.
@@ -54,6 +55,7 @@ const payload = JSON.parse(atob(token.split('.')[1]));  // line 14 — in try-ca
 All bare `JSON.parse()` calls should be wrapped. There are several patterns:
 
 **Pattern A** — Returns `null` on failure (context extraction, smart compose):
+
 ```typescript
 // Before:
 const parsed = JSON.parse(jsonMatch[0]);
@@ -63,21 +65,23 @@ let parsed: Record<string, unknown> | null = null;
 try {
   parsed = JSON.parse(jsonMatch[0]);
 } catch (parseError) {
-  this.logger.warn('Failed to parse LLM JSON response (truncated?)', {
+  this.logger.warn("Failed to parse LLM JSON response (truncated?)", {
     snippet: jsonMatch[0].slice(0, 100),
-    error: parseError instanceof Error ? parseError.message : String(parseError),
+    error:
+      parseError instanceof Error ? parseError.message : String(parseError),
   });
   return null; // or appropriate fallback
 }
 ```
 
 **Pattern B** — Returns empty array on failure (actions, action items):
+
 ```typescript
 try {
   const parsed = JSON.parse(jsonMatch[0]);
   return parsed.actions || [];
 } catch {
-  this.logger.warn('Failed to parse LLM actions JSON — returning empty array');
+  this.logger.warn("Failed to parse LLM actions JSON — returning empty array");
   return [];
 }
 ```
@@ -86,12 +90,18 @@ The `parseJsonString<T>` helper in `incremental-analysis.service.ts` (line 274) 
 
 ```typescript
 // server/src/utils/json.ts
-export function safeJsonParse<T>(jsonStr: string, fallback: T, label?: string): T {
+export function safeJsonParse<T>(
+  jsonStr: string,
+  fallback: T,
+  label?: string,
+): T {
   try {
     return JSON.parse(jsonStr) as T;
   } catch (e) {
     if (label) {
-      logger.warn(`Failed to parse JSON (${label}): ${e instanceof Error ? e.message : String(e)}`);
+      logger.warn(
+        `Failed to parse JSON (${label}): ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
     return fallback;
   }
@@ -106,12 +116,12 @@ Use `safeJsonParse` throughout `llm.service.ts`.
 
 ```typescript
 // Before (line ~32):
-const payload = JSON.parse(atob(token.split('.')[1]));
+const payload = JSON.parse(atob(token.split(".")[1]));
 
 // After:
 let payload: { exp?: number } = {};
 try {
-  const base64Part = token.split('.')[1];
+  const base64Part = token.split(".")[1];
   if (base64Part) {
     payload = JSON.parse(atob(base64Part));
   }
@@ -130,8 +140,8 @@ For LLM responses specifically, add a quick sanity check before attempting `JSON
 function isLikelyCompleteJson(str: string): boolean {
   const trimmed = str.trim();
   return (
-    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
   );
 }
 
@@ -141,11 +151,11 @@ if (jsonMatch && isLikelyCompleteJson(jsonMatch[0])) {
     const parsed = JSON.parse(jsonMatch[0]);
     // ...
   } catch {
-    this.logger.warn('JSON matched but failed to parse');
+    this.logger.warn("JSON matched but failed to parse");
     return null;
   }
 } else {
-  this.logger.warn('Incomplete JSON from LLM response');
+  this.logger.warn("Incomplete JSON from LLM response");
   return null;
 }
 ```
@@ -160,12 +170,12 @@ Before implementing the full fix, check the PostHog error tracking link to get t
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/llm/llm.service.ts` | Wrap bare `JSON.parse()` calls in try-catch with fallback returns |
-| `server/src/utils/json.ts` | Create `safeJsonParse<T>()` utility (new file) |
-| `server/src/llm/incremental-analysis.service.ts` | Use `safeJsonParse` (refactor existing pattern) |
-| `client/src/contexts/useAuthInitialization.ts` | Add try-catch around JWT decode |
+| File                                             | Change                                                            |
+| ------------------------------------------------ | ----------------------------------------------------------------- |
+| `server/src/llm/llm.service.ts`                  | Wrap bare `JSON.parse()` calls in try-catch with fallback returns |
+| `server/src/utils/json.ts`                       | Create `safeJsonParse<T>()` utility (new file)                    |
+| `server/src/llm/incremental-analysis.service.ts` | Use `safeJsonParse` (refactor existing pattern)                   |
+| `client/src/contexts/useAuthInitialization.ts`   | Add try-catch around JWT decode                                   |
 
 ## Acceptance Criteria
 

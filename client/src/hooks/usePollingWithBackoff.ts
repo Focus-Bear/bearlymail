@@ -87,10 +87,7 @@ export interface BackoffContext {
  * delay = min(base × 2^retryCount, max) ± jitter
  */
 export function computeBackoffDelay(retryCount: number): number {
-  const exp = Math.min(
-    BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, retryCount),
-    BACKOFF_MAX_MS
-  );
+  const exp = Math.min(BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, retryCount), BACKOFF_MAX_MS);
   const jitter = (Math.random() * 2 - 1) * BACKOFF_JITTER_MS; // ±500ms
   return Math.max(0, Math.round(exp + jitter));
 }
@@ -104,12 +101,12 @@ export function computeBackoffDelay(retryCount: number): number {
 export function parseRetryAfterMs(error: unknown): number | null {
   const headers = (error as { response?: { headers?: Record<string, string> } })?.response?.headers;
   if (!headers) {
-return null;
-}
+    return null;
+  }
   const raw: string | undefined = headers['retry-after'] ?? headers['Retry-After'];
   if (!raw) {
-return null;
-}
+    return null;
+  }
 
   // Try integer seconds first
   const seconds = parseFloat(raw);
@@ -188,26 +185,26 @@ export function usePollingWithBackoff({ maxRetries }: UsePollingWithBackoffOptio
 
   const isInFlight = useCallback((key: string) => inFlightRef.current.has(key), []);
   const markInFlight = useCallback((key: string) => {
- inFlightRef.current.add(key); 
-}, []);
+    inFlightRef.current.add(key);
+  }, []);
   const clearInFlight = useCallback((key: string) => {
- inFlightRef.current.delete(key); 
-}, []);
+    inFlightRef.current.delete(key);
+  }, []);
 
   const shouldSkip = useCallback((key: string): boolean => {
     if (inFlightRef.current.has(key)) {
-return true;
-}
+      return true;
+    }
     const state = statesRef.current.get(key);
     if (!state) {
-return false;
-}
+      return false;
+    }
     if (state.exhausted) {
-return true;
-}
+      return true;
+    }
     if (Date.now() < state.nextAllowedAt) {
-return true;
-}
+      return true;
+    }
     return false;
   }, []);
 

@@ -3,7 +3,7 @@
 **Branch:** `openclaw/issue-1114/category-grouping-bug-plan`  
 **Author:** Monk of Modularity (AI agent), subagent of Laoban  
 **Priority:** P1 — production users seeing 500+ emails in wrong accordion  
-**Linked issue:** #1114  
+**Linked issue:** #1114
 
 ---
 
@@ -14,6 +14,7 @@
 **Location:** `server/src/emails/emails.service.ts` → `applyPostQueryFilters`
 
 **Code path:**
+
 ```ts
 // applyPostQueryFilters (emails.service.ts ~865)
 const idToName = new Map<string, string>();
@@ -28,6 +29,7 @@ categoryFilterNames = filters.categoryIds
 ```
 
 Then:
+
 ```ts
 if (categoryFilterNames && categoryFilterNames.length > 0) {
   // If categoryFilterNames is empty [], this entire block is SKIPPED
@@ -68,7 +70,10 @@ export function getCachedSummary(mode: string): CategorySummaryItem[] | null {
 **Location:** `client/src/store/slices/emailSlice.ts`
 
 ```ts
-const stampedEmails = emails.map(email => ({ ...email, category_id: categoryKey }));
+const stampedEmails = emails.map((email) => ({
+  ...email,
+  category_id: categoryKey,
+}));
 ```
 
 This overwrites the server-provided `category_id` with `categoryKey` (the accordion's UUID). Intended as a reliability measure, but if `categoryKey` is itself stale (from a stale summary), it perpetuates wrong categorisation. Not the direct cause, but means any server-side enrichment is irrelevant.
@@ -99,7 +104,7 @@ if (filters.categoryIds.length > 0 && categoryFilterNames.length === 0) {
   // All requested UUIDs are unknown — this means stale client UUIDs.
   // Return empty rather than all emails (a stale UUID is not "no filter").
   this.logger.warn(
-    `applyPostQueryFilters: categoryIds [${filters.categoryIds.join(', ')}] resolved to no known categories. Returning empty result. This indicates stale client-side category UUIDs.`
+    `applyPostQueryFilters: categoryIds [${filters.categoryIds.join(", ")}] resolved to no known categories. Returning empty result. This indicates stale client-side category UUIDs.`,
   );
   filteredEmails = [];
 }
@@ -115,12 +120,14 @@ if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const categoryNamesFromIds = filters.categoryIds
     .map((id) => idToName.get(id))
     .filter((name): name is string => name !== undefined);
-  
+
   // NEW: if all UUIDs are unknown, show nothing (stale filter, not missing filter)
   if (categoryNamesFromIds.length === 0) {
     visibleCategories = [];
   } else {
-    visibleCategories = categoryOrder.filter(cat => categoryNamesFromIds.includes(cat));
+    visibleCategories = categoryOrder.filter((cat) =>
+      categoryNamesFromIds.includes(cat),
+    );
   }
 }
 ```
@@ -170,9 +177,14 @@ const emails: Email[] = response.data.emails;
 // Clear summary cache and re-fetch to get fresh UUIDs.
 if (emails.length === 0) {
   const cachedSummary = getCachedSummary(mode);
-  const summaryEntry = cachedSummary?.find(cat => getCategoryKey(cat.id, cat.name) === catKey);
+  const summaryEntry = cachedSummary?.find(
+    (cat) => getCategoryKey(cat.id, cat.name) === catKey,
+  );
   if (summaryEntry && summaryEntry.count > 0) {
-    console.warn('[Accordion] Zero emails returned for category with non-zero summary count. Stale UUID suspected. Busting summary cache.', catKey);
+    console.warn(
+      "[Accordion] Zero emails returned for category with non-zero summary count. Stale UUID suspected. Busting summary cache.",
+      catKey,
+    );
     clearCacheForMode(mode);
     dispatch(clearCategoryState());
     // Re-trigger the summary fetch
@@ -198,11 +210,11 @@ for (const email of finalEmails) {
   emailWithMeta.category_id = categoryName
     ? (categoryNameToId.get(categoryName) ?? null)
     : null;
-  
+
   // NEW: warn when a category name has no UUID
   if (categoryName && !categoryNameToId.has(categoryName)) {
     this.logger.warn(
-      `getInbox: email ${emailWithMeta.id} has category "${categoryName}" with no UserContext UUID. This email will fall back to name-based grouping.`
+      `getInbox: email ${emailWithMeta.id} has category "${categoryName}" with no UserContext UUID. This email will fall back to name-based grouping.`,
     );
   }
 }
@@ -216,10 +228,13 @@ The force-stamp `category_id = categoryKey` was meant to ensure stability, but i
 
 ```ts
 // BEFORE
-const stampedEmails = emails.map(email => ({ ...email, category_id: categoryKey }));
+const stampedEmails = emails.map((email) => ({
+  ...email,
+  category_id: categoryKey,
+}));
 
 // AFTER
-const stampedEmails = emails.map(email => ({
+const stampedEmails = emails.map((email) => ({
   ...email,
   // Trust the server's category_id when present; use the fetch key as fallback only.
   // This prevents the reducer from overwriting a correct server UUID with a potentially
@@ -234,13 +249,13 @@ const stampedEmails = emails.map(email => ({
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.service.ts` | Fix 1: Return empty when UUID resolves to nothing in `applyPostQueryFilters` and `getInboxSummary` |
-| `server/src/emails/emails.service.ts` | Fix 4: Add warning log when category name has no UUID |
-| `client/src/utils/emailCache.ts` | Fix 2: Enforce TTL on `getCachedSummary` |
-| `client/src/hooks/useEmailFetching.ts` | Fix 2+3: Remove dead `INBOX_CACHE_TTL_MS`, add stale UUID detection |
-| `client/src/store/slices/emailSlice.ts` | Fix 5: Trust server `category_id` instead of force-stamping |
+| File                                    | Change                                                                                             |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `server/src/emails/emails.service.ts`   | Fix 1: Return empty when UUID resolves to nothing in `applyPostQueryFilters` and `getInboxSummary` |
+| `server/src/emails/emails.service.ts`   | Fix 4: Add warning log when category name has no UUID                                              |
+| `client/src/utils/emailCache.ts`        | Fix 2: Enforce TTL on `getCachedSummary`                                                           |
+| `client/src/hooks/useEmailFetching.ts`  | Fix 2+3: Remove dead `INBOX_CACHE_TTL_MS`, add stale UUID detection                                |
+| `client/src/store/slices/emailSlice.ts` | Fix 5: Trust server `category_id` instead of force-stamping                                        |
 
 ---
 

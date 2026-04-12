@@ -10,21 +10,15 @@ import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from '.
 
 describe('InboxContext consumer hooks', () => {
   it('useInboxData throws when used outside InboxProvider', () => {
-    expect(() => renderHook(() => useInboxData())).toThrow(
-      'useInboxData must be used inside InboxProvider'
-    );
+    expect(() => renderHook(() => useInboxData())).toThrow('useInboxData must be used inside InboxProvider');
   });
 
   it('useInboxUI throws when used outside InboxProvider', () => {
-    expect(() => renderHook(() => useInboxUI())).toThrow(
-      'useInboxUI must be used inside InboxProvider'
-    );
+    expect(() => renderHook(() => useInboxUI())).toThrow('useInboxUI must be used inside InboxProvider');
   });
 
   it('useInboxActions throws when used outside InboxProvider', () => {
-    expect(() => renderHook(() => useInboxActions())).toThrow(
-      'useInboxActions must be used inside InboxProvider'
-    );
+    expect(() => renderHook(() => useInboxActions())).toThrow('useInboxActions must be used inside InboxProvider');
   });
 
   it('useInboxFiltersCtx throws when used outside InboxProvider', () => {

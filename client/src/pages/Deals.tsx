@@ -41,9 +41,7 @@ const DealsHeader: React.FC<DealsHeaderProps> = ({ t, onAddDeal }) => (
       marginBottom: theme.spacing.lg,
     }}
   >
-    <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
-      {t('deals.title')}
-    </h1>
+    <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>{t('deals.title')}</h1>
     <button
       onClick={onAddDeal}
       style={{
@@ -83,7 +81,13 @@ const DealsEmptyState: React.FC<{ t: (key: string) => string }> = ({ t }) => (
     >
       {t('deals.noDeals')}
     </h3>
-    <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.base, marginBottom: theme.spacing.lg }}>
+    <p
+      style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.base,
+        marginBottom: theme.spacing.lg,
+      }}
+    >
       {t('deals.createFirstDeal')}
     </p>
   </div>

@@ -20,17 +20,22 @@ PR #1435 (merged to `main`) introduced the progressive unlock chain in `EmailLis
 When the user clicks "Maybe Later" on the `ProgressiveUnlockPrompt`, `isUnlockPromptDismissed` becomes `true`. The `EmptyInboxContent` function then falls through the progressive-unlock branch (because `hasActiveFilter` is false when dismissed) and renders the **generic `EmptyState`** — which shows "No new emails to triage!" with no indication that lower-priority emails exist.
 
 **Root cause:** `EmptyInboxContent` line ~133-134:
+
 ```tsx
-const hasActiveFilter = !isUnlockPromptDismissed && minPriority !== null && minPriority !== undefined;
+const hasActiveFilter =
+  !isUnlockPromptDismissed && minPriority !== null && minPriority !== undefined;
 ```
-Dismissal disables the *entire* active-filter branch, including the AllCaughtUp check and any hint about remaining emails.
+
+Dismissal disables the _entire_ active-filter branch, including the AllCaughtUp check and any hint about remaining emails.
 
 ### Edge Case 2: Missing `priorityCounts` prop → Generic EmptyState
 
 If `priorityCounts` is `null` (still loading, or fetch failed), the progressive unlock guard condition at line ~137 fails:
+
 ```tsx
 if (hasActiveFilter && priorityCounts && onUnlockPriorityTier && onDismissUnlockPrompt) {
 ```
+
 This falls through to the `EmptyState` fallback. During the window between email list loading and priority-counts loading, users see false inbox zero.
 
 ### Edge Case 3: `veryLow` tier not in TIER_CHAIN
@@ -43,16 +48,16 @@ This falls through to the `EmptyState` fallback. During the window between email
 
 ### File Map
 
-| File | Role | Lines of Interest |
-|------|------|-------------------|
-| `client/src/components/inbox/EmailListStates.tsx` | Progressive unlock orchestration; empty/caught-up state selection | `EmptyInboxContent` function (~line 115-170) |
-| `client/src/components/inbox/states/EmptyState.tsx` | Generic "no emails" — shows misleading "all caught up" text | Entire file (30 lines) |
-| `client/src/components/inbox/states/AllCaughtUpState.tsx` | True "all caught up" state | Entire file (25 lines) |
-| `client/src/components/inbox/states/ProgressiveUnlockPrompt.tsx` | Prompt to drop to lower tier | Entire file (50 lines) |
-| `client/src/hooks/usePriorityCounts.ts` | Fetches `/emails/priority-counts` | Async fetch, can be null during loading |
-| `client/src/hooks/useInboxFilters.ts` | Priority filter state; threshold constants | `VERY_HIGH_PRIORITY_THRESHOLD=50`, etc. |
-| `client/src/locales/en.json` | i18n strings for inbox states | Lines 172-176, 365-366 |
-| `client/src/components/inbox/EmailListStates.test.tsx` | Unit tests for state selection logic | Covers happy path but not dismiss+remaining-emails edge case |
+| File                                                             | Role                                                              | Lines of Interest                                            |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------ |
+| `client/src/components/inbox/EmailListStates.tsx`                | Progressive unlock orchestration; empty/caught-up state selection | `EmptyInboxContent` function (~line 115-170)                 |
+| `client/src/components/inbox/states/EmptyState.tsx`              | Generic "no emails" — shows misleading "all caught up" text       | Entire file (30 lines)                                       |
+| `client/src/components/inbox/states/AllCaughtUpState.tsx`        | True "all caught up" state                                        | Entire file (25 lines)                                       |
+| `client/src/components/inbox/states/ProgressiveUnlockPrompt.tsx` | Prompt to drop to lower tier                                      | Entire file (50 lines)                                       |
+| `client/src/hooks/usePriorityCounts.ts`                          | Fetches `/emails/priority-counts`                                 | Async fetch, can be null during loading                      |
+| `client/src/hooks/useInboxFilters.ts`                            | Priority filter state; threshold constants                        | `VERY_HIGH_PRIORITY_THRESHOLD=50`, etc.                      |
+| `client/src/locales/en.json`                                     | i18n strings for inbox states                                     | Lines 172-176, 365-366                                       |
+| `client/src/components/inbox/EmailListStates.test.tsx`           | Unit tests for state selection logic                              | Covers happy path but not dismiss+remaining-emails edge case |
 
 ### Critical Code Path
 
@@ -68,6 +73,7 @@ Inbox.tsx
 ```
 
 The fallback at step 3 is reached when:
+
 - User dismissed the prompt (isUnlockPromptDismissed=true)
 - priorityCounts is null/loading
 - Filter is active but no unlock callbacks provided (defensive case)
@@ -86,13 +92,14 @@ A new component shown when a priority filter is active, the current tier is empt
 
 ```tsx
 interface FilteredEmptyStateProps {
-  currentTierLabel: string;       // e.g. "Very High priority"
-  lowerPriorityCount: number;     // total emails in lower tiers
-  onShowAll: () => void;          // clears priority filter to show all
+  currentTierLabel: string; // e.g. "Very High priority"
+  lowerPriorityCount: number; // total emails in lower tiers
+  onShowAll: () => void; // clears priority filter to show all
 }
 ```
 
 UI mockup:
+
 ```
 ┌─────────────────────────────────────┐
 │              📭                      │
@@ -157,6 +164,7 @@ function EmptyInboxContent({ ... }): React.ReactElement {
 ```
 
 Key changes:
+
 - `hasActiveFilter` no longer gated by `isUnlockPromptDismissed` — dismissal only affects the prompt, not the awareness of remaining emails
 - New step 3 catches the dismissed case and shows `FilteredEmptyState`
 - `AllCaughtUpState` check simplified: if all lower tiers are 0, it's truly caught up
@@ -170,7 +178,10 @@ Key changes:
 /**
  * Compute total email count in tiers below the given minPriority.
  */
-function computeTotalLowerPriority(minPriority: number, counts: PriorityCounts): number {
+function computeTotalLowerPriority(
+  minPriority: number,
+  counts: PriorityCounts,
+): number {
   let total = 0;
   if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) total += counts.high;
   if (minPriority >= HIGH_PRIORITY_THRESHOLD) total += counts.medium;
@@ -183,10 +194,12 @@ function computeTotalLowerPriority(minPriority: number, counts: PriorityCounts):
  * Human-readable label for the current priority filter tier.
  */
 function getCurrentTierLabel(minPriority: number, t: TFunction): string {
-  if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) return t('inbox.priority.veryHigh');
-  if (minPriority >= HIGH_PRIORITY_THRESHOLD) return t('inbox.priority.high');
-  if (minPriority >= MEDIUM_PRIORITY_THRESHOLD) return t('inbox.priority.medium');
-  return t('inbox.priority.low');
+  if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD)
+    return t("inbox.priority.veryHigh");
+  if (minPriority >= HIGH_PRIORITY_THRESHOLD) return t("inbox.priority.high");
+  if (minPriority >= MEDIUM_PRIORITY_THRESHOLD)
+    return t("inbox.priority.medium");
+  return t("inbox.priority.low");
 }
 ```
 
@@ -217,6 +230,7 @@ No changes needed — this component now ONLY renders when there's genuinely no 
 **File:** `client/src/locales/en.json`
 
 Add:
+
 ```json
 {
   "inbox": {
@@ -240,8 +254,9 @@ Add:
 **File:** `client/src/components/inbox/states/index.ts`
 
 Add:
+
 ```ts
-export { FilteredEmptyState } from 'components/inbox/states/FilteredEmptyState';
+export { FilteredEmptyState } from "components/inbox/states/FilteredEmptyState";
 ```
 
 ---
@@ -302,28 +317,28 @@ FilteredEmptyState: ({ currentTierLabel, lowerPriorityCount, onShowAll }: any) =
 
 ## Risk Assessment
 
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| New prop `onClearFilters` not threaded correctly | Low | Prop is optional; fallback renders `FilteredEmptyState` without "Show all" button |
-| `priorityCounts` null during loading shows generic EmptyState briefly | Low | Acceptable trade-off; alternative (loading spinner) would be worse UX |
-| Existing progressive unlock tests break | Low | Only additive changes to `EmptyInboxContent`; existing test scenarios unchanged |
-| i18n key conflicts | Very Low | New namespace `filteredEmpty` doesn't conflict with existing keys |
+| Risk                                                                  | Severity | Mitigation                                                                        |
+| --------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| New prop `onClearFilters` not threaded correctly                      | Low      | Prop is optional; fallback renders `FilteredEmptyState` without "Show all" button |
+| `priorityCounts` null during loading shows generic EmptyState briefly | Low      | Acceptable trade-off; alternative (loading spinner) would be worse UX             |
+| Existing progressive unlock tests break                               | Low      | Only additive changes to `EmptyInboxContent`; existing test scenarios unchanged   |
+| i18n key conflicts                                                    | Very Low | New namespace `filteredEmpty` doesn't conflict with existing keys                 |
 
 ---
 
 ## Files Changed Summary
 
-| File | Change Type | Estimated Lines |
-|------|-------------|-----------------|
-| `client/src/components/inbox/states/FilteredEmptyState.tsx` | **New** | ~60 |
-| `client/src/components/inbox/states/FilteredEmptyState.test.tsx` | **New** | ~40 |
-| `client/src/components/inbox/states/index.ts` | Modified | +1 |
-| `client/src/components/inbox/EmailListStates.tsx` | Modified | ~40 changed |
-| `client/src/components/inbox/EmailListStates.test.tsx` | Modified | ~80 added |
-| `client/src/components/inbox/InboxContentParts.tsx` | Modified | ~5 (prop threading) |
-| `client/src/components/inbox/InboxContent.tsx` | Modified | ~5 (prop threading) |
-| `client/src/pages/Inbox.tsx` | Modified | ~3 (prop wiring) |
-| `client/src/locales/en.json` | Modified | ~10 |
+| File                                                             | Change Type | Estimated Lines     |
+| ---------------------------------------------------------------- | ----------- | ------------------- |
+| `client/src/components/inbox/states/FilteredEmptyState.tsx`      | **New**     | ~60                 |
+| `client/src/components/inbox/states/FilteredEmptyState.test.tsx` | **New**     | ~40                 |
+| `client/src/components/inbox/states/index.ts`                    | Modified    | +1                  |
+| `client/src/components/inbox/EmailListStates.tsx`                | Modified    | ~40 changed         |
+| `client/src/components/inbox/EmailListStates.test.tsx`           | Modified    | ~80 added           |
+| `client/src/components/inbox/InboxContentParts.tsx`              | Modified    | ~5 (prop threading) |
+| `client/src/components/inbox/InboxContent.tsx`                   | Modified    | ~5 (prop threading) |
+| `client/src/pages/Inbox.tsx`                                     | Modified    | ~3 (prop wiring)    |
+| `client/src/locales/en.json`                                     | Modified    | ~10                 |
 
 **Total estimated:** ~250 lines new/changed across 9 files.
 

@@ -15,6 +15,7 @@ There are **two separate code paths** where this can occur, each with its own fi
 ### Path A — Background auto-summarisation (llm-processor → summarizeEmailWithAutoRule)
 
 **Flow:**
+
 1. `llm-processor.ts` → `summarizationService.summarizeEmailWithAutoRule()`
 2. Custom rule matched → `rule = { type: 'custom', customPrompt: howToSummarize }`
 3. → `summarizeEmailWithPhishing()` → `summarizeEmailWithCombinedPhishing()`
@@ -29,11 +30,13 @@ There are **two separate code paths** where this can occur, each with its own fi
 If the user's `howToSummarize` **also** contains JSON output instructions (e.g. "return JSON
 with fields title, status, pr_count"), the LLM can become confused by the two competing
 schemas. In this case the LLM may:
-  - Return the user's JSON schema → `parsed.summary` is undefined → falls back to
-    `response.trim()` (the raw JSON string) stored as summary.
-  - Or merge both schemas → `summary` field holds the serialised inner JSON string.
+
+- Return the user's JSON schema → `parsed.summary` is undefined → falls back to
+  `response.trim()` (the raw JSON string) stored as summary.
+- Or merge both schemas → `summary` field holds the serialised inner JSON string.
 
 The fallback in `parseSummaryWithPhishing()` is:
+
 ```ts
 return {
   summary: response.trim(),  // ← raw JSON string stored here
@@ -45,6 +48,7 @@ return {
 ### Path B — Batch summarisation (summarizeThreadBatch → processBatchRuleGroup → summarizeThreads → summarizeSingleThread)
 
 **Flow (single-thread case):**
+
 1. `summarizeThreadBatch()` → `processBatchRuleGroup()` → `llmService.summarizeThreads()`
 2. For 1 thread with `customInstructions`: calls `summarizeSingleThread(thread, …, customInstructions)`
 3. `summarizeSingleThread` with custom instructions calls `llmService.generateText()` **directly**
@@ -59,6 +63,7 @@ return {
 ### Path C — On-demand summarisation via UI (handleUseCustomRule → POST /summarize/:id)
 
 **Flow:**
+
 1. `handleUseCustomRule` in `useEmailDetailOperations.ts` (line 281) POSTs
    `{ type: 'custom', customPrompt: rule.howToSummarize }` to `POST /summarize/:id`.
 2. Controller calls `summarizationService.summarizeEmailWithPhishing()` with `type: 'custom'`.
@@ -81,19 +86,22 @@ is always plain human-readable text, never a raw JSON blob.
 ## Identified Bug Scenarios
 
 ### Bug 1: Custom prompt instructs JSON output → LLM ignores `summary` key
+
 A user creates a rule: `howToSummarize: "Return JSON: { title, pr_count, status }"`.
 The appended phishing footer asks for `{ summary, phishing, ... }`.
 The LLM returns the user's schema without a `summary` field.
 `parseSummaryWithPhishing` falls through to `response.trim()` → raw JSON stored.
 
 ### Bug 2: Custom prompt instructs JSON output → `summary` key contains inner JSON
+
 Same scenario, but the LLM tries to "merge" both schemas, putting the user's
 structured JSON inside `summary`: `{ "summary": "{\"title\": \"...\", \"pr_count\": 3}" }`.
 Result: `summary` is a JSON-encoded string → UI renders `{"title": "...", "pr_count": 3}`.
 
 ### Bug 3: summarizeSingleThread with customInstructions — no JSON parsing at all
+
 `summarizeSingleThread` with a custom prompt calls raw `generateText()`. If the user
-prompt requests JSON, the raw JSON is stored directly. *(Less common path today.)*
+prompt requests JSON, the raw JSON is stored directly. _(Less common path today.)_
 
 ---
 
@@ -130,6 +138,7 @@ private extractPlainSummary(raw: string): string {
 ```
 
 Then in `parseSummaryWithPhishing`:
+
 ```ts
 if (typeof parsed.summary === 'string') {
   return {
@@ -140,6 +149,7 @@ if (typeof parsed.summary === 'string') {
 ```
 
 And in the fallback branch:
+
 ```ts
 return {
   summary: this.extractPlainSummary(response.trim()),
@@ -156,7 +166,7 @@ system note that the `summary` field must always be a plain-text string:
 ```ts
 const jsonOutputWarning = /return\s+(a\s+)?json/i.test(customPrompt)
   ? `IMPORTANT: Your "summary" field in the final JSON response must always be a plain-text string, never a JSON object or code block.\n\n`
-  : '';
+  : "";
 
 const fullPrompt = `${bodyPreamble}${jsonOutputWarning}${customPrompt}\n\n${phishingFooter}${phishingSignalsText}`;
 ```
@@ -184,11 +194,13 @@ looks like JSON and display a friendly fallback message:
 const displaySummary = (() => {
   if (!summary) return null;
   const trimmed = summary.trim();
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       JSON.parse(trimmed);
       // It IS valid JSON — something went wrong server-side
-      return t('emailDetail.summaryJsonError', { defaultValue: 'Summary unavailable — please regenerate.' });
+      return t("emailDetail.summaryJsonError", {
+        defaultValue: "Summary unavailable — please regenerate.",
+      });
     } catch {
       // not JSON, fine
     }
@@ -203,11 +215,11 @@ This is a belt-and-suspenders measure; the server-side fixes (1-3) should preven
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/llm/llm.service.ts` | Add `extractPlainSummary()` helper; call it in `parseSummaryWithPhishing` (both branches) and in `summarizeSingleThread` custom path |
-| `server/src/llm/llm.service.ts` | Add JSON-output warning injection in `summarizeCustomPromptWithPhishing` |
-| `client/src/components/email-detail/SummarySection.tsx` | Optional: add JSON detection guard before rendering |
+| File                                                    | Change                                                                                                                               |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `server/src/llm/llm.service.ts`                         | Add `extractPlainSummary()` helper; call it in `parseSummaryWithPhishing` (both branches) and in `summarizeSingleThread` custom path |
+| `server/src/llm/llm.service.ts`                         | Add JSON-output warning injection in `summarizeCustomPromptWithPhishing`                                                             |
+| `client/src/components/email-detail/SummarySection.tsx` | Optional: add JSON detection guard before rendering                                                                                  |
 
 ---
 
@@ -242,4 +254,4 @@ No new E2E tests required for this fix; the unit tests above are sufficient.
 
 ---
 
-*Plan authored by Monk of Modularity — openclaw/issue-1156/tldr-json-rendering-plan*
+_Plan authored by Monk of Modularity — openclaw/issue-1156/tldr-json-rendering-plan_

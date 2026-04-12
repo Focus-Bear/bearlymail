@@ -11,6 +11,7 @@
 New user onboarding is too slow. The context analysis pipeline (which learns user email patterns, VIP contacts, writing style, and categories) processes emails **sequentially via PgBoss** on the server.
 
 Current flow:
+
 1. `OnboardingService.startHistoricalScan()` → queues `scan-history` job
 2. `ScanAnalysisProcessor` → runs `analyzeScanResults()` (enrichment, VIP, categories, context)
 3. `ContextAnalysisOrchestratorService.analyzeAndLearnFromEmails()` → fetches threads, builds batches of 10 threads, enqueues `analyze-context-batch` jobs via PgBoss
@@ -26,6 +27,7 @@ Current flow:
 ## Current Architecture (What We're Working With)
 
 ### Infrastructure
+
 - **Compute:** AWS ECS Fargate (NestJS + Node.js)
 - **Database:** AWS RDS PostgreSQL (t4g.micro: ~112 max_connections, t4g.small: ~225)
 - **Queue:** PgBoss (PostgreSQL-backed job queue)
@@ -34,14 +36,16 @@ Current flow:
 - **Auth:** Google OAuth2 (Gmail API access tokens stored in DB)
 
 ### Key Dependencies Per Batch Job
-| Dependency | How it's used | Lambda implication |
-|---|---|---|
-| **PostgreSQL (RDS)** | Read/write analysis records, user context, batch results | Direct connection or API |
-| **LLM API keys** | Anthropic/OpenAI/Gemini for `analyzeEmailPatterns()` | Secrets Manager |
-| **Gmail OAuth tokens** | Fetch thread content via Gmail API | Read from DB or passed in payload |
-| **CloudWatch** | Performance budget metrics | Already AWS-native |
+
+| Dependency             | How it's used                                            | Lambda implication                |
+| ---------------------- | -------------------------------------------------------- | --------------------------------- |
+| **PostgreSQL (RDS)**   | Read/write analysis records, user context, batch results | Direct connection or API          |
+| **LLM API keys**       | Anthropic/OpenAI/Gemini for `analyzeEmailPatterns()`     | Secrets Manager                   |
+| **Gmail OAuth tokens** | Fetch thread content via Gmail API                       | Read from DB or passed in payload |
+| **CloudWatch**         | Performance budget metrics                               | Already AWS-native                |
 
 ### Current Job Data Flow
+
 ```
 Orchestrator → PgBoss.send("analyze-context-batch", {
   userId, batchIndex, batch (pre-processed thread payloads),
@@ -96,12 +100,14 @@ Migrate all `analyze-context-batch` jobs to Lambda. Remove PgBoss batch workers.
 **Decision:** Use **RDS Proxy** for Lambda → PostgreSQL connections.
 
 **Rationale:**
+
 - 30 concurrent Lambda invocations each opening a DB connection would exhaust RDS max_connections instantly (t4g.micro has ~112 total, already shared with ECS Fargate web/worker tasks)
 - RDS Proxy multiplexes connections, so 30 Lambdas share a small pool
 - Alternative (internal API endpoint) adds latency and complexity — each batch does 2-3 DB writes, not worth HTTP overhead
 - RDS Proxy cost: ~$0.015/hour (~$11/month) for a small instance
 
 **Connection budget with RDS Proxy:**
+
 - ECS Fargate: 4 tasks × (5 TypeORM + 5 PgBoss) = 40 connections
 - RDS Proxy pool for Lambda: 20 connections (proxy multiplexes 30+ Lambdas into 20 actual connections)
 - Total: 60 connections → safe for t4g.micro (112 max) with room
@@ -122,11 +128,13 @@ Migrate all `analyze-context-batch` jobs to Lambda. Remove PgBoss batch workers.
 **Decision:** Keep the existing **finalization via PgBoss delayed job + polling** pattern.
 
 **How it works today (unchanged):**
+
 1. Orchestrator queues `finalize-context-analysis` with `startAfter: now + BATCH_TIMEOUT_MS` (60s)
 2. Finalization processor checks `checkBatchesComplete(analysisRecordId, totalBatches)` — reads `stats.batchResults` from DB
 3. If not all complete, re-queues with exponential delay (up to `MAX_FINALIZATION_RETRIES`)
 
 **Why keep it:**
+
 - Already battle-tested with retry logic, max retry limits, failure marking
 - Lambda writes batch results to DB (same as PgBoss workers do now)
 - Finalization just checks the DB — doesn't care who wrote the results
@@ -152,12 +160,14 @@ Migrate all `analyze-context-batch` jobs to Lambda. Remove PgBoss batch workers.
 **Current state:** The batch processor already has 5-retry exponential backoff (`calculateBackoffDelay`). Port this logic into the Lambda handler.
 
 **Additional measures:**
+
 1. **SQS batch size = 1** — each Lambda invocation processes one batch (same as today)
 2. **Lambda timeout = 90s** — enough for LLM call + retries
 3. **Concurrency limit on Lambda = 30** — prevent runaway scaling if multiple users onboard simultaneously
 4. **Per-user serialization not needed** — onboarding is one-time, and the orchestrator already handles the "one analysis at a time" constraint via `singletonKey`
 
 **Rate limit math:**
+
 - Anthropic: 1000 RPM on standard tier → 30 requests is fine
 - OpenAI: 500 RPM on tier 1, 5000 RPM on tier 2+ → fine
 - Gemini: 360 RPM free tier, 1000 RPM paid → fine for 30 concurrent
@@ -166,19 +176,22 @@ Migrate all `analyze-context-batch` jobs to Lambda. Remove PgBoss batch workers.
 ### D6: Cost Analysis
 
 #### Current Cost (PgBoss on ECS Fargate)
+
 - ECS Fargate task already running → $0 marginal cost for processing
 - Time cost: 5-15 min user wait → **churn risk** for $5/seat product
 
 #### Lambda Cost (30 batches × per user)
-| Component | Calculation | Cost/user |
-|---|---|---|
-| Lambda invocations | 30 invocations × $0.0000002 | $0.000006 |
-| Lambda duration | 30 × 30s × 512MB = 450 GB-s × $0.0000166667 | $0.0075 |
-| SQS messages | 30 sends + 30 receives × $0.0000004 | $0.000024 |
-| RDS Proxy | ~$11/month shared across all users | ~$0.001/user (at 10K users) |
-| **Total per user** | | **~$0.009** |
+
+| Component          | Calculation                                 | Cost/user                   |
+| ------------------ | ------------------------------------------- | --------------------------- |
+| Lambda invocations | 30 invocations × $0.0000002                 | $0.000006                   |
+| Lambda duration    | 30 × 30s × 512MB = 450 GB-s × $0.0000166667 | $0.0075                     |
+| SQS messages       | 30 sends + 30 receives × $0.0000004         | $0.000024                   |
+| RDS Proxy          | ~$11/month shared across all users          | ~$0.001/user (at 10K users) |
+| **Total per user** |                                             | **~$0.009**                 |
 
 At $5/user/seat pricing:
+
 - 1000 new users/month → $9/month Lambda cost → **0.18% of revenue**
 - 10,000 new users/month → $90/month → **0.18% of revenue**
 
@@ -188,11 +201,11 @@ At $5/user/seat pricing:
 
 **Decision:** Use AWS Secrets Manager for all sensitive values.
 
-| Secret | Storage |
-|---|---|
-| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_PORT`, `DB_NAME` | Secrets Manager (single secret: `bearlymail/lambda/db`) |
-| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` | Secrets Manager (single secret: `bearlymail/lambda/llm`) |
-| `LLM_PROVIDER` (default provider selection) | Lambda env var (not sensitive) |
+| Secret                                                        | Storage                                                  |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_PORT`, `DB_NAME` | Secrets Manager (single secret: `bearlymail/lambda/db`)  |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`       | Secrets Manager (single secret: `bearlymail/lambda/llm`) |
+| `LLM_PROVIDER` (default provider selection)                   | Lambda env var (not sensitive)                           |
 
 - Gmail OAuth tokens: **NOT stored in Secrets Manager**. They're user-specific and already in the DB. Lambda reads them from RDS when needed (only for the `threadIds` path where it needs to fetch from Gmail). For MVP, use the **pre-processed batch path** (orchestrator pre-fetches and sends payloads in SQS message), avoiding Gmail API calls from Lambda entirely.
 - Lambda VPC: Deploy in same VPC as RDS for private connectivity
@@ -205,6 +218,7 @@ At $5/user/seat pricing:
 ### Step 1: AWS Infrastructure (IaC)
 
 Create CDK/CloudFormation stack or Terraform config for:
+
 - [ ] SQS queue: `bearlymail-context-analysis`
 - [ ] SQS DLQ: `bearlymail-context-analysis-dlq`
 - [ ] Lambda function: `bearlymail-batch-analyzer`
@@ -222,6 +236,7 @@ Create CDK/CloudFormation stack or Terraform config for:
 ### Step 2: Lambda Function
 
 Create a standalone Lambda handler that:
+
 - [ ] Reads SQS event, parses batch payload
 - [ ] Initializes LLM client (from cached Secrets Manager values)
 - [ ] Connects to RDS via Proxy (connection reuse across warm invocations)
@@ -238,6 +253,7 @@ Create a standalone Lambda handler that:
 ### Step 3: Orchestrator Changes
 
 Modify `ContextAnalysisOrchestratorService`:
+
 - [ ] Add `isNewUserOnboarding` flag (passed from `OnboardingService`)
 - [ ] When `isNewUserOnboarding && SQS_ENABLED`:
   - Send batches to SQS instead of PgBoss
@@ -263,38 +279,40 @@ Modify `ContextAnalysisOrchestratorService`:
 ## Files to Create/Modify
 
 ### New Files
-| File | Purpose |
-|---|---|
-| `infra/sqs-lambda-context-analysis.ts` | CDK/Terraform IaC for SQS + Lambda + RDS Proxy |
-| `lambda/batch-analyzer/handler.ts` | Lambda entry point |
-| `lambda/batch-analyzer/db.ts` | RDS Proxy connection setup |
-| `lambda/batch-analyzer/secrets.ts` | Secrets Manager client |
-| `lambda/batch-analyzer/package.json` | Lambda-specific dependencies |
+
+| File                                                | Purpose                                          |
+| --------------------------------------------------- | ------------------------------------------------ |
+| `infra/sqs-lambda-context-analysis.ts`              | CDK/Terraform IaC for SQS + Lambda + RDS Proxy   |
+| `lambda/batch-analyzer/handler.ts`                  | Lambda entry point                               |
+| `lambda/batch-analyzer/db.ts`                       | RDS Proxy connection setup                       |
+| `lambda/batch-analyzer/secrets.ts`                  | Secrets Manager client                           |
+| `lambda/batch-analyzer/package.json`                | Lambda-specific dependencies                     |
 | `server/src/context/context-batch-analysis.core.ts` | Shared analysis logic (extracted from processor) |
-| `server/src/aws/sqs.service.ts` | SQS client service for orchestrator |
+| `server/src/aws/sqs.service.ts`                     | SQS client service for orchestrator              |
 
 ### Modified Files
-| File | Change |
-|---|---|
-| `server/src/context/context-analysis-orchestrator.service.ts` | Add SQS send path alongside PgBoss |
-| `server/src/context/context-batch-analysis.processor.ts` | Import shared core logic instead of inline |
-| `server/src/context/context-finalization.processor.ts` | Shorter delay for Lambda-routed analyses |
-| `server/src/aws/aws.module.ts` | Export SQS service |
-| `server/src/config/env.validation.ts` | Add `LAMBDA_CONTEXT_ANALYSIS_ENABLED`, SQS queue URL |
-| `server/src/onboarding/onboarding.service.ts` | Pass `isNewUserOnboarding` flag to orchestrator |
+
+| File                                                          | Change                                               |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| `server/src/context/context-analysis-orchestrator.service.ts` | Add SQS send path alongside PgBoss                   |
+| `server/src/context/context-batch-analysis.processor.ts`      | Import shared core logic instead of inline           |
+| `server/src/context/context-finalization.processor.ts`        | Shorter delay for Lambda-routed analyses             |
+| `server/src/aws/aws.module.ts`                                | Export SQS service                                   |
+| `server/src/config/env.validation.ts`                         | Add `LAMBDA_CONTEXT_ANALYSIS_ENABLED`, SQS queue URL |
+| `server/src/onboarding/onboarding.service.ts`                 | Pass `isNewUserOnboarding` flag to orchestrator      |
 
 ---
 
 ## Risks & Mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| RDS connection exhaustion from Lambda | DB outage | RDS Proxy (D1) + reserved concurrency cap (30) |
-| LLM rate limits with concurrent users | Failed analyses | Lambda concurrency cap + built-in retry + DLQ |
-| Lambda cold starts | Slightly slower first batch | Negligible vs LLM latency; provision concurrency later if needed |
-| SQS message size limit (256KB) | Large batch payloads rejected | Pre-processed batch payloads are ~10-50KB each (10 threads × ~2-5KB preview). Safe. Monitor and compress if needed. |
-| Divergent codepaths (PgBoss vs Lambda) | Bugs in one path not caught | Shared core module + same test suite + feature flag for gradual rollout |
-| RDS Proxy cost ($11/month) | Fixed overhead | Justified by onboarding speed improvement. Can be shared with other Lambda use cases. |
+| Risk                                   | Impact                        | Mitigation                                                                                                          |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| RDS connection exhaustion from Lambda  | DB outage                     | RDS Proxy (D1) + reserved concurrency cap (30)                                                                      |
+| LLM rate limits with concurrent users  | Failed analyses               | Lambda concurrency cap + built-in retry + DLQ                                                                       |
+| Lambda cold starts                     | Slightly slower first batch   | Negligible vs LLM latency; provision concurrency later if needed                                                    |
+| SQS message size limit (256KB)         | Large batch payloads rejected | Pre-processed batch payloads are ~10-50KB each (10 threads × ~2-5KB preview). Safe. Monitor and compress if needed. |
+| Divergent codepaths (PgBoss vs Lambda) | Bugs in one path not caught   | Shared core module + same test suite + feature flag for gradual rollout                                             |
+| RDS Proxy cost ($11/month)             | Fixed overhead                | Justified by onboarding speed improvement. Can be shared with other Lambda use cases.                               |
 
 ---
 

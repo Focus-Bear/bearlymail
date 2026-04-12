@@ -81,10 +81,30 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
     <div style={overlayStyle} onClick={handleOverlayClick}>
       <div style={modalStyle} role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 id="feedback-modal-title" style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl, fontWeight: theme.typography.fontWeight.semibold, margin: 0 }}>
+          <h2
+            id="feedback-modal-title"
+            style={{
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.xl,
+              fontWeight: theme.typography.fontWeight.semibold,
+              margin: 0,
+            }}
+          >
             {t('contactFeedback.title')}
           </h2>
-          <button onClick={onClose} aria-label={t('common.close')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: theme.typography.fontSize.xl, color: theme.colors.text.secondary, lineHeight: 1, padding: theme.spacing.xs }}>
+          <button
+            onClick={onClose}
+            aria-label={t('common.close')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xl,
+              color: theme.colors.text.secondary,
+              lineHeight: 1,
+              padding: theme.spacing.xs,
+            }}
+          >
             {t('common.close')}
           </button>
         </div>

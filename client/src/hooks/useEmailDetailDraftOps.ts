@@ -20,7 +20,7 @@ function buildReplyRecipientsForMode(
   mode: string,
   targetEmail: Email,
   threadEmails: Email[],
-  userEmail: string | undefined,
+  userEmail: string | undefined
 ): { recipients: string; cc: string | null } {
   const normalizedUserEmail = userEmail?.toLowerCase();
   const extractEmail = (addr: string): string => {
@@ -173,7 +173,13 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
   } = state;
 
   const draftCrud = useEmailDraftCrud(email?.threadId);
-  const handleGenerateDraft = useDraftGenerationCallback(id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption);
+  const handleGenerateDraft = useDraftGenerationCallback(
+    id,
+    email,
+    setLoadingReplies,
+    setReplyOptions,
+    setSelectedReplyOption
+  );
 
   const handleOpenReplyComposer = useCallback(
     (mode: 'reply' | 'replyAll' | 'forward') => {
@@ -194,8 +200,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
               new Date(current.receivedAt) > new Date(latest.receivedAt) ? current : latest
             )
           : null;
-      const targetEmail =
-        threadEmails.find((threadMsg) => threadMsg.id === id) ?? email ?? latestByTime;
+      const targetEmail = threadEmails.find(threadMsg => threadMsg.id === id) ?? email ?? latestByTime;
 
       if (targetEmail) {
         const { recipients, cc } = buildReplyRecipientsForMode(mode, targetEmail, threadEmails, userEmail);

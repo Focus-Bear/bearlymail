@@ -9,7 +9,10 @@ import { ModalContent } from 'components/modal/ModalContent';
 import { ModalFormActions } from 'components/modal/ModalFormActions';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
-import { ProjectStatusOption, ProjectStatusSelector } from 'components/quick-actions/modals/github/ProjectStatusSelector';
+import {
+  ProjectStatusOption,
+  ProjectStatusSelector,
+} from 'components/quick-actions/modals/github/ProjectStatusSelector';
 import { StatusOption, StatusSelector } from 'components/quick-actions/modals/github/StatusSelector';
 import { API_URL } from 'config/api';
 
@@ -82,9 +85,7 @@ interface FetchErrorViewProps {
 function FetchErrorView({ message, retryLabel, onRetry }: FetchErrorViewProps) {
   return (
     <div>
-      <p style={{ color: FETCH_ERROR_COLOR, fontSize: '0.875rem', marginBottom: '8px' }}>
-        {message}
-      </p>
+      <p style={{ color: FETCH_ERROR_COLOR, fontSize: '0.875rem', marginBottom: '8px' }}>{message}</p>
       <button
         type="button"
         onClick={onRetry}
@@ -152,7 +153,10 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
         setProjectStatusData(response.data);
       } catch (err: unknown) {
         setFetchError(
-          getAxiosErrorMessage(err, t('quickActions.github.failedToLoadOptions', { defaultValue: 'Failed to load project status options.' })),
+          getAxiosErrorMessage(
+            err,
+            t('quickActions.github.failedToLoadOptions', { defaultValue: 'Failed to load project status options.' })
+          )
         );
       } finally {
         setFetchingOptions(false);
@@ -184,7 +188,12 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      setError(getAxiosErrorMessage(err, t('quickActions.github.failedToUpdateStatus', { defaultValue: 'Failed to update status' })));
+      setError(
+        getAxiosErrorMessage(
+          err,
+          t('quickActions.github.failedToUpdateStatus', { defaultValue: 'Failed to update status' })
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -217,9 +226,7 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
   };
 
   // In project mode, the submit button is disabled when no option is selected
-  const isSubmitDisabled = projectName
-    ? !selectedOptionId
-    : !selectedStatus.trim();
+  const isSubmitDisabled = projectName ? !selectedOptionId : !selectedStatus.trim();
 
   return (
     <ModalBackdrop onClose={onClose} zIndex={2001}>

@@ -14,9 +14,7 @@ interface AttachmentReminderBannerProps {
  * been added.  Rendered separately from ToneCheckResult so it is always
  * visible regardless of whether the tone check passed or failed.
  */
-export const AttachmentReminderBanner: React.FC<AttachmentReminderBannerProps> = ({
-  attachmentReminder,
-}) => {
+export const AttachmentReminderBanner: React.FC<AttachmentReminderBannerProps> = ({ attachmentReminder }) => {
   if (!attachmentReminder) {
     return null;
   }

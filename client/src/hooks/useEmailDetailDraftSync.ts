@@ -105,7 +105,14 @@ export const useEmailDetailDraftSync = ({
     }
   }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
 
-  useAutoSaveDraft({ showReplyComposer, threadId: email?.threadId, draft: draft ?? '', replyMode, replyRecipients, saveDraft });
+  useAutoSaveDraft({
+    showReplyComposer,
+    threadId: email?.threadId,
+    draft: draft ?? '',
+    replyMode,
+    replyRecipients,
+    saveDraft,
+  });
 
   // Scroll to reply composer when it opens
   useEffect(() => {

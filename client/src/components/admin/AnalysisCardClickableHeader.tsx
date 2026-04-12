@@ -38,19 +38,34 @@ const AnalysisCardLeftInfo: React.FC<AnalysisCardLeftInfoProps> = ({ analysis, c
           {analysis.status.toUpperCase()}
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+        }}
+      >
         <span>{t('admin.contextAnalysis.correlationId')}:</span>
         {analysis.correlationId ? (
           <button
             onClick={event => {
-                event.stopPropagation();
-                onCopy(analysis.correlationId!, analysis.id);
-              }}
+              event.stopPropagation();
+              onCopy(analysis.correlationId!, analysis.id);
+            }}
             style={{
-              background: STRING_NONE, border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              cursor: 'pointer', fontFamily: 'monospace', fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.primary, display: 'flex', alignItems: 'center', gap: theme.spacing.xs,
+              background: STRING_NONE,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.primary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
             }}
             title={t('admin.contextAnalysis.copyCorrelationId')}
           >

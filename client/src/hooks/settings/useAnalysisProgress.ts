@@ -129,7 +129,12 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
 
         const resumeCheckResult = response.data;
         // Backend returns an analysisId when an in-progress analysis exists
-        if (resumeCheckResult?.analysisId && resumeCheckResult?.progress && !resumeCheckResult?.progress?.isComplete && !resumeCheckResult?.error) {
+        if (
+          resumeCheckResult?.analysisId &&
+          resumeCheckResult?.progress &&
+          !resumeCheckResult?.progress?.isComplete &&
+          !resumeCheckResult?.error
+        ) {
           devLog(`[useAnalysisProgress] Resuming in-progress analysis on mount: ${resumeCheckResult.analysisId}`);
           setAnalysisId(resumeCheckResult.analysisId);
           setAnalyzing(true);
@@ -151,8 +156,8 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     return () => {
       cancelled = true;
     };
-  // Run once on mount only
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startAnalysis = useCallback(async () => {
@@ -241,7 +246,10 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
       // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
     };
 
-    const handleProgressResponse = async (progressData: NonNullable<AnalyzeProgress['progress']>, timeoutId: ReturnType<typeof setTimeout> | null) => {
+    const handleProgressResponse = async (
+      progressData: NonNullable<AnalyzeProgress['progress']>,
+      timeoutId: ReturnType<typeof setTimeout> | null
+    ) => {
       // CRITICAL: Check if cancelled before updating state
       if (cancelledRef.current) {
         devDebug('handleProgressResponse skipped - cancelled');

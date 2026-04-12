@@ -13,11 +13,7 @@ import i18n from 'i18n';
 import { EmailCard } from 'components/inbox/EmailCard';
 import { EmailPreview } from 'components/inbox/EmailPreview';
 
-import {
-  makeMockEmail,
-  MOCK_EMAIL_NEWSLETTER,
-  MOCK_EMAIL_WORK,
-} from './storyHelpers/mockEmail';
+import { makeMockEmail, MOCK_EMAIL_NEWSLETTER, MOCK_EMAIL_WORK } from './storyHelpers/mockEmail';
 
 // ---------------------------------------------------------------------------
 // Container wrapper to show the card inside a constrained viewport
@@ -71,12 +67,7 @@ const EmailCardStory = ({
   mode?: 'action' | 'triage';
 }) => (
   <I18nextProvider i18n={i18n}>
-    <EmailCard
-      email={email}
-      isSelected={isSelected}
-      onCardClick={() => {}}
-      mode={mode}
-    >
+    <EmailCard email={email} isSelected={isSelected} onCardClick={() => {}} mode={mode}>
       <EmailPreview email={email} />
     </EmailCard>
   </I18nextProvider>
@@ -99,39 +90,24 @@ const EmailCardWidthDemo = () => (
           color: '#92400E',
         }}
       >
-        <strong>Fix #1170:</strong> <code>.animate-fade-in</code> now uses{' '}
-        <code>width: 100%</code> instead of the hardcoded <code>width: 651px</code>. Cards fill
-        their container at any viewport width.
+        <strong>Fix #1170:</strong> <code>.animate-fade-in</code> now uses <code>width: 100%</code> instead of the
+        hardcoded <code>width: 651px</code>. Cards fill their container at any viewport width.
       </div>
 
       <ContainerWrapper width="100%" label="Full width (flex/grid column)">
-        <EmailCard
-          email={MOCK_EMAIL_WORK}
-          isSelected={false}
-          onCardClick={() => {}}
-          mode="action"
-        >
+        <EmailCard email={MOCK_EMAIL_WORK} isSelected={false} onCardClick={() => {}} mode="action">
           <EmailPreview email={MOCK_EMAIL_WORK} />
         </EmailCard>
       </ContainerWrapper>
 
       <ContainerWrapper width="640px" label="640px container (narrow panel)">
-        <EmailCard
-          email={MOCK_EMAIL_NEWSLETTER}
-          isSelected={false}
-          onCardClick={() => {}}
-        >
+        <EmailCard email={MOCK_EMAIL_NEWSLETTER} isSelected={false} onCardClick={() => {}}>
           <EmailPreview email={MOCK_EMAIL_NEWSLETTER} />
         </EmailCard>
       </ContainerWrapper>
 
       <ContainerWrapper width="480px" label="480px container (side panel / split view)">
-        <EmailCard
-          email={MOCK_EMAIL_WORK}
-          isSelected
-          onCardClick={() => {}}
-          mode="action"
-        >
+        <EmailCard email={MOCK_EMAIL_WORK} isSelected onCardClick={() => {}} mode="action">
           <EmailPreview email={MOCK_EMAIL_WORK} />
         </EmailCard>
       </ContainerWrapper>
@@ -218,7 +194,7 @@ export const SelectedEmail: Story = {
         subject: 'Re: Q1 roadmap review',
         from: 'jeremy@focusbear.io',
         fromName: 'Jeremy',
-        summary: 'Looks good overall. Let\'s sync on the email card fix timeline.',
+        summary: "Looks good overall. Let's sync on the email card fix timeline.",
         isRead: false,
       })}
       isSelected

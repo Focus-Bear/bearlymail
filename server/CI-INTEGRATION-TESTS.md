@@ -43,52 +43,52 @@ Change the test command to exclude integration tests:
 Add this new job after the `server-coverage` job:
 
 ```yaml
-  server-integration-tests:
-    name: Server Integration Tests
-    runs-on: ubuntu-latest
+server-integration-tests:
+  name: Server Integration Tests
+  runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+  services:
+    postgres:
+      image: postgres:17
+      env:
+        POSTGRES_USER: test
+        POSTGRES_PASSWORD: test
+        POSTGRES_DB: test
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: server/package-lock.json
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
+        cache-dependency-path: server/package-lock.json
 
-      - name: Install dependencies
-        working-directory: server
-        run: npm ci
+    - name: Install dependencies
+      working-directory: server
+      run: npm ci
 
-      - name: Run integration tests
-        working-directory: server
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          DB_NAME: test
-          JWT_SECRET: test-jwt-secret
-          ENCRYPTION_KEY: test-encryption-key-32chars!!
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: npm run test:integration -- --forceExit
+    - name: Run integration tests
+      working-directory: server
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USERNAME: test
+        DB_PASSWORD: test
+        DB_NAME: test
+        JWT_SECRET: test-jwt-secret
+        ENCRYPTION_KEY: test-encryption-key-32chars!!
+        NODE_OPTIONS: --max-old-space-size=4096
+      run: npm run test:integration -- --forceExit
 ```
 
 ## Why This Separation?
@@ -124,6 +124,7 @@ Add this new job after the `server-coverage` job:
 Since Claude Code doesn't have permission to modify workflow files, you'll need to manually apply these changes to `.github/workflows/ci.yml`.
 
 The changes are:
+
 1. Rename the step "Run tests with coverage" to "Run unit tests with coverage" (no functional change, just clarity)
 2. Add the new `server-integration-tests` job as shown above
 

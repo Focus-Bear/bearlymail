@@ -11,17 +11,17 @@ Uncaught error in component: RangeError: Invalid time zone specified: AUS Easter
 
 A **Windows-style timezone string** (`"AUS Eastern Standard Time"`) has been stored in the user's
 `batch_schedules.timezone` column. When `getCurrentTimeInTimezone("AUS Eastern Standard Time")` is
-called from `useEmailDetailToneCheck` or `useEmailDetailOperations` (both hooks run on *any* email
+called from `useEmailDetailToneCheck` or `useEmailDetailOperations` (both hooks run on _any_ email
 detail view, including ICS emails), it passes the Windows tz string to `new Intl.DateTimeFormat(…,
 { timeZone: "AUS Eastern Standard Time" })`, which throws `RangeError: Invalid time zone specified`.
 
 The `try/catch` in `getCurrentTimeInTimezone` **should** catch this — but the current production
 build (PR #1147, merged 2026-03-17) uses `new Intl.DateTimeFormat` in the try block. The `RangeError`
-is indeed thrown *inside* the try block, so it *should* be caught. However, the error propagates to
+is indeed thrown _inside_ the try block, so it _should_ be caught. However, the error propagates to
 the React tree as an **uncaught component error**, crashing the ErrorBoundary, because:
 
 - `useEmailDetailToneCheck` / `useEmailDetailOperations` call `getCurrentTimeInTimezone` inside a
-  `useEffect` callback that is invoked *during rendering* — and unhandled Promise rejections or
+  `useEffect` callback that is invoked _during rendering_ — and unhandled Promise rejections or
   synchronous throws inside effects can propagate to React's error boundary.
 
 Regardless of where the catch-miss is, the **root cause** is Windows timezone strings in the DB.
@@ -31,7 +31,7 @@ Regardless of where the catch-miss is, the **root cause** is Windows timezone st
 ICS calendar invite emails may disproportionately come from calendar systems (Exchange, Outlook,
 Google Workspace) that register users in timezone-aware ways. A user who originally set up their
 account via an Outlook calendar flow may have had their timezone stored as a Windows identifier
-(`"AUS Eastern Standard Time"`) rather than IANA (`"Australia/Sydney"`). The crash happens on *any*
+(`"AUS Eastern Standard Time"`) rather than IANA (`"Australia/Sydney"`). The crash happens on _any_
 email detail view, but the bug was reported in the context of ICS emails.
 
 ### Code paths involved
@@ -45,7 +45,7 @@ email detail view, but the bug was reported in the context of ICS emails.
    - Calls `getCurrentTimeInTimezone(timezoneRef.current)` on line 804
 
 3. **`client/src/utils/timezoneUtils.ts` — `getCurrentTimeInTimezone()`**
-   - Has try/catch but needs an explicit IANA validation guard *before* calling `Intl.DateTimeFormat`
+   - Has try/catch but needs an explicit IANA validation guard _before_ calling `Intl.DateTimeFormat`
    - The existing test `'returns a UTC ISO string for an invalid timezone'` only tests `'Not/A/Timezone'`
      — a Windows-style string with spaces and no slashes was never tested
 
@@ -73,14 +73,14 @@ function isValidIANATimezone(tz: string): boolean {
   try {
     // Intl.supportedValuesOf is available in all modern browsers/Node.
     // On older runtimes, fall through to the constructor probe.
-    if (typeof Intl.supportedValuesOf === 'function') {
-      return Intl.supportedValuesOf('timeZone').includes(tz);
+    if (typeof Intl.supportedValuesOf === "function") {
+      return Intl.supportedValuesOf("timeZone").includes(tz);
     }
   } catch {
     // Intl.supportedValuesOf threw — fall through to constructor probe
   }
   try {
-    new Intl.DateTimeFormat('en', { timeZone: tz });
+    new Intl.DateTimeFormat("en", { timeZone: tz });
     return true;
   } catch {
     return false;
@@ -101,6 +101,7 @@ export function getCurrentTimeInTimezone(timezone?: string): string {
 ```
 
 **Tests to add to `client/src/utils/timezoneUtils.test.ts`:**
+
 - `'returns a UTC ISO string for a Windows-style timezone ("AUS Eastern Standard Time")'`
 - `'returns a UTC ISO string for "Eastern Standard Time"'`
 - `'returns a UTC ISO string for timezone strings with spaces'`
@@ -125,15 +126,17 @@ private isValidIANATimezone(tz: string): boolean {
 ```
 
 In `upsertSchedule`:
+
 ```typescript
 const safeTimezone = this.isValidIANATimezone(scheduleData.timezone)
   ? scheduleData.timezone
-  : 'UTC';
+  : "UTC";
 ```
 
 Apply `safeTimezone` instead of `scheduleData.timezone` when writing to the entity.
 
 **Tests to add to `batch-schedule.service.spec.ts` (or new spec file):**
+
 - `'upsertSchedule falls back to UTC for Windows-style timezone strings'`
 - `'upsertSchedule preserves valid IANA timezone'`
 
@@ -154,7 +157,7 @@ When returning the schedule to the client, sanitize the `timezone` field:
 const tz = schedule.timezone;
 return {
   ...schedule,
-  timezone: this.isValidIANATimezone(tz) ? tz : 'UTC',
+  timezone: this.isValidIANATimezone(tz) ? tz : "UTC",
 };
 ```
 
@@ -165,13 +168,13 @@ DB, without requiring a migration.
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/utils/timezoneUtils.ts` | Add `isValidIANATimezone()` guard; call before `Intl.DateTimeFormat` |
-| `client/src/utils/timezoneUtils.test.ts` | Add Windows-tz test cases |
-| `server/src/batch-schedule/batch-schedule.service.ts` | Validate/normalize `timezone` on `upsertSchedule` |
-| `server/src/batch-schedule/batch-schedule.controller.ts` | Sanitize timezone on `GET /batch-schedule` response |
-| `server/src/scheduling-preferences/scheduling-preferences.service.ts` | Validate/normalize `timezone` on `updatePreferences` |
+| File                                                                  | Change                                                               |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `client/src/utils/timezoneUtils.ts`                                   | Add `isValidIANATimezone()` guard; call before `Intl.DateTimeFormat` |
+| `client/src/utils/timezoneUtils.test.ts`                              | Add Windows-tz test cases                                            |
+| `server/src/batch-schedule/batch-schedule.service.ts`                 | Validate/normalize `timezone` on `upsertSchedule`                    |
+| `server/src/batch-schedule/batch-schedule.controller.ts`              | Sanitize timezone on `GET /batch-schedule` response                  |
+| `server/src/scheduling-preferences/scheduling-preferences.service.ts` | Validate/normalize `timezone` on `updatePreferences`                 |
 
 Optional (shared helper, reduces duplication):
 | `server/src/utils/timezone.utils.ts` | New file: `isValidIANATimezone(tz: string): boolean` |
@@ -198,4 +201,4 @@ Optional (shared helper, reduces duplication):
 
 ---
 
-*Plan authored by Monk of Modularity (AI agent).*
+_Plan authored by Monk of Modularity (AI agent)._

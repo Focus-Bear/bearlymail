@@ -73,7 +73,12 @@ interface UseEmailActionsProps {
   handleMarkAsRead: (emailId: string) => Promise<void>;
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread?: (emailIds: string[]) => Promise<void>;
-  onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
+  onShowStarDiscrepancy: (
+    emailId: string,
+    userStarCount: number,
+    predictedStarCount: number,
+    emailSubject?: string
+  ) => void;
   onShowPriorityOverride: (
     emailId: string,
     originalPriorityScore: number,
@@ -115,13 +120,27 @@ interface UseEmailActionsReturn {
 
 export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsReturn {
   const {
-    mode, emails, setEmails, selectedEmailIds, setSelectedEmailIds,
-    handleSetStarCountBase, handleArchiveBase, handleSnoozeBase,
-    handleBulkMarkAsRead, handleBulkMarkAsUnread,
-    onShowStarDiscrepancy, onShowPriorityOverride,
-    onShowBlockConfirm, onHideBlockConfirm, blockConfirmEmail, fetchEmails,
-    snoozeInput, emailListRef, setSelectedEmailIndex,
-    splitView, onTabCountsUpdateOptimistically,
+    mode,
+    emails,
+    setEmails,
+    selectedEmailIds,
+    setSelectedEmailIds,
+    handleSetStarCountBase,
+    handleArchiveBase,
+    handleSnoozeBase,
+    handleBulkMarkAsRead,
+    handleBulkMarkAsUnread,
+    onShowStarDiscrepancy,
+    onShowPriorityOverride,
+    onShowBlockConfirm,
+    onHideBlockConfirm,
+    blockConfirmEmail,
+    fetchEmails,
+    snoozeInput,
+    emailListRef,
+    setSelectedEmailIndex,
+    splitView,
+    onTabCountsUpdateOptimistically,
   } = props;
   const { handleSetStarCount } = useStarCountHandler({
     emails,
@@ -183,7 +202,10 @@ export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsRet
         console.warn('Cannot snooze: duration is empty');
         return;
       }
-      captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CONFIRMED, { email_id: emailId, snooze_input_length: duration.length });
+      captureEvent(ANALYTICS_EVENTS.EMAIL_SNOOZE_CONFIRMED, {
+        email_id: emailId,
+        snooze_input_length: duration.length,
+      });
       const visibleEmails = emails.filter(email => !email.isArchived);
       const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
       snoozeInput.clearSnooze(emailId);

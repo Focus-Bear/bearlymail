@@ -12,6 +12,7 @@ the modal has no way to fetch or display the actual project column statuses
 ## Root Cause
 
 `GitHubProject.tsx` — pencil click:
+
 ```tsx
 <GitHubUpdateStatusModal
   issueInfo={issueInfo}   // only owner/repo/number — no project context
@@ -21,12 +22,14 @@ the modal has no way to fetch or display the actual project column statuses
 ```
 
 `GitHubUpdateStatusModal` — only ever shows open/closed:
+
 ```tsx
-const [state, setState] = useState<'open' | 'closed'>('closed');
+const [state, setState] = useState<"open" | "closed">("closed");
 // uses StatusSelector which hardcodes Open/Closed radio buttons
 ```
 
 `StatusSelector` — hardcoded to issue states:
+
 ```tsx
 // GITHUB_STATE_OPEN / GITHUB_STATE_CLOSED only — no dynamic options
 ```
@@ -60,23 +63,23 @@ Add a new GraphQL query and method `getProjectStatusOptions`.
 **New GraphQL query** (fetches project item IDs + status field options):
 
 ```graphql
-query($owner: String!, $repo: String!, $issueNumber: Int!) {
+query ($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       projectItems(first: 20) {
         nodes {
-          id                    # ProjectV2Item id (itemId)
+          id # ProjectV2Item id (itemId)
           project {
             ... on ProjectV2 {
-              id                # projectId
+              id # projectId
               title
               fields(first: 20) {
                 nodes {
                   ... on ProjectV2SingleSelectField {
-                    id          # fieldId
+                    id # fieldId
                     name
                     options {
-                      id        # singleSelectOptionId
+                      id # singleSelectOptionId
                       name
                       color
                     }
@@ -93,6 +96,7 @@ query($owner: String!, $repo: String!, $issueNumber: Int!) {
 ```
 
 **New method signature**:
+
 ```typescript
 async getProjectStatusOptions(
   token: string,
@@ -109,6 +113,7 @@ async getProjectStatusOptions(
 ```
 
 Logic:
+
 - Execute the new GraphQL query
 - Find the `projectItems.nodes` entry whose `project.title === projectName`
 - Within that project's `fields.nodes`, find the field named `"Status"` (case-insensitive)
@@ -159,7 +164,7 @@ interface GitHubUpdateStatusModalProps {
     repo: string;
     number: number;
   };
-  projectName?: string;   // NEW — when set, shows project column options
+  projectName?: string; // NEW — when set, shows project column options
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -168,9 +173,11 @@ interface GitHubUpdateStatusModalProps {
 **When `projectName` is defined**, the modal should:
 
 1. On mount (useEffect on `[issueInfo, projectName]`), call:
+
    ```
    GET /github/project-status-options?owner=...&repo=...&issueNumber=...&projectName=...
    ```
+
    and store the result (`projectStatusData` with `{projectId, itemId, fieldId, options}`).
 
 2. Show a loading spinner while fetching options.
@@ -181,9 +188,11 @@ interface GitHubUpdateStatusModalProps {
    instead of the current `update-status` endpoint.
 
 **When `projectName` is NOT defined** (backwards compat — for the action button flow):
+
 - Keep existing behaviour: show Open/Closed selector, call `update-status` endpoint.
 
 **State additions:**
+
 ```typescript
 const [projectStatusData, setProjectStatusData] = useState<{
   projectId: string;
@@ -191,7 +200,7 @@ const [projectStatusData, setProjectStatusData] = useState<{
   fieldId: string;
   options: Array<{ id: string; name: string; color: string }>;
 } | null>(null);
-const [selectedOptionId, setSelectedOptionId] = useState<string>('');
+const [selectedOptionId, setSelectedOptionId] = useState<string>("");
 const [fetchingOptions, setFetchingOptions] = useState(false);
 ```
 
@@ -213,7 +222,9 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
   options,
   selectedId,
   onSelect,
-}) => { /* renders radio list of options by name, with color dot */ }
+}) => {
+  /* renders radio list of options by name, with color dot */
+};
 ```
 
 - Renders each option as a radio button with its name (and optional colour indicator).
@@ -224,6 +235,7 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
 Pass the clicked project's name into the modal:
 
 **Before:**
+
 ```tsx
 <GitHubUpdateStatusModal
   issueInfo={issueInfo}
@@ -233,6 +245,7 @@ Pass the clicked project's name into the modal:
 ```
 
 **After:**
+
 ```tsx
 <GitHubUpdateStatusModal
   issueInfo={issueInfo}
@@ -248,24 +261,29 @@ so this requires no additional state.
 ---
 
 ## Files to Create
+
 - `client/src/components/quick-actions/modals/github/ProjectStatusSelector.tsx`
 
 ## Files to Modify
+
 - `server/src/github/github-api.service.ts` — add `getProjectStatusOptions` method + GraphQL query
 - `server/src/github/github.controller.ts` — add `GET /github/project-status-options`
 - `client/src/components/quick-actions/modals/GitHubUpdateStatusModal.tsx` — accept `projectName`, fetch options, render `ProjectStatusSelector`
 - `client/src/components/github/GitHubProject.tsx` — pass `projectName={editingProject}` to modal
 
 ## Files to Delete
+
 - None (keep `StatusSelector.tsx` — it is still used by the non-project update-status flow)
 
 ## Dependencies
+
 - **Blocked by**: Nothing — can implement standalone.
 - **Related**: #1099 adds the `POST /suggested-actions/github/update-project-status` endpoint
   that the updated modal will call when saving. Implement #1098 first to establish the data
   model; implement #1099 to complete the save path.
 
 ## Tests
+
 - Unit test `getProjectStatusOptions`: returns correct shape when project name matches; returns null when project not found; returns null when Status field not found.
 - Unit test `ProjectStatusSelector`: renders all options; fires onSelect with the correct option id.
 - E2E (optional): clicking pencil on a project badge shows project column names, not Open/Closed.

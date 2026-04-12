@@ -20,7 +20,7 @@ const emailCount = count !== undefined ? count : emails.length;
 
 The `count` prop is `categoryItem.count` (the server summary count) when the accordion is **not
 loaded**, and falls back to `emails.length` (local Redux state) once loaded. So the button is
-shown based on the *summary count* even when the category emails have never been fetched.
+shown based on the _summary count_ even when the category emails have never been fetched.
 
 ### What Happens When the Accordion Is NOT Expanded
 
@@ -31,7 +31,7 @@ fires:
 const handleConfirmArchive = useCallback(async () => {
   setShowArchiveConfirmation(false);
   if (onArchiveAll) {
-    await onArchiveAll(category, emailIds);  // emailIds = emails.map(e => e.id)
+    await onArchiveAll(category, emailIds); // emailIds = emails.map(e => e.id)
     onToggle();
     onAfterCollapse?.();
   }
@@ -46,19 +46,24 @@ This empty `[]` array bubbles up to `handleArchiveAll` in `InboxCategoryItem`:
 const handleArchiveAll = async (catName: string, ids: string[]) => {
   if (!onBulkArchive) return;
   if (ids && ids.length > 0) {
-    await onBulkArchive(ids);  // ← skipped! ids is empty
+    await onBulkArchive(ids); // ← skipped! ids is empty
     return;
   }
   try {
     // fallback: fetch emails from the API then archive
     const response = await axios.get(`${API_URL}/emails/inbox?...`);
     const fetchedEmails = response.data?.emails || [];
-    const fetchedIds = fetchedEmails.map((email: any) => email.id).filter(Boolean);
+    const fetchedIds = fetchedEmails
+      .map((email: any) => email.id)
+      .filter(Boolean);
     if (fetchedIds.length > 0) {
       await onBulkArchive(fetchedIds);
     }
   } catch (err) {
-    console.error('[InboxContent] Failed to load category emails for archive:', err);
+    console.error(
+      "[InboxContent] Failed to load category emails for archive:",
+      err,
+    );
   }
 };
 ```
@@ -105,15 +110,17 @@ In `InboxCategoryList` (inside `InboxContentParts.tsx`), each category is filter
 
 ```tsx
 if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-  return null;  // hidden
+  return null; // hidden
 }
 ```
 
 Two conditions must BOTH be true:
+
 1. `isLoaded` — the category has been fetched at least once
 2. `categoryItem.count === 0` — the server summary count is zero
 
 The collapsed archive path:
+
 - **Never calls `markCategoryLoaded`** for this category (no fetch was done via the accordion
   expand flow), so `isLoaded` remains `false`
 - **Never decrements `categorySummary[x].count`** (because `collectArchiveTargets` found no
@@ -129,9 +136,9 @@ collapsed accordion is a no-op (toggle closes an already-closed state), and neit
 
 ### Summary of the Ghost
 
-| Condition for hiding | Collapsed-archive path |
-|---|---|
-| `isLoaded === true` | ❌ never loaded → stays `false` |
+| Condition for hiding       | Collapsed-archive path                 |
+| -------------------------- | -------------------------------------- |
+| `isLoaded === true`        | ❌ never loaded → stays `false`        |
 | `categoryItem.count === 0` | ❌ count not decremented → stays `> 0` |
 
 Both must be true to hide. Neither is satisfied → ghost.
@@ -162,7 +169,12 @@ if (fetchedIds.length > 0) {
   await onBulkArchive(fetchedIds);
   // NEW: mark as loaded + decrement summary so the ghost disappears
   dispatch(markCategoryLoaded(categoryKey));
-  dispatch(decrementCategorySummaryCount({ categoryName: categoryItem.name, count: fetchedIds.length }));
+  dispatch(
+    decrementCategorySummaryCount({
+      categoryName: categoryItem.name,
+      count: fetchedIds.length,
+    }),
+  );
 }
 ```
 
@@ -171,6 +183,7 @@ if (fetchedIds.length > 0) {
 already imported in sibling hooks; add them to the imports in `InboxContentParts.tsx`.
 
 This satisfies both guard conditions:
+
 - `isLoaded === true` → `return null` can fire
 - `categoryItem.count === 0` → the badge shows 0 and the hide logic removes it
 
@@ -185,6 +198,7 @@ Less preferred because it bypasses the normal count-based optimistic update patt
 ### Option C — Expand then archive (avoid the collapsed path entirely)
 
 Force-expand the category before archiving. Reject this approach because:
+
 - It causes an unwanted visible expand → fetch → collapse UX flash
 - It is slower (requires a round-trip before archiving)
 - It defeats the purpose of "archive without expanding"
@@ -193,11 +207,11 @@ Force-expand the category before archiving. Reject this approach because:
 
 ## Affected Files
 
-| File | Change |
-|---|---|
+| File                                                | Change                                                                                                                 |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `client/src/components/inbox/InboxContentParts.tsx` | `InboxCategoryItem.handleArchiveAll` fallback branch — dispatch `markCategoryLoaded` + `decrementCategorySummaryCount` |
-| `client/src/store/slices/emailSlice.ts` | No change required |
-| `client/src/hooks/useBulkEmailActions.ts` | No change required |
+| `client/src/store/slices/emailSlice.ts`             | No change required                                                                                                     |
+| `client/src/hooks/useBulkEmailActions.ts`           | No change required                                                                                                     |
 
 ---
 

@@ -36,7 +36,10 @@ async function getSecret(secretName: string): Promise<Record<string, string>> {
   }
 
   const parsed = JSON.parse(response.SecretString) as Record<string, string>;
-  secretCache.set(secretName, { value: parsed, expiresAt: now + SECRET_CACHE_TTL_MS });
+  secretCache.set(secretName, {
+    value: parsed,
+    expiresAt: now + SECRET_CACHE_TTL_MS,
+  });
   return parsed;
 }
 
@@ -65,9 +68,13 @@ export function resolveLlmProvider(secrets: LlmSecrets): string {
 }
 
 const DB_SECRET_NAME =
-  process.env.DB_SECRET_ARN || process.env.DB_SECRET_NAME || "bearlymail/lambda/db";
+  process.env.DB_SECRET_ARN ||
+  process.env.DB_SECRET_NAME ||
+  "bearlymail/lambda/db";
 const LLM_SECRET_NAME =
-  process.env.APP_SECRET_ARN || process.env.LLM_SECRET_NAME || "bearlymail/lambda/llm";
+  process.env.APP_SECRET_ARN ||
+  process.env.LLM_SECRET_NAME ||
+  "bearlymail/lambda/llm";
 
 export async function getDbSecrets(): Promise<DbSecrets> {
   const raw = await getSecret(DB_SECRET_NAME);

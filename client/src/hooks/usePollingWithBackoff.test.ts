@@ -19,11 +19,7 @@ import {
   RETRY_AFTER_MIN_MS,
 } from 'constants/numbers';
 
-import {
-  computeBackoffDelay,
-  parseRetryAfterMs,
-  usePollingWithBackoff,
-} from './usePollingWithBackoff';
+import { computeBackoffDelay, parseRetryAfterMs, usePollingWithBackoff } from './usePollingWithBackoff';
 
 describe('computeBackoffDelay', () => {
   it('should return a positive value for retry 0', () => {

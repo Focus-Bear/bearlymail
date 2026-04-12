@@ -28,19 +28,20 @@ Multiple UI areas across BearlyMail use font sizes that are too small for comfor
 
 The theme (`client/src/theme/theme.ts`) defines a typography scale where:
 
-| Token | Current Size | Usage Count (approx) |
-|-------|-------------|---------------------|
-| `fontSize.xs` | 0.5rem (8px) | ~100 components |
-| `fontSize.sm` | 0.625rem (10px) | ~130 components |
-| `fontSize.md` | 0.75rem (12px) | Used as `body.medium` |
-| `fontSize.lg` | 0.875rem (14px) | Used as `body.large` |
-| `fontSize.base` | 1rem (16px) | Used as `body.xLarge` |
+| Token           | Current Size    | Usage Count (approx)  |
+| --------------- | --------------- | --------------------- |
+| `fontSize.xs`   | 0.5rem (8px)    | ~100 components       |
+| `fontSize.sm`   | 0.625rem (10px) | ~130 components       |
+| `fontSize.md`   | 0.75rem (12px)  | Used as `body.medium` |
+| `fontSize.lg`   | 0.875rem (14px) | Used as `body.large`  |
+| `fontSize.base` | 1rem (16px)     | Used as `body.xLarge` |
 
 The problem: 8px and 10px text is simply too small. Industry standards (WCAG, Apple HIG, Material Design) recommend **12px as the absolute minimum** for body text, with 14px preferred for secondary text.
 
 ### Why Not Just Bump the Theme Tokens?
 
 Changing `fontSize.xs` from 8px → 12px and `fontSize.sm` from 10px → 14px in the theme would fix all ~230 components at once, BUT:
+
 1. Some uses of `xs`/`sm` are intentional (debug panels, admin-only views, tooltips)
 2. A global bump could break layouts where tight spacing was designed around small text
 3. The `body` scale aliases would become confusing (body.medium = 12px = the new xs?)
@@ -118,87 +119,108 @@ The footer text (email address, "Log Out" button, attribution) should be at leas
 #### 2C. Email Card — AI descriptions, priority labels, timestamps
 
 **File:** `client/src/components/inbox/EmailCard.tsx`
+
 - Line 80: `fontSize.xs` → `fontSize.sm` (12px)
 
 **File:** `client/src/components/inbox/email-card/EmailTimestamp.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px)
 
 **File:** `client/src/components/inbox/email-card/PriorityBadge.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px)
 
 **File:** `client/src/components/inbox/email-card/EmailCardActions.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px) — "Archive" / "Block sender" links
 
 **File:** `client/src/components/inbox/email-card/EmailLabels.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px) — tag pills
 
 **File:** `client/src/components/inbox/email-card/UrgencyBadge.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px)
 
 **File:** `client/src/components/inbox/EmailPreview.tsx`
+
 - Line 25: `fontSize.sm` → `fontSize.lg` (14px) — email preview text should be scannable
 - Line 117: `fontSize.xs` → `fontSize.sm` (12px)
 
 #### 2D. Email Actions Row — priority suggestions, action links
 
 **File:** `client/src/components/inbox/EmailActionsRow.tsx`
+
 - Lines 51, 60, 102, 128, 209, 298: `fontSize.xs` → `fontSize.sm` (12px) — all action text
 
 #### 2E. Batch Info Bar — "Next batch", "Last checked" status
 
 **File:** `client/src/components/inbox/BatchInfoBar.tsx`
+
 - Line 49: `fontSize.xs` → `fontSize.sm` (12px)
 - Line 75: `fontSize.sm` → `fontSize.lg` (14px) — "Re-analyse categories" / "Archive All" buttons
 
 #### 2F. Category Accordion — button text, counts
 
 **File:** `client/src/components/inbox/CategoryAccordion.tsx`
+
 - Lines 77, 162, 178, 259, 297: `fontSize.sm` → `fontSize.lg` (14px) — "Re-analyse categories" / "Archive All" action buttons
 - Line 140: `fontSize.lg` — already fine
 
 #### 2G. Email Detail Panel — priority buttons, labels, thread info
 
 **File:** `client/src/components/email-detail/PriorityButtonRow.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px) — "PRIORITIZE" label and button text
 
 **File:** `client/src/components/email-detail/EmailDetailHeaderView.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px) — header metadata
 
 **File:** `client/src/components/email-detail/SchedulingRequestCard.tsx`
+
 - All `fontSize.sm` → `fontSize.lg` (14px) — description text
 
 **File:** `client/src/components/email-detail-inline/PrivateNotesSection.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px) — placeholder and note text
 
 #### 2H. Search Results — helper text, relevance badges, previews
 
 **File:** `client/src/components/search/SearchForm.tsx`
+
 - Line 62: `fontSize.sm` → `fontSize.lg` (14px) — helper text below search bar
 
 **File:** `client/src/components/search/SearchResults.tsx`
+
 - Line 84: `fontSize.sm` → `fontSize.lg` (14px) — "Found X emails"
 - Lines 128, 297, 318, 335, 371: `fontSize.xs` → `fontSize.sm` (12px) — timestamps, relevance badges
 - Line 180: `fontSize.sm` → `fontSize.lg` (14px) — email preview text
 - Line 355: `fontSize.sm` → `fontSize.lg` (14px) — result text
 
 **File:** `client/src/components/search/SearchHeader.tsx`
+
 - All `fontSize.xs` → `fontSize.sm` (12px)
 
 #### 2I. Settings — Tone Checker, Scheduling Preferences
 
 **File:** `client/src/components/settings/guide-ai/ToneSettingsSection.tsx`
+
 - Line 44: `fontSize.sm` → `fontSize.lg` (14px) — description text
 - Line 155: `fontSize.sm` → `fontSize.lg` (14px) — input label
 
 **File:** `client/src/components/settings/SchedulingPreferencesSection.tsx`
+
 - All `fontSize.sm` → `fontSize.lg` (14px) — section is noted as smaller than siblings
 
 #### 2J. Inbox Header / Filters
 
 **File:** `client/src/components/inbox/InboxHeader.tsx`
+
 - `fontSize.xs` → `fontSize.sm` (12px) — filter metadata
 
 **File:** `client/src/components/inbox/InboxFilters.tsx`
+
 - `fontSize.sm` → `fontSize.lg` (14px) — filter labels, dropdown text
 
 ### Phase 3: Exclude Admin/Debug Components
@@ -208,6 +230,7 @@ Components in `client/src/components/admin/` and debug panels should NOT be chan
 ### Phase 4: Visual Regression Check
 
 After all changes, visually check:
+
 - [ ] Email card layout doesn't overflow with larger text
 - [ ] Category accordion still fits action buttons on one line
 - [ ] Search results cards maintain alignment
@@ -220,14 +243,17 @@ After all changes, visually check:
 ## Testing Strategy
 
 ### Unit Tests
+
 - Existing Storybook stories (if present) should be visually reviewed
 - No logic changes — this is purely visual
 
 ### Visual Regression
+
 - Screenshot comparison of key pages: Inbox, Search, Settings, Onboarding
 - Check at common viewport widths: 1280px, 1440px, 1920px
 
 ### Manual QA Checklist
+
 - [ ] Onboarding "What we're learning" card — text readable at arm's length
 - [ ] Email cards in triage — all text elements ≥ 12px
 - [ ] "Re-analyse categories" / "Archive All" buttons — clearly readable
@@ -241,12 +267,12 @@ After all changes, visually check:
 
 ## Risk Assessment
 
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| Layout overflow from larger text | Medium | Phase 4 visual check; use `text-overflow: ellipsis` where needed |
-| Breaking admin panel density | Low | Admin components excluded from Phase 2; Phase 1 bump is modest (8→11px) |
-| Missing a component | Low | Phase 1 global bump catches any missed components at minimum |
-| Theme token confusion | Low | Add comments to theme.ts explaining the scale rationale |
+| Risk                             | Severity | Mitigation                                                              |
+| -------------------------------- | -------- | ----------------------------------------------------------------------- |
+| Layout overflow from larger text | Medium   | Phase 4 visual check; use `text-overflow: ellipsis` where needed        |
+| Breaking admin panel density     | Low      | Admin components excluded from Phase 2; Phase 1 bump is modest (8→11px) |
+| Missing a component              | Low      | Phase 1 global bump catches any missed components at minimum            |
+| Theme token confusion            | Low      | Add comments to theme.ts explaining the scale rationale                 |
 
 ---
 

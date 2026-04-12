@@ -19,13 +19,13 @@ Two utility functions in `client/src/utils/emailBodyUtils.ts` actively strip for
 
 ### Where truncated content is rendered
 
-| Component | File | How body is processed |
-|-----------|------|-----------------------|
-| **EmailThreadView** (single email, no thread) | `EmailThreadView.tsx` line 175 | `sanitizeAndProcessHtml(extractCleanHtmlBody(htmlBody))` — **strips forwarded content** |
-| **EmailThreadView** (thread items, expanded) | `EmailThreadView.tsx` line 138 | Same: `sanitizeAndProcessHtml(extractCleanHtmlBody(rawHtmlBody))` — **strips forwarded content** |
-| **EmailThreadView** (thread items, collapsed preview) | `EmailThreadView.tsx` line 150 | `cleanBody.substring(0, 100)` — uses `extractCleanBody` which also strips |
-| **EmailDetailBody** | `EmailDetailBody.tsx` | `sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody, true)))` — **strips forwarded content** (but this component is NOT currently used in the main flow) |
-| **ThreadItemBody** | `ThreadItemBody.tsx` | `sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))` — **strips forwarded content** |
+| Component                                             | File                           | How body is processed                                                                                                                                                      |
+| ----------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **EmailThreadView** (single email, no thread)         | `EmailThreadView.tsx` line 175 | `sanitizeAndProcessHtml(extractCleanHtmlBody(htmlBody))` — **strips forwarded content**                                                                                    |
+| **EmailThreadView** (thread items, expanded)          | `EmailThreadView.tsx` line 138 | Same: `sanitizeAndProcessHtml(extractCleanHtmlBody(rawHtmlBody))` — **strips forwarded content**                                                                           |
+| **EmailThreadView** (thread items, collapsed preview) | `EmailThreadView.tsx` line 150 | `cleanBody.substring(0, 100)` — uses `extractCleanBody` which also strips                                                                                                  |
+| **EmailDetailBody**                                   | `EmailDetailBody.tsx`          | `sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody, true)))` — **strips forwarded content** (but this component is NOT currently used in the main flow) |
+| **ThreadItemBody**                                    | `ThreadItemBody.tsx`           | `sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))` — **strips forwarded content**                                                                   |
 
 ### Key insight
 
@@ -49,7 +49,9 @@ interface CleanHtmlResult {
   wasTruncated: boolean;
 }
 
-export function extractCleanHtmlBodyWithMeta(htmlBody: string): CleanHtmlResult {
+export function extractCleanHtmlBodyWithMeta(
+  htmlBody: string,
+): CleanHtmlResult {
   // ... same logic as extractCleanHtmlBody ...
   // Return { html: truncatedHtml, wasTruncated: cutoffIndex < textContent.length }
 }
@@ -79,19 +81,22 @@ For both the single-email view and individual thread items:
 // Pseudocode for the expand toggle
 const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
 
-const { html: cleanHtml, wasTruncated } = extractCleanHtmlBodyWithMeta(rawHtmlBody);
+const { html: cleanHtml, wasTruncated } =
+  extractCleanHtmlBodyWithMeta(rawHtmlBody);
 const isBodyExpanded = expandedBodies.has(threadEmail.id);
 const displayHtml = isBodyExpanded
   ? sanitizeAndProcessHtml(rawHtmlBody)
   : sanitizeAndProcessHtml(cleanHtml);
 
 // After the EmailBodyIframe:
-{wasTruncated && (
-  <ExpandCollapseButton
-    isExpanded={isBodyExpanded}
-    onToggle={() => toggleExpandedBody(threadEmail.id)}
-  />
-)}
+{
+  wasTruncated && (
+    <ExpandCollapseButton
+      isExpanded={isBodyExpanded}
+      onToggle={() => toggleExpandedBody(threadEmail.id)}
+    />
+  );
+}
 ```
 
 ### Step 3: Create ExpandCollapseButton component
@@ -115,6 +120,7 @@ Currently uses `extractCleanHtmlBody` inline. Update to use the `WithMeta` varia
 ### Step 5: i18n
 
 Add translation keys:
+
 - `emailDetail.showFullMessage` → "Show full message"
 - `emailDetail.hideQuotedContent` → "Hide quoted content"
 

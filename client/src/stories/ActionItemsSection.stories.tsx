@@ -7,10 +7,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react';
 
-import {
-  ActionItem,
-  ActionItemsDemo,
-} from './storyHelpers/ActionItemsDemo';
+import { ActionItem, ActionItemsDemo } from './storyHelpers/ActionItemsDemo';
 
 const SAMPLE: ActionItem[] = [
   { id: '1', description: 'Confirm catering arrangements by Thursday', isCompleted: false, source: 'llm' },

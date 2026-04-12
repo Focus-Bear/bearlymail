@@ -9,6 +9,7 @@ The current `phishing-detection.service.ts` uses pure keyword + domain heuristic
 The email is **already being sent to an LLM for summarisation**. Rather than a separate LLM call for phishing, we extend the summarisation prompt to **always include phishing analysis**. Keyword heuristic findings are passed as context signals to help the LLM reason better — but the LLM always makes the final call, regardless of keyword score.
 
 Flow:
+
 ```
 Incoming email
     │
@@ -44,8 +45,8 @@ export interface PhishingSignals {
   hasDomainMismatch: boolean;
   senderDomain: string | null;
   linkedDomains: string[];
-  suspiciousKeywords: string[];    // which keywords triggered, not just a score
-  rawScore: number;                // retained for logging/debugging only, NOT used as gate
+  suspiciousKeywords: string[]; // which keywords triggered, not just a score
+  rawScore: number; // retained for logging/debugging only, NOT used as gate
 }
 
 // NEW export — returns structured signals for LLM context injection
@@ -55,9 +56,11 @@ export function extractPhishingSignals(
 ): PhishingSignals {
   const senderDomain = extractSenderDomain(from);
   const bodyDomains = extractBodyDomains(body);
-  const keywords = extractSuspiciousKeywords(body);  // returns matched keyword list
+  const keywords = extractSuspiciousKeywords(body); // returns matched keyword list
   return {
-    hasDomainMismatch: senderDomain ? hasDomainMismatch(senderDomain, bodyDomains) : false,
+    hasDomainMismatch: senderDomain
+      ? hasDomainMismatch(senderDomain, bodyDomains)
+      : false,
     senderDomain,
     linkedDomains: bodyDomains,
     suspiciousKeywords: keywords,
@@ -81,11 +84,12 @@ PHISHING ANALYSIS (always required):
 
 Return a JSON object (no markdown fences) with exactly these fields:
 {
-  "summary": "<your normal TL;DR here>",
-  "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>
+"summary": "<your normal TL;DR here>",
+"phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>
 }
 
 When evaluating phishing, consider:
+
 - Does the sender domain match the domains linked in the body?
 - Is the email pressuring urgent account action (verify/suspend/locked)?
 - Are there credential harvesting phrases?
@@ -95,6 +99,7 @@ If you are uncertain, set is_phishing to false and confidence to low.
 
 {% if phishingSignals %}
 Keyword analysis context (use as signals, not as a verdict):
+
 - Sender domain: {{ phishingSignals.senderDomain }}
 - Domains linked in body: {{ phishingSignals.linkedDomains | join(', ') }}
 - Domain mismatch detected: {{ phishingSignals.hasDomainMismatch }}
@@ -105,6 +110,7 @@ Note: Many legitimate marketing emails (Mailchimp, SendGrid) send from a differe
 ```
 
 Affected files:
+
 - `server/promptfoo/prompts/summarize-email-tldr.md`
 - `server/promptfoo/prompts/summarize-email-bullets.md`
 - `server/promptfoo/prompts/summarize-email-actions.md`
@@ -136,10 +142,12 @@ Add a new operation constant for token usage tracking:
 
 ```typescript
 // Summarize email + phishing check piggybacked (single email)
-export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING = "summarize_email_with_phishing_check";
+export const LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING =
+  "summarize_email_with_phishing_check";
 ```
 
 Add it to the `LLM_OPERATION_NAMES` map too:
+
 ```typescript
 [LLM_OP_SUMMARIZE_EMAIL_WITH_PHISHING]: "Summarize Email + Phishing Check",
 ```
@@ -233,6 +241,7 @@ Also extend `summarizeThreads` to accept `batchPhishingSignals?: PhishingSignals
 #### New types
 
 Add to `phishing-detection.service.ts`:
+
 ```typescript
 export interface PhishingLLMResult {
   is_phishing: boolean;
@@ -316,6 +325,7 @@ async summarizeEmailWithPhishing(userId, emailId, rule, prefetchedEmail) {
 ```
 
 **Add cache fields to the class:**
+
 ```typescript
 private readonly phishingCache = new Map<
   string,
@@ -328,6 +338,7 @@ private buildPhishingCacheKey(from: string | undefined, subject: string | undefi
 ```
 
 **`summarizeThreadBatch` (batch path)**:
+
 - Call `extractPhishingSignals` for each thread's latest email during `prepareThreadDataEntry`
 - Collect as `batchPhishingSignals: PhishingSignals[]` (one per email, always)
 - Pass `batchPhishingSignals` to `this.llmService.summarizeThreads(batchData, ..., batchPhishingSignals)`
@@ -360,6 +371,7 @@ phishing-detection.service.ts:
 ## Caching
 
 A simple in-memory `Map` on `SummarizationService` is sufficient for now:
+
 - **Key**: `from (40 chars) + "::" + subject (40 chars)` — cheap, no hashing library needed
 - **TTL**: 1 hour — same sender+subject in a short window reuses the LLM result
 - **No persistence**: Cache is process-scoped; restarts clear it (acceptable)
@@ -371,13 +383,13 @@ No Redis/external cache needed at this stage.
 
 ## Graceful Degradation
 
-| Failure Mode | Behaviour |
-|---|---|
-| LLM call throws | Falls back to `generateLLMSummary` for summary; uses keyword `detectPhishingSignal` for phishing |
-| LLM returns invalid JSON | `parseSummaryWithPhishing` returns `{ summary: rawResponse, phishing: null }`; keyword signal used |
-| LLM returns `phishing: null` | Keyword signal used as fallback |
-| LLM says `is_phishing: false` | Keyword signal suppressed (LLM wins — this is the false-positive fix) |
-| LLM says `is_phishing: true` | LLM signal returned with LLM's confidence + reason |
+| Failure Mode                  | Behaviour                                                                                          |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| LLM call throws               | Falls back to `generateLLMSummary` for summary; uses keyword `detectPhishingSignal` for phishing   |
+| LLM returns invalid JSON      | `parseSummaryWithPhishing` returns `{ summary: rawResponse, phishing: null }`; keyword signal used |
+| LLM returns `phishing: null`  | Keyword signal used as fallback                                                                    |
+| LLM says `is_phishing: false` | Keyword signal suppressed (LLM wins — this is the false-positive fix)                              |
+| LLM says `is_phishing: true`  | LLM signal returned with LLM's confidence + reason                                                 |
 
 ---
 

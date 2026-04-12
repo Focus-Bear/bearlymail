@@ -67,7 +67,13 @@ const BookingCancelSuccess: React.FC<{ t: (key: string) => string }> = ({ t }) =
         maxWidth: `${MAX_WIDTH_500_PX}px`,
       }}
     >
-      <div style={{ color: theme.colors.accent.success, fontSize: theme.typography.fontSize['3xl'], marginBottom: theme.spacing.lg }}>
+      <div
+        style={{
+          color: theme.colors.accent.success,
+          fontSize: theme.typography.fontSize['3xl'],
+          marginBottom: theme.spacing.lg,
+        }}
+      >
         {EMOJI_CHECK}
       </div>
       <h1 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
@@ -96,7 +102,14 @@ const BookingCancelDetails: React.FC<BookingCancelDetailsProps> = ({ booking, t 
     <p style={{ margin: 0, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
       {t('booking.cancel.bookingDetails')}
     </p>
-    <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.lg }}>
+    <p
+      style={{
+        margin: `${theme.spacing.sm} 0 0`,
+        color: theme.colors.text.primary,
+        fontWeight: theme.typography.fontWeight.medium,
+        fontSize: theme.typography.fontSize.lg,
+      }}
+    >
       {new Date(booking.startTime).toLocaleDateString(undefined, {
         weekday: STRING_LONG,
         month: STRING_LONG,
@@ -110,9 +123,7 @@ const BookingCancelDetails: React.FC<BookingCancelDetailsProps> = ({ booking, t 
       {new Date(booking.endTime).toLocaleTimeString(undefined, { hour: STRING_2_DIGIT, minute: STRING_2_DIGIT })}
     </p>
     {booking.title && (
-      <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.text.secondary }}>
-        {booking.title}
-      </p>
+      <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.text.secondary }}>{booking.title}</p>
     )}
   </div>
 );
@@ -214,7 +225,9 @@ const BookingCancelPage: React.FC = () => {
           {booking && booking.status !== BOOKING_STATUS_CANCELLED && (
             <>
               <BookingCancelDetails booking={booking} t={t} />
-              <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg, textAlign: STRING_CENTER }}>
+              <p
+                style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg, textAlign: STRING_CENTER }}
+              >
                 {t('booking.cancel.confirmMessage')}
               </p>
               <button

@@ -50,7 +50,14 @@ const ContactNotesList: React.FC<ContactNotesListProps> = ({
   const submitDisabled = addingNote || !newNote.trim();
   return (
     <div style={sectionStyle}>
-      <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0, marginBottom: theme.spacing.md }}>
+      <h2
+        style={{
+          ...theme.typography.heading.h5,
+          color: theme.colors.text.primary,
+          margin: 0,
+          marginBottom: theme.spacing.md,
+        }}
+      >
         {t('contacts.notes')}
       </h2>
       <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
@@ -85,7 +92,14 @@ const ContactNotesList: React.FC<ContactNotesListProps> = ({
                 border: `1px solid ${theme.colors.border.light}`,
               }}
             >
-              <div style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, whiteSpace: 'pre-wrap', marginBottom: theme.spacing.xs }}>
+              <div
+                style={{
+                  color: theme.colors.text.primary,
+                  fontSize: theme.typography.fontSize.base,
+                  whiteSpace: 'pre-wrap',
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
                 {note.content}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -94,7 +108,12 @@ const ContactNotesList: React.FC<ContactNotesListProps> = ({
                 </span>
                 <button
                   onClick={() => onDeleteNote(note.id)}
-                  style={{ ...buttonSecondary, padding: `2px ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.error }}
+                  style={{
+                    ...buttonSecondary,
+                    padding: `2px ${theme.spacing.sm}`,
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.accent.error,
+                  }}
                 >
                   {t('contacts.delete')}
                 </button>
@@ -125,7 +144,9 @@ const ContactDealsList: React.FC<ContactDealsListProps> = ({
   t,
 }) => (
   <div style={sectionStyle}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+    <div
+      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}
+    >
       <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>
         {t('contacts.deals')}
       </h2>

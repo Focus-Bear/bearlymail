@@ -98,9 +98,7 @@ const MultiSelectOptionItem: React.FC<MultiSelectOptionItemProps> = ({ option, i
         accentColor: theme.colors.primary.main,
       }}
     />
-    <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>
-      {option.label}
-    </span>
+    <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>{option.label}</span>
   </label>
 );
 

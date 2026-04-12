@@ -16,9 +16,21 @@ jest.mock('utils/posthog', () => ({ captureEvent: jest.fn() }));
 jest.mock('axios');
 
 jest.mock('components/inbox/CategoryAccordion', () => ({
-  CategoryAccordion: ({ children, isExpanded, onToggle, count }: { children?: React.ReactNode; isExpanded: boolean; onToggle: () => void; count?: number }) => (
+  CategoryAccordion: ({
+    children,
+    isExpanded,
+    onToggle,
+    count,
+  }: {
+    children?: React.ReactNode;
+    isExpanded: boolean;
+    onToggle: () => void;
+    count?: number;
+  }) => (
     <div data-testid="category-accordion" data-expanded={String(isExpanded)} data-count={count}>
-      <button data-testid="toggle-btn" onClick={onToggle}>toggle</button>
+      <button data-testid="toggle-btn" onClick={onToggle}>
+        toggle
+      </button>
       {children}
     </div>
   ),

@@ -21,10 +21,7 @@ export interface ActionItemsDemoProps {
   loading?: boolean;
 }
 
-export const ActionItemsDemo: React.FC<ActionItemsDemoProps> = ({
-  initialItems = [],
-  loading = false,
-}) => {
+export const ActionItemsDemo: React.FC<ActionItemsDemoProps> = ({ initialItems = [], loading = false }) => {
   const [items, setItems] = useState(initialItems);
   const [newItem, setNewItem] = useState('');
 
@@ -33,12 +30,9 @@ export const ActionItemsDemo: React.FC<ActionItemsDemoProps> = ({
   const handleDelete = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
   const handleAdd = () => {
     if (!newItem.trim()) {
-return;
-}
-    setItems(prev => [
-      ...prev,
-      { id: `item-${Date.now()}`, description: newItem, isCompleted: false, source: 'user' },
-    ]);
+      return;
+    }
+    setItems(prev => [...prev, { id: `item-${Date.now()}`, description: newItem, isCompleted: false, source: 'user' }]);
     setNewItem('');
   };
 

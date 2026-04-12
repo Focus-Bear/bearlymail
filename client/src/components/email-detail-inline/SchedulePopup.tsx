@@ -92,13 +92,13 @@ export const SchedulePopup: React.FC<SchedulePopupProps> = ({ onSelectSuggestion
         {t('emailDetail.schedulePopup.title')}
       </div>
 
-      {suggestions.map((suggestion) => (
+      {suggestions.map(suggestion => (
         <button
           key={suggestion.labelKey}
           style={itemStyle}
           onClick={() => onSelectSuggestion(suggestion.date)}
-          onMouseEnter={(evt) => setHoverBg(evt, theme.colors.background.subtle)}
-          onMouseLeave={(evt) => setHoverBg(evt, COLOR_TRANSPARENT_BG)}
+          onMouseEnter={evt => setHoverBg(evt, theme.colors.background.subtle)}
+          onMouseLeave={evt => setHoverBg(evt, COLOR_TRANSPARENT_BG)}
         >
           <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
             {t(`emailDetail.schedulePopup.${suggestion.labelKey}`)}
@@ -112,12 +112,10 @@ export const SchedulePopup: React.FC<SchedulePopupProps> = ({ onSelectSuggestion
       <button
         style={{ ...itemStyle, borderBottom: 'none', color: theme.colors.primary.main }}
         onClick={onPickCustom}
-        onMouseEnter={(evt) => setHoverBg(evt, theme.colors.background.subtle)}
-        onMouseLeave={(evt) => setHoverBg(evt, COLOR_TRANSPARENT_BG)}
+        onMouseEnter={evt => setHoverBg(evt, theme.colors.background.subtle)}
+        onMouseLeave={evt => setHoverBg(evt, COLOR_TRANSPARENT_BG)}
       >
-        <span style={{ fontSize: theme.typography.fontSize.sm }}>
-          {t('emailDetail.schedulePopup.pickDateTime')}
-        </span>
+        <span style={{ fontSize: theme.typography.fontSize.sm }}>{t('emailDetail.schedulePopup.pickDateTime')}</span>
       </button>
     </div>
   );

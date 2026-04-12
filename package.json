@@ -16,7 +16,11 @@
     "db:reset": "docker-compose down -v && docker-compose up -d postgres",
     "db:psql": "docker-compose exec postgres psql -U postgres -d adhd_email_client"
   },
-  "keywords": ["email", "adhd", "productivity"],
+  "keywords": [
+    "email",
+    "adhd",
+    "productivity"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {

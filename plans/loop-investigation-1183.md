@@ -23,7 +23,7 @@ useEffect(() => {
     : `${basePath}/${mode}`;
   if (newPath !== lastUrlRef.current) {
     lastUrlRef.current = newPath;
-    navigate(newPath, { replace: true });          // <-- calls navigate
+    navigate(newPath, { replace: true }); // <-- calls navigate
   }
 }, [mode, splitViewSelectedEmailId, navigate, basePath]); // <-- navigate IS a dep
 ```
@@ -57,6 +57,7 @@ fills React's work queue and keeps the component tree re-rendering.
 ### Why PostHog amplifies it
 
 PostHog (enabled in production) has two listeners that fire on every navigation:
+
 - **`$pageview`** — fired automatically for every `navigate()` (via `capture_pageview: true`
   default config). Goes to `e/?ip=` endpoint.
 - **Session recorder (rrweb)** — records all DOM mutations. Each re-render of the inbox
@@ -85,7 +86,7 @@ effect body always has the latest `navigate` but the dep array only contains sta
 ```ts
 // Add this near the top of the hook body (after the refs):
 const navigateRef = useRef<ReturnType<typeof useNavigate>>(navigate);
-navigateRef.current = navigate;   // always up-to-date, no dep change
+navigateRef.current = navigate; // always up-to-date, no dep change
 
 // Replace Effect 2:
 useEffect(() => {
@@ -97,9 +98,9 @@ useEffect(() => {
     : `${basePath}/${mode}`;
   if (newPath !== lastUrlRef.current) {
     lastUrlRef.current = newPath;
-    navigateRef.current(newPath, { replace: true });  // read from ref
+    navigateRef.current(newPath, { replace: true }); // read from ref
   }
-}, [mode, splitViewSelectedEmailId, basePath]);         // navigate REMOVED
+}, [mode, splitViewSelectedEmailId, basePath]); // navigate REMOVED
 ```
 
 **Change 2 — Effect 1: prevent double-navigate on mount.**
@@ -107,7 +108,7 @@ useEffect(() => {
 Effect 1 fires when `!urlMode`, but Effect 2 will also fire on mount (since `mode` and
 `basePath` are in its deps). On mount, Effect 2 sees `lastUrlRef.current === pathname` (the
 pre-redirect URL). If Effect 1 already called `navigate`, Effect 2 also calls it for the
-same or equivalent path. Fix: initialize `lastUrlRef` to the *intended* initial path, or
+same or equivalent path. Fix: initialize `lastUrlRef` to the _intended_ initial path, or
 gate Effect 1's navigate on `lastUrlRef` not already matching the target.
 
 Simplest fix — in Effect 1, also update `lastUrlRef` before navigating:
@@ -123,7 +124,7 @@ useEffect(() => {
   }
   if (!urlMode) {
     const initialPath = `${basePath}/${mode}`;
-    lastUrlRef.current = initialPath;   // <-- add this line
+    lastUrlRef.current = initialPath; // <-- add this line
     navigate(initialPath, { replace: true });
   }
 }, []);

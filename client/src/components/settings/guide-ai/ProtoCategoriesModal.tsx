@@ -60,8 +60,18 @@ const ProtoCategoriesModalContent: React.FC<ProtoCategoriesModalContentProps> = 
 export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showError, showSuccess } = useNotifications();
-  const { categories, isLoading, promotingId, deletingId, savingNameId, draftNames, handlePromote, handleNameChange, handleSaveName, handleDelete } =
-    useProtoCategories(showSuccess, showError, t);
+  const {
+    categories,
+    isLoading,
+    promotingId,
+    deletingId,
+    savingNameId,
+    draftNames,
+    handlePromote,
+    handleNameChange,
+    handleSaveName,
+    handleDelete,
+  } = useProtoCategories(showSuccess, showError, t);
 
   return (
     <ProtoCategoriesModalContent

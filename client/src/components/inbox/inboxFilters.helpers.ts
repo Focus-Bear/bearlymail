@@ -17,7 +17,7 @@
 export function getMultiSelectDisplayText(
   selectedIds: string[],
   options: Array<{ id: string; label: string }>,
-  placeholder: string,
+  placeholder: string
 ): string {
   if (selectedIds.length === 0) {
     return placeholder;

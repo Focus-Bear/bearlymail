@@ -1,6 +1,6 @@
 # Plan: Consolidate EmailDetail / EmailDetailInline Duplicated Logic (Fixes #698)
 
-> 🗂️ *Planned by Monk of Modularity (AI agent)*  
+> 🗂️ _Planned by Monk of Modularity (AI agent)_  
 > Branch: `monk/698-consolidate-email-detail`  
 > Date: 2026-03-07
 
@@ -58,33 +58,33 @@ The codebase contains two parallel email-detail rendering paths that share signi
 
 ## 2. What's Duplicated
 
-| Feature | `EmailDetail` page | `EmailDetailInline` |
-|---|---|---|
-| Reply/Forward/Archive/Snooze button row | `EmailDetailActions` (rich) | `EmailActionButtons` (simpler copy) |
-| Priority buttons | `PriorityButtonRow` in `EmailDetailActions` | `PriorityButtonRow` in `EmailDetailContent.tsx` — **identical component, different file** |
-| Unsubscribe / Block sender button | `EmailDetailActions` | `EmailActionButtons` |
-| `handleDraftChange` logic (customDraftRef) | `EmailDetailContent` local fn | `useEmailDetailInlineHandlers` — **character-for-character identical** |
-| `handleReplyOptionSelect` logic (custom tab restore) | `EmailDetailContent` local fn | `useEmailDetailInlineHandlers` — **identical** |
-| `handleReplyClose` logic | `handleReplyClose` local fn | `handleReplyComposerClose` — **identical** |
-| PrivateNotesSection + ActionItemsSection | `EmailDetailNotesAndActions` | `EmailDetailContent` (inline) |
-| GitHubStatusSection | `EmailDetailContent` (conditional on `!compactMode`) | `EmailDetailContent` inline |
-| CRMDealsSection | `EmailDetailContent` (conditional) | `EmailDetailContent` inline |
-| Thread list + body rendering | `EmailThreadView` | `EmailThreadList` + `EmailDetailBody` |
-| Loading / not-found states | Inline in `EmailDetail` | `LoadingSpinner` + `EmailNotFound` components |
+| Feature                                              | `EmailDetail` page                                   | `EmailDetailInline`                                                                       |
+| ---------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Reply/Forward/Archive/Snooze button row              | `EmailDetailActions` (rich)                          | `EmailActionButtons` (simpler copy)                                                       |
+| Priority buttons                                     | `PriorityButtonRow` in `EmailDetailActions`          | `PriorityButtonRow` in `EmailDetailContent.tsx` — **identical component, different file** |
+| Unsubscribe / Block sender button                    | `EmailDetailActions`                                 | `EmailActionButtons`                                                                      |
+| `handleDraftChange` logic (customDraftRef)           | `EmailDetailContent` local fn                        | `useEmailDetailInlineHandlers` — **character-for-character identical**                    |
+| `handleReplyOptionSelect` logic (custom tab restore) | `EmailDetailContent` local fn                        | `useEmailDetailInlineHandlers` — **identical**                                            |
+| `handleReplyClose` logic                             | `handleReplyClose` local fn                          | `handleReplyComposerClose` — **identical**                                                |
+| PrivateNotesSection + ActionItemsSection             | `EmailDetailNotesAndActions`                         | `EmailDetailContent` (inline)                                                             |
+| GitHubStatusSection                                  | `EmailDetailContent` (conditional on `!compactMode`) | `EmailDetailContent` inline                                                               |
+| CRMDealsSection                                      | `EmailDetailContent` (conditional)                   | `EmailDetailContent` inline                                                               |
+| Thread list + body rendering                         | `EmailThreadView`                                    | `EmailThreadList` + `EmailDetailBody`                                                     |
+| Loading / not-found states                           | Inline in `EmailDetail`                              | `LoadingSpinner` + `EmailNotFound` components                                             |
 
 ### Key Differences (Must Preserve)
 
-| Aspect | `EmailDetail` page only | `EmailDetailInline` only |
-|---|---|---|
-| Routing | `useParams` for email ID | Prop-based `emailId` |
-| Sidebar | `EmailDetailSidebar` | None |
-| Animation | `EmailDetailAnimationOverlay` | None |
-| External control | `forwardRef` / `useImperativeHandle` | None |
-| Summary section | `SummarySection` with AI + custom rules | None |
-| Action richness | Quick actions menu, calendar invite responses, scheduling request card | Simpler reply/forward/archive/snooze only |
-| Hook architecture | 5 specialized hooks (state, ops, init, draft sync, time picker) | 1 composed hook (`useEmailDetailInline`) |
-| Time picker wiring | `useEmailDetailTimePicker` | `useTimePickerHandlers` + `useScheduledEmails` |
-| Snooze | Via `useEmailDetailOperations` | Via inline `SnoozeInputForm` |
+| Aspect             | `EmailDetail` page only                                                | `EmailDetailInline` only                       |
+| ------------------ | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| Routing            | `useParams` for email ID                                               | Prop-based `emailId`                           |
+| Sidebar            | `EmailDetailSidebar`                                                   | None                                           |
+| Animation          | `EmailDetailAnimationOverlay`                                          | None                                           |
+| External control   | `forwardRef` / `useImperativeHandle`                                   | None                                           |
+| Summary section    | `SummarySection` with AI + custom rules                                | None                                           |
+| Action richness    | Quick actions menu, calendar invite responses, scheduling request card | Simpler reply/forward/archive/snooze only      |
+| Hook architecture  | 5 specialized hooks (state, ops, init, draft sync, time picker)        | 1 composed hook (`useEmailDetailInline`)       |
+| Time picker wiring | `useEmailDetailTimePicker`                                             | `useTimePickerHandlers` + `useScheduledEmails` |
+| Snooze             | Via `useEmailDetailOperations`                                         | Via inline `SnoozeInputForm`                   |
 
 ---
 
@@ -97,6 +97,7 @@ Rather than forcing a single monolithic component, the plan targets three surgic
 ### 3a. Extract `useEmailDetailDraftHandlers` (Immediate Win — Zero Risk)
 
 Create `hooks/useEmailDetailDraftHandlers.ts` that exports:
+
 ```ts
 export function useEmailDetailDraftHandlers(
   draft: string,
@@ -114,11 +115,13 @@ export function useEmailDetailDraftHandlers(
   return { customDraftRef, handleDraftChange, handleReplyOptionSelect, handleReplyClose };
 }
 ```
+
 Both `EmailDetail` and `EmailDetailInline` consume this hook. **~50 lines eliminated.**
 
 ### 3b. Extract Shared `PriorityButtonRow` (Clean Up Duplicate Component)
 
 Move `PriorityButtonRow` from `email-detail-inline/EmailDetailContent.tsx` into a shared location (e.g., `components/email-detail/PriorityButtonRow.tsx`) and import it from both:
+
 - `EmailDetailActions.tsx`
 - `email-detail-inline/EmailDetailContent.tsx`
 
@@ -129,9 +132,11 @@ This de-duplicates the component that is currently copy-pasted verbatim.
 Since `EmailDetailInline` has **no live consumers**, this is the right time to:
 
 1. Extend `EmailDetail`'s existing `compactMode` into a richer `displayVariant`:
+
    ```ts
-   type EmailDetailVariant = 'full' | 'compact' | 'inline';
+   type EmailDetailVariant = "full" | "compact" | "inline";
    ```
+
    - `full` — current default (sidebar, overlay, full page)
    - `compact` — current `compactMode` (split view, no sidebar, forwardRef control)
    - `inline` — replaces `EmailDetailInline` (panel/drawer, `onClose` callback, simpler action bar)
@@ -192,24 +197,24 @@ Verify it has no live consumers (tests only?), then delete or clearly mark as `@
 
 ## 6. Storybook Stories to Add/Update
 
-| Story file | Stories |
-|---|---|
-| `EmailDetail.stories.tsx` (new) | `FullView`, `CompactView`, `InlineView`, `LoadingState`, `EmailNotFound` |
-| `EmailDetailActions.stories.tsx` (update) | Add story with `hideActionButtons=true` |
-| `PriorityButtonRow.stories.tsx` (new) | `AllOptions`, `ActiveState` |
+| Story file                                | Stories                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------ |
+| `EmailDetail.stories.tsx` (new)           | `FullView`, `CompactView`, `InlineView`, `LoadingState`, `EmailNotFound` |
+| `EmailDetailActions.stories.tsx` (update) | Add story with `hideActionButtons=true`                                  |
+| `PriorityButtonRow.stories.tsx` (new)     | `AllOptions`, `ActiveState`                                              |
 
 ---
 
 ## 7. Tests to Update
 
-| Test file | Changes |
-|---|---|
-| `useEmailDetailDraftHandlers.test.ts` (new) | Unit test extracted hook |
-| `EmailDetailHeader.test.tsx` | No changes needed |
-| `ReplyComposerFooter.test.tsx` | No changes needed |
-| `ThreadItemHeader.test.tsx` | No changes needed |
-| `useEmailDetailOperations.test.ts` | Add inline variant path |
-| e2e (`e2e/`) | Ensure `email-detail` suite covers inline variant once wired |
+| Test file                                   | Changes                                                      |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `useEmailDetailDraftHandlers.test.ts` (new) | Unit test extracted hook                                     |
+| `EmailDetailHeader.test.tsx`                | No changes needed                                            |
+| `ReplyComposerFooter.test.tsx`              | No changes needed                                            |
+| `ThreadItemHeader.test.tsx`                 | No changes needed                                            |
+| `useEmailDetailOperations.test.ts`          | Add inline variant path                                      |
+| e2e (`e2e/`)                                | Ensure `email-detail` suite covers inline variant once wired |
 
 ---
 
@@ -217,12 +222,12 @@ Verify it has no live consumers (tests only?), then delete or clearly mark as `@
 
 ### Risks
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| `EmailDetailInline` was silently used somewhere (dynamic import / lazy load) | Low | Grep for any dynamic `import('…EmailDetailInline')` patterns before deletion; keep file during Phase 2 |
-| `displayVariant` prop change breaks SplitViewPanel | Medium | Keep `compactMode` alias; add TS deprecation notice; test SplitViewPanel explicitly |
-| Extracted hook causes subtle behaviour difference in draft restoration | Low | Add unit tests first; test manually in both full-page and compact modes before merge |
-| `PriorityButtonRow` style discrepancy between two copy-pasted versions | Low | Diff the two implementations before merging; they appear identical but confirm |
+| Risk                                                                         | Likelihood | Mitigation                                                                                             |
+| ---------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `EmailDetailInline` was silently used somewhere (dynamic import / lazy load) | Low        | Grep for any dynamic `import('…EmailDetailInline')` patterns before deletion; keep file during Phase 2 |
+| `displayVariant` prop change breaks SplitViewPanel                           | Medium     | Keep `compactMode` alias; add TS deprecation notice; test SplitViewPanel explicitly                    |
+| Extracted hook causes subtle behaviour difference in draft restoration       | Low        | Add unit tests first; test manually in both full-page and compact modes before merge                   |
+| `PriorityButtonRow` style discrepancy between two copy-pasted versions       | Low        | Diff the two implementations before merging; they appear identical but confirm                         |
 
 ### Rollback
 
@@ -245,4 +250,4 @@ Verify it has no live consumers (tests only?), then delete or clearly mark as `@
 
 ---
 
-*🗂️ Planned by Monk of Modularity (AI agent)*
+_🗂️ Planned by Monk of Modularity (AI agent)_

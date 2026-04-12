@@ -12,9 +12,11 @@
 The "Other" category accordion consistently shows 0 emails after `GET /inbox?mode=triage&categoryIds=Other` correctly returns 1 email. Both #1185 and #1192 are confirmed merged and deployed (build `8b9532a`). The fetch fires, but no subsequent `markCategoryLoaded` dispatch is logged, and the accordion remains at count=0.
 
 Console evidence:
+
 ```
 [Accordion] Effect1 queuing fetch for keys: ['Other'] | expanded: ['Other'] | loaded: [] | loading: []
 ```
+
 No follow-up log. No fetch completion. Count stays 0.
 
 ---
@@ -32,8 +34,12 @@ No follow-up log. No fetch completion. Count stays 0.
 ### Step 2 — Client key derivation
 
 `getCategoryKey(id, name)`:
+
 ```ts
-export function getCategoryKey(id: string | null | undefined, name: string): string {
+export function getCategoryKey(
+  id: string | null | undefined,
+  name: string,
+): string {
   return id ?? name;
 }
 ```
@@ -43,8 +49,9 @@ When `id === null`, this returns `name = "Other"`. ✅ The key for "Other" is th
 ### Step 3 — Effect 1 fires correctly
 
 `useInboxCategoryAccordion` → `useCategoryFetchEffects` → Effect 1 correctly derives key `"Other"` from the summary item and calls:
+
 ```ts
-fetchCategoryEmails("Other", undefined /* id is null/undefined */)
+fetchCategoryEmails("Other", undefined /* id is null/undefined */);
 ```
 
 The console log confirms this fires.
@@ -61,13 +68,15 @@ Still `"Other"`. ✅
 ### Step 5 — Cache check
 
 `getCachedCategoryEmails(mode, "Other")` uses `categoryKey()`:
+
 ```ts
-const safe = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+const safe = key.replace(/[^a-zA-Z0-9_-]/g, "_");
 return `bearlymail_v2_cat_${mode}_${safe}`;
 // → "bearlymail_v2_cat_triage_Other"
 ```
 
 "Other" passes the regex unchanged. Cache key is valid. If a **stale cache entry** exists with 0 emails (from before the backend had emails), the stale-while-revalidate path fires:
+
 ```ts
 serveCategoryFromCacheAndRefresh({ cachedEmails: [], catKey: "Other", ... });
 // → dispatch(updateCategoryEmails({ categoryKey: "Other", emails: [] }));
@@ -80,11 +89,12 @@ serveCategoryFromCacheAndRefresh({ cachedEmails: [], catKey: "Other", ... });
 ### Step 6 — The `#1185` defense-in-depth check is bypassed on the stale-cache path
 
 The `#1185` fix added this defense after the fresh API fetch:
+
 ```ts
 if (emails.length === 0) {
   const summaryCount = summaryItem?.count ?? 0;
   if (summaryCount > 0) {
-    dispatch(markCategoryLoadFailed(catKey));  // prevent stuck-at-0
+    dispatch(markCategoryLoadFailed(catKey)); // prevent stuck-at-0
   } else {
     dispatch(markCategoryLoaded(catKey));
   }
@@ -99,15 +109,14 @@ The `#1185` fix only protects the **fresh fetch** path. It has no coverage over 
 
 ```ts
 const sessionId = fetchSessionRef.current;
-axios.get(`${API_URL}/emails/inbox?${params.toString()}`)
-  .then(response => {
-    if (fetchSessionRef.current !== sessionId) {
-      return;  // ← silently aborted if session changed
-    }
-    const freshEmails: Email[] = response.data.emails;
-    dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
-    setCachedCategoryEmails(mode, catKey, freshEmails);
-  })
+axios.get(`${API_URL}/emails/inbox?${params.toString()}`).then((response) => {
+  if (fetchSessionRef.current !== sessionId) {
+    return; // ← silently aborted if session changed
+  }
+  const freshEmails: Email[] = response.data.emails;
+  dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
+  setCachedCategoryEmails(mode, catKey, freshEmails);
+});
 ```
 
 If `fetchEmails()` (the summary refetch) fires while the background refresh is in flight — e.g. because Effect 1 re-triggers after the summary resolves — `fetchSessionRef.current` is incremented and the background refresh result is silently discarded. The store keeps `emails: []` for "Other" and `loadedCategoryNames: ["Other"]`.
@@ -115,6 +124,7 @@ If `fetchEmails()` (the summary refetch) fires while the background refresh is i
 ### Step 8 — Accordion renders count=0
 
 In `InboxCategoryItem`:
+
 ```tsx
 count={isLoaded ? categoryEmails.length : categoryItem.count}
 ```
@@ -145,17 +155,18 @@ Even on the first visit (no stale cache), there is a subtle race between:
 4. `updateCategoryEmails` is dispatched with the API emails
 
 In `updateCategoryEmails` in the reducer:
+
 ```ts
 const isOther = categoryKey === CATEGORY_OTHER;
 // → isOther = true
 
 // Remove old "Other" emails
-state.emails = state.emails.filter(event => {
+state.emails = state.emails.filter((event) => {
   if (isOther) {
     return (
       event.category !== null &&
       event.category !== undefined &&
-      event.category !== '' &&
+      event.category !== "" &&
       event.category !== CATEGORY_OTHER
     );
   }
@@ -185,21 +196,42 @@ if (cachedEmails !== null) {
   // (e.g. session changed mid-flight), and serving it would permanently render 0.
   if (cachedEmails.length === 0) {
     const summaryItem = categorySummaryRef.current?.find(
-      item => item.id === categoryId || item.name === categoryName
+      (item) => item.id === categoryId || item.name === categoryName,
     );
     const summaryCount = summaryItem?.count ?? 0;
     if (summaryCount > 0) {
       console.warn(
-        '[Accordion] Cache has 0 emails but summary says', summaryCount,
-        '— treating as stale cache miss for category:', categoryName, '(key:', catKey, ')'
+        "[Accordion] Cache has 0 emails but summary says",
+        summaryCount,
+        "— treating as stale cache miss for category:",
+        categoryName,
+        "(key:",
+        catKey,
+        ")",
       );
       // Fall through to fresh fetch below
     } else {
-      serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef });
+      serveCategoryFromCacheAndRefresh({
+        cachedEmails,
+        catKey,
+        categoryName,
+        mode,
+        dispatch,
+        buildCategoryParams,
+        fetchSessionRef,
+      });
       return;
     }
   } else {
-    serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dispatch, buildCategoryParams, fetchSessionRef });
+    serveCategoryFromCacheAndRefresh({
+      cachedEmails,
+      catKey,
+      categoryName,
+      mode,
+      dispatch,
+      buildCategoryParams,
+      fetchSessionRef,
+    });
     return;
   }
 }
@@ -254,9 +286,9 @@ Option A has the smallest blast radius: it only changes the case that is definit
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useEmailFetching.ts` | In `fetchCategoryEmailsImpl`: add "empty cache + non-empty summary → skip to fresh fetch" guard before calling `serveCategoryFromCacheAndRefresh`. |
+| File                                        | Change                                                                                                                                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/hooks/useEmailFetching.ts`      | In `fetchCategoryEmailsImpl`: add "empty cache + non-empty summary → skip to fresh fetch" guard before calling `serveCategoryFromCacheAndRefresh`.                                      |
 | `client/src/hooks/useEmailFetching.test.ts` | Add test: when `getCachedCategoryEmails` returns `[]` and summary count is `> 0`, it should NOT call `serveCategoryFromCacheAndRefresh`, and should proceed to the fresh API call path. |
 
 ---
@@ -267,10 +299,17 @@ Add to `fetchCategoryEmailsImpl` immediately after the cache hit check:
 
 ```ts
 console.log(
-  '[Accordion] Cache hit for category:', categoryName,
-  '(key:', catKey, ')',
-  '| cachedEmails.length:', cachedEmails.length,
-  '| summaryCount:', categorySummaryRef.current?.find(i => i.id === categoryId || i.name === categoryName)?.count ?? 'unknown'
+  "[Accordion] Cache hit for category:",
+  categoryName,
+  "(key:",
+  catKey,
+  ")",
+  "| cachedEmails.length:",
+  cachedEmails.length,
+  "| summaryCount:",
+  categorySummaryRef.current?.find(
+    (i) => i.id === categoryId || i.name === categoryName,
+  )?.count ?? "unknown",
 );
 ```
 
@@ -278,13 +317,17 @@ And to `serveCategoryFromCacheAndRefresh` at the start of the background refresh
 
 ```ts
 console.log(
-  '[Accordion] Background refresh resolved for category:', categoryName,
-  '| sessionId match:', fetchSessionRef.current === sessionId,
-  '| freshEmails.length:', freshEmails.length
+  "[Accordion] Background refresh resolved for category:",
+  categoryName,
+  "| sessionId match:",
+  fetchSessionRef.current === sessionId,
+  "| freshEmails.length:",
+  freshEmails.length,
 );
 ```
 
 These two logs together will confirm whether:
+
 1. The stale cache path fires with 0 emails
 2. Whether the background refresh result is being silently dropped
 

@@ -8,7 +8,15 @@ import { isValidEmail, parseRecipientString } from 'utils/recipientParser';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { AVATAR_SIZE_SMALL_PX, DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
-import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE, SUGGESTION_KIND_GROUP } from 'constants/strings';
+import {
+  EMAIL_FIELD_BCC,
+  EMAIL_FIELD_CC,
+  EMAIL_FIELD_TO,
+  KEY_COMMA,
+  KEY_ENTER,
+  STRING_NONE,
+  SUGGESTION_KIND_GROUP,
+} from 'constants/strings';
 
 interface Recipient {
   email: string;
@@ -94,12 +102,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
     setDragSource(null);
   };
 
-  const renderRecipientField = (
-    label: string,
-    recipients: Recipient[],
-    field: FieldType,
-    isActive: boolean
-  ) => {
+  const renderRecipientField = (label: string, recipients: Recipient[], field: FieldType, isActive: boolean) => {
     const isDragOver = dragOverField === field;
 
     return (
@@ -293,7 +296,13 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                             👥
                           </div>
                           <div>
-                            <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
+                            <div
+                              style={{
+                                fontSize: theme.typography.fontSize.sm,
+                                color: theme.colors.text.primary,
+                                fontWeight: theme.typography.fontWeight.medium,
+                              }}
+                            >
                               {group.name}
                             </div>
                             <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
@@ -310,7 +319,14 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                         key={contact.id || contact.email}
                         onMouseDown={event => event.preventDefault()}
                         onTouchStart={event => event.preventDefault()}
-                        onClick={() => onSelectSearchResult({ id: contact.id, email: contact.email, name: contact.name, photoUrl: contact.photoUrl } as Contact)}
+                        onClick={() =>
+                          onSelectSearchResult({
+                            id: contact.id,
+                            email: contact.email,
+                            name: contact.name,
+                            photoUrl: contact.photoUrl,
+                          } as Contact)
+                        }
                         style={{
                           padding: `8px ${FONT_SIZE_XS_PX}px`,
                           cursor: 'pointer',

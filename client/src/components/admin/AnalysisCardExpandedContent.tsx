@@ -30,7 +30,13 @@ const FailureDetailItem: React.FC<FailureDetailItemProps> = ({ failure, copiedId
       }}
     >
       <div
-        style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.xs, flexWrap: 'wrap', gap: theme.spacing.xs }}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.xs,
+          flexWrap: 'wrap',
+          gap: theme.spacing.xs,
+        }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
           <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
@@ -93,7 +99,11 @@ interface AnalysisCardExpandedContentProps {
  * Renders the expanded section of an analysis card, showing the top-level error
  * message (if any), a list of per-batch failures, and IDs for debugging.
  */
-export const AnalysisCardExpandedContent: React.FC<AnalysisCardExpandedContentProps> = ({ analysis, copiedId, onCopy }) => {
+export const AnalysisCardExpandedContent: React.FC<AnalysisCardExpandedContentProps> = ({
+  analysis,
+  copiedId,
+  onCopy,
+}) => {
   const { t } = useTranslation();
   return (
     <div

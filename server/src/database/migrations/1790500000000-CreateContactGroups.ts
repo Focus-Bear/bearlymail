@@ -42,7 +42,9 @@ export class CreateContactGroups1790500000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP TABLE IF EXISTS "contact_group_member" CASCADE`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "contact_group_member" CASCADE`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "contact_group" CASCADE`);
   }
 }

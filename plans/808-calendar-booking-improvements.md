@@ -26,7 +26,7 @@ The `fetchSlots` function has an `append` parameter but both branches do the sam
 const fetchSlots = async (days: number, append = false) => {
   // ...
   if (append) {
-    setSlots(response.data.slots);  // ← BUG: should be setSlots(prev => [...prev, ...response.data.slots])
+    setSlots(response.data.slots); // ← BUG: should be setSlots(prev => [...prev, ...response.data.slots])
   } else {
     setSlots(response.data.slots);
   }
@@ -36,6 +36,7 @@ const fetchSlots = async (days: number, append = false) => {
 The `append` branch should merge the new slots with existing ones, not replace them.
 
 Additionally, the API call for "load more" may be fetching ALL slots for `daysAhead` days, which includes the already-shown slots. The fix needs to either:
+
 - Fetch only the new window of slots (e.g., from day 30 to day 60), OR
 - Fetch all slots up to `newDaysAhead` and merge/deduplicate.
 
@@ -56,11 +57,14 @@ When creating a Google Calendar event for a booking, the `conferenceData` field 
 **File:** `client/src/pages/BookingPage.tsx`
 
 **Option A (simpler):** Fix the append logic to merge slots:
+
 ```typescript
 if (append) {
-  setSlots(prev => {
-    const existingKeys = new Set(prev.map(s => s.start));
-    const newSlots = response.data.slots.filter(s => !existingKeys.has(s.start));
+  setSlots((prev) => {
+    const existingKeys = new Set(prev.map((s) => s.start));
+    const newSlots = response.data.slots.filter(
+      (s) => !existingKeys.has(s.start),
+    );
     return [...prev, ...newSlots];
   });
 } else {
@@ -69,6 +73,7 @@ if (append) {
 ```
 
 **Option B (cleaner, requires API change):** Pass `offset` / `startDay` to the slots endpoint so it only returns new slots beyond what's already shown. Add query param `fromDaysAhead` to the API:
+
 - `GET /public/calendar/:userId/slots?daysAhead=60&fromDaysAhead=30` → returns only days 30–60.
 
 Start with Option A (no backend change), upgrade to Option B if needed.
@@ -84,6 +89,7 @@ Start with Option A (no backend change), upgrade to Option B if needed.
 **File:** `server/src/calendar/calendar.service.ts`
 
 When creating a Google Calendar event for a booking:
+
 - Add `conferenceData` to the event creation request:
   ```json
   {
@@ -106,6 +112,7 @@ When creating a Google Calendar event for a booking:
 **File:** `server/src/calendar/calendar.service.ts`
 
 After event creation, extract the Meet link from `conferenceData.entryPoints` in the response and:
+
 1. Include it in the confirmation email sent to the guest.
 2. Return it in the booking API response so the frontend can show it in the confirmation page.
 
@@ -113,18 +120,19 @@ After event creation, extract the Meet link from `conferenceData.entryPoints` in
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/pages/BookingPage.tsx` | Fix `fetchSlots` append logic; add `MAX_DAYS_AHEAD` guard for `hasMore` |
-| `server/src/calendar/calendar.service.ts` | Add `conferenceData` to Google Calendar event creation; extract Meet link |
-| `server/src/calendar/public-calendar.controller.ts` | Return Meet link in booking response |
-| `client/src/pages/BookingPage.tsx` | Show Meet link in booking confirmation UI |
+| File                                                | Change                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------- |
+| `client/src/pages/BookingPage.tsx`                  | Fix `fetchSlots` append logic; add `MAX_DAYS_AHEAD` guard for `hasMore`   |
+| `server/src/calendar/calendar.service.ts`           | Add `conferenceData` to Google Calendar event creation; extract Meet link |
+| `server/src/calendar/public-calendar.controller.ts` | Return Meet link in booking response                                      |
+| `client/src/pages/BookingPage.tsx`                  | Show Meet link in booking confirmation UI                                 |
 
 ---
 
 ## Testing Approach
 
 ### Load more dates:
+
 1. Visit `/book/:userId` — observe initial slots (30 days).
 2. Click "Load more dates".
 3. Assert: new slots appear below existing ones (not replacing them).
@@ -133,12 +141,14 @@ After event creation, extract the Meet link from `conferenceData.entryPoints` in
 6. When `daysAhead >= MAX_DAYS_AHEAD`, "Load more dates" button is hidden.
 
 ### Google Meet link:
+
 1. Create a test booking via a Google Calendar user.
 2. Assert: calendar event has `conferenceData` with a Meet link.
 3. Assert: booking confirmation email includes the Meet link.
 4. Assert: Meet link appears in the booking confirmation page.
 
 ### PostHog check:
+
 - Review PostHog for errors on "Load more dates" click to identify any additional issues mentioned in the issue.
 
 ---

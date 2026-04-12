@@ -11,9 +11,7 @@ export interface BacklogProgress {
 }
 
 async function fetchBacklogProgress(): Promise<BacklogProgress> {
-  const response = await axios.get<BacklogProgress>(
-    `${API_URL}/emails/backlog-progress`,
-  );
+  const response = await axios.get<BacklogProgress>(`${API_URL}/emails/backlog-progress`);
   return response.data;
 }
 
@@ -21,7 +19,7 @@ export function useBacklogProgress() {
   return useQuery({
     queryKey: ['backlog-progress'],
     queryFn: fetchBacklogProgress,
-    refetchInterval: (query) => {
+    refetchInterval: query => {
       const data = query.state.data;
       return data?.isProcessing ? BACKLOG_PROGRESS_REFETCH_INTERVAL_MS : false;
     },

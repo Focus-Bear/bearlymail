@@ -142,8 +142,7 @@ function parseController(filePath: string): ControllerInfo | null {
 
   // Parse endpoints
   const endpoints: EndpointInfo[] = [];
-  const httpMethodRegex =
-    /@(Get|Post|Put|Delete|Patch)\s*\(([^)]*)\)/g;
+  const httpMethodRegex = /@(Get|Post|Put|Delete|Patch)\s*\(([^)]*)\)/g;
   let match;
 
   while ((match = httpMethodRegex.exec(content)) !== null) {
@@ -157,7 +156,8 @@ function parseController(filePath: string): ControllerInfo | null {
 
     // Find all @UseGuards decorators in the region around this endpoint:
     // 1. Between previous endpoint and this HTTP decorator (guards before)
-    const previousEnd = endpoints.length > 0 ? findPreviousEndpointEnd(content, matchIndex) : 0;
+    const previousEnd =
+      endpoints.length > 0 ? findPreviousEndpointEnd(content, matchIndex) : 0;
     const guardsBefore = extractGuardsForMethod(
       content,
       matchIndex,
@@ -166,7 +166,10 @@ function parseController(filePath: string): ControllerInfo | null {
 
     // 2. Between the HTTP decorator and the function body opening brace (guards after)
     const funcBodyStart = content.indexOf("{", matchIndex);
-    const regionAfterDecorator = content.substring(matchIndex, funcBodyStart >= 0 ? funcBodyStart : matchIndex + 500);
+    const regionAfterDecorator = content.substring(
+      matchIndex,
+      funcBodyStart >= 0 ? funcBodyStart : matchIndex + 500,
+    );
     const guardsAfter = extractGuards(regionAfterDecorator);
 
     const methodGuards = [...new Set([...guardsBefore, ...guardsAfter])];
@@ -174,9 +177,7 @@ function parseController(filePath: string): ControllerInfo | null {
     // Find function name: look for the `async methodName(` pattern after all decorators
     const afterDecorator = content.substring(matchIndex, matchIndex + 800);
     // Match `async functionName(` which is the actual method declaration
-    const funcMatch = afterDecorator.match(
-      /\n\s+async\s+(\w+)\s*\(/,
-    );
+    const funcMatch = afterDecorator.match(/\n\s+async\s+(\w+)\s*\(/);
     // Fallback: try non-async method pattern
     const funcMatchFallback = !funcMatch
       ? afterDecorator.match(/\n\s+(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{/)
@@ -193,7 +194,9 @@ function parseController(filePath: string): ControllerInfo | null {
     const usesRequest = funcBody.includes("@Request()");
 
     // Effective guards = class-level + method-level
-    const effectiveGuards = [...new Set([...classLevelGuards, ...methodGuards])];
+    const effectiveGuards = [
+      ...new Set([...classLevelGuards, ...methodGuards]),
+    ];
 
     endpoints.push({
       method: httpMethod,
@@ -294,9 +297,7 @@ function findFunctionBodyEnd(content: string, startIndex: number): number {
 
 // ─── Security Analysis ───────────────────────────────────────────────────────
 
-function analyzeController(
-  controller: ControllerInfo,
-): SecurityFinding[] {
+function analyzeController(controller: ControllerInfo): SecurityFinding[] {
   const findings: SecurityFinding[] = [];
 
   // Skip known public controllers
@@ -312,23 +313,20 @@ function analyzeController(
   }
 
   const hasClassLevelAuth = controller.classLevelGuards.some(
-    (g) =>
-      g.includes("JwtAuthGuard") ||
-      g.includes("AdminGuard"),
+    (g) => g.includes("JwtAuthGuard") || g.includes("AdminGuard"),
   );
 
   for (const endpoint of controller.endpoints) {
-    const fullRoute = `${endpoint.method} /${controller.route}/${endpoint.route}`.replace(
-      /\/+/g,
-      "/",
-    );
+    const fullRoute =
+      `${endpoint.method} /${controller.route}/${endpoint.route}`.replace(
+        /\/+/g,
+        "/",
+      );
 
     // Check if this endpoint is known public
     const knownPublicEndpoints =
       KNOWN_PUBLIC_ENDPOINTS[controller.className] || [];
-    const isKnownPublic = knownPublicEndpoints.includes(
-      endpoint.functionName,
-    );
+    const isKnownPublic = knownPublicEndpoints.includes(endpoint.functionName);
 
     if (isKnownPublic) {
       findings.push({
@@ -441,7 +439,10 @@ function getChangedControllerFiles(): { files: string[]; diffFailed: boolean } {
     baseRefs.push("main", "origin/main", "HEAD~1");
 
     // Build candidate strategies: three-dot (merge-base), then direct tree diff (no dots)
-    const candidateRefs: Array<{ ref: string; diffMode: "three-dot" | "direct" }> = [];
+    const candidateRefs: Array<{
+      ref: string;
+      diffMode: "three-dot" | "direct";
+    }> = [];
     for (const ref of baseRefs) {
       candidateRefs.push({ ref, diffMode: "three-dot" });
     }
@@ -452,14 +453,20 @@ function getChangedControllerFiles(): { files: string[]; diffFailed: boolean } {
     // In CI shallow clones, refs like origin/main may not exist.
     // Try to fetch the base ref if we're in a shallow clone.
     try {
-      const isShallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
-        encoding: "utf-8",
-      }).trim();
+      const isShallow = execFileSync(
+        "git",
+        ["rev-parse", "--is-shallow-repository"],
+        {
+          encoding: "utf-8",
+        },
+      ).trim();
       if (isShallow === "true") {
         const baseRef = process.env.GITHUB_BASE_REF || "main";
         console.error(`Shallow clone detected, fetching ${baseRef}...`);
         try {
-          execFileSync("git", ["fetch", "origin", baseRef, "--depth=1"], { encoding: "utf-8" });
+          execFileSync("git", ["fetch", "origin", baseRef, "--depth=1"], {
+            encoding: "utf-8",
+          });
           console.error(`Fetched origin/${baseRef} for diff comparison`);
         } catch (fetchErr) {
           console.error(
@@ -481,8 +488,21 @@ function getChangedControllerFiles(): { files: string[]; diffFailed: boolean } {
       // direct: compares trees directly (works in shallow clones)
       const diffArgs =
         diffMode === "three-dot"
-          ? ["diff", "--name-only", `${ref}...HEAD`, "--", "server/src/**/*.controller.ts"]
-          : ["diff", "--name-only", ref, "HEAD", "--", "server/src/**/*.controller.ts"];
+          ? [
+              "diff",
+              "--name-only",
+              `${ref}...HEAD`,
+              "--",
+              "server/src/**/*.controller.ts",
+            ]
+          : [
+              "diff",
+              "--name-only",
+              ref,
+              "HEAD",
+              "--",
+              "server/src/**/*.controller.ts",
+            ];
       try {
         result = execFileSync("git", diffArgs, { encoding: "utf-8" });
         selectedRef = `${ref} (${diffMode})`;
@@ -490,8 +510,11 @@ function getChangedControllerFiles(): { files: string[]; diffFailed: boolean } {
       } catch (error) {
         const refLabel = `${ref}(${diffMode})`;
         const stderr =
-          error instanceof Error && (error as NodeJS.ErrnoException & { stderr?: Buffer }).stderr
-            ? (error as NodeJS.ErrnoException & { stderr?: Buffer }).stderr!.toString().trim()
+          error instanceof Error &&
+          (error as NodeJS.ErrnoException & { stderr?: Buffer }).stderr
+            ? (error as NodeJS.ErrnoException & { stderr?: Buffer })
+                .stderr!.toString()
+                .trim()
             : "";
         refErrors.push(
           `${refLabel}: ${error instanceof Error ? error.message : String(error)}${stderr ? " | stderr: " + stderr : ""}`,
@@ -542,7 +565,8 @@ function getChangedFunctions(
 
     // Extract function names from the diff (lines starting with + that contain async methodName)
     const changedFunctions: string[] = [];
-    const funcRegex = /^\+.*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{/gm;
+    const funcRegex =
+      /^\+.*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{/gm;
     let match;
     while ((match = funcRegex.exec(diffOutput)) !== null) {
       if (match[1] && match[1] !== "constructor") {
@@ -555,9 +579,7 @@ function getChangedFunctions(
     while ((match = decoratorRegex.exec(diffOutput)) !== null) {
       // The function that follows this decorator was potentially changed
       const afterMatch = diffOutput.substring(match.index, match.index + 500);
-      const funcAfter = afterMatch.match(
-        /(?:async\s+)?(\w+)\s*\([^)]*\)/,
-      );
+      const funcAfter = afterMatch.match(/(?:async\s+)?(\w+)\s*\([^)]*\)/);
       if (funcAfter && funcAfter[1] && funcAfter[1] !== "constructor") {
         changedFunctions.push(funcAfter[1]);
       }
@@ -637,9 +659,7 @@ async function analyzWithLLM(
   const findings: SecurityFinding[] = [];
 
   for (const controller of controllers) {
-    process.stdout.write(
-      `  Analyzing ${controller.className} with LLM...`,
-    );
+    process.stdout.write(`  Analyzing ${controller.className} with LLM...`);
 
     const prompt = buildLLMPrompt(controller);
 
@@ -703,9 +723,7 @@ async function analyzWithLLM(
               suggestion: finding.suggestion || "",
             });
           }
-          console.log(
-            ` ${parsed.length} finding(s)`,
-          );
+          console.log(` ${parsed.length} finding(s)`);
         } else {
           console.log(" no findings");
         }
@@ -733,88 +751,56 @@ function printReport(result: AuditResult, jsonOutput: boolean): void {
   console.log("\n" + "=".repeat(70));
   console.log("  SECURITY AUDIT REPORT");
   console.log("=".repeat(70));
-  console.log(
-    `  Date: ${new Date().toISOString()}`,
-  );
-  console.log(
-    `  Controllers scanned: ${result.summary.totalControllers}`,
-  );
-  console.log(
-    `  Endpoints scanned: ${result.summary.totalEndpoints}`,
-  );
+  console.log(`  Date: ${new Date().toISOString()}`);
+  console.log(`  Controllers scanned: ${result.summary.totalControllers}`);
+  console.log(`  Endpoints scanned: ${result.summary.totalEndpoints}`);
   console.log("");
 
   // Group findings by severity
-  const critical = result.findings.filter(
-    (f) => f.severity === "critical",
-  );
-  const warnings = result.findings.filter(
-    (f) => f.severity === "warning",
-  );
+  const critical = result.findings.filter((f) => f.severity === "critical");
+  const warnings = result.findings.filter((f) => f.severity === "warning");
   const info = result.findings.filter((f) => f.severity === "info");
 
   if (critical.length > 0) {
-    console.log(
-      `\n  CRITICAL (${critical.length})`,
-    );
+    console.log(`\n  CRITICAL (${critical.length})`);
     console.log("  " + "-".repeat(50));
     for (const finding of critical) {
-      console.log(
-        `  [CRITICAL] ${finding.message}`,
-      );
+      console.log(`  [CRITICAL] ${finding.message}`);
       console.log(
         `             File: ${finding.file}${finding.line ? `:${finding.line}` : ""}`,
       );
-      console.log(
-        `             Fix: ${finding.suggestion}`,
-      );
+      console.log(`             Fix: ${finding.suggestion}`);
       console.log("");
     }
   }
 
   if (warnings.length > 0) {
-    console.log(
-      `\n  WARNINGS (${warnings.length})`,
-    );
+    console.log(`\n  WARNINGS (${warnings.length})`);
     console.log("  " + "-".repeat(50));
     for (const finding of warnings) {
-      console.log(
-        `  [WARNING] ${finding.message}`,
-      );
+      console.log(`  [WARNING] ${finding.message}`);
       console.log(
         `            File: ${finding.file}${finding.line ? `:${finding.line}` : ""}`,
       );
-      console.log(
-        `            Fix: ${finding.suggestion}`,
-      );
+      console.log(`            Fix: ${finding.suggestion}`);
       console.log("");
     }
   }
 
   if (info.length > 0) {
-    console.log(
-      `\n  INFO (${info.length})`,
-    );
+    console.log(`\n  INFO (${info.length})`);
     console.log("  " + "-".repeat(50));
     for (const finding of info) {
-      console.log(
-        `  [INFO] ${finding.message}`,
-      );
+      console.log(`  [INFO] ${finding.message}`);
     }
   }
 
   console.log("\n" + "=".repeat(70));
   console.log("  SUMMARY");
   console.log("=".repeat(70));
-  console.log(
-    `  Critical: ${result.summary.criticalFindings}`,
-  );
-  console.log(
-    `  Warnings: ${result.summary.warningFindings}`,
-  );
-  console.log(
-    `  Info:     ${result.summary.infoFindings}`,
-  );
+  console.log(`  Critical: ${result.summary.criticalFindings}`);
+  console.log(`  Warnings: ${result.summary.warningFindings}`);
+  console.log(`  Info:     ${result.summary.infoFindings}`);
   console.log("=".repeat(70));
 
   if (result.summary.criticalFindings > 0) {
@@ -886,9 +872,7 @@ async function main(): Promise<void> {
           console.log(
             `\n  No controller files changed compared to ${baseBranch}.`,
           );
-          console.log(
-            "  Running full scan instead...\n",
-          );
+          console.log("  Running full scan instead...\n");
         }
       }
       controllerFiles = findControllerFiles(srcDir);

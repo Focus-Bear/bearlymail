@@ -12,7 +12,7 @@ jest.mock('components/inbox/CategoryAccordion', () => ({
 }));
 
 jest.mock('hooks/useEmailFetching', () => ({
-  getCategoryKey: (id: string | null | undefined) => id ?? "uncategorized",
+  getCategoryKey: (id: string | null | undefined) => id ?? 'uncategorized',
 }));
 
 const mockGroupEmailsByCategory = groupEmailsByCategory as jest.MockedFunction<typeof groupEmailsByCategory>;

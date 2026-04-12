@@ -23,7 +23,7 @@ function extractPlainSummary(value: string): string {
     }
     if (Array.isArray(parsed)) {
       const items = (parsed as unknown[])
-        .map((item) => {
+        .map(item => {
           if (typeof item === 'string') {
             return item;
           }
@@ -91,7 +91,9 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
       return t('emailDetail.generatingSummary');
     }
     if (safeSummary) {
-      return safeSummary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (safeSummary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '');
+      return (
+        safeSummary.slice(0, SUMMARY_PREVIEW_MAX_CHARS) + (safeSummary.length > SUMMARY_PREVIEW_MAX_CHARS ? '…' : '')
+      );
     }
     return t('emailDetail.noSummary');
   })();

@@ -27,17 +27,18 @@ AND COALESCE(thread."priorityScore", 0) < 30
 ```
 
 | Score | Counted as (getPriorityCounts) | Fetched by Medium filter (inbox query) |
-|-------|-------------------------------|---------------------------------------|
-| 15    | Low (`>= 0 AND <= 15`)       | ✅ Yes (`>= 15`)                      |
-| 16    | Medium (`> 15 AND <= 30`)     | ✅ Yes                                 |
-| 30    | Medium (`> 15 AND <= 30`)     | ❌ No (`< 30` excludes it)            |
-| 31    | High (`> 30 AND <= 50`)       | ❌ No                                  |
+| ----- | ------------------------------ | -------------------------------------- |
+| 15    | Low (`>= 0 AND <= 15`)         | ✅ Yes (`>= 15`)                       |
+| 16    | Medium (`> 15 AND <= 30`)      | ✅ Yes                                 |
+| 30    | Medium (`> 15 AND <= 30`)      | ❌ No (`< 30` excludes it)             |
+| 31    | High (`> 30 AND <= 50`)        | ❌ No                                  |
 
 A thread with `priorityScore = 30` is counted in the "Medium" bucket but displayed under the "High" filter. A thread with `priorityScore = 15` is counted in "Low" but fetched by "Medium". This means the count and the displayed list diverge.
 
 ### Bug 2: `EmailListStates` only receives `minPriority`, not `maxPriority`
 
 In `Inbox.tsx` (line ~350), `EmailListStates` is passed:
+
 ```tsx
 minPriority={filters.minPriority}
 ```
@@ -73,6 +74,7 @@ COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 0) AS "veryLow"
 ```
 
 Key changes:
+
 - Use `COALESCE("priorityScore", 0)` to match how the inbox filter treats NULLs.
 - Use `>=` lower bound and `<` upper bound (half-open intervals) matching `appendInboxAdditionalFilters`.
 - Remove the separate `unprioritised` count (NULL threads are now folded into the appropriate bucket via COALESCE) — OR keep `unprioritised` as a separate informational count but make it clear it's not part of the filterable buckets.
@@ -88,6 +90,7 @@ Verify that `buildSummaryFiltersAndParams` already uses `>= min` and `< max`. It
 **File:** `client/src/constants/priorityBuckets.ts`
 
 The `PRIORITY_BUCKET_DEFS` define:
+
 - Medium: `{ min: 15, max: 30 }` → sent as `minPriority=15, maxPriority=30`
 - Server applies: `>= 15 AND < 30`
 
@@ -122,6 +125,7 @@ Add `maxPriority` to the props interface and pass it through to `InboxEmailListP
 **File:** `client/src/constants/priorityBuckets.ts`
 
 Update the header comment to explicitly document that boundaries use half-open intervals `[min, max)`:
+
 ```
  *   Very High:  >= 50         → min: 50, max: null
  *   High:       >= 30, < 50   → min: 30, max: 50
@@ -135,6 +139,7 @@ Update the header comment to explicitly document that boundaries use half-open i
 **File:** `client/src/hooks/usePriorityCounts.ts`
 
 Update the `PriorityCounts` interface comments to match the new boundaries:
+
 ```typescript
 /** Threads with COALESCE(priorityScore, 0) >= 50 */
 veryHigh: number;
@@ -146,6 +151,7 @@ high: number;
 ### Step 6: Update tests
 
 **Files to update:**
+
 - `server/src/emails/emails-priority-inbox.service.spec.ts` — update boundary assertions for the count query changes.
 - `client/src/components/inbox/EmailListStates.test.tsx` — add `maxPriority` prop to existing test cases; add new test cases for bounded range filters.
 - `client/src/hooks/usePriorityCounts.test.ts` — verify count interface comments match.
@@ -159,17 +165,17 @@ Add a test that verifies: for every priority bucket boundary score (0, 15, 30, 5
 
 ## Files Changed (Summary)
 
-| File | Change |
-|------|--------|
-| `server/src/emails/email-status.service.ts` | Align count SQL boundaries to `[min, max)` with COALESCE |
-| `client/src/pages/Inbox.tsx` | Pass `maxPriority` to `InboxContent` |
-| `client/src/components/inbox/InboxContent.tsx` | Thread `maxPriority` through props |
-| `client/src/components/inbox/InboxContentParts.tsx` | Thread `maxPriority` through to EmailListStates |
-| `client/src/components/inbox/EmailListStates.tsx` | Accept `maxPriority`, fix `hasActiveFilter` and lower-tier logic |
-| `client/src/constants/priorityBuckets.ts` | Update comments to document `[min, max)` convention |
-| `client/src/hooks/usePriorityCounts.ts` | Update interface comments |
-| `server/src/emails/emails-priority-inbox.service.spec.ts` | Update boundary tests |
-| `client/src/components/inbox/EmailListStates.test.tsx` | Add maxPriority test cases |
+| File                                                      | Change                                                           |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| `server/src/emails/email-status.service.ts`               | Align count SQL boundaries to `[min, max)` with COALESCE         |
+| `client/src/pages/Inbox.tsx`                              | Pass `maxPriority` to `InboxContent`                             |
+| `client/src/components/inbox/InboxContent.tsx`            | Thread `maxPriority` through props                               |
+| `client/src/components/inbox/InboxContentParts.tsx`       | Thread `maxPriority` through to EmailListStates                  |
+| `client/src/components/inbox/EmailListStates.tsx`         | Accept `maxPriority`, fix `hasActiveFilter` and lower-tier logic |
+| `client/src/constants/priorityBuckets.ts`                 | Update comments to document `[min, max)` convention              |
+| `client/src/hooks/usePriorityCounts.ts`                   | Update interface comments                                        |
+| `server/src/emails/emails-priority-inbox.service.spec.ts` | Update boundary tests                                            |
+| `client/src/components/inbox/EmailListStates.test.tsx`    | Add maxPriority test cases                                       |
 
 ## Risk Assessment
 

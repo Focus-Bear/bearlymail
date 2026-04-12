@@ -7,6 +7,7 @@
 **Error**: `Cannot find module 'aws-cdk-lib'` or similar
 
 **Solution**:
+
 ```bash
 cd infrastructure
 rm -rf node_modules package-lock.json
@@ -18,6 +19,7 @@ npm install
 **Error**: `Error: Cannot connect to the Docker daemon` or build errors
 
 **Solutions**:
+
 - Ensure Docker is running: `docker ps`
 - Check Docker has enough resources allocated
 - Try building the image manually:
@@ -31,6 +33,7 @@ npm install
 **Error**: `Bucket name already exists` or `Invalid bucket name`
 
 **Solution**: The stack now auto-generates bucket names. If you still see this:
+
 - Delete the old bucket manually
 - Or change the stack name to get a new bucket name
 
@@ -39,7 +42,9 @@ npm install
 **Error**: `ENOENT: no such file or directory '../client/build'`
 
 **Solution**:
+
 1. Build the frontend first:
+
    ```bash
    cd client
    npm install
@@ -55,6 +60,7 @@ npm install
 **Error**: `Certificate validation failed` or DNS validation timeout
 
 **Solution**:
+
 - Ensure the hosted zone ID is correct
 - Check that the domain is properly configured in Route53
 - Certificate validation can take 5-30 minutes
@@ -65,12 +71,15 @@ npm install
 **Error**: Service fails health checks or tasks keep restarting
 
 **Solutions**:
+
 1. Check CloudWatch logs:
+
    ```bash
    aws logs tail /ecs/bearlymail/web --follow
    ```
 
 2. Verify secrets are configured:
+
    ```bash
    aws secretsmanager get-secret-value --secret-id <AppSecretsArn>
    ```
@@ -79,7 +88,7 @@ npm install
 
 4. Verify database is accessible from ECS tasks
 
-### 6a. ResourceInitializationError: "invalid character '_' looking for beginning of value" (secrets)
+### 6a. ResourceInitializationError: "invalid character '\_' looking for beginning of value" (secrets)
 
 **Error**: `ResourceInitializationError: unable to pull secrets or registry auth: execution resource retrieval failed: unable to retrieve secret from asm: ... invalid character '_' looking for beginning of value`
 
@@ -92,6 +101,7 @@ npm install
    - No trailing commas, no unquoted keys or values.
 
 2. Get the AppSecrets ARN from stack outputs, then set the secret value with valid JSON:
+
    ```bash
    APP_SECRETS_ARN=$(aws cloudformation describe-stacks --stack-name BearlyMailStack \
      --query 'Stacks[0].Outputs[?OutputKey==`AppSecretsArn`].OutputValue' --output text)
@@ -126,6 +136,7 @@ npm install
 **Error**: `Connection refused` or `timeout`
 
 **Solutions**:
+
 - Check RDS security group allows ECS security group
 - Verify database is in same VPC as ECS
 - Check database credentials in Secrets Manager
@@ -136,6 +147,7 @@ npm install
 **Error**: `Certificate must be in us-east-1 region for CloudFront`
 
 **Solution**: The stack automatically creates the certificate in us-east-1. If you see this:
+
 - Ensure you're deploying to ap-southeast-2 (Sydney) for other resources
 - The certificate will be created in us-east-1 automatically
 
@@ -144,6 +156,7 @@ npm install
 **Error**: `Hosted zone not found` or `Invalid hosted zone ID`
 
 **Solution**:
+
 - Verify the hosted zone ID: `Z08919233O73NFKRK9QHU`
 - Check the zone exists in Route53:
   ```bash
@@ -156,6 +169,7 @@ npm install
 **Error**: `This stack uses assets, so the toolkit stack must be deployed`
 
 **Solution**:
+
 ```bash
 cdk bootstrap aws://YOUR-ACCOUNT-ID/ap-southeast-2
 ```
@@ -165,6 +179,7 @@ cdk bootstrap aws://YOUR-ACCOUNT-ID/ap-southeast-2
 **Error**: `Access Denied` or `UnauthorizedOperation`
 
 **Solution**:
+
 - Ensure your AWS credentials have necessary permissions
 - Required permissions:
   - EC2 (VPC, Security Groups, etc.)
@@ -183,6 +198,7 @@ cdk bootstrap aws://YOUR-ACCOUNT-ID/ap-southeast-2
 ### 1. Check CDK synth
 
 Before deploying, verify the template:
+
 ```bash
 cdk synth
 ```
@@ -192,6 +208,7 @@ This will show any TypeScript or configuration errors.
 ### 2. Check CDK diff
 
 See what will change:
+
 ```bash
 cdk diff
 ```
@@ -246,12 +263,12 @@ aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
 Temporarily remove domain configuration from `bin/app.ts`:
 
 ```typescript
-new BearlyMailStack(app, 'BearlyMailStack', {
+new BearlyMailStack(app, "BearlyMailStack", {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: 'ap-southeast-2',
+    region: "ap-southeast-2",
   },
-  description: 'BearlyMail - ADHD-friendly email client infrastructure',
+  description: "BearlyMail - ADHD-friendly email client infrastructure",
   // domainName: 'bearlymail.com',
   // hostedZoneId: 'Z08919233O73NFKRK9QHU',
 });
@@ -265,9 +282,3 @@ Then add the domain later once the base infrastructure is working.
 2. Review CloudFormation stack events
 3. Check AWS service health dashboards
 4. Verify all prerequisites are met (Docker, Node.js, AWS CLI)
-
-
-
-
-
-

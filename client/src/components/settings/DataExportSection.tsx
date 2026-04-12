@@ -94,8 +94,6 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-
-
 async function submitImport(importData: unknown, token: string | null): Promise<ImportResult> {
   const response = await fetch(`${API_URL}/users/me/import`, {
     method: 'POST',

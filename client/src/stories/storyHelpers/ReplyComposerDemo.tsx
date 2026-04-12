@@ -25,11 +25,7 @@ export const ReplyComposerDemo: React.FC<ReplyComposerDemoProps> = ({
   const [sent, setSent] = useState(false);
 
   if (sent) {
-    return (
-      <div style={{ padding: '16px', color: '#059669', fontWeight: 500 }}>
-        ✅ Reply sent!
-      </div>
-    );
+    return <div style={{ padding: '16px', color: '#059669', fontWeight: 500 }}>✅ Reply sent!</div>;
   }
 
   return (

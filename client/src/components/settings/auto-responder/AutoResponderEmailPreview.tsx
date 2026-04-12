@@ -105,8 +105,6 @@ async function loadEmailPreview(emailId: string, token: string): Promise<EmailPr
   return previewJson.preview;
 }
 
-
-
 interface PreviewContentProps {
   preview: EmailPreviewResult | null;
   isLoading: boolean;
@@ -308,18 +306,30 @@ function useEmailPreviewState() {
   }, [selectedEmailId, fetchPreviewForEmail]);
 
   return {
-    isExpanded, setIsExpanded,
-    recentEmails, selectedEmailId, setSelectedEmailId,
-    preview, isLoadingEmails, isLoadingPreview, error,
+    isExpanded,
+    setIsExpanded,
+    recentEmails,
+    selectedEmailId,
+    setSelectedEmailId,
+    preview,
+    isLoadingEmails,
+    isLoadingPreview,
+    error,
   };
 }
 
 export const AutoResponderEmailPreview: React.FC = () => {
   const { t } = useTranslation();
   const {
-    isExpanded, setIsExpanded,
-    recentEmails, selectedEmailId, setSelectedEmailId,
-    preview, isLoadingEmails, isLoadingPreview, error,
+    isExpanded,
+    setIsExpanded,
+    recentEmails,
+    selectedEmailId,
+    setSelectedEmailId,
+    preview,
+    isLoadingEmails,
+    isLoadingPreview,
+    error,
   } = useEmailPreviewState();
 
   return (

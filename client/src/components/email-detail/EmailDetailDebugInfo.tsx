@@ -21,9 +21,7 @@ function formatStoredAttachmentsSummary(att: unknown, noneLabel: string): string
   if (!Array.isArray(att) || att.length === 0) {
     return noneLabel;
   }
-  const names = att
-    .map((attachment: { filename?: string }) => attachment.filename || '?')
-    .join(', ');
+  const names = att.map((attachment: { filename?: string }) => attachment.filename || '?').join(', ');
   return `${att.length} (${names})`;
 }
 
@@ -76,14 +74,11 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced 
     }
     setRefreshingAttachments(true);
     try {
-      await axios.post(
-        `${API_URL}/emails/${emailData.id}/debug/refresh-attachments-from-gmail`,
-      );
+      await axios.post(`${API_URL}/emails/${emailData.id}/debug/refresh-attachments-from-gmail`);
       await onAttachmentsSynced?.();
     } catch (err) {
       console.error('refreshAttachmentsFromGmail:', err);
-      const msg =
-        getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.refreshAttachmentsFailed');
+      const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.refreshAttachmentsFailed');
       alert(msg);
     } finally {
       setRefreshingAttachments(false);
@@ -120,7 +115,8 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced 
         }}
       >
         <div>
-          <strong>{t('debug.emailDetail.gmailMessageId')}:</strong> {emailData.messageId || t('debug.emailDetail.notAvailable')}
+          <strong>{t('debug.emailDetail.gmailMessageId')}:</strong>{' '}
+          {emailData.messageId || t('debug.emailDetail.notAvailable')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <strong>{t('debug.emailDetail.gmailThreadId')}:</strong>
@@ -171,10 +167,12 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced 
           <strong>{t('debug.emailDetail.receivedAt')}:</strong> {emailData.receivedAt}
         </div>
         <div>
-          <strong>{t('debug.emailDetail.isRead')}:</strong> {emailData.isRead ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+          <strong>{t('debug.emailDetail.isRead')}:</strong>{' '}
+          {emailData.isRead ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
         </div>
         <div>
-          <strong>{t('debug.emailDetail.isArchived')}:</strong> {emailData.isArchived ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+          <strong>{t('debug.emailDetail.isArchived')}:</strong>{' '}
+          {emailData.isArchived ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
         </div>
         <div>
           <strong>{t('debug.emailDetail.starCount')}:</strong> {emailData.starCount || 0}

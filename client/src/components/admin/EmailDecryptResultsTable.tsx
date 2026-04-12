@@ -9,10 +9,7 @@ interface EmailDecryptResultsTableProps {
   fields: DecryptFieldRow[];
 }
 
-export const EmailDecryptResultsTable: React.FC<EmailDecryptResultsTableProps> = ({
-  serverKeyPrefix,
-  fields,
-}) => {
+export const EmailDecryptResultsTable: React.FC<EmailDecryptResultsTableProps> = ({ serverKeyPrefix, fields }) => {
   const { t } = useTranslation();
 
   return (

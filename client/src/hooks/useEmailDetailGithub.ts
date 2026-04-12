@@ -89,7 +89,10 @@ export function useEmailDetailGithub(emailId: string) {
       if (axios.isCancel(error)) {
         return;
       }
-      if (axios.isAxiosError(error) && (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)) {
+      if (
+        axios.isAxiosError(error) &&
+        (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)
+      ) {
         setHasGithubToken(false);
       }
     } finally {

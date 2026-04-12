@@ -106,9 +106,7 @@ export function useCategoryFetch({
       return;
     }
 
-    const keyToItem = new Map(
-      categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat])
-    );
+    const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
 
     expandedCategories.forEach(key => {
       if (
@@ -142,9 +140,8 @@ export function useCategoryFetch({
       // Phase 2 dual-write: notify categorySlice of fetch start
       dispatch(categoryFetchStart(key));
 
-      measurePerformance(
-        { label: `category-fetch:${item.name}`, budgetMs: ACCORDION_BUDGETS.CATEGORY_FETCH },
-        () => fetchCategoryEmails(item.name, item.id ?? undefined)
+      measurePerformance({ label: `category-fetch:${item.name}`, budgetMs: ACCORDION_BUDGETS.CATEGORY_FETCH }, () =>
+        fetchCategoryEmails(item.name, item.id ?? undefined)
       )
         .then(() => {
           // Phase 2 dual-write: emails: [] is intentional — categorySlice tracks fetch status only;
@@ -157,7 +154,14 @@ export function useCategoryFetch({
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : 'Unknown fetch error';
-          dispatch(categoryFetchError({ key, error: message, retryCount: 1, nextRetryAt: Date.now() + CATEGORY_FETCH_RETRY_DELAY_MS }));
+          dispatch(
+            categoryFetchError({
+              key,
+              error: message,
+              retryCount: 1,
+              nextRetryAt: Date.now() + CATEGORY_FETCH_RETRY_DELAY_MS,
+            })
+          );
           // Also clear on error so the retry mechanism can re-dispatch if needed.
           fetchSessionRef.current.delete(key);
         });

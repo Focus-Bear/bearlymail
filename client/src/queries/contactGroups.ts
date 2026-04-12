@@ -1,10 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import {
-  ContactGroup,
-  CreateContactGroupPayload,
-  UpdateContactGroupPayload,
-} from 'types/contactGroup';
+import { ContactGroup, CreateContactGroupPayload, UpdateContactGroupPayload } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
 
@@ -12,25 +8,18 @@ const BASE = `${API_URL}/contact-groups`;
 
 // ── API helpers ──────────────────────────────────────────────────────────────
 
-export const fetchContactGroups = (): Promise<ContactGroup[]> =>
-  axios.get<ContactGroup[]>(BASE).then((res) => res.data);
+export const fetchContactGroups = (): Promise<ContactGroup[]> => axios.get<ContactGroup[]>(BASE).then(res => res.data);
 
 export const fetchContactGroupSearch = (query: string): Promise<ContactGroup[]> =>
-  axios
-    .get<ContactGroup[]>(`${BASE}/search`, { params: { q: query } })
-    .then((res) => res.data);
+  axios.get<ContactGroup[]>(`${BASE}/search`, { params: { q: query } }).then(res => res.data);
 
 export const createContactGroup = (payload: CreateContactGroupPayload): Promise<ContactGroup> =>
-  axios.post<ContactGroup>(BASE, payload).then((res) => res.data);
+  axios.post<ContactGroup>(BASE, payload).then(res => res.data);
 
-export const updateContactGroup = (
-  id: string,
-  payload: UpdateContactGroupPayload,
-): Promise<ContactGroup> =>
-  axios.put<ContactGroup>(`${BASE}/${id}`, payload).then((res) => res.data);
+export const updateContactGroup = (id: string, payload: UpdateContactGroupPayload): Promise<ContactGroup> =>
+  axios.put<ContactGroup>(`${BASE}/${id}`, payload).then(res => res.data);
 
-export const deleteContactGroup = (id: string): Promise<void> =>
-  axios.delete(`${BASE}/${id}`).then(() => undefined);
+export const deleteContactGroup = (id: string): Promise<void> => axios.delete(`${BASE}/${id}`).then(() => undefined);
 
 // ── Query keys ───────────────────────────────────────────────────────────────
 

@@ -72,7 +72,10 @@ export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
   return (
     <ModalBackdrop onClose={onClose} zIndex={2001}>
       <ModalContent maxWidth={`${MODAL_WIDTH_MEDIUM}px`} maxHeight={VIEWPORT_HEIGHT_90}>
-        <ModalHeaderWithClose title={t('quickActions.createIssueTitle', { defaultValue: '🐛 Create GitHub Issue' })} onClose={onClose} />
+        <ModalHeaderWithClose
+          title={t('quickActions.createIssueTitle', { defaultValue: '🐛 Create GitHub Issue' })}
+          onClose={onClose}
+        />
         <form onSubmit={handleSubmit}>
           <GitHubIssueForm
             owner={owner}

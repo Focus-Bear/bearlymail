@@ -61,7 +61,7 @@ interface EmailListItemProps {
  *
  * To render in Storybook, use EmailListItemView directly with animatingOutType prop.
  */
-export const EmailListItem: React.FC<EmailListItemProps> = (props) => {
+export const EmailListItem: React.FC<EmailListItemProps> = props => {
   const animatingOut = useSelector(selectAnimatingOut);
   const animatingOutItem = animatingOut.find(item => item.id === props.email.id);
 

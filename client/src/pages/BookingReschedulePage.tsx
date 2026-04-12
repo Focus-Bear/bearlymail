@@ -9,7 +9,14 @@ import { SlotSelection } from 'components/booking/SlotSelection';
 import { API_URL } from 'config/api';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CHECK } from 'constants/emojis';
-import { MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT, OPACITY_DISABLED, OPACITY_FULL, WIDTH_FULL_PX } from 'constants/numbers';
+import {
+  MAX_WIDTH_500_PX,
+  MAX_WIDTH_600_PX,
+  OPACITY_90_PERCENT,
+  OPACITY_DISABLED,
+  OPACITY_FULL,
+  WIDTH_FULL_PX,
+} from 'constants/numbers';
 import {
   BOOKING_ERROR,
   BOOKING_IDLE,
@@ -68,7 +75,13 @@ const BookingRescheduleSuccess: React.FC<{ t: (key: string) => string }> = ({ t 
         maxWidth: `${MAX_WIDTH_500_PX}px`,
       }}
     >
-      <div style={{ color: theme.colors.accent.success, fontSize: theme.typography.fontSize['3xl'], marginBottom: theme.spacing.lg }}>
+      <div
+        style={{
+          color: theme.colors.accent.success,
+          fontSize: theme.typography.fontSize['3xl'],
+          marginBottom: theme.spacing.lg,
+        }}
+      >
         {EMOJI_CHECK}
       </div>
       <h1 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
@@ -97,7 +110,13 @@ const CurrentBookingInfo: React.FC<CurrentBookingInfoProps> = ({ booking, t }) =
     <p style={{ margin: 0, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
       {t('booking.reschedule.currentTime')}
     </p>
-    <p style={{ margin: `${theme.spacing.xs} 0 0`, color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
+    <p
+      style={{
+        margin: `${theme.spacing.xs} 0 0`,
+        color: theme.colors.text.primary,
+        fontWeight: theme.typography.fontWeight.medium,
+      }}
+    >
       {new Date(booking.startTime).toLocaleDateString(undefined, {
         weekday: STRING_LONG,
         month: 'short',
@@ -139,10 +158,9 @@ const BookingReschedulePage: React.FC = () => {
         return;
       }
 
-      const slotsResponse = await axios.get(
-        `${API_URL}/public/calendar/${bookingData.userId}/slots`,
-        { params: { limit: SLOTS_PER_PAGE } }
-      );
+      const slotsResponse = await axios.get(`${API_URL}/public/calendar/${bookingData.userId}/slots`, {
+        params: { limit: SLOTS_PER_PAGE },
+      });
       setSlots(slotsResponse.data.slots);
       setTimezone(slotsResponse.data.timezone);
       setHasMore(slotsResponse.data.hasMore ?? false);
@@ -161,10 +179,9 @@ const BookingReschedulePage: React.FC = () => {
     try {
       const lastSlot = slots[slots.length - 1];
       const afterDate = lastSlot ? lastSlot.end : undefined;
-      const slotsResponse = await axios.get(
-        `${API_URL}/public/calendar/${userId}/slots`,
-        { params: { limit: SLOTS_PER_PAGE, afterDate } }
-      );
+      const slotsResponse = await axios.get(`${API_URL}/public/calendar/${userId}/slots`, {
+        params: { limit: SLOTS_PER_PAGE, afterDate },
+      });
       setSlots(prev => [...prev, ...slotsResponse.data.slots]);
       setHasMore(slotsResponse.data.hasMore ?? false);
     } catch {

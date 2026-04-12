@@ -192,7 +192,9 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         )}
 
         <button type="submit" disabled={submitting} style={getButtonStyle(isMobile, submitting)}>
-          {submitting ? t('landing.waitlist.submitting', { defaultValue: 'Submitting...' }) : t('landing.waitlist.join', { defaultValue: 'Join Waitlist' })}
+          {submitting
+            ? t('landing.waitlist.submitting', { defaultValue: 'Submitting...' })
+            : t('landing.waitlist.join', { defaultValue: 'Join Waitlist' })}
         </button>
       </form>
     </WaitlistFormContainer>

@@ -5,7 +5,9 @@
 The current `i18next/no-literal-string` rule uses `markupOnly: true` which means it checks JSX markup but misses string literals inside JSX expression containers (`{...}`). Specifically:
 
 ```tsx
-{isSaving ? 'saving' : 'save'}
+{
+  isSaving ? "saving" : "save";
+}
 ```
 
 The string literals `'saving'` and `'save'` inside the ternary are NOT currently caught. This was spotted by Jeremy in PR #755 (ProtoCategoriesModal sub-components).
@@ -17,6 +19,7 @@ The string literals `'saving'` and `'save'` inside the ternary are NOT currently
 The `i18next/no-literal-string` rule configuration needs updating.
 
 **Current config**:
+
 ```js
 'i18next/no-literal-string': [
   'error',
@@ -34,6 +37,7 @@ Set the appropriate option to also check string literals inside JSX expression c
 
 **Option B** (use `no-restricted-syntax` supplement):
 Add a `no-restricted-syntax` selector to catch the specific pattern:
+
 ```js
 {
   selector: "JSXExpressionContainer > ConditionalExpression Literal[value=/^[a-zA-Z ]{2,}$/]",
@@ -54,24 +58,35 @@ Also update the `ignoreAttribute` list if needed to not over-catch non-translata
 After tightening the rule, run `npm run lint` to discover all newly flagged violations. Systematically fix them:
 
 **Pattern: ternary in JSX**
+
 ```tsx
 // Before
-{isSaving ? 'saving' : 'save'}
+{
+  isSaving ? "saving" : "save";
+}
 
 // After
-{isSaving ? t('common.saving') : t('common.save')}
+{
+  isSaving ? t("common.saving") : t("common.save");
+}
 ```
 
 **Pattern: logical expression in JSX**
+
 ```tsx
 // Before
-{hasError && 'Something went wrong'}
+{
+  hasError && "Something went wrong";
+}
 
 // After
-{hasError && t('errors.somethingWentWrong')}
+{
+  hasError && t("errors.somethingWentWrong");
+}
 ```
 
 **Pattern: direct JSX text** (if still missed):
+
 ```tsx
 // Before
 <button>Save</button>
@@ -81,12 +96,14 @@ After tightening the rule, run `npm run lint` to discover all newly flagged viol
 ```
 
 Key files to check (from recent max-lines refactoring batches #746–#761):
+
 - `client/src/components/proto-categories/ProtoCategoriesModal.tsx` (known trigger from Jeremy's review)
 - Any other sub-components extracted during the refactoring batches
 
 ### 3. `client/public/locales/en/translation.json`
 
 Add all new translation keys. Group them under sensible namespaces:
+
 - `common.saving`, `common.save`, `common.cancel`, `common.loading`, etc. for generic UI strings
 - Component-specific keys under their own namespace
 

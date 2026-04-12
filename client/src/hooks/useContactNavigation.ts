@@ -26,11 +26,7 @@ export function useContactNavigation() {
   const navigate = useNavigate();
 
   const navigateToContact = useCallback(
-    async (
-      event: React.SyntheticEvent,
-      emailAddress: string | null | undefined,
-      senderContactId?: string | null,
-    ) => {
+    async (event: React.SyntheticEvent, emailAddress: string | null | undefined, senderContactId?: string | null) => {
       // Prevent the click from bubbling up to email list/thread selection handlers.
       event.stopPropagation();
       event.preventDefault();
@@ -62,7 +58,7 @@ export function useContactNavigation() {
         navigate('/crm/contacts');
       }
     },
-    [navigate],
+    [navigate]
   );
 
   return { navigateToContact };

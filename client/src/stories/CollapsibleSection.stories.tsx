@@ -22,8 +22,8 @@ export const SummaryAmber: Story = {
     <div style={{ maxWidth: 600 }}>
       <CollapsibleDemo title="AI Summary" accent="#D97706" accentBg="#FFFBEB" icon="📋">
         <p style={{ margin: 0, fontSize: '15px', color: '#111827', lineHeight: 1.6 }}>
-          The sender is following up about the Monash Grand Prix event. Catering must be confirmed by
-          Thursday, budget sign-off is pending, and 3 team members need assigning to registration.
+          The sender is following up about the Monash Grand Prix event. Catering must be confirmed by Thursday, budget
+          sign-off is pending, and 3 team members need assigning to registration.
         </p>
       </CollapsibleDemo>
     </div>

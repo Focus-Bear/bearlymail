@@ -1,6 +1,7 @@
 # Refactoring Plan - Remaining Issues
 
 ## Summary
+
 - **Total ESLint warnings**: ~577 (150 magic strings, 427 untranslated strings, plus function/file size warnings)
 - **Large files needing refactoring**: 3 major pages (Compose, Search, EmailDetail)
 - **Large hooks needing refactoring**: 2 hooks (useSettingsData, useInboxState)
@@ -10,14 +11,17 @@
 ## Priority 1: Critical Refactoring (Large Files)
 
 ### 1. EmailDetail.tsx (2440 lines, 2208-line function) ⚠️ CRITICAL
+
 **Status**: Pending  
 **Priority**: HIGHEST  
 **Issues**:
+
 - File exceeds 800-line limit (2440 lines)
 - Main function exceeds 200-line limit (2208 lines)
 - Massive "god component"
 
 **Plan**:
+
 - Extract `useEmailDetailState` hook (all state management)
 - Extract `useEmailDetailOperations` hook (all handlers/API calls)
 - Extract UI components:
@@ -36,13 +40,16 @@
 ---
 
 ### 2. Compose.tsx (890 lines, 777-line function) ⚠️ HIGH
+
 **Status**: Pending  
 **Priority**: HIGH  
 **Issues**:
+
 - File exceeds 800-line limit (890 lines)
 - Main function exceeds 200-line limit (777 lines)
 
 **Plan**:
+
 - Extract `useComposeForm` hook (form state and validation)
 - Extract `useContactSearch` hook (contact search logic)
 - Extract UI components:
@@ -57,13 +64,16 @@
 ---
 
 ### 3. Search.tsx (996 lines, 892-line function) ⚠️ HIGH
+
 **Status**: Pending  
 **Priority**: HIGH  
 **Issues**:
+
 - File exceeds 800-line limit (996 lines)
 - Main function exceeds 200-line limit (892 lines)
 
 **Plan**:
+
 - Extract `useSearch` hook (search state and API calls)
 - Extract `useSearchDebug` hook (debug panel state)
 - Extract UI components:
@@ -80,12 +90,15 @@
 ## Priority 2: Hook Refactoring
 
 ### 4. useSettingsData.ts (590 lines, 469-line function)
+
 **Status**: Created but needs splitting  
 **Priority**: MEDIUM  
 **Issues**:
+
 - Hook function exceeds 100-line limit (469 lines)
 
 **Plan**:
+
 - Split into multiple hooks:
   - `useSettingsData` (main data fetching)
   - `useContextManagement` (context CRUD operations)
@@ -99,12 +112,15 @@
 ---
 
 ### 5. useInboxState.ts (296 lines, 216-line function)
+
 **Status**: Created but needs splitting  
 **Priority**: MEDIUM  
 **Issues**:
+
 - Hook function exceeds 100-line limit (216 lines)
 
 **Plan**:
+
 - Already well-structured, but could extract:
   - `useInboxData` (data fetching and state)
   - `useInboxActions` (action handlers)
@@ -117,12 +133,15 @@
 ## Priority 3: Component Refactoring
 
 ### 6. ContextSection.tsx (358 lines)
+
 **Status**: Needs review  
 **Priority**: LOW  
 **Issues**:
+
 - Large component, could be split further
 
 **Plan**:
+
 - Extract sub-components if function exceeds 100 lines
 - Review and extract if needed
 
@@ -131,13 +150,16 @@
 ---
 
 ### 7. Admin Components
+
 **Status**: Needs refactoring  
 **Priority**: LOW  
 **Issues**:
+
 - `SubscriptionsSection.tsx`: 146-line and 109-line functions
 - `WaitlistSection.tsx`: 134-line function
 
 **Plan**:
+
 - Extract sub-components for large functions
 - Split rendering logic from business logic
 
@@ -148,9 +170,11 @@
 ## Priority 4: ESLint Warnings (Non-blocking)
 
 ### 8. Magic Strings (150 warnings)
+
 **Status**: Warnings only  
 **Priority**: LOW  
 **Plan**:
+
 - Replace magic strings in comparisons with constants
 - Add to `constants/strings.ts` as needed
 - Use automated find/replace where possible
@@ -160,9 +184,11 @@
 ---
 
 ### 9. Untranslated Strings (427 warnings)
+
 **Status**: Warnings only  
 **Priority**: LOW  
 **Plan**:
+
 - Add translations to `locales/en.json`
 - Replace literal strings with `t()` calls
 - Focus on user-facing strings first
@@ -190,8 +216,3 @@
 - Absolute imports are now set up and working
 - ESLint rules are configured and catching issues
 - Build is successful
-
-
-
-
-

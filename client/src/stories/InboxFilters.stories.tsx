@@ -71,9 +71,9 @@ const MOCK_CATEGORY_COUNTS: Record<string, number> = {
 
 const MOCK_BUCKET_COUNTS: Record<string, number> = {
   'Very Low': 3,
-  'Low': 12,
-  'Medium': 28,
-  'High': 14,
+  Low: 12,
+  Medium: 28,
+  High: 14,
   'Very High': 7,
 };
 
@@ -141,9 +141,7 @@ const VisualCategoryFilterDemo: React.FC<VisualCategoryFilterDemoProps> = ({
           onChange={setSelectedIds}
           categoryCounts={categoryCounts}
         />
-        <p style={{ marginTop: '12px', fontSize: '12px', color: '#666' }}>
-          selected: [{selectedIds.join(', ')}]
-        </p>
+        <p style={{ marginTop: '12px', fontSize: '12px', color: '#666' }}>selected: [{selectedIds.join(', ')}]</p>
       </div>
     </I18nextProvider>
   );
@@ -196,10 +194,14 @@ const InboxFiltersDemo: React.FC<InboxFiltersDemoProps> = ({
           setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
           setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
           setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
-          onFilterChange={() => {/* no-op in Storybook */}}
+          onFilterChange={() => {
+            /* no-op in Storybook */
+          }}
           categoryCounts={categoryCounts}
           bucketCounts={bucketCounts}
-          priorityTotalCount={bucketCounts ? Object.values(bucketCounts).reduce((bucketA, bucketB) => bucketA + bucketB, 0) : undefined}
+          priorityTotalCount={
+            bucketCounts ? Object.values(bucketCounts).reduce((bucketA, bucketB) => bucketA + bucketB, 0) : undefined
+          }
         />
       </div>
     </I18nextProvider>
@@ -256,19 +258,12 @@ export const Interactive: PriorityStory = {
 
 export const CategoryEmpty: StoryObj = {
   name: 'Category — empty (no categories)',
-  render: () => (
-    <VisualCategoryFilterDemo categories={[]} />
-  ),
+  render: () => <VisualCategoryFilterDemo categories={[]} />,
 };
 
 export const CategoryFewNoneSelected: StoryObj = {
   name: 'Category — 3 categories, none selected',
-  render: () => (
-    <VisualCategoryFilterDemo
-      categories={MOCK_CATEGORIES_FEW}
-      categoryCounts={MOCK_CATEGORY_COUNTS}
-    />
-  ),
+  render: () => <VisualCategoryFilterDemo categories={MOCK_CATEGORIES_FEW} categoryCounts={MOCK_CATEGORY_COUNTS} />,
 };
 
 export const CategorySomeSelected: StoryObj = {
@@ -284,12 +279,7 @@ export const CategorySomeSelected: StoryObj = {
 
 export const CategoryOverflow: StoryObj = {
   name: 'Category — overflow (8 categories, with counts)',
-  render: () => (
-    <VisualCategoryFilterDemo
-      categories={MOCK_CATEGORIES_MANY}
-      categoryCounts={MOCK_CATEGORY_COUNTS}
-    />
-  ),
+  render: () => <VisualCategoryFilterDemo categories={MOCK_CATEGORIES_MANY} categoryCounts={MOCK_CATEGORY_COUNTS} />,
 };
 
 export const CategorySelectedWithOverflowOpen: StoryObj = {
@@ -353,7 +343,9 @@ const FullFilterBarCategoriesSelectedDemo: React.FC = () => {
           setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
           setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
           setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
-          onFilterChange={() => {/* no-op */}}
+          onFilterChange={() => {
+            /* no-op */
+          }}
           categoryCounts={MOCK_CATEGORY_COUNTS}
           bucketCounts={MOCK_BUCKET_COUNTS}
           priorityTotalCount={Object.values(MOCK_BUCKET_COUNTS).reduce((bucketA, bucketB) => bucketA + bucketB, 0)}
@@ -415,7 +407,9 @@ export const CategoryCompactMobile: StoryObj = {
         <VisualCategoryFilter
           categories={MOCK_CATEGORIES_MANY}
           selectedIds={['cat-uuid-1', 'cat-uuid-3']}
-          onChange={() => {/* no-op */}}
+          onChange={() => {
+            /* no-op */
+          }}
           categoryCounts={MOCK_CATEGORY_COUNTS}
           compact
         />
@@ -447,9 +441,7 @@ export const CategoryCompactOverflow: StoryObj = {
               categoryCounts={MOCK_CATEGORY_COUNTS}
               compact
             />
-            <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
-              selected: [{selectedIds.join(', ')}]
-            </p>
+            <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>selected: [{selectedIds.join(', ')}]</p>
           </div>
         </I18nextProvider>
       );
@@ -477,8 +469,7 @@ export const MobileStackedLayout: StoryObj = {
         minPriority: 80 as number | null,
         maxPriority: null as number | null,
       });
-      const hasActiveFilters =
-        filters.categories.length > 0 || filters.minPriority !== null;
+      const hasActiveFilters = filters.categories.length > 0 || filters.minPriority !== null;
       return (
         <I18nextProvider i18n={inboxFiltersI18n}>
           {/* Constrain to 375px to force the isMobile responsive path */}
@@ -493,16 +484,20 @@ export const MobileStackedLayout: StoryObj = {
               hasActiveFilters={hasActiveFilters}
               setAccountFilter={ids => setFilters(prev => ({ ...prev, accountIds: ids }))}
               setCategoryFilter={cats => setFilters(prev => ({ ...prev, categories: cats }))}
-              setPriorityFilter={(min, max = null) => setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))}
-              onFilterChange={() => {/* no-op */}}
+              setPriorityFilter={(min, max = null) =>
+                setFilters(prev => ({ ...prev, minPriority: min, maxPriority: max }))
+              }
+              onFilterChange={() => {
+                /* no-op */
+              }}
               categoryCounts={MOCK_CATEGORY_COUNTS}
               bucketCounts={MOCK_BUCKET_COUNTS}
               priorityTotalCount={Object.values(MOCK_BUCKET_COUNTS).reduce((acc, val) => acc + val, 0)}
             />
           </div>
           <p style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
-            On screens &lt;640px, InboxFilters stacks the category + priority rows and
-            passes compact=true to VisualCategoryFilter. useResponsiveBreakpoints drives this.
+            On screens &lt;640px, InboxFilters stacks the category + priority rows and passes compact=true to
+            VisualCategoryFilter. useResponsiveBreakpoints drives this.
           </p>
         </I18nextProvider>
       );
@@ -538,10 +533,18 @@ export const TabletSideBySideLayout: StoryObj = {
           loadingAccounts={false}
           loadingCategories={false}
           hasActiveFilters
-          setAccountFilter={() => {/* no-op */}}
-          setCategoryFilter={() => {/* no-op */}}
-          setPriorityFilter={() => {/* no-op */}}
-          onFilterChange={() => {/* no-op */}}
+          setAccountFilter={() => {
+            /* no-op */
+          }}
+          setCategoryFilter={() => {
+            /* no-op */
+          }}
+          setPriorityFilter={() => {
+            /* no-op */
+          }}
+          onFilterChange={() => {
+            /* no-op */
+          }}
           categoryCounts={MOCK_CATEGORY_COUNTS}
           bucketCounts={MOCK_BUCKET_COUNTS}
           priorityTotalCount={Object.values(MOCK_BUCKET_COUNTS).reduce((acc, val) => acc + val, 0)}

@@ -6,10 +6,7 @@
 import React, { useState } from 'react';
 import { Email } from 'types/email';
 
-import {
-  EmailDetailHeaderView,
-  PriorityExplanation,
-} from 'components/email-detail/EmailDetailHeaderView';
+import { EmailDetailHeaderView, PriorityExplanation } from 'components/email-detail/EmailDetailHeaderView';
 
 // ---------------------------------------------------------------------------
 // Sample data

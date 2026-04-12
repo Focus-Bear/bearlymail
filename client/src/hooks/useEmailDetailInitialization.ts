@@ -251,7 +251,11 @@ function useThreadEmailsInit({
   }, [threadEmails, setExpandedThreadItems, email, actionItems, setActionItems, expandedItemsSetRef, autoExtractedRef]);
 }
 
-async function autoExtractActions(email: Email, setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void, existingActions: Array<{ id?: string; description: string; isCompleted: boolean; source: string }> = []) {
+async function autoExtractActions(
+  email: Email,
+  setActionItems: (items: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>) => void,
+  existingActions: Array<{ id?: string; description: string; isCompleted: boolean; source: string }> = []
+) {
   try {
     const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
       emailBody: email.body,
@@ -262,14 +266,15 @@ async function autoExtractActions(email: Email, setActionItems: (items: Array<{ 
       isSentEmail: email.labels?.includes('SENT') ?? false,
     });
     if (extractResponse.data && extractResponse.data.length > 0) {
-      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
-        extractResponse.data.map((item: { description: string; source?: string }) => ({
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> = extractResponse.data.map(
+        (item: { description: string; source?: string }) => ({
           description: item.description,
           isCompleted: false,
           source: 'llm',
-        }));
+        })
+      );
       await Promise.all(
-        newItems.map((item) =>
+        newItems.map(item =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );
@@ -335,7 +340,14 @@ async function initializeEmailSummary({
         });
       } catch (error) {
         console.error('Error matching rule:', error);
-        applyMatchedRule({ matchedRule: null, rulesList, id, initializedRef: initializedEmailIdRef, handleUseCustomRule, handleSummarize });
+        applyMatchedRule({
+          matchedRule: null,
+          rulesList,
+          id,
+          initializedRef: initializedEmailIdRef,
+          handleUseCustomRule,
+          handleSummarize,
+        });
       }
     } else {
       initializedEmailIdRef.current = id;

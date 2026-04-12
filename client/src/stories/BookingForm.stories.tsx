@@ -29,9 +29,7 @@ const BookingFormWrapper = ({
   const [agenda, setAgenda] = useState(initialAgenda);
   const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
 
-  const slot = hasSlot
-    ? { start: '2026-04-01T10:00:00Z', end: '2026-04-01T10:30:00Z', duration: 30 }
-    : null;
+  const slot = hasSlot ? { start: '2026-04-01T10:00:00Z', end: '2026-04-01T10:30:00Z', duration: 30 } : null;
 
   return (
     <I18nextProvider i18n={i18n}>
@@ -98,11 +96,7 @@ export const WithAgenda: Story = {
  * Counter turns red when agenda is at the 500-character limit.
  */
 export const AgendaAtLimit: Story = {
-  render: () => (
-    <BookingFormWrapper
-      initialAgenda={'A'.repeat(500)}
-    />
-  ),
+  render: () => <BookingFormWrapper initialAgenda={'A'.repeat(500)} />,
   name: 'Agenda at character limit (counter red)',
 };
 

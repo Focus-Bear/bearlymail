@@ -24,7 +24,16 @@ const noop = () => {};
 
 const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <I18nextProvider i18n={i18n}>
-    <div style={{ maxWidth: 560, margin: '0 auto', background: '#fff', borderRadius: 8, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+    <div
+      style={{
+        maxWidth: 560,
+        margin: '0 auto',
+        background: '#fff',
+        borderRadius: 8,
+        padding: 24,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+      }}
+    >
       {children}
     </div>
   </I18nextProvider>

@@ -78,11 +78,9 @@ export const FeedbackForm: React.FC<Props> = ({
       try {
         const formData = new FormData();
         formData.append('file', screenshotFile);
-        const uploadRes = await axios.post<{ key: string }>(
-          `${API_URL}/feedback/screenshot`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } },
-        );
+        const uploadRes = await axios.post<{ key: string }>(`${API_URL}/feedback/screenshot`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         screenshotKey = uploadRes.data.key;
       } catch (err) {
         setScreenshotError(t('contactFeedback.screenshotUploadError'));
@@ -120,7 +118,7 @@ export const FeedbackForm: React.FC<Props> = ({
           <div>
             <textarea
               value={message}
-              onChange={(event) => setMessage(event.target.value)}
+              onChange={event => setMessage(event.target.value)}
               placeholder={t('contactFeedback.placeholder')}
               maxLength={MAX_MESSAGE_LENGTH}
               rows={6}
@@ -232,7 +230,13 @@ export const FeedbackForm: React.FC<Props> = ({
             />
 
             {screenshotError && (
-              <p style={{ color: theme.colors.error.main, fontSize: theme.typography.fontSize.xs, margin: `${theme.spacing.xs} 0 0` }}>
+              <p
+                style={{
+                  color: theme.colors.error.main,
+                  fontSize: theme.typography.fontSize.xs,
+                  margin: `${theme.spacing.xs} 0 0`,
+                }}
+              >
                 {screenshotError}
               </p>
             )}

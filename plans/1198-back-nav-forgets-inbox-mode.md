@@ -45,8 +45,8 @@ Pass a `onBack` callback from `EmailDetail` → `EmailDetailFullLayout` → `Ema
 
 ## Files to Change
 
-| File | Change |
-|---|---|
+| File                                                        | Change                                                                                                                  |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `client/src/components/email-detail/EmailDetailSidebar.tsx` | Add `useLocation`, derive `backPath` from `fromMode`, replace both `navigate('/inbox')` calls with `navigate(backPath)` |
 
 ## Edge Cases

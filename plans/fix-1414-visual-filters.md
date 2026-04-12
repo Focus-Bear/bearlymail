@@ -10,17 +10,17 @@ The current inbox filters use traditional dropdown selectors (multi-select for a
 
 ### Files & Components
 
-| File | Role |
-|------|------|
-| `client/src/components/inbox/InboxFilters.tsx` | Main filter bar component (~490 lines). Contains `MultiSelectDropdown`, `SingleSelectDropdown`, and the top-level `InboxFilters` component |
-| `client/src/hooks/useInboxFilters.ts` | Filter state hook (~180 lines). Manages `InboxFilter` state, localStorage persistence, priority constants (`PRIORITY_RANGES`), connected accounts query, category fetching |
-| `client/src/components/inbox/inboxFilters.helpers.ts` | Pure helper: `getMultiSelectDisplayText()` |
-| `client/src/components/inbox/inboxFilters.helpers.test.ts` | Unit tests for helpers |
-| `client/src/hooks/useInboxFilters.test.ts` | Unit tests for the hook (priority migration, localStorage, etc.) |
-| `client/src/contexts/InboxContext.tsx` | Defines `InboxFiltersValue` context type; exposes `useInboxFiltersCtx()` |
-| `client/src/contexts/InboxProvider.tsx` | Instantiates `useInboxFilters()` as single source of truth; provides via `InboxFiltersContext.Provider` |
-| `client/src/pages/Inbox.tsx` | Renders `<InboxFilters>` in the main inbox layout (line ~199) |
-| `client/src/components/inbox/InboxHeader.tsx` | Contains `FilterToggleButton` (filter icon + badge count) |
+| File                                                       | Role                                                                                                                                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/components/inbox/InboxFilters.tsx`             | Main filter bar component (~490 lines). Contains `MultiSelectDropdown`, `SingleSelectDropdown`, and the top-level `InboxFilters` component                                 |
+| `client/src/hooks/useInboxFilters.ts`                      | Filter state hook (~180 lines). Manages `InboxFilter` state, localStorage persistence, priority constants (`PRIORITY_RANGES`), connected accounts query, category fetching |
+| `client/src/components/inbox/inboxFilters.helpers.ts`      | Pure helper: `getMultiSelectDisplayText()`                                                                                                                                 |
+| `client/src/components/inbox/inboxFilters.helpers.test.ts` | Unit tests for helpers                                                                                                                                                     |
+| `client/src/hooks/useInboxFilters.test.ts`                 | Unit tests for the hook (priority migration, localStorage, etc.)                                                                                                           |
+| `client/src/contexts/InboxContext.tsx`                     | Defines `InboxFiltersValue` context type; exposes `useInboxFiltersCtx()`                                                                                                   |
+| `client/src/contexts/InboxProvider.tsx`                    | Instantiates `useInboxFilters()` as single source of truth; provides via `InboxFiltersContext.Provider`                                                                    |
+| `client/src/pages/Inbox.tsx`                               | Renders `<InboxFilters>` in the main inbox layout (line ~199)                                                                                                              |
+| `client/src/components/inbox/InboxHeader.tsx`              | Contains `FilterToggleButton` (filter icon + badge count)                                                                                                                  |
 
 ### Current Filter Types
 
@@ -95,6 +95,7 @@ A self-contained component that replaces the `SingleSelectDropdown` for priority
 - Inline styles to match existing codebase pattern (no CSS modules)
 
 **Props interface:**
+
 ```typescript
 interface VisualPriorityFilterProps {
   selectedMin: number | null;
@@ -139,13 +140,13 @@ If the reference only covers priority, keep the existing `MultiSelectDropdown` f
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/components/inbox/VisualPriorityFilter.tsx` | **NEW** — Visual priority range selector |
-| `client/src/components/inbox/VisualCategoryFilter.tsx` | **NEW** (if applicable) — Visual category chips |
-| `client/src/components/inbox/InboxFilters.tsx` | Replace `SingleSelectDropdown` with `VisualPriorityFilter`; optionally replace category dropdown |
-| `client/src/hooks/useInboxFilters.ts` | No changes needed — state shape and `PRIORITY_RANGES` stay the same |
-| `client/src/components/inbox/inboxFilters.helpers.ts` | May add color mapping helper for priority tiers |
+| File                                                   | Change                                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `client/src/components/inbox/VisualPriorityFilter.tsx` | **NEW** — Visual priority range selector                                                         |
+| `client/src/components/inbox/VisualCategoryFilter.tsx` | **NEW** (if applicable) — Visual category chips                                                  |
+| `client/src/components/inbox/InboxFilters.tsx`         | Replace `SingleSelectDropdown` with `VisualPriorityFilter`; optionally replace category dropdown |
+| `client/src/hooks/useInboxFilters.ts`                  | No changes needed — state shape and `PRIORITY_RANGES` stay the same                              |
+| `client/src/components/inbox/inboxFilters.helpers.ts`  | May add color mapping helper for priority tiers                                                  |
 
 ### Files NOT to Change
 
@@ -170,6 +171,7 @@ Stories to create:
 7. **InboxFilters — Loading States** — While accounts/categories load
 
 Story helpers needed:
+
 - Mock connected accounts data
 - Mock category data
 - Wrapper with i18n provider (existing pattern: `I18nextProvider`)
@@ -203,12 +205,12 @@ Upload each to R2 and include public URLs in the PR description.
 
 ## Risk Assessment
 
-| Risk | Likelihood | Mitigation |
-|------|-----------|------------|
-| Design reference inaccessible to Codebeard | Medium | Plan describes the pattern clearly; fallback to segmented control |
-| Priority state shape change needed | Low | Current `(min, max)` pair maps directly to visual segments |
-| Breaking existing filter persistence | Low | No changes to `useInboxFilters` hook or localStorage schema |
-| Accessibility regressions | Medium | Explicit a11y requirements in plan; test with keyboard |
+| Risk                                       | Likelihood | Mitigation                                                        |
+| ------------------------------------------ | ---------- | ----------------------------------------------------------------- |
+| Design reference inaccessible to Codebeard | Medium     | Plan describes the pattern clearly; fallback to segmented control |
+| Priority state shape change needed         | Low        | Current `(min, max)` pair maps directly to visual segments        |
+| Breaking existing filter persistence       | Low        | No changes to `useInboxFilters` hook or localStorage schema       |
+| Accessibility regressions                  | Medium     | Explicit a11y requirements in plan; test with keyboard            |
 
 ---
 
@@ -226,4 +228,4 @@ This is a **UI-only change** — the filter state management, API integration, a
 
 ---
 
-*Plan authored by Monk of Modularity 🧘 — investigation and planning only, no code changes.*
+_Plan authored by Monk of Modularity 🧘 — investigation and planning only, no code changes._

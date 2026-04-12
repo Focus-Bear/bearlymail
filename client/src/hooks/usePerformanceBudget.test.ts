@@ -39,10 +39,7 @@ describe('usePerformanceBudget', () => {
     const { result } = renderHook(() => usePerformanceBudget());
     let measurement: Awaited<ReturnType<typeof result.current.measure>> | undefined;
     await act(async () => {
-      measurement = await result.current.measure(
-        { label: 'test', budgetMs: 1000 },
-        async () => 'hello'
-      );
+      measurement = await result.current.measure({ label: 'test', budgetMs: 1000 }, async () => 'hello');
     });
     expect(measurement!.result).toBe('hello');
   });
@@ -57,8 +54,9 @@ describe('usePerformanceBudget', () => {
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest.spyOn(performance, 'now')
-      .mockReturnValueOnce(0)     // markStart
+    jest
+      .spyOn(performance, 'now')
+      .mockReturnValueOnce(0) // markStart
       .mockReturnValueOnce(1500); // markEnd
 
     act(() => {
@@ -81,8 +79,9 @@ describe('usePerformanceBudget', () => {
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest.spyOn(performance, 'now')
-      .mockReturnValueOnce(0)     // markStart
+    jest
+      .spyOn(performance, 'now')
+      .mockReturnValueOnce(0) // markStart
       .mockReturnValueOnce(5000); // markEnd — 5000ms > 2000ms budget
 
     act(() => {
@@ -103,9 +102,7 @@ describe('usePerformanceBudget', () => {
     // Spy is installed after renderHook to avoid React 19 scheduler consuming mock values
     const { result } = renderHook(() => usePerformanceBudget());
 
-    jest.spyOn(performance, 'now')
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(500); // 500ms < 2000ms budget
+    jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(500); // 500ms < 2000ms budget
 
     act(() => {
       result.current.markStart('fast-span');

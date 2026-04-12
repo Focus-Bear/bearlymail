@@ -5,6 +5,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## High Priority Improvements
 
 ### Email Provider Abstraction
+
 - [ ] Complete email provider abstraction implementation
 - [ ] Add Outlook/Exchange email provider support
 - [ ] Add MS Teams email provider support
@@ -13,6 +14,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Support multiple email accounts per user
 
 ### Email Sync & Loading
+
 - [x] Auto-load emails on first login
 - [ ] Improve email sync reliability (retry logic, error handling)
 - [ ] Add incremental sync (only fetch new emails since last sync)
@@ -21,6 +23,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Optimize sync performance for large inboxes
 
 ### User Experience
+
 - [x] Fix history scan progress UI update
 - [x] Add bear icon to top left
 - [ ] Improve loading states throughout the app
@@ -30,6 +33,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Improve mobile responsiveness
 
 ### Email Management
+
 - [ ] Add email filters/search functionality
 - [ ] Add email labels/tags system
 - [ ] Add email templates for common replies
@@ -40,6 +44,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## Feature Enhancements
 
 ### AI & Prioritization
+
 - [ ] Improve LLM priority scoring accuracy
 - [ ] Add explainability for priority scores ("Why is this high priority?")
 - [ ] Add priority score history/charts
@@ -50,6 +55,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add email thread summarization (all messages in thread)
 
 ### Calendar Integration
+
 - [ ] Improve calendar booking UI/UX
 - [ ] Add calendar conflict detection
 - [ ] Add timezone support for meetings
@@ -58,6 +64,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add meeting preparation notes/context
 
 ### Context & Learning
+
 - [ ] Improve context extraction from emails
 - [ ] Add relationship mapping (who emails frequently)
 - [ ] Add project/topic detection and grouping
@@ -66,6 +73,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add email pattern recognition (recurring emails)
 
 ### Batching & Delivery
+
 - [ ] Add customizable batch delivery schedules per day/time
 - [ ] Add timezone-aware batching
 - [ ] Add batch preview (what emails will be delivered)
@@ -75,6 +83,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## New Features
 
 ### Collaboration
+
 - [ ] Add shared inboxes/team emails
 - [ ] Add email delegation
 - [ ] Add collaborative email drafting
@@ -82,6 +91,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add shared templates
 
 ### Analytics & Insights
+
 - [ ] Add email analytics dashboard
 - [ ] Add response time tracking
 - [ ] Add email volume trends
@@ -90,6 +100,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add priority distribution charts
 
 ### Advanced Features
+
 - [ ] Add email rules/automation (similar to Gmail filters)
 - [ ] Add email snooze presets (common durations)
 - [ ] Add email follow-up reminders
@@ -99,6 +110,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add PGP/GPG support
 
 ### Notifications & Alerts
+
 - [ ] Add desktop notifications for urgent emails
 - [ ] Add email digest/summary notifications
 - [ ] Add customizable notification preferences
@@ -106,6 +118,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add notification grouping
 
 ### Accessibility
+
 - [ ] Improve screen reader support
 - [ ] Add high contrast mode
 - [ ] Add font size customization
@@ -113,6 +126,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add voice commands (future)
 
 ### Integration
+
 - [ ] Add Slack integration
 - [ ] Add Discord integration
 - [ ] Add Notion integration
@@ -124,6 +138,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## Technical Improvements
 
 ### Performance
+
 - [ ] Add email pagination/virtual scrolling for large inboxes
 - [ ] Add caching layer for frequently accessed data
 - [ ] Optimize database queries (add missing indexes)
@@ -132,6 +147,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Optimize bundle size (code splitting)
 
 ### Security
+
 - [x] Encrypt sensitive data at rest
 - [ ] Add rate limiting for API endpoints
 - [ ] Add API key management for integrations
@@ -141,6 +157,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add data export functionality (GDPR compliance)
 
 ### Infrastructure
+
 - [ ] Add comprehensive error tracking (Sentry)
 - [ ] Add application monitoring (APM)
 - [ ] Add database backup automation
@@ -150,6 +167,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add health checks and monitoring
 
 ### Developer Experience
+
 - [ ] Add API documentation (Swagger/OpenAPI)
 - [ ] Add developer documentation
 - [ ] Add type safety improvements
@@ -160,6 +178,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## UI/UX Improvements
 
 ### Design
+
 - [x] Add Focus Bear branding (logo, footer)
 - [ ] Add dark mode support
 - [ ] Add theme customization
@@ -169,6 +188,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add loading skeletons
 
 ### Email View
+
 - [ ] Add email threading/conversation view
 - [ ] Add email attachments preview
 - [ ] Add inline image viewing
@@ -178,6 +198,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Add email printing support
 
 ### Navigation
+
 - [ ] Add breadcrumbs
 - [ ] Add email navigation (prev/next)
 - [ ] Add quick actions menu
@@ -207,6 +228,7 @@ This document tracks potential improvements and new features for BearlyMail.
 ## Ideas & Brainstorming
 
 ### AI Features
+
 - [ ] Auto-categorize emails (project, personal, etc.)
 - [ ] Smart email suggestions ("You usually reply to these")
 - [ ] Email tone analysis
@@ -215,6 +237,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Smart email grouping (related emails)
 
 ### Productivity
+
 - [ ] Email templates marketplace
 - [ ] Email writing assistant (grammar, tone)
 - [ ] Auto-responder for common queries
@@ -223,6 +246,7 @@ This document tracks potential improvements and new features for BearlyMail.
 - [ ] Calendar event creation from emails
 
 ### Social Features
+
 - [ ] Email response time leaderboard (opt-in)
 - [ ] Team email stats
 - [ ] Email habits insights
@@ -249,13 +273,3 @@ This document tracks potential improvements and new features for BearlyMail.
 ---
 
 **Note**: Items marked with [x] are completed. Items can be moved between sections as priorities change.
-
-
-
-
-
-
-
-
-
-

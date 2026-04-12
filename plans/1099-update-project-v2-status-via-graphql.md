@@ -20,6 +20,7 @@ Since the response is 200 OK, no error is thrown, and the modal silently closes 
 
 The GitHub Projects v2 `Status` field must be updated via the **`updateProjectV2ItemFieldValue`**
 GraphQL mutation, which requires:
+
 - `projectId` (node ID of the project)
 - `itemId` (node ID of the project item linking the issue to the project)
 - `fieldId` (node ID of the Status single-select field)
@@ -79,6 +80,7 @@ mutation UpdateProjectV2ItemFieldValue(
 ```
 
 **Error handling:**
+
 - On GraphQL error: log with `this.logger.error(...)` including the mutation name,
   projectId, itemId, fieldId and option ID for traceability.
 - If the error indicates bad credentials (401/403), throw `new Error('GitHub token is invalid or expired')`.
@@ -142,17 +144,20 @@ now also be updated to call the new endpoint when in project-status mode.
 const handleSubmit = async (event: React.FormEvent) => {
   event.preventDefault();
   setLoading(true);
-  setError('');
+  setError("");
 
   try {
     if (projectName && projectStatusData && selectedOptionId) {
       // Project status update path (new)
-      await axios.post(`${API_URL}/suggested-actions/github/update-project-status`, {
-        projectId: projectStatusData.projectId,
-        itemId: projectStatusData.itemId,
-        fieldId: projectStatusData.fieldId,
-        optionId: selectedOptionId,
-      });
+      await axios.post(
+        `${API_URL}/suggested-actions/github/update-project-status`,
+        {
+          projectId: projectStatusData.projectId,
+          itemId: projectStatusData.itemId,
+          fieldId: projectStatusData.fieldId,
+          optionId: selectedOptionId,
+        },
+      );
     } else {
       // Issue open/closed state update path (existing — kept for backwards compatibility)
       await axios.post(`${API_URL}/suggested-actions/github/update-status`, {
@@ -165,7 +170,7 @@ const handleSubmit = async (event: React.FormEvent) => {
     onSuccess();
     onClose();
   } catch (err: any) {
-    setError(err.response?.data?.message || 'Failed to update status');
+    setError(err.response?.data?.message || "Failed to update status");
   } finally {
     setLoading(false);
   }
@@ -178,14 +183,17 @@ when `projectName` is set and `selectedOptionId` is empty (no option chosen yet)
 ---
 
 ## Files to Create
+
 - None
 
 ## Files to Modify
+
 - `server/src/github/github-api.service.ts` — add `updateProjectItemStatus` method + mutation string
 - `server/src/suggested-actions/suggested-actions.controller.ts` — add `POST github/update-project-status`
 - `client/src/components/quick-actions/modals/GitHubUpdateStatusModal.tsx` — branch submit on project vs. issue state mode (also modified by #1098)
 
 ## Files to Delete
+
 - None
 
 ## Implementation Order
@@ -201,6 +209,7 @@ Both can be implemented in a single branch (`fix/1098-1099-project-status-edit`)
 two sequential branches — whichever the implementer prefers, as long as the final PR includes both.
 
 ## Tests
+
 - Unit test `updateProjectItemStatus`:
   - success case: calls octokit.graphql with correct variables
   - bad credentials error: throws human-readable error

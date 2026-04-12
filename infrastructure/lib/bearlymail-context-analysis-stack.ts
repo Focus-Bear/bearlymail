@@ -63,7 +63,16 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
   ) {
     super(scope, id, props);
 
-    const { vpc, database, dbSecret, appSecrets, rdsProxy, rdsProxyEndpoint, rdsProxySecurityGroup, lambdaSecurityGroup } = props;
+    const {
+      vpc,
+      database,
+      dbSecret,
+      appSecrets,
+      rdsProxy,
+      rdsProxyEndpoint,
+      rdsProxySecurityGroup,
+      lambdaSecurityGroup,
+    } = props;
 
     this.rdsProxyEndpoint = rdsProxyEndpoint;
 
@@ -131,9 +140,7 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["rds-db:connect"],
-        resources: [
-          `arn:aws:rds-db:${this.region}:${this.account}:dbuser:*/*`,
-        ],
+        resources: [`arn:aws:rds-db:${this.region}:${this.account}:dbuser:*/*`],
       }),
     );
 
@@ -269,7 +276,8 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, "BatchAnalyzerFunctionName", {
       value: batchAnalyzerFn.functionName,
-      description: "Batch analyzer Lambda function name (used by CI smoke test)",
+      description:
+        "Batch analyzer Lambda function name (used by CI smoke test)",
       exportName: "BearlyMailBatchAnalyzerFunctionName",
     });
   }

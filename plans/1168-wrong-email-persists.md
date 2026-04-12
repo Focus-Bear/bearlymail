@@ -55,7 +55,7 @@ single clicks. `useInboxEmailHandlers.handleEmailSelect` calls:
 
 ```ts
 handleMarkAsRead(emailId);
-splitView.openEmail(emailId);   // sets selectedEmailId
+splitView.openEmail(emailId); // sets selectedEmailId
 setSelectedEmailIndex(emailIndex);
 ```
 
@@ -191,6 +191,7 @@ prevent re-fetching.
 **File:** `client/src/components/inbox/SplitViewPanel.tsx` line 465
 
 **Fix:**
+
 ```tsx
 <EmailDetail
   key={selectedEmailId}   // ← ADD THIS
@@ -206,6 +207,7 @@ the selected email changes. All state is reset automatically. The loading screen
 correctly. No stale data from email A leaks into email B's render.
 
 **Why this alone is sufficient:**
+
 - `useEmailDetailInitialization` correctly fetches data for the new `id` on mount
 - `useEmailDetailState` initialises with clean defaults
 - All refs (`lastAcceleratedRef`, `initializedEmailIdRef`, `fetchedEmailIdRef`,
@@ -215,6 +217,7 @@ correctly. No stale data from email A leaks into email B's render.
 
 **Trade-off:** Unmounting/remounting `EmailDetail` is more expensive than a prop update
 because all effects re-run. However:
+
 - The current "clear state on id change" approach in `useEmailDetailInitialization` is
   essentially doing a manual reset on every switch anyway
 - The `key` approach is simpler, more correct, and removes the risk of partially-cleared
@@ -259,6 +262,7 @@ contract so future contributors don't break it.
 ```
 
 **Testing:** Click between emails rapidly; verify:
+
 - Detail panel immediately shows loading spinner for new email
 - No flash of email A's content when email B is selected
 - Reply composer is closed/reset when switching emails
@@ -286,6 +290,7 @@ the call site in `EmailDetail.tsx`. This is lower priority if Fix 1 is applied.
 **File:** `client/src/hooks/useInboxUrlSync.ts`
 
 Add a comment before Effect 2 and Effect 3 documenting that:
+
 - Effect 2 owns URL→state direction (state changes → navigate)
 - Effect 3 owns state→URL direction (URL params → openEmail/closeEmail)
 - They are intentionally separate to avoid circular updates
@@ -295,11 +300,11 @@ Add a comment before Effect 2 and Effect 3 documenting that:
 
 ## Files to Change
 
-| File | Change | Priority |
-|------|--------|----------|
-| `client/src/components/inbox/SplitViewPanel.tsx` | Add `key={selectedEmailId}` to `<EmailDetail>` | P0 — Required |
-| `client/src/hooks/useEmailDetailInitialization.ts` | Reset note/reply state on email ID change | P1 — Recommended |
-| `client/src/hooks/useInboxUrlSync.ts` | Add ordering-contract comment | P2 — Nice-to-have |
+| File                                               | Change                                         | Priority          |
+| -------------------------------------------------- | ---------------------------------------------- | ----------------- |
+| `client/src/components/inbox/SplitViewPanel.tsx`   | Add `key={selectedEmailId}` to `<EmailDetail>` | P0 — Required     |
+| `client/src/hooks/useEmailDetailInitialization.ts` | Reset note/reply state on email ID change      | P1 — Recommended  |
+| `client/src/hooks/useInboxUrlSync.ts`              | Add ordering-contract comment                  | P2 — Nice-to-have |
 
 ---
 
@@ -325,4 +330,4 @@ Add a comment before Effect 2 and Effect 3 documenting that:
 
 ---
 
-*Plan authored by Monk of Modularity — subagent for issue #1168*
+_Plan authored by Monk of Modularity — subagent for issue #1168_

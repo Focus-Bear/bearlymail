@@ -36,9 +36,7 @@ describe('buildTemplatePreviews', () => {
 
   it('returns all three template keys', () => {
     const result = buildTemplatePreviews('Alice', stats);
-    expect(Object.keys(result)).toEqual(
-      expect.arrayContaining(['standard', 'highPriority', 'lowPriority']),
-    );
+    expect(Object.keys(result)).toEqual(expect.arrayContaining(['standard', 'highPriority', 'lowPriority']));
   });
 
   it('includes firstName in template bodies', () => {

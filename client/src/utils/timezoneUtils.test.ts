@@ -76,7 +76,7 @@ describe('getCurrentTimeInTimezone', () => {
     expect(result).not.toContain('NaN');
     // Must match valid ISO format (offset or UTC Z)
     expect(result).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$|^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$|^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
     );
     jest.restoreAllMocks();
   });
@@ -106,7 +106,7 @@ describe('getCurrentTimeInTimezone', () => {
 
     // Strip offset, parse as local UTC for comparison
     const localPart = result.slice(0, 19); // "YYYY-MM-DDTHH:MM:SS"
-    const offsetPart = result.slice(19);   // "+HH:MM" or "-HH:MM"
+    const offsetPart = result.slice(19); // "+HH:MM" or "-HH:MM"
     const sign = offsetPart[0] === '+' ? 1 : -1;
     const [oh, om] = offsetPart.slice(1).split(':').map(Number);
     const offsetMs = sign * (oh * 60 + om) * 60 * 1000;

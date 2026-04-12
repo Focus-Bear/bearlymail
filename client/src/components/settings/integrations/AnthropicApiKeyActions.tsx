@@ -34,9 +34,7 @@ export const AnthropicApiKeyActions: React.FC<AnthropicApiKeyActionsProps> = ({
         disabled={!anthropicApiKey.trim()}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: anthropicApiKey.trim()
-            ? theme.colors.primary.main
-            : theme.colors.text.tertiary,
+          backgroundColor: anthropicApiKey.trim() ? theme.colors.primary.main : theme.colors.text.tertiary,
           color: COLOR_NAMED_WHITE,
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
@@ -83,9 +81,7 @@ export const AnthropicApiKeyActions: React.FC<AnthropicApiKeyActionsProps> = ({
       <span
         style={{
           fontSize: theme.typography.fontSize.sm,
-          color: hasAnthropicKey
-            ? theme.colors.accent.success
-            : theme.colors.text.tertiary,
+          color: hasAnthropicKey ? theme.colors.accent.success : theme.colors.text.tertiary,
         }}
       >
         {hasAnthropicKey ? t('settings.anthropicKeySaved') : t('settings.anthropicNoKey')}

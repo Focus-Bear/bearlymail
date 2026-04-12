@@ -35,14 +35,7 @@ export const useToolbarHandlers = (editor: Editor | null) => {
     toggleBulletList: useCallback(() => exec(ed => ed.chain().focus().toggleBulletList().run()), [exec]),
     toggleOrderedList: useCallback(() => exec(ed => ed.chain().focus().toggleOrderedList().run()), [exec]),
     setTextAlign: useCallback(
-      (align: 'left' | 'center' | 'right' | 'justify') =>
-        exec(ed =>
-          ed
-            .chain()
-            .focus()
-            .setTextAlign(align)
-            .run()
-        ),
+      (align: 'left' | 'center' | 'right' | 'justify') => exec(ed => ed.chain().focus().setTextAlign(align).run()),
       [exec]
     ),
     toggleBlockquote: useCallback(() => exec(ed => ed.chain().focus().toggleBlockquote().run()), [exec]),

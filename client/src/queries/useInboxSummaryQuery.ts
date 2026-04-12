@@ -56,9 +56,7 @@ async function fetchInboxSummaryAPI(params: FetchSummaryParams): Promise<InboxSu
     searchParams.set('maxPriority', String(params.maxPriority));
   }
 
-  const response = await axios.get<InboxSummaryResponse>(
-    `${API_URL}/emails/inbox-summary?${searchParams.toString()}`
-  );
+  const response = await axios.get<InboxSummaryResponse>(`${API_URL}/emails/inbox-summary?${searchParams.toString()}`);
   return response.data;
 }
 
@@ -71,10 +69,7 @@ async function fetchInboxSummaryAPI(params: FetchSummaryParams): Promise<InboxSu
  *
  * Pass `enabled: false` to suspend the query (e.g. when the user is not logged in).
  */
-export function useInboxSummaryQuery(
-  params: FetchSummaryParams,
-  options?: { enabled?: boolean }
-) {
+export function useInboxSummaryQuery(params: FetchSummaryParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: emailKeys.summary(params.mode),
     queryFn: () => fetchInboxSummaryAPI(params),

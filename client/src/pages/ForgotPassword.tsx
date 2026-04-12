@@ -144,9 +144,7 @@ const ForgotPassword: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: theme.spacing.md,
-                  backgroundColor: loading
-                    ? theme.colors.border.medium
-                    : theme.colors.primary.main,
+                  backgroundColor: loading ? theme.colors.border.medium : theme.colors.primary.main,
                   color: COLOR_NAMED_WHITE,
                   border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
@@ -157,14 +155,12 @@ const ForgotPassword: React.FC = () => {
                 }}
                 onMouseOver={event => {
                   if (!loading) {
-                    event.currentTarget.style.backgroundColor =
-                      theme.colors.primary.dark;
+                    event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
                   }
                 }}
                 onMouseOut={event => {
                   if (!loading) {
-                    event.currentTarget.style.backgroundColor =
-                      theme.colors.primary.main;
+                    event.currentTarget.style.backgroundColor = theme.colors.primary.main;
                   }
                 }}
               >

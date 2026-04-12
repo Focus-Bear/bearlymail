@@ -20,6 +20,7 @@ The `.animate-fade-in` class in `App.css` (line 80) only applies the animation:
 ```
 
 However, this class is applied to:
+
 - `client/src/components/inbox/EmailCard.tsx` (line 43) — the email list card
 - `client/src/components/email-detail-inline/ReplyComposer.tsx` (line 458) — the reply composer wrapper
 
@@ -70,8 +71,8 @@ The `animationClass` on `EmailListItem` could be `animate-fade-in` when priority
 
 ## Files to Change
 
-| File | Change |
-|---|---|
+| File                 | Change                                  |
+| -------------------- | --------------------------------------- |
 | `client/src/App.css` | Add `width: 100%` to `.animate-fade-in` |
 
 ## Codebeard Notes

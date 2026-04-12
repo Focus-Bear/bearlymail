@@ -1,7 +1,12 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import {
+  HIGH_PRIORITY_THRESHOLD,
+  LOW_PRIORITY_THRESHOLD,
+  MEDIUM_PRIORITY_THRESHOLD,
+  VERY_HIGH_PRIORITY_THRESHOLD,
+} from 'hooks/useInboxFilters';
 
 import { EmailListStates } from './EmailListStates';
 
@@ -38,11 +43,23 @@ jest.mock('components/inbox/states', () => ({
   AllCaughtUpState: () => <div data-testid="all-caught-up-state">AllCaughtUp</div>,
   EmptyState: ({ mode }: { mode: string }) => <div data-testid="empty-state">{mode}</div>,
   ErrorState: ({ error }: { error: string }) => <div data-testid="error-state">{error}</div>,
-  FilteredEmptyState: ({ currentTierLabel, lowerPriorityCount, onShowAll }: { currentTierLabel: string; lowerPriorityCount: number; onShowAll?: () => void }) => (
+  FilteredEmptyState: ({
+    currentTierLabel,
+    lowerPriorityCount,
+    onShowAll,
+  }: {
+    currentTierLabel: string;
+    lowerPriorityCount: number;
+    onShowAll?: () => void;
+  }) => (
     <div data-testid="filtered-empty-state">
       <span data-testid="filtered-tier-label">{currentTierLabel}</span>
       <span data-testid="filtered-lower-count">{lowerPriorityCount}</span>
-      {onShowAll && <button data-testid="show-all-btn" onClick={onShowAll}>Show all</button>}
+      {onShowAll && (
+        <button data-testid="show-all-btn" onClick={onShowAll}>
+          Show all
+        </button>
+      )}
     </div>
   ),
   LoadingState: () => <div data-testid="loading-state">Loading</div>,
@@ -57,8 +74,12 @@ jest.mock('components/inbox/states', () => ({
   }) => (
     <div data-testid="progressive-unlock-prompt">
       <span>{message}</span>
-      <button data-testid="yes-btn" onClick={onYes}>Yes</button>
-      <button data-testid="later-btn" onClick={onLater}>Later</button>
+      <button data-testid="yes-btn" onClick={onYes}>
+        Yes
+      </button>
+      <button data-testid="later-btn" onClick={onLater}>
+        Later
+      </button>
     </div>
   ),
 }));

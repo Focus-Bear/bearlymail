@@ -77,7 +77,7 @@ const EmailDebugTooltip: React.FC<EmailDebugTooltipProps> = ({ email, anchorRect
         )}
       </div>
     </div>,
-    document.body,
+    document.body
   );
 };
 
@@ -90,18 +90,15 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
 
-  const handleClickOutside = useCallback(
-    (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (spanRef.current && !spanRef.current.contains(target)) {
-        const debugTooltip = document.querySelector('[data-debug-tooltip]');
-        if (!debugTooltip || !debugTooltip.contains(target)) {
-          setShowDebug(false);
-        }
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    const target = event.target as Node;
+    if (spanRef.current && !spanRef.current.contains(target)) {
+      const debugTooltip = document.querySelector('[data-debug-tooltip]');
+      if (!debugTooltip || !debugTooltip.contains(target)) {
+        setShowDebug(false);
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   useEffect(() => {
     if (!showDebug) {

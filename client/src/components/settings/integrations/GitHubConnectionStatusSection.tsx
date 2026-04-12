@@ -74,7 +74,10 @@ const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
                 fontSize: theme.typography.fontSize.sm,
               }}
             >
-              {t('settings.github.connectionStatus.tokenValidUser', { login: status.login, name: status.name ? ` (${status.name})` : '' })}
+              {t('settings.github.connectionStatus.tokenValidUser', {
+                login: status.login,
+                name: status.name ? ` (${status.name})` : '',
+              })}
             </p>
             {status.scopes && status.scopes.length > 0 && (
               <p

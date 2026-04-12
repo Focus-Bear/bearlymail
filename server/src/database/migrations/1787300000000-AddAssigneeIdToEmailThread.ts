@@ -10,9 +10,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * ON DELETE SET NULL ensures threads are not lost if the assignee's account
  * is deleted.
  */
-export class AddAssigneeIdToEmailThread1787300000000
-  implements MigrationInterface
-{
+export class AddAssigneeIdToEmailThread1787300000000 implements MigrationInterface {
   name = "AddAssigneeIdToEmailThread1787300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -34,9 +32,7 @@ export class AddAssigneeIdToEmailThread1787300000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_email_threads_userId_assigneeId"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_email_threads_userId_assigneeId"`);
 
     await queryRunner.query(
       `ALTER TABLE "email_threads"

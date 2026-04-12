@@ -32,9 +32,7 @@ jest.mock('theme/theme', () => ({
 
 describe('DeterministicCategoryRulesPanel', () => {
   it('shows empty translation key when there are no rules', () => {
-    render(
-      <DeterministicCategoryRulesPanel rules={[]} onToggleEnabled={jest.fn()} onDelete={jest.fn()} />
-    );
+    render(<DeterministicCategoryRulesPanel rules={[]} onToggleEnabled={jest.fn()} onDelete={jest.fn()} />);
     expect(screen.getByText('settings.deterministicCategoryRules.empty')).toBeInTheDocument();
   });
 

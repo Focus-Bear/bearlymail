@@ -70,12 +70,8 @@ export const useContactSearch = (): UseContactSearchResult => {
         axios.get<ContactGroup[]>(`${API_URL}/contact-groups/search?q=${encodeURIComponent(query)}`),
       ]);
 
-      setSearchResults(
-        contactsRes.status === PROMISE_STATUS_FULFILLED ? contactsRes.value.data : [],
-      );
-      setGroupResults(
-        groupsRes.status === PROMISE_STATUS_FULFILLED ? groupsRes.value.data : [],
-      );
+      setSearchResults(contactsRes.status === PROMISE_STATUS_FULFILLED ? contactsRes.value.data : []);
+      setGroupResults(groupsRes.status === PROMISE_STATUS_FULFILLED ? groupsRes.value.data : []);
       setSelectedSuggestionIndex(-1);
     } catch (err) {
       console.error('Contact search failed:', err);
@@ -139,9 +135,7 @@ export const useContactSearch = (): UseContactSearchResult => {
 
   // Merged suggestions: groups first (with distinct kind tag), then contacts
   const recipientSuggestions: RecipientSuggestion[] = [
-    ...groupResults.map(
-      (grp): RecipientSuggestion => ({ kind: 'group', group: grp }),
-    ),
+    ...groupResults.map((grp): RecipientSuggestion => ({ kind: 'group', group: grp })),
     ...searchResults.map(
       (contact): RecipientSuggestion => ({
         kind: 'contact',
@@ -149,7 +143,7 @@ export const useContactSearch = (): UseContactSearchResult => {
         email: contact.email,
         name: contact.name,
         photoUrl: contact.photoUrl,
-      }),
+      })
     ),
   ];
 

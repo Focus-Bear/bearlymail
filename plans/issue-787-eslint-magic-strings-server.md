@@ -11,6 +11,7 @@ The server `.eslintrc.js` already has an extensive `no-magic-numbers` rule, and 
 Add a `no-restricted-syntax` array to the `rules` section (currently absent on the server side).
 
 The selectors should target:
+
 - **Prompt ID string literals**: any `Literal` whose value matches the known prompt ID prefixes
 - **General comparison magic strings**: string literals in `===`/`!==` binary comparisons
 - **Switch case magic strings**: string literals in switch cases
@@ -39,9 +40,10 @@ Also add `'no-restricted-syntax': 'off'` inside the existing test file override 
 
 ### 2. `server/src/llm/prompts.ts`
 
-Audit for any remaining hardcoded prompt ID strings not already using `SUMMARY_PROMPT_IDS`. The `PROMPT_FILE_MAP` array currently uses raw string keys — these are the source-of-truth definitions themselves, but their *consumers* must use exported constants rather than repeating the strings.
+Audit for any remaining hardcoded prompt ID strings not already using `SUMMARY_PROMPT_IDS`. The `PROMPT_FILE_MAP` array currently uses raw string keys — these are the source-of-truth definitions themselves, but their _consumers_ must use exported constants rather than repeating the strings.
 
 Add additional constant groups:
+
 - `PRIORITY_PROMPT_IDS` — for `analyze_priority`, `analyze_priority_feedback`, `incremental_priority_check`
 - `REPLY_PROMPT_IDS` — for `generate_reply`, `generate_multiple_replies`, `generate_meeting_reply`, `generate_follow_up`
 - `CLASSIFICATION_PROMPT_IDS` — for `classify_email_type`, `classify_contact_type`
@@ -60,6 +62,7 @@ This way `prompts.ts` itself doesn't trigger the lint rule (the Literal values o
 Run `grep -r 'getPrompt("' server/src/` and `grep -r "getPrompt('" server/src/` to find all call sites. Replace each with the appropriate named constant.
 
 Key files to check:
+
 - `server/src/llm/llm.service.ts`
 - `server/src/llm/priority-analysis.service.ts`
 - `server/src/emails/emails.service.ts`

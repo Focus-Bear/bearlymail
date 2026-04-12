@@ -7,6 +7,7 @@
 ## Problem
 
 All client-side SPA routes (e.g., `/inbox`, `/settings`, `/login`) return HTTP 404 status when accessed directly via URL, curl, or bots. This breaks:
+
 - SEO crawlers and link previews (bots see 404)
 - `curl`/`wget` health checks
 - Any non-JS client accessing SPA routes
@@ -40,14 +41,19 @@ errorResponses: [
 **File:** `client/public/404.html`
 
 A JavaScript-based workaround exists in `404.html`:
+
 ```javascript
 if (!/\.(js|css|png|...)$/i.test(window.location.pathname)) {
-  sessionStorage.setItem('spa-redirect', window.location.pathname + window.location.search);
-  window.location.replace('/');
+  sessionStorage.setItem(
+    "spa-redirect",
+    window.location.pathname + window.location.search,
+  );
+  window.location.replace("/");
 }
 ```
 
 This workaround only works for browser clients with JavaScript enabled. It fails for:
+
 - `curl`, `wget`, API clients → see HTTP 404 + HTML body
 - Search engine bots → index pages as 404 (bad SEO)
 - Social media link preview bots → no preview generated
@@ -56,6 +62,7 @@ This workaround only works for browser clients with JavaScript enabled. It fails
 ### The Standard SPA Fix
 
 The standard approach for SPAs on CloudFront is to serve `index.html` with HTTP 200 for all routes that don't match a static file. CloudFront's `errorResponses` can do this by:
+
 1. Changing `responseHttpStatus` from `404` to `200`
 2. Changing `responsePagePath` from `/404.html` to `/index.html`
 
@@ -110,16 +117,17 @@ Update the comments above each `errorResponses` block to reflect the new approac
 The JS redirect workaround in `404.html` is no longer needed once CloudFront serves `index.html` with 200. However, keep `404.html` as a simple fallback page (without the redirect script) in case it's ever needed.
 
 Simplify to:
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Page Not Found</title>
-</head>
-<body>
-  <p>Not found</p>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Page Not Found</title>
+  </head>
+  <body>
+    <p>Not found</p>
+  </body>
 </html>
 ```
 
@@ -128,6 +136,7 @@ Simplify to:
 After this change, requests for truly missing assets (e.g., `/assets/missing.js`) will also get `index.html` with 200. This is standard SPA behavior — the browser will fail to parse HTML as JavaScript, and the React app's catch-all route should show a proper 404 page for unknown routes.
 
 Ensure `client/src/App.tsx` has a catch-all route:
+
 ```typescript
 <Route path="*" element={<NotFound />} />
 ```
@@ -136,11 +145,11 @@ Ensure `client/src/App.tsx` has a catch-all route:
 
 ## Files to Modify
 
-| File | Action |
-|------|--------|
+| File                                     | Action                                                                                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `infrastructure/lib/bearlymail-stack.ts` | Change `responseHttpStatus: 404` → `200` and `responsePagePath: '/404.html'` → `'/index.html'` in both distribution configs (4 lines) |
-| `client/public/404.html` | Remove JS redirect workaround (optional cleanup) |
-| `client/src/App.tsx` | Verify catch-all route exists; add if missing |
+| `client/public/404.html`                 | Remove JS redirect workaround (optional cleanup)                                                                                      |
+| `client/src/App.tsx`                     | Verify catch-all route exists; add if missing                                                                                         |
 
 ## Risk Assessment
 

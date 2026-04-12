@@ -90,12 +90,21 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                   {email.lastCheckedAt && (
                     <>
                       <br />
-                      <strong>{t('debug.emailList.lastChecked')}:</strong> {new Date(email.lastCheckedAt).toLocaleString()}
+                      <strong>{t('debug.emailList.lastChecked')}:</strong>{' '}
+                      {new Date(email.lastCheckedAt).toLocaleString()}
                     </>
                   )}
-                  {isArchived && <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> {t('debug.emailList.archivedWarning')}</span>}
+                  {isArchived && (
+                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}>
+                      {' '}
+                      {t('debug.emailList.archivedWarning')}
+                    </span>
+                  )}
                   {isInWrongTab && !isArchived && (
-                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> {t('debug.emailList.wrongTabError')}</span>
+                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}>
+                      {' '}
+                      {t('debug.emailList.wrongTabError')}
+                    </span>
                   )}
                 </span>
                 <span

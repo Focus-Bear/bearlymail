@@ -99,7 +99,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     isHighPriority,
     origScore: originalPriorityScore,
     newScore: newPriorityScore,
-    priorityLabel
+    priorityLabel,
   });
 
   return (

@@ -41,7 +41,12 @@ interface UseModalsReturn {
   setPriorityFeedbackModal: React.Dispatch<React.SetStateAction<PriorityFeedbackModal | null>>;
   blockConfirmEmail: Email | null;
   setBlockConfirmEmail: React.Dispatch<React.SetStateAction<Email | null>>;
-  showStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => void;
+  showStarDiscrepancy: (
+    emailId: string,
+    userStarCount: number,
+    predictedStarCount: number,
+    emailSubject?: string
+  ) => void;
   hideStarDiscrepancy: () => void;
   showPriorityOverride: (
     emailId: string,
@@ -66,15 +71,18 @@ export function useModals(): UseModalsReturn {
   const [priorityFeedbackModal, setPriorityFeedbackModal] = useState<PriorityFeedbackModal | null>(null);
   const [blockConfirmEmail, setBlockConfirmEmail] = useState<Email | null>(null);
 
-  const showStarDiscrepancy = useCallback((emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => {
-    setStarDiscrepancyModal({
-      show: true,
-      emailId,
-      userStarCount,
-      predictedStarCount,
-      emailSubject,
-    });
-  }, []);
+  const showStarDiscrepancy = useCallback(
+    (emailId: string, userStarCount: number, predictedStarCount: number, emailSubject?: string) => {
+      setStarDiscrepancyModal({
+        show: true,
+        emailId,
+        userStarCount,
+        predictedStarCount,
+        emailSubject,
+      });
+    },
+    []
+  );
 
   const hideStarDiscrepancy = useCallback(() => {
     setStarDiscrepancyModal(null);

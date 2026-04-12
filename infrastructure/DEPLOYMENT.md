@@ -10,6 +10,7 @@ The infrastructure is split into **4 CDK stacks** for modularity and faster depl
 4. **BearlyMailStack**: ECS, S3, CloudFront, ALB (~5-8 min)
 
 **Benefits**:
+
 - Database and secrets deploy once and rarely change
 - Fast iteration on application stack without redeploying database
 - Safer updates with clear separation of concerns
@@ -17,11 +18,13 @@ The infrastructure is split into **4 CDK stacks** for modularity and faster depl
 ## Initial Setup
 
 1. **Install CDK globally**:
+
    ```bash
    npm install -g aws-cdk
    ```
 
 2. **Install dependencies**:
+
    ```bash
    cd infrastructure
    npm install
@@ -91,6 +94,7 @@ aws secretsmanager put-secret-value \
 ```
 
 **CRITICAL**: The secret value MUST be valid JSON:
+
 - Use **double quotes** for keys and string values (not single quotes)
 - No trailing commas
 - No unquoted keys or values
@@ -116,6 +120,7 @@ After secrets are configured and the application stack is deployed, use the dedi
 **Step 1: Get the network configuration**
 
 First, get the VPC subnet IDs and security group from the AWS Console or CLI:
+
 ```bash
 # Get private subnet IDs (the migration task needs to run in private subnets)
 aws ec2 describe-subnets \
@@ -129,6 +134,7 @@ aws ec2 describe-security-groups \
 ```
 
 **Step 2: Run the migration task**
+
 ```bash
 aws ecs run-task \
   --cluster BearlyMailCluster \
@@ -138,6 +144,7 @@ aws ecs run-task \
 ```
 
 **Step 3: Monitor the migration**
+
 ```bash
 # Watch the migration logs
 aws logs tail /ecs/bearlymail/migration --follow
@@ -230,10 +237,11 @@ aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ### Backend (ECS)
 
 1. **Build and push Docker image** (if using ECR):
+
    ```bash
    # Create ECR repository (one-time)
    aws ecr create-repository --repository-name bearlymail-server
-   
+
    # Build and push
    cd server
    docker build -t bearlymail-server .
@@ -253,12 +261,14 @@ aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ### Frontend (S3 + CloudFront)
 
 1. **Build React app**:
+
    ```bash
    cd client
    npm run build
    ```
 
 2. **Deploy to S3**:
+
    ```bash
    aws s3 sync build/ s3://<FrontendBucketName> --delete
    ```
@@ -273,12 +283,14 @@ aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ## Environment-Specific Configuration
 
 ### Development
+
 - Smaller instance sizes
 - Single AZ
 - No Multi-AZ
 - Lower desired count
 
 ### Production
+
 - Larger instance sizes
 - Multi-AZ RDS
 - Multiple ECS tasks
@@ -289,6 +301,7 @@ aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ## Monitoring
 
 ### View Logs
+
 ```bash
 # Web service logs
 aws logs tail /ecs/bearlymail/web --follow
@@ -301,6 +314,7 @@ aws logs tail /ecs/bearlymail/migration --follow
 ```
 
 ### Check Service Health
+
 ```bash
 aws ecs describe-services \
   --cluster BearlyMailCluster \
@@ -308,12 +322,14 @@ aws ecs describe-services \
 ```
 
 ### Database Metrics
+
 - Check RDS Performance Insights in AWS Console
 - Monitor CloudWatch metrics for RDS
 
 ## Scaling
 
 ### Horizontal Scaling (More Tasks)
+
 ```bash
 aws ecs update-service \
   --cluster BearlyMailCluster \
@@ -322,26 +338,31 @@ aws ecs update-service \
 ```
 
 ### Vertical Scaling (More CPU/Memory)
+
 Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 
 ### Database Scaling
+
 - Increase instance size in RDS console
 - Or update stack and redeploy
 
 ## Troubleshooting
 
 ### Service Won't Start
+
 1. Check CloudWatch logs
 2. Verify secrets are configured
 3. Check security group rules
 4. Verify database connectivity
 
 ### Database Connection Issues
+
 1. Check security group allows ECS → RDS
 2. Verify database credentials in Secrets Manager
 3. Check RDS is in same VPC as ECS
 
 ### Frontend Not Loading
+
 1. Check S3 bucket has files
 2. Verify CloudFront distribution is deployed
 3. Check CloudFront cache invalidation
@@ -350,6 +371,7 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 ## Cost Management
 
 ### Estimated Monthly Costs (Sydney region)
+
 - ECS Fargate (web + worker): ~$30-50
 - RDS T3.micro: ~$15-20
 - ALB: ~$20
@@ -359,6 +381,7 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 - **Total**: ~$100-120/month
 
 ### Cost Optimization Tips
+
 - Use Spot instances for non-critical workloads
 - Enable RDS automated backups only if needed
 - Use CloudFront price class 100 (cheapest)
@@ -427,9 +450,11 @@ aws lambda invoke \
 ```
 
 Expected response (no secrets errors, empty batch handled gracefully):
+
 ```json
-{"batchItemFailures":[{"itemIdentifier":"smoke-test"}]}
+{ "batchItemFailures": [{ "itemIdentifier": "smoke-test" }] }
 ```
+
 (The smoke test batch is empty so it will fail with "no thread payloads" — that's expected. What matters is no `placeholder values` error.)
 
 #### 4. Verify DLQ Alarm
@@ -438,10 +463,10 @@ Confirm the CloudWatch alarm `BearlyMail-ContextAnalysis-DLQ-NonEmpty` exists an
 
 ### Troubleshooting
 
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| `Error: DB secret still has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/db` |
-| `Error: LLM secret ... has placeholder values` | Step 1 not done | Populate `bearlymail/lambda/llm` |
-| Lambda never invoked | `CONTEXT_ANALYSIS_SQS_QUEUE_URL` missing from ECS env | Re-run `cdk deploy BearlyMailDatabaseStack BearlyMailStack` |
-| DB connection refused | Lambda SG not allowed on RDS Proxy SG port 5432 | Fix security group inbound rule |
-| Analysis stuck at X% forever | All batches failed, DLQ has messages | Check CloudWatch logs for batch analyzer function |
+| Symptom                                         | Likely Cause                                          | Fix                                                         |
+| ----------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
+| `Error: DB secret still has placeholder values` | Step 1 not done                                       | Populate `bearlymail/lambda/db`                             |
+| `Error: LLM secret ... has placeholder values`  | Step 1 not done                                       | Populate `bearlymail/lambda/llm`                            |
+| Lambda never invoked                            | `CONTEXT_ANALYSIS_SQS_QUEUE_URL` missing from ECS env | Re-run `cdk deploy BearlyMailDatabaseStack BearlyMailStack` |
+| DB connection refused                           | Lambda SG not allowed on RDS Proxy SG port 5432       | Fix security group inbound rule                             |
+| Analysis stuck at X% forever                    | All batches failed, DLQ has messages                  | Check CloudWatch logs for batch analyzer function           |

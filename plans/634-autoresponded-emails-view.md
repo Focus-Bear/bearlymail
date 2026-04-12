@@ -19,6 +19,7 @@
 **File:** `server/src/auto-responder/auto-responder.controller.ts`
 
 Add a `GET /auto-responder/threads` endpoint that:
+
 - Accepts `userId` from auth, optional `page`, `limit`, `startDate`, `endDate` query params
 - Joins `auto_response_logs` with `email_threads` to return threaded email data
 - Returns paginated list of threads with auto-response metadata (sent date, template used, priority, QA answer status)
@@ -27,6 +28,7 @@ Add a `GET /auto-responder/threads` endpoint that:
 **File:** `server/src/auto-responder/auto-responder-analytics.service.ts`
 
 Add a `getAutoRespondedThreads(userId, options)` method that:
+
 - Queries `auto_response_logs` joined with `email_threads`
 - Supports pagination and date filtering
 - Returns thread data enriched with auto-response info (response body, classification, escalation status)
@@ -37,7 +39,12 @@ Add a `getAutoRespondedThreads(userId, options)` method that:
 
 - Add `'autoresponded'` to the `InboxMode` union type:
   ```ts
-  export type InboxMode = 'triage' | 'action' | 'follow-up' | 'blocked' | 'autoresponded';
+  export type InboxMode =
+    | "triage"
+    | "action"
+    | "follow-up"
+    | "blocked"
+    | "autoresponded";
   ```
 
 **File:** `client/src/constants/strings.ts`
@@ -68,6 +75,7 @@ Add a `getAutoRespondedThreads(userId, options)` method that:
 ### 5. Frontend — Email List Display
 
 When in `'autoresponded'` mode, the email list should:
+
 - Show the email thread subject and sender
 - Display a badge/indicator showing the auto-response was sent
 - Show the date the auto-response was sent

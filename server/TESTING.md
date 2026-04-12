@@ -76,12 +76,12 @@ Integration tests should:
 
 ```typescript
 // llm.controller.integration.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../app.module';
+import { Test, TestingModule } from "@nestjs/testing";
+import { INestApplication } from "@nestjs/common";
+import * as request from "supertest";
+import { AppModule } from "../app.module";
 
-describe('LLM Controller Integration', () => {
+describe("LLM Controller Integration", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -97,12 +97,12 @@ describe('LLM Controller Integration', () => {
     await app.close();
   });
 
-  it('GET /llm/providers should return available providers', () => {
+  it("GET /llm/providers should return available providers", () => {
     return request(app.getHttpServer())
-      .get('/llm/providers')
+      .get("/llm/providers")
       .expect(200)
       .expect((res) => {
-        expect(res.body).toHaveProperty('providers');
+        expect(res.body).toHaveProperty("providers");
         expect(Array.isArray(res.body.providers)).toBe(true);
       });
   });
@@ -112,6 +112,7 @@ describe('LLM Controller Integration', () => {
 ## CI Pipeline
 
 ### Unit Tests (`server-coverage`)
+
 - Runs on every PR
 - Must pass for PR to be merged
 - Uses `npm run test:cov -- --forceExit`
@@ -119,6 +120,7 @@ describe('LLM Controller Integration', () => {
 - Fast execution (~1-2 minutes)
 
 ### Integration Tests (`server-integration-tests`)
+
 - Runs on every PR
 - Must pass for PR to be merged
 - Uses `npm run test:integration -- --forceExit`
@@ -145,6 +147,7 @@ server/src/
 ## Best Practices
 
 ### Unit Tests
+
 - ✅ Mock all external dependencies (database, HTTP, LLM providers)
 - ✅ Test pure logic and business rules
 - ✅ Fast execution (< 1s per test)
@@ -153,6 +156,7 @@ server/src/
 - ❌ Don't make real HTTP calls
 
 ### Integration Tests
+
 - ✅ Use real database connections
 - ✅ Test complete API endpoints
 - ✅ Test authentication and authorization

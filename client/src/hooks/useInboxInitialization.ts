@@ -17,7 +17,10 @@ interface UseInboxInitializationProps {
   authLoading: boolean;
   user: User | null;
   mode: string;
-  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchEmails: (
+    signalOrOverride?: AbortSignal | Partial<InboxFilter>,
+    overrideFilters?: Partial<InboxFilter>
+  ) => Promise<void>;
   fetchBatchStatus: (signal?: AbortSignal) => Promise<void>;
   fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => Promise<void>;
   filters?: Partial<InboxFilter> | null;

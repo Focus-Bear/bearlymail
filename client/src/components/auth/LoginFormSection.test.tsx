@@ -47,8 +47,7 @@ describe('LoginFormSection accessibility', () => {
     jest.clearAllMocks();
   });
 
-  const renderInRouter = (ui: React.ReactElement) =>
-    render(<MemoryRouter>{ui}</MemoryRouter>);
+  const renderInRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
   it('email label has htmlFor linking to email input id', () => {
     renderInRouter(<LoginFormSection {...defaultProps} />);

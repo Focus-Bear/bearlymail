@@ -26,13 +26,15 @@ describe('getHeaderTitle', () => {
 });
 
 describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
-  const makeIsCurrentUser = (userEmail: string) => (addr: string): boolean => {
-    const extract = (addrStr: string): string => {
-      const match = addrStr.match(/<([^>]+)>/);
-      return match ? match[1].toLowerCase() : addrStr.toLowerCase();
+  const makeIsCurrentUser =
+    (userEmail: string) =>
+    (addr: string): boolean => {
+      const extract = (addrStr: string): string => {
+        const match = addrStr.match(/<([^>]+)>/);
+        return match ? match[1].toLowerCase() : addrStr.toLowerCase();
+      };
+      return extract(addr) === userEmail.toLowerCase();
     };
-    return extract(addr) === userEmail.toLowerCase();
-  };
 
   it('includes CC recipients when replying to an email with CC', () => {
     const email = mockPartial<Email>({
@@ -46,7 +48,6 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
     expect(cc).toContain('cc1@example.com');
     expect(cc).toContain('cc2@example.com');
   });
-
 
   it('excludes the current user from CC in reply-all', () => {
     const email = mockPartial<Email>({
@@ -119,5 +120,4 @@ describe('buildReplyAllRecipients — CC handling (issue #1173)', () => {
     const uniqueParts = [...new Set(parts)];
     expect(parts.length).toBe(uniqueParts.length);
   });
-
 });

@@ -1,6 +1,5 @@
 import { Email } from 'types/email';
 
-
 /** One hour in milliseconds */
 const ONE_HOUR_MS = 3_600_000;
 /** Two hours in milliseconds */
@@ -9,7 +8,6 @@ const TWO_HOURS_MS = 7_200_000;
 const THREE_HOURS_MS = 10_800_000;
 /** Default urgency score for mock emails */
 const DEFAULT_URGENCY_SCORE = 30;
-
 
 let _counter = 0;
 function nextId(): string {
@@ -42,7 +40,9 @@ export function makeMockEmail(overrides: Partial<Email> = {}): Email {
     labels: overrides.labels ?? [],
     correspondentEmail: overrides.correspondentEmail ?? 'alice@example.com',
     correspondentName: overrides.correspondentName ?? 'Alice Nguyen',
-    summary: overrides.summary ?? 'Alice shares quarterly review notes and requests sign-off from the finance team by Thursday.',
+    summary:
+      overrides.summary ??
+      'Alice shares quarterly review notes and requests sign-off from the finance team by Thursday.',
     actionItemsCount: overrides.actionItemsCount ?? 2,
     urgencyScore: overrides.urgencyScore ?? DEFAULT_URGENCY_SCORE,
     priorityScore: overrides.priorityScore ?? 2,
@@ -104,7 +104,7 @@ export const MOCK_EMAILS_WORK: Email[] = [
     from: 'bob@example.com',
     fromName: 'Bob Chen',
     subject: 'Sprint retro action items',
-    body: 'See attached action items from last week\'s retro.',
+    body: "See attached action items from last week's retro.",
     category: 'Work',
     category_id: 'cat-work',
     receivedAt: new Date(Date.now() - TWO_HOURS_MS).toISOString(),
@@ -124,8 +124,4 @@ export const MOCK_EMAILS_WORK: Email[] = [
 ];
 
 /** A full inbox mock spanning multiple categories. */
-export const MOCK_INBOX_EMAILS: Email[] = [
-  ...MOCK_EMAILS_WORK,
-  MOCK_EMAIL_NEWSLETTER,
-  MOCK_EMAIL_SUPPORT,
-];
+export const MOCK_INBOX_EMAILS: Email[] = [...MOCK_EMAILS_WORK, MOCK_EMAIL_NEWSLETTER, MOCK_EMAIL_SUPPORT];

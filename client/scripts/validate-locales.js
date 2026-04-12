@@ -46,7 +46,7 @@ function checkDuplicateKeys(obj, path = '', duplicates = []) {
 
   const keys = Object.keys(obj);
   const seenKeys = new Set();
-  
+
   keys.forEach(key => {
     if (seenKeys.has(key)) {
       duplicates.push({
@@ -56,7 +56,7 @@ function checkDuplicateKeys(obj, path = '', duplicates = []) {
     } else {
       seenKeys.add(key);
     }
-    
+
     // Recursively check nested objects
     if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
       checkDuplicateKeys(obj[key], path ? `${path}.${key}` : key, duplicates);
@@ -72,10 +72,10 @@ function checkDuplicateKeys(obj, path = '', duplicates = []) {
 function compareLocales(baseLocale, otherLocale) {
   const baseKeys = new Set(getAllKeys(baseLocale));
   const otherKeys = new Set(getAllKeys(otherLocale));
-  
+
   const missingInOther = Array.from(baseKeys).filter(key => !otherKeys.has(key));
   const extraInOther = Array.from(otherKeys).filter(key => !baseKeys.has(key));
-  
+
   return { missingInOther, extraInOther };
 }
 
@@ -91,7 +91,7 @@ function main() {
   // Validate each locale file
   for (const locale of SUPPORTED_LOCALES) {
     const filePath = path.join(LOCALES_DIR, `${locale}.json`);
-    
+
     if (!fs.existsSync(filePath)) {
       console.error(`❌ Error: Locale file not found: ${filePath}`);
       hasErrors = true;
@@ -133,7 +133,7 @@ function main() {
   if (locales.en && locales.es) {
     console.log('📊 Comparing locales...');
     const { missingInOther, extraInOther } = compareLocales(locales.en, locales.es);
-    
+
     if (missingInOther.length > 0) {
       console.log(`\n   ⚠️  ${missingInOther.length} key(s) in en.json missing from es.json:`);
       missingInOther.slice(0, 20).forEach(key => {
@@ -143,7 +143,7 @@ function main() {
         console.log(`      ... and ${missingInOther.length - 20} more`);
       }
     }
-    
+
     if (extraInOther.length > 0) {
       console.log(`\n   ⚠️  ${extraInOther.length} key(s) in es.json not in en.json:`);
       extraInOther.slice(0, 20).forEach(key => {
@@ -153,7 +153,7 @@ function main() {
         console.log(`      ... and ${extraInOther.length - 20} more`);
       }
     }
-    
+
     if (missingInOther.length === 0 && extraInOther.length === 0) {
       console.log('   ✅ All locales have matching keys');
     }
@@ -172,4 +172,3 @@ function main() {
 
 // Run the script
 main();
-

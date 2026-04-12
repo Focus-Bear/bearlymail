@@ -34,6 +34,7 @@ The context analysis batches extract **user-level patterns** (what topics are ur
 **Gap 1: `refine-priority` batch job fails silently for some emails**
 
 In `PriorityAnalysisService.analyzePriorityBatch()` (line ~440 in `priority-analysis.service.ts`):
+
 - If the entire LLM call throws, the `catch` block logs the error but then `fillFallbackEntries()` sets ALL emails in the batch to `isFallback: true` with `urgencyScore: 0`, `category: "Other"`
 - In `LLMPriorityBatchService.applyBatchResults()`, fallback entries are **deliberately skipped** (`if (llmResult.isFallback) { continue; }`) to "preserve existing priority score"
 - **But**: if the email had no existing priority (new email), this means it's left at the default score (0) with no breakdown — the "Calculating..." state
@@ -52,6 +53,7 @@ In `PriorityAnalysisService.analyzePriorityBatch()` (line ~440 in `priority-anal
 **Gap 4: `fixStuckCalculatingThreads()` exists but is only triggered manually**
 
 `EmailDebugService.fixStuckCalculatingThreads()` finds threads with `isProcessingPriority=true` for >10 minutes and re-queues them. But:
+
 - It's only callable via a manual script (`fix-stuck-calculating.ts`) or admin endpoint
 - It relies on `isProcessingPriority=true` — but the cleanup already resets this to `false`
 - There's no periodic/automatic invocation
@@ -59,9 +61,11 @@ In `PriorityAnalysisService.analyzePriorityBatch()` (line ~440 in `priority-anal
 **Gap 5: On-click accelerate only triggers if score equals the default (50)**
 
 In `emails.controller.ts` line ~909:
+
 ```typescript
 if (priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE || thread?.isProcessingPriority)
 ```
+
 `EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE` is 50. But `getPriorityScore()` returns 0 when there's no breakdown. So clicking emails with score=0 DOES trigger recalculation (since 0 ≠ 50... wait, let me re-read).
 
 Actually, `getPriorityScore()` returns 0 when `thread.priorityExplanation` has no breakdown. The accelerate endpoint checks `priorityScore === 50` — so score=0 would NOT match. BUT there's also the `thread?.isProcessingPriority` check. If `isProcessingPriority` was already reset to `false` by cleanup, the accelerate endpoint would NOT re-queue.
@@ -77,12 +81,14 @@ Regardless, the core issue is clear: **batch priority failures leave emails stuc
 ### How on-click actually recalculates (corrected)
 
 Looking at the accelerate endpoint again (line 909):
+
 ```typescript
 if (
   priorityScore === EMAIL_CONTROLLER_DEFAULTS.PRIORITY_SCORE ||
   thread?.isProcessingPriority
 )
 ```
+
 This checks if score === 50 OR isProcessingPriority. For stuck emails with score=0 and isProcessingPriority=false, NEITHER condition is true. So the accelerate endpoint does NOT queue a refine-priority job.
 
 The recalculation Jeremy observes when clicking must come from a different path — possibly the `shouldSkipPriorityRecalculation` check detecting `hasCalculatingItems` when a refine-priority job runs for another reason (e.g. new email in the same thread, or batch recategorization).
@@ -120,7 +126,7 @@ for (const email of emailsNeedingFullAnalysis) {
         priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BACKGROUND, false),
         singletonKey: `refine-priority-retry-${email.id}`,
         startAfter: 60, // retry after 60 seconds
-      }
+      },
     );
   }
 }
@@ -150,6 +156,7 @@ export class StuckPriorityDetectionService implements OnModuleInit {
 ### 4. Add `retryCount` tracking to prevent infinite retry loops
 
 Add a `priorityRetryCount` field to the `EmailThread` entity (or track in `priorityExplanation` JSON):
+
 - Increment on each retry attempt
 - Stop retrying after MAX_PRIORITY_RETRIES (e.g. 3)
 - Log to error tracking when max retries exceeded
@@ -157,6 +164,7 @@ Add a `priorityRetryCount` field to the `EmailThread` entity (or track in `prior
 ### 5. Fix batch error handling to preserve per-email granularity — `priority-analysis.service.ts`
 
 In `analyzePriorityBatch()`, when the LLM call throws entirely:
+
 - Currently: ALL emails get `isFallback: true`
 - Better: Attempt to split the batch and retry smaller sub-batches (e.g. if batch of 10 fails, try 2 batches of 5)
 - Even better: Fall back to individual `analyzePriority()` calls for each email
@@ -185,6 +193,7 @@ catch (error) {
 ### 6. UI: Show "Calculating..." for score=0 without breakdown
 
 On the frontend, when `priorityScore === 0` and `priorityExplanation?.breakdown` is empty/null:
+
 - Display "Calculating..." badge instead of "Other (0)"
 - This is already partially implemented (the issue mentions "Calculating..." badges) but should be made explicit
 
@@ -199,15 +208,15 @@ On the frontend, when `priorityScore === 0` and `priorityExplanation?.breakdown`
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.controller.ts` | Fix accelerate endpoint to detect score=0 |
-| `server/src/emails/llm-priority-batch.service.ts` | Add retry queueing for fallback results in `runBatchRefinement()` |
-| `server/src/llm/priority-analysis.service.ts` | Add individual-fallback in batch catch block |
-| `server/src/emails/stuck-priority-detection.service.ts` | **NEW** — periodic job to detect and re-queue stuck threads |
-| `server/src/database/entities/email-thread.entity.ts` | Add `priorityRetryCount` field (or use JSON in priorityExplanation) |
-| `server/src/emails/emails.module.ts` | Register new service |
-| `server/src/context/context.module.ts` | Possibly register detection service here |
+| File                                                    | Change                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------- |
+| `server/src/emails/emails.controller.ts`                | Fix accelerate endpoint to detect score=0                           |
+| `server/src/emails/llm-priority-batch.service.ts`       | Add retry queueing for fallback results in `runBatchRefinement()`   |
+| `server/src/llm/priority-analysis.service.ts`           | Add individual-fallback in batch catch block                        |
+| `server/src/emails/stuck-priority-detection.service.ts` | **NEW** — periodic job to detect and re-queue stuck threads         |
+| `server/src/database/entities/email-thread.entity.ts`   | Add `priorityRetryCount` field (or use JSON in priorityExplanation) |
+| `server/src/emails/emails.module.ts`                    | Register new service                                                |
+| `server/src/context/context.module.ts`                  | Possibly register detection service here                            |
 
 ## Risk Assessment
 
@@ -221,6 +230,7 @@ On the frontend, when `priorityScore === 0` and `priorityExplanation?.breakdown`
 ## Key Insight
 
 The architecture has TWO separate pipelines:
+
 1. **Context analysis pipeline** (`analyze-context-batch`) — extracts user-level patterns (goals, urgency rules, writing style)
 2. **Priority refinement pipeline** (`refine-priority` / `refine-priority-batch`) — scores individual emails using those patterns
 
@@ -228,5 +238,5 @@ The context analysis pipeline HAS retry/requeue logic (`ContextAnalysisProgressS
 
 ---
 
-*Investigation by Monk of Modularity 🧘 — 2026-03-25*
-*Issue: Focus-Bear/BearlyMail#1454*
+_Investigation by Monk of Modularity 🧘 — 2026-03-25_
+_Issue: Focus-Bear/BearlyMail#1454_

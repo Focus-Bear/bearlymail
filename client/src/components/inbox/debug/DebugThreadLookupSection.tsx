@@ -218,10 +218,20 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             >
               <strong>{t('debug.threadLookup.threadDetails')}:</strong>
               <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-                <li>{t('debug.threadLookup.starCount')}: {threadLookupResult.thread.starCount}</li>
-                <li>{t('debug.threadLookup.archived')}: {threadLookupResult.thread.isArchived ? t('debug.threadLookup.yes') : t('debug.threadLookup.no')}</li>
-                <li>{t('debug.threadLookup.priorityScore')}: {threadLookupResult.thread.priorityScore ?? t('debug.threadLookup.notAvailable')}</li>
-                <li>{t('debug.threadLookup.updatedAt')}: {new Date(threadLookupResult.thread.updatedAt).toLocaleString()}</li>
+                <li>
+                  {t('debug.threadLookup.starCount')}: {threadLookupResult.thread.starCount}
+                </li>
+                <li>
+                  {t('debug.threadLookup.archived')}:{' '}
+                  {threadLookupResult.thread.isArchived ? t('debug.threadLookup.yes') : t('debug.threadLookup.no')}
+                </li>
+                <li>
+                  {t('debug.threadLookup.priorityScore')}:{' '}
+                  {threadLookupResult.thread.priorityScore ?? t('debug.threadLookup.notAvailable')}
+                </li>
+                <li>
+                  {t('debug.threadLookup.updatedAt')}: {new Date(threadLookupResult.thread.updatedAt).toLocaleString()}
+                </li>
               </ul>
             </div>
           )}
@@ -271,22 +281,30 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
                     }}
                   >
                     <div>
-                      <strong>{t('debug.threadLookup.emailSubject')}:</strong> {email.subject || t('debug.threadLookup.noSubject')}
+                      <strong>{t('debug.threadLookup.emailSubject')}:</strong>{' '}
+                      {email.subject || t('debug.threadLookup.noSubject')}
                     </div>
                     <div>
                       <strong>{t('debug.threadLookup.emailFrom')}:</strong> {email.from}
                     </div>
                     <div>
-                      <strong>{t('debug.threadLookup.emailReceived')}:</strong> {new Date(email.receivedAt).toLocaleString()}
+                      <strong>{t('debug.threadLookup.emailReceived')}:</strong>{' '}
+                      {new Date(email.receivedAt).toLocaleString()}
                     </div>
                     {email.isSnoozed && (
                       <div style={{ color: COLOR_WARNING_DARK }}>
-                        {t('debug.threadLookup.snoozedUntil')}: {email.snoozeUntil ? new Date(email.snoozeUntil).toLocaleString() : t('debug.threadLookup.notAvailable')}
+                        {t('debug.threadLookup.snoozedUntil')}:{' '}
+                        {email.snoozeUntil
+                          ? new Date(email.snoozeUntil).toLocaleString()
+                          : t('debug.threadLookup.notAvailable')}
                       </div>
                     )}
                     {email.isBatched && (
                       <div style={{ color: COLOR_INFO_VIOLET }}>
-                        {t('debug.threadLookup.batchedUntil')}: {email.batchReleaseAt ? new Date(email.batchReleaseAt).toLocaleString() : t('debug.threadLookup.notAvailable')}
+                        {t('debug.threadLookup.batchedUntil')}:{' '}
+                        {email.batchReleaseAt
+                          ? new Date(email.batchReleaseAt).toLocaleString()
+                          : t('debug.threadLookup.notAvailable')}
                       </div>
                     )}
                   </div>

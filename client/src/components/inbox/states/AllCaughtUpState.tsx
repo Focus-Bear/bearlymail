@@ -30,9 +30,7 @@ export const AllCaughtUpState: React.FC = () => {
       >
         {t('inbox.progressiveUnlock.allCaughtUp')}
       </h3>
-      <p style={{ color: theme.colors.text.secondary }}>
-        {t('inbox.progressiveUnlock.allCaughtUpSub')}
-      </p>
+      <p style={{ color: theme.colors.text.secondary }}>{t('inbox.progressiveUnlock.allCaughtUpSub')}</p>
     </div>
   );
 };

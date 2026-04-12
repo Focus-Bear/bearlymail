@@ -1,6 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { HIGH_PRIORITY_THRESHOLD, PRIORITY_RANGES, useInboxFilters, VERY_HIGH_PRIORITY_THRESHOLD } from './useInboxFilters';
+import {
+  HIGH_PRIORITY_THRESHOLD,
+  PRIORITY_RANGES,
+  useInboxFilters,
+  VERY_HIGH_PRIORITY_THRESHOLD,
+} from './useInboxFilters';
 
 // useInboxFilters → useConnectedAccountsQuery (TanStack Query).
 // Tests don't wrap in QueryClientProvider, so mock the query hook directly.
@@ -22,21 +27,21 @@ describe('PRIORITY_RANGES', () => {
     const veryLow = PRIORITY_RANGES.find(range => range.label === 'Very Low');
     expect(veryLow).toBeDefined();
     expect(veryLow!.min).toBeNull(); // null = no lower bound, scores < 0
-    expect(veryLow!.max).toBe(0);   // server SQL: priorityScore < 0
+    expect(veryLow!.max).toBe(0); // server SQL: priorityScore < 0
   });
 
   it('High range uses actual server score boundaries (30-50, not visual 60-80)', () => {
     const high = PRIORITY_RANGES.find(range => range.label === 'High');
     expect(high).toBeDefined();
-    expect(high!.min).toBe(30);   // server SQL: priorityScore > 30
-    expect(high!.max).toBe(50);   // server SQL: priorityScore <= 50
+    expect(high!.min).toBe(30); // server SQL: priorityScore > 30
+    expect(high!.max).toBe(50); // server SQL: priorityScore <= 50
   });
 
   it('Very High range uses min: 50 (actual server threshold, not visual 80)', () => {
     const veryHigh = PRIORITY_RANGES.find(range => range.label === 'Very High');
     expect(veryHigh).toBeDefined();
-    expect(veryHigh!.min).toBe(50);    // server SQL: priorityScore > 50
-    expect(veryHigh!.max).toBeNull();  // no upper cap
+    expect(veryHigh!.min).toBe(50); // server SQL: priorityScore > 50
+    expect(veryHigh!.max).toBeNull(); // no upper cap
   });
 
   it('covers all 5 priority buckets plus "All"', () => {

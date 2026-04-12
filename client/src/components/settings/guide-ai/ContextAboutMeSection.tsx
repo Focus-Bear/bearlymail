@@ -35,7 +35,11 @@ interface ContextAboutMeSectionProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
-  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => Promise<void>;
+  onUpdateProfile?: (updates: {
+    displayName?: string;
+    jobTitle?: string;
+    calendarBookingUrl?: string;
+  }) => Promise<void>;
   onRefreshContexts?: () => void;
 }
 
@@ -75,7 +79,12 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
       <ContextImpactInfo />
 
       {onUpdateProfile && (
-        <ProfileSettingsSection displayName={displayName} jobTitle={jobTitle} calendarBookingUrl={calendarBookingUrl} onUpdate={onUpdateProfile} />
+        <ProfileSettingsSection
+          displayName={displayName}
+          jobTitle={jobTitle}
+          calendarBookingUrl={calendarBookingUrl}
+          onUpdate={onUpdateProfile}
+        />
       )}
 
       <AnalyzeContextButton analyzing={analyzing} onAnalyzeContext={onAnalyzeContext} />

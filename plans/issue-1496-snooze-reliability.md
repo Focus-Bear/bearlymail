@@ -16,6 +16,7 @@ Snoozed emails reappear after page reload because:
 ## Previous approach (PR #1501 — rejected)
 
 The previous implementation:
+
 - Added a **blanket snooze filter** in `batchUpdateThreadArchivedStatuses` that queries ALL snoozed threads and excludes them from sync — this bypasses the existing `syncStatus` pattern and makes BearlyMail override Gmail's state for all snoozed threads permanently.
 - Changed the client from **fire-and-forget to `await`** — this breaks optimistic UI by making the snooze button wait for the API response.
 - Threw on thread-not-found — reasonable but should be paired with the correct sync approach.
@@ -27,6 +28,7 @@ The previous implementation:
 ### Principle: Use the existing `syncStatus` pattern
 
 The codebase already has a pattern for protecting user operations from sync overwrites:
+
 1. User action sets `thread.syncStatus = "unsynced"` + `thread.lastUserOperationAt = new Date()`
 2. `batchUpdateThreadArchivedStatuses` only updates where `syncStatus = "synced"`
 3. After provider sync confirms, `syncStatus` is set back to `"synced"`
@@ -39,6 +41,7 @@ Snooze should follow this same pattern. No new sync-guard queries needed.
 
 **In `snoozeEmail()`:**
 When setting `thread.isSnoozed = true`, also set:
+
 ```typescript
 thread.syncStatus = "unsynced";
 thread.syncStatusUpdatedAt = new Date();
@@ -52,6 +55,7 @@ Same pattern — set `syncStatus = "unsynced"` when unsnozing.
 
 **After provider sync succeeds (both snooze and unsnooze):**
 After `provider.snoozeThread()` / `provider.unsnoozeThread()` succeeds, set the thread back to synced:
+
 ```typescript
 thread.syncStatus = "synced";
 thread.syncStatusUpdatedAt = new Date();
@@ -67,21 +71,25 @@ Change the `logger.error` to `throw new Error(...)` as in the original PR. If th
 #### 2. `client/src/hooks/useEmailActionsBase.ts` — Keep fire-and-forget (optimistic UI)
 
 **Do NOT change from `.catch()` to `await`.** The current fire-and-forget pattern is correct for optimistic updates:
+
 - User clicks snooze → immediately dispatch `removeEmail`, `addOptimisticSnooze`, adjust tab counts
 - API call runs in background
 - If it fails, `.catch()` restores the email
 
 The only improvement: add a user-visible error notification in the `.catch()` handler so failures aren't silent. Something like:
+
 ```typescript
-axios.post(`${API_URL}/snooze/${emailId}`, { duration }).catch(error => {
-  console.error('[Snooze] API call failed:', error);
+axios.post(`${API_URL}/snooze/${emailId}`, { duration }).catch((error) => {
+  console.error("[Snooze] API call failed:", error);
   if (emailToSnooze) {
     dispatch(restoreEmail(emailToSnooze));
   }
   dispatch(removeOptimisticSnooze(emailId));
   adjustTabCount(onTabCountsUpdateOptimistically, mode, 1);
   // Optional: show user-visible toast/notification
-  fetchEmails().catch(err => console.error('Error refreshing after snooze error:', err));
+  fetchEmails().catch((err) =>
+    console.error("Error refreshing after snooze error:", err),
+  );
 });
 ```
 
@@ -104,13 +112,13 @@ Return `{ id, isSnoozed, snoozeUntil }` instead of the raw entity. This is a cle
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `server/src/snooze/snooze.service.ts` | Set `syncStatus = "unsynced"` on snooze/unsnooze; set back to `"synced"` after provider confirms; throw on thread-not-found |
-| `server/src/snooze/snooze.controller.ts` | Return structured `{id, isSnoozed, snoozeUntil}` response |
-| `server/src/snooze/snooze.service.spec.ts` | Add syncStatus tests, keep thread-not-found and lookup tests |
-| `client/src/hooks/useEmailActionsBase.ts` | No structural change — keep fire-and-forget. Optionally add error toast. |
-| `server/src/emails/email-thread.service.ts` | **No changes** (revert the snooze filter from original PR) |
+| File                                        | Change                                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/snooze/snooze.service.ts`       | Set `syncStatus = "unsynced"` on snooze/unsnooze; set back to `"synced"` after provider confirms; throw on thread-not-found |
+| `server/src/snooze/snooze.controller.ts`    | Return structured `{id, isSnoozed, snoozeUntil}` response                                                                   |
+| `server/src/snooze/snooze.service.spec.ts`  | Add syncStatus tests, keep thread-not-found and lookup tests                                                                |
+| `client/src/hooks/useEmailActionsBase.ts`   | No structural change — keep fire-and-forget. Optionally add error toast.                                                    |
+| `server/src/emails/email-thread.service.ts` | **No changes** (revert the snooze filter from original PR)                                                                  |
 
 ## What This Achieves
 

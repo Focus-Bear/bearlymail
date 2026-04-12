@@ -44,6 +44,7 @@ user rules about automated emails, newsletters, etc.
 
 Add an optional `classification?: EmailClassification` parameter. When provided,
 include the classification summary in the LLM prompt so the model knows:
+
 - `isAutomated: true/false`
 - `isNewsletter: true/false`
 - `isColdOutreach: true/false`
@@ -52,6 +53,7 @@ include the classification summary in the LLM prompt so the model knows:
 - `classification.reasons[]`
 
 Prompt addition (after the email content block):
+
 ```
 PRIOR CLASSIFICATION (from header and content analysis):
 - Automated: {{isAutomated}}
@@ -76,6 +78,7 @@ include relevant headers in the prompt so the LLM can match rules that relate
 to header-detectable patterns (automated senders, mailing lists, etc.).
 
 Include a curated subset of headers in the prompt:
+
 ```
 EMAIL HEADERS (relevant subset):
 {{#each relevantHeaders}}
@@ -109,8 +112,8 @@ const customSkip = await this.checkCustomExclusionSkip(
   logContext,
   config,
   latestEmail,
-  classification,  // NEW: pass classification
-  headers,         // NEW: pass headers
+  classification, // NEW: pass classification
+  headers, // NEW: pass headers
 );
 ```
 
@@ -128,6 +131,7 @@ Add the new optional parameters and pass them through to
 (or new `auto-responder-custom-exclusion.spec.ts` if line limits are hit)
 
 Add tests:
+
 - Custom rule "automated emails" + `classification.isAutomated = true` → skip
 - Custom rule "newsletters" + `classification.isNewsletter = true` → skip
 - Custom rule "automated emails" + `classification.isAutomated = false` → no
@@ -138,12 +142,12 @@ Add tests:
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `server/src/auto-responder/email-classifier.service.ts` | Add `classification` + `headers` params to `checkCustomExclusionRules`, update LLM prompt |
-| `server/src/auto-responder/auto-responder-context.service.ts` | Pass new params through |
-| `server/src/auto-responder/auto-responder.service.ts` | Pass `classification` + `headers` to custom exclusion check |
-| `server/src/auto-responder/auto-responder.service.spec.ts` (or new file) | New test cases |
+| File                                                                     | Change                                                                                    |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `server/src/auto-responder/email-classifier.service.ts`                  | Add `classification` + `headers` params to `checkCustomExclusionRules`, update LLM prompt |
+| `server/src/auto-responder/auto-responder-context.service.ts`            | Pass new params through                                                                   |
+| `server/src/auto-responder/auto-responder.service.ts`                    | Pass `classification` + `headers` to custom exclusion check                               |
+| `server/src/auto-responder/auto-responder.service.spec.ts` (or new file) | New test cases                                                                            |
 
 ## What This Does NOT Do
 
@@ -162,4 +166,5 @@ giving it the already-computed `isAutomated: true` flag and the relevant headers
 the match becomes reliable.
 
 ---
-🧘 *Planned by Monk of Modularity (OpenClaw AI agent)*
+
+🧘 _Planned by Monk of Modularity (OpenClaw AI agent)_

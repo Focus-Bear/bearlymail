@@ -50,9 +50,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
   // Filter out update-status and add-comment — these are now accessible via
   // the pencil and comment icons inline in GitHubProject (see #1067).
   const visibleActions = suggestedActions.filter(
-    action =>
-      action.type !== ACTION_TYPE_GITHUB_UPDATE_STATUS &&
-      action.type !== ACTION_TYPE_GITHUB_ADD_COMMENT,
+    action => action.type !== ACTION_TYPE_GITHUB_UPDATE_STATUS && action.type !== ACTION_TYPE_GITHUB_ADD_COMMENT
   );
 
   const actionButtons = visibleActions.length > 0 && (
@@ -92,7 +90,15 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
       <>
         <GitHubLinkCardNoStatus link={link} />
         {actionButtons}
-        {activeAction && renderModal({ action: activeAction, issueInfo, email, onClose: setActiveAction, onSuccess: handleActionSuccess, projectName: undefined })}
+        {activeAction &&
+          renderModal({
+            action: activeAction,
+            issueInfo,
+            email,
+            onClose: setActiveAction,
+            onSuccess: handleActionSuccess,
+            projectName: undefined,
+          })}
       </>
     );
   }
@@ -104,9 +110,7 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
   // If this issue is linked to a GitHub Project, pass the project name so the
   // status modal uses the project-column path (typeahead with real statuses)
   // rather than the generic open/closed path.
-  const linkedProjectName = status.projects && status.projects.length > 0
-    ? status.projects[0].name
-    : undefined;
+  const linkedProjectName = status.projects && status.projects.length > 0 ? status.projects[0].name : undefined;
 
   return (
     <>
@@ -132,7 +136,15 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         {actionButtons}
       </div>
 
-      {activeAction && renderModal({ action: activeAction, issueInfo, email, onClose: setActiveAction, onSuccess: handleActionSuccess, projectName: linkedProjectName })}
+      {activeAction &&
+        renderModal({
+          action: activeAction,
+          issueInfo,
+          email,
+          onClose: setActiveAction,
+          onSuccess: handleActionSuccess,
+          projectName: linkedProjectName,
+        })}
     </>
   );
 };

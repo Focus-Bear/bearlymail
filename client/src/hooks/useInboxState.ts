@@ -4,7 +4,14 @@ import { useDispatch } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
 
-import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE } from 'constants/strings';
+import {
+  MODE_ACTION,
+  MODE_AUTORESPONDED,
+  MODE_BLOCKED,
+  MODE_FOLLOW_UP,
+  MODE_SCHEDULED,
+  MODE_TRIAGE,
+} from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
 import { useCategoryFetch } from 'hooks/useCategoryFetch';
@@ -24,7 +31,14 @@ import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { clearCategoryState, setSummaryLoading } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED, MODE_AUTORESPONDED, MODE_SCHEDULED];
+const VALID_MODES: InboxMode[] = [
+  MODE_TRIAGE,
+  MODE_ACTION,
+  MODE_FOLLOW_UP,
+  MODE_BLOCKED,
+  MODE_AUTORESPONDED,
+  MODE_SCHEDULED,
+];
 
 function isValidMode(mode: string | undefined): mode is InboxMode {
   return mode !== undefined && VALID_MODES.includes(mode as InboxMode);
@@ -85,20 +99,17 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const isMobileRef = useRef<boolean>(false);
   // Action tab pulse state — set true when email moves to signal where it went
   const [actionTabPulsing, setActionTabPulsing] = useState(false);
-  const onEmailMovedInTriage = useCallback(
-    (emailId: string) => {
-      // Always pulse the Action tab to show where the email went (mobile + desktop)
-      // Force a class removal/re-add cycle via requestAnimationFrame so rapid
-      // prioritisations each re-trigger the animation even if it's already running.
-      setActionTabPulsing(false);
-      requestAnimationFrame(() => setActionTabPulsing(true));
-      if (!isMobileRef.current) {
-        // On desktop, also open the email in split view
-        openEmailRef.current?.(emailId);
-      }
-    },
-    []
-  );
+  const onEmailMovedInTriage = useCallback((emailId: string) => {
+    // Always pulse the Action tab to show where the email went (mobile + desktop)
+    // Force a class removal/re-add cycle via requestAnimationFrame so rapid
+    // prioritisations each re-trigger the animation even if it's already running.
+    setActionTabPulsing(false);
+    requestAnimationFrame(() => setActionTabPulsing(true));
+    if (!isMobileRef.current) {
+      // On desktop, also open the email in split view
+      openEmailRef.current?.(emailId);
+    }
+  }, []);
 
   // Email management hook
   const emailManagement = useEmailManagement({
@@ -184,13 +195,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     [splitView, navigate, basePath, mode]
   );
 
-  const closeEmailWithNavigate = useCallback(
-    () => {
-      splitView.closeEmail();
-      navigate(`${basePath}/${mode}`, { replace: true });
-    },
-    [splitView, navigate, basePath, mode]
-  );
+  const closeEmailWithNavigate = useCallback(() => {
+    splitView.closeEmail();
+    navigate(`${basePath}/${mode}`, { replace: true });
+  }, [splitView, navigate, basePath, mode]);
 
   // Build a splitView proxy that replaces openEmail/closeEmail with navigate-aware versions.
   // Passed to useEmailActions, useInboxEmailHandlers, and all other consumers so they
@@ -321,7 +329,13 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
   const { expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, resetForModeChange } =
-    useCategoryFetch({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames });
+    useCategoryFetch({
+      categorySummary,
+      fetchCategoryEmails,
+      loadedCategoryNames,
+      loadingCategoryNames,
+      exhaustedCategoryNames,
+    });
 
   const setMode = useCallback(
     (newMode: InboxMode) => {

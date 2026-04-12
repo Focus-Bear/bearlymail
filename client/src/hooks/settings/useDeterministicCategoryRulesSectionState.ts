@@ -22,9 +22,9 @@ export function useDeterministicCategoryRulesSectionState() {
   const undoCancels = useRef<Map<string, () => void>>(new Map());
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<typeof COMPOSITE_RULE_FORM_MODE_ADD | typeof COMPOSITE_RULE_FORM_MODE_EDIT>(
-    COMPOSITE_RULE_FORM_MODE_ADD
-  );
+  const [modalMode, setModalMode] = useState<
+    typeof COMPOSITE_RULE_FORM_MODE_ADD | typeof COMPOSITE_RULE_FORM_MODE_EDIT
+  >(COMPOSITE_RULE_FORM_MODE_ADD);
   const [editingRule, setEditingRule] = useState<CategoryRuleDto | null>(null);
   const [prefillCategoryName, setPrefillCategoryName] = useState('');
 

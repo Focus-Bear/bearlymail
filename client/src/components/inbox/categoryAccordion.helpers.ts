@@ -45,10 +45,7 @@ export function getCategoryIcon(category: string): string {
   return icons[category] || '📧';
 }
 
-export function makeArchiveKeyDownHandler(
-  onConfirm: () => void,
-  onCancel: () => void,
-): (event: KeyboardEvent) => void {
+export function makeArchiveKeyDownHandler(onConfirm: () => void, onCancel: () => void): (event: KeyboardEvent) => void {
   return (event: KeyboardEvent) => {
     if (event.key.toLowerCase() === KEY_Y) {
       event.stopPropagation();

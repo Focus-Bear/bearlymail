@@ -48,6 +48,7 @@ JOIN`.
 ### Same issue in `thread_labels` lateral join
 
 `getInboxSummary()`:
+
 ```sql
 LEFT JOIN LATERAL (
   SELECT array_agg(em.labels) AS "allLabels" FROM emails em
@@ -56,6 +57,7 @@ LEFT JOIN LATERAL (
 ```
 
 `runInboxQuery()`:
+
 ```sql
 LEFT JOIN LATERAL (
   SELECT array_agg(em.labels) AS "allThreadLabels" FROM emails em
@@ -69,10 +71,10 @@ consistency.
 
 ### Effect
 
-| Path | userId filter | Join type | Result |
-|------|--------------|-----------|--------|
-| `getInboxSummary` | ❌ missing | LEFT JOIN | Over-counts — includes threads whose latest email belongs to another user |
-| `runInboxQuery` | ✅ present | CROSS JOIN | Correct — only user's emails, excludes empty threads |
+| Path              | userId filter | Join type  | Result                                                                    |
+| ----------------- | ------------- | ---------- | ------------------------------------------------------------------------- |
+| `getInboxSummary` | ❌ missing    | LEFT JOIN  | Over-counts — includes threads whose latest email belongs to another user |
+| `runInboxQuery`   | ✅ present    | CROSS JOIN | Correct — only user's emails, excludes empty threads                      |
 
 The summary returns 30 threads but `getInbox` returns 7 because 23 threads are
 filtered out by the stricter userId-scoped query + post-query action-mode
@@ -154,5 +156,5 @@ refactor and can be a follow-up PR.
 
 ---
 
-*Planned by Monk of Modularity 🧘 — 2026-03-30*
-*Closes #1554*
+_Planned by Monk of Modularity 🧘 — 2026-03-30_
+_Closes #1554_

@@ -22,8 +22,16 @@ InboxEmailListPanel (overflowY: auto, minWidth: 0)
 **The bug:** In `CategoryAccordion.tsx` (line ~440), the CSS grid animation wrapper uses:
 
 ```tsx
-<div style={{ display: 'grid', gridTemplateRows: isExpanded ? '1fr' : '0fr', overflow: 'hidden' }}>
-  <div style={{ minHeight: 0 }}>  // ← THIS DIV
+<div
+  style={{
+    display: "grid",
+    gridTemplateRows: isExpanded ? "1fr" : "0fr",
+    overflow: "hidden",
+  }}
+>
+  <div style={{ minHeight: 0 }}>
+    {" "}
+    // ← THIS DIV
     <CategoryAccordionContent>...</CategoryAccordionContent>
   </div>
 </div>
@@ -44,16 +52,19 @@ This is the classic "CSS Grid / Flexbox `min-width: auto` problem" — grid/flex
 In `client/src/components/inbox/CategoryAccordion.tsx`, the `CategoryAccordionContent` wrapper div inside the grid:
 
 **Before:**
+
 ```tsx
 <div style={{ minHeight: 0 }}>
 ```
 
 **After:**
+
 ```tsx
 <div style={{ minHeight: 0, overflow: 'hidden' }}>
 ```
 
 Adding `overflow: hidden` to the grid child does two things:
+
 1. Establishes a block formatting context that constrains width
 2. Implicitly sets `min-width: 0` behavior for the grid track sizing
 
@@ -80,4 +91,5 @@ Also add `minWidth: 0` explicitly for defence-in-depth:
 - `client/src/components/inbox/CategoryAccordion.tsx` — 1 line change
 
 ---
+
 Authored-by: monk-of-modularity[bot]

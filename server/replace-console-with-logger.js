@@ -5,31 +5,31 @@
  * from the utils/logger module.
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 const filesToProcess = [
-  'src/emails/gmail.service.ts',
-  'src/replies/replies.service.ts',
-  'src/summarization/summarization.service.ts',
-  'src/calendar/calendar.service.ts',
-  'src/contacts/contacts.service.ts',
-  'src/contacts/providers/gmail-contacts.provider.ts',
-  'src/context/context-batch-analysis.processor.ts',
-  'src/auth/auth.controller.ts',
-  'src/auth/auth-logger.ts',
-  'src/context/context-analysis-logger.ts',
-  'src/auto-responder/autoresponder-logger.ts',
-  'src/scripts/bulk-recalculate-priority.ts',
-  'src/scripts/fix-migration-state.ts',
-  'src/scripts/fix-stuck-calculating.ts',
-  'src/scripts/load-test-jobs.ts',
-  'src/scripts/reset-stuck-jobs.ts',
+  "src/emails/gmail.service.ts",
+  "src/replies/replies.service.ts",
+  "src/summarization/summarization.service.ts",
+  "src/calendar/calendar.service.ts",
+  "src/contacts/contacts.service.ts",
+  "src/contacts/providers/gmail-contacts.provider.ts",
+  "src/context/context-batch-analysis.processor.ts",
+  "src/auth/auth.controller.ts",
+  "src/auth/auth-logger.ts",
+  "src/context/context-analysis-logger.ts",
+  "src/auto-responder/autoresponder-logger.ts",
+  "src/scripts/bulk-recalculate-priority.ts",
+  "src/scripts/fix-migration-state.ts",
+  "src/scripts/fix-stuck-calculating.ts",
+  "src/scripts/load-test-jobs.ts",
+  "src/scripts/reset-stuck-jobs.ts",
 ];
 
 function getRelativeImportPath(filePath) {
-  const depth = filePath.split('/').length - 2; // -2 for src/ and filename
-  return '../'.repeat(depth) + 'utils/logger';
+  const depth = filePath.split("/").length - 2; // -2 for src/ and filename
+  return "../".repeat(depth) + "utils/logger";
 }
 
 function processFile(filePath) {
@@ -40,7 +40,7 @@ function processFile(filePath) {
     return 0;
   }
 
-  let content = fs.readFileSync(fullPath, 'utf8');
+  let content = fs.readFileSync(fullPath, "utf8");
   const originalContent = content;
 
   // Count occurrences before replacement
@@ -56,9 +56,12 @@ function processFile(filePath) {
   const importPath = getRelativeImportPath(filePath);
   const importStatement = `import { logError, logWarn } from "${importPath}";`;
 
-  if (!content.includes('from "../utils/logger"') && !content.includes("from '../utils/logger'")) {
+  if (
+    !content.includes('from "../utils/logger"') &&
+    !content.includes("from '../utils/logger'")
+  ) {
     // Find the last import statement
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     let lastImportIndex = -1;
 
     for (let i = 0; i < lines.length; i++) {
@@ -69,7 +72,7 @@ function processFile(filePath) {
 
     if (lastImportIndex >= 0) {
       lines.splice(lastImportIndex + 1, 0, importStatement);
-      content = lines.join('\n');
+      content = lines.join("\n");
     }
   }
 
@@ -79,18 +82,15 @@ function processFile(filePath) {
     /console\.error\(([^,]+),\s*([^)]+)\)/g,
     (match, message, error) => {
       return `logError(${message}, ${error} instanceof Error ? ${error} : new Error(String(${error})))`;
-    }
+    },
   );
 
   // Pattern 2: console.error(message) - single argument
-  content = content.replace(
-    /console\.error\(([^)]+)\)/g,
-    (match, message) => {
-      // Skip if already replaced (contains logError)
-      if (match.includes('logError')) return match;
-      return `logError(${message})`;
-    }
-  );
+  content = content.replace(/console\.error\(([^)]+)\)/g, (match, message) => {
+    // Skip if already replaced (contains logError)
+    if (match.includes("logError")) return match;
+    return `logError(${message})`;
+  });
 
   // Replace console.warn calls
   // Pattern 1: console.warn(message, data)
@@ -98,22 +98,21 @@ function processFile(filePath) {
     /console\.warn\(([^,]+),\s*([^)]+)\)/g,
     (match, message, data) => {
       return `logWarn(${message}, ${data})`;
-    }
+    },
   );
 
   // Pattern 2: console.warn(message) - single argument
-  content = content.replace(
-    /console\.warn\(([^)]+)\)/g,
-    (match, message) => {
-      // Skip if already replaced (contains logWarn)
-      if (match.includes('logWarn')) return match;
-      return `logWarn(${message})`;
-    }
-  );
+  content = content.replace(/console\.warn\(([^)]+)\)/g, (match, message) => {
+    // Skip if already replaced (contains logWarn)
+    if (match.includes("logWarn")) return match;
+    return `logWarn(${message})`;
+  });
 
   if (content !== originalContent) {
-    fs.writeFileSync(fullPath, content, 'utf8');
-    console.log(`✅ Processed ${filePath} (${errorCount} errors, ${warnCount} warnings)`);
+    fs.writeFileSync(fullPath, content, "utf8");
+    console.log(
+      `✅ Processed ${filePath} (${errorCount} errors, ${warnCount} warnings)`,
+    );
     return errorCount + warnCount;
   }
 
@@ -122,10 +121,14 @@ function processFile(filePath) {
 
 let totalReplaced = 0;
 
-console.log('🔄 Replacing console.error and console.warn with logError and logWarn...\n');
+console.log(
+  "🔄 Replacing console.error and console.warn with logError and logWarn...\n",
+);
 
 for (const file of filesToProcess) {
   totalReplaced += processFile(file);
 }
 
-console.log(`\n✅ Complete! Replaced ${totalReplaced} instances across ${filesToProcess.length} files.`);
+console.log(
+  `\n✅ Complete! Replaced ${totalReplaced} instances across ${filesToProcess.length} files.`,
+);

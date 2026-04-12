@@ -36,17 +36,12 @@ function makeEmail(overrides: Partial<Email> = {}): Email {
 }
 
 describe('isDefaultCategory', () => {
-  it.each([
-    'Newsletters',
-    'Sales',
-    'Partnerships',
-    'Customer Support',
-    'HR Admin',
-    'Other',
-    'Dangerous / Phishing',
-  ])('returns true for known default category: %s', category => {
-    expect(isDefaultCategory(category)).toBe(true);
-  });
+  it.each(['Newsletters', 'Sales', 'Partnerships', 'Customer Support', 'HR Admin', 'Other', 'Dangerous / Phishing'])(
+    'returns true for known default category: %s',
+    category => {
+      expect(isDefaultCategory(category)).toBe(true);
+    }
+  );
 
   it('returns false for an unknown/custom category UUID', () => {
     expect(isDefaultCategory('abc-123-uuid')).toBe(false);
@@ -168,17 +163,13 @@ describe('groupEmailsByCategory', () => {
   });
 
   it('routes medium-confidence phishing email (no server category) to phishing bucket', () => {
-    const emails = [
-      makeEmail({ id: '1', phishingConfidence: 'medium', category: 'Other', category_id: null }),
-    ];
+    const emails = [makeEmail({ id: '1', phishingConfidence: 'medium', category: 'Other', category_id: null })];
     const groups = groupEmailsByCategory(emails);
     expect(groups[0].category).toBe('Dangerous / Phishing');
   });
 
   it('routes high-confidence phishing email (no server category) to phishing bucket', () => {
-    const emails = [
-      makeEmail({ id: '1', phishingConfidence: 'high', category: 'Other', category_id: null }),
-    ];
+    const emails = [makeEmail({ id: '1', phishingConfidence: 'high', category: 'Other', category_id: null })];
     const groups = groupEmailsByCategory(emails);
     expect(groups[0].category).toBe('Dangerous / Phishing');
   });

@@ -5,6 +5,7 @@ This guide will get you from zero to deployed in about 30 minutes.
 ## Overview
 
 The infrastructure consists of 4 CDK stacks:
+
 1. **Networking**: VPC, Route53, SSL (~5-10 min)
 2. **Secrets**: Empty secrets placeholders (~1 min)
 3. **Database**: RDS PostgreSQL (~10-15 min)
@@ -184,7 +185,7 @@ cdk diff BearlyMailStack
 
 ## Troubleshooting
 
-- **ECS task fails with "invalid character '_'"**: See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) section 6a - your secret is not valid JSON
+- **ECS task fails with "invalid character '\_'"**: See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) section 6a - your secret is not valid JSON
 - **Certificate validation stuck**: DNS propagation can take 5-30 minutes
 - **Database connection timeout**: Check security groups allow ECS → RDS traffic
 - **CloudWatch logs**: `aws logs tail /ecs/bearlymail/web --follow`

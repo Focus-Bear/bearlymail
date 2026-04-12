@@ -9,9 +9,10 @@ Token usage for email prioritisation is extremely high. The root cause is **the 
 **Finding 1: The prompt template is massive (~18KB / ~4,500 tokens)**
 
 `server/promptfoo/prompts/prioritise-email.md` is 18,147 bytes. It contains:
+
 - Extensive category selection rules (Step 1, 2, 2a, 3) with detailed examples
 - QA pass/fail detection heuristics
-- Devin PR identification rules  
+- Devin PR identification rules
 - Multi-language awareness instructions
 - Boilerplate footer ignore rules
 - Newsletter scoring rules
@@ -24,6 +25,7 @@ This prompt is sent **in full** for every single LLM call, even for individual e
 **Finding 2: Batch mode IS being used (partially)**
 
 The batching infrastructure exists and works:
+
 - `email-lifecycle.service.ts` buffers emails (max 5, flush after 2s)
 - When buffer has >1 email → `REFINE_PRIORITY_BATCH` job
 - When buffer has exactly 1 email → falls back to individual `REFINE_PRIORITY` job
@@ -60,9 +62,11 @@ The current prompt is written in a verbose, tutorial-like style with many exampl
 5. **Remove the "10 IMPORTANT RULES" section** — most repeat what's already said above. Deduplicate.
 
 #### Files to modify:
+
 - `server/promptfoo/prompts/prioritise-email.md` — rewrite to compressed version
 
 #### Validation:
+
 - Run existing promptfoo tests: `npm run test:promptfoo` (or equivalent) to verify category accuracy, urgency scoring, and goal alignment haven't regressed
 - Compare before/after token counts using tiktoken or the LLM's reported usage
 
@@ -73,6 +77,7 @@ The `buildPriorityPrompt` method already returns a `{ prompt, systemPrompt }` tu
 **Why this helps:** Many LLM providers cache system prompts across calls. If the system prompt is identical across calls (which it would be — the rules don't change), providers like Anthropic (prompt caching) and OpenAI (automatic caching) can serve cached input tokens at 90% discount.
 
 #### Files to modify:
+
 - `server/promptfoo/prompts/prioritise-email.md` — split into system portion (rules) and user portion (dynamic context + email)
 - `server/src/llm/prompts.ts` — ensure `systemPrompt` field from prompt config is used correctly
 - `server/src/llm/priority-analysis.service.ts` — verify `systemPrompt` is passed through to LLM call for both single and batch paths
@@ -80,11 +85,13 @@ The `buildPriorityPrompt` method already returns a `{ prompt, systemPrompt }` tu
 ### Phase 3: Increase batch size and reduce single-email fallback (MEDIUM IMPACT, LOW RISK)
 
 Currently:
+
 - `BATCH_MAX_SIZE = 5` (max emails per batch)
 - `BATCH_FLUSH_DELAY_MS = 2000` (2 second window)
 - Single emails skip batching entirely
 
 Proposed changes:
+
 - Increase `BATCH_MAX_SIZE` to 10 (amortize the prompt across more emails)
 - Increase `BATCH_FLUSH_DELAY_MS` to 5000 (5 seconds — gives more time to collect emails during sync)
 - These are configurable constants, easy to tune
@@ -92,6 +99,7 @@ Proposed changes:
 With Phase 1 + Phase 3, a batch of 10 emails would use ~1,500 prompt tokens + ~500 tokens per email body = ~6,500 total, vs current ~4,500 + ~1,000 per email × 10 separate calls = ~55,000 tokens. That's an **~88% reduction**.
 
 #### Files to modify:
+
 - `server/src/emails/email-lifecycle.service.ts` — update `BATCH_MAX_SIZE` and `BATCH_FLUSH_DELAY_MS` constants
 
 ## Implementation Order
@@ -102,12 +110,12 @@ With Phase 1 + Phase 3, a batch of 10 emails would use ~1,500 prompt tokens + ~5
 
 ## Estimated Token Savings
 
-| Scenario | Current (est.) | After Phase 1 | After All Phases |
-|----------|---------------|---------------|-----------------|
-| 1 email (single path) | ~5,500 input | ~2,500 input | ~2,500 (cached system) |
-| 5 emails (batch) | ~7,500 input | ~4,000 input | ~4,000 (cached system) |
-| 10 emails (batch, Phase 3) | N/A (max 5) | ~6,500 input | ~6,500 (cached system) |
-| 10 emails (current, 2 batches) | ~15,000 input | ~8,000 input | ~8,000 (cached system) |
+| Scenario                       | Current (est.) | After Phase 1 | After All Phases       |
+| ------------------------------ | -------------- | ------------- | ---------------------- |
+| 1 email (single path)          | ~5,500 input   | ~2,500 input  | ~2,500 (cached system) |
+| 5 emails (batch)               | ~7,500 input   | ~4,000 input  | ~4,000 (cached system) |
+| 10 emails (batch, Phase 3)     | N/A (max 5)    | ~6,500 input  | ~6,500 (cached system) |
+| 10 emails (current, 2 batches) | ~15,000 input  | ~8,000 input  | ~8,000 (cached system) |
 
 ## Risk Assessment
 
@@ -124,4 +132,4 @@ With Phase 1 + Phase 3, a batch of 10 emails would use ~1,500 prompt tokens + ~5
 
 ---
 
-*Plan by Monk of Modularity 🧘 for issue #1442*
+_Plan by Monk of Modularity 🧘 for issue #1442_

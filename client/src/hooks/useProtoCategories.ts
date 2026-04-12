@@ -136,7 +136,14 @@ export const useProtoCategories = (
     fetchCategories();
   }, [fetchCategories]);
 
-  const mutations = useProtoCategoryMutations({ setCategories, setDraftNames, draftNames, showSuccess, showError, tFunc });
+  const mutations = useProtoCategoryMutations({
+    setCategories,
+    setDraftNames,
+    draftNames,
+    showSuccess,
+    showError,
+    tFunc,
+  });
 
   return { categories, isLoading, draftNames, fetchCategories, ...mutations };
 };

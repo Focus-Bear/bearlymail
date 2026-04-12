@@ -23,13 +23,7 @@ import { AnalysingPriorityCategory } from 'components/inbox/states/AnalysingPrio
 import { ScheduledEmailsManager } from 'components/scheduled-emails/ScheduledEmailsManager';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
-import {
-  CATEGORY_OTHER,
-  MODE_FOLLOW_UP,
-  MODE_SCHEDULED,
-  MODE_TRIAGE,
-  PARAM_CATEGORY_IDS,
-} from 'constants/strings';
+import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_SCHEDULED, MODE_TRIAGE, PARAM_CATEGORY_IDS } from 'constants/strings';
 import { useDebugMode } from 'hooks/useDebugMode';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { FollowUpData } from 'hooks/useFollowUps';
@@ -39,7 +33,13 @@ import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded 
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
 
-import { InboxEmailActions, InboxKeyboardHint, InboxModals, InboxPriorityTooltip, InboxSnoozeInput } from './inbox.types';
+import {
+  InboxEmailActions,
+  InboxKeyboardHint,
+  InboxModals,
+  InboxPriorityTooltip,
+  InboxSnoozeInput,
+} from './inbox.types';
 import {
   computeCanRenderCategories,
   computeEmailListBorderRight,
@@ -244,12 +244,15 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const renderStartRef = useRef<number | null>(null);
 
   // Wrapped toggle that marks the start of a total click-to-visible span (only when expanding).
-  const handleToggleWithTiming = useCallback((key: string) => {
-    if (!isExpanded) {
-      perf.markStart(`category-total:${categoryName}`);
-    }
-    onToggleCategory(key);
-  }, [isExpanded, categoryName, onToggleCategory, perf]);
+  const handleToggleWithTiming = useCallback(
+    (key: string) => {
+      if (!isExpanded) {
+        perf.markStart(`category-total:${categoryName}`);
+      }
+      onToggleCategory(key);
+    },
+    [isExpanded, categoryName, onToggleCategory, perf]
+  );
 
   // Mark end of total click-to-visible span when category finishes loading.
   useEffect(() => {
@@ -274,9 +277,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
               `[PerfBudget] category-paint:${categoryName} exceeded budget: ${durationMs}ms > ${budget}ms (overage: ${durationMs - budget}ms)`
             );
           } else {
-            devLog(
-              `[PerfBudget] category-paint:${categoryName} within budget: ${durationMs}ms / ${budget}ms`
-            );
+            devLog(`[PerfBudget] category-paint:${categoryName} within budget: ${durationMs}ms / ${budget}ms`);
           }
           renderStartRef.current = null;
         }
@@ -346,7 +347,12 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         // emails than the fetch limit, the count will be under-decremented. Pagination is a
         // pre-existing limitation of the fallback fetch and is out of scope for this fix.
         dispatch(markCategoryLoaded(categoryKey));
-        dispatch(decrementCategorySummaryCount({ categoryKey: categoryItem.id ?? CATEGORY_KEY_UNCATEGORIZED, count: fetchedIds.length }));
+        dispatch(
+          decrementCategorySummaryCount({
+            categoryKey: categoryItem.id ?? CATEGORY_KEY_UNCATEGORIZED,
+            count: fetchedIds.length,
+          })
+        );
       }
     } catch (err) {
       console.error('[InboxContent] Failed to load category emails for archive:', err);
@@ -471,7 +477,7 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
         });
 
         // Determine the sibling to scroll to
-        const collapsedVisibleIdx = displayCategories.slice(0, catIdx).filter((cat) => {
+        const collapsedVisibleIdx = displayCategories.slice(0, catIdx).filter(cat => {
           const key = getCategoryKey(cat.id, cat.name);
           const grp = emailCategoryMap.get(key);
           const loaded = (loadedCategoryNames ?? []).includes(key);
@@ -497,7 +503,7 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
         scrollContainer.scrollBy({ top: scrollDelta, behavior: 'smooth' });
       }, COLLAPSE_ANIMATION_MS);
     },
-    [displayCategories, emailCategoryMap, loadedCategoryNames, emailListRef],
+    [displayCategories, emailCategoryMap, loadedCategoryNames, emailListRef]
   );
 
   return (
@@ -562,7 +568,12 @@ export interface InboxEmailListPanelProps {
   emailListRef: React.RefObject<HTMLDivElement | null>;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
   isMobile: boolean;
-  splitView: { selectedEmailId: string | null | undefined; splitPosition: number; isResizing: boolean; panelExpanded: boolean };
+  splitView: {
+    selectedEmailId: string | null | undefined;
+    splitPosition: number;
+    isResizing: boolean;
+    panelExpanded: boolean;
+  };
   mode: InboxMode;
   emails: Email[];
   loading: boolean;
@@ -611,7 +622,14 @@ export interface InboxEmailListPanelProps {
   /** Current active priority filter upper bound (null = no upper cap) */
   maxPriority?: number | null;
   /** Counts of threads per priority tier for progressive unlock prompt */
-  priorityCounts?: { veryHigh: number; high: number; medium: number; low: number; veryLow: number; unprioritised: number } | null;
+  priorityCounts?: {
+    veryHigh: number;
+    high: number;
+    medium: number;
+    low: number;
+    veryLow: number;
+    unprioritised: number;
+  } | null;
   /** Called when user accepts progressive unlock to a lower priority tier */
   onUnlockPriorityTier?: (minPriority: number, maxPriority: number | null) => void;
   /** Called when user dismisses the progressive unlock prompt */
@@ -622,27 +640,81 @@ export interface InboxEmailListPanelProps {
   unprioritisedCount?: number;
 }
 
-export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) => {
+export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = props => {
   const {
-    emailListRef, sentinelRef, isMobile, splitView, mode, emails, loading,
-    isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, decrypting, fetchError,
-    nextDelivery, lastUrgentCheck, isGeneratingDrafts, followUpsError, categorySummary,
-    displayCategories, emailCategoryMap, otherProtoGroups, protoCategories, isReanalysingOther,
-    convertingProtoCategoryId, deletingProtoCategoryId, expandedCategories, loadedCategoryNames,
-    hasMore, selectedEmailIds, selectedEmailIndex, triageSuggestions, followUpDataMap,
-    priorityTooltip, keyboardHint, snoozeInput, emailActions, modals, updateDraft,
-    onEmailClick, onEmailSelect, onSendFollowUp, onGenerateDrafts, onRetry,
-    onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox, onReanalyseOther,
-    minPriority, maxPriority, priorityCounts, onUnlockPriorityTier, onDismissUnlockPrompt, onClearFilters,
+    emailListRef,
+    sentinelRef,
+    isMobile,
+    splitView,
+    mode,
+    emails,
+    loading,
+    isRefetchingWithoutData,
+    hasInitiallyLoaded,
+    loadingModeSwitch,
+    decrypting,
+    fetchError,
+    nextDelivery,
+    lastUrgentCheck,
+    isGeneratingDrafts,
+    followUpsError,
+    categorySummary,
+    displayCategories,
+    emailCategoryMap,
+    otherProtoGroups,
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    expandedCategories,
+    loadedCategoryNames,
+    hasMore,
+    selectedEmailIds,
+    selectedEmailIndex,
+    triageSuggestions,
+    followUpDataMap,
+    priorityTooltip,
+    keyboardHint,
+    snoozeInput,
+    emailActions,
+    modals,
+    updateDraft,
+    onEmailClick,
+    onEmailSelect,
+    onSendFollowUp,
+    onGenerateDrafts,
+    onRetry,
+    onToggleCategory,
+    onBulkArchive,
+    onConvertProtoCategory,
+    onDeleteProtoCategoryFromInbox,
+    onReanalyseOther,
+    minPriority,
+    maxPriority,
+    priorityCounts,
+    onUnlockPriorityTier,
+    onDismissUnlockPrompt,
+    onClearFilters,
     unprioritisedCount,
   } = props;
 
   const { isDebugModeEnabled } = useDebugMode();
   const panelFlex = computeEmailListFlex(splitView);
   const canRenderCategories = computeCanRenderCategories({
-    loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, categoriesCount: displayCategories.length
+    loading,
+    isRefetchingWithoutData,
+    hasInitiallyLoaded,
+    loadingModeSwitch,
+    fetchError,
+    categoriesCount: displayCategories.length,
   });
-  const emailsEmpty = computeIsEmailsEmpty(isRefetchingWithoutData, categorySummary, loading, loadingModeSwitch, emails.length);
+  const emailsEmpty = computeIsEmailsEmpty(
+    isRefetchingWithoutData,
+    categorySummary,
+    loading,
+    loadingModeSwitch,
+    emails.length
+  );
 
   const renderItem = (email: Email, emailIndex: number) => (
     <InboxEmailItem
@@ -668,10 +740,23 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
   );
 
   const categoryListProps = {
-    displayCategories, emailCategoryMap, otherProtoGroups, protoCategories, isReanalysingOther,
-    convertingProtoCategoryId, deletingProtoCategoryId, expandedCategories, loadedCategoryNames,
-    mode, emailListRef, onToggleCategory, onBulkArchive, onConvertProtoCategory, onDeleteProtoCategoryFromInbox,
-    onReanalyseOther, renderItem,
+    displayCategories,
+    emailCategoryMap,
+    otherProtoGroups,
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    expandedCategories,
+    loadedCategoryNames,
+    mode,
+    emailListRef,
+    onToggleCategory,
+    onBulkArchive,
+    onConvertProtoCategory,
+    onDeleteProtoCategoryFromInbox,
+    onReanalyseOther,
+    renderItem,
   };
 
   // Scheduled mode: render ScheduledEmailsManager inside the inbox shell
@@ -722,7 +807,12 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
       >
         {mode === MODE_TRIAGE && <BatchInfoBar nextDelivery={nextDelivery} lastUrgentCheck={lastUrgentCheck} />}
         {mode === MODE_FOLLOW_UP && (
-          <FollowUpActions onGenerateDrafts={onGenerateDrafts} isGenerating={isGeneratingDrafts} error={followUpsError} onRetry={onRetry} />
+          <FollowUpActions
+            onGenerateDrafts={onGenerateDrafts}
+            isGenerating={isGeneratingDrafts}
+            error={followUpsError}
+            onRetry={onRetry}
+          />
         )}
         <EmailListStates
           loading={loading || isRefetchingWithoutData}
@@ -740,9 +830,10 @@ export const InboxEmailListPanel: React.FC<InboxEmailListPanelProps> = (props) =
           onDismissUnlockPrompt={onDismissUnlockPrompt}
           onClearFilters={onClearFilters}
         />
-        {canRenderCategories && unprioritisedCount !== null && unprioritisedCount !== undefined && unprioritisedCount > 0 && (
-          <AnalysingPriorityCategory count={unprioritisedCount} />
-        )}
+        {canRenderCategories &&
+          unprioritisedCount !== null &&
+          unprioritisedCount !== undefined &&
+          unprioritisedCount > 0 && <AnalysingPriorityCategory count={unprioritisedCount} />}
         {canRenderCategories && <InboxCategoryList {...categoryListProps} />}
         {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (
           <div ref={sentinelRef} style={{ height: '1px', visibility: 'hidden' }} aria-hidden="true" />

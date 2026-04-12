@@ -223,7 +223,8 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                   marginTop: theme.spacing.xs,
                 }}
               >
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.toLabel')}</span> {email.to}
+                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.toLabel')}</span>{' '}
+                {email.to}
               </div>
             )}
             {email.cc && (
@@ -234,7 +235,8 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                   marginTop: theme.spacing.xs,
                 }}
               >
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.ccLabel')}</span> {email.cc}
+                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{t('emailDetail.ccLabel')}</span>{' '}
+                {email.cc}
               </div>
             )}
           </div>
@@ -279,7 +281,13 @@ export const EmailDetailHeaderView: React.FC<EmailDetailHeaderViewProps> = ({
                   </span>
                   <span>{priorityExplanation.dimensions.goalAlignment.score.toFixed(0)}%</span>
                   {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
-                    <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginTop: '2px' }}>
+                    <div
+                      style={{
+                        fontSize: theme.typography.fontSize.sm,
+                        color: theme.colors.text.secondary,
+                        marginTop: '2px',
+                      }}
+                    >
                       {priorityExplanation.dimensions.goalAlignment.reasons[0]}
                     </div>
                   )}

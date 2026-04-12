@@ -5,7 +5,7 @@ import { GitHubLink } from 'types/email';
 import { GitHubLinkCard } from 'components/github/GitHubLinkCard';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
-import { getActionKey,getDedupeKey } from './gitHubLinksList.helpers';
+import { getActionKey, getDedupeKey } from './gitHubLinksList.helpers';
 
 interface GitHubLinksListProps {
   links: GitHubLink[];
@@ -17,12 +17,7 @@ interface GitHubLinksListProps {
   email?: { subject?: string; body?: string; from?: string; fromName?: string } | null;
 }
 
-export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({
-  links,
-  suggestedActions = [],
-  onRefresh,
-  email,
-}) => {
+export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({ links, suggestedActions = [], onRefresh, email }) => {
   // Deduplicate links by owner/repo/number - keep the one with more data
   const uniqueLinks = React.useMemo(() => {
     const linkMap = new Map<string, GitHubLink>();
@@ -49,8 +44,8 @@ export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({
     for (const action of suggestedActions) {
       const key = getActionKey(action);
       if (!key) {
-continue;
-}
+        continue;
+      }
       // Try exact issue match first, then repo-level fallback
       if (!map.has(key)) {
         map.set(key, []);
@@ -68,13 +63,7 @@ continue;
         // Actions matching this exact issue take priority; fall back to repo-level actions
         const cardActions = actionsPerLink.get(key) ?? actionsPerLink.get(repoKey) ?? [];
         return (
-          <GitHubLinkCard
-            key={key}
-            link={link}
-            suggestedActions={cardActions}
-            onRefresh={onRefresh}
-            email={email}
-          />
+          <GitHubLinkCard key={key} link={link} suggestedActions={cardActions} onRefresh={onRefresh} email={email} />
         );
       })}
     </div>

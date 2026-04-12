@@ -14,11 +14,12 @@ When the inbox loads, several API endpoints are called **twice** (or more). This
 
 - **`useInboxModeChanges`** (lines 52-75): Fires when `mode` changes AND `hasInitiallyLoaded` is true. On the very first load, after `useInboxInitialization` sets `hasInitiallyLoaded = true`, this effect runs. If the `prevModeForFetchRef` hasn't been set yet (race with `hasSetInitialModeRef`), it may fire a second round of the same three calls.
 
-**The race window:** `useInboxInitialization` sets `hasInitiallyLoaded = true` *after* its fetches complete. `useInboxModeChanges`'s first guard (`hasSetInitialModeRef`) is supposed to skip the first run, but because both effects depend on the same external signals (`mode`, `hasInitiallyLoaded`, `user`), React can batch state updates in a way that both fire in the same commit cycle when `hasInitiallyLoaded` flips.
+**The race window:** `useInboxInitialization` sets `hasInitiallyLoaded = true` _after_ its fetches complete. `useInboxModeChanges`'s first guard (`hasSetInitialModeRef`) is supposed to skip the first run, but because both effects depend on the same external signals (`mode`, `hasInitiallyLoaded`, `user`), React can batch state updates in a way that both fire in the same commit cycle when `hasInitiallyLoaded` flips.
 
 ### 2. `useTabCounts` mount-time fetch + initialization fetch
 
 `useTabCounts` has its own `useEffect` on mount (line 142 of `useTabCounts.ts`):
+
 ```ts
 useEffect(() => {
   fetchTabCounts();
@@ -62,7 +63,7 @@ useEffect(() => {
 
 **File: `client/src/hooks/useInboxModeChanges.ts`**
 
-3. Remove the duplicate `fetchBatchStatus()` and `fetchTabCounts()` calls from the mode-change effect's initial-load path. The initialization hook already handles these. Only call them on *actual* mode changes (when `prevModeForFetchRef.current !== mode` AND `hasSetInitialModeRef.current === true`).
+3. Remove the duplicate `fetchBatchStatus()` and `fetchTabCounts()` calls from the mode-change effect's initial-load path. The initialization hook already handles these. Only call them on _actual_ mode changes (when `prevModeForFetchRef.current !== mode` AND `hasSetInitialModeRef.current === true`).
 
 4. Tighten the `hasSetInitialModeRef` guard: set it synchronously on first render (via `useRef(true)` initialized to `true` if `hasInitiallyLoaded` is already true), not after the first effect run.
 
@@ -97,13 +98,13 @@ export function deduplicatedGet(url: string): Promise<any> {
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useInboxInitialization.ts` | AbortController guard, remove `isInitializingRef` |
-| `client/src/hooks/useInboxModeChanges.ts` | Remove duplicate initial-load fetches, tighten guard |
-| `client/src/hooks/useTabCounts.ts` | Remove mount-time `useEffect` self-fetch |
-| `client/src/hooks/useCategoryFetch.ts` | Add fetch-session guard for expansion effect |
-| `client/src/utils/deduplicateFetch.ts` | **New file** — request deduplication utility (Phase 4) |
+| File                                         | Change                                                 |
+| -------------------------------------------- | ------------------------------------------------------ |
+| `client/src/hooks/useInboxInitialization.ts` | AbortController guard, remove `isInitializingRef`      |
+| `client/src/hooks/useInboxModeChanges.ts`    | Remove duplicate initial-load fetches, tighten guard   |
+| `client/src/hooks/useTabCounts.ts`           | Remove mount-time `useEffect` self-fetch               |
+| `client/src/hooks/useCategoryFetch.ts`       | Add fetch-session guard for expansion effect           |
+| `client/src/utils/deduplicateFetch.ts`       | **New file** — request deduplication utility (Phase 4) |
 
 ## Testing Strategy
 

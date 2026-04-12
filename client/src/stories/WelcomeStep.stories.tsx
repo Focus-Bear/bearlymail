@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import type { Meta, StoryObj } from '@storybook/react';
-import { userEvent,within } from '@storybook/test';
+import { userEvent, within } from '@storybook/test';
 import i18n from 'i18n';
 
 import { WelcomeStep } from 'components/setup-wizard/WelcomeStep';

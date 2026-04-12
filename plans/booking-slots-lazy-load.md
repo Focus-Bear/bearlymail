@@ -8,14 +8,14 @@ The backend already supports pagination (`offset`/`limit` query params) and even
 
 ## Root Cause
 
-| What | Where | Current Value |
-|------|-------|---------------|
-| Frontend page size | `client/src/pages/BookingPage.tsx:32` | `SLOTS_PER_PAGE = 50` |
-| Frontend days window | `client/src/pages/BookingPage.tsx:33` | `DAYS_AHEAD_FIXED = 90` |
-| API call | `client/src/pages/BookingPage.tsx:63` | `?daysAhead=90&offset=0&limit=50` |
-| Backend default limit | `server/src/calendar/public-calendar.controller.ts:17` | `DEFAULT_SLOTS_LIMIT = 8` |
-| Backend max limit | `server/src/calendar/public-calendar.controller.ts:18` | `MAX_SLOTS_LIMIT = 50` |
-| Service method | `server/src/calendar/calendar.service.ts:178` | `getAvailableSlotsWithTimezone()` |
+| What                  | Where                                                  | Current Value                     |
+| --------------------- | ------------------------------------------------------ | --------------------------------- |
+| Frontend page size    | `client/src/pages/BookingPage.tsx:32`                  | `SLOTS_PER_PAGE = 50`             |
+| Frontend days window  | `client/src/pages/BookingPage.tsx:33`                  | `DAYS_AHEAD_FIXED = 90`           |
+| API call              | `client/src/pages/BookingPage.tsx:63`                  | `?daysAhead=90&offset=0&limit=50` |
+| Backend default limit | `server/src/calendar/public-calendar.controller.ts:17` | `DEFAULT_SLOTS_LIMIT = 8`         |
+| Backend max limit     | `server/src/calendar/public-calendar.controller.ts:18` | `MAX_SLOTS_LIMIT = 50`            |
+| Service method        | `server/src/calendar/calendar.service.ts:178`          | `getAvailableSlotsWithTimezone()` |
 
 ## Architecture (Existing)
 
@@ -32,6 +32,7 @@ The infrastructure for pagination **already exists**:
 ### File 1: `client/src/pages/BookingPage.tsx`
 
 **Change 1** — Line 32: Reduce initial page size
+
 ```diff
 -const SLOTS_PER_PAGE = 50;
 +const INITIAL_SLOTS = 5;
@@ -39,6 +40,7 @@ The infrastructure for pagination **already exists**:
 ```
 
 **Change 2** — Line 33: Reduce days-ahead window for initial load
+
 ```diff
 -const DAYS_AHEAD_FIXED = 90;
 +const DAYS_AHEAD_INITIAL = 14;
@@ -46,6 +48,7 @@ The infrastructure for pagination **already exists**:
 ```
 
 **Change 3** — Line 63: Update the `fetchSlots` function to use different limits for initial vs load-more
+
 ```diff
  const fetchSlots = useCallback(async (currentOffset: number, append = false) => {
 +    const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
@@ -59,6 +62,7 @@ The infrastructure for pagination **already exists**:
 ```
 
 **Change 4** — Line 94: Update `handleLoadMore` to use `LOAD_MORE_SLOTS` for offset increment
+
 ```diff
  const handleLoadMore = () => {
 -    const newOffset = slotOffset + SLOTS_PER_PAGE;
@@ -71,6 +75,7 @@ The infrastructure for pagination **already exists**:
 ### No backend changes needed
 
 The backend already:
+
 - Accepts `limit` as a query param (line 36)
 - Caps it at `MAX_SLOTS_LIMIT = 50` (line 39)
 - Defaults to 8 when not provided (line 40)
@@ -79,10 +84,10 @@ The backend already:
 
 ## Behavior After Fix
 
-| Action | Slots Fetched | Days Window |
-|--------|--------------|-------------|
-| Initial page load | 5 | 14 days |
-| Each "Show more times" click | 15 | 90 days |
+| Action                       | Slots Fetched | Days Window |
+| ---------------------------- | ------------- | ----------- |
+| Initial page load            | 5             | 14 days     |
+| Each "Show more times" click | 15            | 90 days     |
 
 - Initial load is ~10x faster (5 slots in 14-day window vs 50 in 90 days)
 - "Show more times" button (already rendered by `SlotSelection.tsx:130-133`) loads batches of 15
@@ -104,4 +109,4 @@ The backend already:
 
 ---
 
-*Authored by: Monk of Modularity 🧘 (AI agent)*
+_Authored by: Monk of Modularity 🧘 (AI agent)_

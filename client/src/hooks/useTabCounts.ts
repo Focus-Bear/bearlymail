@@ -78,38 +78,39 @@ export function useTabCounts(): UseTabCountsReturn {
   // of always falling back to the base key.
   const currentCacheKeyRef = useRef<string>(TAB_COUNTS_CACHE_KEY);
 
-  const fetchTabCounts = useCallback(async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => {
-    const cacheKey = buildCacheKey(filters);
-    currentCacheKeyRef.current = cacheKey;
+  const fetchTabCounts = useCallback(
+    async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => {
+      const cacheKey = buildCacheKey(filters);
+      currentCacheKeyRef.current = cacheKey;
 
-    if (!force) {
-      try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const cacheEntry: CacheEntry = JSON.parse(cached);
-          const age = Date.now() - cacheEntry.timestamp;
-          if (age < TAB_COUNTS_CACHE_TTL) {
-            setTabCounts(cacheEntry.counts);
-            return;
+      if (!force) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const cacheEntry: CacheEntry = JSON.parse(cached);
+            const age = Date.now() - cacheEntry.timestamp;
+            if (age < TAB_COUNTS_CACHE_TTL) {
+              setTabCounts(cacheEntry.counts);
+              return;
+            }
           }
+        } catch (err) {
+          // Ignore cache errors
         }
-      } catch (err) {
-        // Ignore cache errors
       }
-    }
 
-    setLoading(true);
-    try {
-      const qs = buildQueryParams(filters);
-      const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`, { signal });
-      const counts: TabCounts = {
-        triage: response.data.triage || 0,
-        action: response.data.action || 0,
-        followUp: response.data.followUp || 0,
-      };
-      setTabCounts(counts);
+      setLoading(true);
+      try {
+        const qs = buildQueryParams(filters);
+        const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`, { signal });
+        const counts: TabCounts = {
+          triage: response.data.triage || 0,
+          action: response.data.action || 0,
+          followUp: response.data.followUp || 0,
+        };
+        setTabCounts(counts);
 
-      // Cache the result
+// Cache the result
       const cacheEntry: CacheEntry = {
         counts,
         timestamp: Date.now(),

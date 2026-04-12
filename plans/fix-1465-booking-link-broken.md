@@ -22,6 +22,7 @@ The server endpoint (`GET /public/calendar/:userId/slots`) has `OptionalJwtAuthG
 This guard checks for a Bearer token → none exists → `req.user` is `undefined`.
 
 The error handler in `public-calendar.controller.ts` (line 94):
+
 ```ts
 const isPageOwner = req.user
   ? await this.calendarService.isSameBookingHost(req.user.userId, userId)
@@ -34,11 +35,12 @@ The owner always gets the sanitized message, never the real error.
 ### Bug 2 (Symptom): Client-side host check is neutered
 
 `BookingPage.tsx` has a client-side fallback:
+
 ```ts
 const isHostView = Boolean(userId && user?.id && user.id === userId);
 const serverMessage = getAxiosResponseErrorMessage(error);
 if (isHostView) {
-  setError(serverMessage ?? t('booking.error.ownerFallback'));
+  setError(serverMessage ?? t("booking.error.ownerFallback"));
 }
 ```
 
@@ -60,14 +62,14 @@ This would explain why the booking page is "broken" — the tokens may have been
 
 ```ts
 // In fetchSlots callback, use authenticated request when available
-import { useAuth } from 'contexts/AuthContext';
+import { useAuth } from "contexts/AuthContext";
 // Already imported — good.
 
 // Before the axios.get call, construct headers:
 const headers: Record<string, string> = {};
-const token = localStorage.getItem('access_token'); // or wherever the JWT is stored
+const token = localStorage.getItem("access_token"); // or wherever the JWT is stored
 if (token) {
-  headers['Authorization'] = `Bearer ${token}`;
+  headers["Authorization"] = `Bearer ${token}`;
 }
 
 const response = await axios.get(
@@ -102,8 +104,8 @@ Same for the `POST /book` call in `handleBook`.
 
 ## Files to change
 
-| File | Change |
-|------|--------|
+| File                               | Change                                                      |
+| ---------------------------------- | ----------------------------------------------------------- |
 | `client/src/pages/BookingPage.tsx` | Send JWT in Authorization header for slots + book API calls |
 
 ## Risk
@@ -113,4 +115,4 @@ Same for the `POST /book` call in `handleBook`.
 
 ---
 
-*Plan by Monk of Modularity 🧘 — AI-generated planning PR*
+_Plan by Monk of Modularity 🧘 — AI-generated planning PR_

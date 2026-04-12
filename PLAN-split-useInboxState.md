@@ -7,6 +7,7 @@
 ## Problem
 
 `useInboxState` is a 444-line god hook that:
+
 - Composes 15+ sub-hooks
 - Returns ~60 values to `Inbox.tsx`
 - Causes full inbox re-render on ANY sub-hook state change
@@ -46,6 +47,7 @@ const InboxFiltersContext = createContext<InboxFiltersValue>(null!);
 ```
 
 Split into 4 sub-contexts to prevent unnecessary re-renders:
+
 - **InboxDataContext**: emails, categorySummary, loading states, hasMore, totalCount
 - **InboxUIContext**: splitView, modals, snoozeInput, debugPanel, keyboardHint, tourRefs
 - **InboxActionsContext**: emailActions, handleEmailClick, handleEmailSelect, fetchEmails, loadMore
@@ -86,12 +88,14 @@ export const useInboxFiltersCtx = () => useContext(InboxFiltersContext);
 Each child component switches from prop-drilling to context consumption:
 
 **Before:**
+
 ```tsx
 // InboxContent receives ~40 props passed through from Inbox.tsx
 function InboxContent({ emails, loading, fetchEmails, handleEmailClick, ... }) {
 ```
 
 **After:**
+
 ```tsx
 function InboxContent() {
   const { emails, loading } = useInboxData();
@@ -115,25 +119,25 @@ Once filters are in context, remove the `inboxFilters` option from `useInboxStat
 
 ## Return Value → Context Mapping
 
-| Current return value | Target context | Notes |
-|---------------------|---------------|-------|
-| `mode`, `setMode` | InboxFiltersContext | Mode is a filter concern |
-| `emails`, `loading`, `decrypting`, `fetchError` | InboxDataContext | Core data |
-| `categorySummary`, `loadedCategoryNames`, `loadingCategoryNames` | InboxDataContext | Category data |
-| `expandedCategories`, `stableCategoryOrder`, `toggleCategory` | InboxUIContext | Accordion UI state |
-| `splitView`, `modals`, `snoozeInput`, `debugPanel` | InboxUIContext | UI hooks |
-| `emailActions`, `handleEmailClick`, `handleEmailSelect` | InboxActionsContext | Stable callbacks |
-| `fetchEmails`, `loadMore`, `fetchCategoryEmails` | InboxActionsContext | Data operations |
-| `tourSteps`, `*Ref` | InboxUIContext | Tour/ref concerns |
-| `inboxFilters` | InboxFiltersContext | Single instance |
+| Current return value                                             | Target context      | Notes                    |
+| ---------------------------------------------------------------- | ------------------- | ------------------------ |
+| `mode`, `setMode`                                                | InboxFiltersContext | Mode is a filter concern |
+| `emails`, `loading`, `decrypting`, `fetchError`                  | InboxDataContext    | Core data                |
+| `categorySummary`, `loadedCategoryNames`, `loadingCategoryNames` | InboxDataContext    | Category data            |
+| `expandedCategories`, `stableCategoryOrder`, `toggleCategory`    | InboxUIContext      | Accordion UI state       |
+| `splitView`, `modals`, `snoozeInput`, `debugPanel`               | InboxUIContext      | UI hooks                 |
+| `emailActions`, `handleEmailClick`, `handleEmailSelect`          | InboxActionsContext | Stable callbacks         |
+| `fetchEmails`, `loadMore`, `fetchCategoryEmails`                 | InboxActionsContext | Data operations          |
+| `tourSteps`, `*Ref`                                              | InboxUIContext      | Tour/ref concerns        |
+| `inboxFilters`                                                   | InboxFiltersContext | Single instance          |
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| Context re-renders propagating | 4 sub-contexts ensure only relevant consumers re-render |
-| `FocusedInbox` diverging | Both pages share `InboxProvider` with `isFocusedMode` flag |
-| Existing tests relying on prop structure | Migrate tests alongside component changes |
+| Risk                                         | Mitigation                                                 |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| Context re-renders propagating               | 4 sub-contexts ensure only relevant consumers re-render    |
+| `FocusedInbox` diverging                     | Both pages share `InboxProvider` with `isFocusedMode` flag |
+| Existing tests relying on prop structure     | Migrate tests alongside component changes                  |
 | `openEmailRef` / `isMobileRef` circular deps | These become provider-level refs, no cross-hook dependency |
 
 ## Estimated Effort

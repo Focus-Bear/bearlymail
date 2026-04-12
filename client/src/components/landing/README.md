@@ -7,19 +7,24 @@ The landing page has been refactored from a single 852-line file into a modular 
 ## Architecture Principles
 
 ### 1. Single Responsibility Principle
+
 Each component has one clear, well-defined responsibility:
+
 - `LandingHeader`: Navigation and branding only
 - `HeroSection`: Main headline and value proposition
 - `WaitlistForm`: Form handling and submission
 - `FeatureCard`: Reusable feature display
 
 ### 2. Separation of Concerns
+
 - **UI Components**: Pure presentation logic
 - **Custom Hooks**: Business logic and state management (`useResponsiveBreakpoints`)
 - **Main Page**: Orchestration and layout only
 
 ### 3. Composition Over Inheritance
+
 Components are composed together rather than using inheritance:
+
 ```tsx
 <Landing>
   <LandingHeader />
@@ -29,6 +34,7 @@ Components are composed together rather than using inheritance:
 ```
 
 ### 4. DRY (Don't Repeat Yourself)
+
 - `CTAButton`: Reusable button component
 - `FeatureCard`: Reusable feature display
 - `useResponsiveBreakpoints`: Shared responsive logic
@@ -103,6 +109,7 @@ const { isMobile, isTablet, isDesktop } = useResponsiveBreakpoints();
 ```
 
 Breakpoints:
+
 - Mobile: < 640px
 - Tablet: 640px - 1279px
 - Desktop: >= 1280px
@@ -110,11 +117,13 @@ Breakpoints:
 ## Code Organization Rules
 
 ### 1. File Naming
+
 - Use PascalCase for component files: `HeroSection.tsx`
 - Use camelCase for hooks: `useResponsiveBreakpoints.ts`
 - Use kebab-case for utilities: `scroll-utils.ts` (if needed)
 
 ### 2. Import Organization
+
 ```tsx
 // 1. React and third-party imports
 import React from 'react';
@@ -131,7 +140,9 @@ import { theme } from '../../theme/theme';
 ```
 
 ### 3. Component Documentation
+
 Every component should have:
+
 - JSDoc comment explaining purpose
 - Interface documentation for props
 - Inline comments for complex logic
@@ -139,7 +150,9 @@ Every component should have:
 ## Anti-Patterns to Avoid
 
 ### ❌ God Components
+
 **Bad**: One component handling everything
+
 ```tsx
 // DON'T: 500+ line component
 const Landing = () => {
@@ -148,10 +161,11 @@ const Landing = () => {
   // form logic
   // comparison logic
   // ...
-}
+};
 ```
 
 **Good**: Separated concerns
+
 ```tsx
 // DO: Composed components
 const Landing = () => (
@@ -164,7 +178,9 @@ const Landing = () => (
 ```
 
 ### ❌ Massive Functions
+
 **Bad**: One function doing multiple things
+
 ```tsx
 // DON'T: Function with multiple responsibilities
 const handleEverything = () => {
@@ -173,28 +189,38 @@ const handleEverything = () => {
   // update state
   // navigate
   // show toast
-}
+};
 ```
 
 **Good**: Single responsibility functions
+
 ```tsx
 // DO: Focused functions
-const validateForm = () => { /* ... */ };
-const submitWaitlist = async () => { /* ... */ };
-const handleSuccess = () => { /* ... */ };
+const validateForm = () => {
+  /* ... */
+};
+const submitWaitlist = async () => {
+  /* ... */
+};
+const handleSuccess = () => {
+  /* ... */
+};
 ```
 
 ### ❌ Inline Styles Without Theme
+
 **Bad**: Hardcoded values
+
 ```tsx
 <div style={{ padding: '16px', color: '#3B82F6' }}>
 ```
 
 **Good**: Using theme constants
+
 ```tsx
-<div style={{ 
-  padding: theme.spacing.md, 
-  color: theme.colors.primary.main 
+<div style={{
+  padding: theme.spacing.md,
+  color: theme.colors.primary.main
 }}>
 ```
 
@@ -234,13 +260,3 @@ When adding new features to the landing page:
 - [React Component Patterns](https://reactpatterns.com/)
 - [Clean Code JavaScript](https://github.com/ryanmcdermott/clean-code-javascript)
 - [TypeScript Best Practices](https://typescript-eslint.io/rules/)
-
-
-
-
-
-
-
-
-
-

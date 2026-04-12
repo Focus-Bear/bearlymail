@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * Tracks the number of times priority calculation has been retried for a thread,
  * preventing infinite retry loops when batch prioritisation repeatedly fails.
  */
-export class AddPriorityRetryCountToEmailThread1775100000000
-  implements MigrationInterface
-{
+export class AddPriorityRetryCountToEmailThread1775100000000 implements MigrationInterface {
   name = "AddPriorityRetryCountToEmailThread1775100000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

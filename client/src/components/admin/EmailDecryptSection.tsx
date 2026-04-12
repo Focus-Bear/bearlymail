@@ -8,16 +8,8 @@ import { useAdminEmailDecrypt } from './useAdminEmailDecrypt';
 
 export const EmailDecryptSection: React.FC = () => {
   const { t } = useTranslation();
-  const {
-    emailId,
-    setEmailId,
-    encryptionKey,
-    setEncryptionKey,
-    loading,
-    error,
-    result,
-    handleSubmit,
-  } = useAdminEmailDecrypt();
+  const { emailId, setEmailId, encryptionKey, setEncryptionKey, loading, error, result, handleSubmit } =
+    useAdminEmailDecrypt();
 
   return (
     <div>

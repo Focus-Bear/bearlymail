@@ -58,8 +58,15 @@ export interface EmailDetailState {
   setLoadingReplies: (loading: boolean) => void;
   sending: boolean;
   setSending: (sending: boolean) => void;
-  toneCheckResult: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null;
-  setToneCheckResult: (result: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null) => void;
+  toneCheckResult: {
+    isOk: boolean;
+    suggestions: string[];
+    revisedText?: string;
+    inappropriateTiming?: string | null;
+  } | null;
+  setToneCheckResult: (
+    result: { isOk: boolean; suggestions: string[]; revisedText?: string; inappropriateTiming?: string | null } | null
+  ) => void;
   checkingTone: boolean;
   setCheckingTone: (checking: boolean) => void;
   disputing: boolean;

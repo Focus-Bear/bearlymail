@@ -9,10 +9,6 @@
  * directly as visual positions, causing the slider to show wrong buckets (e.g. score 30 "High"
  * appeared at visual position 30 which is in the "Low" visual bucket).
  *
- * Fix #1571: Added tap-to-set-minimum behaviour on bucket labels and track segments for
- * improved mobile UX. Also added a Reset button, abbreviated labels on mobile, larger touch
- * targets on mobile, and toned-down range text font size for better visual hierarchy.
- *
  * Replaces the old pill-based VisualPriorityFilter for issue #1414.
  *
  * UI-only component — no state management, localStorage, or API concerns.
@@ -32,17 +28,7 @@ import {
   visualMaxToScore,
   visualMinToScore,
 } from 'constants/priorityBuckets';
-import {
-  KEY_ARROW_DOWN,
-  KEY_ARROW_LEFT,
-  KEY_ARROW_RIGHT,
-  KEY_ARROW_UP,
-  KEY_END,
-  KEY_ENTER,
-  KEY_HOME,
-  KEY_SPACE,
-} from 'constants/strings';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ARROW_RIGHT, KEY_ARROW_UP, KEY_END, KEY_HOME } from 'constants/strings';
 
 // ── Bucket definitions ────────────────────────────────────────────────────────
 
@@ -100,23 +86,9 @@ const INACTIVE_OPACITY = 0.2;
 /** Opacity for inactive bucket labels (slightly higher than track for readability). */
 const INACTIVE_LABEL_OPACITY = 0.4;
 
-/**
- * Abbreviated bucket labels for mobile/compact display.
- * Fix #1571 P3: full names ("Very Low" etc.) get squeezed on narrow screens.
- */
-const SHORT_LABELS: Record<string, string> = {
-  'Very Low': 'VL',
-  'Low': 'L',
-  'Medium': 'M',
-  'High': 'H',
-  'Very High': 'VH',
-};
-
 /** Snap a raw value to the nearest tick. */
 function snapToTick(value: number): number {
-  return TICKS.reduce((nearest, tick) =>
-    Math.abs(tick - value) < Math.abs(nearest - value) ? tick : nearest
-  );
+  return TICKS.reduce((nearest, tick) => (Math.abs(tick - value) < Math.abs(nearest - value) ? tick : nearest));
 }
 
 /** Convert a slider value (0-100) to a percentage string for CSS. */
@@ -150,13 +122,9 @@ function getRangeLabel(minVal: number, maxVal: number): string {
 interface SegmentTrackProps {
   minVal: number;
   maxVal: number;
-  /** Fix #1571 P1: tap-to-set-minimum — callback fired when user taps a segment. */
-  onSegmentClick?: (visualMin: number) => void;
-  /** Fix #1571 P1: increase track height for easier grabbing on mobile. */
-  isMobile?: boolean;
 }
 
-const SegmentTrack: React.FC<SegmentTrackProps> = ({ minVal, maxVal, onSegmentClick, isMobile }) => (
+const SegmentTrack: React.FC<SegmentTrackProps> = ({ minVal, maxVal }) => (
   <div
     aria-hidden="true"
     style={{
@@ -164,7 +132,7 @@ const SegmentTrack: React.FC<SegmentTrackProps> = ({ minVal, maxVal, onSegmentCl
       top: '50%',
       left: 0,
       right: 0,
-      height: isMobile ? '12px' : '8px',
+      height: '8px',
       transform: 'translateY(-50%)',
       borderRadius: theme.borderRadius.full,
       overflow: 'hidden',
@@ -175,26 +143,14 @@ const SegmentTrack: React.FC<SegmentTrackProps> = ({ minVal, maxVal, onSegmentCl
       const bucketMin = bucket.min;
       const bucketMax = bucket.max ?? 100;
       const isActive = bucketMin < maxVal && bucketMax > minVal;
-      const handleClick = onSegmentClick ? () => onSegmentClick(bucket.min) : undefined;
       return (
         <div
           key={bucket.label}
-          role={onSegmentClick ? 'button' : undefined}
-          tabIndex={onSegmentClick ? 0 : undefined}
-          onClick={handleClick}
-          onKeyDown={onSegmentClick ? (keyEvt: React.KeyboardEvent) => {
-            if (keyEvt.key === KEY_ENTER || keyEvt.key === KEY_SPACE) {
-              keyEvt.preventDefault();
-              onSegmentClick(bucket.min);
-            }
-          } : undefined}
-          aria-label={onSegmentClick ? `Set minimum to ${bucket.label}` : undefined}
           style={{
             flex: 1,
             backgroundColor: bucket.trackColor,
             opacity: isActive ? 1 : INACTIVE_OPACITY,
             transition: 'opacity 0.15s ease',
-            cursor: onSegmentClick ? 'pointer' : 'default',
           }}
         />
       );
@@ -213,78 +169,94 @@ interface ThumbProps {
   color: string;
   /** Fix #1526 bug 3: max thumb sits above min thumb so it's reachable when they overlap. */
   isMaxThumb?: boolean;
-  /** Fix #1571 P1: increase thumb size for easier grabbing on mobile. */
-  isMobile?: boolean;
 }
 
-const Thumb: React.FC<ThumbProps> = ({ value, ariaLabel, ariaValueText, onDrag, trackRef, color, isMaxThumb = false, isMobile }) => {
+const Thumb: React.FC<ThumbProps> = ({
+  value,
+  ariaLabel,
+  ariaValueText,
+  onDrag,
+  trackRef,
+  color,
+  isMaxThumb = false,
+}) => {
   const isDragging = useRef(false);
 
-  const thumbSize = isMobile ? '32px' : '24px';
+  const getValueFromEvent = useCallback(
+    (clientX: number): number => {
+      if (!trackRef.current) {
+        return value;
+      }
+      const rect = trackRef.current.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return snapToTick(Math.round(ratio * 100));
+    },
+    [trackRef, value]
+  );
 
-  const getValueFromEvent = useCallback((clientX: number): number => {
-    if (!trackRef.current) {
-return value;
-}
-    const rect = trackRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    return snapToTick(Math.round(ratio * 100));
-  }, [trackRef, value]);
+  const handleMouseDown = useCallback(
+    (mouseEvent: React.MouseEvent) => {
+      mouseEvent.preventDefault();
+      isDragging.current = true;
 
-  const handleMouseDown = useCallback((mouseEvent: React.MouseEvent) => {
-    mouseEvent.preventDefault();
-    isDragging.current = true;
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!isDragging.current) {
+          return;
+        }
+        onDrag(getValueFromEvent(moveEvent.clientX));
+      };
+      const onMouseUp = () => {
+        isDragging.current = false;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    },
+    [onDrag, getValueFromEvent]
+  );
 
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDragging.current) {
-return;
-}
-      onDrag(getValueFromEvent(moveEvent.clientX));
-    };
-    const onMouseUp = () => {
-      isDragging.current = false;
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }, [onDrag, getValueFromEvent]);
+  const handleTouchStart = useCallback(
+    (touchEvent: React.TouchEvent) => {
+      touchEvent.preventDefault();
+      isDragging.current = true;
 
-  const handleTouchStart = useCallback((touchEvent: React.TouchEvent) => {
-    touchEvent.preventDefault();
-    isDragging.current = true;
+      const onTouchMove = (touchEvent: TouchEvent) => {
+        if (!isDragging.current || !touchEvent.touches[0]) {
+          return;
+        }
+        onDrag(getValueFromEvent(touchEvent.touches[0].clientX));
+      };
+      const onTouchEnd = () => {
+        isDragging.current = false;
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+      };
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+    },
+    [onDrag, getValueFromEvent]
+  );
 
-    const onTouchMove = (touchEvent: TouchEvent) => {
-      if (!isDragging.current || !touchEvent.touches[0]) {
-return;
-}
-      onDrag(getValueFromEvent(touchEvent.touches[0].clientX));
-    };
-    const onTouchEnd = () => {
-      isDragging.current = false;
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
-    };
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onTouchEnd);
-  }, [onDrag, getValueFromEvent]);
-
-  const handleKeyDown = useCallback((keyEvent: React.KeyboardEvent) => {
-    const step = VISUAL_BUCKET_SIZE;
-    if (keyEvent.key === KEY_ARROW_LEFT || keyEvent.key === KEY_ARROW_DOWN) {
-      keyEvent.preventDefault();
-      onDrag(Math.max(SLIDER_MIN, value - step));
-    } else if (keyEvent.key === KEY_ARROW_RIGHT || keyEvent.key === KEY_ARROW_UP) {
-      keyEvent.preventDefault();
-      onDrag(Math.min(SLIDER_MAX, value + step));
-    } else if (keyEvent.key === KEY_HOME) {
-      keyEvent.preventDefault();
-      onDrag(SLIDER_MIN);
-    } else if (keyEvent.key === KEY_END) {
-      keyEvent.preventDefault();
-      onDrag(SLIDER_MAX);
-    }
-  }, [value, onDrag]);
+  const handleKeyDown = useCallback(
+    (keyEvent: React.KeyboardEvent) => {
+      const step = VISUAL_BUCKET_SIZE;
+      if (keyEvent.key === KEY_ARROW_LEFT || keyEvent.key === KEY_ARROW_DOWN) {
+        keyEvent.preventDefault();
+        onDrag(Math.max(SLIDER_MIN, value - step));
+      } else if (keyEvent.key === KEY_ARROW_RIGHT || keyEvent.key === KEY_ARROW_UP) {
+        keyEvent.preventDefault();
+        onDrag(Math.min(SLIDER_MAX, value + step));
+      } else if (keyEvent.key === KEY_HOME) {
+        keyEvent.preventDefault();
+        onDrag(SLIDER_MIN);
+      } else if (keyEvent.key === KEY_END) {
+        keyEvent.preventDefault();
+        onDrag(SLIDER_MAX);
+      }
+    },
+    [value, onDrag]
+  );
 
   return (
     <div
@@ -303,8 +275,8 @@ return;
         top: '50%',
         left: pct(value),
         transform: 'translate(-50%, -50%)',
-        width: thumbSize,
-        height: thumbSize,
+        width: '24px',
+        height: '24px',
         borderRadius: '50%',
         // Fix #1526 bug 1: use theme token instead of hardcoded '#FFFFFF'
         backgroundColor: theme.colors.common.white,
@@ -334,13 +306,9 @@ interface BucketLabelsProps {
   minVal: number;
   maxVal: number;
   bucketCounts?: Record<string, number>;
-  /** Fix #1571 P1: tap-to-set-minimum — callback fired when user taps a label. */
-  onBucketTap?: (visualMin: number) => void;
-  /** Fix #1571 P3: show abbreviated labels on mobile. */
-  compact?: boolean;
 }
 
-const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCounts, onBucketTap, compact }) => (
+const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCounts }) => (
   <div
     aria-hidden="true"
     style={{
@@ -353,21 +321,9 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
       const bucketMax = bucket.max ?? 100;
       const isActive = bucketMin < maxVal && bucketMax > minVal;
       const count = bucketCounts?.[bucket.label];
-      const displayLabel = compact ? (SHORT_LABELS[bucket.label] ?? bucket.label) : bucket.label;
-      const handleTap = onBucketTap ? () => onBucketTap(bucket.min) : undefined;
       return (
         <div
           key={bucket.label}
-          role={onBucketTap ? 'button' : undefined}
-          tabIndex={onBucketTap ? 0 : undefined}
-          onClick={handleTap}
-          onKeyDown={onBucketTap ? (keyEvt: React.KeyboardEvent) => {
-            if (keyEvt.key === KEY_ENTER || keyEvt.key === KEY_SPACE) {
-              keyEvt.preventDefault();
-              onBucketTap(bucket.min);
-            }
-          } : undefined}
-          aria-label={onBucketTap ? `Filter by ${displayLabel} and above` : undefined}
           style={{
             flex: 1,
             display: 'flex',
@@ -376,9 +332,6 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
             gap: '2px',
             opacity: isActive ? 1 : INACTIVE_LABEL_OPACITY,
             transition: 'opacity 0.15s ease',
-            cursor: onBucketTap ? 'pointer' : 'default',
-            // Fix #1571 P1: increase tap area on mobile
-            padding: compact ? '8px 4px' : undefined,
           }}
         >
           <div
@@ -398,7 +351,7 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
               textAlign: 'center',
             }}
           >
-            {displayLabel}
+            {bucket.label}
           </span>
           {count !== undefined && (
             <span
@@ -455,7 +408,6 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
 }) => {
   const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
-  const { isMobile } = useResponsiveBreakpoints();
 
   // Map actual score values to visual slider positions (0-100, multiples of 20).
   // Fix #1452 bug 4: previously score values were used directly as visual positions,
@@ -463,43 +415,27 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
   const minVal = scoreMinToVisual(selectedMin);
   const maxVal = scoreMaxToVisual(selectedMax);
 
-  const handleMinDrag = useCallback((newVal: number) => {
-    const clampedMin = Math.min(newVal, maxVal - VISUAL_BUCKET_SIZE);
-    // Convert visual position back to actual score before emitting
-    const outMin = visualMinToScore(clampedMin);
-    const outMax = visualMaxToScore(maxVal);
-    onChange(outMin, outMax);
-  }, [maxVal, onChange]);
+  const handleMinDrag = useCallback(
+    (newVal: number) => {
+      const clampedMin = Math.min(newVal, maxVal - VISUAL_BUCKET_SIZE);
+      // Convert visual position back to actual score before emitting
+      const outMin = visualMinToScore(clampedMin);
+      const outMax = visualMaxToScore(maxVal);
+      onChange(outMin, outMax);
+    },
+    [maxVal, onChange]
+  );
 
-  const handleMaxDrag = useCallback((newVal: number) => {
-    const clampedMax = Math.max(newVal, minVal + VISUAL_BUCKET_SIZE);
-    // Convert visual position back to actual score before emitting
-    const outMin = visualMinToScore(minVal);
-    const outMax = visualMaxToScore(clampedMax);
-    onChange(outMin, outMax);
-  }, [minVal, onChange]);
-
-  /**
-   * Fix #1571 P1: Tap-to-set-minimum.
-   *
-   * Tapping a bucket label or track segment sets that bucket as the new minimum,
-   * keeping the current maximum. If the tapped position is at or above the current
-   * maximum, the max expands to VISUAL_SLIDER_MAX so at least one bucket is visible.
-   *
-   * Interaction examples:
-   *   Medium→VH + tap "High" → High→VH  (min moves up, max stays)
-   *   High→VH + tap "Medium" → Medium→VH (min moves down, max stays)
-   *   Medium→High + tap "VH" → VH only   (min=VH, max expands to null)
-   *   All + tap "High" → High→VH         (min set to High, max stays at null)
-   */
-  const handleBucketTap = useCallback((visualPosition: number) => {
-    const newMinVisual = visualPosition;
-    // Expand max if the tapped bucket would leave nothing selected
-    const effectiveMaxVisual = newMinVisual >= maxVal ? VISUAL_SLIDER_MAX : maxVal;
-    const outMin = visualMinToScore(newMinVisual);
-    const outMax = visualMaxToScore(effectiveMaxVisual);
-    onChange(outMin, outMax);
-  }, [maxVal, onChange]);
+  const handleMaxDrag = useCallback(
+    (newVal: number) => {
+      const clampedMax = Math.max(newVal, minVal + VISUAL_BUCKET_SIZE);
+      // Convert visual position back to actual score before emitting
+      const outMin = visualMinToScore(minVal);
+      const outMax = visualMaxToScore(clampedMax);
+      onChange(outMin, outMax);
+    },
+    [minVal, onChange]
+  );
 
   const rangeLabel = getRangeLabel(minVal, maxVal);
   const isAllSelected = minVal <= 0 && maxVal >= 100;
@@ -546,36 +482,14 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
         >
           {t('inbox.filters.priority', 'Priority Filter')}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-          {/* Fix #1571 P3: toned down range text size for visual hierarchy */}
-          <span
-            style={{
-              fontSize: theme.typography.fontSize.md,
-              color: theme.colors.text.tertiary,
-            }}
-          >
-            {headerRangeText}
-          </span>
-          {/* Fix #1571 P3: Reset button — quick way to clear filter without dragging */}
-          {!isAllSelected && (
-            <button
-              type="button"
-              onClick={() => onChange(null, null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.primary.main,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                textDecoration: 'underline',
-                marginLeft: theme.spacing.xs,
-                padding: 0,
-              }}
-            >
-              {t('inbox.filters.resetPriority', 'Reset')}
-            </button>
-          )}
-        </div>
+        <span
+          style={{
+            fontSize: theme.typography.fontSize.lg,
+            color: theme.colors.text.tertiary,
+          }}
+        >
+          {headerRangeText}
+        </span>
       </div>
 
       {/* Slider track + thumbs */}
@@ -588,13 +502,8 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
           userSelect: 'none',
         }}
       >
-        {/* Background segments — tappable on mobile (Fix #1571 P1) */}
-        <SegmentTrack
-          minVal={minVal}
-          maxVal={maxVal}
-          onSegmentClick={handleBucketTap}
-          isMobile={isMobile}
-        />
+        {/* Background segments */}
+        <SegmentTrack minVal={minVal} maxVal={maxVal} />
 
         {/* Filled range overlay between thumbs */}
         <div
@@ -604,7 +513,7 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
             top: '50%',
             left: pct(minVal),
             width: `calc(${pct(maxVal)} - ${pct(minVal)})`,
-            height: isMobile ? '12px' : '8px',
+            height: '8px',
             transform: 'translateY(-50%)',
             backgroundColor: thumbColor,
             opacity: 0.25,
@@ -621,7 +530,6 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
           onDrag={handleMinDrag}
           trackRef={trackRef}
           color={thumbColor}
-          isMobile={isMobile}
         />
 
         {/* Max thumb — isMaxThumb ensures it sits on top when thumbs overlap (fix #1526 bug 3) */}
@@ -633,18 +541,11 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
           trackRef={trackRef}
           color={thumbColor}
           isMaxThumb
-          isMobile={isMobile}
         />
       </div>
 
-      {/* Bucket labels + counts — tappable (Fix #1571 P1), abbreviated on mobile (P3) */}
-      <BucketLabels
-        minVal={minVal}
-        maxVal={maxVal}
-        bucketCounts={bucketCounts}
-        onBucketTap={handleBucketTap}
-        compact={isMobile}
-      />
+      {/* Bucket labels + counts */}
+      <BucketLabels minVal={minVal} maxVal={maxVal} bucketCounts={bucketCounts} />
     </div>
   );
 };

@@ -8,7 +8,7 @@ Summary of problems found
 
 - Current PR #819 only removed `position: sticky` in QuickActionsSection — purely a CSS change that doesn’t address the three requirements.
 - Suggested actions pipeline (server → client) already returns GitHub-specific action types (github_add_comment, github_update_status, github_create_issue, github_search_issues) and QuickActionsSection renders anything returned as general quick-action menu items.
-- The app already has a dedicated GitHub status UI: components/github/* (GitHubLinksList, GitHubLinkCard, GitHubProject, etc.). Those are the correct place to show GitHub actions.
+- The app already has a dedicated GitHub status UI: components/github/\* (GitHubLinksList, GitHubLinkCard, GitHubProject, etc.). Those are the correct place to show GitHub actions.
 
 Requirements (restating)
 
@@ -59,36 +59,43 @@ High-level implementation plan
 7. Implementation steps (concrete)
 
 A. Partition actions upstream
+
 - Edit client/src/pages/EmailDetail.tsx: after fetching suggestedActions (server call), split them:
   const githubActionTypes = [
-    ACTION_TYPE_GITHUB_ADD_COMMENT,
-    ACTION_TYPE_GITHUB_CREATE_ISSUE,
-    ACTION_TYPE_GITHUB_SEARCH_ISSUES,
-    ACTION_TYPE_GITHUB_UPDATE_STATUS,
+  ACTION_TYPE_GITHUB_ADD_COMMENT,
+  ACTION_TYPE_GITHUB_CREATE_ISSUE,
+  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
+  ACTION_TYPE_GITHUB_UPDATE_STATUS,
   ];
   const githubActions = suggestedActions.filter(a => githubActionTypes.includes(a.type));
   const otherActions = suggestedActions.filter(a => !githubActionTypes.includes(a.type));
 - Pass otherActions into QuickActionsSection; keep githubActions in state and pass into GitHubStatusSection as a new prop (e.g., suggestedGitHubActions).
 
 B. Display in GitHub components
+
 - Modify client/src/components/github/GitHubLinksList.tsx or GitHubLinkCard.tsx:
   - Accept suggestedActions prop (SuggestedAction[]). Build map from dedupeKey to actions and render small action buttons in each GitHubLinkCard where actions exist. Example buttons: “Add comment”, “Update status”, “Open suggested action menu”.
   - Use existing modals (imported at top) to open with action.metadata.issueInfo or defaultRepo.
 
 C. Add pencil to project status
+
 - In client/src/components/github/GitHubProjectBadges.tsx (or GitHubProject.tsx): render pencil icon (button) next to project status text. On click, open GitHubUpdateStatusModal with issueInfo + current project status. On success, trigger a refresh of the GitHub link status (call the existing useGitHubLinks fetcher or invoke a refresh prop from the parent).
 
 D. State refresh / optimistic updates
+
 - When GitHubUpdateStatusModal returns success, call the same refresh function used by GitHubStatusSection (likely a prop or hook: useGitHubLinks) to re-fetch project statuses and labels for the link. If no re-fetch helper exists, add a callback prop from EmailDetail → GitHubStatusSection to ask it to refresh.
 
 E. Tests
-- Update or add tests in client/__tests__ for EmailDetail partition logic and for GitHubLinkCard rendering.
+
+- Update or add tests in client/**tests** for EmailDetail partition logic and for GitHubLinkCard rendering.
 
 F. Documentation / PR
+
 - Update PR title to be: [PLANNING] #807 Quick actions: move GitHub actions to GitHub card + project status editing
 - Remove label rework-for-codebeard, add ready-for-codebeard
 
 Risk and mitigations
+
 - Risk: GitHub card may not be visible (user not connected / no links). Mitigation: fallback behavior places create-issue actions into QuickActions only for github_create_issue.
 - Risk: suggestedActions metadata missing issueInfo. Mitigation: show actions only when metadata.issueInfo exists; otherwise fall back to generic behavior (create issue shows default repo prefill if available).
 

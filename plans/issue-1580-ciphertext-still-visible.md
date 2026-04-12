@@ -5,6 +5,7 @@
 ## Context
 
 Two previous fix PRs have been merged:
+
 - **PR #1581** (merged 2026-03-30 05:56Z): Removed default key fallback, added boot-check, introduced `tryDecrypt()`
 - **PR #1599** (merged 2026-03-31 01:51Z): Replaced static `keyCache` with `EncryptionKeyProvider` singleton, added circuit-breaker (10 consecutive failures → crash)
 
@@ -18,7 +19,7 @@ Two previous fix PRs have been merged:
 
 ```typescript
 // In decrypt():
-if (!encryptedText) return null;  // ← returns without throwing (success path)
+if (!encryptedText) return null; // ← returns without throwing (success path)
 ```
 
 When TypeORM hydrates an `Email` entity, it calls `encryptedColumnTransformer.from()` for every column — including the ~30 nullable fields. The interleaving goes:
@@ -38,6 +39,7 @@ to (null)                      → consecutiveFailures = 0  ← RESET!
 The boot self-test proves the **current key** works for encrypt→decrypt round-trips. But it does NOT prove the current key can decrypt **existing data in the database**.
 
 If `ENCRYPTION_KEY` was ever:
+
 1. Missing (old code fell back to `"default-key-change-in-production-32chars!!"`)
 2. Changed/rotated
 3. Different between web and worker containers
@@ -53,6 +55,7 @@ If `ENCRYPTION_KEY` was ever:
 ### Finding 4: SQL bug in correspondent matching (bonus)
 
 `email-inbox-query.helpers.ts` line 98:
+
 ```sql
 AND LOWER(cor."from") != LOWER(u.email)
 ```
@@ -68,6 +71,7 @@ The boot-check currently only does a round-trip self-test with freshly encrypted
 **File: `server/src/encryption/encryption-boot-check.ts`**
 
 Add a new function `verifyExistingDataDecryption(dataSource: DataSource)`:
+
 1. Query one email with a non-null `subject` (small encrypted field): `SELECT subject FROM emails WHERE subject IS NOT NULL LIMIT 1`
 2. Attempt `EncryptionHelper.decrypt(subject)` (the throwing version, NOT `tryDecrypt`)
 3. If decryption fails → **CRASH with clear error**: "FATAL: Cannot decrypt existing data. Current key fingerprint: X. Data was likely encrypted with a different key."
@@ -129,10 +133,13 @@ Change `MAX_CONSECUTIVE_DECRYPT_FAILURES` from 10 to 3. With the null-reset fix 
 **File: `server/src/encryption/encryption.module.ts`** or new `encryption.controller.ts`
 
 Add a diagnostic endpoint (admin-only):
+
 ```
 GET /admin/encryption/status
 ```
+
 Response:
+
 ```json
 {
   "initialized": true,
@@ -150,19 +157,24 @@ This endpoint attempts to decrypt one actual database row and reports whether it
 **File: `server/src/emails/email-inbox-query.helpers.ts`** line 98
 
 The correspondent subquery compares `LOWER(cor."from")` with `LOWER(u.email)`. But `cor."from"` is encrypted. Options:
+
 1. **Use the `senderEmailHmac` column** instead — it's the HMAC of the sender email, designed for exactly this kind of indexed lookup
 2. Compare against the user's email HMAC: compute `hmacEmail(u.email)` and compare with `cor.senderEmailHmac`
 
 Replace:
+
 ```sql
 AND LOWER(cor."from") != LOWER(u.email)
 ```
+
 With:
+
 ```sql
 AND cor."senderEmailHmac" != (SELECT "senderEmailHmac" FROM emails WHERE "from" = u.email LIMIT 1)
 ```
 
 Or better — compute the HMAC in application code and pass it as a parameter:
+
 ```sql
 AND cor."senderEmailHmac" IS DISTINCT FROM $N
 ```
@@ -195,15 +207,15 @@ This prevents raw ciphertext from ever being displayed to users, even if the bac
 
 ## Files to Change
 
-| File | Change | Risk |
-|------|--------|------|
-| `server/src/encryption/encryption-boot-check.ts` | Add `verifyExistingDataDecryption()` — query real DB row, decrypt, crash if fails | Medium — requires DataSource injection |
-| `server/src/main.ts` | Call `verifyExistingDataDecryption()` after round-trip check | Low |
-| `server/src/encryption/encryption.helper.ts` | Fix tryDecrypt circuit-breaker null-reset bug; lower threshold to 3 | Low |
-| `server/src/emails/email-inbox-query.helpers.ts` | Fix `LOWER(cor."from")` SQL bug — use senderEmailHmac | Medium — changes query behaviour |
-| `server/src/auto-responder/auto-responder-analytics.service.ts` | Same LOWER fix | Medium |
-| `client/src/components/email-detail/ThreadItemBody.tsx` | Add ciphertext detection guard | Low |
-| `server/src/encryption/encryption.controller.ts` | NEW — admin diagnostic endpoint | Low |
+| File                                                            | Change                                                                            | Risk                                   |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------- |
+| `server/src/encryption/encryption-boot-check.ts`                | Add `verifyExistingDataDecryption()` — query real DB row, decrypt, crash if fails | Medium — requires DataSource injection |
+| `server/src/main.ts`                                            | Call `verifyExistingDataDecryption()` after round-trip check                      | Low                                    |
+| `server/src/encryption/encryption.helper.ts`                    | Fix tryDecrypt circuit-breaker null-reset bug; lower threshold to 3               | Low                                    |
+| `server/src/emails/email-inbox-query.helpers.ts`                | Fix `LOWER(cor."from")` SQL bug — use senderEmailHmac                             | Medium — changes query behaviour       |
+| `server/src/auto-responder/auto-responder-analytics.service.ts` | Same LOWER fix                                                                    | Medium                                 |
+| `client/src/components/email-detail/ThreadItemBody.tsx`         | Add ciphertext detection guard                                                    | Low                                    |
+| `server/src/encryption/encryption.controller.ts`                | NEW — admin diagnostic endpoint                                                   | Low                                    |
 
 ## Deployment Notes
 

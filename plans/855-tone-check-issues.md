@@ -8,6 +8,7 @@
 ## Bug 1: Weekend scheduling nag when send time already set
 
 ### Root Cause
+
 The tone check doesn't receive the scheduled send time from the compose context. It blindly checks the current day/time and suggests scheduling, even when the user already scheduled the email.
 
 ### Fix
@@ -34,6 +35,7 @@ The tone check doesn't receive the scheduled send time from the compose context.
 ## Bug 2: Trivial revision suggestions shown for fine emails
 
 ### Root Cause
+
 The LLM is suggesting minor rewording even when the email is perfectly adequate. The threshold for "this email needs revision" is too low.
 
 ### Fix
@@ -41,6 +43,7 @@ The LLM is suggesting minor rewording even when the email is perfectly adequate.
 **File:** `server/promptfoo/prompts/check-tone-style.md`
 
 Update the prompt to include a significance threshold:
+
 - "Only suggest revisions if they meaningfully improve clarity, tone, or professionalism. Do NOT suggest rewording that has the same meaning with trivial word choice differences."
 - "If the email is clear, professional, and appropriate, return `hasIssues: false` with no revision — even if minor stylistic improvements exist."
 - "A 2-sentence transactional email confirming a payment does NOT need revision unless it has a genuine tone, clarity, or professional issue."
@@ -48,6 +51,7 @@ Update the prompt to include a significance threshold:
 **File:** Backend tone check response processor
 
 Add a significance check:
+
 - If the suggested revision differs from the original by less than N% (e.g., edit distance / word count ratio), treat it as `hasIssues: false`
 - Or: require the LLM to provide a `significance: 'low' | 'medium' | 'high'` field; only show warning if `significance >= 'medium'`
 
@@ -56,6 +60,7 @@ Add a significance check:
 ## Bug 3: Tone check wipes attachments (DATA LOSS)
 
 ### Root Cause
+
 The tone check flow doesn't preserve the full compose state (attachments) when the user dismisses/rejects the tone check. The attachment list is reset.
 
 ### Fix
@@ -63,6 +68,7 @@ The tone check flow doesn't preserve the full compose state (attachments) when t
 **File:** `client/src/components/email-detail-inline/` — the compose component and the tone check modal
 
 1. **Before opening the tone check modal**, save a snapshot of the full compose state:
+
    ```typescript
    const savedComposeState = {
      attachments: [...currentAttachments],
@@ -91,6 +97,7 @@ The attachment reminder ("confirm the Stripe file is attached") is genuinely use
 **File:** Backend tone check response / `server/promptfoo/prompts/check-tone-style.md`
 
 Separate the tone check response into distinct fields:
+
 ```json
 {
   "hasIssues": true,
@@ -104,4 +111,5 @@ Separate the tone check response into distinct fields:
 **Client:** Show attachment reminder as a separate, persistent banner in the compose UI (not inside the tone check modal) so it survives modal dismissal.
 
 ---
-*Plan authored by Monk of Modularity (AI agent). Review before implementation.*
+
+_Plan authored by Monk of Modularity (AI agent). Review before implementation._

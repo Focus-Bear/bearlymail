@@ -83,7 +83,11 @@ interface GuideOurAISectionProps {
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
   onEditContextPriorityChange: (priority: number) => void;
-  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => Promise<void>;
+  onUpdateProfile?: (updates: {
+    displayName?: string;
+    jobTitle?: string;
+    calendarBookingUrl?: string;
+  }) => Promise<void>;
   onRefreshContexts?: () => void;
 }
 

@@ -33,7 +33,10 @@ type BulkReadParams = {
   emailIds: string[];
   isRead: boolean;
   dispatch: AppDispatch;
-  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchEmails: (
+    signalOrOverride?: AbortSignal | Partial<InboxFilter>,
+    overrideFilters?: Partial<InboxFilter>
+  ) => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
 };
 
@@ -140,7 +143,10 @@ interface UseEmailManagementReturn {
   loadingModeSwitch: boolean;
   setLoadingModeSwitch: React.Dispatch<React.SetStateAction<boolean>>;
   fetchError: string | null;
-  fetchEmails: (signalOrOverride?: AbortSignal | Partial<InboxFilter>, overrideFilters?: Partial<InboxFilter>) => Promise<void>;
+  fetchEmails: (
+    signalOrOverride?: AbortSignal | Partial<InboxFilter>,
+    overrideFilters?: Partial<InboxFilter>
+  ) => Promise<void>;
   refreshInPlace: () => Promise<void>;
   loadMore: () => Promise<void>;
   fetchCategoryEmails: (categoryName: string) => Promise<void>;
@@ -166,7 +172,19 @@ interface UseEmailManagementReturn {
 export function useEmailManagement(props: UseEmailManagementProps): UseEmailManagementReturn {
   const { mode, onSuggestionRemove, onTabCountsUpdateOptimistically, onEmailMoved, filters } = props;
   const dispatch = useDispatch<AppDispatch>();
-  const { emails, loading, decrypting, refreshing, loadingModeSwitch, fetchError, hasMore, categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames } = useEmailReduxState();
+  const {
+    emails,
+    loading,
+    decrypting,
+    refreshing,
+    loadingModeSwitch,
+    fetchError,
+    hasMore,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    exhaustedCategoryNames,
+  } = useEmailReduxState();
 
   const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({

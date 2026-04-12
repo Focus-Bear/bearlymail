@@ -7,8 +7,8 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts) {
- return `${key}:${JSON.stringify(opts)}`; 
-}
+        return `${key}:${JSON.stringify(opts)}`;
+      }
       return key;
     },
   }),
@@ -34,49 +34,27 @@ jest.mock('theme/theme', () => ({
 
 describe('FilteredEmptyState', () => {
   it('renders the tier label and lower priority count', () => {
-    render(
-      <FilteredEmptyState
-        currentTierLabel="Very High priority"
-        lowerPriorityCount={12}
-      />
-    );
+    render(<FilteredEmptyState currentTierLabel="Very High priority" lowerPriorityCount={12} />);
     expect(screen.getByText('inbox.filteredEmpty.noTierEmails:{"tier":"Very High priority"}')).toBeTruthy();
     expect(screen.getByText('inbox.filteredEmpty.hasLowerPriority:{"count":12}')).toBeTruthy();
   });
 
   it('renders the "Show all emails" button when onShowAll is provided', () => {
     const onShowAll = jest.fn();
-    render(
-      <FilteredEmptyState
-        currentTierLabel="High priority"
-        lowerPriorityCount={5}
-        onShowAll={onShowAll}
-      />
-    );
+    render(<FilteredEmptyState currentTierLabel="High priority" lowerPriorityCount={5} onShowAll={onShowAll} />);
     const btn = screen.getByText('inbox.filteredEmpty.showAll');
     expect(btn).toBeTruthy();
   });
 
   it('calls onShowAll when the button is clicked', () => {
     const onShowAll = jest.fn();
-    render(
-      <FilteredEmptyState
-        currentTierLabel="High priority"
-        lowerPriorityCount={5}
-        onShowAll={onShowAll}
-      />
-    );
+    render(<FilteredEmptyState currentTierLabel="High priority" lowerPriorityCount={5} onShowAll={onShowAll} />);
     fireEvent.click(screen.getByText('inbox.filteredEmpty.showAll'));
     expect(onShowAll).toHaveBeenCalledTimes(1);
   });
 
   it('does NOT render the "Show all emails" button when onShowAll is undefined', () => {
-    render(
-      <FilteredEmptyState
-        currentTierLabel="Medium priority"
-        lowerPriorityCount={3}
-      />
-    );
+    render(<FilteredEmptyState currentTierLabel="Medium priority" lowerPriorityCount={3} />);
     expect(screen.queryByText('inbox.filteredEmpty.showAll')).toBeNull();
   });
 });

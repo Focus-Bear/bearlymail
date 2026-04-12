@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import {
-  useContactGroupsQuery,
-  useCreateContactGroupMutation,
-} from 'queries/contactGroups';
+import { useContactGroupsQuery, useCreateContactGroupMutation } from 'queries/contactGroups';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 
@@ -23,9 +20,7 @@ export const ContactGroupsSection: React.FC = () => {
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<Contact[]>([]);
   const [newMemberIds, setNewMemberIds] = useState<string[]>([]);
-  const [newMemberDetails, setNewMemberDetails] = useState<
-    { contactId: string; email: string; name?: string }[]
-  >([]);
+  const [newMemberDetails, setNewMemberDetails] = useState<{ contactId: string; email: string; name?: string }[]>([]);
 
   const searchContacts = async (query: string) => {
     setContactSearch(query);
@@ -34,10 +29,8 @@ export const ContactGroupsSection: React.FC = () => {
       return;
     }
     try {
-      const res = await axios.get<Contact[]>(
-        `${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`,
-      );
-      setContactResults(res.data.filter((contact) => contact.id && !newMemberIds.includes(contact.id)));
+      const res = await axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
+      setContactResults(res.data.filter(contact => contact.id && !newMemberIds.includes(contact.id)));
     } catch {
       setContactResults([]);
     }
@@ -47,18 +40,15 @@ export const ContactGroupsSection: React.FC = () => {
     if (!contact.id || newMemberIds.includes(contact.id)) {
       return;
     }
-    setNewMemberIds((prev) => [...prev, contact.id!]);
-    setNewMemberDetails((prev) => [
-      ...prev,
-      { contactId: contact.id!, email: contact.email, name: contact.name },
-    ]);
+    setNewMemberIds(prev => [...prev, contact.id!]);
+    setNewMemberDetails(prev => [...prev, { contactId: contact.id!, email: contact.email, name: contact.name }]);
     setContactSearch('');
     setContactResults([]);
   };
 
   const removeMember = (contactId: string) => {
-    setNewMemberIds((prev) => prev.filter((id) => id !== contactId));
-    setNewMemberDetails((prev) => prev.filter((member) => member.contactId !== contactId));
+    setNewMemberIds(prev => prev.filter(id => id !== contactId));
+    setNewMemberDetails(prev => prev.filter(member => member.contactId !== contactId));
   };
 
   const handleCreate = async () => {
@@ -118,7 +108,7 @@ export const ContactGroupsSection: React.FC = () => {
       )}
       {!isLoading && groups.length > 0 && (
         <div style={{ marginBottom: theme.spacing.md }}>
-          {groups.map((group) => (
+          {groups.map(group => (
             <ContactGroupItem key={group.id} group={group} />
           ))}
         </div>
@@ -146,7 +136,7 @@ export const ContactGroupsSection: React.FC = () => {
 
         <input
           value={newName}
-          onChange={(event) => setNewName(event.target.value)}
+          onChange={event => setNewName(event.target.value)}
           placeholder={t('settings.contactGroups.newGroupPlaceholder')}
           style={{
             width: '100%',
@@ -162,7 +152,7 @@ export const ContactGroupsSection: React.FC = () => {
         {/* Member chips */}
         {newMemberDetails.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: theme.spacing.sm }}>
-            {newMemberDetails.map((member) => (
+            {newMemberDetails.map(member => (
               <span
                 key={member.contactId}
                 style={{
@@ -197,7 +187,7 @@ export const ContactGroupsSection: React.FC = () => {
         <div style={{ position: 'relative', marginBottom: theme.spacing.sm }}>
           <input
             value={contactSearch}
-            onChange={(event) => searchContacts(event.target.value)}
+            onChange={event => searchContacts(event.target.value)}
             placeholder={t('settings.contactGroups.searchContacts')}
             style={{
               width: '100%',
@@ -224,10 +214,10 @@ export const ContactGroupsSection: React.FC = () => {
                 overflowY: 'auto',
               }}
             >
-              {contactResults.map((contact) => (
+              {contactResults.map(contact => (
                 <div
                   key={contact.id || contact.email}
-                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseDown={event => event.preventDefault()}
                   onClick={() => addMember(contact)}
                   style={{
                     padding: '8px 12px',
@@ -238,9 +228,7 @@ export const ContactGroupsSection: React.FC = () => {
                 >
                   {contact.name || contact.email}
                   {contact.name && (
-                    <span style={{ color: theme.colors.text.secondary, marginLeft: '6px' }}>
-                      {contact.email}
-                    </span>
+                    <span style={{ color: theme.colors.text.secondary, marginLeft: '6px' }}>{contact.email}</span>
                   )}
                 </div>
               ))}
@@ -254,9 +242,7 @@ export const ContactGroupsSection: React.FC = () => {
           style={{
             padding: '8px 20px',
             backgroundColor:
-              createMutation.isPending || !newName.trim()
-                ? theme.colors.greyscale[400]
-                : theme.colors.primary.main,
+              createMutation.isPending || !newName.trim() ? theme.colors.greyscale[400] : theme.colors.primary.main,
             color: COLOR_WHITE,
             border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
@@ -265,9 +251,7 @@ export const ContactGroupsSection: React.FC = () => {
             fontWeight: theme.typography.fontWeight.medium,
           }}
         >
-          {createMutation.isPending
-            ? t('settings.contactGroups.creating')
-            : t('settings.contactGroups.createGroup')}
+          {createMutation.isPending ? t('settings.contactGroups.creating') : t('settings.contactGroups.createGroup')}
         </button>
       </div>
     </div>

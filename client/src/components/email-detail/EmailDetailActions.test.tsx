@@ -13,10 +13,7 @@ import { render, screen } from '@testing-library/react';
 import { Email } from 'types/email';
 
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-import {
-  ACTION_TYPE_CALENDAR_CREATE_INVITE,
-  ACTION_TYPE_SCHEDULING_REQUEST,
-} from 'constants/strings';
+import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { EmailDetailActions } from './EmailDetailActions';
@@ -148,8 +145,10 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     render(
       <EmailDetailActions
         {...baseProps}
-        schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule meeting' } as unknown as SuggestedAction]}
-      />,
+        schedulingActions={[
+          { type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule meeting' } as unknown as SuggestedAction,
+        ]}
+      />
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
   });
@@ -158,8 +157,10 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
     render(
       <EmailDetailActions
         {...baseProps}
-        schedulingActions={[{ type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as unknown as SuggestedAction]}
-      />,
+        schedulingActions={[
+          { type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as unknown as SuggestedAction,
+        ]}
+      />
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
   });
@@ -182,7 +183,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
         // upstream partitioned scheduling out — suggestedActions has no scheduling types
         suggestedActions={[]}
         schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as unknown as SuggestedAction]}
-      />,
+      />
     );
     const section = screen.getByTestId('QuickActionsSection');
     expect(section).toHaveAttribute('data-count', '0');
@@ -199,7 +200,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
           { type: 'label_email', label: 'Label' } as unknown as SuggestedAction,
         ]}
         schedulingActions={[]}
-      />,
+      />
     );
     const section = screen.getByTestId('QuickActionsSection');
     expect(section).toHaveAttribute('data-count', '2');
@@ -213,7 +214,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
         // upstream already partitioned: scheduling is separate, other actions in suggestedActions
         suggestedActions={[{ type: 'send_reply', label: 'Reply' } as unknown as SuggestedAction]}
         schedulingActions={[{ type: ACTION_TYPE_SCHEDULING_REQUEST, label: 'Schedule' } as unknown as SuggestedAction]}
-      />,
+      />
     );
     expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
     const section = screen.getByTestId('QuickActionsSection');

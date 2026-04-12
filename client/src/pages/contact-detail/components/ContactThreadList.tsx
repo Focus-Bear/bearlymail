@@ -35,10 +35,7 @@ export const ContactThreadList: React.FC<ContactThreadListProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const handleNavigate = useCallback(
-    (emailThreadId: string) => navigate(`/email/${emailThreadId}`),
-    [navigate],
-  );
+  const handleNavigate = useCallback((emailThreadId: string) => navigate(`/email/${emailThreadId}`), [navigate]);
 
   const roleFilterTabs: { label: string; value: ContactThreadRoleFilter }[] = [
     { label: t('contacts.threads.roleAll'), value: 'all' },
@@ -97,9 +94,7 @@ export const ContactThreadList: React.FC<ContactThreadListProps> = ({
 
       {showEmpty && (
         <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
-          {isFiltering
-            ? t('contacts.threads.noResults')
-            : t('contacts.threads.noThreads')}
+          {isFiltering ? t('contacts.threads.noResults') : t('contacts.threads.noThreads')}
         </div>
       )}
 
@@ -115,11 +110,7 @@ export const ContactThreadList: React.FC<ContactThreadListProps> = ({
             }}
           >
             {filteredThreads.map(thread => (
-              <ThreadRow
-                key={thread.emailThreadId}
-                thread={thread}
-                onNavigate={handleNavigate}
-              />
+              <ThreadRow key={thread.emailThreadId} thread={thread} onNavigate={handleNavigate} />
             ))}
           </div>
           <div

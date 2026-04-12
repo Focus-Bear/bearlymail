@@ -25,6 +25,7 @@ There are **two separate LLM calls** that both assign categories, and they use *
 **The conflict:** The summary path runs first and writes `categoryExplanation` to the thread. Then the priority path runs and resolves the actual `categoryId`. But the `categoryExplanation` from the summary path **stays on the thread** — it was written by a prompt that didn't know about the user's custom categories.
 
 This means:
+
 - The debug reason (from summary) says "Chose GitHub & Code because..." (a hardcoded generic category)
 - But the priority path tries to match "GitHub & Code" against the user's actual categories like "🐙 GitHub bot notifications" or "💻 PRs from humans"
 - The `canonicaliseCategoryName()` function may not find a match, so it stays as-is
@@ -59,6 +60,7 @@ But `categoryExplanation` IS written regardless — creating the mismatch the us
 ### Root Cause 3: Priority Path Doesn't Always Run After Summary
 
 The priority path has an incremental analysis optimisation (`tryIncrementalAnalysis`) that can **skip the full priority refinement** for existing threads with minor updates. When this happens:
+
 - Summary path writes a generic `categoryExplanation`
 - Priority path never runs its category resolution logic
 - Thread stays with `categoryId = null` + a misleading `categoryExplanation`
@@ -76,6 +78,7 @@ The priority path has an incremental analysis optimisation (`tryIncrementalAnaly
 3. This ensures the summary path's `categoryExplanation` references categories that actually exist in the user's account
 
 **Changes needed:**
+
 - `summarization.service.ts`: fetch user categories from `UserContext` and pass them through to `runLLMSummarize()`
 - `llm-summarization.service.ts` → `summarizeEmailWithPhishingCheck()`: accept `emailCategories` parameter, render into prompt
 - `summarize-email-tldr.md`: replace hardcoded category list with `{{emailCategories}}` template, keep hardcoded as default
@@ -86,6 +89,7 @@ The priority path has an incremental analysis optimisation (`tryIncrementalAnaly
 **File:** `server/src/emails/llm-summary-processor.service.ts`
 
 When the summary path returns a category that doesn't match via `findMatchingFullCategory()`:
+
 1. Try `canonicaliseCategoryName()` (fuzzy matching already in priority path)
 2. Try proto-category matching
 3. If still no match and category ≠ "Other", create a proto-category suggestion
@@ -96,6 +100,7 @@ When the summary path returns a category that doesn't match via `findMatchingFul
 **File:** `server/src/emails/llm-priority-result.service.ts`
 
 In `applyPriorityResult()`, when the final `categoryId` is null (thread stays in "Other"):
+
 1. If `categoryExplanation` references a specific non-Other category, append a disambiguation note: `" (Note: category not found in user's category list — email placed in Other)"`
 2. Or better: replace with the priority path's own `categoryExplanation` which is aware of the user's actual categories
 
@@ -104,6 +109,7 @@ In `applyPriorityResult()`, when the final `categoryId` is null (thread stays in
 **File:** `client/src/components/inbox/EmailPreview.tsx`
 
 When displaying the `categoryExplanation` for "Other" emails:
+
 1. If the explanation mentions a specific category name that doesn't match the thread's actual category, show a warning indicator
 2. Add a visual distinction between "LLM suggested X but it didn't match" vs "LLM genuinely chose Other"
 
@@ -116,16 +122,16 @@ When displaying the `categoryExplanation` for "Other" emails:
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `server/src/summarization/summarization.service.ts` | Fetch + pass user categories |
-| `server/src/llm/llm-summarization.service.ts` | Accept categories param, render in prompt |
-| `server/promptfoo/prompts/summarize-email-tldr.md` | Dynamic category list |
-| `server/promptfoo/prompts/summarize-email-bullets.md` | Dynamic category list |
-| `server/promptfoo/prompts/summarize-email-actions.md` | Dynamic category list |
-| `server/src/emails/llm-summary-processor.service.ts` | Better category resolution + honest explanation |
-| `server/src/emails/llm-priority-result.service.ts` | Honest categoryExplanation when falling to Other |
-| `client/src/components/inbox/EmailPreview.tsx` | Visual debug clarity |
+| File                                                  | Change                                           |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| `server/src/summarization/summarization.service.ts`   | Fetch + pass user categories                     |
+| `server/src/llm/llm-summarization.service.ts`         | Accept categories param, render in prompt        |
+| `server/promptfoo/prompts/summarize-email-tldr.md`    | Dynamic category list                            |
+| `server/promptfoo/prompts/summarize-email-bullets.md` | Dynamic category list                            |
+| `server/promptfoo/prompts/summarize-email-actions.md` | Dynamic category list                            |
+| `server/src/emails/llm-summary-processor.service.ts`  | Better category resolution + honest explanation  |
+| `server/src/emails/llm-priority-result.service.ts`    | Honest categoryExplanation when falling to Other |
+| `client/src/components/inbox/EmailPreview.tsx`        | Visual debug clarity                             |
 
 ## Testing
 
@@ -141,4 +147,5 @@ When displaying the `categoryExplanation` for "Other" emails:
 - The proto-category system (threshold = 5 emails) is working correctly but is only wired into the priority path, not the summary path. Fix B addresses this.
 
 ---
-*Plan by Monk of Modularity 🧘 — Issue #1509*
+
+_Plan by Monk of Modularity 🧘 — Issue #1509_

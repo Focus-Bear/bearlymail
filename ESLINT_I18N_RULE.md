@@ -15,43 +15,43 @@ Add to `.eslintrc.js`:
 
 ```javascript
 module.exports = {
-  extends: ['react-app', 'react-app/jest'],
-  plugins: ['i18next'],
+  extends: ["react-app", "react-app/jest"],
+  plugins: ["i18next"],
   rules: {
-    'i18next/no-literal-string': [
-      'error',
+    "i18next/no-literal-string": [
+      "error",
       {
         markupOnly: true,
         onlyAttribute: [],
         validateTemplate: true,
         ignore: [
-          'className',
-          'data-testid',
-          'data-*',
-          'aria-*',
-          'id',
-          'key',
-          'href',
-          'src',
-          'alt',
-          'title',
-          'placeholder',
-          'type',
-          'name',
-          'value',
-          'role',
-          'tabIndex',
-          'style',
-          'onClick',
-          'onChange',
-          'onSubmit',
-          'console.log',
-          'console.error',
-          'localStorage',
-          'window.location',
-          'process.env'
+          "className",
+          "data-testid",
+          "data-*",
+          "aria-*",
+          "id",
+          "key",
+          "href",
+          "src",
+          "alt",
+          "title",
+          "placeholder",
+          "type",
+          "name",
+          "value",
+          "role",
+          "tabIndex",
+          "style",
+          "onClick",
+          "onChange",
+          "onSubmit",
+          "console.log",
+          "console.error",
+          "localStorage",
+          "window.location",
+          "process.env",
         ],
-      }
+      },
     ],
   },
 };
@@ -60,13 +60,10 @@ module.exports = {
 ## Manual Check
 
 Until the plugin is installed, you can manually check for raw strings by searching for:
+
 - JSX text content that's not wrapped in `{t('...')}`
 - String literals in JSX attributes (except those in the ignore list)
 
 ## Current Status
 
 The React components (`Login.tsx` and `SetupPassword.tsx`) have been updated to use i18n translations. All user-facing strings should now use the `t()` function from `useTranslation()`.
-
-
-
-

@@ -3,6 +3,7 @@
 **Context:** ESLint rule `max-lines-per-function` (limit: 100 lines for components/hooks, 200 for pages) flags 98 files with 115+ violations. PR #738 tried to suppress them with `eslint-disable` comments — that approach was rejected. This plan organises actual refactoring into 14 manageable microbatches, ordered easiest → hardest.
 
 **Enforcement:**
+
 - Components/hooks: max 100 lines per function
 - Pages: max 200 lines per function
 
@@ -10,22 +11,22 @@
 
 ## Summary Table
 
-| Batch | Area | Files | Complexity |
-|-------|------|-------|------------|
-| 1 | Tiny overages (near-limit) | 9 | 🟢 Small |
-| 2 | Simple hooks | 7 | 🟢 Small |
-| 3 | Medium hooks | 6 | 🟡 Medium |
-| 4 | Admin/Debug panels | 5 | 🟢 Small |
-| 5 | Email delivery settings | 5 | 🟡 Medium |
-| 6 | Auto-responder settings | 6 | 🟡 Medium |
-| 7 | Guide-AI settings (simple) | 6 | 🟡 Medium |
-| 8 | Guide-AI ProtoCategoriesModal | 1 | 🔴 Large |
-| 9 | Email detail hooks | 5 | 🟡 Medium |
-| 10 | Email detail inline components | 5 | 🟡 Medium |
-| 11 | Inbox components (simple) | 8 | 🟡 Medium |
-| 12 | CRM + Booking + Misc components | 9 | 🟡 Medium |
-| 13 | Complex Inbox (SplitViewPanel, InboxContent) | 3 | 🔴 Large |
-| 14 | Pages | 8 | 🔴 Large |
+| Batch | Area                                         | Files | Complexity |
+| ----- | -------------------------------------------- | ----- | ---------- |
+| 1     | Tiny overages (near-limit)                   | 9     | 🟢 Small   |
+| 2     | Simple hooks                                 | 7     | 🟢 Small   |
+| 3     | Medium hooks                                 | 6     | 🟡 Medium  |
+| 4     | Admin/Debug panels                           | 5     | 🟢 Small   |
+| 5     | Email delivery settings                      | 5     | 🟡 Medium  |
+| 6     | Auto-responder settings                      | 6     | 🟡 Medium  |
+| 7     | Guide-AI settings (simple)                   | 6     | 🟡 Medium  |
+| 8     | Guide-AI ProtoCategoriesModal                | 1     | 🔴 Large   |
+| 9     | Email detail hooks                           | 5     | 🟡 Medium  |
+| 10    | Email detail inline components               | 5     | 🟡 Medium  |
+| 11    | Inbox components (simple)                    | 8     | 🟡 Medium  |
+| 12    | CRM + Booking + Misc components              | 9     | 🟡 Medium  |
+| 13    | Complex Inbox (SplitViewPanel, InboxContent) | 3     | 🔴 Large   |
+| 14    | Pages                                        | 8     | 🔴 Large   |
 
 ---
 
@@ -33,19 +34,20 @@
 
 **Strategy:** These functions exceed the limit by 1–8 lines. The fix is usually extracting one small render helper, one utility function, or early-returning a loading state into a sub-component. Low risk.
 
-| File | Function | Lines Over |
-|------|----------|-----------|
-| `hooks/useEmailDetailGithub.ts` | `useEmailDetailGithub` | 101 (1 over) |
-| `components/settings/RecategorizeProgressBar.tsx` | arrow fn | 101 (1 over) |
-| `components/settings/guide-ai/ContextSectionsList.tsx` | arrow fn | 101 (1 over) |
-| `components/inbox/header/EmailHeaderRight.tsx` | arrow fn | 102 (2 over) |
-| `hooks/useContactSearch.ts` | arrow fn | 102 (2 over) |
-| `components/email-detail/EmailDetailDebugInfo.tsx` | `EmailDetailDebugInfo` | 103 (3 over) |
-| `components/inbox/ResizableDivider.tsx` | arrow fn | 104 (4 over) |
-| `components/booking/BookingForm.tsx` | arrow fn | 105 (5 over) |
-| `components/scheduled-emails/ScheduledEmailsManager.tsx` | arrow fn | 105 (5 over) |
+| File                                                     | Function               | Lines Over   |
+| -------------------------------------------------------- | ---------------------- | ------------ |
+| `hooks/useEmailDetailGithub.ts`                          | `useEmailDetailGithub` | 101 (1 over) |
+| `components/settings/RecategorizeProgressBar.tsx`        | arrow fn               | 101 (1 over) |
+| `components/settings/guide-ai/ContextSectionsList.tsx`   | arrow fn               | 101 (1 over) |
+| `components/inbox/header/EmailHeaderRight.tsx`           | arrow fn               | 102 (2 over) |
+| `hooks/useContactSearch.ts`                              | arrow fn               | 102 (2 over) |
+| `components/email-detail/EmailDetailDebugInfo.tsx`       | `EmailDetailDebugInfo` | 103 (3 over) |
+| `components/inbox/ResizableDivider.tsx`                  | arrow fn               | 104 (4 over) |
+| `components/booking/BookingForm.tsx`                     | arrow fn               | 105 (5 over) |
+| `components/scheduled-emails/ScheduledEmailsManager.tsx` | arrow fn               | 105 (5 over) |
 
 **Refactoring strategy:**
+
 - Extract loading/error state blocks into named sub-components (e.g. `<LoadingState />`, `<ErrorState />`)
 - Move large JSX render blocks (tables, lists, sections) to named helper components in the same file or a new `*Parts.tsx` file
 - Extract utility functions (non-hook, non-JSX logic) to `utils/` if they don't need component context
@@ -58,17 +60,18 @@
 
 **Strategy:** These hooks are modestly over the limit. Split by responsibility: state management vs. side effects vs. event handlers.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `hooks/useEmailDetailActionItems.ts` | `useEmailDetailActionItems` | 106 |
-| `hooks/useFollowUps.ts` | arrow fn | 109 |
-| `hooks/useBulkEmailActions.ts` | `useBulkEmailActions` | 116 |
-| `hooks/useEmailActions.ts` | `useEmailActions` | 118 |
-| `hooks/useEmailManagement.ts` | `useEmailManagement` | 118 |
-| `hooks/useReplyDraftGeneration.ts` | arrow fn | 110 |
-| `hooks/useEmailDetailOperations.ts` | async arrow at L664 | 110 |
+| File                                 | Function                    | Lines |
+| ------------------------------------ | --------------------------- | ----- |
+| `hooks/useEmailDetailActionItems.ts` | `useEmailDetailActionItems` | 106   |
+| `hooks/useFollowUps.ts`              | arrow fn                    | 109   |
+| `hooks/useBulkEmailActions.ts`       | `useBulkEmailActions`       | 116   |
+| `hooks/useEmailActions.ts`           | `useEmailActions`           | 118   |
+| `hooks/useEmailManagement.ts`        | `useEmailManagement`        | 118   |
+| `hooks/useReplyDraftGeneration.ts`   | arrow fn                    | 110   |
+| `hooks/useEmailDetailOperations.ts`  | async arrow at L664         | 110   |
 
 **Refactoring strategy:**
+
 - `useEmailDetailActionItems`: Extract the action builder logic into a pure helper function `buildActionItems()` outside the hook
 - `useFollowUps`: Extract the follow-up data transform/filter logic into a `utils/followUpHelpers.ts`
 - `useBulkEmailActions`: Split into `useBulkSelectionState` (selection tracking) + `useBulkActionHandlers` (mutation calls)
@@ -84,16 +87,17 @@
 
 **Strategy:** These hooks have grown large enough to warrant proper sub-hook extraction. Identify logical "phases" (initialise, fetch, update, cleanup) and split.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `hooks/useSearch.ts` | arrow fn | 111 |
-| `hooks/useInboxCategoryAccordion.ts` | `useInboxCategoryAccordion` | 120 |
-| `hooks/useDebugPanel.ts` | `useDebugPanel` | 127 |
-| `hooks/useKeyboardShortcuts.ts` | `useKeyboardShortcuts` | 131 |
-| `hooks/useSettingsData.ts` | `useSettingsData` | 135 |
-| `hooks/useEmailActionsBase.ts` | `useEmailActionsBase` | 140 |
+| File                                 | Function                    | Lines |
+| ------------------------------------ | --------------------------- | ----- |
+| `hooks/useSearch.ts`                 | arrow fn                    | 111   |
+| `hooks/useInboxCategoryAccordion.ts` | `useInboxCategoryAccordion` | 120   |
+| `hooks/useDebugPanel.ts`             | `useDebugPanel`             | 127   |
+| `hooks/useKeyboardShortcuts.ts`      | `useKeyboardShortcuts`      | 131   |
+| `hooks/useSettingsData.ts`           | `useSettingsData`           | 135   |
+| `hooks/useEmailActionsBase.ts`       | `useEmailActionsBase`       | 140   |
 
 **Refactoring strategy:**
+
 - `useSearch`: Extract debounce logic + query construction into a `useSearchQuery` sub-hook; results transformation into a helper
 - `useInboxCategoryAccordion`: Separate accordion open/close state from category data loading
 - `useDebugPanel`: Extract each debug data-fetch into individual `useDebug*Data()` hooks
@@ -109,15 +113,16 @@
 
 **Strategy:** Admin/debug UI has no user-facing risk. Extract each "section" (panel, table, chart) into its own display sub-component.
 
-| File | Function | Lines (each violation) |
-|------|----------|----------------------|
-| `components/admin/QueueDashboardSection.tsx` | arrow fn | 110 |
-| `components/admin/JobsSection.tsx` | arrow fn | 125 |
-| `components/admin/TokenUsagePanels.tsx` | arrow fn | 144 |
-| `components/admin/ContextAnalysisSection.tsx` | two fns | 110, 205 |
-| `components/admin/GitHubDebugPanels.tsx` | three fns | 133, 121, 162 |
+| File                                          | Function  | Lines (each violation) |
+| --------------------------------------------- | --------- | ---------------------- |
+| `components/admin/QueueDashboardSection.tsx`  | arrow fn  | 110                    |
+| `components/admin/JobsSection.tsx`            | arrow fn  | 125                    |
+| `components/admin/TokenUsagePanels.tsx`       | arrow fn  | 144                    |
+| `components/admin/ContextAnalysisSection.tsx` | two fns   | 110, 205               |
+| `components/admin/GitHubDebugPanels.tsx`      | three fns | 133, 121, 162          |
 
 **Refactoring strategy:**
+
 - `GitHubDebugPanels.tsx` has 3 violations — each arrow fn is likely a panel; extract to `GitHubDebugPanel1`, `GitHubDebugPanel2`, `GitHubDebugPanel3` or semantically named equivalents
 - `ContextAnalysisSection.tsx` — the 205-line fn is a large rendering section; extract `ContextAnalysisResults` as a sub-component
 - `TokenUsagePanels.tsx` — extract chart/table rendering into a `TokenUsageChart` sub-component
@@ -131,15 +136,16 @@
 
 **Strategy:** All 5 files are settings sections managing email account connections. They likely follow the same pattern: account list + add/remove actions + status indicators. Extract sub-components for account list rows, status badges, and action buttons.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/settings/email-delivery/EmailAccountsSection.tsx` | arrow fn | 141 |
-| `components/settings/email-delivery/ZohoAccountsSection.tsx` | arrow fn | 154 |
-| `components/settings/email-delivery/Office365AccountsSection.tsx` | arrow fn | 157 |
-| `components/settings/email-delivery/ProviderSelectionModal.tsx` | arrow fn | 156 |
-| `components/settings/email-delivery/BlockedKeywordsSection.tsx` | arrow fn | 181 |
+| File                                                              | Function | Lines |
+| ----------------------------------------------------------------- | -------- | ----- |
+| `components/settings/email-delivery/EmailAccountsSection.tsx`     | arrow fn | 141   |
+| `components/settings/email-delivery/ZohoAccountsSection.tsx`      | arrow fn | 154   |
+| `components/settings/email-delivery/Office365AccountsSection.tsx` | arrow fn | 157   |
+| `components/settings/email-delivery/ProviderSelectionModal.tsx`   | arrow fn | 156   |
+| `components/settings/email-delivery/BlockedKeywordsSection.tsx`   | arrow fn | 181   |
 
 **Refactoring strategy:**
+
 - `EmailAccountsSection`, `ZohoAccountsSection`, `Office365AccountsSection` likely share an account list row pattern → extract a shared `AccountRow` / `AccountCard` component
 - `ProviderSelectionModal` — extract the provider option cards into a `ProviderOptionCard` sub-component
 - `BlockedKeywordsSection` (181 lines) — extract `BlockedKeywordsList` + `AddKeywordForm` sub-components
@@ -153,16 +159,17 @@
 
 **Strategy:** These 6 files form a cohesive auto-responder settings feature. `TemplateEditorToolbar` and `AutoResponderTemplateEditor` are tightly coupled — handle together. Extract visual sections into sub-components.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/settings/auto-responder/AutoResponderExclusionSettings.tsx` | arrow fn | 107 |
-| `components/settings/auto-responder/AutoResponderQASettings.tsx` | arrow fn | 121 |
-| `components/settings/auto-responder/components/TemplateEditorToolbar.tsx` | arrow fn | 137 |
-| `components/settings/auto-responder/AutoResponderTemplateEditor.tsx` | arrow fn | 127 |
-| `components/settings/auto-responder/AutoResponderEmailPreview.tsx` | arrow fn | 138 |
-| `components/settings/auto-responder/AutoResponderAnalytics.tsx` | arrow fn | 163 |
+| File                                                                      | Function | Lines |
+| ------------------------------------------------------------------------- | -------- | ----- |
+| `components/settings/auto-responder/AutoResponderExclusionSettings.tsx`   | arrow fn | 107   |
+| `components/settings/auto-responder/AutoResponderQASettings.tsx`          | arrow fn | 121   |
+| `components/settings/auto-responder/components/TemplateEditorToolbar.tsx` | arrow fn | 137   |
+| `components/settings/auto-responder/AutoResponderTemplateEditor.tsx`      | arrow fn | 127   |
+| `components/settings/auto-responder/AutoResponderEmailPreview.tsx`        | arrow fn | 138   |
+| `components/settings/auto-responder/AutoResponderAnalytics.tsx`           | arrow fn | 163   |
 
 **Refactoring strategy:**
+
 - `AutoResponderExclusionSettings` — likely a list + form; extract `ExclusionRuleList` + `AddExclusionForm`
 - `AutoResponderQASettings` — extract Q&A pairs list into `QAPairList` sub-component
 - `TemplateEditorToolbar` + `TemplateEditor` — the toolbar is already extracted; look for toolbar button groups that can become `FormattingButtons`, `InsertButtons` sub-components within the toolbar
@@ -177,16 +184,17 @@
 
 **Strategy:** These settings components configure the AI behaviour. Extract form field groups and rule list items.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/settings/guide-ai/SummarizationRuleEditForm.tsx` | arrow fn | 102 |
-| `components/settings/guide-ai/ToneSettingsSection.tsx` | arrow fn | 124 |
-| `components/settings/guide-ai/ProfileSettingsSection.tsx` | arrow fn | 129 |
-| `components/settings/guide-ai/ToneRuleItem.tsx` | arrow fn | 148 |
-| `components/settings/guide-ai/SummarizationRulesSection.tsx` | arrow fn | 152 |
-| `components/settings/guide-ai/ContextSection.tsx` | two fns | 143, 110 |
+| File                                                         | Function | Lines    |
+| ------------------------------------------------------------ | -------- | -------- |
+| `components/settings/guide-ai/SummarizationRuleEditForm.tsx` | arrow fn | 102      |
+| `components/settings/guide-ai/ToneSettingsSection.tsx`       | arrow fn | 124      |
+| `components/settings/guide-ai/ProfileSettingsSection.tsx`    | arrow fn | 129      |
+| `components/settings/guide-ai/ToneRuleItem.tsx`              | arrow fn | 148      |
+| `components/settings/guide-ai/SummarizationRulesSection.tsx` | arrow fn | 152      |
+| `components/settings/guide-ai/ContextSection.tsx`            | two fns  | 143, 110 |
 
 **Refactoring strategy:**
+
 - `SummarizationRuleEditForm` (barely over) — extract the form field block into a `RuleFormFields` sub-component
 - `ToneRuleItem` — extract the edit/view toggle sections into `ToneRuleEditView` + `ToneRuleDisplayView`
 - `SummarizationRulesSection` — extract the rules list into `SummarizationRulesList` + `AddRuleButton`
@@ -201,14 +209,15 @@
 
 **Strategy:** This single file has **4 violations** — the most of any single file. It contains a custom hook (`useProtoCategories`) plus multiple render sections.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/settings/guide-ai/ProtoCategoriesModal.tsx` | `useProtoCategories` hook | 107 |
-| | arrow fn at L156 | 138 |
-| | arrow fn at L295 | 162 |
-| | arrow fn at L311 | 145 |
+| File                                                    | Function                  | Lines |
+| ------------------------------------------------------- | ------------------------- | ----- |
+| `components/settings/guide-ai/ProtoCategoriesModal.tsx` | `useProtoCategories` hook | 107   |
+|                                                         | arrow fn at L156          | 138   |
+|                                                         | arrow fn at L295          | 162   |
+|                                                         | arrow fn at L311          | 145   |
 
 **Refactoring strategy:**
+
 1. **Extract `useProtoCategories`** into its own file: `hooks/useProtoCategories.ts` — it's already written as a hook
 2. The three render arrow functions are likely: the modal body, a category list section, and a category edit form → extract as:
    - `ProtoCategoryList` — renders the list of categories
@@ -224,15 +233,16 @@
 
 **Strategy:** These hooks power the email detail view. `useEmailDetailReplies` (189 lines) is the most complex. They share data (the email being viewed) — extract focused sub-hooks without breaking the shared data contract.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `hooks/useEmailDetailDraftOps.ts` | `useEmailDetailDraftOps` | 124 |
-| `hooks/useEmailDetailInitialization.ts` | arrow fn | 124 |
-| `hooks/useEmailDetailArchiveOps.ts` | `useEmailDetailArchiveOps` | 143 |
-| `hooks/useEmailDetailReplies.ts` | `useEmailDetailReplies` | 189 |
-| `components/email-detail-inline/useRecipients.ts` | arrow fn | 169 |
+| File                                              | Function                   | Lines |
+| ------------------------------------------------- | -------------------------- | ----- |
+| `hooks/useEmailDetailDraftOps.ts`                 | `useEmailDetailDraftOps`   | 124   |
+| `hooks/useEmailDetailInitialization.ts`           | arrow fn                   | 124   |
+| `hooks/useEmailDetailArchiveOps.ts`               | `useEmailDetailArchiveOps` | 143   |
+| `hooks/useEmailDetailReplies.ts`                  | `useEmailDetailReplies`    | 189   |
+| `components/email-detail-inline/useRecipients.ts` | arrow fn                   | 169   |
 
 **Refactoring strategy:**
+
 - `useEmailDetailDraftOps` — extract draft CRUD calls into a `useDraftPersistence(emailId)` sub-hook; keep state management in `useEmailDetailDraftOps`
 - `useEmailDetailInitialization` — split into `useEmailDetailFetch(id)` (fetching) and `useEmailDetailSetup(email)` (derived state setup)
 - `useEmailDetailArchiveOps` — extract post-archive navigation logic into a `usePostArchiveNavigation` helper
@@ -247,14 +257,15 @@
 
 **Strategy:** `ReplyComposer` and `ToneCheckResult` each have 2 violations — they contain multiple large inner components. Extract sub-components.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/email-detail/SchedulingRequestCard.tsx` | arrow fn | 112 |
-| `components/email-detail/CalendarInviteActions.tsx` | arrow fn | 124 |
-| `components/email-detail-inline/ToneCheckResult.tsx` | two fns | 154, 121 |
-| `components/email-detail-inline/ReplyComposer.tsx` | two fns | 101, 181 |
+| File                                                 | Function | Lines    |
+| ---------------------------------------------------- | -------- | -------- |
+| `components/email-detail/SchedulingRequestCard.tsx`  | arrow fn | 112      |
+| `components/email-detail/CalendarInviteActions.tsx`  | arrow fn | 124      |
+| `components/email-detail-inline/ToneCheckResult.tsx` | two fns  | 154, 121 |
+| `components/email-detail-inline/ReplyComposer.tsx`   | two fns  | 101, 181 |
 
 **Refactoring strategy:**
+
 - `SchedulingRequestCard` — extract time slot display into a `TimeSlotsList` component
 - `CalendarInviteActions` — extract the action button group into `CalendarActionButtons`; the response form into `CalendarResponseForm`
 - `ToneCheckResult` (2 violations, L41 + L218) — L41 is the main component (154 lines), L218 is an inner render fn; extract `ToneIssuesList` + `ToneCheckActions` sub-components
@@ -268,18 +279,19 @@
 
 **Strategy:** These are the supporting inbox components (not the main InboxContent). Extract rendering blocks and handlers.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/inbox/BulkSendFollowUps.tsx` | arrow fn | 108 |
-| `components/inbox/EmailActionsRow.tsx` | arrow fn | 121 |
-| `components/inbox/BatchInfoBar.tsx` | arrow fn | 141 |
-| `components/inbox/InboxFilters.tsx` | two fns | 107, 110 |
-| `components/inbox/InboxHeader.tsx` | arrow fn | 153 |
-| `components/inbox/Sidebar.tsx` | two fns | 109, 101 |
-| `components/inbox/header/InboxHeaderActions.tsx` | arrow fn | 144 |
-| `components/inbox/CategoryAccordion.tsx` | two fns | 128, 115 |
+| File                                             | Function | Lines    |
+| ------------------------------------------------ | -------- | -------- |
+| `components/inbox/BulkSendFollowUps.tsx`         | arrow fn | 108      |
+| `components/inbox/EmailActionsRow.tsx`           | arrow fn | 121      |
+| `components/inbox/BatchInfoBar.tsx`              | arrow fn | 141      |
+| `components/inbox/InboxFilters.tsx`              | two fns  | 107, 110 |
+| `components/inbox/InboxHeader.tsx`               | arrow fn | 153      |
+| `components/inbox/Sidebar.tsx`                   | two fns  | 109, 101 |
+| `components/inbox/header/InboxHeaderActions.tsx` | arrow fn | 144      |
+| `components/inbox/CategoryAccordion.tsx`         | two fns  | 128, 115 |
 
 **Refactoring strategy:**
+
 - `BulkSendFollowUps` — extract the email list within into `FollowUpEmailList`
 - `EmailActionsRow` — extract action button groups (archive group, label group) into `ArchiveActions`, `LabelActions` sub-components
 - `BatchInfoBar` — extract the batch progress display into `BatchProgressDisplay`
@@ -297,19 +309,20 @@
 
 **Strategy:** These components span multiple unrelated features but share similar patterns: forms with validation, modal dialogs, and display panels.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/crm/CRMDealsSection.tsx` | arrow fn | 122 |
-| `components/crm/KanbanColumn.tsx` | arrow fn | 190 |
-| `components/crm/DealFormModal.tsx` | two fns | 211, 145 |
-| `components/booking/SlotSelection.tsx` | arrow fn | 152 |
-| `components/auth/LoginFormSection.tsx` | arrow fn | 163 |
-| `components/auth/PermissionsExplanation.tsx` | arrow fn | 129 |
-| `components/setup-wizard/EmailImportStep.tsx` | arrow fn | 153 |
-| `components/setup-wizard/WelcomeStep.tsx` | arrow fn | 113 |
-| `components/compose/ComposeActions.tsx` | arrow fn | 116 |
+| File                                          | Function | Lines    |
+| --------------------------------------------- | -------- | -------- |
+| `components/crm/CRMDealsSection.tsx`          | arrow fn | 122      |
+| `components/crm/KanbanColumn.tsx`             | arrow fn | 190      |
+| `components/crm/DealFormModal.tsx`            | two fns  | 211, 145 |
+| `components/booking/SlotSelection.tsx`        | arrow fn | 152      |
+| `components/auth/LoginFormSection.tsx`        | arrow fn | 163      |
+| `components/auth/PermissionsExplanation.tsx`  | arrow fn | 129      |
+| `components/setup-wizard/EmailImportStep.tsx` | arrow fn | 153      |
+| `components/setup-wizard/WelcomeStep.tsx`     | arrow fn | 113      |
+| `components/compose/ComposeActions.tsx`       | arrow fn | 116      |
 
 **Refactoring strategy:**
+
 - `KanbanColumn` (190 lines) — extract the card rendering loop into a `KanbanCard` sub-component (may already exist); extract drag-drop handlers into `useKanbanDragDrop`
 - `DealFormModal` (2 violations, L38 + L382) — L38 is the main modal (211 lines), L382 an inner section; extract `DealFormFields` + `DealFormActions`
 - `CRMDealsSection` — extract the deals table/list view into `DealsList`
@@ -328,25 +341,28 @@
 
 **Strategy:** These are the heaviest inbox components. `InboxContent` has a 504-line arrow function — by far the largest single violation. Plan carefully before touching.
 
-| File | Function | Lines |
-|------|----------|-------|
-| `components/inbox/useInboxContentData.ts` | `useInboxContentData` | 180 |
-| `components/inbox/SplitViewPanel.tsx` | two fns | 252, 127 |
-| `components/inbox/InboxContent.tsx` | two fns | 504, 166 |
+| File                                      | Function              | Lines    |
+| ----------------------------------------- | --------------------- | -------- |
+| `components/inbox/useInboxContentData.ts` | `useInboxContentData` | 180      |
+| `components/inbox/SplitViewPanel.tsx`     | two fns               | 252, 127 |
+| `components/inbox/InboxContent.tsx`       | two fns               | 504, 166 |
 
 **Refactoring strategy:**
 
 **`useInboxContentData` (180 lines):**
+
 - Extract email filtering/sorting logic into `utils/inboxDataHelpers.ts`
 - Split into `useInboxEmails` (fetch + raw data) + `useInboxDisplayData` (derived: filtered, sorted, grouped)
 
 **`SplitViewPanel` (252 lines at L56, 127 lines at L309):**
+
 - The main component (L56) is the split layout manager; extract `SplitViewEmailList` (left pane) + `SplitViewDetail` (right pane)
 - L309 is likely the detail pane itself — give it an explicit component name
 - The resize logic should live in the existing `useResizable` hook or similar
 
 **`InboxContent` (504 lines at L139, 166 lines at L497):**
 This is the most complex refactor in the codebase. Recommended decomposition:
+
 1. `InboxEmailList` — renders the flat list of emails (EmailListItem mapping)
 2. `InboxCategoryView` — renders the CategoryAccordion-based view
 3. `InboxTriageView` — renders the triage mode view with suggestions
@@ -364,20 +380,20 @@ This is the most complex refactor in the codebase. Recommended decomposition:
 
 **Strategy:** Pages have a 200-line limit (more lenient). Extract large inner components and delegate state to hooks.
 
-| File | Function | Lines | Over by |
-|------|----------|-------|---------|
-| `pages/privacy/PrivacyPolicyContentPart1.tsx` | arrow fn | 112 | 12 (uses 100-limit) |
-| `pages/SetupPassword.tsx` | arrow fn | 202 | 2 |
-| `pages/Stats.tsx` | arrow fn | 202 | 2 |
-| `pages/BookingReschedulePage.tsx` | arrow fn | 213 | 13 |
-| `pages/BookingCancelPage.tsx` | arrow fn | 235 | 35 |
-| `pages/EmailDetail.tsx` | arrow fn | 221 | 21 |
-| `pages/Contacts.tsx` | arrow fn | 258 | 58 |
-| `pages/Deals.tsx` | arrow fn | 272 | 72 |
-| `pages/Inbox.tsx` | arrow fn | 356 | 156 |
-| `pages/ContactDetail.tsx` | arrow fn | 464 | 264 |
-| `App.tsx` | arrow fn at L149 | 167 | 67 (uses 100-limit) |
-| `pages/contact-detail/components/ContactActivityList.tsx` | arrow fn | 152 | 52 (uses 100-limit) |
+| File                                                      | Function         | Lines | Over by             |
+| --------------------------------------------------------- | ---------------- | ----- | ------------------- |
+| `pages/privacy/PrivacyPolicyContentPart1.tsx`             | arrow fn         | 112   | 12 (uses 100-limit) |
+| `pages/SetupPassword.tsx`                                 | arrow fn         | 202   | 2                   |
+| `pages/Stats.tsx`                                         | arrow fn         | 202   | 2                   |
+| `pages/BookingReschedulePage.tsx`                         | arrow fn         | 213   | 13                  |
+| `pages/BookingCancelPage.tsx`                             | arrow fn         | 235   | 35                  |
+| `pages/EmailDetail.tsx`                                   | arrow fn         | 221   | 21                  |
+| `pages/Contacts.tsx`                                      | arrow fn         | 258   | 58                  |
+| `pages/Deals.tsx`                                         | arrow fn         | 272   | 72                  |
+| `pages/Inbox.tsx`                                         | arrow fn         | 356   | 156                 |
+| `pages/ContactDetail.tsx`                                 | arrow fn         | 464   | 264                 |
+| `App.tsx`                                                 | arrow fn at L149 | 167   | 67 (uses 100-limit) |
+| `pages/contact-detail/components/ContactActivityList.tsx` | arrow fn         | 152   | 52 (uses 100-limit) |
 
 **Refactoring strategy by file:**
 

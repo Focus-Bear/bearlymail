@@ -35,6 +35,7 @@ The likely bug: `selectedAction` (the action chosen from the quick actions menu)
 Before implementing a fix, determine which option is occurring:
 
 1. Check `useEmailDetailOperations.ts` around where `setSuggestedActions` is called:
+
    ```typescript
    // Is setSelectedAction being called alongside setSuggestedActions?
    setSuggestedActions(actions);
@@ -55,6 +56,7 @@ Before implementing a fix, determine which option is occurring:
 ### If Option A/B (auto-selection of action):
 
 **File:** `client/src/hooks/useEmailDetailOperations.ts`
+
 - Audit all places where `setSelectedAction` is called.
 - Ensure `selectedAction` is only ever set via explicit user interaction (clicking a quick action from the menu), never automatically.
 - Remove any `setSelectedAction(actions[0])` or auto-open logic.
@@ -62,17 +64,20 @@ Before implementing a fix, determine which option is occurring:
 ### If Option C (action pre-populating reply draft):
 
 **File:** `client/src/hooks/useEmailDetailDraftOps.ts`
+
 - Ensure draft reply suggestions come only from the reply draft LLM call, NOT from the quick actions LLM call.
 - The two should be independent: quick actions → `setSuggestedActions`; draft → `setReplyOptions`.
 
 ### If Option D (draft/action confusion):
 
 **File:** `client/src/hooks/useEmailDetailOperations.ts`
+
 - Audit the two separate LLM calls (draft suggestions and quick actions) — verify they write to separate state variables and don't interfere.
 
 ### General fix — add explicit guard in QuickActionsSection:
 
 **File:** `client/src/components/email-detail/QuickActionsSection.tsx`
+
 - Ensure the modals (`GitHubCreateIssueModal`, `CalendarCreateInviteModal`, etc.) only render when `selectedAction` is explicitly set by user click.
 - Double-check that `selectedAction !== null` is always the result of `onSelectAction(action)` in the `QuickActionsMenu`.
 
@@ -80,12 +85,12 @@ Before implementing a fix, determine which option is occurring:
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useEmailDetailOperations.ts` | Audit and remove any auto-selection of suggested actions |
-| `client/src/hooks/useEmailDetailDraftOps.ts` | Verify draft and quick actions are separate state flows |
+| File                                                         | Change                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `client/src/hooks/useEmailDetailOperations.ts`               | Audit and remove any auto-selection of suggested actions            |
+| `client/src/hooks/useEmailDetailDraftOps.ts`                 | Verify draft and quick actions are separate state flows             |
 | `client/src/components/email-detail/QuickActionsSection.tsx` | Add defensive checks; ensure modals only open on explicit selection |
-| `client/src/components/email-detail/EmailDetailActions.tsx` | Verify `hasSchedulingRequest` guard is working correctly |
+| `client/src/components/email-detail/EmailDetailActions.tsx`  | Verify `hasSchedulingRequest` guard is working correctly            |
 
 ---
 

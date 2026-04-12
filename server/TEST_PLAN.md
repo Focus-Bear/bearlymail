@@ -7,10 +7,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ### 🔴 CRITICAL PRIORITY - Core Email Functionality
 
 #### 1. **EmailThreadService** (`src/emails/email-thread.service.ts`)
+
 **Risk Level: CRITICAL**
 **Reason**: Core thread management, batch operations, race condition handling
 
 **Test Cases Needed:**
+
 - `getThreadEmails()` - Query builder optimization, field selection
 - `getOrCreateEmailThread()` - Race condition handling, duplicate key errors (23505)
 - `batchUpdateThreadStarCount()` - Bulk SQL updates, performance tracking
@@ -25,10 +27,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 2. **EmailsService** (`src/emails/emails.service.ts`)
+
 **Risk Level: CRITICAL**
 **Reason**: 3617 lines, core inbox logic, performance-critical queries, complex filtering
 
 **Test Cases Needed:**
+
 - `getInbox()` - Different modes (triage/action/follow-up), blocked sender filtering
 - Email filtering logic - Priority scores, snooze status, batch status
 - Performance tracking - Budget exceeded warnings
@@ -42,10 +46,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 3. **ContextService** (`src/context/context.service.ts`)
+
 **Risk Level: HIGH**
 **Reason**: Complex LLM integration, PII redaction, deduplication logic, 2800+ lines
 
 **Test Cases Needed:**
+
 - `redactPII()` - Name detection, email redaction, common word filtering
 - `areContextValuesSimilar()` - Similarity matching (60% threshold), key phrase overlap
 - `analyzeAndLearnFromEmails()` - Gmail API integration, batch processing, error recovery
@@ -61,10 +67,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ### 🟠 HIGH PRIORITY - Infrastructure & External Integrations
 
 #### 4. **QueueMonitorService** (`src/queue/queue-monitor.service.ts`)
+
 **Risk Level: HIGH**
 **Reason**: Production monitoring, critical for detecting queue issues
 
 **Test Cases Needed:**
+
 - `collectMetrics()` - Queue state queries, error handling per queue
 - `getQueueHealth()` - Health summary generation
 - `trackJobStart()` / `trackJobComplete()` - Job tracking, processing time calculation
@@ -77,10 +85,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 5. **EmailProviderManager** (`src/emails/email-provider-manager.service.ts`)
+
 **Risk Level: HIGH**
 **Reason**: Provider abstraction, critical for email sync
 
 **Test Cases Needed:**
+
 - `getProvider()` - Provider selection, connection checking
 - `getPrimaryProvider()` - Priority ordering (Gmail first)
 - `syncAllProviders()` - Multi-provider sync orchestration
@@ -92,10 +102,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 6. **GmailProvider** (`src/emails/providers/gmail.provider.ts`)
+
 **Risk Level: HIGH**
 **Reason**: 1559 lines, Gmail API integration, token refresh, email parsing
 
 **Test Cases Needed:**
+
 - `syncEmails()` - Token refresh logic, grace period handling, error recovery
 - Email parsing - Payload extraction, header parsing, body decoding
 - Rate limit handling - Exponential backoff, retry logic
@@ -107,10 +119,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 7. **GoogleAccountsService** (`src/google-accounts/google-accounts.service.ts`)
+
 **Risk Level: MEDIUM-HIGH**
 **Reason**: Authentication data management, token updates, primary account logic
 
 **Test Cases Needed:**
+
 - `create()` - Primary account switching, validation
 - `updateTokens()` - Token updates, refresh token handling
 - `setPrimary()` - Primary account switching, transaction safety
@@ -125,10 +139,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ### 🟡 MEDIUM PRIORITY - Business Logic
 
 #### 8. **FollowUpsService** (`src/follow-ups/follow-ups.service.ts`)
+
 **Risk Level: MEDIUM-HIGH**
 **Reason**: Follow-up generation, draft creation, business day calculations
 
 **Test Cases Needed:**
+
 - `createFollowUp()` - Follow-up creation, email thread association
 - `generateFollowUpDrafts()` - LLM integration, draft generation, status updates
 - `reviewAndCleanupDraft()` - Tone matching, greeting addition/removal
@@ -142,10 +158,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 9. **SummarizationService** (`src/summarization/summarization.service.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: LLM integration, fallback logic, thread summarization
 
 **Test Cases Needed:**
+
 - `summarizeEmail()` - Different rule types (bullet-points, action-items, custom)
 - Thread summarization - Last 3 messages, cleaning logic
 - `fallbackSummary()` - Fallback when LLM fails
@@ -157,10 +175,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 10. **CalendarService** (`src/calendar/calendar.service.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: Google Calendar integration, time slot calculation
 
 **Test Cases Needed:**
+
 - `getAvailableTimeSlots()` - Free slot calculation, busy period handling
 - `calculateFreeSlots()` - Slot generation, business hours filtering
 - `createEvent()` - Event creation, error handling
@@ -173,10 +193,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 11. **ScanEmailService** (`src/emails/scan-email.service.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: Historical scan operations, simple but used in critical paths
 
 **Test Cases Needed:**
+
 - `createScanEmail()` - Scan email creation
 - `findByMessageId()` - Message ID lookup
 - `deleteAllForUser()` - Bulk deletion
@@ -188,10 +210,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 12. **OnboardingService** (`src/onboarding/onboarding.service.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: User onboarding, job queueing
 
 **Test Cases Needed:**
+
 - `startHistoricalScan()` - Job queueing, validation
 - `getScanProgress()` - Progress tracking
 - Error handling: Missing users, disconnected accounts
@@ -204,10 +228,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ### 🔵 LOWER PRIORITY - Processors & Background Jobs
 
 #### 13. **EmailSyncProcessor** (`src/emails/email-sync.processor.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: Background job processor, concurrency management
 
 **Test Cases Needed:**
+
 - `onModuleInit()` - Worker registration, concurrency configuration
 - Job processing - Error handling, retry logic
 - Concurrency settings - CPU core detection, configuration
@@ -218,10 +244,12 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ---
 
 #### 14. **LLMProcessor** (`src/emails/llm-processor.ts`)
+
 **Risk Level: MEDIUM**
 **Reason**: Background LLM processing
 
 **Test Cases Needed:**
+
 - Job processing - LLM calls, error handling
 - Queue management - Job priorities, retries
 - Edge cases: LLM failures, rate limits, invalid data
@@ -233,27 +261,32 @@ This document outlines a comprehensive unit test plan for server modules with cr
 ## Testing Strategy Recommendations
 
 ### 1. **Start with EmailThreadService**
+
 - Relatively isolated (few dependencies)
 - Critical functionality
 - Manageable complexity
 - Good foundation for testing patterns
 
 ### 2. **Then ScanEmailService & GoogleAccountsService**
+
 - Simple CRUD operations
 - Build testing momentum
 - Establish mocking patterns for repositories
 
 ### 3. **ContextService (High Priority but Complex)**
+
 - Break into smaller testable units if possible
 - Mock LLM service extensively
 - Test algorithms separately (redactPII, similarity)
 
 ### 4. **EmailsService (Most Critical but Most Complex)**
+
 - Consider refactoring large methods into smaller testable units
 - Focus on critical paths first (getInbox, email creation)
 - Mock all external dependencies heavily
 
 ### 5. **GmailProvider & QueueMonitorService**
+
 - Mock external APIs (Gmail API, database)
 - Test error handling extensively
 - Test token refresh scenarios
@@ -301,6 +334,3 @@ This document outlines a comprehensive unit test plan for server modules with cr
 - **Processors**: 2-3 days each
 
 **Total Estimated Effort**: 25-35 days
-
-
-

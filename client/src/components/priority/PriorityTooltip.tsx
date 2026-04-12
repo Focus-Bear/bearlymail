@@ -90,9 +90,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
     return (
       <PriorityTooltipContainer emailId={emailId}>
         <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
-          <div style={{ color: theme.colors.text.secondary }}>
-            {t('priority.tooltip.noData')}
-          </div>
+          <div style={{ color: theme.colors.text.secondary }}>{t('priority.tooltip.noData')}</div>
           {onRetry && (
             <button
               onClick={event => {

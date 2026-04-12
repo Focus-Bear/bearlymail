@@ -24,9 +24,21 @@ export const FailureDetailCorrelationRow: React.FC<FailureDetailCorrelationRowPr
   const { t } = useTranslation();
   return (
     <div
-      style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap', marginTop: theme.spacing.xs }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        flexWrap: 'wrap',
+        marginTop: theme.spacing.xs,
+      }}
     >
-      <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, fontWeight: theme.typography.fontWeight.medium }}>
+      <span
+        style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.secondary,
+          fontWeight: theme.typography.fontWeight.medium,
+        }}
+      >
         {t('admin.contextAnalysis.batchCorrelationId')}:
       </span>
       <button

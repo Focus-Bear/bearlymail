@@ -205,8 +205,7 @@ export async function analyzeEmailPatterns(options: {
         content?: { parts?: Array<{ text?: string }> };
       }>;
     };
-    rawResponse =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    rawResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   } else {
     // Default: Anthropic
     const client = await getAnthropicClient();

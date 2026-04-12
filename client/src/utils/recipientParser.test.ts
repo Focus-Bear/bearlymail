@@ -43,8 +43,7 @@ describe('parseRecipientString', () => {
 
   describe('semicolon-separated list', () => {
     it('parses two recipients separated by semicolons', () => {
-      const raw =
-        'NAVJOT SINGH <navjot@email.com>; SHATHURSHAN AMARNATH <shathurshan@email.com>';
+      const raw = 'NAVJOT SINGH <navjot@email.com>; SHATHURSHAN AMARNATH <shathurshan@email.com>';
       const result = parseRecipientString(raw);
       expect(result).toEqual([
         { email: 'navjot@email.com', name: 'NAVJOT SINGH' },
@@ -55,11 +54,7 @@ describe('parseRecipientString', () => {
     it('parses three bare emails separated by semicolons', () => {
       const raw = 'a@x.com; b@y.com; c@z.com';
       const result = parseRecipientString(raw);
-      expect(result).toEqual([
-        { email: 'a@x.com' },
-        { email: 'b@y.com' },
-        { email: 'c@z.com' },
-      ]);
+      expect(result).toEqual([{ email: 'a@x.com' }, { email: 'b@y.com' }, { email: 'c@z.com' }]);
     });
   });
 
@@ -95,12 +90,7 @@ describe('parseRecipientString', () => {
     it('handles a mix of commas, semicolons, and newlines', () => {
       const raw = 'a@x.com, b@y.com; c@z.com\nd@w.com';
       const result = parseRecipientString(raw);
-      expect(result).toEqual([
-        { email: 'a@x.com' },
-        { email: 'b@y.com' },
-        { email: 'c@z.com' },
-        { email: 'd@w.com' },
-      ]);
+      expect(result).toEqual([{ email: 'a@x.com' }, { email: 'b@y.com' }, { email: 'c@z.com' }, { email: 'd@w.com' }]);
     });
 
     it('handles trailing separators gracefully', () => {
@@ -122,10 +112,7 @@ describe('parseRecipientString', () => {
     it('filters out invalid tokens and keeps valid ones', () => {
       const raw = 'good@example.com; not-an-email; also@example.com';
       const result = parseRecipientString(raw);
-      expect(result).toEqual([
-        { email: 'good@example.com' },
-        { email: 'also@example.com' },
-      ]);
+      expect(result).toEqual([{ email: 'good@example.com' }, { email: 'also@example.com' }]);
     });
 
     it('returns empty array when angle bracket contains non-email', () => {
@@ -135,8 +122,7 @@ describe('parseRecipientString', () => {
 
   describe('acceptance criteria from issue #1622', () => {
     it('AC1: Outlook semicolon paste produces two chips with correct display names', () => {
-      const raw =
-        'NAVJOT SINGH <navjot@email.com>; SHATHURSHAN AMARNATH <shathurshan@email.com>';
+      const raw = 'NAVJOT SINGH <navjot@email.com>; SHATHURSHAN AMARNATH <shathurshan@email.com>';
       const result = parseRecipientString(raw);
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ email: 'navjot@email.com', name: 'NAVJOT SINGH' });

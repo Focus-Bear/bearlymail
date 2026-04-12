@@ -16,6 +16,7 @@ Three layers all have the same gap:
 ### 1. Client — `client/src/hooks/useTabCounts.ts`
 
 **`fetchTabCounts` signature (line 37):**
+
 ```ts
 const fetchTabCounts = useCallback(async (force = false, minPriority?: number | null) => {
 ```
@@ -23,20 +24,24 @@ const fetchTabCounts = useCallback(async (force = false, minPriority?: number | 
 Only `minPriority` is accepted as a parameter. `categories` and `accountIds` are never passed in.
 
 **API call construction (lines 62–65):**
+
 ```ts
-const params = minPriority !== null && minPriority !== undefined
-  ? `?minPriority=${minPriority}`
-  : '';
+const params =
+  minPriority !== null && minPriority !== undefined
+    ? `?minPriority=${minPriority}`
+    : "";
 const response = await axios.get(`${API_URL}/emails/tab-counts${params}`);
 ```
 
 Only `minPriority` is serialized to the query string. `categories` and `accountIds` are never sent.
 
 **Cache key (lines 40–42):**
+
 ```ts
-const cacheKey = minPriority !== undefined && minPriority !== null
-  ? `${TAB_COUNTS_CACHE_KEY}_p${minPriority}`
-  : TAB_COUNTS_CACHE_KEY;
+const cacheKey =
+  minPriority !== undefined && minPriority !== null
+    ? `${TAB_COUNTS_CACHE_KEY}_p${minPriority}`
+    : TAB_COUNTS_CACHE_KEY;
 ```
 
 Cache is only keyed by `minPriority`, so different `accountIds`/`categories` combinations would
@@ -50,6 +55,7 @@ bug that will need fixing alongside the main one.
 ### 2. Client — `client/src/hooks/useInboxState.ts`
 
 **Filter-change effect (lines 164–178):**
+
 ```ts
 useEffect(() => {
   if (prevMinPriorityRef.current === undefined) {
@@ -73,6 +79,7 @@ Similarly, `useInboxInitialization.ts` (lines 85, 106) and `useInboxModeChanges.
 ### 3. Server — `server/src/emails/emails.controller.ts`
 
 **`getTabCounts` handler (lines 213–238):**
+
 ```ts
 @Get("tab-counts")
 async getTabCounts(
@@ -163,42 +170,54 @@ interface TabCountFilters {
 ```
 
 Change:
+
 ```ts
 fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
 ```
+
 To:
+
 ```ts
 fetchTabCounts: (force?: boolean, filters?: TabCountFilters) => Promise<void>;
 ```
 
 **2. Update the `fetchTabCounts` implementation** (lines 37–82):
+
 - Build a stable cache key from all active filters (serialize the full filter object).
 - Build the query string from all active filters.
 - Pass `categories` and `accountIds` as comma-joined query params.
 
 Example implementation:
+
 ```ts
-const fetchTabCounts = useCallback(async (force = false, filters?: TabCountFilters) => {
-  const { minPriority, categories, accountIds } = filters ?? {};
+const fetchTabCounts = useCallback(
+  async (force = false, filters?: TabCountFilters) => {
+    const { minPriority, categories, accountIds } = filters ?? {};
 
-  // Stable cache key from all active filter dimensions
-  const cacheKeyParts = [TAB_COUNTS_CACHE_KEY];
-  if (minPriority !== null && minPriority !== undefined) cacheKeyParts.push(`p${minPriority}`);
-  if (categories?.length) cacheKeyParts.push(`c${categories.sort().join('-')}`);
-  if (accountIds?.length) cacheKeyParts.push(`a${accountIds.sort().join('-')}`);
-  const cacheKey = cacheKeyParts.join('_');
+    // Stable cache key from all active filter dimensions
+    const cacheKeyParts = [TAB_COUNTS_CACHE_KEY];
+    if (minPriority !== null && minPriority !== undefined)
+      cacheKeyParts.push(`p${minPriority}`);
+    if (categories?.length)
+      cacheKeyParts.push(`c${categories.sort().join("-")}`);
+    if (accountIds?.length)
+      cacheKeyParts.push(`a${accountIds.sort().join("-")}`);
+    const cacheKey = cacheKeyParts.join("_");
 
-  // ...cache check...
+    // ...cache check...
 
-  const urlParams = new URLSearchParams();
-  if (minPriority !== null && minPriority !== undefined) urlParams.set('minPriority', String(minPriority));
-  if (categories?.length) urlParams.set('categories', categories.join(','));
-  if (accountIds?.length) urlParams.set('accountIds', accountIds.join(','));
-  const paramStr = urlParams.toString() ? `?${urlParams.toString()}` : '';
+    const urlParams = new URLSearchParams();
+    if (minPriority !== null && minPriority !== undefined)
+      urlParams.set("minPriority", String(minPriority));
+    if (categories?.length) urlParams.set("categories", categories.join(","));
+    if (accountIds?.length) urlParams.set("accountIds", accountIds.join(","));
+    const paramStr = urlParams.toString() ? `?${urlParams.toString()}` : "";
 
-  const response = await axios.get(`${API_URL}/emails/tab-counts${paramStr}`);
-  // ...rest unchanged...
-}, []);
+    const response = await axios.get(`${API_URL}/emails/tab-counts${paramStr}`);
+    // ...rest unchanged...
+  },
+  [],
+);
 ```
 
 **3. Fix `updateTabCountsOptimistically`** (lines 99–115):
@@ -222,10 +241,12 @@ const cached = localStorage.getItem(currentCacheKeyRef.current);
 #### `client/src/hooks/useInboxState.ts`
 
 **Update the filter-change effect** (lines 164–178) to:
+
 - Watch all three filter dimensions, not just `minPriority`
 - Pass the full `filters` object to `fetchTabCounts`
 
 Change:
+
 ```ts
 const prevMinPriorityRef = useRef<number | null | undefined>(undefined);
 useEffect(() => {
@@ -241,6 +262,7 @@ useEffect(() => {
 ```
 
 To:
+
 ```ts
 const prevFiltersRef = useRef<InboxFilter | undefined>(undefined);
 useEffect(() => {
@@ -263,6 +285,7 @@ useEffect(() => {
 ```
 
 **Update all other `fetchTabCounts` call sites** in `useInboxState.ts` to use the new signature:
+
 - Line 137: `fetchTabCounts` passed to `useInboxInitialization` — update prop types
 - Line 154: passed to `useInboxModeChanges` — update prop types
 - Line 174: direct call (covered by the effect above)
@@ -273,6 +296,7 @@ useEffect(() => {
 #### `client/src/hooks/useInboxInitialization.ts`
 
 **Update the `UseInboxInitializationProps` interface** (line 19):
+
 ```ts
 // Before:
 fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
@@ -284,6 +308,7 @@ filters?: TabCountFilters;
 ```
 
 Update the two call sites (lines 85, 106):
+
 ```ts
 // Before:
 fetchTabCounts(false, minPriority).catch(...)
@@ -299,6 +324,7 @@ fetchTabCounts(true, filters).catch(...)
 #### `client/src/hooks/useInboxModeChanges.ts`
 
 **Update the `UseInboxModeChangesProps` interface** (line 13):
+
 ```ts
 // Before:
 fetchTabCounts: (force?: boolean, minPriority?: number | null) => Promise<void>;
@@ -310,6 +336,7 @@ filters?: TabCountFilters;
 ```
 
 Update the call site (line 74):
+
 ```ts
 // Before:
 fetchTabCounts(true, minPriority).catch(...)
@@ -322,15 +349,16 @@ fetchTabCounts(true, filters).catch(...)
 
 ## Files to Change — Summary
 
-| File | Change |
-|------|--------|
-| `server/src/emails/emails.controller.ts` | Add `@Query("categories")` and `@Query("accountIds")` to `getTabCounts`; parse and pass to `getInboxSummary` |
-| `client/src/hooks/useTabCounts.ts` | Expand `fetchTabCounts` to accept full filter object; build query params and cache key from all three dimensions; fix `updateTabCountsOptimistically` to use current cache key |
-| `client/src/hooks/useInboxState.ts` | Update filter-change effect to watch all filters and pass full filter object; thread updated types through |
-| `client/src/hooks/useInboxInitialization.ts` | Update prop interface and call sites |
-| `client/src/hooks/useInboxModeChanges.ts` | Update prop interface and call site |
+| File                                         | Change                                                                                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `server/src/emails/emails.controller.ts`     | Add `@Query("categories")` and `@Query("accountIds")` to `getTabCounts`; parse and pass to `getInboxSummary`                                                                   |
+| `client/src/hooks/useTabCounts.ts`           | Expand `fetchTabCounts` to accept full filter object; build query params and cache key from all three dimensions; fix `updateTabCountsOptimistically` to use current cache key |
+| `client/src/hooks/useInboxState.ts`          | Update filter-change effect to watch all filters and pass full filter object; thread updated types through                                                                     |
+| `client/src/hooks/useInboxInitialization.ts` | Update prop interface and call sites                                                                                                                                           |
+| `client/src/hooks/useInboxModeChanges.ts`    | Update prop interface and call site                                                                                                                                            |
 
 No changes needed to:
+
 - `server/src/emails/emails.service.ts` — `getInboxSummary` already accepts all filter fields
 - `client/src/pages/Inbox.tsx` — passes `inboxState.tabCounts` which is already wired
 - `client/src/components/inbox/InboxHeader.tsx` — renders `tabCounts` as-is

@@ -71,10 +71,7 @@ const GITHUB_ACTION_TYPES = new Set<string>([
 // Scheduling/calendar action types that belong in SchedulingRequestCard, not QuickActionsSection.
 // Both types are included because the LLM sometimes returns calendar_create_invite for the same
 // scheduling intent — keeping them here prevents duplication in the Quick Actions dropdown.
-const SCHEDULING_ACTION_TYPES = new Set<string>([
-  ACTION_TYPE_SCHEDULING_REQUEST,
-  ACTION_TYPE_CALENDAR_CREATE_INVITE,
-]);
+const SCHEDULING_ACTION_TYPES = new Set<string>([ACTION_TYPE_SCHEDULING_REQUEST, ACTION_TYPE_CALENDAR_CREATE_INVITE]);
 
 interface EmailDetailProps {
   emailId?: string;
@@ -119,7 +116,10 @@ const EmailDetailLoadingScreen: React.FC<{ isInline: boolean; loadingText: strin
   );
 };
 
-const EmailDetailNotFoundScreen: React.FC<{ isInline: boolean; notFoundText: string }> = ({ isInline, notFoundText }) => {
+const EmailDetailNotFoundScreen: React.FC<{ isInline: boolean; notFoundText: string }> = ({
+  isInline,
+  notFoundText,
+}) => {
   if (isInline) {
     return <EmailNotFound />;
   }
@@ -333,8 +333,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(
           state.setCustomRule({ whenToUse: '', howToSummarize: '' });
         }}
         onCreateCustomRule={async () => {
- await ops.handleCreateCustomRule(); 
-}}
+          await ops.handleCreateCustomRule();
+        }}
         showTimePicker={showTimePicker}
         scheduledSendAt={scheduledSendAt}
         timeSuggestions={timeSuggestions}
@@ -548,31 +548,31 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           </div>
         )}
         {st.email && (
-        <EmailDetailActions
-          email={st.email}
-          threadEmails={st.threadEmails as Email[]}
-          suggestedActions={otherActions}
-          schedulingActions={schedulingActions}
-          showQuickActionsMenu={st.showQuickActionsMenu}
-          selectedAction={st.selectedAction}
-          onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)}
-          onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)}
-          onSelectAction={ops.handleActionSelected}
-          onCloseAction={() => st.setSelectedAction(null)}
-          onActionSuccess={ops.handleActionSuccess}
-          onOpenReplyComposer={ops.handleOpenReplyComposer}
-          onArchive={ops.handleArchive}
-          onDelete={ops.handleDelete}
-          onSetStarCount={ops.handleSetStarCount}
-          onBlockSender={ops.handleBlockSender}
-          onSnooze={ops.handleSnooze}
-          onRespondToInvitation={ops.handleRespondToInvitation}
-          onDraftReply={(replyDraft: string) => {
-            st.setDraft(replyDraft);
-            st.setShowReplyComposer(true);
-          }}
-          hideActionButtons={isCompactOrInline && !isInline}
-        />
+          <EmailDetailActions
+            email={st.email}
+            threadEmails={st.threadEmails as Email[]}
+            suggestedActions={otherActions}
+            schedulingActions={schedulingActions}
+            showQuickActionsMenu={st.showQuickActionsMenu}
+            selectedAction={st.selectedAction}
+            onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)}
+            onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)}
+            onSelectAction={ops.handleActionSelected}
+            onCloseAction={() => st.setSelectedAction(null)}
+            onActionSuccess={ops.handleActionSuccess}
+            onOpenReplyComposer={ops.handleOpenReplyComposer}
+            onArchive={ops.handleArchive}
+            onDelete={ops.handleDelete}
+            onSetStarCount={ops.handleSetStarCount}
+            onBlockSender={ops.handleBlockSender}
+            onSnooze={ops.handleSnooze}
+            onRespondToInvitation={ops.handleRespondToInvitation}
+            onDraftReply={(replyDraft: string) => {
+              st.setDraft(replyDraft);
+              st.setShowReplyComposer(true);
+            }}
+            hideActionButtons={isCompactOrInline && !isInline}
+          />
         )}
         {st.showReplyComposer && (
           <div ref={replyComposerRef}>
@@ -601,15 +601,17 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onDraftChange={handleDraftChange}
               onReplyOptionSelect={handleReplyOptionSelect}
               onClose={handleReplyClose}
-              onSend={(params) => ops.handleSendReply({
-                files: params.files,
-                expectedReplyHours: params.expectedReplyHours,
-                forwardAttachmentIds: params.forwardAttachmentIds,
-                draftOverride: params.draftOverride,
-                scheduledSendAt: params.scheduledSendAt,
-                keepInAction: params.keepInAction,
-                inlineImages: params.inlineImages,
-              })}
+              onSend={params =>
+                ops.handleSendReply({
+                  files: params.files,
+                  expectedReplyHours: params.expectedReplyHours,
+                  forwardAttachmentIds: params.forwardAttachmentIds,
+                  draftOverride: params.draftOverride,
+                  scheduledSendAt: params.scheduledSendAt,
+                  keepInAction: params.keepInAction,
+                  inlineImages: params.inlineImages,
+                })
+              }
               onUseRevisedText={(text: string) => {
                 st.setDraft(text);
               }}
@@ -698,7 +700,14 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   );
 };
 
-const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({ state: st, ops, effectiveVariant, isMobile, githubActions = [], emailContext = null }) => (
+const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
+  state: st,
+  ops,
+  effectiveVariant,
+  isMobile,
+  githubActions = [],
+  emailContext = null,
+}) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
     <PrivateNotesSection
       noteContent={st.noteContent}

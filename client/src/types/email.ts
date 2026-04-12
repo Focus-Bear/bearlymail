@@ -233,8 +233,6 @@ export function isEmailPriorityCalculating(email: Email): boolean {
     return true;
   }
   const score = getEmailPriorityScore(email);
-  const hasBreakdown =
-    email.priorityExplanation?.breakdown != null &&
-    email.priorityExplanation.breakdown.length > 0;
+  const hasBreakdown = email.priorityExplanation?.breakdown != null && email.priorityExplanation.breakdown.length > 0;
   return score === 0 && !hasBreakdown;
 }

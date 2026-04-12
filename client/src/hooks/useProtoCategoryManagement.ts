@@ -23,8 +23,11 @@ interface UseProtoCategoryManagementResult {
 export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
-  const { progress: recategorizeProgress, startTracking, dismiss: dismissRecategorizeProgress } =
-    useRecategorizeProgress();
+  const {
+    progress: recategorizeProgress,
+    startTracking,
+    dismiss: dismissRecategorizeProgress,
+  } = useRecategorizeProgress();
   const [protoCategories, setProtoCategories] = useState<ProtoCategory[]>([]);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
   const [convertingProtoCategoryId, setConvertingProtoCategoryId] = useState<string | null>(null);
@@ -82,18 +85,21 @@ export const useProtoCategoryManagement = (): UseProtoCategoryManagementResult =
     [showNotification, t]
   );
 
-  const handleDeleteProtoCategoryFromInbox = useCallback(async (protoCategoryId: string) => {
-    setDeletingProtoCategoryId(protoCategoryId);
-    try {
-      await axios.delete(`${API_URL}/proto-categories/${protoCategoryId}`);
-      setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
-    } catch (error) {
-      console.error('Error deleting proto category:', error);
-      showNotification(t('inbox.protoCategory.deleteError'), 'error');
-    } finally {
-      setDeletingProtoCategoryId(null);
-    }
-  }, [showNotification, t]);
+  const handleDeleteProtoCategoryFromInbox = useCallback(
+    async (protoCategoryId: string) => {
+      setDeletingProtoCategoryId(protoCategoryId);
+      try {
+        await axios.delete(`${API_URL}/proto-categories/${protoCategoryId}`);
+        setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
+      } catch (error) {
+        console.error('Error deleting proto category:', error);
+        showNotification(t('inbox.protoCategory.deleteError'), 'error');
+      } finally {
+        setDeletingProtoCategoryId(null);
+      }
+    },
+    [showNotification, t]
+  );
 
   return {
     protoCategories,

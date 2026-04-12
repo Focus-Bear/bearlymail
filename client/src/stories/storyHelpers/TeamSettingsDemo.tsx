@@ -119,9 +119,7 @@ function buildQueryClient(props: TeamSettingsDemoProps): QueryClient {
     qc.setQueryData(['organization', 'usage'], {
       emailsUsed: props.emailsUsed ?? 1200,
       emailLimit: props.emailLimit ?? 3000,
-      percentUsed: Math.round(
-        ((props.emailsUsed ?? 1200) / (props.emailLimit ?? 3000)) * 100,
-      ),
+      percentUsed: Math.round(((props.emailsUsed ?? 1200) / (props.emailLimit ?? 3000)) * 100),
       tier: props.tier ?? 'bearlymail_starter',
     });
   } else {
@@ -142,7 +140,7 @@ function buildQueryClient(props: TeamSettingsDemoProps): QueryClient {
   return qc;
 }
 
-export const TeamSettingsDemo: React.FC<TeamSettingsDemoProps> = (props) => {
+export const TeamSettingsDemo: React.FC<TeamSettingsDemoProps> = props => {
   const queryClient = React.useMemo(() => buildQueryClient(props), [props]);
 
   return (

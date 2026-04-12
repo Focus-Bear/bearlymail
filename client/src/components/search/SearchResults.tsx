@@ -66,7 +66,14 @@ const PendingResultCard: React.FC<{ result: GmailSearchResult }> = ({ result }) 
         transition: theme.transitions.default,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
           {result.fromName || result.from}
         </span>
@@ -74,10 +81,22 @@ const PendingResultCard: React.FC<{ result: GmailSearchResult }> = ({ result }) 
           {humanizeTimestamp(result.date)}
         </span>
       </div>
-      <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }}>
+      <div
+        style={{
+          fontWeight: theme.typography.fontWeight.medium,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
         {result.subject}
       </div>
-      <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
+      <div
+        style={{
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
         {result.snippet}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
@@ -128,9 +147,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         }}
       >
         <div style={{ fontSize: '3rem', marginBottom: theme.spacing.md }}>🔍</div>
-        <h3 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.sm }}>
-          {t('search.noResults')}
-        </h3>
+        <h3 style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.sm }}>{t('search.noResults')}</h3>
         <p style={{ color: theme.colors.text.secondary }}>{t('search.noResultsHint')}</p>
       </div>
     );
@@ -149,9 +166,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           // rather than double-casting through Email → SearchEmail which is fragile and unsafe.
           const enriched = result as EnrichedSearchResult;
           const email = result as Email;
-          const emailPriorityScore = enriched.priorityScore != null
-            ? enriched.priorityScore
-            : getEmailPriorityScore(email);
+          const emailPriorityScore =
+            enriched.priorityScore != null ? enriched.priorityScore : getEmailPriorityScore(email);
           const priority = getPriorityBadge(emailPriorityScore);
           return (
             <div
@@ -172,7 +188,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 transition: theme.transitions.default,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
                 <span style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
                   {email.fromName || email.from}
                 </span>
@@ -180,7 +203,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   {humanizeTimestamp(email.receivedAt)}
                 </span>
               </div>
-              <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }}>
+              <div
+                style={{
+                  fontWeight: theme.typography.fontWeight.medium,
+                  color: theme.colors.text.primary,
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
                 {email.subject}
               </div>
               <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>

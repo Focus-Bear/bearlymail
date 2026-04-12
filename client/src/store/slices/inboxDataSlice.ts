@@ -3,7 +3,6 @@ import { Email, getEmailPriorityScore } from 'types/email';
 
 import { CATEGORY_OTHER } from 'constants/strings';
 
-
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 
@@ -73,9 +72,7 @@ const inboxDataSlice = createSlice({
       // UUID-only predicate: an email belongs to this category if its category_id matches the UUID key.
       // For uncategorized, match emails with no category_id.
       const matchesCategory = (email: Email) =>
-        isUncategorized
-          ? (!email.category_id || email.category_id === null)
-          : email.category_id === categoryKey;
+        isUncategorized ? !email.category_id || email.category_id === null : email.category_id === categoryKey;
 
       // Fix #1114: prefer the server-enriched category_id on each email; only
       // fall back to categoryKey when the server did not supply one and this is not
@@ -134,14 +131,10 @@ const inboxDataSlice = createSlice({
         // resolved to "Other" as uncategorized, so the count decrement targets the
         // id === null summary bucket (not a missing stale-UUID bucket).
         const isOtherEmail = !catId || emailToRemove.category === CATEGORY_OTHER;
-        const summaryItem = state.categorySummary.find(cat =>
-          isOtherEmail ? cat.id === null : cat.id === catId
-        );
+        const summaryItem = state.categorySummary.find(cat => (isOtherEmail ? cat.id === null : cat.id === catId));
         if (summaryItem) {
           const remainingInCategory = state.emails.filter(email =>
-            isOtherEmail
-              ? (!email.category_id || email.category === CATEGORY_OTHER)
-              : email.category_id === catId
+            isOtherEmail ? !email.category_id || email.category === CATEGORY_OTHER : email.category_id === catId
           );
           if (remainingInCategory.length === 0) {
             summaryItem.count = 0;
@@ -229,23 +222,20 @@ const inboxDataSlice = createSlice({
       state.loadingCategoryNames = [];
       state.exhaustedCategoryNames = [];
     },
-    decrementCategorySummaryCount: (
-      state,
-      action: PayloadAction<{ categoryKey: string; count: number }>
-    ) => {
+    decrementCategorySummaryCount: (state, action: PayloadAction<{ categoryKey: string; count: number }>) => {
       const { categoryKey, count } = action.payload;
       if (state.categorySummary) {
         // UUID-only: match by category UUID (id). "uncategorized" maps to items with id === null.
-        const category = state.categorySummary.find(
-          cat => categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
+        const category = state.categorySummary.find(cat =>
+          categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
         );
         if (category) {
           category.count = Math.max(0, category.count - count);
           // Remove the category from the summary once its count hits zero and no emails remain.
           if (category.count === 0) {
-            const hasRemainingEmails = state.emails.some(
-              email => categoryKey === CATEGORY_KEY_UNCATEGORIZED
-                ? (!email.category_id || email.category_id === null)
+            const hasRemainingEmails = state.emails.some(email =>
+              categoryKey === CATEGORY_KEY_UNCATEGORIZED
+                ? !email.category_id || email.category_id === null
                 : email.category_id === categoryKey
             );
             if (!hasRemainingEmails) {
@@ -259,8 +249,8 @@ const inboxDataSlice = createSlice({
       const { categoryKey, count } = action.payload;
       if (state.categorySummary) {
         // UUID-only: match by category UUID (id). "uncategorized" maps to items with id === null.
-        const category = state.categorySummary.find(
-          cat => categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
+        const category = state.categorySummary.find(cat =>
+          categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
         );
         if (category) {
           category.count += count;

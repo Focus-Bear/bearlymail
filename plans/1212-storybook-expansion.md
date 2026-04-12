@@ -16,15 +16,15 @@ BearlyMail's Storybook currently covers only 7 stories, all focused on the email
 
 ### ✅ Stories That Exist
 
-| Story file | What it covers |
-|---|---|
-| `ActionItemsSection.stories.tsx` | Inline action-items checklist (add/complete/delete) |
-| `CollapsibleSection.stories.tsx` | Generic collapsible section wrapper |
-| `EmailDetailActions.stories.tsx` | Reply/forward/archive/snooze/priority action bar |
-| `EmailDetailContent.stories.tsx` | Full email detail panel (summary, actions, ICS, notes) |
-| `PrivateNotesSection.stories.tsx` | Private notes collapsible |
-| `ReplyComposerFooter.stories.tsx` | Reply composer send/schedule/keep-in-action footer |
-| `SummarySection.stories.tsx` | AI summary collapsible |
+| Story file                        | What it covers                                         |
+| --------------------------------- | ------------------------------------------------------ |
+| `ActionItemsSection.stories.tsx`  | Inline action-items checklist (add/complete/delete)    |
+| `CollapsibleSection.stories.tsx`  | Generic collapsible section wrapper                    |
+| `EmailDetailActions.stories.tsx`  | Reply/forward/archive/snooze/priority action bar       |
+| `EmailDetailContent.stories.tsx`  | Full email detail panel (summary, actions, ICS, notes) |
+| `PrivateNotesSection.stories.tsx` | Private notes collapsible                              |
+| `ReplyComposerFooter.stories.tsx` | Reply composer send/schedule/keep-in-action footer     |
+| `SummarySection.stories.tsx`      | AI summary collapsible                                 |
 
 All 7 are self-contained (no real imports, inline theme). Good pattern — continue it.
 
@@ -37,6 +37,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P0 — Split View (Issue #1212 Core Request)
 
 **1. `InboxSplitView.stories.tsx`** — The full split-view layout
+
 - Component surface: `InboxContent` + `SplitViewPanel` + `InboxEmailListPanel` (from `InboxContentParts.tsx`) + `ResizableDivider`
 - This is a **composite story** that mocks the left panel (category list + email cards) and right panel (email detail) side by side
 - Stories needed:
@@ -47,6 +48,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `ResizingInProgress` — divider active, panels mid-resize (static snapshot)
 
 **2. `SplitViewPanel.stories.tsx`** — Right panel in isolation
+
 - Component: `client/src/components/inbox/SplitViewPanel.tsx`
 - Sub-components: `SplitViewTitleBar`, `SplitViewActionButtons`, `SplitViewPriorityBar`, `SplitViewPanelHeader`
 - Stories:
@@ -57,6 +59,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `NoEmailMeta` — email ID present but no subject/sender resolved yet (loading)
 
 **3. `ResizableDivider.stories.tsx`** — The draggable divider between panels
+
 - Component: `client/src/components/inbox/ResizableDivider.tsx`
 - Stories:
   - `Default` — centered (50/50 split)
@@ -68,6 +71,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P1 — Category Accordion & Email List
 
 **4. `CategoryAccordion.stories.tsx`**
+
 - Component: `client/src/components/inbox/CategoryAccordion.tsx`
 - Stories:
   - `Collapsed` — header only, count badge shown
@@ -78,6 +82,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `ArchiveAllAvailable` — archive-all button visible (Action mode)
 
 **5. `EmailCard.stories.tsx`**
+
 - Component: `client/src/components/inbox/EmailCard.tsx`
 - Stories:
   - `Default` — unread, low priority
@@ -89,6 +94,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `WithLabels` — email labels shown
 
 **6. `EmailCardHeader.stories.tsx`**
+
 - Component: `client/src/components/inbox/email-card/EmailCardHeader.tsx`
 - Stories:
   - `Default` — sender, timestamp, medium priority badge
@@ -97,6 +103,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `WithLabels` — label chips shown
 
 **7. `EmailListItem.stories.tsx`**
+
 - Component: `client/src/components/inbox/EmailListItem.tsx`
 - Stories:
   - `Default` — full email card with header + subject + preview
@@ -105,6 +112,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `AnimatingOut` — archive animation (opacity/slide transition)
 
 **8. `ProtoCategorySubAccordion.stories.tsx`**
+
 - Component: `client/src/components/inbox/ProtoCategorySubAccordion.tsx`
 - Stories:
   - `Default` — with category name and 2 emails
@@ -116,6 +124,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P2 — Inbox Header & Filters
 
 **9. `InboxHeader.stories.tsx`**
+
 - Component: `client/src/components/inbox/InboxHeader.tsx`
 - Stories:
   - `TriageMode` — Triage tab active
@@ -124,6 +133,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `Mobile` — hamburger/condensed layout
 
 **10. `InboxFilters.stories.tsx`**
+
 - Component: `client/src/components/inbox/InboxFilters.tsx`
 - Stories:
   - `Collapsed` — filter bar hidden
@@ -136,6 +146,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P3 — Email Detail Components
 
 **11. `EmailDetailHeader.stories.tsx`**
+
 - Component: `client/src/components/email-detail/EmailDetailHeader.tsx`
 - Stories:
   - `Default` — sender, subject, timestamp, priority score
@@ -144,6 +155,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `HighPriority` / `LowPriority`
 
 **12. `EmailThreadList.stories.tsx`**
+
 - Component: `client/src/components/email-detail/EmailThreadList.tsx`
 - Stories:
   - `SingleEmail` — no thread list (renders null, verify gracefully)
@@ -151,12 +163,14 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `ThreadWithExpanded` — one thread item expanded showing body
 
 **13. `EmailThreadItem.stories.tsx`**
+
 - Component: `client/src/components/email-detail/EmailThreadItem.tsx`
 - Stories:
   - `Collapsed` — collapsed thread item
   - `Expanded` — expanded with body
 
 **14. `IcsInviteCard.stories.tsx`**
+
 - Component: `client/src/components/email-detail/IcsInviteCard.tsx`
 - Stories:
   - `Default` — invite with title, date, attendees
@@ -166,6 +180,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `AcceptedRSVP` / `DeclinedRSVP`
 
 **15. `CalendarInviteActions.stories.tsx`**
+
 - Component: `client/src/components/email-detail/CalendarInviteActions.tsx`
 - Stories:
   - `Default` — accept/decline/maybe buttons
@@ -173,6 +188,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `Declined` — declined state
 
 **16. `EmailAttachments.stories.tsx`**
+
 - Component: `client/src/components/email-detail/EmailAttachments.tsx`
 - Stories:
   - `NoAttachments` — renders nothing
@@ -180,6 +196,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `MultipleAttachments` — 3+ files, different MIME types
 
 **17. `EmailPhishingWarning.stories.tsx`**
+
 - Component: `client/src/components/email-detail/EmailPhishingWarning.tsx`
 - Stories:
   - `HighConfidence` — PHISHING_CONFIDENCE_HIGH banner
@@ -191,6 +208,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P4 — Inbox States & Overlays
 
 **18. `InboxStates.stories.tsx`**
+
 - Components: `client/src/components/inbox/states/` (AllCaughtUpState, EmptyState, ErrorState, LoadingState, ProgressiveUnlockPrompt)
 - Stories:
   - `AllCaughtUp` — 🏆 trophy state
@@ -200,6 +218,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `ProgressiveUnlockPrompt` — "load medium priority?" prompt
 
 **19. `EmailListStates.stories.tsx`**
+
 - Component: `client/src/components/inbox/EmailListStates.tsx`
 - Stories:
   - `Loading`
@@ -208,6 +227,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
   - `Empty`
 
 **20. `BatchInfoBar.stories.tsx`**
+
 - Component: `client/src/components/inbox/BatchInfoBar.tsx`
 - Stories:
   - `Default` — next delivery time shown
@@ -218,18 +238,22 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P5 — Email Card Sub-Components
 
 **21. `PriorityBadge.stories.tsx`**
+
 - Component: `client/src/components/inbox/email-card/PriorityBadge.tsx`
 - Stories: `High`, `Medium`, `Low`, `Processing`
 
 **22. `UrgencyBadge.stories.tsx`**
+
 - Component: `client/src/components/inbox/email-card/UrgencyBadge.tsx`
 - Stories: `Urgent` (score >= threshold), `NotUrgent` (renders null)
 
 **23. `EmailTimestamp.stories.tsx`**
+
 - Component: `client/src/components/inbox/email-card/EmailTimestamp.tsx`
 - Stories: `Recent`, `Yesterday`, `LastWeek`
 
 **24. `EmailLabels.stories.tsx`**
+
 - Component: `client/src/components/inbox/email-card/EmailLabels.tsx`
 - Stories: `NoLabels`, `FewLabels`, `ManyLabels`
 
@@ -238,12 +262,15 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P6 — Action Items (Inline / email-detail-inline)
 
 **25. `ActionCheckboxRow.stories.tsx`** — `email-detail-inline/ActionCheckboxRow.tsx`
+
 - Stories: `Unchecked`, `Checked`, `Editing`
 
 **26. `ActionItemInput.stories.tsx`** — `email-detail-inline/ActionItemInput.tsx`
+
 - Stories: `Empty`, `WithText`, `Submitting`
 
 **27. `ExpectedReplyRow.stories.tsx`** — `email-detail-inline/ExpectedReplyRow.tsx`
+
 - Stories: `Default`, `OverdueReply`, `ReplyReceived`
 
 ---
@@ -251,9 +278,11 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 #### P7 — Follow-Up Components
 
 **28. `FollowUpDraft.stories.tsx`** — `client/src/components/inbox/FollowUpDraft.tsx`
+
 - Stories: `Generating`, `Draft`, `Sent`, `Error`
 
 **29. `FollowUpCard.stories.tsx`** — `client/src/components/inbox/FollowUpCard.tsx`
+
 - Stories: `Default`, `Selected`, `Sending`
 
 ---
@@ -263,6 +292,7 @@ All 7 are self-contained (no real imports, inline theme). Good pattern — conti
 ### Story Authoring Convention
 
 All stories should follow the **existing self-contained pattern**:
+
 - Inline theme object (no real imports from `theme/theme`) — or import theme directly if it works cleanly in Storybook
 - Inline mock data (no API calls, no Redux)
 - Use `type StoryObj` from `@storybook/react`
@@ -271,14 +301,14 @@ All stories should follow the **existing self-contained pattern**:
 
 ### Recommended Authoring Order
 
-| Sprint | Stories | Rationale |
-|---|---|---|
-| 1 | P0: InboxSplitView, SplitViewPanel, ResizableDivider | Issue #1212 core ask |
-| 2 | P1: CategoryAccordion, EmailCard, EmailCardHeader, EmailListItem | Core inbox list |
-| 3 | P2: InboxHeader, InboxFilters | Mode switching + filters |
-| 4 | P3: EmailDetailHeader, IcsInviteCard, EmailThreadList, CalendarInviteActions, EmailAttachments, EmailPhishingWarning | Email detail surface |
-| 5 | P4: InboxStates, EmailListStates, BatchInfoBar | Edge states |
-| 6 | P5–P7: Badge components, action items, follow-up | Sub-components |
+| Sprint | Stories                                                                                                              | Rationale                |
+| ------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| 1      | P0: InboxSplitView, SplitViewPanel, ResizableDivider                                                                 | Issue #1212 core ask     |
+| 2      | P1: CategoryAccordion, EmailCard, EmailCardHeader, EmailListItem                                                     | Core inbox list          |
+| 3      | P2: InboxHeader, InboxFilters                                                                                        | Mode switching + filters |
+| 4      | P3: EmailDetailHeader, IcsInviteCard, EmailThreadList, CalendarInviteActions, EmailAttachments, EmailPhishingWarning | Email detail surface     |
+| 5      | P4: InboxStates, EmailListStates, BatchInfoBar                                                                       | Edge states              |
+| 6      | P5–P7: Badge components, action items, follow-up                                                                     | Sub-components           |
 
 ### Notes for Codebeard
 
@@ -304,4 +334,4 @@ All stories should follow the **existing self-contained pattern**:
 
 ---
 
-*Filed by Monk of Modularity — AI agent. Human review required before implementation begins.*
+_Filed by Monk of Modularity — AI agent. Human review required before implementation begins._

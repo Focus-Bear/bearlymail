@@ -11,32 +11,33 @@ Three service files in `server/src/` exceed the 800-line `max-lines` ESLint limi
 
 ### Current State (as of 2026-03-23)
 
-| File | Lines | Override max-lines | Override max-params |
-|------|-------|--------------------|---------------------|
-| `server/src/context/context.service.ts` | 3,626 | 4,000 | 17 |
-| `server/src/llm/llm.service.ts` | 3,219 | 4,000 | (none) |
-| `server/src/emails/llm-processor.ts` | 2,198 | 4,000 | 16 |
+| File                                    | Lines | Override max-lines | Override max-params |
+| --------------------------------------- | ----- | ------------------ | ------------------- |
+| `server/src/context/context.service.ts` | 3,626 | 4,000              | 17                  |
+| `server/src/llm/llm.service.ts`         | 3,219 | 4,000              | (none)              |
+| `server/src/emails/llm-processor.ts`    | 2,198 | 4,000              | 16                  |
 
 Additionally, 12 more files exceed 800 lines (non-test, non-migration), though these are NOT currently suppressed in `.eslintrc.js`:
 
-| File | Lines |
-|------|-------|
+| File                            | Lines |
+| ------------------------------- | ----- |
 | `context-gmail-data.service.ts` | 1,000 |
-| `summarization.service.ts` | 969 |
-| `github-api.service.ts` | 956 |
-| `email-debug.service.ts` | 953 |
-| `emails.controller.ts` | 942 |
-| `email-search.service.ts` | 936 |
-| `auto-responder.service.ts` | 894 |
-| `contacts.service.ts` | 856 |
-| `email-inbox.service.ts` | 848 |
-| `calendar.service.ts` | 848 |
-| `gmail-sync.service.ts` | 817 |
-| `priority-learning.service.ts` | 806 |
+| `summarization.service.ts`      | 969   |
+| `github-api.service.ts`         | 956   |
+| `email-debug.service.ts`        | 953   |
+| `emails.controller.ts`          | 942   |
+| `email-search.service.ts`       | 936   |
+| `auto-responder.service.ts`     | 894   |
+| `contacts.service.ts`           | 856   |
+| `email-inbox.service.ts`        | 848   |
+| `calendar.service.ts`           | 848   |
+| `gmail-sync.service.ts`         | 817   |
+| `priority-learning.service.ts`  | 806   |
 
 ### Prior Work
 
 Phase 5 (issue #939) has already made progress:
+
 - `gmail.provider.ts` and `context-gmail-data.service.ts` were previously removed from ESLint overrides (now compliant or near-compliant)
 - Phase 6a extracted `context-compression.service.ts`
 - Phase 6b extracted `getAnalysisRecordById` + `getCompletedBatchCount` helpers
@@ -57,6 +58,7 @@ This service has several distinct responsibility clusters:
 7. **ContextCompressionService** — already extracted in Phase 6a
 
 **Suggested split (5 new files):**
+
 - `context-analysis-orchestrator.service.ts` — `analyzeAndLearnFromEmails` + thread fetching logic
 - `context-analysis-progress.service.ts` — `getAnalysisProgress` with progress/insight extraction
 - `context-analysis-finalizer.service.ts` — `finalizeContextAnalysis`, `checkBatchesComplete`
@@ -79,6 +81,7 @@ This service has clear domain clusters by LLM task type:
 8. **LlmProviderService** — `getAvailableProviders`, `generateText`
 
 **Suggested split (4 new files):**
+
 - `llm-email-analysis.service.ts` — pattern analysis + stats builders
 - `llm-summary.service.ts` — email/thread summarisation + phishing checks
 - `llm-actions.service.ts` — action items, suggested actions, tone checking
@@ -98,6 +101,7 @@ This Bull queue processor has mixed concerns:
 6. **LlmCategoryMapper** — `canonicaliseCategoryName`
 
 **Suggested split (3 new files):**
+
 - `llm-processor-payload.service.ts` — batch payload building + user context assembly
 - `llm-processor-priority.service.ts` — priority calculation, score contributions, dimensions
 - `llm-processor-helpers.ts` — sentiment mapping, thread reply status, incremental analysis check, category name canonicalisation
@@ -116,6 +120,7 @@ After each phase, remove the corresponding file override block from `.eslintrc.j
 4. **Phase D** — ESLint override cleanup (after all splits merged)
 
 Each phase should be a separate PR to keep reviews manageable. Each PR should:
+
 - Move methods to the new service file
 - Register the new service in the NestJS module
 - Update all imports across the codebase
@@ -139,4 +144,5 @@ Each phase should be a separate PR to keep reviews manageable. Each PR should:
 - [ ] No circular dependency warnings from NestJS
 
 ---
-*Plan authored by monk-of-modularity[bot] 🧘 — "A thousand-line file is just many small files that haven't found their way home yet."*
+
+_Plan authored by monk-of-modularity[bot] 🧘 — "A thousand-line file is just many small files that haven't found their way home yet."_

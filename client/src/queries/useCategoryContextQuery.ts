@@ -35,18 +35,20 @@ const CONTEXT_VALUE_DELIMITER = ' - ';
 
 async function fetchCategoryContext(): Promise<CategoryOption[]> {
   const response = await axios.get<UserContextItem[]>(`${API_URL}/context`);
-  return response.data
-    .filter(ctx => ctx.contextKey === CONTEXT_KEY_EMAIL_CATEGORY)
-    // Parse name: contextValue format is "CategoryName - optional description"
-    .map(ctx => ({
-      id: ctx.contextId,
-      name: ctx.contextValue.split(CONTEXT_VALUE_DELIMITER)[0].trim(),
-    }))
-    // Remove blank names (malformed entries)
-    .filter(cat => cat.name !== '')
-    // Deduplicate by name
-    .filter((cat, index, all) => all.findIndex(other => other.name === cat.name) === index)
-    .sort((catA, catB) => catA.name.localeCompare(catB.name));
+  return (
+    response.data
+      .filter(ctx => ctx.contextKey === CONTEXT_KEY_EMAIL_CATEGORY)
+      // Parse name: contextValue format is "CategoryName - optional description"
+      .map(ctx => ({
+        id: ctx.contextId,
+        name: ctx.contextValue.split(CONTEXT_VALUE_DELIMITER)[0].trim(),
+      }))
+      // Remove blank names (malformed entries)
+      .filter(cat => cat.name !== '')
+      // Deduplicate by name
+      .filter((cat, index, all) => all.findIndex(other => other.name === cat.name) === index)
+      .sort((catA, catB) => catA.name.localeCompare(catB.name))
+  );
 }
 
 /**

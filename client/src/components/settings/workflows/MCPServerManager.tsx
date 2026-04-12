@@ -15,13 +15,7 @@ interface MCPServerManagerProps {
  * Manage MCP server connections in the integrations settings section.
  * Part of feature #1483 — Automated Email Workflows.
  */
-export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
-  servers,
-  onAdd,
-  onRemove,
-  onRefresh,
-  onTest,
-}) => {
+export const MCPServerManager: React.FC<MCPServerManagerProps> = ({ servers, onAdd, onRemove, onRefresh, onTest }) => {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [serverUrl, setServerUrl] = useState('');
@@ -56,7 +50,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
     setError(null);
     try {
       const result = await onTest(id);
-      setTestResults((prev) => ({ ...prev, [id]: result }));
+      setTestResults(prev => ({ ...prev, [id]: result }));
     } catch (err) {
       setError(`Test failed: ${(err as Error).message}`);
     } finally {
@@ -75,7 +69,14 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.md,
+        }}
+      >
         <h4 style={{ ...theme.typography.heading.h4, margin: 0 }}>MCP Servers</h4>
         <button
           type="button"
@@ -96,22 +97,57 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
       </div>
 
       {showForm && (
-        <div style={{ padding: theme.spacing.md, background: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.md }}>
+        <div
+          style={{
+            padding: theme.spacing.md,
+            background: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.md,
+            marginBottom: theme.spacing.md,
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 2 }}>Name</label>
-              <input type="text" value={name} onChange={(evt) => setName(evt.target.value)} placeholder="Focus Bear" style={inputStyle} />
+              <input
+                type="text"
+                value={name}
+                onChange={evt => setName(evt.target.value)}
+                placeholder="Focus Bear"
+                style={inputStyle}
+              />
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 2 }}>Server URL</label>
-              <input type="url" value={serverUrl} onChange={(evt) => setServerUrl(evt.target.value)} placeholder="https://api.focusbear.io/mcp" style={inputStyle} />
+              <input
+                type="url"
+                value={serverUrl}
+                onChange={evt => setServerUrl(evt.target.value)}
+                placeholder="https://api.focusbear.io/mcp"
+                style={inputStyle}
+              />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 2 }}>API Key (optional)</label>
-              <input type="password" value={apiKey} onChange={(evt) => setApiKey(evt.target.value)} placeholder="Bearer token or API key" style={inputStyle} />
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 2 }}>
+                API Key (optional)
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={evt => setApiKey(evt.target.value)}
+                placeholder="Bearer token or API key"
+                style={inputStyle}
+              />
             </div>
             {error && (
-              <div style={{ padding: '6px 10px', background: theme.colors.error.light, borderRadius: 6, color: theme.colors.error.dark, fontSize: 12 }}>
+              <div
+                style={{
+                  padding: '6px 10px',
+                  background: theme.colors.error.light,
+                  borderRadius: 6,
+                  color: theme.colors.error.dark,
+                  fontSize: 12,
+                }}
+              >
                 {error}
               </div>
             )}
@@ -144,7 +180,7 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {servers.map((server) => {
+          {servers.map(server => {
             const testResult = testResults[server.id];
             return (
               <div
@@ -165,11 +201,14 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
                     {server.serverUrl}
                   </div>
                   <div style={{ fontSize: 12, marginTop: 4, color: theme.colors.text.secondary }}>
-                    {server.cachedTools
-                      ? `${server.cachedTools.length} tools discovered`
-                      : 'Tools not yet fetched'}
+                    {server.cachedTools ? `${server.cachedTools.length} tools discovered` : 'Tools not yet fetched'}
                     {testResult && (
-                      <span style={{ marginLeft: 8, color: testResult.ok ? theme.colors.success.main : theme.colors.error.main }}>
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          color: testResult.ok ? theme.colors.success.main : theme.colors.error.main,
+                        }}
+                      >
                         {testResult.ok ? `✓ Connected (${testResult.toolCount} tools)` : '✗ Connection failed'}
                       </span>
                     )}
@@ -180,21 +219,43 @@ export const MCPServerManager: React.FC<MCPServerManagerProps> = ({
                     type="button"
                     onClick={() => handleTest(server.id)}
                     disabled={testing === server.id}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${theme.colors.border.default}`, background: theme.colors.background.paper, cursor: 'pointer', fontSize: 12 }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${theme.colors.border.default}`,
+                      background: theme.colors.background.paper,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
                   >
                     {testing === server.id ? 'Testing…' : 'Test'}
                   </button>
                   <button
                     type="button"
                     onClick={() => onRefresh(server.id)}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${theme.colors.border.default}`, background: theme.colors.background.paper, cursor: 'pointer', fontSize: 12 }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${theme.colors.border.default}`,
+                      background: theme.colors.background.paper,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
                   >
                     Refresh Tools
                   </button>
                   <button
                     type="button"
                     onClick={() => onRemove(server.id)}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${theme.colors.error.main}`, color: theme.colors.error.main, background: theme.colors.background.paper, cursor: 'pointer', fontSize: 12 }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${theme.colors.error.main}`,
+                      color: theme.colors.error.main,
+                      background: theme.colors.background.paper,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
                   >
                     Remove
                   </button>

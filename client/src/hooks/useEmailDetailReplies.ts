@@ -127,8 +127,7 @@ function buildReplyAddresses(
     return match ? match[1].toLowerCase() : addr.toLowerCase();
   };
   const notCurrentUser = (addr: string) => !!normalizedUserEmail && extractEmail(addr) !== normalizedUserEmail;
-  const isFromCurrentUser =
-    !!normalizedUserEmail && extractEmail(email.from || '') === normalizedUserEmail;
+  const isFromCurrentUser = !!normalizedUserEmail && extractEmail(email.from || '') === normalizedUserEmail;
   const replyToAddress = email.replyTo || email.from;
 
   if (mode === REPLY_MODE_FORWARD) {
@@ -274,17 +273,26 @@ function useReplyComposerState() {
   const handleCancelTimePicker = useCallback(() => setShowTimePicker(false), []);
 
   return {
-    showReplyComposer, setShowReplyComposer,
-    replyMode, setReplyMode,
-    replyRecipients, setReplyRecipients,
-    replyCc, setReplyCc,
-    replyBcc, setReplyBcc,
-    showCc, setShowCc,
-    showBcc, setShowBcc,
+    showReplyComposer,
+    setShowReplyComposer,
+    replyMode,
+    setReplyMode,
+    replyRecipients,
+    setReplyRecipients,
+    replyCc,
+    setReplyCc,
+    replyBcc,
+    setReplyBcc,
+    showCc,
+    setShowCc,
+    showBcc,
+    setShowBcc,
     sending,
-    initialAttachments, setInitialAttachments,
+    initialAttachments,
+    setInitialAttachments,
     showTimePicker,
-    scheduledSendAt, setScheduledSendAt,
+    scheduledSendAt,
+    setScheduledSendAt,
     handleOpenTimePicker,
     handleTimeSelect,
     handleCancelTimePicker,
@@ -317,22 +325,47 @@ interface SendReplyHandlerDeps {
 // Sub-hook: builds and returns the memoized handleSendReply callback.
 function useSendReplyHandler(deps: SendReplyHandlerDeps) {
   const {
-    emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
-    checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
-    setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
-    showSuccess, showError, t,
+    emailId,
+    draft,
+    replyRecipients,
+    replyCc,
+    replyBcc,
+    replyMode,
+    scheduledSendAt,
+    checkTone,
+    setDraft,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
+    setInitialAttachments,
+    setScheduledSendAt,
+    setReplyRecipients,
+    setShowReplyComposer,
+    showSuccess,
+    showError,
+    t,
   } = deps;
 
   return useCallback(
-    async (sendOptions: {
-      files?: File[];
-      expectedReplyHours?: number;
-      forwardAttachmentIds?: string[];
-      onClose?: () => void;
-      draftOverride?: string;
-      scheduledSendAtOverride?: Date;
-    } = {}) => {
-      const { files = [], expectedReplyHours, forwardAttachmentIds, onClose, draftOverride, scheduledSendAtOverride } = sendOptions;
+    async (
+      sendOptions: {
+        files?: File[];
+        expectedReplyHours?: number;
+        forwardAttachmentIds?: string[];
+        onClose?: () => void;
+        draftOverride?: string;
+        scheduledSendAtOverride?: Date;
+      } = {}
+    ) => {
+      const {
+        files = [],
+        expectedReplyHours,
+        forwardAttachmentIds,
+        onClose,
+        draftOverride,
+        scheduledSendAtOverride,
+      } = sendOptions;
       const rawDraft = draftOverride || draft;
       const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
       if (!emailId || !rawDraft) {
@@ -379,10 +412,26 @@ function useSendReplyHandler(deps: SendReplyHandlerDeps) {
       });
     },
     [
-      emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
-      checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
-      setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
-      showSuccess, showError, t,
+      emailId,
+      draft,
+      replyRecipients,
+      replyCc,
+      replyBcc,
+      replyMode,
+      scheduledSendAt,
+      checkTone,
+      setDraft,
+      setReplyCc,
+      setReplyBcc,
+      setShowCc,
+      setShowBcc,
+      setInitialAttachments,
+      setScheduledSendAt,
+      setReplyRecipients,
+      setShowReplyComposer,
+      showSuccess,
+      showError,
+      t,
     ]
   );
 }
@@ -402,17 +451,45 @@ export function useEmailDetailReplies(
   const { user } = useAuth();
 
   const composerState = useReplyComposerState();
-  const { setShowReplyComposer, setReplyMode, setReplyRecipients,
-    setReplyCc, setReplyBcc, setShowCc, setShowBcc,
-    setInitialAttachments, setScheduledSendAt,
-    replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt } = composerState;
+  const {
+    setShowReplyComposer,
+    setReplyMode,
+    setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
+    setInitialAttachments,
+    setScheduledSendAt,
+    replyRecipients,
+    replyCc,
+    replyBcc,
+    replyMode,
+    scheduledSendAt,
+  } = composerState;
 
-  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, cancelToneCheck,
-    disputing, disputeResult, disputeToneCheck, clearDisputeResult } = useEmailDetailToneCheck();
+  const {
+    checkingTone,
+    toneCheckResult,
+    setToneCheckResult,
+    checkTone,
+    cancelToneCheck,
+    disputing,
+    disputeResult,
+    disputeToneCheck,
+    clearDisputeResult,
+  } = useEmailDetailToneCheck();
 
-  const { replyOptions, selectedReplyOption, draft, loadingReplies,
-    debugInfo: replyGenerationDebugInfo, setReplyOptions, setDraft,
-    setSelectedReplyOption, handleGenerateDraft,
+  const {
+    replyOptions,
+    selectedReplyOption,
+    draft,
+    loadingReplies,
+    debugInfo: replyGenerationDebugInfo,
+    setReplyOptions,
+    setDraft,
+    setSelectedReplyOption,
+    handleGenerateDraft,
   } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
 
   const handleOpenReplyComposer = useCallback(
@@ -440,23 +517,65 @@ export function useEmailDetailReplies(
         handleGenerateDraft();
       }
     },
-    [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult,
-     setReplyMode, setShowReplyComposer, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
-     setReplyRecipients, setInitialAttachments]
+    [
+      email,
+      user?.email,
+      handleGenerateDraft,
+      setDraft,
+      setToneCheckResult,
+      setReplyMode,
+      setShowReplyComposer,
+      setReplyCc,
+      setReplyBcc,
+      setShowCc,
+      setShowBcc,
+      setReplyRecipients,
+      setInitialAttachments,
+    ]
   );
 
   const handleSendReply = useSendReplyHandler({
-    emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt,
-    checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
-    setInitialAttachments, setScheduledSendAt, setReplyRecipients, setShowReplyComposer,
-    showSuccess, showError, t,
+    emailId,
+    draft,
+    replyRecipients,
+    replyCc,
+    replyBcc,
+    replyMode,
+    scheduledSendAt,
+    checkTone,
+    setDraft,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
+    setInitialAttachments,
+    setScheduledSendAt,
+    setReplyRecipients,
+    setShowReplyComposer,
+    showSuccess,
+    showError,
+    t,
   });
 
   return {
     ...composerState,
-    replyOptions, selectedReplyOption, draft, loadingReplies,
-    checkingTone, toneCheckResult, disputing, disputeResult, replyGenerationDebugInfo,
-    setDraft, setSelectedReplyOption, setReplyOptions, setToneCheckResult,
-    handleOpenReplyComposer, handleSendReply, cancelToneCheck, disputeToneCheck, clearDisputeResult,
+    replyOptions,
+    selectedReplyOption,
+    draft,
+    loadingReplies,
+    checkingTone,
+    toneCheckResult,
+    disputing,
+    disputeResult,
+    replyGenerationDebugInfo,
+    setDraft,
+    setSelectedReplyOption,
+    setReplyOptions,
+    setToneCheckResult,
+    handleOpenReplyComposer,
+    handleSendReply,
+    cancelToneCheck,
+    disputeToneCheck,
+    clearDisputeResult,
   };
 }

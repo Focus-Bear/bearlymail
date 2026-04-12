@@ -94,10 +94,10 @@ After successful auth, update the user's `lastActivityAt`:
 ```typescript
 async login(user: UserWithoutPassword) {
   // ... existing approval check ...
-  
+
   // Track login activity
   await this.usersService.updateLastActivity(user.id);
-  
+
   // ... existing JWT generation ...
 }
 ```
@@ -114,7 +114,10 @@ To avoid missing active users who stay logged in (never re-login), touch `lastAc
 // After JWT validation succeeds:
 const user = request.user;
 const ONE_HOUR = 60 * 60 * 1000;
-if (!user.lastActivityAt || Date.now() - user.lastActivityAt.getTime() > ONE_HOUR) {
+if (
+  !user.lastActivityAt ||
+  Date.now() - user.lastActivityAt.getTime() > ONE_HOUR
+) {
   // Fire-and-forget — don't block the request
   this.usersService.updateLastActivity(user.id).catch(() => {});
 }
@@ -161,6 +164,7 @@ async findInactiveUserIds(thresholdDays = 3): Promise<string[]> {
 **Where:** In `createEmail()`, before calling `queuePostSaveJobs()`.
 
 The gate should be at the **job-queueing level**, not the job-processing level, because:
+
 - It avoids creating jobs that would just be immediately skipped (less queue noise)
 - It keeps the individual processors (LLM, summary, etc.) simple and unchanged
 - It's a single checkpoint rather than duplicating the check in 5+ processors
@@ -170,16 +174,16 @@ async createEmail(userId, emailData, options, queueBatchPriorityRefinement) {
   // ... existing blocked sender check, thread creation, save ...
 
   const isActive = await this.usersService.isUserActive(userId);
-  
+
   if (!isActive) {
     // User inactive >3 days — save email but defer AI processing
     thread.aiProcessingDeferred = true;
     thread.isProcessingPriority = false;
     await this.emailThreadRepository.save(thread);
-    
+
     savedEmail.isProcessingSummary = false;
     await this.emailRepository.save(savedEmail);
-    
+
     this.logger.log(
       `Skipping AI processing for user ${userId} (inactive >3 days), thread ${thread.id}`,
     );
@@ -207,18 +211,18 @@ We could skip `FETCH_USER_EMAILS` entirely for inactive users in `email-sync.pro
 ```typescript
 async login(user: UserWithoutPassword) {
   // ... existing approval check ...
-  
+
   // Check if user was inactive and needs backlog processing
   const wasInactive = await this.usersService.wasUserInactive(user.id);
-  
+
   // Track login activity (updates lastActivityAt)
   await this.usersService.updateLastActivity(user.id);
-  
+
   if (wasInactive) {
     // Queue backlog processing for deferred threads
     await this.emailBacklogService.queueBacklogProcessing(user.id);
   }
-  
+
   // ... existing JWT generation ...
 }
 ```
@@ -231,47 +235,60 @@ async login(user: UserWithoutPassword) {
 @Injectable()
 export class EmailBacklogService {
   constructor(
-    @Inject('PG_BOSS') private boss: PgBoss,
+    @Inject("PG_BOSS") private boss: PgBoss,
     @InjectRepository(EmailThread) private threadRepo: Repository<EmailThread>,
     @InjectRepository(Email) private emailRepo: Repository<Email>,
   ) {}
 
-  async queueBacklogProcessing(userId: string): Promise<{ threadCount: number }> {
+  async queueBacklogProcessing(
+    userId: string,
+  ): Promise<{ threadCount: number }> {
     // Find all deferred threads for this user
     const deferredThreads = await this.threadRepo.find({
       where: { userId, aiProcessingDeferred: true },
-      select: ['id'],
+      select: ["id"],
     });
 
     if (deferredThreads.length === 0) return { threadCount: 0 };
 
     // Queue priority batch for all deferred threads at once
-    await this.boss.send(JOB_NAMES.REFINE_PRIORITY_BATCH, {
-      userId,
-      threadIds: deferredThreads.map(t => t.id),
-      isBacklogProcessing: true,
-    }, {
-      priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BATCH, false),
-      singletonKey: `backlog-priority-${userId}`,
-    });
+    await this.boss.send(
+      JOB_NAMES.REFINE_PRIORITY_BATCH,
+      {
+        userId,
+        threadIds: deferredThreads.map((t) => t.id),
+        isBacklogProcessing: true,
+      },
+      {
+        priority: getJobPriority(JOB_NAMES.REFINE_PRIORITY_BATCH, false),
+        singletonKey: `backlog-priority-${userId}`,
+      },
+    );
 
     // Queue summary generation for latest email in each deferred thread
     for (const thread of deferredThreads) {
       const latestEmail = await this.emailRepo.findOne({
         where: { emailThreadId: thread.id },
-        order: { receivedAt: 'DESC' },
-        select: ['id'],
+        order: { receivedAt: "DESC" },
+        select: ["id"],
       });
       if (latestEmail) {
-        await this.boss.send(JOB_NAMES.GENERATE_SUMMARY, {
-          userId,
-          emailId: latestEmail.id,
-          threadId: thread.id,
-          isBacklogProcessing: true,
-        }, {
-          priority: getJobPriority(JOB_NAMES.GENERATE_SUMMARY_BACKGROUND, false),
-          singletonKey: `backlog-summary-${thread.id}`,
-        });
+        await this.boss.send(
+          JOB_NAMES.GENERATE_SUMMARY,
+          {
+            userId,
+            emailId: latestEmail.id,
+            threadId: thread.id,
+            isBacklogProcessing: true,
+          },
+          {
+            priority: getJobPriority(
+              JOB_NAMES.GENERATE_SUMMARY_BACKGROUND,
+              false,
+            ),
+            singletonKey: `backlog-summary-${thread.id}`,
+          },
+        );
       }
     }
 
@@ -293,7 +310,7 @@ export class EmailBacklogService {
         where: { userId, aiProcessingDeferred: true },
       }),
     ]);
-    
+
     return {
       total,
       remaining,
@@ -342,6 +359,7 @@ Add `aiProcessingDeferred: boolean` to the thread type used by the frontend.
 **File:** `client/src/components/inbox/` (thread list rendering)
 
 For threads where `aiProcessingDeferred === true`:
+
 - Show a subtle badge/icon (e.g., a small clock or "⏸" icon) next to the thread
 - Grey out the priority/category indicators (since they're empty/default)
 - Tooltip: "AI processing was paused while you were away. Processing now..."
@@ -357,16 +375,16 @@ Pattern follows existing `ReloginBanner.tsx`:
 ```tsx
 export const CatchingUpBanner: React.FC = () => {
   const { data: progress } = useBacklogProgress();
-  
+
   if (!progress?.isProcessing) return null;
-  
+
   return (
     <div className="catching-up-banner">
       <Spinner size="sm" />
       <span>
-        {t('inbox.catchingUp', { 
+        {t("inbox.catchingUp", {
           remaining: progress.remaining,
-          total: progress.total 
+          total: progress.total,
         })}
       </span>
     </div>
@@ -383,9 +401,9 @@ Use a React Query hook that polls `/emails/backlog-progress` every 10 seconds wh
 ```typescript
 const useBacklogProgress = () => {
   return useQuery({
-    queryKey: ['backlog-progress'],
-    queryFn: () => api.get('/emails/backlog-progress'),
-    refetchInterval: (data) => data?.isProcessing ? 10_000 : false,
+    queryKey: ["backlog-progress"],
+    queryFn: () => api.get("/emails/backlog-progress"),
+    refetchInterval: (data) => (data?.isProcessing ? 10_000 : false),
     staleTime: 5_000,
   });
 };
@@ -456,25 +474,25 @@ Default: 3 days. This allows easy tuning without code changes.
 
 ### 9. Files Modified
 
-| File | Change |
-|------|--------|
-| `server/src/database/entities/user.entity.ts` | Add `lastActivityAt` column |
-| `server/src/database/entities/email-thread.entity.ts` | Add `aiProcessingDeferred` column |
-| `server/src/database/migrations/1788000000000-AddInactivityTrackingColumns.ts` | New migration |
-| `server/src/users/users.service.ts` | Add `updateLastActivity()`, `isUserActive()`, `wasUserInactive()` |
-| `server/src/auth/auth.service.ts` | Track activity on login, trigger backlog |
-| `server/src/auth/jwt-auth.guard.ts` | Throttled activity touch on API requests |
-| `server/src/emails/email-lifecycle.service.ts` | Inactivity gate before AI job queueing |
-| `server/src/emails/email-backlog.service.ts` | New service for backlog processing |
-| `server/src/emails/emails.controller.ts` | New endpoint for backlog progress |
-| `server/src/emails/llm-processor.ts` | Clear `aiProcessingDeferred` after processing |
-| `server/src/emails/llm-summary-processor.service.ts` | Clear `aiProcessingDeferred` after processing |
-| `client/src/types/email.ts` | Add `aiProcessingDeferred` to thread type |
-| `client/src/components/inbox/overlays/CatchingUpBanner.tsx` | New catching-up banner |
-| `client/src/hooks/useBacklogProgress.ts` | New hook for polling backlog progress |
-| Various inbox components | Show deferred indicator on threads |
+| File                                                                           | Change                                                            |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `server/src/database/entities/user.entity.ts`                                  | Add `lastActivityAt` column                                       |
+| `server/src/database/entities/email-thread.entity.ts`                          | Add `aiProcessingDeferred` column                                 |
+| `server/src/database/migrations/1788000000000-AddInactivityTrackingColumns.ts` | New migration                                                     |
+| `server/src/users/users.service.ts`                                            | Add `updateLastActivity()`, `isUserActive()`, `wasUserInactive()` |
+| `server/src/auth/auth.service.ts`                                              | Track activity on login, trigger backlog                          |
+| `server/src/auth/jwt-auth.guard.ts`                                            | Throttled activity touch on API requests                          |
+| `server/src/emails/email-lifecycle.service.ts`                                 | Inactivity gate before AI job queueing                            |
+| `server/src/emails/email-backlog.service.ts`                                   | New service for backlog processing                                |
+| `server/src/emails/emails.controller.ts`                                       | New endpoint for backlog progress                                 |
+| `server/src/emails/llm-processor.ts`                                           | Clear `aiProcessingDeferred` after processing                     |
+| `server/src/emails/llm-summary-processor.service.ts`                           | Clear `aiProcessingDeferred` after processing                     |
+| `client/src/types/email.ts`                                                    | Add `aiProcessingDeferred` to thread type                         |
+| `client/src/components/inbox/overlays/CatchingUpBanner.tsx`                    | New catching-up banner                                            |
+| `client/src/hooks/useBacklogProgress.ts`                                       | New hook for polling backlog progress                             |
+| Various inbox components                                                       | Show deferred indicator on threads                                |
 
 ---
 
-*Plan authored by Monk of Modularity 🧘 — issue #1459*
-*Signed-off-by: openclaw-monk-of-modularity[bot]*
+_Plan authored by Monk of Modularity 🧘 — issue #1459_
+_Signed-off-by: openclaw-monk-of-modularity[bot]_

@@ -25,6 +25,7 @@ NetworkingStack ← DatabaseStack ← AppStack ← ContextAnalysisStack
 ```
 
 The circular dep exists because:
+
 1. **ContextAnalysisStack → AppStack**: needs `ecsTaskRole.roleArn` to call `queue.grantSendMessages(ecsTaskRole)`
 2. **AppStack → ContextAnalysisStack**: needs `queueUrl` for ECS container environment
 
@@ -33,8 +34,9 @@ When SQS lived in ContextAnalysisStack, this was a cycle. The v2 hack "solved" i
 ### WHY does ContextAnalysisStack need ecsTaskRoleArn?
 
 Only for **one line of code**:
+
 ```typescript
-queue.grantSendMessages(ecsTaskRole);  // line ~88
+queue.grantSendMessages(ecsTaskRole); // line ~88
 ```
 
 This grants the ECS task role permission to send messages to the SQS queue. But this grant doesn't need to live in ContextAnalysisStack — **AppStack can grant itself SQS permissions using a deterministic queue ARN**.
@@ -63,10 +65,12 @@ NetworkingStack ← DatabaseStack ← ContextAnalysisStack ← AppStack
 ```typescript
 // In bearlymail-stack.ts, after creating the task role:
 const contextAnalysisQueueArn = `arn:aws:sqs:${this.region}:${this.account}:bearlymail-context-analysis.fifo`;
-taskRole.addToPolicy(new iam.PolicyStatement({
-  actions: ['sqs:SendMessage', 'sqs:GetQueueUrl', 'sqs:GetQueueAttributes'],
-  resources: [contextAnalysisQueueArn],
-}));
+taskRole.addToPolicy(
+  new iam.PolicyStatement({
+    actions: ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"],
+    resources: [contextAnalysisQueueArn],
+  }),
+);
 ```
 
 The queue name `bearlymail-context-analysis.fifo` is deterministic (set via `queueName` in the CDK construct), so the ARN is stable and known at synth time.
@@ -135,19 +139,23 @@ export class BearlyMailContextAnalysisStack extends cdk.Stack {
 
 ```typescript
 // 4. Context Analysis Stack — BEFORE AppStack now
-const contextAnalysisStack = new BearlyMailContextAnalysisStack(app, 'BearlyMailContextAnalysisStack', {
-  env,
-  description: 'BearlyMail - Context Analysis (SQS + Lambda + RDS Proxy)',
-  vpc: networkingStack.vpc,
-  database: databaseStack.database,
-  dbSecret: databaseStack.dbSecret,
-  appSecrets: secretsStack.appSecrets,
-  rdsProxy: databaseStack.rdsProxy,
-  rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
-  rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
-  lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
-  // NO ecsTaskRoleArn — AppStack self-grants
-});
+const contextAnalysisStack = new BearlyMailContextAnalysisStack(
+  app,
+  "BearlyMailContextAnalysisStack",
+  {
+    env,
+    description: "BearlyMail - Context Analysis (SQS + Lambda + RDS Proxy)",
+    vpc: networkingStack.vpc,
+    database: databaseStack.database,
+    dbSecret: databaseStack.dbSecret,
+    appSecrets: secretsStack.appSecrets,
+    rdsProxy: databaseStack.rdsProxy,
+    rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
+    rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
+    lambdaSecurityGroup: databaseStack.lambdaSecurityGroup,
+    // NO ecsTaskRoleArn — AppStack self-grants
+  },
+);
 
 contextAnalysisStack.addDependency(networkingStack);
 contextAnalysisStack.addDependency(databaseStack);
@@ -155,18 +163,18 @@ contextAnalysisStack.addDependency(secretsStack);
 // NOT appStack — dependency is inverted now
 
 // 5. Application Stack — depends on ContextAnalysisStack
-const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
+const appStack = new BearlyMailStack(app, "BearlyMailStack", {
   env,
-  description: 'BearlyMail - Application (ECS services, S3, CloudFront)',
+  description: "BearlyMail - Application (ECS services, S3, CloudFront)",
   vpc: networkingStack.vpc,
   // ...existing props...
-  contextAnalysisQueue: contextAnalysisStack.queue,  // queue object, not URL string
+  contextAnalysisQueue: contextAnalysisStack.queue, // queue object, not URL string
 });
 
 appStack.addDependency(networkingStack);
 appStack.addDependency(secretsStack);
 appStack.addDependency(databaseStack);
-appStack.addDependency(contextAnalysisStack);  // NEW: appStack depends on contextAnalysisStack
+appStack.addDependency(contextAnalysisStack); // NEW: appStack depends on contextAnalysisStack
 ```
 
 ### Stack deployment order (new):
@@ -187,12 +195,14 @@ Moving the SQS queue from DatabaseStack to ContextAnalysisStack changes its Clou
 ### Mitigation
 
 The queues already have `removalPolicy: RETAIN`, so:
+
 1. CDK deploy removes them from DatabaseStack → CloudFormation marks for deletion → RETAIN policy keeps them alive
 2. ContextAnalysisStack creates "new" queues with the same `queueName` → **CloudFormation will fail** because the name is taken
 
 ### Safe migration path
 
 **Option A (recommended): Two-phase deployment**
+
 1. First deploy: Remove queues from DatabaseStack (they survive due to RETAIN). Don't add to ContextAnalysisStack yet.
 2. Manually delete the retained queues (they're empty, transient by nature)
 3. Second deploy: ContextAnalysisStack creates fresh queues with same names
@@ -209,13 +219,13 @@ Since context analysis is async and retries, a brief gap where the queue doesn't
 
 ## Files to Modify
 
-| File | Change | Priority |
-|------|--------|----------|
-| `infrastructure/lib/bearlymail-context-analysis-stack.ts` | Move SQS queue + DLQ back here; remove ecsTaskRoleArn prop | P0 |
-| `infrastructure/lib/bearlymail-database-stack.ts` | Remove SQS queue + DLQ; clean up exports | P0 |
-| `infrastructure/lib/bearlymail-stack.ts` | Accept queue object; call grantSendMessages locally | P0 |
-| `infrastructure/bin/bearlymail.ts` | Reorder stacks; invert dependency direction | P0 |
-| `infrastructure/DEPLOYMENT.md` | Document two-phase migration steps | P1 |
+| File                                                      | Change                                                     | Priority |
+| --------------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `infrastructure/lib/bearlymail-context-analysis-stack.ts` | Move SQS queue + DLQ back here; remove ecsTaskRoleArn prop | P0       |
+| `infrastructure/lib/bearlymail-database-stack.ts`         | Remove SQS queue + DLQ; clean up exports                   | P0       |
+| `infrastructure/lib/bearlymail-stack.ts`                  | Accept queue object; call grantSendMessages locally        | P0       |
+| `infrastructure/bin/bearlymail.ts`                        | Reorder stacks; invert dependency direction                | P0       |
+| `infrastructure/DEPLOYMENT.md`                            | Document two-phase migration steps                         | P1       |
 
 All other changes from v2 (removing feature flag, removing PgBoss fallback, env validation, etc.) remain correct and unchanged.
 

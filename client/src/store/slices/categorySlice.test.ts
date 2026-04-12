@@ -96,7 +96,10 @@ describe('categorySlice reducers', () => {
 
   describe('fetchError', () => {
     it('sets status to error with error details', () => {
-      const state = categoryReducer(emptyState, fetchError({ key: 'work', error: 'network fail', retryCount: 1, nextRetryAt: 5000 }));
+      const state = categoryReducer(
+        emptyState,
+        fetchError({ key: 'work', error: 'network fail', retryCount: 1, nextRetryAt: 5000 })
+      );
       expect(state.categories['work'].status).toBe('error');
       expect(state.categories['work'].error).toBe('network fail');
       expect(state.categories['work'].retryCount).toBe(1);
@@ -109,7 +112,10 @@ describe('categorySlice reducers', () => {
           work: { ...defaultCategoryState, status: 'loaded', emails: [mockEmail] },
         },
       };
-      const state = categoryReducer(loaded, fetchError({ key: 'work', error: 'fail', retryCount: 1, nextRetryAt: 5000 }));
+      const state = categoryReducer(
+        loaded,
+        fetchError({ key: 'work', error: 'fail', retryCount: 1, nextRetryAt: 5000 })
+      );
       expect(state.categories['work'].emails).toEqual([mockEmail]);
     });
   });

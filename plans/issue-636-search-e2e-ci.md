@@ -20,6 +20,7 @@ None of this works in CI. The existing `inbox-load-time.spec.ts` tests use a see
 **File:** `server/scripts/seed-search-data.ts`
 
 Create a script that:
+
 - Reuses the seeded test user from `seed-test-user.ts` (email: `test@example.com`)
 - Inserts deterministic email records into the database with known senders, subjects, and bodies
 - Covers the three test scenarios:
@@ -38,6 +39,7 @@ Add npm script: `"seed:search-data": "ts-node -r tsconfig-paths/register scripts
 **File:** `e2e/tests/search-debug.spec.ts`
 
 Changes needed:
+
 - **Remove filesystem log reading:** The `readSearchLogLines()` and `filterLogForQuery()` helpers read from `server/logs/search-system.log`, which won't exist in CI. Move log assertions to informational console output only (don't fail tests on missing logs).
 - **Use deterministic queries:** Replace ad-hoc queries ("test", "meeting") with queries that match the seeded data exactly.
 - **Split into CI-safe and debug-only files:**
@@ -50,6 +52,7 @@ Changes needed:
 **File:** `e2e/playwright.config.ts`
 
 Current config is macOS-centric (Chrome user data dir in `~/Library/Application Support/`):
+
 - Remove the persistent Chrome context for CI (`process.env.CI` check)
 - Use a fresh browser context in CI instead of a persistent Chrome profile
 - Uncomment the `webServer` config for CI so Playwright starts the dev server automatically, OR start client/server in the CI workflow before running tests
@@ -82,7 +85,7 @@ e2e-tests:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: "20"
     - name: Install server dependencies
       working-directory: server
       run: npm ci --legacy-peer-deps
@@ -91,19 +94,53 @@ e2e-tests:
       run: npm run build
     - name: Run migrations
       working-directory: server
-      env: { DB_HOST: localhost, DB_PORT: 5432, DB_USERNAME: test, DB_PASSWORD: test, DB_NAME: test }
+      env:
+        {
+          DB_HOST: localhost,
+          DB_PORT: 5432,
+          DB_USERNAME: test,
+          DB_PASSWORD: test,
+          DB_NAME: test,
+        }
       run: npx typeorm migration:run -d dist/data-source.js
     - name: Seed test user
       working-directory: server
-      env: { DB_HOST: localhost, DB_PORT: 5432, DB_USERNAME: test, DB_PASSWORD: test, DB_NAME: test, ENCRYPTION_KEY: test-encryption-key-32chars!! }
+      env:
+        {
+          DB_HOST: localhost,
+          DB_PORT: 5432,
+          DB_USERNAME: test,
+          DB_PASSWORD: test,
+          DB_NAME: test,
+          ENCRYPTION_KEY: test-encryption-key-32chars!!,
+        }
       run: npm run seed:test-user
     - name: Seed search data
       working-directory: server
-      env: { DB_HOST: localhost, DB_PORT: 5432, DB_USERNAME: test, DB_PASSWORD: test, DB_NAME: test, ENCRYPTION_KEY: test-encryption-key-32chars!! }
+      env:
+        {
+          DB_HOST: localhost,
+          DB_PORT: 5432,
+          DB_USERNAME: test,
+          DB_PASSWORD: test,
+          DB_NAME: test,
+          ENCRYPTION_KEY: test-encryption-key-32chars!!,
+        }
       run: npm run seed:search-data
     - name: Start server
       working-directory: server
-      env: { DB_HOST: localhost, DB_PORT: 5432, DB_USERNAME: test, DB_PASSWORD: test, DB_NAME: test, JWT_SECRET: test-jwt-secret, ENCRYPTION_KEY: test-encryption-key-32chars!!, PORT: 3005, NODE_ENV: test }
+      env:
+        {
+          DB_HOST: localhost,
+          DB_PORT: 5432,
+          DB_USERNAME: test,
+          DB_PASSWORD: test,
+          DB_NAME: test,
+          JWT_SECRET: test-jwt-secret,
+          ENCRYPTION_KEY: test-encryption-key-32chars!!,
+          PORT: 3005,
+          NODE_ENV: test,
+        }
       run: node dist/main.js &
     - name: Install client dependencies
       working-directory: client
@@ -117,7 +154,13 @@ e2e-tests:
       run: npx playwright install --with-deps chromium
     - name: Run e2e tests
       working-directory: e2e
-      env: { CI: true, PLAYWRIGHT_BASE_URL: http://localhost:3000, TEST_EMAIL: test@example.com, TEST_PASSWORD: testpassword }
+      env:
+        {
+          CI: true,
+          PLAYWRIGHT_BASE_URL: http://localhost:3000,
+          TEST_EMAIL: test@example.com,
+          TEST_PASSWORD: testpassword,
+        }
       run: npx playwright test search-ci.spec.ts inbox-load-time.spec.ts
     - name: Upload test report
       if: always()
@@ -132,6 +175,7 @@ e2e-tests:
 **File:** `e2e/README.md` (create if doesn't exist)
 
 Document:
+
 - How to run e2e tests locally vs in CI
 - How the seed data works
 - Which test files are CI-only vs debug-only

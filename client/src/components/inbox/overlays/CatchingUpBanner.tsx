@@ -46,9 +46,7 @@ export const CatchingUpBanner: React.FC = () => {
         }}
         aria-hidden="true"
       />
-      <span>
-        {t('inbox.catchingUp', { remaining: progress.remaining })}
-      </span>
+      <span>{t('inbox.catchingUp', { remaining: progress.remaining })}</span>
     </div>
   );
 };

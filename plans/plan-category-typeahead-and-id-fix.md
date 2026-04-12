@@ -3,6 +3,7 @@
 ## Overview
 
 Two related changes to `CategoryOverrideModal`:
+
 1. **Typeahead filter** — replace the native `<select>` with a filterable combobox
 2. **Bug fix** — send `categoryId` (UUID) instead of `category` (name string) in the override API call
 
@@ -15,9 +16,10 @@ Both touch the same component and share the same root cause: the modal currently
 ### Problem
 
 `CategoryOverrideModal` (line 140) sends:
+
 ```ts
 await axios.post(`${API_URL}/emails/${emailId}/category-override`, {
-  category: resolvedCategory,  // ← name string like "📚 PhD research"
+  category: resolvedCategory, // ← name string like "📚 PhD research"
   reason: reasonText.trim() || undefined,
 });
 ```
@@ -62,19 +64,21 @@ interface CategoryOption {
 
 // In the useEffect (line 98–109), change:
 // FROM:
-axios.get<string[]>(`${API_URL}/emails/categories`)
+axios.get<string[]>(`${API_URL}/emails/categories`);
 // TO:
 axios.get<{ categories: { id: string | null; name: string; count: number }[] }>(
-  `${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`
-)
+  `${API_URL}/emails/inbox-summary?mode=triage&includeThreadIds=false`,
+);
 // Then map to CategoryOption[], filtering out currentCategory by name
 ```
 
 **State changes:**
+
 - `existingCategories` type: `string[]` → `CategoryOption[]`
 - `selectedCategory` type: `string` → `string` (stores the **id** now, not the name)
 
 **Submit handler (line 136–145):** Change payload:
+
 ```ts
 // FROM:
 { category: resolvedCategory, reason: ... }
@@ -86,6 +90,7 @@ axios.get<{ categories: { id: string | null; name: string; count: number }[] }>(
 #### Server: `server/src/emails/emails.controller.ts` (line 593–604)
 
 **Change the body type:**
+
 ```ts
 // FROM:
 @Body() body: { category: string; reason?: string }
@@ -99,6 +104,7 @@ Pass through to service: prefer `categoryId` if present, fall back to `category`
 #### Server: `server/src/emails/email-archive.service.ts` (line 242–315)
 
 **Add `categoryId` parameter path:**
+
 ```ts
 async overrideCategory(
   userId: string,
@@ -110,11 +116,13 @@ async overrideCategory(
 ```
 
 When `categoryId` is provided:
+
 - Skip the name→UUID reverse lookup (lines 275–285)
 - Use `categoryId` directly for the `emailThreadRepository.update`
 - Still store `newCategory` (name) in `category_overrides.userCategory` for the audit trail
 
 When `categoryId` is NOT provided (backward compat):
+
 - Existing name→UUID lookup logic remains unchanged
 
 #### Server: `server/src/emails/emails.service.ts` (line 489–500)
@@ -136,6 +144,7 @@ After this change, the endpoint at controller line 136–141 is fully unused. Ad
 ### Existing pattern to reuse
 
 `client/src/components/quick-actions/modals/github/ProjectStatusSelector.tsx` (312 lines) implements a full combobox with:
+
 - Text input for filtering
 - Filtered dropdown list with `role="listbox"` / `role="option"`
 - Keyboard navigation (ArrowUp/Down, Enter, Escape)
@@ -155,13 +164,13 @@ Replace the native `<select>` in `CategorySelectField` (lines 37–56) with:
 
 ```tsx
 // State additions in CategorySelectField:
-const [searchTerm, setSearchTerm] = useState('');
+const [searchTerm, setSearchTerm] = useState("");
 const [isOpen, setIsOpen] = useState(false);
 const [highlightedIndex, setHighlightedIndex] = useState(0);
 
 // Filtering:
-const filtered = existingCategories.filter(cat =>
-  cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+const filtered = existingCategories.filter((cat) =>
+  cat.name.toLowerCase().includes(searchTerm.toLowerCase()),
 );
 
 // Render:
@@ -217,6 +226,7 @@ Add to `client/src/locales/en.json` under `priority.categoryOverride`:
 ### Styling
 
 Match the existing `selectStyle` dimensions and colors. The dropdown should:
+
 - Appear below the input
 - Have `maxHeight: 200px` with `overflowY: 'auto'`
 - Use `position: absolute` + `zIndex: 10002` (modal is 10001)
@@ -228,13 +238,13 @@ Match the existing `selectStyle` dimensions and colors. The dropdown should:
 
 ## File change summary
 
-| File | Lines | Change |
-|------|-------|--------|
+| File                                                       | Lines                                                         | Change                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `client/src/components/priority/CategoryOverrideModal.tsx` | 11–59 (CategorySelectField), 82–109 (fetch), 136–145 (submit) | Major: new combobox UI, fetch from inbox-summary, send categoryId |
-| `client/src/locales/en.json` | ~2132 | Add `filterPlaceholder`, `noMatch` keys |
-| `server/src/emails/emails.controller.ts` | 593–604 | Accept `categoryId` in body |
-| `server/src/emails/emails.service.ts` | 489–500 | Thread `categoryId` param |
-| `server/src/emails/email-archive.service.ts` | 242–315 | Add `categoryId` fast path, keep name fallback |
+| `client/src/locales/en.json`                               | ~2132                                                         | Add `filterPlaceholder`, `noMatch` keys                           |
+| `server/src/emails/emails.controller.ts`                   | 593–604                                                       | Accept `categoryId` in body                                       |
+| `server/src/emails/emails.service.ts`                      | 489–500                                                       | Thread `categoryId` param                                         |
+| `server/src/emails/email-archive.service.ts`               | 242–315                                                       | Add `categoryId` fast path, keep name fallback                    |
 
 ## Test plan
 
@@ -251,4 +261,4 @@ Match the existing `selectStyle` dimensions and colors. The dropdown should:
 
 ---
 
-*Plan by Monk of Modularity 🧘*
+_Plan by Monk of Modularity 🧘_

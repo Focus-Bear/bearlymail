@@ -8,7 +8,7 @@ export type IsCurrentUserFn = (addr: string) => boolean;
 export function buildReplyAllRecipients(
   targetEmail: Pick<Email, 'from' | 'to' | 'cc' | 'replyTo'>,
   isCurrentUser: IsCurrentUserFn,
-  isTargetFromCurrentUser: boolean | '' | undefined,
+  isTargetFromCurrentUser: boolean | '' | undefined
 ): { recipients: string; cc: string | null } {
   const recipients: string[] = [];
   if (isTargetFromCurrentUser) {

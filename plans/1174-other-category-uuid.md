@@ -35,20 +35,21 @@ const idToName = new Map<string, string>(); // no "Other" entry
 
 const requestedNames = new Set(
   filters.categoryIds
-    .map((id) => idToName.get(id))  // idToName.get("Other") → undefined
+    .map((id) => idToName.get(id)) // idToName.get("Other") → undefined
     .filter((name): name is string => name !== undefined),
 );
 // requestedNames = Set {} (EMPTY!)
 
 // Fix #1114 guard: 0 resolved names → RETURN EMPTY []
 if (requestedNames.size === 0) {
-  return { emails: [], blockedCount: 0 };  // ← THIS is why Other shows 0 emails
+  return { emails: [], blockedCount: 0 }; // ← THIS is why Other shows 0 emails
 }
 ```
 
 #### `getInboxSummary` (line ~538)
 
 Same pattern:
+
 ```typescript
 const categoryNamesFromIds = new Set(
   filters.categoryIds
@@ -65,6 +66,7 @@ if (categoryNamesFromIds.size === 0) {
 ### 4. The `llm-processor.ts` confirms design intent
 
 In `llm-processor.ts`, when a thread is categorised as "Other":
+
 - `categoryId` is explicitly set to `null` (line ~1532: `categoryId = null`)
 - The `lookupCategoryContextId` helper explicitly returns `null` for "Other" (line ~1493)
 - This is **by design** — "Other" threads intentionally have no UUID
@@ -88,6 +90,7 @@ When `categoryIds` contains the string `"Other"` (or a UUID that resolves to the
 #### A. `server/src/emails/emails.service.ts` — `applyPostQueryFilters`
 
 **Before:** (lines ~1190–1224)
+
 ```typescript
 if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const requestedUuids = new Set(filters.categoryIds);
@@ -108,6 +111,7 @@ if (filters?.categoryIds && filters.categoryIds.length > 0) {
 ```
 
 **After:**
+
 ```typescript
 if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const requestedUuids = new Set(filters.categoryIds);
@@ -165,6 +169,7 @@ if (filters?.categoryIds && filters.categoryIds.length > 0) {
 Same pattern. The `visibleCategories` filter must allow "Other" through when `categoryIds` contains `"Other"`.
 
 **Before:** (lines ~538–556)
+
 ```typescript
 if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const requestedUuids = new Set(filters.categoryIds);
@@ -182,6 +187,7 @@ if (filters?.categoryIds && filters.categoryIds.length > 0) {
 ```
 
 **After:**
+
 ```typescript
 if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const otherRequested = filters.categoryIds.includes("Other");
@@ -223,10 +229,10 @@ The client correctly sends `categoryIds=Other` because `getCategoryKey(null, "Ot
 
 ## Files to change
 
-| File | Section | Change |
-|------|---------|--------|
+| File                                  | Section                              | Change                                                                                              |
+| ------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | `server/src/emails/emails.service.ts` | `applyPostQueryFilters` (~line 1190) | Detect `"Other"` in `categoryIds`, short-circuit Fix #1114 guard, include Other in filter predicate |
-| `server/src/emails/emails.service.ts` | `getInboxSummary` (~line 538) | Same pattern — detect `"Other"`, allow it through `visibleCategories` filter |
+| `server/src/emails/emails.service.ts` | `getInboxSummary` (~line 538)        | Same pattern — detect `"Other"`, allow it through `visibleCategories` filter                        |
 
 ---
 
@@ -241,6 +247,7 @@ The client correctly sends `categoryIds=Other` because `getCategoryKey(null, "Ot
 ## Regression risk
 
 **Low.** The change is additive:
+
 - The Fix #1114 guard is preserved for genuine stale UUIDs (all UUIDs that aren't "Other")
 - The fallback name-based path is preserved for pre-backfill threads
 - "Other" detection is a simple string check on a value the client already sends
@@ -257,4 +264,4 @@ The only risk is if a real category UUID somehow equals the string `"Other"`, wh
 
 ---
 
-*Plan authored by Monk of Modularity | Issue #1174 | 2026-03-18*
+_Plan authored by Monk of Modularity | Issue #1174 | 2026-03-18_

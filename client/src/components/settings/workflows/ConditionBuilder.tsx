@@ -12,21 +12,12 @@ interface ConditionBuilderProps {
  * Builds the "When" condition part of a workflow rule.
  * Supports from/subject patterns and optional natural-language condition.
  */
-export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
-  condition,
-  onChange,
-}) => {
+export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ condition, onChange }) => {
   const [fromInput, setFromInput] = useState('');
   const [subjectInput, setSubjectInput] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(
-    Boolean(condition.naturalLanguageCondition),
-  );
+  const [showAdvanced, setShowAdvanced] = useState(Boolean(condition.naturalLanguageCondition));
 
-  const addPattern = (
-    field: 'fromPatterns' | 'subjectPatterns',
-    value: string,
-    clearInput: () => void,
-  ) => {
+  const addPattern = (field: 'fromPatterns' | 'subjectPatterns', value: string, clearInput: () => void) => {
     const trimmed = value.trim();
     if (!trimmed) {
       return;
@@ -61,8 +52,8 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
           patterns={condition.fromPatterns}
           inputValue={fromInput}
           onInputChange={setFromInput}
-          onAdd={(inputVal) => addPattern('fromPatterns', inputVal, () => setFromInput(''))}
-          onRemove={(idx) => removePattern('fromPatterns', idx)}
+          onAdd={inputVal => addPattern('fromPatterns', inputVal, () => setFromInput(''))}
+          onRemove={idx => removePattern('fromPatterns', idx)}
           placeholder="*@upwork.com"
         />
       </div>
@@ -77,8 +68,8 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
           patterns={condition.subjectPatterns}
           inputValue={subjectInput}
           onInputChange={setSubjectInput}
-          onAdd={(inputVal) => addPattern('subjectPatterns', inputVal, () => setSubjectInput(''))}
-          onRemove={(idx) => removePattern('subjectPatterns', idx)}
+          onAdd={inputVal => addPattern('subjectPatterns', inputVal, () => setSubjectInput(''))}
+          onRemove={idx => removePattern('subjectPatterns', idx)}
           placeholder="billing summary"
         />
       </div>
@@ -88,7 +79,14 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.primary.main, fontSize: 13, padding: 0 }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.colors.primary.main,
+            fontSize: 13,
+            padding: 0,
+          }}
         >
           {showAdvanced ? '▲ Hide advanced' : '▼ Advanced (AI condition)'}
         </button>
@@ -100,9 +98,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
             </p>
             <textarea
               value={condition.naturalLanguageCondition ?? ''}
-              onChange={(evt) =>
-                onChange({ ...condition, naturalLanguageCondition: evt.target.value || null })
-              }
+              onChange={evt => onChange({ ...condition, naturalLanguageCondition: evt.target.value || null })}
               placeholder="Describe when this workflow should trigger…"
               style={{
                 width: '100%',
@@ -159,7 +155,14 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
           <button
             type="button"
             onClick={() => onRemove(idx)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.secondary, padding: 0, lineHeight: 1 }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: theme.colors.text.secondary,
+              padding: 0,
+              lineHeight: 1,
+            }}
           >
             ×
           </button>
@@ -170,8 +173,8 @@ const PatternTagInput: React.FC<PatternTagInputProps> = ({
       <input
         type="text"
         value={inputValue}
-        onChange={(evt) => onInputChange(evt.target.value)}
-        onKeyDown={(evt) => {
+        onChange={evt => onInputChange(evt.target.value)}
+        onKeyDown={evt => {
           if (evt.key === 'Enter' || evt.key === ',') {
             evt.preventDefault();
             onAdd(inputValue);

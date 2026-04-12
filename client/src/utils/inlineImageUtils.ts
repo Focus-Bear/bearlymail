@@ -19,12 +19,12 @@ export function replaceBlobUrlsWithCids(html: string): string {
   // Case 1: src appears before data-cid
   let result = html.replace(
     /<img([^>]*?)src="blob:[^"]*"([^>]*?)data-cid="([^"]*)"([^>]*?)>/g,
-    '<img$1src="cid:$3"$2data-cid="$3"$4>',
+    '<img$1src="cid:$3"$2data-cid="$3"$4>'
   );
   // Case 2: data-cid appears before src
   result = result.replace(
     /<img([^>]*?)data-cid="([^"]*)"([^>]*?)src="blob:[^"]*"([^>]*?)>/g,
-    '<img$1data-cid="$2"$3src="cid:$2"$4>',
+    '<img$1data-cid="$2"$3src="cid:$2"$4>'
   );
   return result;
 }

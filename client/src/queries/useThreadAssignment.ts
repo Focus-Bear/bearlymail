@@ -12,10 +12,9 @@ export function useAssignThread() {
   const queryClient = useQueryClient();
   return useMutation<EmailThread, Error, { threadId: string; assigneeUserId: string }>({
     mutationFn: async ({ threadId, assigneeUserId }) => {
-      const { data } = await axios.patch<EmailThread>(
-        `${API_URL}/emails/threads/${threadId}/assign`,
-        { assigneeUserId },
-      );
+      const { data } = await axios.patch<EmailThread>(`${API_URL}/emails/threads/${threadId}/assign`, {
+        assigneeUserId,
+      });
       return data;
     },
     onSuccess: () => {
@@ -27,7 +26,7 @@ export function useAssignThread() {
 export function useUnassignThread() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
-    mutationFn: async (threadId) => {
+    mutationFn: async threadId => {
       await axios.delete(`${API_URL}/emails/threads/${threadId}/assign`);
     },
     onSuccess: () => {

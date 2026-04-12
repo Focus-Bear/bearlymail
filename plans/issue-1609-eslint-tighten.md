@@ -23,19 +23,19 @@
 - **Actual output:** 0 errors, **191 warnings**
 - **Warning breakdown by rule:**
 
-| Count | Rule | Severity |
-|------:|------|----------|
-| 77 | `max-lines-per-function` | warn |
-| 52 | `no-restricted-syntax` | warn |
-| 21 | `id-denylist` | warn |
-| 12 | `no-nested-ternary` | warn |
-| 8 | `react-hooks/exhaustive-deps` | warn |
-| 8 | `max-statements` | warn |
-| 5 | `complexity` | warn |
-| 5 | `react/no-array-index-key` | warn |
-| 1 | `max-lines` | warn |
-| 1 | `@typescript-eslint/no-unused-vars` | warn |
-| 1 | `no-restricted-imports` | warn |
+| Count | Rule                                | Severity |
+| ----: | ----------------------------------- | -------- |
+|    77 | `max-lines-per-function`            | warn     |
+|    52 | `no-restricted-syntax`              | warn     |
+|    21 | `id-denylist`                       | warn     |
+|    12 | `no-nested-ternary`                 | warn     |
+|     8 | `react-hooks/exhaustive-deps`       | warn     |
+|     8 | `max-statements`                    | warn     |
+|     5 | `complexity`                        | warn     |
+|     5 | `react/no-array-index-key`          | warn     |
+|     1 | `max-lines`                         | warn     |
+|     1 | `@typescript-eslint/no-unused-vars` | warn     |
+|     1 | `no-restricted-imports`             | warn     |
 
 - **Magic numbers:** `no-magic-numbers` → `error` ✅ (already enforced)
 - **Magic strings:** `no-restricted-syntax` selectors → `warn` ⚠️ (should be `error`)
@@ -73,6 +73,7 @@ This is the bulk of the work. Split into sub-phases to keep PRs reviewable.
 #### Phase 2A: Promote `no-restricted-syntax` from `warn` → `error` (52 warnings)
 
 The magic-strings enforcement selectors are at `warn`. These should be `error` to match server parity. Fix the 52 violations first:
+
 - Most are magic string comparisons that need extracting to constants
 - Switch cases with string literals need constant references
 - JSX ternary/logical expressions need `t()` i18n wrapping
@@ -82,6 +83,7 @@ The magic-strings enforcement selectors are at `warn`. These should be `error` t
 #### Phase 2B: Fix `max-lines-per-function` violations (77 warnings)
 
 The largest category. Options:
+
 - Extract sub-components from large React components
 - Extract utility functions from long handlers
 - Where genuinely complex (page components), the existing override for `**/pages/*.tsx` (200 lines) already exists — may need a few more targeted overrides or component splits
@@ -96,22 +98,23 @@ Rename variables using generic names (`data`, `val`, `obj`, etc.) to descriptive
 
 #### Phase 2D: Fix remaining warnings (41 total)
 
-| Count | Rule | Fix approach |
-|------:|------|-------------|
-| 12 | `no-nested-ternary` | Refactor to if/else or extract to variables |
-| 8 | `react-hooks/exhaustive-deps` | Add missing deps or wrap in useCallback |
-| 8 | `max-statements` | Extract helper functions |
-| 5 | `complexity` | Simplify branching or extract strategies |
-| 5 | `react/no-array-index-key` | Use stable keys from data |
-| 1 | `max-lines` | Split large file |
-| 1 | `@typescript-eslint/no-unused-vars` | Remove unused variable |
-| 1 | `no-restricted-imports` | Convert to absolute import |
+| Count | Rule                                | Fix approach                                |
+| ----: | ----------------------------------- | ------------------------------------------- |
+|    12 | `no-nested-ternary`                 | Refactor to if/else or extract to variables |
+|     8 | `react-hooks/exhaustive-deps`       | Add missing deps or wrap in useCallback     |
+|     8 | `max-statements`                    | Extract helper functions                    |
+|     5 | `complexity`                        | Simplify branching or extract strategies    |
+|     5 | `react/no-array-index-key`          | Use stable keys from data                   |
+|     1 | `max-lines`                         | Split large file                            |
+|     1 | `@typescript-eslint/no-unused-vars` | Remove unused variable                      |
+|     1 | `no-restricted-imports`             | Convert to absolute import                  |
 
 **Files changed:** ~25-30 source files
 
 #### Phase 2E: Promote all client `warn` rules to `error` + add `--max-warnings=0`
 
 After all violations are fixed:
+
 1. Change every `'warn'` in `client/.eslintrc.js` to `'error'`
 2. Add `--max-warnings=0` to the client lint script in `package.json`
 3. Update test/config overrides: change `'warn'` to either `'off'` (if intentionally relaxed) or `'error'`

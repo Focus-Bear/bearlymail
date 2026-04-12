@@ -61,7 +61,7 @@ function generateInlineCid(): string {
 function buildPasteHandler(
   onPasteFiles?: (files: File[]) => void,
   onInlineImage?: (cid: string, file: File) => void,
-  trackBlobUrl?: (url: string) => void,
+  trackBlobUrl?: (url: string) => void
 ) {
   return (_view: EditorView, event: ClipboardEvent): boolean => {
     const items = event.clipboardData?.items;
@@ -93,9 +93,7 @@ function buildPasteHandler(
         const blobUrl = URL.createObjectURL(file);
         trackBlobUrl?.(blobUrl);
         _view.dispatch(
-          _view.state.tr.replaceSelectionWith(
-            _view.state.schema.nodes.image.create({ src: blobUrl, 'data-cid': cid }),
-          ),
+          _view.state.tr.replaceSelectionWith(_view.state.schema.nodes.image.create({ src: blobUrl, 'data-cid': cid }))
         );
         onInlineImage?.(cid, file);
       });
@@ -143,7 +141,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Placeholder is keyed to `placeholder` prop, so it must be in the deps.
   const extensions = useMemo(
     () => [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false, orderedList: false, listItem: false, link: false, underline: false }),
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        link: false,
+        underline: false,
+      }),
       BulletList.extend({
         addInputRules() {
           return [];
@@ -180,20 +185,20 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }),
       createLinkShortcut(() => linkShortcutCallbackRef.current()),
     ],
-    [placeholder], // eslint deps: createLinkShortcut is module-level (stable); linkShortcutCallbackRef is a ref (stable)
+    [placeholder] // eslint deps: createLinkShortcut is module-level (stable); linkShortcutCallbackRef is a ref (stable)
   );
 
   // Stable paste handler that delegates to the latest callback refs.
   // Deps are intentionally [] — both refs are stable objects; no reactive values accessed.
   const stablePasteHandler = useCallback(
     buildPasteHandler(
-      (files) => onPasteFilesRef.current?.(files),
+      files => onPasteFilesRef.current?.(files),
       (cid, file) => onInlineImageRef.current?.(cid, file),
-      (url) => {
+      url => {
         blobUrlsRef.current.push(url);
-      },
+      }
     ),
-    [], // onPasteFilesRef, onInlineImageRef, and blobUrlsRef are refs (stable across renders)
+    [] // onPasteFilesRef, onInlineImageRef, and blobUrlsRef are refs (stable across renders)
   );
 
   // Revoke blob URLs when the editor unmounts to prevent memory leaks.

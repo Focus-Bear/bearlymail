@@ -76,9 +76,7 @@ const MOCK_OTHER = [
 
 const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <I18nextProvider i18n={i18n}>
-    <div style={{ maxWidth: 700, margin: '0 auto' }}>
-      {children}
-    </div>
+    <div style={{ maxWidth: 700, margin: '0 auto' }}>{children}</div>
   </I18nextProvider>
 );
 
@@ -117,9 +115,7 @@ const InteractiveQAndASection: React.FC<{
 export const WithPendingAndApproved: Story = {
   render: () => (
     <Wrapper>
-      <InteractiveQAndASection
-        initialContexts={[...MOCK_PENDING, ...MOCK_APPROVED, ...MOCK_OTHER]}
-      />
+      <InteractiveQAndASection initialContexts={[...MOCK_PENDING, ...MOCK_APPROVED, ...MOCK_OTHER]} />
     </Wrapper>
   ),
 };
@@ -127,9 +123,7 @@ export const WithPendingAndApproved: Story = {
 export const PendingOnly: Story = {
   render: () => (
     <Wrapper>
-      <InteractiveQAndASection
-        initialContexts={[...MOCK_PENDING, ...MOCK_OTHER]}
-      />
+      <InteractiveQAndASection initialContexts={[...MOCK_PENDING, ...MOCK_OTHER]} />
     </Wrapper>
   ),
 };
@@ -137,9 +131,7 @@ export const PendingOnly: Story = {
 export const ApprovedOnly: Story = {
   render: () => (
     <Wrapper>
-      <InteractiveQAndASection
-        initialContexts={[...MOCK_APPROVED, ...MOCK_OTHER]}
-      />
+      <InteractiveQAndASection initialContexts={[...MOCK_APPROVED, ...MOCK_OTHER]} />
     </Wrapper>
   ),
 };

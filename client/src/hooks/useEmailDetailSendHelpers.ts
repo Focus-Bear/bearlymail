@@ -58,8 +58,7 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
 }
 
 export async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
-  const hasAttachments =
-    payload.files.length > 0 || (payload.inlineImages && payload.inlineImages.size > 0);
+  const hasAttachments = payload.files.length > 0 || (payload.inlineImages && payload.inlineImages.size > 0);
   if (hasAttachments) {
     const formData = buildSendReplyFormData(payload);
     await axios.post(`${API_URL}/replies/send/${payload.emailId}`, formData, {

@@ -10,7 +10,7 @@ interface ExpectedReplyRowProps {
   sending: boolean;
   checkingTone: boolean;
   tooltipText: string;
-  getOptionLabel: (option: typeof EXPECTED_REPLY_OPTIONS[number]) => string;
+  getOptionLabel: (option: (typeof EXPECTED_REPLY_OPTIONS)[number]) => string;
   onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
@@ -57,7 +57,7 @@ export const ExpectedReplyRow: React.FC<ExpectedReplyRowProps> = ({
           cursor: isDisabled ? 'not-allowed' : 'pointer',
         }}
       >
-        {EXPECTED_REPLY_OPTIONS.map((option) => (
+        {EXPECTED_REPLY_OPTIONS.map(option => (
           <option key={option.value} value={option.value}>
             {getOptionLabel(option)}
           </option>

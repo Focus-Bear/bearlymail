@@ -47,7 +47,10 @@ const categorySlice = createSlice({
       const { key, emails, fetchedAt } = action.payload;
       state.categories[key] = { ...DEFAULT_CATEGORY_STATE, status: STATUS_LOADED, emails, fetchedAt };
     },
-    fetchError: (state, action: PayloadAction<{ key: string; error: string; retryCount: number; nextRetryAt: number }>) => {
+    fetchError: (
+      state,
+      action: PayloadAction<{ key: string; error: string; retryCount: number; nextRetryAt: number }>
+    ) => {
       const { key, error, retryCount, nextRetryAt } = action.payload;
       const existing = state.categories[key] ?? DEFAULT_CATEGORY_STATE;
       state.categories[key] = { ...existing, status: 'error', error, retryCount, nextRetryAt };
@@ -59,34 +62,37 @@ const categorySlice = createSlice({
     markStale: (state, action: PayloadAction<string>) => {
       const existing = state.categories[action.payload] ?? DEFAULT_CATEGORY_STATE;
       // Always initialize the entry (idle if new); only transition to stale if currently loaded.
-      state.categories[action.payload] = existing.status === STATUS_LOADED
-        ? { ...existing, status: STATUS_STALE }
-        : { ...existing };
+      state.categories[action.payload] =
+        existing.status === STATUS_LOADED ? { ...existing, status: STATUS_STALE } : { ...existing };
     },
     resetCategory: (state, action: PayloadAction<string>) => {
       state.categories[action.payload] = { ...DEFAULT_CATEGORY_STATE };
     },
-    resetAll: (state) => {
+    resetAll: state => {
       state.categories = {};
     },
   },
 });
 
-export const { fetchStart, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll } = categorySlice.actions;
+export const { fetchStart, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll } =
+  categorySlice.actions;
 
 export default categorySlice.reducer;
 
 export const selectAllCategoryStates = (state: { category: CategorySliceState }) => state.category.categories;
 
-export const selectCategoryState = (key: string) =>
+export const selectCategoryState =
+  (key: string) =>
   (state: { category: CategorySliceState }): CategoryFetchState =>
     state.category.categories[key] ?? DEFAULT_CATEGORY_STATE;
 
-export const selectCategoryStatus = (key: string) =>
+export const selectCategoryStatus =
+  (key: string) =>
   (state: { category: CategorySliceState }): CategoryFetchStatus =>
     state.category.categories[key]?.status ?? 'idle';
 
-export const selectCategoryEmails = (key: string) =>
+export const selectCategoryEmails =
+  (key: string) =>
   (state: { category: CategorySliceState }): Email[] =>
     state.category.categories[key]?.emails ?? [];
 

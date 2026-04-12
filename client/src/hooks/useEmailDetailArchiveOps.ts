@@ -66,8 +66,18 @@ async function executeSnoozeOp(params: {
   setShowSnoozeInput?: (v: boolean) => void;
   clearInputs: boolean;
 }) {
-  const { id, duration, emailToSnooze, dispatch, options, navigate, getInboxPath, setSnoozeInput, setShowSnoozeInput, clearInputs } =
-    params;
+  const {
+    id,
+    duration,
+    emailToSnooze,
+    dispatch,
+    options,
+    navigate,
+    getInboxPath,
+    setSnoozeInput,
+    setShowSnoozeInput,
+    clearInputs,
+  } = params;
   if (emailToSnooze) {
     dispatch(removeEmail(id));
     dispatch(addOptimisticSnooze(id));

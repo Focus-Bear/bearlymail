@@ -118,11 +118,7 @@ function useCategoryFetchEffects({
     dispatched: Set<string>
   ) =>
     Array.from(expandedCategoriesRef.current).filter(
-      key =>
-        !loaded.includes(key) &&
-        !loading.includes(key) &&
-        !exhausted.includes(key) &&
-        !dispatched.has(key)
+      key => !loaded.includes(key) && !loading.includes(key) && !exhausted.includes(key) && !dispatched.has(key)
     );
 
   const limboDispatchedRef = useRef<Set<string>>(new Set());
@@ -162,7 +158,14 @@ function useCategoryFetchEffects({
           limboDispatchedRef.current.delete(categoryKey);
         });
     });
-  }, [categorySummary, loadedCategoryNames, loadingCategoryNames, exhaustedCategoryNames, fetchCategoryEmails, expandedCategoriesRef]);
+  }, [
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    exhaustedCategoryNames,
+    fetchCategoryEmails,
+    expandedCategoriesRef,
+  ]);
 }
 
 /**
@@ -249,9 +252,7 @@ export function useInboxCategoryAccordion({
     }
 
     const validKeys = new Set(
-      categorySummary
-        .filter(cat => (cat.count ?? 1) > 0)
-        .map(cat => getCategoryKey(cat.id, cat.name))
+      categorySummary.filter(cat => (cat.count ?? 1) > 0).map(cat => getCategoryKey(cat.id, cat.name))
     );
 
     setExpandedCategories(prev => {

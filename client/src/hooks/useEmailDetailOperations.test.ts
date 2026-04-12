@@ -90,7 +90,13 @@ const createTestStore = (emails: Email[] = []) =>
   });
 
 const createMockState = () => ({
-  email: mockPartial<Email>({ id: TEST_EMAIL_ID, threadId: 'thread-1', subject: 'Test', from: 'test@test.com', body: 'Test body' }),
+  email: mockPartial<Email>({
+    id: TEST_EMAIL_ID,
+    threadId: 'thread-1',
+    subject: 'Test',
+    from: 'test@test.com',
+    body: 'Test body',
+  }),
   setEmail: jest.fn(),
   threadEmails: [],
   setThreadEmails: jest.fn(),
@@ -565,10 +571,9 @@ describe('useEmailDetailOperations', () => {
       mockState.snoozeInput = '2h';
       const store = createTestStore([]);
 
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, mockState, { onSnoozeComplete }),
-        { wrapper: createWrapper(store) }
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, mockState, { onSnoozeComplete }), {
+        wrapper: createWrapper(store),
+      });
 
       await act(async () => {
         await result.current.handleSnooze('2h');
@@ -629,10 +634,9 @@ describe('useEmailDetailOperations', () => {
     it('starts countdown at 5 when dispute is accepted', async () => {
       const store = createTestStore();
       const state = createMockState();
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
-        { wrapper: createWrapper(store) },
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, state, {}), {
+        wrapper: createWrapper(store),
+      });
 
       mockedAxios.post.mockResolvedValueOnce({
         data: { accepted: true, rulesToRemove: [], explanation: 'ok', rulesUpdated: false, remainingRules: [] },
@@ -648,10 +652,9 @@ describe('useEmailDetailOperations', () => {
     it('does not start countdown when dispute is rejected', async () => {
       const store = createTestStore();
       const state = createMockState();
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
-        { wrapper: createWrapper(store) },
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, state, {}), {
+        wrapper: createWrapper(store),
+      });
 
       mockedAxios.post.mockResolvedValueOnce({
         data: { accepted: false, rulesToRemove: [], explanation: 'no', rulesUpdated: false, remainingRules: [] },
@@ -667,10 +670,9 @@ describe('useEmailDetailOperations', () => {
     it('cancelAutoSend resets countdown to null', () => {
       const store = createTestStore();
       const state = createMockState();
-      const { result } = renderHook(
-        () => useEmailDetailOperations(TEST_EMAIL_ID, state, {}),
-        { wrapper: createWrapper(store) },
-      );
+      const { result } = renderHook(() => useEmailDetailOperations(TEST_EMAIL_ID, state, {}), {
+        wrapper: createWrapper(store),
+      });
 
       act(() => {
         result.current.cancelAutoSend();

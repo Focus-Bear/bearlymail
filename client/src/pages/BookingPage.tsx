@@ -63,48 +63,51 @@ const BookingPage: React.FC = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  const fetchSlots = useCallback(async (currentOffset: number, append = false) => {
-    const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
-    const currentDaysAhead = append ? DAYS_AHEAD_LOAD_MORE : DAYS_AHEAD_INITIAL;
-    try {
-      if (append) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
+  const fetchSlots = useCallback(
+    async (currentOffset: number, append = false) => {
+      const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
+      const currentDaysAhead = append ? DAYS_AHEAD_LOAD_MORE : DAYS_AHEAD_INITIAL;
+      try {
+        if (append) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
+        }
 
-      const response = await axios.get(
-        `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`,
-        { headers: getAuthHeaders() },
-      );
+        const response = await axios.get(
+          `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`,
+          { headers: getAuthHeaders() }
+        );
 
-      if (append) {
-        setSlots(prev => {
-          const existingKeys = new Set(prev.map((slot: TimeSlot) => slot.start));
-          const newSlots = (response.data.slots as TimeSlot[]).filter(slot => !existingKeys.has(slot.start));
-          const merged = [...prev, ...newSlots];
-          return merged.sort((slotA, slotB) => new Date(slotA.start).getTime() - new Date(slotB.start).getTime());
-        });
-      } else {
-        setSlots(response.data.slots);
+        if (append) {
+          setSlots(prev => {
+            const existingKeys = new Set(prev.map((slot: TimeSlot) => slot.start));
+            const newSlots = (response.data.slots as TimeSlot[]).filter(slot => !existingKeys.has(slot.start));
+            const merged = [...prev, ...newSlots];
+            return merged.sort((slotA, slotB) => new Date(slotA.start).getTime() - new Date(slotB.start).getTime());
+          });
+        } else {
+          setSlots(response.data.slots);
+        }
+        setTimezone(response.data.timezone);
+        setHasMore(response.data.hasMore);
+        setSlotOffset(currentOffset + currentLimit);
+      } catch (error) {
+        console.error('Error fetching slots:', error);
+        const isHostView = Boolean(userId && user?.id && user.id === userId);
+        const serverMessage = getAxiosResponseErrorMessage(error);
+        if (isHostView) {
+          setError(serverMessage ?? t('booking.error.ownerFallback'));
+        } else {
+          setError(t('booking.failedToLoad'));
+        }
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
       }
-      setTimezone(response.data.timezone);
-      setHasMore(response.data.hasMore);
-      setSlotOffset(currentOffset + currentLimit);
-    } catch (error) {
-      console.error('Error fetching slots:', error);
-      const isHostView = Boolean(userId && user?.id && user.id === userId);
-      const serverMessage = getAxiosResponseErrorMessage(error);
-      if (isHostView) {
-        setError(serverMessage ?? t('booking.error.ownerFallback'));
-      } else {
-        setError(t('booking.failedToLoad'));
-      }
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [userId, user?.id, t, getAuthHeaders]);
+    },
+    [userId, user?.id, t, getAuthHeaders]
+  );
 
   useEffect(() => {
     if (userId) {
@@ -142,7 +145,7 @@ const BookingPage: React.FC = () => {
           additionalGuests,
           agenda: agenda.trim() || undefined,
         },
-        { headers: getAuthHeaders() },
+        { headers: getAuthHeaders() }
       );
       if (bookingResponse.data?.meetLink) {
         setMeetLink(bookingResponse.data.meetLink);
@@ -167,12 +170,7 @@ const BookingPage: React.FC = () => {
 
   if (error && slots.length === 0) {
     const isHostView = Boolean(userId && user?.id && user.id === userId);
-    return (
-      <BookingErrorState
-        showHostDiagnostic={isHostView}
-        hostDiagnosticText={isHostView ? error : undefined}
-      />
-    );
+    return <BookingErrorState showHostDiagnostic={isHostView} hostDiagnosticText={isHostView ? error : undefined} />;
   }
 
   if (bookingStatus === BOOKING_STATUS_SUCCESS) {

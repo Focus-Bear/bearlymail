@@ -6,7 +6,7 @@ import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
 
-import { getProviderOptions,type ProviderOption } from './providerSelectionModal.helpers';
+import { getProviderOptions, type ProviderOption } from './providerSelectionModal.helpers';
 
 export type { ProviderOption } from './providerSelectionModal.helpers';
 
@@ -82,8 +82,6 @@ const ProviderOptionCard: React.FC<ProviderOptionCardProps> = ({ provider, onSel
     </div>
   </button>
 );
-
-
 
 export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   isOpen,

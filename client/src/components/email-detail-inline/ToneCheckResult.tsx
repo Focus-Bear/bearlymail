@@ -543,11 +543,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
         />
       )}
       {autoSendCountdown !== null && onCancelAutoSend && onSendNow && (
-        <AutoSendCountdownBanner
-          countdown={autoSendCountdown}
-          onSendNow={onSendNow}
-          onCancel={onCancelAutoSend}
-        />
+        <AutoSendCountdownBanner countdown={autoSendCountdown} onSendNow={onSendNow} onCancel={onCancelAutoSend} />
       )}
     </div>
   );

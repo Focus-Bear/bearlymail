@@ -43,9 +43,7 @@ describe('extractUnsubscribeLink', () => {
 
   it('finds URL in plain text on the same line as keyword', () => {
     const body = 'To unsubscribe visit https://lists.example.com/unsub?u=123';
-    expect(extractUnsubscribeLink(undefined, body)).toBe(
-      'https://lists.example.com/unsub?u=123',
-    );
+    expect(extractUnsubscribeLink(undefined, body)).toBe('https://lists.example.com/unsub?u=123');
   });
 
   it('finds URL on the next line after keyword', () => {

@@ -32,7 +32,11 @@ In the catch block where batch failures are recorded (~line 670-700):
   logError(
     `[BATCH-PROCESSOR] Batch ${batchIndex + 1}/${totalBatches} failed: ${errorMessage}`,
     undefined,
-    { correlationId: batchCorrelationId, batchIndex, analysisId: analysisRecordId }
+    {
+      correlationId: batchCorrelationId,
+      batchIndex,
+      analysisId: analysisRecordId,
+    },
   );
   ```
 
@@ -45,12 +49,17 @@ Add error classification before storing the failure:
 ```ts
 function classifyBatchError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('rate limit') || message.includes('429')) return 'rate_limit';
-  if (message.includes('timeout') || message.includes('ETIMEDOUT')) return 'timeout';
-  if (message.includes('token') && message.includes('limit')) return 'token_limit';
-  if (message.includes('parse') || message.includes('JSON')) return 'parse_error';
-  if (message.includes('ECONNREFUSED') || message.includes('ENOTFOUND')) return 'network_error';
-  return 'unknown';
+  if (message.includes("rate limit") || message.includes("429"))
+    return "rate_limit";
+  if (message.includes("timeout") || message.includes("ETIMEDOUT"))
+    return "timeout";
+  if (message.includes("token") && message.includes("limit"))
+    return "token_limit";
+  if (message.includes("parse") || message.includes("JSON"))
+    return "parse_error";
+  if (message.includes("ECONNREFUSED") || message.includes("ENOTFOUND"))
+    return "network_error";
+  return "unknown";
 }
 ```
 
@@ -63,13 +72,15 @@ Store the classification: `{ error, failedAt, correlationId, errorType }`
 Ensure the endpoint that returns analysis data maps `stats.batchResults` into the `failureDetails` array with the new fields:
 
 ```ts
-failureDetails: Object.entries(stats.batchResults || {}).map(([idx, result]) => ({
-  batchIndex: Number(idx),
-  error: result.error,
-  failedAt: result.failedAt,
-  correlationId: result.correlationId || null,
-  errorType: result.errorType || 'unknown',
-}))
+failureDetails: Object.entries(stats.batchResults || {}).map(
+  ([idx, result]) => ({
+    batchIndex: Number(idx),
+    error: result.error,
+    failedAt: result.failedAt,
+    correlationId: result.correlationId || null,
+    errorType: result.errorType || "unknown",
+  }),
+);
 ```
 
 ### 4. Update the Admin UI (Client)
@@ -83,12 +94,13 @@ interface FailureDetail {
   batchIndex: number;
   error: string;
   failedAt: string | null;
-  correlationId: string | null;  // NEW
-  errorType: string | null;       // NEW
+  correlationId: string | null; // NEW
+  errorType: string | null; // NEW
 }
 ```
 
 In the failure details expansion panel, add for each failure:
+
 - An error type badge (color-coded: red for rate_limit, orange for timeout, etc.)
 - A copyable correlation ID button (reuse the existing copy-to-clipboard pattern)
 - A "View in PostHog" link: `https://app.posthog.com/events?properties=[{"key":"correlationId","value":"${correlationId}","operator":"exact"}]`
@@ -99,6 +111,7 @@ In the failure details expansion panel, add for each failure:
 **File:** `client/src/locales/en/translation.json` (and other locale files)
 
 Add keys:
+
 ```json
 {
   "admin.contextAnalysis.errorType": "Error Type",

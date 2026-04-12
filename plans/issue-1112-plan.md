@@ -10,23 +10,23 @@
 
 ### What Batch A Delivered (PR #1250 — merged)
 
-| Component | Status |
-|-----------|--------|
-| `Organization` entity (`organizations` table) | ✅ Merged |
-| `OrganizationMember` entity (`organization_members` table) | ✅ Merged |
+| Component                                                                                       | Status    |
+| ----------------------------------------------------------------------------------------------- | --------- |
+| `Organization` entity (`organizations` table)                                                   | ✅ Merged |
+| `OrganizationMember` entity (`organization_members` table)                                      | ✅ Merged |
 | `OrganizationsModule` (7 endpoints: create, get, invite, validate, accept, update role, remove) | ✅ Merged |
-| `InviteService` (SES email dispatch with HTML template) | ✅ Merged |
-| 17 unit tests (happy + error paths) | ✅ Merged |
-| DB migration `1786000000000-CreateOrganizationAndMember` | ✅ Merged |
+| `InviteService` (SES email dispatch with HTML template)                                         | ✅ Merged |
+| 17 unit tests (happy + error paths)                                                             | ✅ Merged |
+| DB migration `1786000000000-CreateOrganizationAndMember`                                        | ✅ Merged |
 
 ### What's Still Missing (Batches B–E)
 
-| Batch | Scope | Status |
-|-------|-------|--------|
-| B | Thread `assigneeId` column + assignment API | ❌ Not started |
-| C | Frontend: TeamSettings page, AcceptInvite page, inbox assignee filter | ❌ Not started |
-| D | TeamSubscription / RevenueCat seat-based billing | ❌ Not started |
-| E | E2E journey tests | ❌ Not started |
+| Batch | Scope                                                                 | Status         |
+| ----- | --------------------------------------------------------------------- | -------------- |
+| B     | Thread `assigneeId` column + assignment API                           | ❌ Not started |
+| C     | Frontend: TeamSettings page, AcceptInvite page, inbox assignee filter | ❌ Not started |
+| D     | TeamSubscription / RevenueCat seat-based billing                      | ❌ Not started |
+| E     | E2E journey tests                                                     | ❌ Not started |
 
 ---
 
@@ -102,13 +102,14 @@ assignee: User | null;
 
 Add to `OrganizationsController` (or a new `ThreadAssignmentController`):
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| PATCH | `/email-threads/:threadId/assign` | JWT (org member) | Assign thread to a member |
-| DELETE | `/email-threads/:threadId/assign` | JWT (org member) | Unassign thread |
-| GET | `/email-threads/assigned/:userId` | JWT (org member) | List threads assigned to a user |
+| Method | Path                              | Auth             | Description                     |
+| ------ | --------------------------------- | ---------------- | ------------------------------- |
+| PATCH  | `/email-threads/:threadId/assign` | JWT (org member) | Assign thread to a member       |
+| DELETE | `/email-threads/:threadId/assign` | JWT (org member) | Unassign thread                 |
+| GET    | `/email-threads/assigned/:userId` | JWT (org member) | List threads assigned to a user |
 
 **Business rules:**
+
 - Only active org members can assign/be assigned threads.
 - A thread can only be assigned to a member of the same org as the thread owner.
 - Assignee must be an active member with status `active`.
@@ -121,24 +122,26 @@ Extend `EmailInboxService` query builder to support an optional `assigneeId` fil
 
 ```typescript
 if (filters.assigneeId) {
-  qb.andWhere('thread.assigneeId = :assigneeId', { assigneeId: filters.assigneeId });
+  qb.andWhere("thread.assigneeId = :assigneeId", {
+    assigneeId: filters.assigneeId,
+  });
 }
-if (filters.assigneeId === 'unassigned') {
-  qb.andWhere('thread.assigneeId IS NULL');
+if (filters.assigneeId === "unassigned") {
+  qb.andWhere("thread.assigneeId IS NULL");
 }
 ```
 
 ### 3.5 Files to Create/Modify
 
-| File | Action |
-|------|--------|
-| `server/src/database/migrations/XXXXXX-AddAssigneeIdToEmailThread.ts` | Create |
-| `server/src/database/entities/email-thread.entity.ts` | Modify (add `assigneeId`, `assignee`) |
-| `server/src/emails/email-inbox.service.ts` | Modify (add assignee filter) |
-| `server/src/emails/emails.controller.ts` | Modify (add assign/unassign endpoints) |
-| `server/src/emails/dto/assign-thread.dto.ts` | Create |
-| `server/src/organizations/organizations.service.ts` | Modify (add helper: `getOrgMembersForUser`) |
-| Unit tests for assignment logic | Create |
+| File                                                                  | Action                                      |
+| --------------------------------------------------------------------- | ------------------------------------------- |
+| `server/src/database/migrations/XXXXXX-AddAssigneeIdToEmailThread.ts` | Create                                      |
+| `server/src/database/entities/email-thread.entity.ts`                 | Modify (add `assigneeId`, `assignee`)       |
+| `server/src/emails/email-inbox.service.ts`                            | Modify (add assignee filter)                |
+| `server/src/emails/emails.controller.ts`                              | Modify (add assign/unassign endpoints)      |
+| `server/src/emails/dto/assign-thread.dto.ts`                          | Create                                      |
+| `server/src/organizations/organizations.service.ts`                   | Modify (add helper: `getOrgMembersForUser`) |
+| Unit tests for assignment logic                                       | Create                                      |
 
 ### 3.6 Estimated PRs: 1–2
 
@@ -151,6 +154,7 @@ if (filters.assigneeId === 'unassigned') {
 **Route:** `/accept-invite/:token`
 
 **Flow:**
+
 1. Page loads → calls `GET /organizations/invite/:token` (public) to validate token.
 2. If invalid/expired → show error message with option to request new invite.
 3. If valid → show org name, inviter name, role. User clicks "Accept".
@@ -158,11 +162,13 @@ if (filters.assigneeId === 'unassigned') {
 5. If logged in → calls `POST /organizations/invite/:token/accept` → redirect to inbox.
 
 **Files to create:**
+
 - `client/src/pages/AcceptInvite.tsx`
 - `client/src/queries/useValidateInvite.ts`
 - `client/src/queries/useAcceptInvite.ts`
 
 **Route addition in `App.tsx`:**
+
 ```tsx
 <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 ```
@@ -172,6 +178,7 @@ if (filters.assigneeId === 'unassigned') {
 **Location:** New section in Settings page, or a dedicated `/settings/team` route.
 
 **Components:**
+
 - `client/src/components/settings/TeamSettingsSection.tsx` — main section
 - Show org name (editable by owner).
 - Member list with roles, status, invite date.
@@ -181,6 +188,7 @@ if (filters.assigneeId === 'unassigned') {
 - Pending invites with resend option.
 
 **Files to create:**
+
 - `client/src/components/settings/TeamSettingsSection.tsx`
 - `client/src/queries/useMyOrganization.ts`
 - `client/src/queries/useInviteMember.ts`
@@ -194,12 +202,14 @@ if (filters.assigneeId === 'unassigned') {
 **Location:** Inbox filter bar (alongside existing account/category/priority filters).
 
 **Behaviour:**
+
 - Only visible if user is in an org.
 - Dropdown: "All", "Assigned to me", "Unassigned", [list of team members].
 - Default: "All" (shows everything, same as current behaviour for non-org users).
 - Filter is passed to the inbox query as `assigneeId` parameter.
 
 **Files to modify:**
+
 - Inbox filter component (add assignee dropdown)
 - Inbox query hook (add assignee param)
 - `client/src/queries/useInboxThreads.ts` (or equivalent)
@@ -209,6 +219,7 @@ if (filters.assigneeId === 'unassigned') {
 **Location:** Thread detail view / email card.
 
 **Behaviour:**
+
 - "Assign" button/dropdown on thread detail.
 - Shows current assignee avatar + name.
 - Dropdown lists org members (fetched from `/organizations/me`).
@@ -218,6 +229,7 @@ if (filters.assigneeId === 'unassigned') {
 ### 4.5 i18n
 
 All new UI strings must go through i18next. Add keys to:
+
 - `client/src/locales/en/translation.json`
 - Other locale files as needed.
 
@@ -251,12 +263,12 @@ Seat-based team billing via RevenueCat. This is the most product-decision-heavy 
 ```typescript
 @Entity("team_subscriptions")
 class TeamSubscription {
-  id: string;                    // uuid PK
-  organizationId: string;        // FK → organizations
+  id: string; // uuid PK
+  organizationId: string; // FK → organizations
   revenueCatSubscriptionId: string;
-  productId: string;             // RevenueCat product ID
-  maxSeats: number;              // seat limit from plan
-  status: 'active' | 'trial' | 'expired' | 'cancelled';
+  productId: string; // RevenueCat product ID
+  maxSeats: number; // seat limit from plan
+  status: "active" | "trial" | "expired" | "cancelled";
   currentPeriodEnd: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -316,6 +328,7 @@ Batch A (✅ DONE) → Batch B → Batch C → Batch D → Batch E
 ```
 
 **Recommended order:**
+
 1. **Batch B** (thread assignment API) — 1–2 PRs
 2. **Batch C1** (AcceptInvite page) — 1 PR (can parallel with B)
 3. **Batch C2** (TeamSettings UI) — 1 PR (can parallel with B)
@@ -347,13 +360,13 @@ Batch A (✅ DONE) → Batch B → Batch C → Batch D → Batch E
 
 ## 10. Risks & Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Billing model not decided → Batch D blocked | High | Medium | Implement B+C first; D can ship later. Org + invite flow works without billing. |
-| Cross-org data leak via assignment | Low | Critical | Enforce org membership check on every assignment. Add DB-level check constraint if possible. |
-| Inbox query performance with assignee join | Low | Medium | `assigneeId` is on the same table (no join needed). Index covers it. |
-| AcceptInvite UX for users without existing account | Medium | Medium | Support both login + signup flows from accept page. Redirect back to accept after auth. |
-| Email provider connection sharing (not in scope) | N/A | N/A | Explicitly out of scope. Each user connects their own email accounts. Team feature is assignment-only, not shared mailbox. |
+| Risk                                               | Likelihood | Impact   | Mitigation                                                                                                                 |
+| -------------------------------------------------- | ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Billing model not decided → Batch D blocked        | High       | Medium   | Implement B+C first; D can ship later. Org + invite flow works without billing.                                            |
+| Cross-org data leak via assignment                 | Low        | Critical | Enforce org membership check on every assignment. Add DB-level check constraint if possible.                               |
+| Inbox query performance with assignee join         | Low        | Medium   | `assigneeId` is on the same table (no join needed). Index covers it.                                                       |
+| AcceptInvite UX for users without existing account | Medium     | Medium   | Support both login + signup flows from accept page. Redirect back to accept after auth.                                    |
+| Email provider connection sharing (not in scope)   | N/A        | N/A      | Explicitly out of scope. Each user connects their own email accounts. Team feature is assignment-only, not shared mailbox. |
 
 ---
 

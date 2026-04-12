@@ -63,14 +63,15 @@ export function useEmailDetailActionItems({
         existingActions: actionItems.map(item => item.description).filter(Boolean),
         isSentEmail: email.labels?.includes('SENT') ?? false,
       });
-      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
-        response.data.map((item: { description: string; source?: string }) => ({
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> = response.data.map(
+        (item: { description: string; source?: string }) => ({
           description: item.description,
           isCompleted: false,
           source: ACTION_ITEM_SOURCE_LLM,
-        }));
+        })
+      );
       await Promise.all(
-        newItems.map((item) =>
+        newItems.map(item =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );
@@ -145,14 +146,15 @@ export function useEmailDetailActionItems({
         },
         isSentEmail: email.labels?.includes('SENT') ?? false,
       });
-      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> =
-        response.data.map((item: { description: string; source?: string }) => ({
+      const newItems: Array<{ description: string; isCompleted: boolean; source: string }> = response.data.map(
+        (item: { description: string; source?: string }) => ({
           description: item.description,
           isCompleted: false,
           source: ACTION_ITEM_SOURCE_LLM,
-        }));
+        })
+      );
       await Promise.all(
-        newItems.map((item) =>
+        newItems.map(item =>
           axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
         )
       );

@@ -59,7 +59,9 @@ describe('IcsInviteCard — error handling (#1116)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Make isAxiosError work properly in tests
-    (axios.isAxiosError as unknown as jest.Mock) = jest.fn((err: unknown) => (err as { isAxiosError?: boolean })?.isAxiosError === true);
+    (axios.isAxiosError as unknown as jest.Mock) = jest.fn(
+      (err: unknown) => (err as { isAxiosError?: boolean })?.isAxiosError === true
+    );
   });
 
   describe('fetchIcsInfo error handling', () => {
@@ -146,10 +148,7 @@ describe('IcsInviteCard — error handling (#1116)', () => {
   });
 
   describe('RSVP status and actions (#1493)', () => {
-    const makeIcsInfoWithRsvp = (
-      rsvpStatus: string = 'needsAction',
-      htmlLink?: string,
-    ) => ({
+    const makeIcsInfoWithRsvp = (rsvpStatus: string = 'needsAction', htmlLink?: string) => ({
       event: {
         uid: 'rsvp-uid',
         title: 'RSVP Meeting',
@@ -212,10 +211,9 @@ describe('IcsInviteCard — error handling (#1116)', () => {
       await userEvent.click(acceptBtn);
 
       await waitFor(() => {
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          expect.stringContaining('/calendar/event/gcal-123/rsvp'),
-          { response: 'accepted' },
-        );
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/calendar/event/gcal-123/rsvp'), {
+          response: 'accepted',
+        });
       });
     });
 

@@ -131,9 +131,10 @@ const knownCategories = contexts
 // ... existing logic ...
 
 // At the end, look up contextId for finalCategory
-const finalCategoryId = finalCategory && finalCategory !== "Other"
-  ? (knownCategories.find((c) => c.name === finalCategory)?.contextId ?? null)
-  : null;
+const finalCategoryId =
+  finalCategory && finalCategory !== "Other"
+    ? (knownCategories.find((c) => c.name === finalCategory)?.contextId ?? null)
+    : null;
 
 return { finalCategory, protoCategoryId, finalCategoryId };
 ```
@@ -168,7 +169,9 @@ if (filters?.categoryIds && filters.categoryIds.length > 0) {
   const uuids = filters.categoryIds;
 
   filteredEmails = filteredEmails.filter((emailEntry) => {
-    const threadCategoryId = (emailEntry as Email & { categoryId?: string | null }).categoryId;
+    const threadCategoryId = (
+      emailEntry as Email & { categoryId?: string | null }
+    ).categoryId;
 
     // Direct UUID match — no name resolution needed
     if (threadCategoryId && uuids.includes(threadCategoryId)) return true;
@@ -213,7 +216,8 @@ emailWithMeta.category_id = categoryName
   : null;
 
 // After (direct):
-emailWithMeta.category_id = (email as EmailThread & { categoryId?: string | null }).categoryId ?? null;
+emailWithMeta.category_id =
+  (email as EmailThread & { categoryId?: string | null }).categoryId ?? null;
 ```
 
 ### 5. Handle "Other" in the Filter
@@ -259,14 +263,14 @@ The application repair method `repairEncryptedCategoryNames` (already exists) ca
 
 ## What Changes Where (Summary)
 
-| File | Change |
-|------|--------|
-| `migrations/1785000000000-AddCategoryIdToEmailThreads.ts` | New migration: add `categoryId uuid NULL` column |
-| `migrations/1785100000000-BackfillThreadCategoryId.ts` | New migration: flag rows for backfill |
-| `entities/email-thread.entity.ts` | Add `categoryId: string \| null` column |
-| `emails/llm-processor.ts` | Set `categoryId` at both write sites (summary + priority) |
-| `proto-categories/proto-categories.service.ts` | `findMatchingFullCategory` returns `{ name, contextId }` not just `string` |
-| `emails/emails.service.ts` | Filter by `thread.categoryId` directly; remove UUID→name→equality chain; add `backfillThreadCategoryIds` startup method |
+| File                                                      | Change                                                                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `migrations/1785000000000-AddCategoryIdToEmailThreads.ts` | New migration: add `categoryId uuid NULL` column                                                                        |
+| `migrations/1785100000000-BackfillThreadCategoryId.ts`    | New migration: flag rows for backfill                                                                                   |
+| `entities/email-thread.entity.ts`                         | Add `categoryId: string \| null` column                                                                                 |
+| `emails/llm-processor.ts`                                 | Set `categoryId` at both write sites (summary + priority)                                                               |
+| `proto-categories/proto-categories.service.ts`            | `findMatchingFullCategory` returns `{ name, contextId }` not just `string`                                              |
+| `emails/emails.service.ts`                                | Filter by `thread.categoryId` directly; remove UUID→name→equality chain; add `backfillThreadCategoryIds` startup method |
 
 ---
 

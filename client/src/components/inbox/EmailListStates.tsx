@@ -2,8 +2,20 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
 
-import { AllCaughtUpState, EmptyState, ErrorState, FilteredEmptyState, LoadingState, ProgressiveUnlockPrompt } from 'components/inbox/states';
-import { HIGH_PRIORITY_THRESHOLD, LOW_PRIORITY_THRESHOLD, MEDIUM_PRIORITY_THRESHOLD, VERY_HIGH_PRIORITY_THRESHOLD } from 'hooks/useInboxFilters';
+import {
+  AllCaughtUpState,
+  EmptyState,
+  ErrorState,
+  FilteredEmptyState,
+  LoadingState,
+  ProgressiveUnlockPrompt,
+} from 'components/inbox/states';
+import {
+  HIGH_PRIORITY_THRESHOLD,
+  LOW_PRIORITY_THRESHOLD,
+  MEDIUM_PRIORITY_THRESHOLD,
+  VERY_HIGH_PRIORITY_THRESHOLD,
+} from 'hooks/useInboxFilters';
 
 interface PriorityCounts {
   veryHigh: number;
@@ -65,10 +77,7 @@ const TIER_CHAIN: TierDescriptor[] = [
  * Find the first tier in the chain below the current minPriority that has emails.
  * Allows skipping tiers (e.g. VH → Medium when High=0, Medium=5).
  */
-function findNextNonEmptyTier(
-  minPriority: number,
-  priorityCounts: PriorityCounts,
-): TierDescriptor | null {
+function findNextNonEmptyTier(minPriority: number, priorityCounts: PriorityCounts): TierDescriptor | null {
   // Find index of the current active tier (first tier whose fromMin <= minPriority)
   const currentTierIndex = TIER_CHAIN.findIndex(tier => minPriority >= tier.fromMin);
   if (currentTierIndex === -1) {
@@ -93,17 +102,17 @@ function findNextNonEmptyTier(
 function computeTotalLowerPriority(minPriority: number, counts: PriorityCounts): number {
   let total = 0;
   if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) {
- total += counts.high; 
-}
+    total += counts.high;
+  }
   if (minPriority >= HIGH_PRIORITY_THRESHOLD) {
- total += counts.medium; 
-}
+    total += counts.medium;
+  }
   if (minPriority >= MEDIUM_PRIORITY_THRESHOLD) {
- total += counts.low; 
-}
+    total += counts.low;
+  }
   if (minPriority >= LOW_PRIORITY_THRESHOLD) {
- total += counts.veryLow; 
-}
+    total += counts.veryLow;
+  }
   return total;
 }
 
@@ -112,14 +121,14 @@ function computeTotalLowerPriority(minPriority: number, counts: PriorityCounts):
  */
 function getCurrentTierLabel(minPriority: number, translate: (key: string) => string): string {
   if (minPriority >= VERY_HIGH_PRIORITY_THRESHOLD) {
- return translate('inbox.priority.veryHigh'); 
-}
+    return translate('inbox.priority.veryHigh');
+  }
   if (minPriority >= HIGH_PRIORITY_THRESHOLD) {
- return translate('inbox.priority.high'); 
-}
+    return translate('inbox.priority.high');
+  }
   if (minPriority >= MEDIUM_PRIORITY_THRESHOLD) {
- return translate('inbox.priority.medium'); 
-}
+    return translate('inbox.priority.medium');
+  }
   return translate('inbox.priority.low');
 }
 
@@ -182,8 +191,7 @@ function EmptyInboxContent({
   onClearFilters,
 }: EmptyInboxProps): React.ReactElement {
   const hasActiveFilter =
-    (minPriority !== null && minPriority !== undefined) ||
-    (maxPriority !== null && maxPriority !== undefined);
+    (minPriority !== null && minPriority !== undefined) || (maxPriority !== null && maxPriority !== undefined);
 
   // 1. Progressive unlock prompt (only when user hasn't dismissed it for this session).
   //    Dismissal hides the prompt but does NOT disable filter-awareness (fixes edge case 1).
@@ -191,9 +199,7 @@ function EmptyInboxContent({
   //    When maxPriority is set, the user is viewing a specific bounded bucket and unlock
   //    is not relevant — fall through to FilteredEmptyState or AllCaughtUpState instead.
   const isPromptEligible =
-    hasActiveFilter &&
-    !isUnlockPromptDismissed &&
-    (maxPriority === null || maxPriority === undefined);
+    hasActiveFilter && !isUnlockPromptDismissed && (maxPriority === null || maxPriority === undefined);
 
   if (isPromptEligible && priorityCounts && onUnlockPriorityTier && onDismissUnlockPrompt) {
     const nextTier = findNextNonEmptyTier(minPriority as number, priorityCounts);
@@ -228,9 +234,10 @@ function EmptyInboxContent({
     //    Show FilteredEmptyState rather than the misleading generic EmptyState.
     //    Use filter-aware count so the number reflects emails actually below the current tier.
     const totalLower = computeTotalLowerPriority(minPriority as number, priorityCounts);
-    const displayCount = totalLower > 0
-      ? totalLower
-      : priorityCounts.high + priorityCounts.medium + priorityCounts.low + priorityCounts.veryLow;
+    const displayCount =
+      totalLower > 0
+        ? totalLower
+        : priorityCounts.high + priorityCounts.medium + priorityCounts.low + priorityCounts.veryLow;
 
     return (
       <FilteredEmptyState

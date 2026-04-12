@@ -32,10 +32,8 @@ export function usePerformanceBudget() {
   const marks = useRef<Map<string, number>>(new Map());
 
   const measure = useCallback(
-    <T>(
-      options: PerformanceBudgetOptions,
-      operation: () => Promise<T>
-    ): Promise<PerformanceMeasurement<T>> => measurePerformance(options, operation),
+    <T>(options: PerformanceBudgetOptions, operation: () => Promise<T>): Promise<PerformanceMeasurement<T>> =>
+      measurePerformance(options, operation),
     []
   );
 
@@ -61,13 +59,9 @@ export function usePerformanceBudget() {
     const overageMs = Math.max(0, durationMs - budgetMs);
 
     if (durationMs > budgetMs) {
-      devWarn(
-        `[PerfBudget] ${spanLabel} exceeded budget: ${durationMs}ms > ${budgetMs}ms (overage: ${overageMs}ms)`
-      );
+      devWarn(`[PerfBudget] ${spanLabel} exceeded budget: ${durationMs}ms > ${budgetMs}ms (overage: ${overageMs}ms)`);
     } else {
-      devLog(
-        `[PerfBudget] ${spanLabel} within budget: ${durationMs}ms / ${budgetMs}ms`
-      );
+      devLog(`[PerfBudget] ${spanLabel} within budget: ${durationMs}ms / ${budgetMs}ms`);
     }
 
     return durationMs;

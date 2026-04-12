@@ -301,11 +301,7 @@ export const ProjectStatusSelector: React.FC<ProjectStatusSelectorProps> = ({
       </div>
 
       {isOpen && filtered.length > 0 && (
-        <StatusDropdown
-          options={filtered}
-          selectedId={selectedId}
-          onSelect={handleOptionMouseDown}
-        />
+        <StatusDropdown options={filtered} selectedId={selectedId} onSelect={handleOptionMouseDown} />
       )}
     </div>
   );

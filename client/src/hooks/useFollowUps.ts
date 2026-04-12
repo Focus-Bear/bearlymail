@@ -21,10 +21,7 @@ export interface ThreadWithFollowUp extends Email {
   followUp: FollowUpData | null;
 }
 
-function allTargetedFollowUpsSent(
-  threads: ThreadWithFollowUp[],
-  followUpIds: string[]
-): boolean {
+function allTargetedFollowUpsSent(threads: ThreadWithFollowUp[], followUpIds: string[]): boolean {
   return threads.every(thread => {
     if (!thread.followUp || !followUpIds.includes(thread.followUp.id)) {
       return true;

@@ -42,15 +42,15 @@ at the time the fetch is queued. The fetch is then silently abandoned, so the st
 
 Analysis of the full data pipeline shows keys are consistent:
 
-| Step | Key used | Value |
-|------|----------|-------|
-| `getCategoryKey(null, 'Other')` | accordion lookup | `'Other'` |
-| `buildCategoryParamsImpl('Other')` | API param | `categoryIds=Other` |
-| `fetchCategoryEmailsImpl` catKey | store key | `'Other'` |
-| `markCategoryLoaded('Other')` | loaded tracking | `'Other'` |
-| `updateCategoryEmails({ categoryKey: 'Other' })` | stamp | `category_id = 'Other'` |
-| `groupEmailsByCategory` | email group key | `email.category_id = 'Other'` |
-| `emailCategoryMap.get('Other')` | display lookup | `'Other'` ✓ |
+| Step                                             | Key used         | Value                         |
+| ------------------------------------------------ | ---------------- | ----------------------------- |
+| `getCategoryKey(null, 'Other')`                  | accordion lookup | `'Other'`                     |
+| `buildCategoryParamsImpl('Other')`               | API param        | `categoryIds=Other`           |
+| `fetchCategoryEmailsImpl` catKey                 | store key        | `'Other'`                     |
+| `markCategoryLoaded('Other')`                    | loaded tracking  | `'Other'`                     |
+| `updateCategoryEmails({ categoryKey: 'Other' })` | stamp            | `category_id = 'Other'`       |
+| `groupEmailsByCategory`                          | email group key  | `email.category_id = 'Other'` |
+| `emailCategoryMap.get('Other')`                  | display lookup   | `'Other'` ✓                   |
 
 No key mismatch. The data path is correct. The race condition is the culprit.
 
@@ -59,6 +59,7 @@ No key mismatch. The data path is correct. The race condition is the culprit.
 Even after the race condition is resolved, if the server returns 0 emails for 'Other' while
 the summary says count > 0 (due to a different race or cache issue), the current code calls
 `dispatch(markCategoryLoaded(catKey))` unconditionally. This results in:
+
 - `isLoaded = true`
 - `categoryEmails.length = 0`
 - Accordion shows 0 (not loading spinner, not summary count — just 0)
@@ -93,6 +94,7 @@ useEffect(() => {
 ```
 
 Also fix double-navigate on mount: in Effect 1, update `lastUrlRef.current` before navigating:
+
 ```ts
 if (!urlMode) {
   const initialPath = `${basePath}/${mode}`;
@@ -104,6 +106,7 @@ if (!urlMode) {
 ### Step 2: Verify Other resolves after #1183 fix
 
 Test after deploy:
+
 - Open inbox with Other emails
 - Confirm accordion shows correct count
 - Confirm `loaded: []` no longer appears (or is followed by successful load)
@@ -118,7 +121,7 @@ do NOT call `markCategoryLoaded`. Let limbo recovery retry:
 ```ts
 // After the existing 0-email / stale-UUID check block:
 const summaryItem = categorySummaryRef.current?.find(
-  (item) => item.id === categoryId || item.name === categoryName
+  (item) => item.id === categoryId || item.name === categoryName,
 );
 const summaryCount = summaryItem?.count ?? 0;
 
@@ -128,25 +131,38 @@ setCachedCategoryEmails(mode, catKey, emails);
 
 if (emails.length === 0 && summaryCount > 0) {
   // Don't mark as loaded — accordion would show 0 with no retry possible.
-  // markCategoryLoadFailed keeps it in retry state; limbo recovery (Effect 2) 
+  // markCategoryLoadFailed keeps it in retry state; limbo recovery (Effect 2)
   // will trigger a fresh fetch.
   dispatch(markCategoryLoadFailed(catKey));
   console.warn(
-    '[Accordion] Category returned 0 emails but summary says', summaryCount,
-    '— marking failed for retry:', categoryName, '(key:', catKey, ')'
+    "[Accordion] Category returned 0 emails but summary says",
+    summaryCount,
+    "— marking failed for retry:",
+    categoryName,
+    "(key:",
+    catKey,
+    ")",
   );
 } else {
   dispatch(markCategoryLoaded(catKey));
-  console.log('[Accordion] Loaded category:', categoryName, '(key:', catKey, ')', emails.length, 'emails');
+  console.log(
+    "[Accordion] Loaded category:",
+    categoryName,
+    "(key:",
+    catKey,
+    ")",
+    emails.length,
+    "emails",
+  );
 }
 ```
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `client/src/hooks/useInboxUrlSync.ts` | Wrap navigate in ref, remove from Effect 2 deps, fix double-navigate on mount |
-| `client/src/hooks/useEmailFetching.ts` | Don't markCategoryLoaded if 0 emails but summary > 0 |
+| File                                   | Change                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `client/src/hooks/useInboxUrlSync.ts`  | Wrap navigate in ref, remove from Effect 2 deps, fix double-navigate on mount |
+| `client/src/hooks/useEmailFetching.ts` | Don't markCategoryLoaded if 0 emails but summary > 0                          |
 
 ## Testing
 

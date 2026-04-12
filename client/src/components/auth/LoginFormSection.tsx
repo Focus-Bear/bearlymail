@@ -102,7 +102,9 @@ const EmailPasswordForm: React.FC<EmailPasswordFormProps> = ({
 }) => (
   <form onSubmit={onSubmit}>
     <div style={{ marginBottom: theme.spacing.md }}>
-      <label htmlFor="login-email" style={fieldLabelStyle}>{t('auth.email')}</label>
+      <label htmlFor="login-email" style={fieldLabelStyle}>
+        {t('auth.email')}
+      </label>
       <input
         id="login-email"
         name="email"
@@ -116,8 +118,17 @@ const EmailPasswordForm: React.FC<EmailPasswordFormProps> = ({
     </div>
 
     <div style={{ marginBottom: theme.spacing.lg }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-        <label htmlFor="login-password" style={{ ...fieldLabelStyle, marginBottom: 0 }}>{t('auth.password')}</label>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        <label htmlFor="login-password" style={{ ...fieldLabelStyle, marginBottom: 0 }}>
+          {t('auth.password')}
+        </label>
         <Link
           to="/forgot-password"
           style={{
@@ -232,10 +243,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
           <strong>{t('auth.oauthOnlyError.title')}</strong>
           <br />
           {t('auth.oauthOnlyError.description')}{' '}
-          <Link
-            to="/forgot-password"
-            style={{ color: theme.colors.primary.main, textDecoration: 'underline' }}
-          >
+          <Link to="/forgot-password" style={{ color: theme.colors.primary.main, textDecoration: 'underline' }}>
             {t('auth.oauthOnlyError.forgotPasswordLink')}
           </Link>
           {'.'}

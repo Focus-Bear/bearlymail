@@ -209,9 +209,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           onToggle={onToggleFilterBar}
         />
 
-        {hasActiveFilters && (
-          <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} />
-        )}
+        {hasActiveFilters && <ClearFiltersButton onClear={onClearFilters} label={t('inbox.filters.clear')} />}
       </div>
 
       <InboxHeaderActions

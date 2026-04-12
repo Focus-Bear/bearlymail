@@ -55,9 +55,18 @@ interface BookingFormFieldProps {
   inputId?: string;
 }
 
-const BookingFormField: React.FC<BookingFormFieldProps> = ({ label, type, value, onChange, containerStyle, inputId }) => (
+const BookingFormField: React.FC<BookingFormFieldProps> = ({
+  label,
+  type,
+  value,
+  onChange,
+  containerStyle,
+  inputId,
+}) => (
   <div style={containerStyle}>
-    <label htmlFor={inputId} style={labelStyle}>{label}</label>
+    <label htmlFor={inputId} style={labelStyle}>
+      {label}
+    </label>
     <input
       id={inputId}
       type={type}
@@ -273,9 +282,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             style={{
               textAlign: 'right',
               fontSize: theme.typography.fontSize.sm,
-              color: agenda.length >= AGENDA_MAX_LENGTH
-                ? theme.colors.accent.error
-                : theme.colors.text.secondary,
+              color: agenda.length >= AGENDA_MAX_LENGTH ? theme.colors.accent.error : theme.colors.text.secondary,
               marginTop: theme.spacing.xs,
             }}
           >

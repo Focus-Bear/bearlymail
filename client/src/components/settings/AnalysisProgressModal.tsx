@@ -118,8 +118,6 @@ const ProgressInsightsPanel: React.FC<ProgressInsightsPanelProps> = ({ insights 
   );
 };
 
-
-
 export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({ analyzeProgress, onDismiss }) => {
   const { t } = useTranslation();
 

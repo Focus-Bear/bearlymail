@@ -28,6 +28,7 @@ logWarn(`✅ Prompts directory found at: ${promptsDir}`);
 **Why this causes Sentry noise:**
 
 `logWarn` is defined in `server/src/utils/logger.ts`. In production (`NODE_ENV === "production"`), it:
+
 1. Calls `console.warn(message)`
 2. Creates a **synthetic `new Error(message)`** and calls `captureGlobalError()` with `severity: "warning"`
 3. `captureGlobalError()` calls `posthogClient.captureException(error, ...)` — PostHog's `captureException` sends the event to Sentry as an **exception event**, which Sentry treats as an error
@@ -60,10 +61,10 @@ When PostHog client isn't initialized, `captureGlobalError` calls `console.error
 
 ## Affected Files
 
-| File | Line(s) | Issue |
-|------|---------|-------|
-| `server/src/llm/prompts.ts` | 68, 143 | `logWarn` used for success — promotes to Sentry exception in prod |
-| `server/src/error-tracking/error-tracking-setup.ts` | ~28, ~62 | `console.error` used for info/debug messages |
+| File                                                | Line(s)  | Issue                                                             |
+| --------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| `server/src/llm/prompts.ts`                         | 68, 143  | `logWarn` used for success — promotes to Sentry exception in prod |
+| `server/src/error-tracking/error-tracking-setup.ts` | ~28, ~62 | `console.error` used for info/debug messages                      |
 
 ---
 
@@ -110,15 +111,20 @@ console.error(`POSTHOG: Global tracking initialized ...`);
 console.log(`POSTHOG: Global tracking initialized ...`);
 
 // Before (line ~62):
-console.error(`POSTHOG: captureGlobalError called but client not initialized ...`);
+console.error(
+  `POSTHOG: captureGlobalError called but client not initialized ...`,
+);
 
 // After:
-console.debug(`POSTHOG: captureGlobalError called but client not initialized ...`);
+console.debug(
+  `POSTHOG: captureGlobalError called but client not initialized ...`,
+);
 ```
 
 ### Change 3 (Optional — longer term): Audit all `logWarn` call sites
 
 Run:
+
 ```bash
 grep -rn "logWarn" server/src --include="*.ts" | grep "✅\|success\|found\|initialized\|loaded"
 ```
@@ -138,11 +144,11 @@ Any `logWarn` call with a success/positive message should be moved to `logger.lo
 
 ## Risk Assessment
 
-| Risk | Level | Notes |
-|------|-------|-------|
-| Breaking real error reporting | Low | Changes only affect success-message log levels |
-| Missing a genuine warning | Low | Both messages with `✅` are unambiguously successful |
-| Side-effects in non-prod environments | None | `logWarn` in non-prod only calls `console.warn` |
+| Risk                                  | Level | Notes                                                |
+| ------------------------------------- | ----- | ---------------------------------------------------- |
+| Breaking real error reporting         | Low   | Changes only affect success-message log levels       |
+| Missing a genuine warning             | Low   | Both messages with `✅` are unambiguously successful |
+| Side-effects in non-prod environments | None  | `logWarn` in non-prod only calls `console.warn`      |
 
 ---
 

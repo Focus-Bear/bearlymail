@@ -41,10 +41,7 @@ export function usePriorityCounts(mode: InboxMode = 'triage'): {
   const fetchCounts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get<PriorityCounts>(
-        `${API_URL}/emails/priority-counts`,
-        { params: { mode } },
-      );
+      const response = await axios.get<PriorityCounts>(`${API_URL}/emails/priority-counts`, { params: { mode } });
       setCounts(response.data);
     } catch (error) {
       console.error('Failed to fetch priority counts:', error);

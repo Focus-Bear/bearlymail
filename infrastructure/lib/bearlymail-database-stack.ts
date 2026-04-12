@@ -1,8 +1,8 @@
-import * as cdk from 'aws-cdk-lib';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as rds from 'aws-cdk-lib/aws-rds';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import { Construct } from "constructs";
 
 export interface BearlyMailDatabaseStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
@@ -28,11 +28,15 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
    */
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
 
-  constructor(scope: Construct, id: string, props: BearlyMailDatabaseStackProps) {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: BearlyMailDatabaseStackProps,
+  ) {
     super(scope, id, props);
 
     if (!props.vpc) {
-      throw new Error('VPC must be provided');
+      throw new Error("VPC must be provided");
     }
 
     const vpc = props.vpc;
@@ -40,11 +44,11 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     // ============================================
     // Database Secret (created here to avoid cyclic dependency with Secrets stack)
     // ============================================
-    this.dbSecret = new secretsmanager.Secret(this, 'DatabaseSecret', {
-      description: 'RDS PostgreSQL database credentials',
+    this.dbSecret = new secretsmanager.Secret(this, "DatabaseSecret", {
+      description: "RDS PostgreSQL database credentials",
       generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: 'bearlymail' }),
-        generateStringKey: 'password',
+        secretStringTemplate: JSON.stringify({ username: "bearlymail" }),
+        generateStringKey: "password",
         excludeCharacters: '"@/\\',
         includeSpace: false,
         passwordLength: 32,
@@ -54,12 +58,11 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     // ============================================
     // RDS Database
     // ============================================
-    const databaseInstanceType = props.databaseInstanceType || ec2.InstanceType.of(
-      ec2.InstanceClass.T4G,
-      ec2.InstanceSize.MICRO
-    );
+    const databaseInstanceType =
+      props.databaseInstanceType ||
+      ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO);
 
-    this.database = new rds.DatabaseInstance(this, 'Database', {
+    this.database = new rds.DatabaseInstance(this, "Database", {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_17,
       }),
@@ -69,7 +72,7 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
       credentials: rds.Credentials.fromSecret(this.dbSecret),
-      databaseName: 'bearlymail',
+      databaseName: "bearlymail",
       allocatedStorage: 20,
       maxAllocatedStorage: 100,
       storageEncrypted: true,
@@ -91,15 +94,15 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     // ============================================
     this.rdsProxySecurityGroup = new ec2.SecurityGroup(
       this,
-      'RdsProxySecurityGroup',
+      "RdsProxySecurityGroup",
       {
         vpc,
-        description: 'Security group for RDS Proxy (Lambda to RDS)',
+        description: "Security group for RDS Proxy (Lambda to RDS)",
         allowAllOutbound: true,
       },
     );
 
-    this.rdsProxy = new rds.DatabaseProxy(this, 'RdsProxy', {
+    this.rdsProxy = new rds.DatabaseProxy(this, "RdsProxy", {
       proxyTarget: rds.ProxyTarget.fromInstance(
         this.database as rds.DatabaseInstance,
       ),
@@ -107,7 +110,7 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [this.rdsProxySecurityGroup],
-      dbProxyName: 'bearlymail-rds-proxy',
+      dbProxyName: "bearlymail-rds-proxy",
       requireTLS: true,
       idleClientTimeout: cdk.Duration.minutes(10),
       maxConnectionsPercent: 50,
@@ -124,10 +127,10 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     // ============================================
     this.lambdaSecurityGroup = new ec2.SecurityGroup(
       this,
-      'LambdaSecurityGroup',
+      "LambdaSecurityGroup",
       {
         vpc,
-        description: 'Security group for context analysis Lambda',
+        description: "Security group for context analysis Lambda",
         allowAllOutbound: true,
       },
     );
@@ -135,41 +138,40 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
     this.rdsProxySecurityGroup.addIngressRule(
       this.lambdaSecurityGroup,
       ec2.Port.tcp(5432),
-      'Allow Lambda to connect via RDS Proxy',
+      "Allow Lambda to connect via RDS Proxy",
     );
 
     // ============================================
     // Outputs
     // ============================================
-    new cdk.CfnOutput(this, 'DatabaseSecretArn', {
+    new cdk.CfnOutput(this, "DatabaseSecretArn", {
       value: this.dbSecret.secretArn,
-      description: 'Database secret ARN',
-      exportName: 'BearlyMail-DB-Secret-ARN',
+      description: "Database secret ARN",
+      exportName: "BearlyMail-DB-Secret-ARN",
     });
 
-    new cdk.CfnOutput(this, 'DatabaseEndpoint', {
+    new cdk.CfnOutput(this, "DatabaseEndpoint", {
       value: this.database.instanceEndpoint.hostname,
-      description: 'RDS database endpoint',
-      exportName: 'BearlyMail-DB-Endpoint',
+      description: "RDS database endpoint",
+      exportName: "BearlyMail-DB-Endpoint",
     });
 
-    new cdk.CfnOutput(this, 'DatabasePort', {
+    new cdk.CfnOutput(this, "DatabasePort", {
       value: this.database.instanceEndpoint.port.toString(),
-      description: 'RDS database port',
-      exportName: 'BearlyMail-DB-Port',
+      description: "RDS database port",
+      exportName: "BearlyMail-DB-Port",
     });
 
-    new cdk.CfnOutput(this, 'DatabaseName', {
-      value: 'bearlymail',
-      description: 'RDS database name',
-      exportName: 'BearlyMail-DB-Name',
+    new cdk.CfnOutput(this, "DatabaseName", {
+      value: "bearlymail",
+      description: "RDS database name",
+      exportName: "BearlyMail-DB-Name",
     });
 
-    new cdk.CfnOutput(this, 'RdsProxyEndpoint', {
+    new cdk.CfnOutput(this, "RdsProxyEndpoint", {
       value: this.rdsProxy.endpoint,
-      description: 'RDS Proxy endpoint for Lambda DB connections',
-      exportName: 'BearlyMail-RdsProxy-Endpoint',
+      description: "RDS Proxy endpoint for Lambda DB connections",
+      exportName: "BearlyMail-RdsProxy-Endpoint",
     });
-
   }
 }

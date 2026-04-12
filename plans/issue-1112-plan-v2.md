@@ -22,19 +22,19 @@ This v2 plan corrects all of the above.
 
 ## 1. Jeremy's Final Product Decisions (2026-03-24)
 
-| Decision | Detail |
-|----------|--------|
-| Seat pricing | **$5/user/month** per seat |
-| Volume tier — Starter | 3,000 emails/month → **$10/month** |
-| Volume tier — Growth | 10,000 emails/month → **$20/month** |
-| Volume tier — Business | 30,000 emails/month → **$50/month** |
-| Billing provider | **RevenueCat** (not Stripe directly) |
-| Free seats | **0** — every seat must be paid |
-| Free tier | **None** — ALL existing users need a plan |
-| Billing management | Admins can manage billing (not just owner) |
-| Discount/promo codes | Required — use RevenueCat Promotional Offers + promo codes |
+| Decision                  | Detail                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Seat pricing              | **$5/user/month** per seat                                                                              |
+| Volume tier — Starter     | 3,000 emails/month → **$10/month**                                                                      |
+| Volume tier — Growth      | 10,000 emails/month → **$20/month**                                                                     |
+| Volume tier — Business    | 30,000 emails/month → **$50/month**                                                                     |
+| Billing provider          | **RevenueCat** (not Stripe directly)                                                                    |
+| Free seats                | **0** — every seat must be paid                                                                         |
+| Free tier                 | **None** — ALL existing users need a plan                                                               |
+| Billing management        | Admins can manage billing (not just owner)                                                              |
+| Discount/promo codes      | Required — use RevenueCat Promotional Offers + promo codes                                              |
 | Subscription architecture | **DO NOT create TeamSubscription** — extend existing `User.subscriptionStatus` + `SubscriptionsService` |
-| Infrastructure | **AWS only** (no Koyeb references) |
+| Infrastructure            | **AWS only** (no Koyeb references)                                                                      |
 
 ---
 
@@ -43,68 +43,75 @@ This v2 plan corrects all of the above.
 These components are correctly implemented and should be preserved:
 
 ### Frontend (Batch C) ✅ Keep
-| File | Notes |
-|------|-------|
-| `client/src/pages/AcceptInvite.tsx` | Good — handles loading/invalid/valid states, redirect flow |
-| `client/src/components/settings/TeamSettingsSection.tsx` | Good — member list, role mgmt, remove, invite form. Uses `ConfirmModal` + `theme.colors` ✅ |
-| `client/src/queries/useAcceptInvite.ts` | Good |
-| `client/src/queries/useValidateInvite.ts` | Good |
-| `client/src/queries/useMyOrganization.ts` | Good |
-| `client/src/queries/useThreadAssignment.ts` | Good — already aligned with #1425's API contract |
-| `client/src/App.tsx` (route additions) | Good — `/accept-invite/:token` route |
-| `client/src/pages/Settings.tsx` (TeamSettings integration) | Good |
-| `client/src/locales/en.json` / `es.json` (team.* keys) | Good |
+
+| File                                                       | Notes                                                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `client/src/pages/AcceptInvite.tsx`                        | Good — handles loading/invalid/valid states, redirect flow                                  |
+| `client/src/components/settings/TeamSettingsSection.tsx`   | Good — member list, role mgmt, remove, invite form. Uses `ConfirmModal` + `theme.colors` ✅ |
+| `client/src/queries/useAcceptInvite.ts`                    | Good                                                                                        |
+| `client/src/queries/useValidateInvite.ts`                  | Good                                                                                        |
+| `client/src/queries/useMyOrganization.ts`                  | Good                                                                                        |
+| `client/src/queries/useThreadAssignment.ts`                | Good — already aligned with #1425's API contract                                            |
+| `client/src/App.tsx` (route additions)                     | Good — `/accept-invite/:token` route                                                        |
+| `client/src/pages/Settings.tsx` (TeamSettings integration) | Good                                                                                        |
+| `client/src/locales/en.json` / `es.json` (team.\* keys)    | Good                                                                                        |
 
 ### E2E Tests (Batch E) ✅ Keep
-| File | Notes |
-|------|-------|
+
+| File                              | Notes                                            |
+| --------------------------------- | ------------------------------------------------ |
 | `e2e/tests/teams-journey.spec.ts` | Good — covers invite, settings, assignment flows |
 
 ### Organization Service Enhancements ✅ Keep
-| File | Notes |
-|------|-------|
-| `server/src/organizations/organizations.service.ts` | Helpers (`getOrgMembersForUser`, `findActiveMembership`, `areInSameOrg`) are fine |
-| `server/src/organizations/organizations.service.spec.ts` | Tests are fine |
-| `server/src/organizations/organizations.controller.ts` | Seats endpoint needs rework (see §4) |
-| `server/src/organizations/organizations.module.ts` | Needs rework — remove TeamSubscription references |
+
+| File                                                     | Notes                                                                             |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `server/src/organizations/organizations.service.ts`      | Helpers (`getOrgMembersForUser`, `findActiveMembership`, `areInSameOrg`) are fine |
+| `server/src/organizations/organizations.service.spec.ts` | Tests are fine                                                                    |
+| `server/src/organizations/organizations.controller.ts`   | Seats endpoint needs rework (see §4)                                              |
+| `server/src/organizations/organizations.module.ts`       | Needs rework — remove TeamSubscription references                                 |
 
 ### Inbox Filter Wiring ✅ Keep
-| File | Notes |
-|------|-------|
-| `server/src/emails/email-inbox.service.ts` | `assigneeId` filter is correct |
-| `server/src/emails/emails.module.ts` | Keep, but remove any TeamSubscription imports |
+
+| File                                       | Notes                                         |
+| ------------------------------------------ | --------------------------------------------- |
+| `server/src/emails/email-inbox.service.ts` | `assigneeId` filter is correct                |
+| `server/src/emails/emails.module.ts`       | Keep, but remove any TeamSubscription imports |
 
 ---
 
 ## 3. What to REMOVE from PR #1424
 
 ### TeamSubscription Entity + Service ❌ Remove entirely
-| File | Action |
-|------|--------|
-| `server/src/database/entities/team-subscription.entity.ts` | **DELETE** |
-| `server/src/database/migrations/1789000000000-CreateTeamSubscription.ts` | **DELETE** |
-| `server/src/organizations/team-subscription.service.ts` | **DELETE** |
-| `server/src/organizations/team-subscription.service.spec.ts` | **DELETE** |
-| `server/src/database/entities/index.ts` | Remove `TeamSubscription` export |
+
+| File                                                                     | Action                           |
+| ------------------------------------------------------------------------ | -------------------------------- |
+| `server/src/database/entities/team-subscription.entity.ts`               | **DELETE**                       |
+| `server/src/database/migrations/1789000000000-CreateTeamSubscription.ts` | **DELETE**                       |
+| `server/src/organizations/team-subscription.service.ts`                  | **DELETE**                       |
+| `server/src/organizations/team-subscription.service.spec.ts`             | **DELETE**                       |
+| `server/src/database/entities/index.ts`                                  | Remove `TeamSubscription` export |
 
 ### Unrelated Context Files ❌ Revert all changes
-| File | Action |
-|------|--------|
+
+| File                                                       | Action                              |
+| ---------------------------------------------------------- | ----------------------------------- |
 | `server/src/context/context-analysis-finalizer.service.ts` | **REVERT** — not team accounts work |
-| `server/src/context/context-analysis-progress.service.ts` | **REVERT** |
-| `server/src/context/context-batch-analysis.processor.ts` | **REVERT** |
-| `server/src/context/context-finalization.processor.ts` | **REVERT** |
-| `server/src/context/context-qa-extraction.service.ts` | **REVERT** |
-| `server/src/context/context.module.ts` | **REVERT** |
-| `server/src/context/context.service.ts` | **REVERT** |
+| `server/src/context/context-analysis-progress.service.ts`  | **REVERT**                          |
+| `server/src/context/context-batch-analysis.processor.ts`   | **REVERT**                          |
+| `server/src/context/context-finalization.processor.ts`     | **REVERT**                          |
+| `server/src/context/context-qa-extraction.service.ts`      | **REVERT**                          |
+| `server/src/context/context.module.ts`                     | **REVERT**                          |
+| `server/src/context/context.service.ts`                    | **REVERT**                          |
 
 > If these context changes fix real bugs, they should go in a **separate PR** for that issue.
 
 ### Gmail Provider Changes ❌ Evaluate
-| File | Action |
-|------|--------|
+
+| File                                                | Action                                              |
+| --------------------------------------------------- | --------------------------------------------------- |
 | `server/src/emails/providers/gmail-sync.service.ts` | **REVERT** unless directly related to team accounts |
-| `server/src/emails/providers/gmail.provider.ts` | **REVERT** unless directly related to team accounts |
+| `server/src/emails/providers/gmail.provider.ts`     | **REVERT** unless directly related to team accounts |
 
 ---
 
@@ -124,38 +131,38 @@ Instead of a separate `TeamSubscription` entity, we extend the existing per-user
 @Column({ type: "int", default: 0, comment: "Max paid seats for this org" })
 maxSeats: number;
 
-@Column({ 
-  type: "varchar", 
-  nullable: true, 
-  comment: "RevenueCat subscription ID for the org-level billing" 
+@Column({
+  type: "varchar",
+  nullable: true,
+  comment: "RevenueCat subscription ID for the org-level billing"
 })
 revenueCatOrgSubscriptionId: string | null;
 
-@Column({ 
-  type: "varchar", 
-  nullable: true, 
-  comment: "Volume tier product ID from RevenueCat (starter|growth|business)" 
+@Column({
+  type: "varchar",
+  nullable: true,
+  comment: "Volume tier product ID from RevenueCat (starter|growth|business)"
 })
 volumeTierProductId: string | null;
 
-@Column({ 
-  type: "int", 
-  default: 0, 
-  comment: "Emails processed this billing cycle" 
+@Column({
+  type: "int",
+  default: 0,
+  comment: "Emails processed this billing cycle"
 })
 emailsUsedThisCycle: number;
 
-@Column({ 
-  type: "int", 
-  default: 3000, 
-  comment: "Email volume limit based on tier" 
+@Column({
+  type: "int",
+  default: 3000,
+  comment: "Email volume limit based on tier"
 })
 emailVolumeLimit: number;
 
-@Column({ 
-  type: "timestamp", 
-  nullable: true, 
-  comment: "Start of current billing cycle for volume tracking" 
+@Column({
+  type: "timestamp",
+  nullable: true,
+  comment: "Start of current billing cycle for volume tracking"
 })
 billingCycleStart: Date | null;
 ```
@@ -169,11 +176,13 @@ The existing `User.subscriptionStatus`, `User.revenueCatUserId`, `User.subscript
 ### 4.3 Subscription Flow — How It Works
 
 #### For individual users (existing, unchanged):
+
 1. User signs up → gets trial or must subscribe
 2. `SubscriptionsService.checkSubscriptionStatus()` → checks RevenueCat
 3. `SubscriptionGuard` enforces active subscription
 
 #### For team/org users (new):
+
 1. Org owner buys seats via RevenueCat (seat-based product)
 2. RevenueCat webhook → `SubscriptionsService.handleOrgWebhook()` → updates `Organization.maxSeats`
 3. When admin invites a member and they accept → `SubscriptionsService.activateTeamSeat(userId, orgId)`
@@ -185,6 +194,7 @@ The existing `User.subscriptionStatus`, `User.revenueCatUserId`, `User.subscript
 5. `SubscriptionGuard` works unchanged — it just checks `User.subscriptionStatus`
 
 #### Seat enforcement:
+
 - **Hard block:** Cannot invite beyond `Organization.maxSeats`
 - Count: `SELECT COUNT(*) FROM organization_members WHERE organizationId = :orgId AND status = 'active'`
 - Enforced in `OrganizationsService.inviteMember()` (already has a check — just wire to org, not TeamSubscription)
@@ -192,21 +202,24 @@ The existing `User.subscriptionStatus`, `User.revenueCatUserId`, `User.subscript
 ### 4.4 Email Volume Tracking
 
 #### New service method: `SubscriptionsService.trackEmailProcessed(orgId: string)`
+
 - Called after each email is processed for an org member
 - Increments `Organization.emailsUsedThisCycle`
 - When limit hit → log warning, return `{ allowed: false }` to caller
 - At 80% → surface warning in API response (frontend shows banner)
 
 #### Volume tier mapping:
+
 ```typescript
 const VOLUME_TIERS = {
-  'bearlymail_starter': { limit: 3000, price: 10 },
-  'bearlymail_growth':  { limit: 10000, price: 20 },
-  'bearlymail_business': { limit: 30000, price: 50 },
+  bearlymail_starter: { limit: 3000, price: 10 },
+  bearlymail_growth: { limit: 10000, price: 20 },
+  bearlymail_business: { limit: 30000, price: 50 },
 } as const;
 ```
 
 #### Billing cycle reset:
+
 - RevenueCat webhook on `RENEWAL` → reset `emailsUsedThisCycle = 0`, update `billingCycleStart`
 
 ### 4.5 RevenueCat Integration Extensions
@@ -230,6 +243,7 @@ case 'RENEWAL':
 ```
 
 **`handleOrgSubscriptionEvent(event)`:**
+
 1. Look up org by `revenueCatOrgSubscriptionId` or `app_user_id` (owner's RevenueCat ID)
 2. Update `Organization.maxSeats` based on seat quantity from RevenueCat
 3. Update volume tier if volume product changed
@@ -237,6 +251,7 @@ case 'RENEWAL':
 5. Activate/update subscription status for all active org members
 
 #### New endpoint: `POST /subscriptions/org/link-revenuecat`
+
 - Links an org to a RevenueCat subscription
 - Only callable by org owner or admin
 - Sets `Organization.revenueCatOrgSubscriptionId`
@@ -244,10 +259,12 @@ case 'RENEWAL':
 ### 4.6 Promo Code / Discount Support
 
 RevenueCat natively supports:
+
 - **Promotional Offers** (iOS/Android) — for app-based billing
 - **Promo Codes** — can be created via RevenueCat dashboard or API
 
 #### Implementation:
+
 1. **Admin endpoint:** `POST /subscriptions/apply-promo` — accepts a promo code, validates via RevenueCat API, applies entitlement
 2. **Complimentary access:** Use RevenueCat's "Grant a Promotional Entitlement" API (`POST /v1/subscribers/{app_user_id}/entitlements/{entitlement_id}/promotional`)
 3. **Backend method:** `SubscriptionsService.grantComplimentaryAccess(userId, durationDays)` — calls RevenueCat API to grant entitlement, then updates local `User.subscriptionStatus`
@@ -259,15 +276,17 @@ RevenueCat natively supports:
 All existing users must be enrolled in a plan. Options:
 
 1. **DB migration approach** (preferred — deterministic):
+
    ```sql
    -- Set all users without active subscription to a default state
-   UPDATE users 
+   UPDATE users
    SET "subscriptionStatus" = 'active',
        "subscriptionExpiresAt" = NOW() + INTERVAL '30 days'
-   WHERE "subscriptionStatus" IS NULL 
-      OR "subscriptionStatus" = '' 
+   WHERE "subscriptionStatus" IS NULL
+      OR "subscriptionStatus" = ''
       OR "subscriptionStatus" = 'none';
    ```
+
    This gives everyone a 30-day grace period to link their RevenueCat subscription.
 
 2. **RevenueCat bulk enroll:** Use RevenueCat API to create subscribers for all existing users and grant them a promotional entitlement for the transition period.
@@ -332,6 +351,7 @@ Frontend should show this in TeamSettings with a usage bar + warning at 80%/100%
 ## 7. Implementation Batches (for Codebeard)
 
 ### Batch R1: Remove & Revert (cleanup PR #1424)
+
 1. Delete `team-subscription.entity.ts`, migration `1789000000000`, `team-subscription.service.ts`, `team-subscription.service.spec.ts`
 2. Remove `TeamSubscription` from `entities/index.ts`
 3. Revert ALL `server/src/context/` changes
@@ -340,10 +360,11 @@ Frontend should show this in TeamSettings with a usage bar + warning at 80%/100%
 6. Update `organizations.controller.ts` seats endpoint to call `OrganizationsService` directly
 
 ### Batch R2: Extend Organization + SubscriptionsService
+
 1. Add billing fields to `Organization` entity (§4.2.1)
 2. Create migration `AddOrgBillingFields`
 3. Add to `SubscriptionsService`:
-   - `activateTeamSeat(userId, orgId)` 
+   - `activateTeamSeat(userId, orgId)`
    - `deactivateTeamSeat(userId)`
    - `handleOrgSubscriptionEvent(event)` (extend existing webhook handler)
    - `trackEmailProcessed(orgId)`
@@ -357,16 +378,19 @@ Frontend should show this in TeamSettings with a usage bar + warning at 80%/100%
 8. Add `GET /organizations/usage` endpoint
 
 ### Batch R3: Existing User Enrollment
+
 1. Migration: set all users to `subscriptionStatus = 'active'` with 30-day grace period
 2. Document RevenueCat bulk sync process for ops team
 
 ### Batch R4: Frontend Updates (if needed)
+
 1. Add volume usage display to `TeamSettingsSection`
 2. Add usage warning banner (80%/100% threshold)
 3. Add promo code input in billing section
 4. Ensure billing management is accessible to admins (not just owner)
 
 ### Batch R5: Tests
+
 1. Update org service tests for seat enforcement via `Organization.maxSeats`
 2. Add subscription service tests for team seat activation/deactivation
 3. Add volume tracking tests
@@ -376,25 +400,25 @@ Frontend should show this in TeamSettings with a usage bar + warning at 80%/100%
 
 ## 8. Files Affected (Summary)
 
-| File | Action |
-|------|--------|
-| `server/src/database/entities/team-subscription.entity.ts` | DELETE |
-| `server/src/database/entities/index.ts` | Remove TeamSubscription export |
-| `server/src/database/entities/organization.entity.ts` | ADD billing fields |
-| `server/src/database/migrations/1789000000000-CreateTeamSubscription.ts` | DELETE |
-| `server/src/database/migrations/XXXXXX-AddOrgBillingFields.ts` | CREATE |
-| `server/src/database/migrations/XXXXXX-EnrollExistingUsers.ts` | CREATE |
-| `server/src/organizations/team-subscription.service.ts` | DELETE |
-| `server/src/organizations/team-subscription.service.spec.ts` | DELETE |
-| `server/src/organizations/organizations.service.ts` | ADD seat/volume methods |
-| `server/src/organizations/organizations.controller.ts` | REWORK seats endpoint |
-| `server/src/organizations/organizations.module.ts` | REMOVE TeamSubscription refs |
-| `server/src/subscriptions/subscriptions.service.ts` | EXTEND with team methods |
-| `server/src/subscriptions/subscriptions.controller.ts` | ADD promo + org-link endpoints |
-| `server/src/emails/emails.module.ts` | REMOVE TeamSubscription refs |
-| `server/src/context/*` | REVERT all changes |
-| `server/src/emails/providers/gmail*.ts` | REVERT if unrelated |
-| `client/src/components/settings/TeamSettingsSection.tsx` | ADD volume usage UI |
+| File                                                                     | Action                         |
+| ------------------------------------------------------------------------ | ------------------------------ |
+| `server/src/database/entities/team-subscription.entity.ts`               | DELETE                         |
+| `server/src/database/entities/index.ts`                                  | Remove TeamSubscription export |
+| `server/src/database/entities/organization.entity.ts`                    | ADD billing fields             |
+| `server/src/database/migrations/1789000000000-CreateTeamSubscription.ts` | DELETE                         |
+| `server/src/database/migrations/XXXXXX-AddOrgBillingFields.ts`           | CREATE                         |
+| `server/src/database/migrations/XXXXXX-EnrollExistingUsers.ts`           | CREATE                         |
+| `server/src/organizations/team-subscription.service.ts`                  | DELETE                         |
+| `server/src/organizations/team-subscription.service.spec.ts`             | DELETE                         |
+| `server/src/organizations/organizations.service.ts`                      | ADD seat/volume methods        |
+| `server/src/organizations/organizations.controller.ts`                   | REWORK seats endpoint          |
+| `server/src/organizations/organizations.module.ts`                       | REMOVE TeamSubscription refs   |
+| `server/src/subscriptions/subscriptions.service.ts`                      | EXTEND with team methods       |
+| `server/src/subscriptions/subscriptions.controller.ts`                   | ADD promo + org-link endpoints |
+| `server/src/emails/emails.module.ts`                                     | REMOVE TeamSubscription refs   |
+| `server/src/context/*`                                                   | REVERT all changes             |
+| `server/src/emails/providers/gmail*.ts`                                  | REVERT if unrelated            |
+| `client/src/components/settings/TeamSettingsSection.tsx`                 | ADD volume usage UI            |
 
 ---
 
@@ -408,4 +432,4 @@ Frontend should show this in TeamSettings with a usage bar + warning at 80%/100%
 
 ---
 
-*🧘 The path to clean architecture runs through removing what doesn't belong, not adding what doesn't fit. — Monk of Modularity*
+_🧘 The path to clean architecture runs through removing what doesn't belong, not adding what doesn't fit. — Monk of Modularity_

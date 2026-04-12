@@ -135,8 +135,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   const [responseStatus, setResponseStatus] = useState<ResponseStatus | null>(null);
 
   const makeHandler =
-    (action: () => void | Promise<void>, status: ResponseStatus, eventName: string, errorKey: string) =>
-    async () => {
+    (action: () => void | Promise<void>, status: ResponseStatus, eventName: string, errorKey: string) => async () => {
       setResponding(true);
       setResponseStatus(null);
       captureEvent(eventName, { email_id: email.id });
@@ -151,7 +150,12 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
       }
     };
 
-  const handleAccept = makeHandler(onAccept, RESPONSE_STATUS_ACCEPTED, ANALYTICS_EVENTS.CALENDAR_INVITE_ACCEPT_CLICKED, 'acceptError');
+  const handleAccept = makeHandler(
+    onAccept,
+    RESPONSE_STATUS_ACCEPTED,
+    ANALYTICS_EVENTS.CALENDAR_INVITE_ACCEPT_CLICKED,
+    'acceptError'
+  );
   const handleDecline = makeHandler(
     onDecline,
     RESPONSE_STATUS_DECLINED,

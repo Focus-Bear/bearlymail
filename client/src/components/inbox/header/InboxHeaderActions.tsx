@@ -43,7 +43,14 @@ const InboxOverflowMenu: React.FC<{
   viewAutoRespondedLabel: string;
   onViewBlockedEmails?: () => void;
   onViewAutoRespondedEmails?: () => void;
-}> = ({ scheduledLabel, moreActionsLabel, viewBlockedLabel, viewAutoRespondedLabel, onViewBlockedEmails, onViewAutoRespondedEmails }) => {
+}> = ({
+  scheduledLabel,
+  moreActionsLabel,
+  viewBlockedLabel,
+  viewAutoRespondedLabel,
+  onViewBlockedEmails,
+  onViewAutoRespondedEmails,
+}) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

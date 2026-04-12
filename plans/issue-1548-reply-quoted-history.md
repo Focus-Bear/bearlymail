@@ -11,6 +11,7 @@
 When a user replies to an email via BearlyMail, the outgoing reply message body contains **only the new reply text** (plus the user's email signature). The original email content and any prior conversation chain is **not quoted** in the outgoing message.
 
 This means:
+
 - Other recipients (CC'd parties, or anyone joining the thread later) receive a reply with no conversational context.
 - Standard email etiquette and client conventions (Gmail, Outlook, Apple Mail) all include a quoted block below the reply so every participant can see the thread history.
 - BearlyMail replies are effectively "orphaned" — they make no sense to recipients who haven't memorised the prior messages.
@@ -25,9 +26,12 @@ This means:
 
 ```ts
 const bodyForSending = isForward
-  ? this.buildForwardBody(body, email)   // ← forwards get quoted content
-  : body;                                 // ← replies DO NOT
-const bodyWithSignature = this.appendSignature(bodyForSending, user.emailSignature);
+  ? this.buildForwardBody(body, email) // ← forwards get quoted content
+  : body; // ← replies DO NOT
+const bodyWithSignature = this.appendSignature(
+  bodyForSending,
+  user.emailSignature,
+);
 ```
 
 The ternary is asymmetric: **`buildForwardBody()`** exists and correctly prepends a forwarding header + original content to forward emails. But for regular replies, `body` (the user's typed text) is passed through unchanged — no quoted block is appended.
@@ -49,6 +53,7 @@ Gmail (`gmail.provider.ts`), Office 365 (`office365-operations.ts`), and Zoho (`
 When a user sends a reply (not a forward) via BearlyMail, the outgoing email body should include:
 
 **Plain text format:**
+
 ```
 <user's new reply text>
 
@@ -60,6 +65,7 @@ On <original email date>, <original sender name> <sender@example.com> wrote:
 ```
 
 **HTML format:**
+
 ```html
 <p><user's new reply text></p>
 
@@ -124,13 +130,13 @@ private buildReplyQuotedHtmlBody(userHtml: string, originalEmail: Email): string
 ### Step 2 — Wire into `buildReplyPayload()` in `replies.service.ts`
 
 The existing ternary:
+
 ```ts
-const bodyForSending = isForward
-  ? this.buildForwardBody(body, email)
-  : body;
+const bodyForSending = isForward ? this.buildForwardBody(body, email) : body;
 ```
 
 Should become:
+
 ```ts
 const bodyForSending = isForward
   ? this.buildForwardBody(body, email)
@@ -141,24 +147,32 @@ And for the HTML body path (used by `dispatchReply → provider.sendReply → op
 The `bodyWithSignature` is currently used as both the plain-text `body` and the `htmlBody` in `dispatchReply`. We need to thread the HTML-quoted version through as well.
 
 **Concrete change in `buildReplyPayload()`:**
+
 ```ts
 const bodyForSending = isForward
   ? this.buildForwardBody(body, email)
   : this.buildReplyQuotedBody(body, email);
 
 const htmlBodyForSending = isForward
-  ? this.buildForwardBody(body, email)          // forward body is already plain-text-only; acceptable
-  : this.buildReplyQuotedHtmlBody(body, email);  // NEW: HTML quoted version
+  ? this.buildForwardBody(body, email) // forward body is already plain-text-only; acceptable
+  : this.buildReplyQuotedHtmlBody(body, email); // NEW: HTML quoted version
 
-const bodyWithSignature = this.appendSignature(bodyForSending, user.emailSignature);
-const htmlBodyWithSignature = this.appendSignature(htmlBodyForSending, user.emailSignature);
+const bodyWithSignature = this.appendSignature(
+  bodyForSending,
+  user.emailSignature,
+);
+const htmlBodyWithSignature = this.appendSignature(
+  htmlBodyForSending,
+  user.emailSignature,
+);
 ```
 
 Then update `ReplyPayload` type to carry both:
+
 ```ts
 type ReplyPayload = {
   bodyWithSignature: string;
-  htmlBodyWithSignature: string;   // NEW
+  htmlBodyWithSignature: string; // NEW
   replySubject: string;
   replyToAddress: string;
   allAttachments: ReplyAttachment[];
@@ -167,6 +181,7 @@ type ReplyPayload = {
 ```
 
 And in `dispatchReply()`, pass `htmlBodyWithSignature` as the `htmlBody` option:
+
 ```ts
 return provider.sendReply(userId, {
   threadId: email.threadId,
@@ -196,8 +211,8 @@ The cleaner strips quoted content from **incoming** emails before LLM processing
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
+| File                                    | Change                                                                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `server/src/replies/replies.service.ts` | Add `buildReplyQuotedBody()`, `buildReplyQuotedHtmlBody()`; update `buildReplyPayload()` and `ReplyPayload` type; update `dispatchReply()` to pass `htmlBodyWithSignature` |
 
 > No frontend changes required — the draft body sent by the client is unchanged; the server appends the quoted content before dispatch.

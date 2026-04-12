@@ -5,10 +5,7 @@ import { CalendarCreateInviteModal } from 'components/quick-actions/modals/Calen
 import { CalendarFindEventsModal } from 'components/quick-actions/modals/CalendarFindEventsModal';
 import { QuickActionsButton } from 'components/quick-actions/QuickActionsButton';
 import { QuickActionsMenu, SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-import {
-  ACTION_TYPE_CALENDAR_CREATE_INVITE,
-  ACTION_TYPE_CALENDAR_FIND_EVENTS,
-} from 'constants/strings';
+import { ACTION_TYPE_CALENDAR_CREATE_INVITE, ACTION_TYPE_CALENDAR_FIND_EVENTS } from 'constants/strings';
 
 interface Email {
   id: string;

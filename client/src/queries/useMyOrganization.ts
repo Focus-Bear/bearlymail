@@ -45,16 +45,9 @@ export function useMyOrganization() {
 
 export function useInviteMember() {
   const queryClient = useQueryClient();
-  return useMutation<
-    OrgMember,
-    Error,
-    { email: string; role: 'admin' | 'member' }
-  >({
-    mutationFn: async (dto) => {
-      const response = await axios.post<OrgMember>(
-        `${API_URL}/organizations/invite`,
-        dto,
-      );
+  return useMutation<OrgMember, Error, { email: string; role: 'admin' | 'member' }>({
+    mutationFn: async dto => {
+      const response = await axios.post<OrgMember>(`${API_URL}/organizations/invite`, dto);
       return response.data;
     },
     onSuccess: () => {
@@ -65,16 +58,9 @@ export function useInviteMember() {
 
 export function useUpdateMemberRole() {
   const queryClient = useQueryClient();
-  return useMutation<
-    OrgMember,
-    Error,
-    { memberId: string; role: 'admin' | 'member' }
-  >({
+  return useMutation<OrgMember, Error, { memberId: string; role: 'admin' | 'member' }>({
     mutationFn: async ({ memberId, role }) => {
-      const response = await axios.patch<OrgMember>(
-        `${API_URL}/organizations/members/${memberId}`,
-        { role },
-      );
+      const response = await axios.patch<OrgMember>(`${API_URL}/organizations/members/${memberId}`, { role });
       return response.data;
     },
     onSuccess: () => {
@@ -86,7 +72,7 @@ export function useUpdateMemberRole() {
 export function useRemoveMember() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
-    mutationFn: async (memberId) => {
+    mutationFn: async memberId => {
       await axios.delete(`${API_URL}/organizations/members/${memberId}`);
     },
     onSuccess: () => {

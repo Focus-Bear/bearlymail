@@ -4,7 +4,14 @@ import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Email, GitHubLink } from 'types/email';
-import { extractCleanBody, extractCleanBodyWithMeta, extractCleanHtmlBody, extractCleanHtmlBodyWithMeta, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import {
+  extractCleanBody,
+  extractCleanBodyWithMeta,
+  extractCleanHtmlBody,
+  extractCleanHtmlBodyWithMeta,
+  removeSignature,
+  sanitizeAndProcessHtml,
+} from 'utils/emailBodyUtils';
 import { getAxiosErrorMessage } from 'utils/errors';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { replaceBlobUrlsWithCids } from 'utils/inlineImageUtils';
@@ -30,7 +37,7 @@ import { useEmailDetailActionItems } from './useEmailDetailActionItems';
 import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
 import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
 import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetailOperations.types';
-import { routeAfterSend,SendReplyPayload, sendReplyRequest } from './useEmailDetailSendHelpers';
+import { routeAfterSend, SendReplyPayload, sendReplyRequest } from './useEmailDetailSendHelpers';
 
 export type { EmailDetailOperationsOptions, EmailDetailState };
 
@@ -427,7 +434,10 @@ export function useEmailDetailOperations(
         setHasGithubToken(response.data.hasToken !== false);
       }
     } catch (error: unknown) {
-      if (axios.isAxiosError(error) && (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)) {
+      if (
+        axios.isAxiosError(error) &&
+        (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)
+      ) {
         setHasGithubToken(false);
       }
     } finally {
@@ -590,16 +600,26 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
-    async (sendOptions: {
-      files?: File[];
-      expectedReplyHours?: number;
-      forwardAttachmentIds?: string[];
-      draftOverride?: string;
-      scheduledSendAt?: Date;
-      keepInAction?: boolean;
-      inlineImages?: Map<string, File>;
-    } = {}) => {
-      const { files = [], expectedReplyHours, forwardAttachmentIds, draftOverride, scheduledSendAt, keepInAction, inlineImages } = sendOptions;
+    async (
+      sendOptions: {
+        files?: File[];
+        expectedReplyHours?: number;
+        forwardAttachmentIds?: string[];
+        draftOverride?: string;
+        scheduledSendAt?: Date;
+        keepInAction?: boolean;
+        inlineImages?: Map<string, File>;
+      } = {}
+    ) => {
+      const {
+        files = [],
+        expectedReplyHours,
+        forwardAttachmentIds,
+        draftOverride,
+        scheduledSendAt,
+        keepInAction,
+        inlineImages,
+      } = sendOptions;
       const rawDraft = draftOverride || draft;
       if (!id || !rawDraft) {
         return;
@@ -618,13 +638,17 @@ export function useEmailDetailOperations(
 
         setCheckingTone(true);
         try {
-          const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, {
-            text: draftToSend,
-            currentTime: getCurrentTimeInTimezone(timezoneRef.current),
-            // Pass the scheduled send time so the server can suppress timing nags when
-            // the user has already queued the email for a specific delivery time.
-            scheduledSendAt: scheduledSendAt?.toISOString(),
-          }, { signal: controller.signal });
+          const toneResponse = await axios.post(
+            `${API_URL}/llm/check-tone`,
+            {
+              text: draftToSend,
+              currentTime: getCurrentTimeInTimezone(timezoneRef.current),
+              // Pass the scheduled send time so the server can suppress timing nags when
+              // the user has already queued the email for a specific delivery time.
+              scheduledSendAt: scheduledSendAt?.toISOString(),
+            },
+            { signal: controller.signal }
+          );
           setToneCheckResult(toneResponse.data);
 
           if (!toneResponse.data.isOk) {
@@ -689,7 +713,15 @@ export function useEmailDetailOperations(
           // The archive/snooze paths call removeEmail again inside their own handlers,
           // but that is idempotent (filter on already-absent id is a no-op).
           dispatch(removeEmail(currentId));
-          routeAfterSend({ keepInAction, expectedReplyHours, scheduledSendAt, performArchiveAfterReply, performSnoozeAfterReply, navigate, getInboxPath });
+          routeAfterSend({
+            keepInAction,
+            expectedReplyHours,
+            scheduledSendAt,
+            performArchiveAfterReply,
+            performSnoozeAfterReply,
+            navigate,
+            getInboxPath,
+          });
         } catch (error: unknown) {
           console.error('Error sending reply:', error);
           setDraft(draftToSend);

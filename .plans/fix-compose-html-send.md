@@ -43,12 +43,12 @@ gmail-send.ts:buildEmailContent()
 
 ## Affected Files & Line Numbers
 
-| File | Line(s) | Issue |
-|------|---------|-------|
-| `server/src/emails/emails.controller.ts` | ~490 | `send` endpoint passes body as plain text only |
-| `server/src/emails/providers/gmail.provider.ts` | ~270 | `sendEmail()` calls `buildEmailContent()` without `htmlBody` |
-| `server/src/emails/providers/gmail/gmail-send.ts` | ~60-70 | `buildEmailContent()` only emits HTML MIME when `htmlBody` is set |
-| `server/src/emails/email-controller.helpers.ts` | 22-26 | `appendSignature()` concatenates with `\n\n` (not HTML-aware) |
+| File                                              | Line(s) | Issue                                                             |
+| ------------------------------------------------- | ------- | ----------------------------------------------------------------- |
+| `server/src/emails/emails.controller.ts`          | ~490    | `send` endpoint passes body as plain text only                    |
+| `server/src/emails/providers/gmail.provider.ts`   | ~270    | `sendEmail()` calls `buildEmailContent()` without `htmlBody`      |
+| `server/src/emails/providers/gmail/gmail-send.ts` | ~60-70  | `buildEmailContent()` only emits HTML MIME when `htmlBody` is set |
+| `server/src/emails/email-controller.helpers.ts`   | 22-26   | `appendSignature()` concatenates with `\n\n` (not HTML-aware)     |
 
 ## Minimal Fix
 
@@ -71,8 +71,8 @@ const emailContent = buildEmailContent({
 const emailContent = buildEmailContent({
   to,
   subject,
-  body: stripHtmlTags(body),  // plain-text fallback
-  htmlBody: body,              // HTML content from rich text editor
+  body: stripHtmlTags(body), // plain-text fallback
+  htmlBody: body, // HTML content from rich text editor
   cc,
   bcc,
   attachments,
@@ -87,15 +87,15 @@ A simple implementation:
 ```typescript
 function stripHtmlTags(html: string): string {
   return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&nbsp;/g, " ")
     .trim();
 }
 ```
@@ -106,14 +106,21 @@ Make signature appending HTML-aware. Currently it uses `\n\n` which breaks HTML 
 
 ```typescript
 // BEFORE:
-export const appendSignature = (emailBody: string, userSignature?: string | null): string =>
+export const appendSignature = (
+  emailBody: string,
+  userSignature?: string | null,
+): string =>
   `${emailBody}\n\n${userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE}`;
 
 // AFTER:
-export const appendSignature = (emailBody: string, userSignature?: string | null): string => {
-  const signature = userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
+export const appendSignature = (
+  emailBody: string,
+  userSignature?: string | null,
+): string => {
+  const signature =
+    userSignature ?? EMAIL_CONTROLLER_DEFAULTS.DEFAULT_SIGNATURE;
   // If body contains HTML, wrap signature in HTML
-  if (emailBody.includes('<') && emailBody.includes('>')) {
+  if (emailBody.includes("<") && emailBody.includes(">")) {
     return `${emailBody}<br><br>${signature}`;
   }
   return `${emailBody}\n\n${signature}`;
@@ -143,4 +150,5 @@ always be treated as HTML for compose flows (matching Office365/Zoho behavior).
 - **Office365/Zoho** — already treat body as HTML, so they work but should also get the `appendSignature` HTML fix
 
 ---
-*Investigated by Monk of Modularity 🧘 via OpenClaw*
+
+_Investigated by Monk of Modularity 🧘 via OpenClaw_

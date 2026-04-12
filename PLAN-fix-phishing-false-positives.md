@@ -14,6 +14,7 @@ PR #1292 (fix #744) correctly addressed DB persistence of LLM verdicts but did N
 The function compares sender domain against ALL link domains in the email body. If none match, it returns `true`. There is **no concept of trusted/well-known domains** that should be excluded from this check.
 
 For a `focusbear.io` sender linking to `docs.google.com` and `github.com`:
+
 1. `hasDomainMismatch()` → `true` (no link domain matches `focusbear.io`)
 2. Domain mismatch weight = 3 → `medium` confidence
 3. Signal passed to LLM: `"Domain mismatch detected: true"` — biases LLM toward phishing
@@ -33,50 +34,50 @@ For a `focusbear.io` sender linking to `docs.google.com` and `github.com`:
  * business email links to at least one of these services.
  */
 const TRUSTED_LINK_DOMAINS = new Set([
-  'google.com',
-  'youtube.com',
-  'github.com',
-  'gitlab.com',
-  'bitbucket.org',
-  'linkedin.com',
-  'twitter.com',
-  'x.com',
-  'facebook.com',
-  'instagram.com',
-  'microsoft.com',
-  'apple.com',
-  'amazon.com',
-  'zoom.us',
-  'slack.com',
-  'notion.so',
-  'figma.com',
-  'dropbox.com',
-  'atlassian.com',
-  'jira.com',
-  'confluence.com',
-  'trello.com',
-  'hubspot.com',
-  'mailchimp.com',
-  'sendgrid.net',
-  'stripe.com',
-  'intercom.io',
-  'calendly.com',
-  'loom.com',
-  'miro.com',
-  'canva.com',
-  'airtable.com',
-  'typeform.com',
-  'surveymonkey.com',
-  'docusign.com',
-  'cloudflare.com',
-  'amazonaws.com',
-  'googleapis.com',
-  'gstatic.com',
-  'googleusercontent.com',
-  'wp.com',
-  'wordpress.com',
-  'medium.com',
-  'substack.com',
+  "google.com",
+  "youtube.com",
+  "github.com",
+  "gitlab.com",
+  "bitbucket.org",
+  "linkedin.com",
+  "twitter.com",
+  "x.com",
+  "facebook.com",
+  "instagram.com",
+  "microsoft.com",
+  "apple.com",
+  "amazon.com",
+  "zoom.us",
+  "slack.com",
+  "notion.so",
+  "figma.com",
+  "dropbox.com",
+  "atlassian.com",
+  "jira.com",
+  "confluence.com",
+  "trello.com",
+  "hubspot.com",
+  "mailchimp.com",
+  "sendgrid.net",
+  "stripe.com",
+  "intercom.io",
+  "calendly.com",
+  "loom.com",
+  "miro.com",
+  "canva.com",
+  "airtable.com",
+  "typeform.com",
+  "surveymonkey.com",
+  "docusign.com",
+  "cloudflare.com",
+  "amazonaws.com",
+  "googleapis.com",
+  "gstatic.com",
+  "googleusercontent.com",
+  "wp.com",
+  "wordpress.com",
+  "medium.com",
+  "substack.com",
 ]);
 ```
 
@@ -90,7 +91,7 @@ function hasDomainMismatch(
   if (bodyDomains.size === 0) return false;
 
   const registeredDomain = (host: string) =>
-    host.split('.').slice(REGISTERED_DOMAIN_PARTS).join('.');
+    host.split(".").slice(REGISTERED_DOMAIN_PARTS).join(".");
 
   const senderRegistered = registeredDomain(senderDomain);
 
@@ -116,6 +117,7 @@ function hasDomainMismatch(
 **File:** `server/src/summarization/phishing-detection.service.spec.ts` (or create if not exists)
 
 Add test cases:
+
 1. `focusbear.io` sender + `docs.google.com` link → `hasDomainMismatch` = `false`
 2. `focusbear.io` sender + `evil-phishing.com` link → `hasDomainMismatch` = `true`
 3. `focusbear.io` sender + mix of trusted + untrusted links → checks only untrusted

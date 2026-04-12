@@ -39,14 +39,14 @@ Modify `buildPasteHandler` to:
 
 ```typescript
 // In buildPasteHandler, change the image insertion:
-imageFiles.forEach(file => {
+imageFiles.forEach((file) => {
   const cid = generateInlineCid();
   const blobUrl = URL.createObjectURL(file);
   _view.dispatch(
     _view.state.tr.replaceSelectionWith(
       _view.state.schema.nodes.image.create({
         src: blobUrl,
-        'data-cid': cid,
+        "data-cid": cid,
       }),
     ),
   );
@@ -88,17 +88,20 @@ Before sending, walk the HTML and replace `src="blob:..."` with `src="cid:..."` 
 function replaceBlobUrlsWithCids(html: string): string {
   // Replace <img src="blob:..." data-cid="inline-xxx@bearlymail">
   // with   <img src="cid:inline-xxx@bearlymail">
-  return html.replace(
-    /<img([^>]*?)src="blob:[^"]*"([^>]*?)data-cid="([^"]*)"([^>]*?)>/g,
-    '<img$1src="cid:$3"$2$4>'
-  ).replace(
-    /<img([^>]*?)data-cid="([^"]*)"([^>]*?)src="blob:[^"]*"([^>]*?)>/g,
-    '<img$1src="cid:$2"$3$4>'
-  );
+  return html
+    .replace(
+      /<img([^>]*?)src="blob:[^"]*"([^>]*?)data-cid="([^"]*)"([^>]*?)>/g,
+      '<img$1src="cid:$3"$2$4>',
+    )
+    .replace(
+      /<img([^>]*?)data-cid="([^"]*)"([^>]*?)src="blob:[^"]*"([^>]*?)>/g,
+      '<img$1src="cid:$2"$3$4>',
+    );
 }
 ```
 
 This function should be called on the draft HTML before it's sent to the server. Apply it in:
+
 - `useEmailDetailReplies.ts` → `buildReplyFormData` (where `body` is set)
 - `useEmailDetailOperations.ts` → the send handler (where `formData` is built)
 
@@ -118,22 +121,23 @@ blobUrlsRef.current.push(blobUrl);
 // Cleanup on unmount:
 useEffect(() => {
   return () => {
-    blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
   };
 }, []);
 ```
 
 ## File Changes Summary
 
-| File | Action |
-|------|--------|
+| File                                                 | Action                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `client/src/components/rich-text/RichTextEditor.tsx` | **MODIFY** — blob URLs for preview, `data-cid` attribute on Image extension, blob URL cleanup |
-| `client/src/hooks/useEmailDetailReplies.ts` | **MODIFY** — add `replaceBlobUrlsWithCids()` before sending |
-| `client/src/hooks/useEmailDetailOperations.ts` | **MODIFY** — add `replaceBlobUrlsWithCids()` before sending |
+| `client/src/hooks/useEmailDetailReplies.ts`          | **MODIFY** — add `replaceBlobUrlsWithCids()` before sending                                   |
+| `client/src/hooks/useEmailDetailOperations.ts`       | **MODIFY** — add `replaceBlobUrlsWithCids()` before sending                                   |
 
 ### Utility file (optional)
 
 Consider extracting `replaceBlobUrlsWithCids()` and `generateInlineCid()` into a shared utility file:
+
 - **New file:** `client/src/utils/inlineImageUtils.ts`
 
 ## Testing

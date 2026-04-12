@@ -31,9 +31,7 @@ describe('getMultiSelectDisplayText', () => {
 
   it('uses the count of selectedIds, not the number matched in options', () => {
     // selectedIds has 3 entries but two are unknown — still "3 selected"
-    expect(
-      getMultiSelectDisplayText(['inbox', 'ghost-id-1', 'ghost-id-2'], OPTIONS, PLACEHOLDER),
-    ).toBe('3 selected');
+    expect(getMultiSelectDisplayText(['inbox', 'ghost-id-1', 'ghost-id-2'], OPTIONS, PLACEHOLDER)).toBe('3 selected');
   });
 
   it('works with an empty options array', () => {

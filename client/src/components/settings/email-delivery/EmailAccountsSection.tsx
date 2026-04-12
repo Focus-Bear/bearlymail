@@ -28,8 +28,14 @@ interface EmailAccountsSectionProps {
 interface EmailAccountRowProps {
   account: EmailAccount;
   t: (k: string) => string;
-  onSetPrimary: (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => Promise<void>;
-  onDisconnect: (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => Promise<void>;
+  onSetPrimary: (
+    id: string,
+    provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
+  ) => Promise<void>;
+  onDisconnect: (
+    id: string,
+    provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO
+  ) => Promise<void>;
 }
 
 const EmailAccountRow: React.FC<EmailAccountRowProps> = ({ account, t, onSetPrimary, onDisconnect }) => (

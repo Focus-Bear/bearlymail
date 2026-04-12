@@ -52,10 +52,12 @@
 **Issue**: `thread_query` and `email_query` were slow despite optimizations
 
 **Previous Performance** (from logs):
+
 - `thread_query`: 549-558ms (5.5x over 100ms budget)
 - `email_query`: 821-850ms (8.2x over 100ms budget)
 
 **Optimizations Applied**:
+
 1. [x] Replaced CTE + DISTINCT ON with LATERAL JOIN pattern
    - More efficient for finding "best email per thread"
    - PostgreSQL can use indexes more effectively
@@ -72,11 +74,13 @@
 **Issue**: `priority_calc` was slow, especially `priority_days_calc` (up to 2300ms)
 
 **Previous Performance** (from logs):
+
 - `priority_calc`: 551-2695ms (2.8-13.5x over 200ms budget)
 - `priority_get_contexts`: 259-268ms (2.6x over 100ms budget)
 - `priority_days_calc`: 249-2276ms (extremely variable)
 
 **Optimizations Applied**:
+
 1. [x] Replaced TypeORM `.find()` with raw SQL query for `getUserContexts`
    - Eliminates ORM overhead
    - Direct SQL is ~50% faster
@@ -91,11 +95,13 @@
 **Issue**: `triage-suggestions` endpoint was slow
 
 **Previous Performance** (from logs):
+
 - `email_query`: 299ms (over 200ms budget)
 - `context_query`: 276ms (2.8x over 100ms budget)
 - `history_query`: 571ms (1.9x over 300ms budget)
 
 **Optimizations Applied**:
+
 1. [x] Replaced TypeORM queries with raw SQL in:
    - `email_query`: Now uses direct SQL with JOIN
    - `context_query`: Now uses raw SQL
@@ -138,25 +144,28 @@
 ## Performance Targets
 
 ### Expected Performance After Optimizations
+
 After applying the optimizations on 2025-12-07, expected improvements:
 
-| Span | Before | Expected | Budget |
-|------|--------|----------|--------|
-| `thread_query` | ~530ms | ~100-200ms | 100ms |
-| `email_query` | ~800ms | ~100-200ms | 100ms |
-| `priority_calc` | ~530-2500ms | ~50-100ms | 200ms |
-| `priority_get_contexts` | ~260ms | ~50-100ms | 100ms |
-| `priority_days_calc` | ~250-2300ms | 0ms (skipped) | 150ms |
-| `decryption` | ~8ms | ~8ms | 100ms ✅ |
-| `thread_grouping` | 0ms | 0ms | 50ms ✅ |
-| `blocked_filter` | ~2ms | ~2ms | 50ms ✅ |
+| Span                    | Before      | Expected      | Budget   |
+| ----------------------- | ----------- | ------------- | -------- |
+| `thread_query`          | ~530ms      | ~100-200ms    | 100ms    |
+| `email_query`           | ~800ms      | ~100-200ms    | 100ms    |
+| `priority_calc`         | ~530-2500ms | ~50-100ms     | 200ms    |
+| `priority_get_contexts` | ~260ms      | ~50-100ms     | 100ms    |
+| `priority_days_calc`    | ~250-2300ms | 0ms (skipped) | 150ms    |
+| `decryption`            | ~8ms        | ~8ms          | 100ms ✅ |
+| `thread_grouping`       | 0ms         | 0ms           | 50ms ✅  |
+| `blocked_filter`        | ~2ms        | ~2ms          | 50ms ✅  |
 
 ### Target Performance
+
 - **Inbox load (triage)**: < 500ms
 - **Inbox load (process)**: < 1000ms
 - **All individual spans**: Under their respective budgets
 
 ### Notes
+
 - Run migrations to apply new indexes: `npm run migration:run`
 - Monitor `server/logs/performance.log` to verify improvements
 
@@ -179,9 +188,3 @@ After applying the optimizations on 2025-12-07, expected improvements:
 - `server/logs/performance.log` - Performance metrics
 - `PERFORMANCE_ANALYSIS.md` - Detailed performance analysis
 - `PERFORMANCE_FIXES.md` - Summary of fixes applied
-
-
-
-
-
-

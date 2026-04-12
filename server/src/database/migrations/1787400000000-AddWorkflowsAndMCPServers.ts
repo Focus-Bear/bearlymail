@@ -94,14 +94,10 @@ export class AddWorkflowsAndMCPServers1787400000000 implements MigrationInterfac
     await queryRunner.query(
       `DROP INDEX "IDX_workflow_execution_logs_userId_executedAt"`,
     );
-    await queryRunner.query(
-      `DROP INDEX "IDX_workflow_execution_logs_ruleId"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_workflow_execution_logs_ruleId"`);
     await queryRunner.query(`DROP TABLE "workflow_execution_logs"`);
 
-    await queryRunner.query(
-      `DROP INDEX "IDX_workflow_rules_userId_priority"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_workflow_rules_userId_priority"`);
     await queryRunner.query(`DROP TABLE "workflow_rules"`);
   }
 }

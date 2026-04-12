@@ -46,8 +46,7 @@ interface UrlSyncParams {
 // Gmail thread IDs are 16-char hex strings without dashes. If the URL contains
 // a Gmail thread ID (e.g. from an old link), do not attempt to open it as an
 // email — it would produce a 500 from the API.
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isEmailUuid(value: string | undefined): value is string {
   return value !== undefined && UUID_REGEX.test(value);
@@ -82,10 +81,7 @@ export function useInboxUrlSync({
       } else {
         // urlThreadId is not a UUID (e.g. a Gmail hex thread ID from an old link) — ignore it
         // to prevent a 500 from the API (#1296).
-        console.warn(
-          '[useInboxUrlSync] urlThreadId does not look like a UUID, ignoring:',
-          urlThreadId,
-        );
+        console.warn('[useInboxUrlSync] urlThreadId does not look like a UUID, ignoring:', urlThreadId);
       }
     }
     if (!urlMode) {
@@ -111,10 +107,7 @@ export function useInboxUrlSync({
       } else {
         // urlThreadId is not a UUID (e.g. a Gmail hex thread ID from an old link) — ignore it
         // to prevent a 500 from the API (#1296).
-        console.warn(
-          '[useInboxUrlSync] urlThreadId does not look like a UUID, ignoring:',
-          urlThreadId,
-        );
+        console.warn('[useInboxUrlSync] urlThreadId does not look like a UUID, ignoring:', urlThreadId);
       }
     } else if (!urlThreadId && splitViewSelectedEmailId) {
       closeEmail();

@@ -11,7 +11,7 @@ import { theme } from 'theme/theme';
 import { ModalBackdrop, ModalContent, ModalFooter, ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
-import { decrementCategorySummaryCount,removeEmail } from 'store/slices/emailSlice';
+import { decrementCategorySummaryCount, removeEmail } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 const CATEGORY_LISTBOX_ID = 'category-override-listbox';
@@ -54,18 +54,14 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
   // Sync display when external selectedCategoryId changes
   const selectedOption = existingCategories.find(cat => cat.id === selectedCategoryId) ?? null;
 
-  const filtered = existingCategories.filter(cat =>
-    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = existingCategories.filter(cat => cat.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   // Total items = filtered categories + "Add new category" sentinel
   const totalItems = filtered.length + 1;
   const ADD_NEW_INDEX = filtered.length;
 
   const getOptionId = (index: number) =>
-    index === ADD_NEW_INDEX
-      ? `${CATEGORY_LISTBOX_ID}-add-new`
-      : `${CATEGORY_LISTBOX_ID}-option-${index}`;
+    index === ADD_NEW_INDEX ? `${CATEGORY_LISTBOX_ID}-add-new` : `${CATEGORY_LISTBOX_ID}-option-${index}`;
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -156,9 +152,7 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
           aria-expanded={isOpen}
           aria-autocomplete="list"
           aria-controls={CATEGORY_LISTBOX_ID}
-          aria-activedescendant={
-            isOpen && highlightedIndex >= 0 ? getOptionId(highlightedIndex) : undefined
-          }
+          aria-activedescendant={isOpen && highlightedIndex >= 0 ? getOptionId(highlightedIndex) : undefined}
           value={isAddingNew ? searchTerm : displayValue}
           onChange={handleInputChange}
           onFocus={handleFocus}
@@ -231,13 +225,9 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
                 fontSize: theme.typography.fontSize.sm,
                 color: theme.colors.primary.main,
                 cursor: 'pointer',
-                borderTop:
-                  filtered.length > 0 ? `1px solid ${theme.colors.border.light}` : undefined,
+                borderTop: filtered.length > 0 ? `1px solid ${theme.colors.border.light}` : undefined,
                 fontWeight: theme.typography.fontWeight.medium,
-                backgroundColor:
-                  highlightedIndex === ADD_NEW_INDEX
-                    ? theme.colors.background.subtle
-                    : 'transparent',
+                backgroundColor: highlightedIndex === ADD_NEW_INDEX ? theme.colors.background.subtle : 'transparent',
               }}
             >
               {t('priority.categoryOverride.addNewCategory')}
@@ -479,12 +469,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
           />
         </div>
 
-        <ModalFooter
-          onCancel={onClose}
-          onSubmit={handleSubmit}
-          isSubmitting={submitting}
-          canSubmit={canSubmit}
-        />
+        <ModalFooter onCancel={onClose} onSubmit={handleSubmit} isSubmitting={submitting} canSubmit={canSubmit} />
       </ModalContent>
     </ModalBackdrop>,
     document.body

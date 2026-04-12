@@ -13,6 +13,7 @@ The issue reports that BearlyMail is missing CC'd participants in the UI, and th
 ### History
 
 Issue #809 addressed CC not displaying and Reply All not including CC recipients. PRs #821 and #842 were merged and fixed:
+
 - Gmail CC header extraction (`parseGmailMessage` in `gmail-message-parser.ts`)
 - Office365 and Zoho CC field mapping
 - Query column selection to include `email.cc`
@@ -27,6 +28,7 @@ Issue #809 addressed CC not displaying and Reply All not including CC recipients
 ### 1. CC Parsing (Server)
 
 All three providers now correctly parse CC:
+
 - **Gmail** (`server/src/emails/providers/gmail/gmail-message-parser.ts:29–31`): Extracts `Cc` header ✅
 - **Office365** (`server/src/emails/providers/office365/office365-message-parser.ts:28,111`): Maps `ccRecipients` ✅
 - **Zoho** (`server/src/emails/providers/zoho/zoho-message-parser.ts:22,77`): Maps `ccAddress` ✅
@@ -80,21 +82,25 @@ Before implementing, confirm the following in `server/src/emails/emails.service.
 ### Scenario A: CC is encrypted in raw SQL output and not decrypted in the mapping step
 
 **File:** `server/src/emails/emails.service.ts`
+
 - Find the post-SQL row mapping (where `from`, `fromName`, `to` etc. are decrypted using `EncryptionHelper.decrypt`)
 - Add `cc: row.cc ? EncryptionHelper.decrypt(row.cc) : null` to ensure CC is decrypted before being sent to the frontend
 
 **File:** `server/src/emails/emails.service.ts` (or the DTO mapper)
+
 - Ensure `cc` is included in the API response object for the inbox endpoint
 
 ### Scenario B: CC is missing from the raw SQL response mapping
 
 **File:** `server/src/emails/emails.service.ts`
+
 - Confirm `e."cc"` is in the outer SELECT of the LATERAL subquery (already present at line 1114)
 - Confirm the post-processing loop maps `cc` from the SQL row to the response DTO
 
 ### Scenario C: Old emails have null CC (backfill gap)
 
 For emails synced before the #809 fix, CC will never be populated. Consider:
+
 - Adding a background job to re-fetch CC headers for recent emails where `cc IS NULL`
 - OR accepting this as a known limitation and relying on fresh syncs going forward
 
@@ -104,10 +110,10 @@ For emails synced before the #809 fix, CC will never be populated. Consider:
 
 ## Files to Examine and Modify
 
-| File | Action |
-|------|--------|
-| `server/src/emails/emails.service.ts` | Find the row-to-DTO mapper for `getInbox()` raw SQL; verify/add CC decryption |
-| `server/src/emails/emails.service.ts` | Confirm `cc` is included in the API response shape |
+| File                                       | Action                                                                             |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `server/src/emails/emails.service.ts`      | Find the row-to-DTO mapper for `getInbox()` raw SQL; verify/add CC decryption      |
+| `server/src/emails/emails.service.ts`      | Confirm `cc` is included in the API response shape                                 |
 | `server/src/emails/emails.service.spec.ts` | Add a test: inbox response includes decrypted `cc` when CC is present on the email |
 
 ---

@@ -3,7 +3,7 @@
 **Branch:** `plan/1144-email-categorised-incorrectly`  
 **Author:** Monk of Modularity (AI agent), subagent of Laoban  
 **Priority:** P2 — incorrect categorization degrades user trust in the inbox  
-**Linked issue:** #1144  
+**Linked issue:** #1144
 
 ---
 
@@ -12,20 +12,24 @@
 Email categorization runs through two code paths that have diverged in quality:
 
 ### Path A: Single-email priority analysis (`analyzePriority`)
+
 **File:** `server/src/llm/priority-analysis.service.ts`  
 **Prompt:** `server/promptfoo/prompts/prioritise-email.md`
 
 The single-email path uses the promptfoo template (`prioritise-email.md`) which has received extensive prompt engineering:
+
 - **Step 1**: Identify sender type (human/bot/automated) before selecting category
 - **Step 2**: Parse category names carefully, eliminate incompatible options using exclusion/source qualifiers
 - **Step 3**: Select best fitting category from remaining eligible options
 - GitHub-specific guidance (Devin PR identification, QA comments)
 - Strong instructions: "return the category name EXACTLY as listed"
 
-### Path B: Batch priority analysis (`analyzeBatchPriority`)  
+### Path B: Batch priority analysis (`analyzeBatchPriority`)
+
 **File:** `server/src/llm/priority-analysis.service.ts` — `analyzeBatchPriority` method (line ~497)
 
 The batch path uses a **hardcoded inline string template** that was NOT updated when the single-email prompt was improved. The batch prompt:
+
 - Has NO Step 1/2/3 sender-type-first categorization logic
 - Has NO GitHub-specific guidance (Devin PR, QA pass/fail distinction)
 - Has NO exclusion qualifier reasoning instructions
@@ -52,7 +56,8 @@ if (prefixMatch) return prefixMatch;
 This can silently misassign categories when one category name is a prefix of another.
 
 **Example:**
-- Categories: `["Build", "Build/deployment errors (other repos)"]`  
+
+- Categories: `["Build", "Build/deployment errors (other repos)"]`
 - LLM returns: `"Build/deployment errors (other repos)"`
 - The `prefixMatch` finds `"Build"` first (because `"Build/deployment errors (other repos)".startsWith("Build")`)
 - **Result**: Email assigned to `"Build"` instead of `"Build/deployment errors (other repos)"`
@@ -70,6 +75,7 @@ This is a silent data corruption. The exact match and parenthetical-strip steps 
 The batch prompt should load from `server/promptfoo/prompts/prioritise-email.md` (the same file as single-email), then pack multiple emails into a structured multi-email format. This ensures the batch path stays in sync with prompt improvements.
 
 **Current approach (problematic):**
+
 ```typescript
 const batchPrompt = `You are an email prioritization assistant...
 - category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY...
@@ -77,6 +83,7 @@ const batchPrompt = `You are an email prioritization assistant...
 ```
 
 **New approach:**
+
 ```typescript
 // Load the single-email prompt template
 const promptConfig = getPrompt(PRIORITY_PROMPT_IDS.ANALYZE_PRIORITY);
@@ -122,13 +129,13 @@ private canonicaliseCategoryName(
   knownNames: string[],
 ): string {
   if (!rawName || rawName === "Other") return rawName;
-  
+
   // Exact match first (case-insensitive)
   const exact = knownNames.find(
     (knownName) => knownName.toLowerCase() === rawName.toLowerCase(),
   );
   if (exact) return exact;
-  
+
   // Parenthetical variant: "Name (description)" → strip parens and match
   const withoutParens = rawName
     .replace(/\s*\(.*\)\s*$/, "")
@@ -138,7 +145,7 @@ private canonicaliseCategoryName(
     (knownName) => knownName.toLowerCase() === withoutParens,
   );
   if (parenMatch) return parenMatch;
-  
+
   // Prefix match: collect ALL candidates, then pick the LONGEST known name that matches.
   // "Longest known name" avoids misassigning "Build/deployment errors" → "Build" when both exist.
   // ↓ CHANGED: was `find` (first match), now collects all and picks longest
@@ -151,7 +158,7 @@ private canonicaliseCategoryName(
     // Prefer the candidate with the longest name (most specific match)
     return prefixCandidates.reduce((a, b) => (b.length > a.length ? b : a));
   }
-  
+
   return rawName;
 }
 ```
@@ -164,11 +171,12 @@ Add batch mode support (conditional sections) while keeping all existing single-
 
 Add at the very top of the file (before existing content):
 
-```markdown
+````markdown
 {% if batchMode %}
 You are an email prioritization assistant. Analyze each email below and return a JSON object wrapping an array of results.
 
 For EACH email, provide the same fields as listed below. Return format:
+
 ```json
 {
   "priority_results": [
@@ -177,12 +185,14 @@ For EACH email, provide the same fields as listed below. Return format:
   ]
 }
 ```
+````
 
 The following instructions apply to ALL emails in the batch:
 {% else %}
 You are an email prioritization assistant. Analyze the email below and return a JSON object.
 {% endif %}
-```
+
+````
 
 Then ensure the Step 1/2/3 categorization block and all other instructions are **outside** the `{% if %}` blocks (shared for both paths).
 
@@ -216,7 +226,7 @@ tests:
             throw new Error(`Bot PR misassigned to human-only category: ${pr.categoryExplanation}`);
           }
           return true;
-```
+````
 
 ---
 

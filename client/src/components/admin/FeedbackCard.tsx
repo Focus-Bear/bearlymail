@@ -25,19 +25,40 @@ interface Props {
 export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t }) => {
   return (
     <div style={cardStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: theme.spacing.sm,
+        }}
+      >
         <div>
           <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
             {new Date(item.createdAt).toLocaleString()}
           </span>
           {item.userEmail && (
-            <span style={{ marginLeft: theme.spacing.sm, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+            <span
+              style={{
+                marginLeft: theme.spacing.sm,
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.secondary,
+              }}
+            >
               · {item.userEmail}
             </span>
           )}
           {item.appVersion && (
-            <span style={{ marginLeft: theme.spacing.sm, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>
-              {t('contactFeedback.adminVersionPrefix')}{item.appVersion}
+            <span
+              style={{
+                marginLeft: theme.spacing.sm,
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+              }}
+            >
+              {t('contactFeedback.adminVersionPrefix')}
+              {item.appVersion}
             </span>
           )}
         </div>
@@ -59,7 +80,15 @@ export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t })
         </button>
       </div>
 
-      <p style={{ margin: 0, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      <p
+        style={{
+          margin: 0,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.primary,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
         {item.message}
       </p>
 
@@ -83,7 +112,7 @@ export const FeedbackCard: React.FC<Props> = ({ item, deletingId, onDelete, t })
                 display: 'block',
                 cursor: 'pointer',
               }}
-              onError={(event) => {
+              onError={event => {
                 // Hide broken image (e.g. expired presigned URL)
                 (event.currentTarget as HTMLImageElement).style.display = 'none';
               }}

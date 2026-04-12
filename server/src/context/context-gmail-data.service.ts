@@ -13,10 +13,9 @@ import {
   buildSentFolderQuery,
   formatGmailDate,
 } from "./email-query-builder.util";
-import { PROVIDER_TYPE } from "./email-query-builder.util";
 
 const EMAIL_FETCH_LIMIT = 400;
-const SENT_EMAIL_OVERFETCH_MULTIPLIER = 1.5;
+const NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER = 1.5;
 import { gmail_v1, google } from "googleapis";
 
 import { GMAIL_LABELS } from "../constants/email-labels";
@@ -120,10 +119,15 @@ export class ContextEmailDataService {
   private getProviderTypeName(provider: EmailProvider): string {
     // Use constructor name to identify provider type without instanceof checks
     const providerName = provider.constructor.name;
-    if (providerName.includes("Gmail")) return PROVIDER_TYPE.GMAIL;
-    if (providerName.includes("Office365") || providerName.includes("Office"))
-      return PROVIDER_TYPE.OFFICE365;
-    if (providerName.includes("Zoho")) return PROVIDER_TYPE.ZOHO;
+    if (providerName.includes("Gmail")) {
+      return "Gmail";
+    }
+    if (providerName.includes("Office365") || providerName.includes("Office")) {
+      return "Office365";
+    }
+    if (providerName.includes("Zoho")) {
+      return "Zoho";
+    }
     return providerName;
   }
 
@@ -160,7 +164,8 @@ export class ContextEmailDataService {
 
       // Determine if archived (for Gmail, check labelIds; for others, assume not archived if in inbox)
       let isArchived = false;
-      if (this.getProviderTypeName(provider) === PROVIDER_TYPE.GMAIL) {
+      const providerName = provider.constructor.name;
+      if (providerName.includes("Gmail")) {
         const labelIds = lastMessage.labelIds || [];
         isArchived = !labelIds.includes(GMAIL_LABELS.INBOX);
       } else {
@@ -341,7 +346,9 @@ export class ContextEmailDataService {
         allIds.push(...threads.map((thread: { id: string }) => thread.id));
         pageToken = res.data.nextPageToken || undefined;
         pageCount++;
-        if (allIds.length >= limit || pageCount >= 10) break;
+        if (allIds.length >= limit || pageCount >= 10) {
+          break;
+        }
       } while (pageToken && allIds.length < limit);
     } catch (error) {
       const formattedError = formatGaxiosError(error);
@@ -364,7 +371,7 @@ export class ContextEmailDataService {
     const provider = await this.getProviderForUser(userId);
     const providerType = this.getProviderTypeName(provider);
 
-    if (providerType === PROVIDER_TYPE.GMAIL) {
+    if (providerType === "Gmail") {
       return this.fetchGmailSentThreadIds(userId, limit);
     }
 
@@ -482,7 +489,9 @@ export class ContextEmailDataService {
         format: "full",
       });
       const messages = threadResponse.data.messages || [];
-      if (messages.length === 0) return null;
+      if (messages.length === 0) {
+        return null;
+      }
 
       const threadEmails: ThreadEmail[] = messages.map((msg) =>
         this.parseGmailMessageToThreadEmail(msg),
@@ -608,7 +617,9 @@ export class ContextEmailDataService {
       });
       const thread = threadResponse.data;
       const messages = thread.messages || [];
-      if (messages.length === 0) return null;
+      if (messages.length === 0) {
+        return null;
+      }
 
       const lastMessage = messages[messages.length - 1];
       const labelIds = lastMessage.labelIds || [];
@@ -877,8 +888,9 @@ export class ContextEmailDataService {
     // Zoho), so the 2x over-fetch was redundant for Gmail and wasteful in general.
     // For non-Gmail providers where query filters may be less reliable, we keep a 1.5x
     // buffer to ensure we still get enough results after date filtering.
-    const fetchLimit =
-      providerType === PROVIDER_TYPE.GMAIL ? limit : Math.ceil(limit * SENT_EMAIL_OVERFETCH_MULTIPLIER);
+    const fetchLimit = provider.constructor.name.includes("Gmail")
+      ? limit
+      : Math.ceil(limit * NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER);
     const messages = await provider.searchEmails(userId, sentQuery, fetchLimit);
 
     this.logger.log(

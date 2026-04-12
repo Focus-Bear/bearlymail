@@ -22,9 +22,17 @@ const meta: Meta<typeof LoginFormSection> = {
   title: 'Auth/LoginFormSection',
   component: LoginFormSection,
   decorators: [
-    (Story) => (
+    Story => (
       <MemoryRouter>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '100vh',
+            background: '#f5f5f5',
+          }}
+        >
           <Story />
         </div>
       </MemoryRouter>
@@ -46,7 +54,7 @@ const meta: Meta<typeof LoginFormSection> = {
     isOAuthOnlyError: false,
     onEmailChange: () => undefined,
     onPasswordChange: () => undefined,
-    onSubmit: (ev) => ev.preventDefault(),
+    onSubmit: ev => ev.preventDefault(),
     onGoogleLogin: () => undefined,
   },
 };

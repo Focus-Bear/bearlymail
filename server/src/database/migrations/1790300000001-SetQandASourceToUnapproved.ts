@@ -3,9 +3,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 // This migration is split from AddUnapprovedSource1790300000000 because
 // PostgreSQL doesn't allow using a newly added enum value within the same
 // transaction that created it.
-export class SetQandASourceToUnapproved1790300000001
-  implements MigrationInterface
-{
+export class SetQandASourceToUnapproved1790300000001 implements MigrationInterface {
   name = "SetQandASourceToUnapproved1790300000001";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

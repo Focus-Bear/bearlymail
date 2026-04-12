@@ -101,9 +101,7 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
         alignItems: 'center',
         gap: '4px',
         padding: '4px 8px',
-        border: isDragOver
-          ? `2px dashed ${theme.colors.primary.main}`
-          : `1px solid ${theme.colors.border.medium}`,
+        border: isDragOver ? `2px dashed ${theme.colors.primary.main}` : `1px solid ${theme.colors.border.medium}`,
         borderRadius: theme.borderRadius.md,
         minHeight: '38px',
         cursor: 'text',

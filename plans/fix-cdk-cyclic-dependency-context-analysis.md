@@ -42,17 +42,20 @@ cross-stack reference is synthesized, no cycle.
 ### Changes
 
 **`infrastructure/lib/bearlymail-database-stack.ts`**
+
 - Added `public readonly lambdaSecurityGroup: ec2.SecurityGroup` property
 - Created `LambdaSecurityGroup` construct in the constructor
 - Added `rdsProxySecurityGroup.addIngressRule(lambdaSecurityGroup, ...)` here (same stack)
 
 **`infrastructure/lib/bearlymail-context-analysis-stack.ts`**
+
 - Added `lambdaSecurityGroup: ec2.ISecurityGroup` to props interface
 - Removed local `LambdaSecurityGroup` creation block
 - Removed `rdsProxySecurityGroup.addIngressRule(...)` call (now in DatabaseStack)
 - Uses `props.lambdaSecurityGroup` for the Lambda function's `securityGroups`
 
 **`infrastructure/bin/app.ts`**
+
 - Passes `lambdaSecurityGroup: databaseStack.lambdaSecurityGroup` when constructing
   `BearlyMailContextAnalysisStack`
 

@@ -28,7 +28,7 @@ if (mode === MODE_TRIAGE && starCount > 0) {
 }
 ```
 
-   The email **is** optimistically removed from Redux state after the exit animation (800ms). This is correct.
+The email **is** optimistically removed from Redux state after the exit animation (800ms). This is correct.
 
 ### Where the bug is: localStorage cache not invalidated
 
@@ -68,9 +68,10 @@ The `removeEmailFromCache(emailId)` utility **is called for archive** operations
 In `useStarCountMutation.handleSetStarCount`, in the `MODE_TRIAGE && starCount > 0` branch, add a call to `removeEmailFromCache(emailId)` immediately after dispatching the animating-out action (same pattern as `handleArchive`).
 
 **Before:**
+
 ```ts
 if (mode === MODE_TRIAGE && starCount > 0) {
-  dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
+  dispatch(addAnimatingOut({ id: emailId, type: "priority" }));
   onSuggestionRemove?.(emailId);
   onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
   const tid = setTimeout(() => {
@@ -83,10 +84,11 @@ if (mode === MODE_TRIAGE && starCount > 0) {
 ```
 
 **After:**
+
 ```ts
 if (mode === MODE_TRIAGE && starCount > 0) {
-  dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
-  removeEmailFromCache(emailId);           // ← ADD THIS LINE
+  dispatch(addAnimatingOut({ id: emailId, type: "priority" }));
+  removeEmailFromCache(emailId); // ← ADD THIS LINE
   onSuggestionRemove?.(emailId);
   onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
   const tid = setTimeout(() => {
@@ -99,8 +101,9 @@ if (mode === MODE_TRIAGE && starCount > 0) {
 ```
 
 `removeEmailFromCache` is already imported at the top of `useEmailActionsBase.ts` (line 5):
+
 ```ts
-import { removeEmailFromCache } from 'utils/emailCache';
+import { removeEmailFromCache } from "utils/emailCache";
 ```
 
 No new imports needed.
@@ -115,10 +118,10 @@ However, given the summary is already updated optimistically in memory via `onTa
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
+| File                                      | Change                                                                                         |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `client/src/hooks/useEmailActionsBase.ts` | Add `removeEmailFromCache(emailId)` in the `MODE_TRIAGE && starCount > 0` branch (primary fix) |
-| `client/src/utils/emailCache.ts` | (Optional) Add `removeSummaryFromCache(mode)` helper |
+| `client/src/utils/emailCache.ts`          | (Optional) Add `removeSummaryFromCache(mode)` helper                                           |
 
 ---
 

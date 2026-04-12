@@ -13,7 +13,7 @@ const TEST_TIMEZONE = 'Australia/Melbourne';
 
 beforeEach(() => {
   jest.spyOn(Intl, 'DateTimeFormat').mockReturnValue({
-    resolvedOptions: () => ({ timeZone: TEST_TIMEZONE } as Intl.ResolvedDateTimeFormatOptions),
+    resolvedOptions: () => ({ timeZone: TEST_TIMEZONE }) as Intl.ResolvedDateTimeFormatOptions,
     format: jest.fn(),
     formatToParts: jest.fn(),
     formatRange: jest.fn(),
@@ -47,7 +47,7 @@ describe('useScheduledEmails', () => {
         expect.objectContaining({
           scheduledSendAt: scheduledSendAt.toISOString(),
           userTimezone: TEST_TIMEZONE,
-        }),
+        })
       );
     });
 
@@ -68,7 +68,7 @@ describe('useScheduledEmails', () => {
         `${API_URL}/scheduled-emails/check-time`,
         expect.objectContaining({
           userTimezone: explicitTimezone,
-        }),
+        })
       );
     });
 
@@ -99,7 +99,7 @@ describe('useScheduledEmails', () => {
           `${API_URL}/scheduled-emails/suggestions`,
           expect.objectContaining({
             params: expect.objectContaining({ timezone: TEST_TIMEZONE }),
-          }),
+          })
         );
       });
     });

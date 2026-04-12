@@ -19,11 +19,7 @@ export interface EnrichmentProgressProps {
   failed?: boolean;
 }
 
-export const EnrichmentProgress: React.FC<EnrichmentProgressProps> = ({
-  enriched,
-  total,
-  failed,
-}) => {
+export const EnrichmentProgress: React.FC<EnrichmentProgressProps> = ({ enriched, total, failed }) => {
   const { t } = useTranslation();
 
   // Show error state when enrichment polling failed

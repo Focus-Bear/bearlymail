@@ -20,7 +20,7 @@ BearlyMail has a manual 3-layer cache (localStorage → Redux → server) implem
 ```
 useEmailFetching (720 lines)
 ├── fetchInboxSummary() → axios.get → dispatch 10+ actions → localStorage.setItem
-├── fetchCategoryEmailsImpl() → axios.get → dispatch 5+ actions → localStorage.setItem  
+├── fetchCategoryEmailsImpl() → axios.get → dispatch 5+ actions → localStorage.setItem
 ├── serveCategoryFromCacheAndRefresh() → localStorage.getItem → dispatch → silent background fetch
 ├── serveSummaryFromCacheAndRefresh() → localStorage.getItem → dispatch → silent background fetch
 ├── refreshInPlace() → iterate all loaded categories → parallel fetches → unstable_batchedUpdates
@@ -41,8 +41,8 @@ npm install @tanstack/react-query @tanstack/react-query-devtools
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,       // 1 min default
-      gcTime: 5 * 60_000,      // 5 min garbage collection
+      staleTime: 60_000, // 1 min default
+      gcTime: 5 * 60_000, // 5 min garbage collection
       retry: 2,
       refetchOnWindowFocus: false, // BearlyMail already handles this
     },
@@ -55,24 +55,25 @@ const queryClient = new QueryClient({
 ```typescript
 // queries/queryKeys.ts
 export const emailKeys = {
-  all: ['emails'] as const,
-  summary: (mode: InboxMode) => [...emailKeys.all, 'summary', mode] as const,
-  category: (mode: InboxMode, category: string, filters: FilterParams) => 
-    [...emailKeys.all, 'category', mode, category, filters] as const,
-  detail: (threadId: string) => [...emailKeys.all, 'detail', threadId] as const,
+  all: ["emails"] as const,
+  summary: (mode: InboxMode) => [...emailKeys.all, "summary", mode] as const,
+  category: (mode: InboxMode, category: string, filters: FilterParams) =>
+    [...emailKeys.all, "category", mode, category, filters] as const,
+  detail: (threadId: string) => [...emailKeys.all, "detail", threadId] as const,
 };
 
 export const contactKeys = {
-  types: ['contact-types'] as const,
-  typesByEmails: (emails: string[]) => ['contact-types-by-emails', emails.sort().join(',')] as const,
-  frequent: (limit: number) => ['contacts', 'frequent', limit] as const,
+  types: ["contact-types"] as const,
+  typesByEmails: (emails: string[]) =>
+    ["contact-types-by-emails", emails.sort().join(",")] as const,
+  frequent: (limit: number) => ["contacts", "frequent", limit] as const,
 };
 
 export const settingsKeys = {
-  connectedAccounts: ['connected-accounts'] as const,
-  batchStatus: ['batch-status'] as const,
-  onboardingStatus: ['onboarding-status'] as const,
-  userProfile: ['user-profile'] as const,
+  connectedAccounts: ["connected-accounts"] as const,
+  batchStatus: ["batch-status"] as const,
+  onboardingStatus: ["onboarding-status"] as const,
+  userProfile: ["user-profile"] as const,
 };
 ```
 
@@ -89,12 +90,18 @@ export function useInboxSummaryQuery(mode: InboxMode, filters: FilterParams) {
   });
 }
 
-// queries/useCategoryEmailsQuery.ts  
-export function useCategoryEmailsQuery(mode: InboxMode, category: string, filters: FilterParams) {
+// queries/useCategoryEmailsQuery.ts
+export function useCategoryEmailsQuery(
+  mode: InboxMode,
+  category: string,
+  filters: FilterParams,
+) {
   return useInfiniteQuery({
     queryKey: emailKeys.category(mode, category, filters),
-    queryFn: ({ pageParam = 0 }) => fetchCategoryEmailsAPI(mode, category, filters, pageParam),
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextOffset : undefined,
+    queryFn: ({ pageParam = 0 }) =>
+      fetchCategoryEmailsAPI(mode, category, filters, pageParam),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextOffset : undefined,
     staleTime: 60_000,
     enabled: !!category, // only fetch when category is expanded
   });
@@ -104,7 +111,7 @@ export function useCategoryEmailsQuery(mode: InboxMode, category: string, filter
 export function useContactTypesQuery() {
   return useQuery({
     queryKey: contactKeys.types,
-    queryFn: () => axios.get(`${API_URL}/contacts/types`).then(r => r.data),
+    queryFn: () => axios.get(`${API_URL}/contacts/types`).then((r) => r.data),
     staleTime: 5 * 60_000, // 5 min — configs rarely change
   });
 }
@@ -115,6 +122,7 @@ export function useContactTypesQuery() {
 **Delete:** `utils/emailCache.ts` (getCachedSummary, setCachedSummary, getCachedCategoryEmails, setCachedCategoryEmails)
 
 TanStack Query replaces ALL of this:
+
 - **Stale-while-revalidate**: Built-in via `staleTime` + `placeholderData: keepPreviousData`
 - **Request deduplication**: Automatic — same queryKey = same request
 - **Background refresh**: Built-in via `refetchInterval` or `refetchOnWindowFocus`
@@ -124,6 +132,7 @@ TanStack Query replaces ALL of this:
 ### Step 5: Reduce Redux to UI-only state
 
 After React Query owns server state, `emailSlice` shrinks to:
+
 - `optimisticallyArchived` / `optimisticallySnoozed` (optimistic UI)
 - `animatingOut` (animation state)
 - `loadingModeSwitch` (UI transition flag)
@@ -157,69 +166,75 @@ export function useArchiveMutation() {
 
 ### Stable Data (long TTL, shared across components)
 
-| Endpoint | Query Key | staleTime | Notes |
-|----------|-----------|-----------|-------|
-| `GET /contacts/types` | `contactKeys.types` | 5 min | Fixes #1224 — 15 calls → 1 |
-| `GET /contacts/contact-types-by-emails` | `contactKeys.typesByEmails(emails)` | 2 min | Batch-keyed |
-| `GET /emails/connected-accounts` | `settingsKeys.connectedAccounts` | 5 min | Changes on connect/disconnect only |
-| `GET /users/me` | `settingsKeys.userProfile` | 5 min | 4 callers → 1 |
-| `GET /summarize/rules` | `['summarize-rules']` | 10 min | Admin-configured |
-| `GET /onboarding/status` | `settingsKeys.onboardingStatus` | 5 min | Changes on explicit user action |
-| `GET /github/project-status-options` | `['github-project-options']` | 10 min | Near-static |
+| Endpoint                                | Query Key                           | staleTime | Notes                              |
+| --------------------------------------- | ----------------------------------- | --------- | ---------------------------------- |
+| `GET /contacts/types`                   | `contactKeys.types`                 | 5 min     | Fixes #1224 — 15 calls → 1         |
+| `GET /contacts/contact-types-by-emails` | `contactKeys.typesByEmails(emails)` | 2 min     | Batch-keyed                        |
+| `GET /emails/connected-accounts`        | `settingsKeys.connectedAccounts`    | 5 min     | Changes on connect/disconnect only |
+| `GET /users/me`                         | `settingsKeys.userProfile`          | 5 min     | 4 callers → 1                      |
+| `GET /summarize/rules`                  | `['summarize-rules']`               | 10 min    | Admin-configured                   |
+| `GET /onboarding/status`                | `settingsKeys.onboardingStatus`     | 5 min     | Changes on explicit user action    |
+| `GET /github/project-status-options`    | `['github-project-options']`        | 10 min    | Near-static                        |
 
 ### Dynamic Data (short TTL, frequently invalidated)
 
-| Endpoint | Query Key | staleTime | Notes |
-|----------|-----------|-----------|-------|
-| `GET /emails/inbox-summary` | `emailKeys.summary(mode)` | 60s | Replace localStorage SWR |
-| `GET /emails/inbox` (category) | `emailKeys.category(mode, cat, filters)` | 60s | `useInfiniteQuery` for pagination |
-| `GET /emails/batch-status` | `settingsKeys.batchStatus` | 30s | Quasi-static between deliveries |
-| `GET /emails/tab-counts` | `['tab-counts', mode]` | 30s | Invalidate on email actions |
+| Endpoint                       | Query Key                                | staleTime | Notes                             |
+| ------------------------------ | ---------------------------------------- | --------- | --------------------------------- |
+| `GET /emails/inbox-summary`    | `emailKeys.summary(mode)`                | 60s       | Replace localStorage SWR          |
+| `GET /emails/inbox` (category) | `emailKeys.category(mode, cat, filters)` | 60s       | `useInfiniteQuery` for pagination |
+| `GET /emails/batch-status`     | `settingsKeys.batchStatus`               | 30s       | Quasi-static between deliveries   |
+| `GET /emails/tab-counts`       | `['tab-counts', mode]`                   | 30s       | Invalidate on email actions       |
 
 ### No Cache (volatile / one-shot)
 
-| Endpoint | Why |
-|----------|-----|
-| `GET /emails/{id}` | Needs fresh read/unread state |
-| `GET /emails/{id}/thread` | Thread changes with replies |
-| `GET /suggested-replies/*` | AI-generated, one-shot |
-| `POST /emails/*` | Mutations, not queries |
+| Endpoint                   | Why                           |
+| -------------------------- | ----------------------------- |
+| `GET /emails/{id}`         | Needs fresh read/unread state |
+| `GET /emails/{id}/thread`  | Thread changes with replies   |
+| `GET /suggested-replies/*` | AI-generated, one-shot        |
+| `POST /emails/*`           | Mutations, not queries        |
 
 ## Migration Plan (Incremental)
 
 ### Wave 1: Static endpoints (lowest risk, biggest request reduction)
+
 1. `useContactTypesQuery` — replaces 5 independent callers, fixes #1224
 2. `useConnectedAccountsQuery` — replaces 2 callers
 3. `useUserProfileQuery` — replaces 4 callers
 
 ### Wave 2: Inbox summary
+
 4. `useInboxSummaryQuery` — replaces `serveSummaryFromCacheAndRefresh`
 5. Delete `getCachedSummary` / `setCachedSummary` from emailCache
 
 ### Wave 3: Category emails
+
 6. `useCategoryEmailsQuery` (useInfiniteQuery) — replaces `fetchCategoryEmailsImpl` + `serveCategoryFromCacheAndRefresh`
 7. Delete `getCachedCategoryEmails` / `setCachedCategoryEmails`
 8. Delete `utils/emailCache.ts` entirely
 
 ### Wave 4: Mutations + optimistic updates
+
 9. `useArchiveMutation`, `useSnoozeMutation`, `useStarMutation`
 10. Reduce `emailSlice` to UI-only state
 
 ### Wave 5: Cleanup
+
 11. Delete `usePollingWithBackoff` (replaced by `refetchInterval`)
 12. Delete `fetchSessionRef` pattern (replaced by AbortController)
 13. Decompose remaining `useEmailFetching` into individual query hooks
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| Large migration surface | Wave-based approach — each wave is independently shippable |
-| React Query + Redux coexistence | During migration, both exist. React Query owns server state, Redux owns UI state. No conflicts |
-| Offline/persistence needs | `persistQueryClient` plugin available if needed (currently localStorage serves this) |
-| Bundle size increase | @tanstack/react-query is ~13KB gzipped — offset by deleting emailCache.ts + usePollingWithBackoff |
+| Risk                            | Mitigation                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Large migration surface         | Wave-based approach — each wave is independently shippable                                        |
+| React Query + Redux coexistence | During migration, both exist. React Query owns server state, Redux owns UI state. No conflicts    |
+| Offline/persistence needs       | `persistQueryClient` plugin available if needed (currently localStorage serves this)              |
+| Bundle size increase            | @tanstack/react-query is ~13KB gzipped — offset by deleting emailCache.ts + usePollingWithBackoff |
 
 ## Estimated Effort
+
 - Wave 1 (static endpoints): **S** (1 day)
 - Wave 2 (summary): **M** (2 days)
 - Wave 3 (category emails): **L** (3-4 days)
@@ -228,5 +243,6 @@ export function useArchiveMutation() {
 - **Total: L (8-10 days)**
 
 ## Dependencies
+
 - None (this is a Phase 1 foundation task)
 - Blocks: Phase 2 data pipeline consolidation

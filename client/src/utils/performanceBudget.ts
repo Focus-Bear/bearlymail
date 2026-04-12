@@ -41,9 +41,7 @@ export async function measurePerformance<T>(
       `[PerfBudget] ${options.label} exceeded budget: ${durationMs}ms > ${options.budgetMs}ms (overage: ${overageMs}ms)`
     );
   } else {
-    devLog(
-      `[PerfBudget] ${options.label} within budget: ${durationMs}ms / ${options.budgetMs}ms`
-    );
+    devLog(`[PerfBudget] ${options.label} within budget: ${durationMs}ms / ${options.budgetMs}ms`);
   }
 
   return { result, durationMs, overBudget, overageMs };

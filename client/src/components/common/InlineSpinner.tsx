@@ -19,7 +19,12 @@ export const InlineSpinner: React.FC<InlineSpinnerProps> = ({ size = 16, color =
     strokeWidth={2.5}
     aria-hidden="true"
     data-testid="inline-spinner"
-    style={{ animation: 'bearlymail-spin 0.8s linear infinite', flexShrink: 0, display: 'inline-block', verticalAlign: 'middle' }}
+    style={{
+      animation: 'bearlymail-spin 0.8s linear infinite',
+      flexShrink: 0,
+      display: 'inline-block',
+      verticalAlign: 'middle',
+    }}
   >
     <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
     <path d="M12 2a10 10 0 0 1 10 10" />

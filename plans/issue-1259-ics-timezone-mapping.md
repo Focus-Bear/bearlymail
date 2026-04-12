@@ -113,6 +113,7 @@ This catches any edge case where a non-IANA string slips through the parser.
 Add to existing test files:
 
 **`server/src/utils/timezone.utils.spec.ts`** (new file):
+
 - `mapToIANATimezone("America/New_York")` → `"America/New_York"` (passthrough)
 - `mapToIANATimezone("AUS Eastern Standard Time")` → `"Australia/Sydney"`
 - `mapToIANATimezone("Eastern Standard Time")` → `"America/New_York"`
@@ -121,16 +122,19 @@ Add to existing test files:
 - `mapToIANATimezone("")` → `"UTC"`
 
 **`server/src/calendar/calendar-ics-parser.spec.ts`** (add cases):
+
 - ICS with `DTSTART;TZID=AUS Eastern Standard Time:20240315T100000` → `event.timezone === "Australia/Sydney"`
 - ICS with `DTSTART;TZID=Eastern Standard Time:20240315T100000` → `event.timezone === "America/New_York"`
 - ICS with valid IANA TZID → unchanged
 
 **`server/src/calendar/calendar.service.spec.ts`** (add case):
+
 - Mock `addIcsEventToCalendar()` with a Windows timezone string → confirm Google API is called with IANA timezone
 
 ### Step 5: No new dependencies
 
 The fix uses only:
+
 - `Intl.DateTimeFormat` (built-in) for IANA validation
 - A static map for Windows → IANA mapping (no npm package needed)
 - Existing `normalizeTimezone()` utility
@@ -139,14 +143,14 @@ The fix uses only:
 
 ## Files to modify
 
-| File | Change |
-|------|--------|
-| `server/src/utils/timezone.utils.ts` | Add `WINDOWS_TO_IANA` map, `mapToIANATimezone()`, `parseUtcOffsetTimezone()` |
-| `server/src/calendar/calendar-ics-parser.ts` | Import `mapToIANATimezone`, apply to extracted TZID |
-| `server/src/calendar/calendar.service.ts` | Import `normalizeTimezone`, validate timezone before Google API call |
-| `server/src/utils/timezone.utils.spec.ts` | New file — unit tests for mapping |
-| `server/src/calendar/calendar-ics-parser.spec.ts` | Add Windows timezone test cases |
-| `server/src/calendar/calendar.service.spec.ts` | Add timezone validation test case |
+| File                                              | Change                                                                       |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `server/src/utils/timezone.utils.ts`              | Add `WINDOWS_TO_IANA` map, `mapToIANATimezone()`, `parseUtcOffsetTimezone()` |
+| `server/src/calendar/calendar-ics-parser.ts`      | Import `mapToIANATimezone`, apply to extracted TZID                          |
+| `server/src/calendar/calendar.service.ts`         | Import `normalizeTimezone`, validate timezone before Google API call         |
+| `server/src/utils/timezone.utils.spec.ts`         | New file — unit tests for mapping                                            |
+| `server/src/calendar/calendar-ics-parser.spec.ts` | Add Windows timezone test cases                                              |
+| `server/src/calendar/calendar.service.spec.ts`    | Add timezone validation test case                                            |
 
 ## Risk assessment
 

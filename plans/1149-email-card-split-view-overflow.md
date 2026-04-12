@@ -9,6 +9,7 @@
 ## Problem Analysis
 
 In split-view mode, email cards in the left panel overflow/get cut off on the right side:
+
 - Timestamp top-right is truncated (e.g. `'17 Mar, 01:-'`)
 - Summary text overflows horizontally
 
@@ -17,6 +18,7 @@ In split-view mode, email cards in the left panel overflow/get cut off on the ri
 ## Status After PR #1135 (Merged 2026-03-17)
 
 PR #1135 (`fix(#957): fix email card overflow and three-dot menu positioning`) made the following relevant changes:
+
 1. Added `minWidth: 0` to `EmailCard.tsx` ← directly relevant
 2. Changed `EmailCardBody.tsx` `maxWidth` from `600px` to `100%` ← directly relevant
 
@@ -83,6 +85,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, positi
 **File:** `client/src/components/inbox/CategoryAccordion.tsx`
 
 In the `CategoryAccordionContent` component outer `div`:
+
 ```tsx
 // Before:
 <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
@@ -96,6 +99,7 @@ In the `CategoryAccordionContent` component outer `div`:
 **File:** `client/src/components/inbox/header/EmailHeaderRight.tsx`
 
 The timestamp span uses `flexShrink: 0` and `position: relative`. In a very narrow panel, this is correct — the timestamp should NOT shrink. But ensure:
+
 - The `EmailHeaderLeft` has `flex: 1, minWidth: 0` (already has this ✓)
 - The outer `EmailCardHeader` div uses `display: flex, justifyContent: space-between` (already has this ✓)
 
@@ -119,11 +123,11 @@ style={{
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `client/src/components/inbox/EmailListItem.tsx` | Add `minWidth: 0` to wrapper div style |
+| File                                                | Change                                                    |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| `client/src/components/inbox/EmailListItem.tsx`     | Add `minWidth: 0` to wrapper div style                    |
 | `client/src/components/inbox/CategoryAccordion.tsx` | Add `minWidth: 0` to `CategoryAccordionContent` outer div |
-| `client/src/components/inbox/EmailSubject.tsx` | Add `minWidth: 0` to the div style |
+| `client/src/components/inbox/EmailSubject.tsx`      | Add `minWidth: 0` to the div style                        |
 
 ---
 

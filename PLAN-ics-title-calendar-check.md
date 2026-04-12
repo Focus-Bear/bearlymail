@@ -3,21 +3,26 @@
 ## Bug 1: Event title shows "(No title)" instead of actual SUMMARY
 
 ### Root Cause
+
 **File:** `server/src/calendar/calendar-ics-parser.ts`, line 145
+
 ```ts
 const title =
-    typeof extEntry.summary === "string" ? extEntry.summary : "(No title)";
+  typeof extEntry.summary === "string" ? extEntry.summary : "(No title)";
 ```
 
 When an ICS file contains `SUMMARY;LANGUAGE=en-US:Focus Bear x RMIT Investment Team`, the `node-ical` library parses this as an object: `{ val: "Focus Bear x RMIT Investment Team", params: { LANGUAGE: "en-US" } }` — not a bare string. The `typeof === "string"` check fails, falling through to `"(No title)"`.
 
 ### Fix
+
 Replace line 145 with:
+
 ```ts
 const title = extractStringValue(extEntry.summary) ?? "(No title)";
 ```
 
 The `extractStringValue()` helper already exists on branch `openclaw/fix-1285-ics-import` (commit `2bd65cdf`). It handles both bare strings and `{ val }` objects:
+
 ```ts
 export function extractStringValue(value: unknown): string | undefined {
   if (typeof value === "string") return value;
@@ -36,6 +41,7 @@ This function must also be applied to the `description` and `location` fields (l
 ## Bug 2: Calendar duplicate detection fails — always shows "Add to Calendar"
 
 ### Root Cause
+
 **File:** `server/src/calendar/calendar.service.ts`, `checkEventExists()` method (line 625)
 
 Two compounding issues:
@@ -45,6 +51,7 @@ Two compounding issues:
 2. **Fragile matching strategy:** Even with a correct title, the `q:` full-text search is unreliable — it matches substrings, can miss events, and produces false positives. The authoritative way to check for duplicate ICS events is by `iCalUID`, which Google Calendar's events.list API supports directly.
 
 ### Fix
+
 Replace the `q:` search approach with `iCalUID`-based matching (already implemented on `openclaw/fix-1285-ics-import`, commit `0e5d1395`):
 
 ```ts
@@ -57,7 +64,11 @@ if (eventData.uid) {
   });
   const match = (response.data.items ?? [])[0];
   if (match) {
-    return { exists: true, calendarEventId: match.id, htmlLink: match.htmlLink };
+    return {
+      exists: true,
+      calendarEventId: match.id,
+      htmlLink: match.htmlLink,
+    };
   }
 }
 
@@ -68,7 +79,7 @@ const response = await calendar.events.list({
   timeMax: new Date(startMs + FIVE_MINUTES_MS).toISOString(),
   singleEvents: true,
 });
-const match = (response.data.items ?? []).find(ev => {
+const match = (response.data.items ?? []).find((ev) => {
   const evStart = ev.start?.dateTime ?? ev.start?.date;
   if (!evStart) return false;
   const diff = Math.abs(new Date(evStart).getTime() - startMs);
@@ -87,6 +98,7 @@ Also accept an optional `preloadedUser` parameter to avoid redundant DB lookups 
 - All tests on that branch pass (102 calendar tests, zero lint errors per commit message).
 
 ## Files to Modify
+
 1. `server/src/calendar/calendar-ics-parser.ts` — add `extractStringValue()`, use it for `summary`, `description`, `location`
 2. `server/src/calendar/calendar.service.ts` — rewrite `checkEventExists()` to use `iCalUID` matching with title+time fallback
 3. `server/src/calendar/calendar-ics-parser.spec.ts` — add test for LANGUAGE-parameterized SUMMARY

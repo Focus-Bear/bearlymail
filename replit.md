@@ -48,6 +48,7 @@ BearlyMail is a full-stack email management application designed for users with 
 The database uses Replit's built-in PostgreSQL (host: `helium`). SSL must be disabled explicitly since the host is not `localhost`.
 
 Key env vars in `server/.env`:
+
 - `DB_HOST=helium`
 - `DB_SSL=false` (critical - Replit DB doesn't support SSL)
 - `JWT_SECRET` - set to a secure value in production
@@ -65,6 +66,7 @@ Requires Node.js 20+ (Vite 7 requirement). Upgraded from Node 18 to Node 20.
 ### Building the Server
 
 The server must be compiled before running:
+
 ```bash
 cd server && node_modules/.bin/nest build
 ```
@@ -72,6 +74,7 @@ cd server && node_modules/.bin/nest build
 ### OAuth Credentials
 
 The app requires external OAuth providers to be configured in `server/.env`:
+
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
 - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI`
 - `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REDIRECT_URI`
@@ -87,12 +90,14 @@ The app requires external OAuth providers to be configured in `server/.env`:
 Storybook runs on port 6000 (`npm run storybook` in the `client/` directory).
 
 Key configuration decisions:
+
 - `reactDocgen: false` in `.storybook/main.ts` — required to stay within the 8GB cgroup memory limit. Enabling it causes OOM crashes during bundling.
 - `preview.tsx` is kept minimal (no imports from the main app) for the same reason.
 - All story files in `client/src/stories/` are **fully self-contained** — they do not import any component from the main app. They recreate the UI inline with hardcoded design tokens. This avoids pulling in heavy transitive dependencies (posthog-js, auth chain, etc.).
 - Storybook v8.6.17 (`@storybook/react-vite`) with `@storybook/addon-essentials` only.
 
 ### Email Detail Design Tokens (hardcoded in stories)
+
 - Summary section accent: `#D97706` / `#FFFBEB`
 - Private Notes accent: `#7C3AED` / `#F5F3FF`
 - Action Items accent: `#16A34A` / `#F0FDF4`

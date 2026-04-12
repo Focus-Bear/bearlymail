@@ -60,10 +60,10 @@ Ensure `isNarrow` is computed before first paint by using `useLayoutEffect` inst
 
 ## Files to Change
 
-| File | Change |
-|---|---|
-| `client/src/components/inbox/Sidebar.tsx` | Replace `transform: translateX(-100%)` with `display: none` when `isNarrow && !isMobileMenuOpen`. Remove the backdrop `onClick` handler for non-visible state (already guarded by `isMobileMenuOpen`). |
-| `client/src/hooks/useResponsiveBreakpoints.ts` | (Optional) Use synchronous `window.innerWidth` check to prevent initial flash |
+| File                                           | Change                                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `client/src/components/inbox/Sidebar.tsx`      | Replace `transform: translateX(-100%)` with `display: none` when `isNarrow && !isMobileMenuOpen`. Remove the backdrop `onClick` handler for non-visible state (already guarded by `isMobileMenuOpen`). |
+| `client/src/hooks/useResponsiveBreakpoints.ts` | (Optional) Use synchronous `window.innerWidth` check to prevent initial flash                                                                                                                          |
 
 ## Testing
 

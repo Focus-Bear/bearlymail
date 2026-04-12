@@ -12,20 +12,20 @@ This plan organises them into 6 phases, each producing 1–2 PRs of <400 changed
 
 ## Warning Breakdown (actual counts from `main`)
 
-| Count | Rule | Category |
-|------:|------|----------|
-| 72 | `max-lines-per-function` | Long functions (103–839 lines) |
-| 70 | `@typescript-eslint/no-explicit-any` | Untyped `any` |
-| 27 | `no-restricted-syntax` (magic strings) | Magic string comparisons |
-| 10 | `no-restricted-syntax` (inline colors) | Inline color literals |
-| 13 | `@typescript-eslint/no-unused-vars` | Dead imports/vars |
-| 9 | `id-denylist` | Identifier `data` restricted |
-| 8 | `no-nested-ternary` | Nested ternaries |
-| 7 | `react-hooks/exhaustive-deps` | Missing hook deps |
-| 6 | `max-statements` | Too many statements |
-| 4 | `complexity` | Cyclomatic complexity |
-| 3 | `react/no-array-index-key` | Array index keys |
-| 1 | `max-lines` | File too long |
+| Count | Rule                                   | Category                       |
+| ----: | -------------------------------------- | ------------------------------ |
+|    72 | `max-lines-per-function`               | Long functions (103–839 lines) |
+|    70 | `@typescript-eslint/no-explicit-any`   | Untyped `any`                  |
+|    27 | `no-restricted-syntax` (magic strings) | Magic string comparisons       |
+|    10 | `no-restricted-syntax` (inline colors) | Inline color literals          |
+|    13 | `@typescript-eslint/no-unused-vars`    | Dead imports/vars              |
+|     9 | `id-denylist`                          | Identifier `data` restricted   |
+|     8 | `no-nested-ternary`                    | Nested ternaries               |
+|     7 | `react-hooks/exhaustive-deps`          | Missing hook deps              |
+|     6 | `max-statements`                       | Too many statements            |
+|     4 | `complexity`                           | Cyclomatic complexity          |
+|     3 | `react/no-array-index-key`             | Array index keys               |
+|     1 | `max-lines`                            | File too long                  |
 
 ---
 
@@ -38,21 +38,22 @@ This plan organises them into 6 phases, each producing 1–2 PRs of <400 changed
 
 ### Files
 
-| File | Rule | Count |
-|------|------|------:|
-| `src/hooks/settings/useAnalysisProgress.ts` | id-denylist | 8 |
-| `src/components/inbox/CategoryAccordion.tsx` | no-unused-vars | 3 |
-| `src/components/admin/JobsSection.tsx` | no-unused-vars | 1 |
-| `src/components/settings/DataExportSection.tsx` | no-unused-vars | 1 |
-| `src/components/rich-text/RichTextEditor.tsx` | no-unused-vars | 1 |
-| `src/hooks/settings/useApiKeys.ts` | no-unused-vars | 1 |
-| `src/hooks/settings/useAnalysisProgress.ts` | no-unused-vars | 1 |
-| `src/hooks/useInboxState.ts` | no-unused-vars | 1 |
-| `src/utils/dateUtils.ts` | no-unused-vars | 1 |
-| various test files | no-unused-vars | ~3 |
-| various | react/no-array-index-key | 3 |
+| File                                            | Rule                     | Count |
+| ----------------------------------------------- | ------------------------ | ----: |
+| `src/hooks/settings/useAnalysisProgress.ts`     | id-denylist              |     8 |
+| `src/components/inbox/CategoryAccordion.tsx`    | no-unused-vars           |     3 |
+| `src/components/admin/JobsSection.tsx`          | no-unused-vars           |     1 |
+| `src/components/settings/DataExportSection.tsx` | no-unused-vars           |     1 |
+| `src/components/rich-text/RichTextEditor.tsx`   | no-unused-vars           |     1 |
+| `src/hooks/settings/useApiKeys.ts`              | no-unused-vars           |     1 |
+| `src/hooks/settings/useAnalysisProgress.ts`     | no-unused-vars           |     1 |
+| `src/hooks/useInboxState.ts`                    | no-unused-vars           |     1 |
+| `src/utils/dateUtils.ts`                        | no-unused-vars           |     1 |
+| various test files                              | no-unused-vars           |    ~3 |
+| various                                         | react/no-array-index-key |     3 |
 
 ### Approach
+
 - Remove unused imports and variables
 - Rename `data` → descriptive names (e.g., `progressData`, `analysisResult`)
 - Add stable keys for array-index-key warnings (use item `.id` or generate)
@@ -69,36 +70,37 @@ This plan organises them into 6 phases, each producing 1–2 PRs of <400 changed
 
 Most `any` usage is in test mocks/fixtures. Fix with proper typing or `unknown`.
 
-| File | Count |
-|------|------:|
-| `src/hooks/useSearch.test.ts` | 14 |
-| `src/hooks/useEmailManagement.test.ts` | 13 |
-| `src/components/inbox/InboxCategoryItem.test.tsx` | 7 |
-| `src/store/slices/emailSlice.test.ts` | 6 |
-| `src/utils/emailUtils.test.ts` | 5 |
-| `src/hooks/useKeyboardShortcuts.test.ts` | 3 |
-| `src/hooks/useSplitView.test.ts` | 3 |
-| `src/components/github/GitHubConnectionPrompt.test.tsx` | 2 |
-| `src/components/github/GitHubLinksList.test.tsx` | 2 |
-| `src/components/inbox/categoryAccordion.helpers.test.ts` | 2 |
-| `src/contexts/AuthContext.test.tsx` | 2 |
-| `src/hooks/useComposeForm.test.ts` | 2 |
-| `src/hooks/useFollowUps.test.ts` | 2 |
-| Other test files | ~4 |
+| File                                                     | Count |
+| -------------------------------------------------------- | ----: |
+| `src/hooks/useSearch.test.ts`                            |    14 |
+| `src/hooks/useEmailManagement.test.ts`                   |    13 |
+| `src/components/inbox/InboxCategoryItem.test.tsx`        |     7 |
+| `src/store/slices/emailSlice.test.ts`                    |     6 |
+| `src/utils/emailUtils.test.ts`                           |     5 |
+| `src/hooks/useKeyboardShortcuts.test.ts`                 |     3 |
+| `src/hooks/useSplitView.test.ts`                         |     3 |
+| `src/components/github/GitHubConnectionPrompt.test.tsx`  |     2 |
+| `src/components/github/GitHubLinksList.test.tsx`         |     2 |
+| `src/components/inbox/categoryAccordion.helpers.test.ts` |     2 |
+| `src/contexts/AuthContext.test.tsx`                      |     2 |
+| `src/hooks/useComposeForm.test.ts`                       |     2 |
+| `src/hooks/useFollowUps.test.ts`                         |     2 |
+| Other test files                                         |    ~4 |
 
 ### PR 2b — Production code (~21 warnings, ~150 lines)
 
 Remaining `any` in hooks, utils, contexts. Replace with proper interfaces/generics.
 
-| File | Count |
-|------|------:|
-| `src/hooks/useEmailFetching.ts` | ~3 |
-| `src/contexts/InboxContext.tsx` | ~2 |
-| `src/contexts/InboxProvider.tsx` | ~2 |
-| `src/store/slices/inboxDataSlice.ts` | ~2 |
-| Various hooks/components | ~12 |
+| File                                 | Count |
+| ------------------------------------ | ----: |
+| `src/hooks/useEmailFetching.ts`      |    ~3 |
+| `src/contexts/InboxContext.tsx`      |    ~2 |
+| `src/contexts/InboxProvider.tsx`     |    ~2 |
+| `src/store/slices/inboxDataSlice.ts` |    ~2 |
+| Various hooks/components             |   ~12 |
 
 ### Approach
+
 - Test files: replace `any` with `unknown`, `Partial<Type>`, or proper mock types
 - Production code: define interfaces, use existing types from shared types, or use `unknown` + type guards
 
@@ -113,18 +115,19 @@ Remaining `any` in hooks, utils, contexts. Replace with proper interfaces/generi
 
 ### Top files
 
-| File | Count |
-|------|------:|
-| `src/components/inbox/PriorityRangeSelector.tsx` | 7 |
-| `src/components/priority/CategoryOverrideModal.tsx` | 6 |
-| `src/components/email-detail/EmailDetailActions.tsx` | 3 |
-| `src/contexts/AuthContext.tsx` | 2 |
-| `src/components/common/OverflowMenu.tsx` | 1 |
-| `src/components/booking/BookingForm.tsx` | 1 |
-| `src/components/settings/TroubleshootingSection.tsx` | 1 |
-| Various other files | ~6 |
+| File                                                 | Count |
+| ---------------------------------------------------- | ----: |
+| `src/components/inbox/PriorityRangeSelector.tsx`     |     7 |
+| `src/components/priority/CategoryOverrideModal.tsx`  |     6 |
+| `src/components/email-detail/EmailDetailActions.tsx` |     3 |
+| `src/contexts/AuthContext.tsx`                       |     2 |
+| `src/components/common/OverflowMenu.tsx`             |     1 |
+| `src/components/booking/BookingForm.tsx`             |     1 |
+| `src/components/settings/TroubleshootingSection.tsx` |     1 |
+| Various other files                                  |    ~6 |
 
 ### Approach
+
 - Create/extend `src/constants/` files per domain (e.g., `priorityConstants.ts`, `categoryConstants.ts`)
 - Replace inline string literals with named constants
 - Prefer `as const` objects or enums where appropriate
@@ -140,14 +143,15 @@ Remaining `any` in hooks, utils, contexts. Replace with proper interfaces/generi
 
 ### Files
 
-| File | Count |
-|------|------:|
-| `src/components/common/OverflowMenu.tsx` | 4 |
-| `src/components/inbox/EmailListItem.tsx` | ~1 |
-| `src/components/inbox/EmailPreview.tsx` | ~1 |
-| Various other components | ~4 |
+| File                                     | Count |
+| ---------------------------------------- | ----: |
+| `src/components/common/OverflowMenu.tsx` |     4 |
+| `src/components/inbox/EmailListItem.tsx` |    ~1 |
+| `src/components/inbox/EmailPreview.tsx`  |    ~1 |
+| Various other components                 |    ~4 |
 
 ### Approach
+
 - Move hex/rgb color literals to theme constants or existing theme tokens
 - Create `src/constants/colors.ts` if a theme file doesn't exist, or extend existing theme
 - Replace inline `color: '#...'` with `color: theme.colors.X`
@@ -163,15 +167,16 @@ Remaining `any` in hooks, utils, contexts. Replace with proper interfaces/generi
 
 ### Files
 
-| File | Count |
-|------|------:|
-| `src/components/inbox/VisualCategoryFilter.tsx` | 4 |
-| `src/components/email-detail/EmailDetailActions.tsx` | 1 |
-| `src/components/email-detail/SummarySection.tsx` | 1 |
-| `src/components/feedback/FeedbackForm.tsx` | 1 |
-| `src/components/email-detail-inline/ToneCheckResult.tsx` | 1 |
+| File                                                     | Count |
+| -------------------------------------------------------- | ----: |
+| `src/components/inbox/VisualCategoryFilter.tsx`          |     4 |
+| `src/components/email-detail/EmailDetailActions.tsx`     |     1 |
+| `src/components/email-detail/SummarySection.tsx`         |     1 |
+| `src/components/feedback/FeedbackForm.tsx`               |     1 |
+| `src/components/email-detail-inline/ToneCheckResult.tsx` |     1 |
 
 ### Approach
+
 - Extract nested ternaries into helper functions or early-return `if/else` blocks
 - For JSX ternaries: extract into separate component or use a lookup map
 
@@ -189,28 +194,29 @@ Remaining `any` in hooks, utils, contexts. Replace with proper interfaces/generi
 
 ### PR 6a — Hooks & utilities (~30 warnings, ~350 lines)
 
-| File | Notable |
-|------|---------|
-| `src/hooks/settings/useAnalysisProgress.ts` | 2 max-lines + 2 max-statements |
-| `src/hooks/useEmailDetailOperations.ts` | max-lines + max-statements + max-lines |
-| `src/hooks/useInboxKeyboardNavigation.ts` | max-statements + complexity |
-| `src/hooks/useEmailFetching.ts` | max-lines-per-function |
-| `src/hooks/useContactThreads.ts` | max-lines-per-function |
-| Various test files | max-lines-per-function (long test suites) |
+| File                                        | Notable                                   |
+| ------------------------------------------- | ----------------------------------------- |
+| `src/hooks/settings/useAnalysisProgress.ts` | 2 max-lines + 2 max-statements            |
+| `src/hooks/useEmailDetailOperations.ts`     | max-lines + max-statements + max-lines    |
+| `src/hooks/useInboxKeyboardNavigation.ts`   | max-statements + complexity               |
+| `src/hooks/useEmailFetching.ts`             | max-lines-per-function                    |
+| `src/hooks/useContactThreads.ts`            | max-lines-per-function                    |
+| Various test files                          | max-lines-per-function (long test suites) |
 
 ### PR 6b — Components (~40 warnings, ~350 lines)
 
-| File | Lines over limit |
-|------|-----------------|
-| `src/components/compose/RecipientFields.tsx` | 296, 206 lines |
-| `src/components/compose/TimePicker.tsx` | 169 lines |
-| `src/components/inbox/InboxContentParts.tsx` | 3 warnings |
-| `src/components/email-detail/EmailThreadView.tsx` | 2 warnings |
-| `src/components/settings/SchedulingPreferencesSection.tsx` | 2 warnings |
-| `src/components/search/SearchResults.tsx` | 2 warnings |
-| Many more single-warning component files | 103–200 lines |
+| File                                                       | Lines over limit |
+| ---------------------------------------------------------- | ---------------- |
+| `src/components/compose/RecipientFields.tsx`               | 296, 206 lines   |
+| `src/components/compose/TimePicker.tsx`                    | 169 lines        |
+| `src/components/inbox/InboxContentParts.tsx`               | 3 warnings       |
+| `src/components/email-detail/EmailThreadView.tsx`          | 2 warnings       |
+| `src/components/settings/SchedulingPreferencesSection.tsx` | 2 warnings       |
+| `src/components/search/SearchResults.tsx`                  | 2 warnings       |
+| Many more single-warning component files                   | 103–200 lines    |
 
 ### Approach
+
 - Extract sub-components from large render functions
 - Move utility logic into separate hook files
 - Split long hooks into composable smaller hooks
@@ -238,9 +244,11 @@ Phase 6b (PR #8) →  ~40 warnings, component splitting
 ## Validation
 
 After each PR, run:
+
 ```bash
 cd client && npx eslint src/ --ext .ts,.tsx 2>&1 | grep -c "warning"
 ```
+
 Expected warning count should decrease by the phase target.
 
 ## Notes

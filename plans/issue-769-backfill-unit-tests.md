@@ -24,14 +24,17 @@ done
 ### Batch 1: `BatchInfoBar.tsx` → extract to `batchInfoBar.helpers.ts`
 
 **Move out of `client/src/components/inbox/batch-info-bar/BatchInfoBar.tsx`** (or wherever it lives):
+
 - `getNextDeliveryText(nextDeliveryTime: Date | null): string`
 - `getLastCheckText(lastCheckTime: Date | null): string`
 
 **Create `client/src/components/inbox/batch-info-bar/batchInfoBar.helpers.ts`**:
+
 - Pure functions only, no React imports
 - JSDoc on each function explaining inputs/outputs/edge cases
 
 **Create `client/src/components/inbox/batch-info-bar/batchInfoBar.helpers.test.ts`**:
+
 - Test `getNextDeliveryText` with: null input, past date, future date < 1h, future date > 1h, future date > 24h
 - Test `getLastCheckText` with: null input, just now, minutes ago, hours ago, days ago
 
@@ -40,6 +43,7 @@ done
 **File**: `client/src/` (find exact path) — already a `.ts` file, needs test coverage.
 
 **Create `inboxCategoryHelpers.test.ts`**:
+
 - Test category grouping: correct grouping when multiple categories present, single category, empty list
 - Test category sorting: correct sort order, tie-breaking logic
 - Test edge cases: empty input, categories with identical priority, unknown category types
@@ -47,25 +51,31 @@ done
 ### Batch 3: `Sidebar.tsx` helpers
 
 **Move out of `Sidebar.tsx`**:
+
 - `getSettingsNavItems(...)` — builds navigation item array
 - `makeScrollToSection(sectionId: string)` — returns scroll handler function
 
 **Create `sidebar.helpers.ts`** (co-located with Sidebar component):
+
 - Pure functions with no React imports (the scroll function returns a plain function, not a hook)
 
 **Create `sidebar.helpers.test.ts`**:
+
 - `getSettingsNavItems`: assert correct items returned for given permissions/flags, assert ordering
 - `makeScrollToSection`: assert returned function calls `scrollIntoView` on the correct element (mock `document.getElementById`)
 
 ### Batch 4: `InboxFilters.tsx` helpers
 
 **Move out of `InboxFilters.tsx`**:
+
 - `getMultiSelectDisplayText(selectedValues: string[], allValues: string[]): string`
 
 **Create `inboxFilters.helpers.ts`**:
+
 - Pure string-building function
 
 **Create `inboxFilters.helpers.test.ts`**:
+
 - All selected → returns "All"
 - None selected → returns "None" or empty placeholder
 - Some selected → returns comma-joined list or truncated form (e.g., "3 selected")
@@ -84,12 +94,14 @@ After the audit, create remaining helper files and tests for anything discovered
 ## File Naming Convention
 
 Follow the pattern established by existing helper files in the codebase:
+
 - Co-locate with the component: `ComponentName.helpers.ts` and `ComponentName.helpers.test.ts`
 - OR put in `utils/` if shared across multiple components: `utils/inboxUtils.ts` and `utils/inboxUtils.test.ts`
 
 ## Testing Standards
 
 Each helper test file should:
+
 - Use Vitest (check `client/package.json` for the test runner — likely Vitest given it's a Vite project)
 - Cover **happy path**, **null/undefined inputs**, **empty inputs**, and **boundary conditions**
 - Aim for >80% coverage per helper file (the issue requirement)
@@ -106,6 +118,7 @@ Each helper test file should:
 ## Implementation Order
 
 Work through batches from highest business logic complexity to lowest:
+
 1. BatchInfoBar helpers (known trigger, date logic)
 2. InboxFilters helpers (string building)
 3. Sidebar helpers (navigation structure)
@@ -114,6 +127,7 @@ Work through batches from highest business logic complexity to lowest:
 6. Anything from audit
 
 Each batch = one commit pair:
+
 - Commit 1: "Move [helpers] from [Component].tsx to [component].helpers.ts"
 - Commit 2: "Add unit tests for [component] helpers"
 

@@ -242,15 +242,20 @@ export function useKeyboardShortcuts({
 
       // Handle pending archive confirmation
       if (pendingArchive) {
-        const consumed = handlePendingArchiveKey(event, pendingArchive, {
-          emails,
-          selectedEmailIndex,
-          selectedEmailIds,
-          setSelectedEmailIndex,
-          onArchive,
-          onSplitViewArchive,
-          cancelPendingArchive,
-        }, cancelPendingArchive);
+        const consumed = handlePendingArchiveKey(
+          event,
+          pendingArchive,
+          {
+            emails,
+            selectedEmailIndex,
+            selectedEmailIds,
+            setSelectedEmailIndex,
+            onArchive,
+            onSplitViewArchive,
+            cancelPendingArchive,
+          },
+          cancelPendingArchive
+        );
         if (consumed) {
           return;
         }

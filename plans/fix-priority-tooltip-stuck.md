@@ -20,6 +20,7 @@
 #### Issue 1: `computeFallbackExplanation` missing `decryptUserContextEntityForApi` on contexts
 
 In `email-priority-explanation.service.ts`, the `computeFallbackExplanation` method loads user contexts with:
+
 ```ts
 const contexts = await this.userContextRepository.find({ where: { userId } });
 ```
@@ -33,6 +34,7 @@ The "Calculating..." items trigger `checkAndQueuePriorityRecalculation` to queue
 #### Issue 2: Client stuck in "Loading" state after API error or empty response
 
 In `PriorityTooltip.tsx`, the rendering logic is:
+
 ```tsx
 if (!priorityExplanation && !loadingPriorityExplanation) {
   return <PriorityTooltipLoading emailId={emailId} />;
@@ -40,6 +42,7 @@ if (!priorityExplanation && !loadingPriorityExplanation) {
 ```
 
 `PriorityTooltipLoading` renders a **fixed-position portal** with "Loading priority explanation..." — but this is shown when loading is **finished** and explanation is **null**. This happens when:
+
 - The API call errors (catch block sets `loadingPriorityExplanation=false` but doesn't update `priorityExplanation`)
 - The API call times out (10s timeout in the hook)
 - The API returns data but the response doesn't match the expected structure
@@ -96,6 +99,7 @@ if (!priorityExplanation && !loadingPriorityExplanation) {
 ### File 3: `client/src/locales/en.json` (and `es.json`)
 
 **Change:** Add `priority.tooltip.errorLoading` translation key:
+
 ```json
 "priority": {
   "tooltip": {

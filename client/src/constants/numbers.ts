@@ -238,15 +238,15 @@ export const MAX_RETRIES = 3;
 export const RETRY_BASE_DELAY_MS = 1000;
 
 // Backoff / retry constants (used by usePollingWithBackoff)
-export const BACKOFF_RETRY_BUFFER_MS = 50;      // buffer added to backoff delay to ensure window has elapsed
-export const BACKOFF_BASE_MS = 1_000;           // 1s initial backoff
-export const BACKOFF_MAX_MS = 30_000;           // 30s ceiling
-export const BACKOFF_MULTIPLIER = 2;            // exponential factor
-export const BACKOFF_JITTER_MS = 500;           // ±500ms random jitter
+export const BACKOFF_RETRY_BUFFER_MS = 50; // buffer added to backoff delay to ensure window has elapsed
+export const BACKOFF_BASE_MS = 1_000; // 1s initial backoff
+export const BACKOFF_MAX_MS = 30_000; // 30s ceiling
+export const BACKOFF_MULTIPLIER = 2; // exponential factor
+export const BACKOFF_JITTER_MS = 500; // ±500ms random jitter
 export const HTTP_TOO_MANY_REQUESTS = 429;
-export const RETRY_AFTER_MIN_MS = 5_000;        // floor when Retry-After is missing/too small
-export const MAX_CATEGORY_FETCH_RETRIES = 4;    // give up after 4 attempts (useEmailFetching)
-export const MAX_POLL_RETRIES_429 = 5;          // give up after 5 consecutive 429s (useAnalysisProgress)
+export const RETRY_AFTER_MIN_MS = 5_000; // floor when Retry-After is missing/too small
+export const MAX_CATEGORY_FETCH_RETRIES = 4; // give up after 4 attempts (useEmailFetching)
+export const MAX_POLL_RETRIES_429 = 5; // give up after 5 consecutive 429s (useAnalysisProgress)
 
 // File size units
 export const BYTES_PER_KB = 1024;

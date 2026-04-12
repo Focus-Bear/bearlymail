@@ -145,8 +145,7 @@ export const TeamSettingsSection: React.FC = () => {
       setInviteSuccess(t('team.settings.inviteSent'));
       setInviteEmail('');
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : t('team.settings.inviteError');
+      const message = err instanceof Error ? err.message : t('team.settings.inviteError');
       setInviteError(message);
     }
   };
@@ -155,8 +154,7 @@ export const TeamSettingsSection: React.FC = () => {
     try {
       await updateRoleMutation.mutateAsync({ memberId: member.id, role: newRole });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : t('team.settings.roleChangeError');
+      const message = err instanceof Error ? err.message : t('team.settings.roleChangeError');
       showError(message);
     }
   };
@@ -174,8 +172,7 @@ export const TeamSettingsSection: React.FC = () => {
     try {
       await removeMutation.mutateAsync(member.id);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : t('team.settings.removeError');
+      const message = err instanceof Error ? err.message : t('team.settings.removeError');
       showError(message);
     }
   };
@@ -189,11 +186,7 @@ export const TeamSettingsSection: React.FC = () => {
     setPromoMessage('');
     try {
       const result = await promoMutation.mutateAsync(promoCode);
-      setPromoMessage(
-        result.success
-          ? t('team.settings.promoApplied')
-          : result.message,
-      );
+      setPromoMessage(result.success ? t('team.settings.promoApplied') : result.message);
       if (result.success) {
         setPromoCode('');
       }
@@ -220,8 +213,8 @@ export const TeamSettingsSection: React.FC = () => {
     );
   }
 
-  const activeMembers = org.members.filter((member) => member.status === STATUS_ACTIVE);
-  const pendingMembers = org.members.filter((member) => member.status === STATUS_PENDING);
+  const activeMembers = org.members.filter(member => member.status === STATUS_ACTIVE);
+  const pendingMembers = org.members.filter(member => member.status === STATUS_PENDING);
   const volumePercent = volumeUsage?.percentUsed ?? 0;
   const isVolumeWarning = volumePercent >= VOLUME_WARN_THRESHOLD;
   const isVolumeCritical = volumePercent >= VOLUME_CRITICAL_THRESHOLD;
@@ -276,34 +269,26 @@ export const TeamSettingsSection: React.FC = () => {
         </div>
       )}
 
-      <h3 style={{ ...headingStyle, fontSize: '16px', marginBottom: '8px' }}>
-        {t('team.settings.members')}
-      </h3>
+      <h3 style={{ ...headingStyle, fontSize: '16px', marginBottom: '8px' }}>{t('team.settings.members')}</h3>
 
-      {activeMembers.length === 0 && (
-        <p style={descStyle}>{t('team.settings.noMembers')}</p>
-      )}
+      {activeMembers.length === 0 && <p style={descStyle}>{t('team.settings.noMembers')}</p>}
 
-      {activeMembers.map((member) => (
+      {activeMembers.map(member => (
         <div key={member.id} style={memberRowStyle}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 500, color: theme.colors.text.primary, fontSize: '14px' }}>
               {member.displayName ?? member.email}
             </div>
-            <div style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
-              {member.email}
-            </div>
+            <div style={{ fontSize: '12px', color: theme.colors.text.secondary }}>{member.email}</div>
           </div>
 
           {member.role !== ROLE_OWNER && (
             <select
               value={member.role}
-              onChange={(event) =>
-                handleRoleChange(member, event.target.value as OrgRole)
-              }
+              onChange={event => handleRoleChange(member, event.target.value as OrgRole)}
               style={{ ...inputStyle, width: 'auto' }}
             >
-              {roleOptions.map((opt) => (
+              {roleOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -312,17 +297,11 @@ export const TeamSettingsSection: React.FC = () => {
           )}
 
           {member.role === ROLE_OWNER && (
-            <span style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
-              {t('team.settings.owner')}
-            </span>
+            <span style={{ fontSize: '12px', color: theme.colors.text.secondary }}>{t('team.settings.owner')}</span>
           )}
 
           {member.role !== ROLE_OWNER && (
-            <button
-              style={dangerButtonStyle}
-              onClick={() => handleRemove(member)}
-              disabled={removeMutation.isPending}
-            >
+            <button style={dangerButtonStyle} onClick={() => handleRemove(member)} disabled={removeMutation.isPending}>
               {t('team.settings.remove')}
             </button>
           )}
@@ -334,16 +313,12 @@ export const TeamSettingsSection: React.FC = () => {
           <h3 style={{ ...headingStyle, fontSize: '16px', marginTop: '24px', marginBottom: '8px' }}>
             {t('team.settings.pendingInvites')}
           </h3>
-          {pendingMembers.map((member) => (
+          {pendingMembers.map(member => (
             <div key={member.id} style={memberRowStyle}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', color: theme.colors.text.secondary }}>
-                  {member.email}
-                </div>
+                <div style={{ fontSize: '14px', color: theme.colors.text.secondary }}>{member.email}</div>
               </div>
-              <span style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
-                {t('team.settings.pending')}
-              </span>
+              <span style={{ fontSize: '12px', color: theme.colors.text.secondary }}>{t('team.settings.pending')}</span>
             </div>
           ))}
         </>
@@ -360,17 +335,13 @@ export const TeamSettingsSection: React.FC = () => {
         <input
           type="email"
           value={inviteEmail}
-          onChange={(event) => setInviteEmail(event.target.value)}
+          onChange={event => setInviteEmail(event.target.value)}
           placeholder={t('team.settings.emailPlaceholder')}
           style={inputStyle}
           required
         />
-        <select
-          value={inviteRole}
-          onChange={(event) => setInviteRole(event.target.value as OrgRole)}
-          style={inputStyle}
-        >
-          {roleOptions.map((opt) => (
+        <select value={inviteRole} onChange={event => setInviteRole(event.target.value as OrgRole)} style={inputStyle}>
+          {roleOptions.map(opt => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
@@ -380,15 +351,9 @@ export const TeamSettingsSection: React.FC = () => {
           {inviteMutation.isPending ? t('team.settings.inviting') : t('team.settings.sendInvite')}
         </button>
         {inviteSuccess && (
-          <p style={{ color: theme.colors.success.main, fontSize: '14px', margin: 0 }}>
-            {inviteSuccess}
-          </p>
+          <p style={{ color: theme.colors.success.main, fontSize: '14px', margin: 0 }}>{inviteSuccess}</p>
         )}
-        {inviteError && (
-          <p style={{ color: theme.colors.error.main, fontSize: '14px', margin: 0 }}>
-            {inviteError}
-          </p>
-        )}
+        {inviteError && <p style={{ color: theme.colors.error.main, fontSize: '14px', margin: 0 }}>{inviteError}</p>}
       </form>
 
       <h3 style={{ ...headingStyle, fontSize: '16px', marginTop: '32px', marginBottom: '8px' }}>
@@ -401,22 +366,21 @@ export const TeamSettingsSection: React.FC = () => {
         <input
           type="text"
           value={promoCode}
-          onChange={(event) => setPromoCode(event.target.value)}
+          onChange={event => setPromoCode(event.target.value)}
           placeholder={t('team.settings.promoCodePlaceholder')}
           style={inputStyle}
           required
         />
         <button type="submit" style={buttonStyle} disabled={promoMutation.isPending}>
-          {promoMutation.isPending
-            ? t('team.settings.promoApplying')
-            : t('team.settings.promoApply')}
+          {promoMutation.isPending ? t('team.settings.promoApplying') : t('team.settings.promoApply')}
         </button>
         {promoMessage && (
           <p
             style={{
-              color: promoMutation.isSuccess && promoMutation.data?.success
-                ? theme.colors.success.main
-                : theme.colors.error.main,
+              color:
+                promoMutation.isSuccess && promoMutation.data?.success
+                  ? theme.colors.success.main
+                  : theme.colors.error.main,
               fontSize: '14px',
               margin: 0,
             }}

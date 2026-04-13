@@ -21,6 +21,7 @@ import BookingPage from 'pages/BookingPage';
 import BookingReschedulePage from 'pages/BookingReschedulePage';
 import Compose from 'pages/Compose';
 import ContactDetail from 'pages/ContactDetail';
+import ContactGroups from 'pages/ContactGroups';
 import Contacts from 'pages/Contacts';
 import Deals from 'pages/Deals';
 import EmailDetail from 'pages/EmailDetail';
@@ -253,6 +254,14 @@ const AppRoutes: React.FC = () => (
       element={
         <PrivateRoute>
           <ContactDetail />
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/crm/contact-groups"
+      element={
+        <PrivateRoute>
+          <ContactGroups />
         </PrivateRoute>
       }
     />

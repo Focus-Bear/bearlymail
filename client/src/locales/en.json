@@ -1195,7 +1195,16 @@
       "noGroups": "No contact groups yet. Create one below.",
       "creating": "Creating...",
       "memberCount_one": "{{count}} member",
-      "memberCount_other": "{{count}} members"
+      "memberCount_other": "{{count}} members",
+      "contactMemberships": "Groups",
+      "addToGroup": "Add to Group",
+      "addToExistingGroup": "Add to existing group...",
+      "createNewGroup": "Create new group",
+      "newGroupName": "New group name",
+      "alreadyInGroups": "Already in {{count}} group(s)",
+      "notInAnyGroup": "Not in any group",
+      "addedToGroup": "Added to {{name}}",
+      "removedFromGroup": "Removed from {{name}}"
     }
   },
   "admin": {
@@ -1486,6 +1495,7 @@
     "title": "CRM",
     "contacts": "Contacts",
     "deals": "Deals",
+    "contactGroups": "Contact Groups",
     "deal": "deal",
     "noDeals": "No deals",
     "noDealsWithContact": "No deals with this contact yet",

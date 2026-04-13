@@ -41,6 +41,7 @@ import { useSidebarState } from 'hooks/useSidebarState';
 
 import ContactActivityList from './contact-detail/components/ContactActivityList';
 import ContactDetailHeader from './contact-detail/components/ContactDetailHeader';
+import { ContactGroupMembership } from './contact-detail/components/ContactGroupMembership';
 import { ContactThreadList } from './contact-detail/components/ContactThreadList';
 import useContactActions from './contact-detail/hooks/useContactActions';
 import useContactDetailData from './contact-detail/hooks/useContactDetailData';
@@ -679,6 +680,15 @@ const ContactDetailPage: React.FC = () => {
               setEditValue={setEditValue}
             />
           </div>
+
+          {contactId && (
+            <ContactGroupMembership
+              contactId={contactId}
+              contactEmail={contact.email}
+              contactName={contact.name ?? undefined}
+              sectionStyle={sectionStyle}
+            />
+          )}
 
           <ContactCustomFieldsSection
             contact={contact}

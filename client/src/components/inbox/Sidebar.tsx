@@ -13,6 +13,7 @@ import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_BADGE_DISPLAY } from 'constants/numbers';
 import {
   ROUTE_ADMIN,
+  ROUTE_CRM_CONTACT_GROUPS,
   ROUTE_CRM_CONTACTS,
   ROUTE_CRM_DEALS,
   ROUTE_INBOX,
@@ -256,6 +257,14 @@ const CrmSubNav: React.FC<CrmSubNavProps> = ({ pathname, isCollapsed, translate,
         path={ROUTE_CRM_DEALS}
         icon="🤝"
         active={pathname === ROUTE_CRM_DEALS}
+        isCollapsed={false}
+        onNavigationClick={onNavigationClick}
+      />
+      <SidebarItem
+        label={translate('crm.contactGroups')}
+        path={ROUTE_CRM_CONTACT_GROUPS}
+        icon="👥"
+        active={pathname === ROUTE_CRM_CONTACT_GROUPS}
         isCollapsed={false}
         onNavigationClick={onNavigationClick}
       />

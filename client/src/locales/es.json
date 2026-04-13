@@ -988,6 +988,7 @@
     "title": "CRM",
     "contacts": "Contactos",
     "deals": "Negocios",
+    "contactGroups": "Grupos de contactos",
     "deal": "negocio",
     "noDeals": "Sin negocios",
     "noDealsWithContact": "Aún no hay negocios con este contacto",
@@ -2677,7 +2678,16 @@
       "noGroups": "Aún no hay grupos de contactos. Crea uno abajo.",
       "creating": "Creando...",
       "memberCount_one": "{{count}} miembro",
-      "memberCount_other": "{{count}} miembros"
+      "memberCount_other": "{{count}} miembros",
+      "contactMemberships": "Grupos",
+      "addToGroup": "Agregar al grupo",
+      "addToExistingGroup": "Agregar a grupo existente...",
+      "createNewGroup": "Crear nuevo grupo",
+      "newGroupName": "Nombre del nuevo grupo",
+      "alreadyInGroups": "Ya está en {{count}} grupo(s)",
+      "notInAnyGroup": "No pertenece a ningún grupo",
+      "addedToGroup": "Agregado a {{name}}",
+      "removedFromGroup": "Eliminado de {{name}}"
     }
   },
   "keyboard": {

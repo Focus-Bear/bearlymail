@@ -391,8 +391,10 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
             Fix #1526 bug 5: always render VisualCategoryFilter; pass loading=true while
             categories are fetching so the component can show skeleton pills instead of
             flashing in fully-formed all at once. This avoids the brief blank gap when the
-            filter bar first opens and fetchCategories is in-flight. */}
-        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined }}>
+            filter bar first opens and fetchCategories is in-flight.
+            display:flex+flexDirection:column lets the inner component's flex:1 fill the
+            wrapper height so both cards stretch to the same height (fix #1735). */}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
           <VisualCategoryFilter
             categories={loadingCategories ? [] : availableCategories}
             selectedIds={filters.categories}
@@ -403,8 +405,10 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           />
         </div>
 
-        {/* Priority Filter — dual-thumb range slider */}
-        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined }}>
+        {/* Priority Filter — dual-thumb range slider.
+            display:flex+flexDirection:column lets PriorityRangeSelector's flex:1 fill
+            the wrapper so it matches the Category card height (fix #1735). */}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column' }}>
           <PriorityRangeSelector
             selectedMin={filters.minPriority}
             selectedMax={filters.maxPriority}

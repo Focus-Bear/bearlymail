@@ -28,7 +28,7 @@ import {
   visualMaxToScore,
   visualMinToScore,
 } from 'constants/priorityBuckets';
-import { KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ARROW_RIGHT, KEY_ARROW_UP, KEY_END, KEY_HOME } from 'constants/strings';
+import { KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ARROW_RIGHT, KEY_ARROW_UP, KEY_END, KEY_ENTER, KEY_HOME, KEY_SPACE } from 'constants/strings';
 
 // ── Bucket definitions ────────────────────────────────────────────────────────
 
@@ -306,24 +306,36 @@ interface BucketLabelsProps {
   minVal: number;
   maxVal: number;
   bucketCounts?: Record<string, number>;
+  /** Called when user clicks a bucket label; receives the bucket's visual start position. */
+  onBucketClick: (visualPos: number) => void;
 }
 
-const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCounts }) => (
+const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCounts, onBucketClick }) => (
   <div
-    aria-hidden="true"
     style={{
       display: 'flex',
       marginTop: theme.spacing.sm,
     }}
   >
-    {PRIORITY_BUCKETS.map(bucket => {
+    {PRIORITY_BUCKETS.map((bucket, index) => {
       const bucketMin = bucket.min;
       const bucketMax = bucket.max ?? 100;
       const isActive = bucketMin < maxVal && bucketMax > minVal;
       const count = bucketCounts?.[bucket.label];
+      const visualPos = index * VISUAL_BUCKET_SIZE;
       return (
         <div
           key={bucket.label}
+          role="button"
+          tabIndex={0}
+          aria-label={bucket.label}
+          onClick={() => onBucketClick(visualPos)}
+          onKeyDown={event => {
+            if (event.key === KEY_ENTER || event.key === KEY_SPACE) {
+              event.preventDefault();
+              onBucketClick(visualPos);
+            }
+          }}
           style={{
             flex: 1,
             display: 'flex',
@@ -332,6 +344,7 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
             gap: '2px',
             opacity: isActive ? 1 : INACTIVE_LABEL_OPACITY,
             transition: 'opacity 0.15s ease',
+            cursor: 'pointer',
           }}
         >
           <div
@@ -368,6 +381,42 @@ const BucketLabels: React.FC<BucketLabelsProps> = ({ minVal, maxVal, bucketCount
     })}
   </div>
 );
+
+// ── Bucket click helper ───────────────────────────────────────────────────────
+
+/**
+ * Given the current slider positions and a clicked bucket's visual start position,
+ * returns the new {minVal, maxVal} after snapping the nearest handle to the target.
+ * Ties (equal distance from both handles) snap the min handle. The returned values
+ * are clamped so there is always at least one bucket of separation between handles.
+ *
+ * Exported for unit testing.
+ */
+export function computeBucketClick(
+  minVal: number,
+  maxVal: number,
+  targetVisualPos: number,
+  bucketSize: number
+): { newMinVal: number; newMaxVal: number } {
+  const distFromMin = Math.abs(minVal - targetVisualPos);
+  const distFromMax = Math.abs(maxVal - targetVisualPos);
+  if (distFromMin <= distFromMax) {
+    const newMinVal = Math.min(targetVisualPos, maxVal - bucketSize);
+    // When min is already at the target (no-op) and not at the slider left edge,
+    // narrow the range by snapping max one bucket to the right instead.
+    if (newMinVal === minVal && distFromMin === 0 && targetVisualPos > 0) {
+      return { newMinVal: minVal, newMaxVal: minVal + bucketSize };
+    }
+    return { newMinVal, newMaxVal: maxVal };
+  }
+  const newMaxVal = Math.max(targetVisualPos, minVal + bucketSize);
+  // When max is already at the target (no-op), narrow the range by snapping
+  // min one bucket to the left instead.
+  if (newMaxVal === maxVal && distFromMax === 0) {
+    return { newMinVal: maxVal - bucketSize, newMaxVal: maxVal };
+  }
+  return { newMinVal: minVal, newMaxVal };
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -435,6 +484,18 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
       onChange(outMin, outMax);
     },
     [minVal, onChange]
+  );
+
+  /**
+   * Clicking a bucket label snaps the nearest handle (min or max) to the bucket's
+   * visual start position. Ties go to the min handle.
+   */
+  const handleBucketClick = useCallback(
+    (visualPos: number) => {
+      const { newMinVal, newMaxVal } = computeBucketClick(minVal, maxVal, visualPos, VISUAL_BUCKET_SIZE);
+      onChange(visualMinToScore(newMinVal), visualMaxToScore(newMaxVal));
+    },
+    [minVal, maxVal, onChange]
   );
 
   const rangeLabel = getRangeLabel(minVal, maxVal);
@@ -545,7 +606,7 @@ export const PriorityRangeSelector: React.FC<PriorityRangeSelectorProps> = ({
       </div>
 
       {/* Bucket labels + counts */}
-      <BucketLabels minVal={minVal} maxVal={maxVal} bucketCounts={bucketCounts} />
+      <BucketLabels minVal={minVal} maxVal={maxVal} bucketCounts={bucketCounts} onBucketClick={handleBucketClick} />
     </div>
   );
 };

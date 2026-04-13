@@ -10,6 +10,10 @@ export interface CategoryFetchState {
   retryCount: number;
   nextRetryAt: number | null;
   error: string | null;
+  /** Wall-clock ms when the fetch started — used to compute near-budget UI indicator */
+  fetchStartedAt: number | null;
+  /** True once the slow-fetch warning has been dispatched for the current fetch cycle */
+  budgetWarningFired: boolean;
 }
 
 const DEFAULT_CATEGORY_STATE: CategoryFetchState = {
@@ -19,6 +23,8 @@ const DEFAULT_CATEGORY_STATE: CategoryFetchState = {
   retryCount: 0,
   nextRetryAt: null,
   error: null,
+  fetchStartedAt: null,
+  budgetWarningFired: false,
 };
 
 export interface CategorySliceState {
@@ -41,7 +47,17 @@ const categorySlice = createSlice({
   reducers: {
     fetchStart: (state, action: PayloadAction<string>) => {
       const existing = state.categories[action.payload] ?? DEFAULT_CATEGORY_STATE;
-      state.categories[action.payload] = { ...existing, status: STATUS_LOADING, error: null };
+      state.categories[action.payload] = {
+        ...existing,
+        status: STATUS_LOADING,
+        error: null,
+        fetchStartedAt: Date.now(),
+        budgetWarningFired: false,
+      };
+    },
+    fetchBudgetWarning: (state, action: PayloadAction<string>) => {
+      const existing = state.categories[action.payload] ?? DEFAULT_CATEGORY_STATE;
+      state.categories[action.payload] = { ...existing, budgetWarningFired: true };
     },
     fetchSuccess: (state, action: PayloadAction<{ key: string; emails: Email[]; fetchedAt: number }>) => {
       const { key, emails, fetchedAt } = action.payload;
@@ -68,14 +84,19 @@ const categorySlice = createSlice({
     resetCategory: (state, action: PayloadAction<string>) => {
       state.categories[action.payload] = { ...DEFAULT_CATEGORY_STATE };
     },
-    resetAll: state => {
+    clearBudgetWarning: (state, action: PayloadAction<string>) => {
+      const existing = state.categories[action.payload];
+      if (existing) {
+        existing.budgetWarningFired = false;
+      }
+    },
+    resetAll: (state) => {
       state.categories = {};
     },
   },
 });
 
-export const { fetchStart, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll } =
-  categorySlice.actions;
+export const { fetchStart, fetchBudgetWarning, fetchSuccess, fetchError, markExhausted, markStale, resetCategory, resetAll, clearBudgetWarning } = categorySlice.actions;
 
 export default categorySlice.reducer;
 
@@ -110,6 +131,17 @@ export const selectLoadingCategoryKeys = createSelector(
     Object.entries(categories)
       .filter(([, catState]) => catState.status === STATUS_LOADING)
       .map(([key]) => key)
+);
+
+export const selectCategoryBudgetWarning = (key: string) =>
+  (state: { category: CategorySliceState }): boolean =>
+    state.category.categories[key]?.budgetWarningFired ?? false;
+
+/** Returns true if any category fetch has fired its budget-warning signal. */
+export const selectAnyCategoryBudgetWarning = createSelector(
+  (state: { category: CategorySliceState }) => state.category.categories,
+  (categories): boolean =>
+    Object.values(categories).some(cat => cat.budgetWarningFired)
 );
 
 export const selectExhaustedCategoryKeys = createSelector(

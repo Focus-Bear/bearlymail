@@ -5,6 +5,7 @@ import { ACCORDION_BUDGETS, measurePerformance } from 'utils/performanceBudget';
 import { CATEGORY_FETCH_RETRY_DELAY_MS } from 'constants/numbers';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import {
+  fetchBudgetWarning,
   fetchError as categoryFetchError,
   fetchStart as categoryFetchStart,
   fetchSuccess as categoryFetchSuccess,
@@ -13,7 +14,12 @@ import {
 import { markCategoryLoaded } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
 
-const INITIAL_PRELOAD_COUNT = 3;
+/** Number of categories to auto-expand on initial mount (sorted by email count desc). */
+const INITIAL_PRELOAD_COUNT = 6;
+
+/** Fire budget-warning signal when fetch reaches this fraction of the budget. */
+const BUDGET_WARNING_THRESHOLD = 0.8;
+const CATEGORY_FETCH_WARNING_MS = ACCORDION_BUDGETS.CATEGORY_FETCH * BUDGET_WARNING_THRESHOLD;
 
 interface CategorySummaryItem {
   id?: string | null;
@@ -29,18 +35,7 @@ export interface UseCategoryFetchParams {
   exhaustedCategoryNames?: string[];
 }
 
-/**
- * Phase 2 replacement for useInboxCategoryAccordion.
- *
- * Manages expand/collapse state and triggers category fetches.
- * Dual-writes to both the legacy emailSlice arrays (via fetchCategoryEmails)
- * and the new categorySlice state machine, enabling incremental migration.
- *
- * Key improvement over the old hook:
- * - Single effect instead of Effect 1 + Effect 2 limbo-recovery
- * - Uses refs for loaded/loading checks to avoid re-render cascades
- * - Dispatches to categorySlice for richer per-category status tracking
- */
+/** Phase 2 replacement for useInboxCategoryAccordion. Manages expand/collapse state, triggers category fetches, and dual-writes to emailSlice and categorySlice. Single effect instead of Effect 1 + Effect 2 limbo-recovery; uses refs to avoid re-render cascades. */
 export function useCategoryFetch({
   categorySummary,
   fetchCategoryEmails,
@@ -81,12 +76,19 @@ export function useCategoryFetch({
     });
   }, []);
 
-  const updateStableCategoryOrder = useCallback((categoryKeys: string[]) => {
+  const updateStableCategoryOrder = useCallback((categoryKeys: string[], summaryItems?: CategorySummaryItem[]) => {
     if (categoryKeys.length > 0) {
       setStableCategoryOrder(categoryKeys);
       if (!hasAutoExpandedRef.current) {
         hasAutoExpandedRef.current = true;
-        setExpandedCategories(new Set(categoryKeys.slice(0, INITIAL_PRELOAD_COUNT)));
+        // Sort by email count desc so top INITIAL_PRELOAD_COUNT categories expand first on mount.
+        const keyToCount = summaryItems
+          ? new Map(summaryItems.map(item => [getCategoryKey(item.id, item.name), item.count ?? 0]))
+          : null;
+        const orderedKeys = keyToCount
+          ? [...categoryKeys].sort((keyA, keyB) => (keyToCount.get(keyB) ?? 0) - (keyToCount.get(keyA) ?? 0))
+          : categoryKeys;
+        setExpandedCategories(new Set(orderedKeys.slice(0, INITIAL_PRELOAD_COUNT)));
       }
     }
   }, []);
@@ -113,15 +115,13 @@ export function useCategoryFetch({
         loadedCategoryNamesRef.current.includes(key) ||
         loadingCategoryNamesRef.current.includes(key) ||
         exhaustedCategoryNamesRef.current.includes(key) ||
-        fetchSessionRef.current.has(key)
+        fetchSessionRef.current.has(key) ||
+        !keyToItem.has(key)
       ) {
         return;
       }
 
-      const item = keyToItem.get(key);
-      if (!item) {
-        return;
-      }
+      const item = keyToItem.get(key)!;
 
       // Fix #1689: Fast-path for categories the fresh summary says are empty.
       // Avoids a redundant API call and resolves the spinner immediately when
@@ -143,14 +143,14 @@ export function useCategoryFetch({
       measurePerformance({ label: `category-fetch:${item.name}`, budgetMs: ACCORDION_BUDGETS.CATEGORY_FETCH }, () =>
         fetchCategoryEmails(item.name, item.id ?? undefined)
       )
-        .then(() => {
-          // Phase 2 dual-write: emails: [] is intentional — categorySlice tracks fetch status only;
-          // actual emails remain in emailSlice (populated by fetchCategoryEmails above).
+        .then(({ durationMs, overBudget }) => {
+          // Dual-write: categorySlice tracks fetch status only; emails live in emailSlice.
           dispatch(categoryFetchSuccess({ key, emails: [], fetchedAt: Date.now() }));
-          // Clear the session guard so legitimate re-fetches (e.g. pull-to-refresh after
-          // archiving) can trigger a new fetch for this category. The Set is only cleared
-          // on mode change otherwise, which blocks re-fetches within the same mode. See #1665.
           fetchSessionRef.current.delete(key);
+          // Dispatch a budget-warning when the fetch is approaching or over budget.
+          if (overBudget || durationMs >= CATEGORY_FETCH_WARNING_MS) {
+            dispatch(fetchBudgetWarning(key));
+          }
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : 'Unknown fetch error';

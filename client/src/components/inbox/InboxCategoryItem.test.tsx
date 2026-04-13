@@ -67,6 +67,7 @@ jest.mock('react-router-dom', () => ({
 jest.mock('react-redux', () => ({
   ...jest.requireActual('react-redux'),
   useDispatch: () => jest.fn(),
+  useSelector: () => false,
 }));
 
 jest.mock('react-i18next', () => ({

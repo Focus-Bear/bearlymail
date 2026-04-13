@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Email, getEmailPriorityScore, InboxMode, TriageSuggestion } from 'types/email';
 
@@ -16,6 +17,7 @@ import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { getCategoryKey } from 'hooks/useEmailFetching';
 import { FollowUpData } from 'hooks/useFollowUps';
 import { ProtoCategory } from 'hooks/useProtoCategories';
+import { selectCategoryBudgetWarning } from 'store/slices/categorySlice';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface CategorySectionProps {
@@ -91,6 +93,8 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
   const group = emailCategoryMap.get(categoryKey);
   const categoryEmails = group?.emails ?? [];
+  // Budget warning: subtle amber indicator when this category's fetch is approaching budget.
+  const isNearBudget = useSelector(selectCategoryBudgetWarning(categoryKey));
 
   // Hooks must be called before any early return (Rules of Hooks).
   const handleNavigateToSettings = useCallback(() => {
@@ -162,35 +166,36 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
   return (
     <>
-      <CategoryAccordion
-        key={categoryKey}
-        category={categoryName}
-        emails={categoryEmails}
-        count={isLoaded ? categoryEmails.length : categoryItem.count}
-        isLoadingContent={isExpanded && !isLoaded}
-        isExpanded={isExpanded}
-        onToggle={() => onToggleCategory(categoryKey)}
-        onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
-        onReanalyseOther={handleReanalyseOther}
-        isReanalysingOther={isReanalysingOther}
-        onNavigateToSettings={handleNavigateToSettings}
-      >
-        {hasProtoGroups
-          ? (() => {
-              let offset = 0;
-              return (
-                <>
-                  {otherProtoGroups.map(grp => {
-                    const groupStart = offset;
-                    offset += grp.emails.length;
-                    const protoCategory = protoCategories.find(pc => pc.name === grp.name);
-                    return (
-                      <ProtoCategorySubAccordion
-                        key={grp.name}
-                        name={grp.name}
-                        description={protoCategory?.description}
-                        emailCount={grp.emails.length}
-                        onConvertToCategory={async () => {
+    <CategoryAccordion
+      key={categoryKey}
+      category={categoryName}
+      emails={categoryEmails}
+      count={isLoaded ? categoryEmails.length : categoryItem.count}
+      isLoadingContent={isExpanded && !isLoaded}
+      isExpanded={isExpanded}
+      onToggle={() => onToggleCategory(categoryKey)}
+      onArchiveAll={(_category: string, emailIds: string[]) => onBulkArchive(emailIds)}
+      onReanalyseOther={handleReanalyseOther}
+      isReanalysingOther={isReanalysingOther}
+      onNavigateToSettings={handleNavigateToSettings}
+      isNearBudget={isNearBudget}
+    >
+      {hasProtoGroups
+        ? (() => {
+            let offset = 0;
+            return (
+              <>
+                {otherProtoGroups.map(grp => {
+                  const groupStart = offset;
+                  offset += grp.emails.length;
+                  const protoCategory = protoCategories.find(pc => pc.name === grp.name);
+                  return (
+                    <ProtoCategorySubAccordion
+                      key={grp.name}
+                      name={grp.name}
+                      description={protoCategory?.description}
+                      emailCount={grp.emails.length}
+                      onConvertToCategory={async () => {
                           handleConvertProtoCategory(protoCategory?.id ?? '', grp.name);
                         }}
                         isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}

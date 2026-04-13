@@ -10,7 +10,11 @@ interface UseInboxCategorySyncParams {
   summaryCategories: CategorySummaryItem[] | null;
   filteredEmails: Email[];
   stableCategoryOrder: string[];
-  onUpdateStableCategoryOrder: (order: string[]) => void;
+  /**
+   * Passes categoryKeys + summaryItems so useCategoryFetch can sort by count desc
+   * before auto-expanding the top INITIAL_PRELOAD_COUNT categories on mount.
+   */
+  onUpdateStableCategoryOrder: (order: string[], summaryItems?: CategorySummaryItem[]) => void;
   mode: InboxMode;
 }
 
@@ -25,24 +29,24 @@ export function useInboxCategorySync({
     if (summaryCategories && summaryCategories.length > 0) {
       const summaryKeys = summaryCategories.map(cat => getCategoryKey(cat.id, cat.name));
       if (stableCategoryOrder.length === 0) {
-        onUpdateStableCategoryOrder(summaryKeys);
+        onUpdateStableCategoryOrder(summaryKeys, summaryCategories);
       } else {
         const newKeys = summaryKeys.filter(key => !stableCategoryOrder.includes(key));
         if (newKeys.length > 0) {
-          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys], summaryCategories);
         }
       }
     } else if (!summaryCategories) {
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
-          onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
+          onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category), undefined);
         } else {
           const newKeys = categoryGroups
             .filter(grp => !stableCategoryOrder.includes(grp.category))
             .map(grp => grp.category);
           if (newKeys.length > 0) {
-            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
+            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys], undefined);
           }
         }
       }

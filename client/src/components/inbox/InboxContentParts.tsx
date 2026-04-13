@@ -4,7 +4,7 @@
  * are only used by InboxContent.
  */
 import React, { useCallback, useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -29,6 +29,7 @@ import { getCategoryKey } from 'hooks/useEmailFetching';
 import { FollowUpData } from 'hooks/useFollowUps';
 import { usePerformanceBudget } from 'hooks/usePerformanceBudget';
 import { ProtoCategory } from 'hooks/useProtoCategories';
+import { selectCategoryBudgetWarning } from 'store/slices/categorySlice';
 import { CategorySummaryItem, decrementCategorySummaryCount, markCategoryLoaded } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 import { AppDispatch } from 'store/store';
@@ -238,6 +239,8 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
   const navigate = useNavigate();
   const categoryName = categoryItem.name;
   const categoryEmails = group?.emails ?? [];
+  // Budget warning: subtle amber indicator when this category's fetch is approaching budget.
+  const isNearBudget = useSelector(selectCategoryBudgetWarning(categoryKey));
 
   // --- Performance budget instrumentation ---
   const perf = usePerformanceBudget();
@@ -379,6 +382,7 @@ export const InboxCategoryItem: React.FC<InboxCategoryItemProps> = ({
         isReanalysingOther={isReanalysingOther}
         onAfterCollapse={onAfterCollapse}
         onNavigateToSettings={handleNavigateToSettings}
+        isNearBudget={isNearBudget}
       >
         {hasProtoGroups ? (
           <InboxOtherCategoryContent

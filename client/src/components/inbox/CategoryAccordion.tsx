@@ -41,6 +41,8 @@ interface CategoryAccordionProps {
   onAfterCollapse?: () => void;
   /** Called when the user clicks the ⚙️ settings button for this category. */
   onNavigateToSettings?: () => void;
+  /** True when the category fetch has fired a slow-fetch warning (approaching or over budget). */
+  isNearBudget?: boolean;
 }
 
 const EDIT_ICON = '⚙️';
@@ -270,16 +272,28 @@ const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
 interface CategoryAccordionContentProps {
   isLoadingContent?: boolean;
   loadingLabel: string;
+  /** Subtle amber indicator shown when the fetch is approaching the performance budget. */
+  isNearBudget?: boolean;
   children: React.ReactNode;
 }
 
 const CategoryAccordionContent: React.FC<CategoryAccordionContentProps> = ({
   isLoadingContent,
   loadingLabel,
+  isNearBudget,
   children,
 }) => (
   <div
-    style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.md, minWidth: 0 }}
+    style={{
+      padding: theme.spacing.md,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing.md,
+      minWidth: 0,
+      // Subtle amber left-border pulse when fetch is approaching budget (UX signal only, no alarm).
+      borderLeft: isNearBudget && isLoadingContent ? `3px solid ${theme.colors.accent.warning}` : 'none',
+      paddingLeft: isNearBudget && isLoadingContent ? `calc(${theme.spacing.md} - 3px)` : undefined,
+    }}
   >
     {isLoadingContent ? (
       <div
@@ -325,6 +339,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   isReanalysingOther,
   onAfterCollapse,
   onNavigateToSettings,
+  isNearBudget,
 }) => {
   const { t } = useTranslation();
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
@@ -427,10 +442,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         }}
       >
         <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-          <CategoryAccordionContent
-            isLoadingContent={isLoadingContent}
-            loadingLabel={t('inbox.category.loadingContent')}
-          >
+          <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')} isNearBudget={isNearBudget}>
             {children}
           </CategoryAccordionContent>
         </div>

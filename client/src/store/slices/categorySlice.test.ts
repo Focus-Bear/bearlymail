@@ -39,6 +39,8 @@ const defaultCategoryState: CategoryFetchState = {
   retryCount: 0,
   nextRetryAt: null,
   error: null,
+  fetchStartedAt: null,
+  budgetWarningFired: false,
 };
 
 // ─── Reducer tests ────────────────────────────────────────────────────────────

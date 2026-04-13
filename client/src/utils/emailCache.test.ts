@@ -275,4 +275,13 @@ describe('filterHash', () => {
     const hashB = filterHash({ minPriority: 3, maxPriority: 5 });
     expect(hashA).not.toBe(hashB);
   });
+
+  it.each([
+    [{ minPriority: 50, maxPriority: null }, 'p50_pnull'],
+    [{ minPriority: null, maxPriority: null }, 'pnull_pnull'],
+    [{ minPriority: null, maxPriority: 30 }, 'pnull_p30'],
+    [{ minPriority: 10, maxPriority: 30 }, 'p10_p30'],
+  ])('filterHash($route) returns $expected', ({ minPriority, maxPriority }, expected) => {
+    expect(filterHash({ minPriority, maxPriority })).toBe(expected);
+  });
 });

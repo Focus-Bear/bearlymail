@@ -10,16 +10,10 @@ import { useCategoryRules } from 'hooks/settings/useCategoryRules';
 
 export function useDeterministicCategoryRulesSectionState() {
   const { t } = useTranslation();
-  const { showSuccess, showError, showSuccessWithUndo } = useNotifications();
+  const { showSuccess, showError } = useNotifications();
   const { rules, loading, createCompositeRule, patchRule, deleteRule, suggestRules } = useCategoryRules();
   const { data: categoryOptions = [] } = useCategoryContextQuery();
 
-  /** IDs that have been optimistically removed from the UI pending the undo timer */
-  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<Set<string>>(new Set());
-  /** Saved rule data keyed by id, for undo restoration */
-  const deletedRuleSnapshots = useRef<Map<string, CategoryRuleDto>>(new Map());
-  /** Cancel functions for in-flight undo timers */
-  const undoCancels = useRef<Map<string, () => void>>(new Map());
   /**
    * Category display name to pre-fill when the choice dialog was triggered
    * from a specific category row.  Using a ref avoids stale closure issues.
@@ -164,59 +158,18 @@ export function useDeterministicCategoryRulesSectionState() {
   );
 
   const handleDelete = useCallback(
-    (id: string) => {
-      // Cancel any existing undo for this id (unlikely but safe)
-      const existingCancel = undoCancels.current.get(id);
-      if (existingCancel) {
-        existingCancel();
-        undoCancels.current.delete(id);
+    async (id: string): Promise<void> => {
+      if (!window.confirm(t('settings.deterministicCategoryRules.confirmDelete'))) {
+        return;
       }
-
-      // Snapshot the rule data so we can restore it on undo
-      const ruleSnapshot = rules.find(rule => rule.id === id);
-      if (ruleSnapshot) {
-        deletedRuleSnapshots.current.set(id, ruleSnapshot);
+      try {
+        await deleteRule(id);
+        showSuccess(t('settings.deterministicCategoryRules.deleteSuccess'));
+      } catch {
+        showError(t('settings.deterministicCategoryRules.deleteError'));
       }
-
-      // Optimistically hide the rule in the UI
-      setOptimisticallyDeletedIds(prev => new Set([...prev, id]));
-
-      const cancelUndo = showSuccessWithUndo(
-        t('settings.deterministicCategoryRules.undoDelete'),
-        // onCommit — timer expired, perform the real deletion
-        () => {
-          undoCancels.current.delete(id);
-          deletedRuleSnapshots.current.delete(id);
-          void (async () => {
-            try {
-              await deleteRule(id);
-              // Rule is already gone from UI; nothing more to do
-            } catch {
-              // Restore rule in UI on API failure
-              setOptimisticallyDeletedIds(prev => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-              });
-              showError(t('settings.deterministicCategoryRules.deleteError'));
-            }
-          })();
-        },
-        // onUndo — user clicked Undo
-        () => {
-          undoCancels.current.delete(id);
-          deletedRuleSnapshots.current.delete(id);
-          setOptimisticallyDeletedIds(prev => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }
-      );
-
-      undoCancels.current.set(id, cancelUndo);
     },
-    [deleteRule, rules, showError, showSuccessWithUndo, t]
+    [deleteRule, showError, showSuccess, t]
   );
 
   const handleFormSubmit = useCategoryRuleCompositeFormSubmit({
@@ -228,11 +181,8 @@ export function useDeterministicCategoryRulesSectionState() {
     showError,
   });
 
-  // Filter out optimistically deleted rules so UI reflects deletion immediately
-  const visibleRules = rules.filter(rule => !optimisticallyDeletedIds.has(rule.id));
-
   return {
-    rules: visibleRules,
+    rules,
     loading,
     categoryOptions,
     modalOpen,

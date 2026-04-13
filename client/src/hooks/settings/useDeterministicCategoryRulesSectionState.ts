@@ -20,6 +20,11 @@ export function useDeterministicCategoryRulesSectionState() {
   const deletedRuleSnapshots = useRef<Map<string, CategoryRuleDto>>(new Map());
   /** Cancel functions for in-flight undo timers */
   const undoCancels = useRef<Map<string, () => void>>(new Map());
+  /**
+   * Category display name to pre-fill when the choice dialog was triggered
+   * from a specific category row.  Using a ref avoids stale closure issues.
+   */
+  const pendingCategoryNameRef = useRef('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<
@@ -46,31 +51,48 @@ export function useDeterministicCategoryRulesSectionState() {
 
   /** Opens the "Add rule — how?" choice dialog (issue #1714). */
   const openAddChoice = useCallback(() => {
+    pendingCategoryNameRef.current = '';
     setAddChoiceOpen(true);
   }, []);
 
   const closeAddChoice = useCallback(() => {
+    pendingCategoryNameRef.current = '';
     setAddChoiceOpen(false);
   }, []);
 
-  /** User chose "Create manually" — open the blank composite form. */
+  /**
+   * Opens the choice dialog pre-scoped to a category (called from category
+   * rows via CategoryRuleFromCategoryContext).  Whichever path the user
+   * picks — manual or suggest — the category name will be pre-filled.
+   */
+  const openAddChoiceForCategoryDisplayName = useCallback((categoryName: string) => {
+    pendingCategoryNameRef.current = categoryName;
+    setAddChoiceOpen(true);
+  }, []);
+
+  /** User chose "Create manually" — open the composite form (optionally pre-filled). */
   const openAdd = useCallback(() => {
+    const categoryToUse = pendingCategoryNameRef.current;
+    pendingCategoryNameRef.current = '';
     setAddChoiceOpen(false);
-    setPrefillCategoryName('');
+    setPrefillCategoryName(categoryToUse);
     setModalMode(COMPOSITE_RULE_FORM_MODE_ADD);
     setEditingRule(null);
+    setSuggestedSpec(null);
     setModalOpen(true);
   }, []);
 
   /** User chose "Suggest for me" — fetch suggestions, then show confirmation dialog. */
   const openSuggest = useCallback(async () => {
+    const categoryToUse = pendingCategoryNameRef.current;
+    pendingCategoryNameRef.current = '';
     setAddChoiceOpen(false);
     setSuggestError(null);
     setSuggestions([]);
     setSuggestDialogOpen(true);
     setSuggestLoading(true);
     try {
-      const results = await suggestRules();
+      const results = await suggestRules(categoryToUse || undefined);
       setSuggestions(results);
     } catch {
       setSuggestError(t('settings.deterministicCategoryRules.suggestError'));
@@ -222,6 +244,7 @@ export function useDeterministicCategoryRulesSectionState() {
     addChoiceOpen,
     openAddChoice,
     closeAddChoice,
+    openAddChoiceForCategoryDisplayName,
     // Suggest flow
     suggestDialogOpen,
     suggestLoading,

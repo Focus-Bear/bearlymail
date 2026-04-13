@@ -40,6 +40,7 @@ export const JOB_NAMES = {
 
   // Priority retry / stuck detection
   DETECT_STUCK_PRIORITIES: "detect-stuck-priorities",
+  FINALIZE_STALLED_PRIORITY_RUNS: "finalize-stalled-priority-runs",
 
   // Writing style & learning
   CHECK_WRITING_STYLE_LEARNING: "check-writing-style-learning",

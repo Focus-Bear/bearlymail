@@ -18,6 +18,7 @@ import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
+import { PriorityAnalysisRun } from "../database/entities/priority-analysis-run.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
@@ -79,6 +80,8 @@ import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
+import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
+import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { LLMProcessor } from "./llm-processor";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
 import { GmailProvider } from "./providers/gmail.provider";
@@ -105,6 +108,7 @@ import { SyncHistoryService } from "./sync-history.service";
       ProtoCategory,
       SyncHistoryLog,
       Contact,
+      PriorityAnalysisRun,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),
@@ -268,6 +272,8 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailSearchRankingService,
     SearchEnrichmentService,
     StuckPriorityDetectionService,
+    PrioritySqsDispatchService,
+    PriorityAnalysisFinalizerService,
   ],
   exports: [
     EmailsService,

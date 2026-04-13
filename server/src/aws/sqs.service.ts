@@ -19,6 +19,7 @@ export class SqsService {
   private readonly logger = new Logger(SqsService.name);
   private readonly client: SQSClient;
   private readonly queueUrl: string | undefined;
+  private readonly prioritisationQueueUrl: string | undefined;
 
   constructor(private configService: ConfigService) {
     const region =
@@ -26,6 +27,9 @@ export class SqsService {
     this.client = new SQSClient({ region });
     this.queueUrl = this.configService.get<string>(
       "CONTEXT_ANALYSIS_SQS_QUEUE_URL",
+    );
+    this.prioritisationQueueUrl = this.configService.get<string>(
+      "EMAIL_PRIORITISATION_SQS_QUEUE_URL",
     );
   }
 
@@ -36,8 +40,6 @@ export class SqsService {
    * @param deduplicationId - Explicit deduplication ID (required for FIFO queues
    *   when contentBasedDeduplication is false).
    * @param messageGroupId - FIFO message group ID; defaults to "context-analysis".
-   *   All context analysis batches can share a single group because ordering
-   *   within the group does not matter for independent batch jobs.
    */
   async sendMessage(
     messageBody: Record<string, unknown>,
@@ -51,13 +53,40 @@ export class SqsService {
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
       MessageBody: JSON.stringify(messageBody),
-      // Required for FIFO queues (ignored on Standard queues)
       MessageDeduplicationId: deduplicationId,
       MessageGroupId: messageGroupId,
     });
 
     const result = await this.client.send(command);
     this.logger.log(`SQS message sent: ${result.MessageId}`);
+    return result.MessageId;
+  }
+
+  /**
+   * Send a single message to the email prioritisation SQS FIFO queue.
+   *
+   * @param messageBody - The message payload.
+   * @param deduplicationId - Explicit deduplication ID.
+   * @param messageGroupId - FIFO message group ID; defaults to "email-prioritisation".
+   */
+  async sendPrioritisationMessage(
+    messageBody: Record<string, unknown>,
+    deduplicationId?: string,
+    messageGroupId = "email-prioritisation",
+  ): Promise<string | undefined> {
+    if (!this.prioritisationQueueUrl) {
+      throw new Error("EMAIL_PRIORITISATION_SQS_QUEUE_URL is not configured");
+    }
+
+    const command = new SendMessageCommand({
+      QueueUrl: this.prioritisationQueueUrl,
+      MessageBody: JSON.stringify(messageBody),
+      MessageDeduplicationId: deduplicationId,
+      MessageGroupId: messageGroupId,
+    });
+
+    const result = await this.client.send(command);
+    this.logger.log(`SQS prioritisation message sent: ${result.MessageId}`);
     return result.MessageId;
   }
 
@@ -72,11 +101,38 @@ export class SqsService {
     if (!this.queueUrl) {
       throw new Error("CONTEXT_ANALYSIS_SQS_QUEUE_URL is not configured");
     }
+    return this.sendBatchToQueue(messages, this.queueUrl, "context-analysis");
+  }
 
+  /**
+   * Send a batch of up to 10 messages to the email prioritisation SQS queue.
+   * Automatically splits larger arrays into groups of 10.
+   */
+  async sendPrioritisationMessageBatch(messages: SqsBatchMessage[]): Promise<{
+    messageIds: Array<string | null>;
+    failed: number[];
+  }> {
+    if (!this.prioritisationQueueUrl) {
+      throw new Error("EMAIL_PRIORITISATION_SQS_QUEUE_URL is not configured");
+    }
+    return this.sendBatchToQueue(
+      messages,
+      this.prioritisationQueueUrl,
+      "email-prioritisation",
+    );
+  }
+
+  private async sendBatchToQueue(
+    messages: SqsBatchMessage[],
+    queueUrl: string,
+    defaultGroupId: string,
+  ): Promise<{
+    messageIds: Array<string | null>;
+    failed: number[];
+  }> {
     const failed: number[] = [];
     const SQS_BATCH_LIMIT = 10;
 
-    // Pre-fill result array with nulls so callers can map indexes directly
     const messageIds: Array<string | null> = new Array(messages.length).fill(
       null,
     );
@@ -87,21 +143,18 @@ export class SqsService {
       const entries: SendMessageBatchRequestEntry[] = chunk.map((msg, idx) => ({
         Id: String(i + idx),
         MessageBody: JSON.stringify(msg.messageBody),
-        // Required for FIFO queues when contentBasedDeduplication is false
         MessageDeduplicationId: msg.deduplicationId,
-        // Default group so callers don't have to specify it for independent jobs
-        MessageGroupId: msg.messageGroupId ?? "context-analysis",
+        MessageGroupId: msg.messageGroupId ?? defaultGroupId,
       }));
 
       const command = new SendMessageBatchCommand({
-        QueueUrl: this.queueUrl,
+        QueueUrl: queueUrl,
         Entries: entries,
       });
 
       try {
         const result = await this.client.send(command);
 
-        // Map successful entries back into the global result array by Id
         for (const successEntry of result.Successful ?? []) {
           if (successEntry.Id) {
             const idx = Number(successEntry.Id);
@@ -116,7 +169,7 @@ export class SqsService {
           failed.push(i + Number(failEntry.Id));
         }
       } catch (err) {
-        this.logger.error(`SQS sendMessageBatch chunk failed: ${err}`);
+        this.logger.error(`SQS sendBatchToQueue chunk failed: ${err}`);
         for (let j = 0; j < chunk.length; j++) {
           failed.push(i + j);
         }

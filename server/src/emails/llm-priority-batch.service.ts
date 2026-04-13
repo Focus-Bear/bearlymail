@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
@@ -35,6 +37,8 @@ import { parseCategoryValue } from "../utils/category-name.util";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
+import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 
 /** Delay in seconds before re-queuing a fallback email for retry. */
 const PRIORITY_RETRY_DELAY_SECONDS = 60;
@@ -70,6 +74,8 @@ export class LLMPriorityBatchService {
     private readonly summaryProcessorService: LLMSummaryProcessorService,
     private readonly protoCategoriesService: ProtoCategoriesService,
     private readonly debugService: DebugService,
+    private readonly prioritySqsDispatchService: PrioritySqsDispatchService,
+    private readonly priorityAnalysisFinalizerService: PriorityAnalysisFinalizerService,
   ) {}
 
   private async checkHasNewEmails(
@@ -579,22 +585,100 @@ export class LLMPriorityBatchService {
       return threadIdsToLock;
     }
 
-    await this.runLlmAnalysisAndApply(
-      workerId,
-      userId,
-      emailsNeedingFullAnalysis,
-      {
+    const useLambda =
+      process.env.USE_LAMBDA_PRIORITISATION === "true";
+
+    if (useLambda) {
+      await this.dispatchViaSqs(workerId, userId, emailsNeedingFullAnalysis, {
         contexts,
         protoCategories,
-        tracker,
-      },
-    );
+      });
+    } else {
+      await this.runLlmAnalysisAndApply(
+        workerId,
+        userId,
+        emailsNeedingFullAnalysis,
+        {
+          contexts,
+          protoCategories,
+          tracker,
+        },
+      );
+    }
 
     this.logger.log(
-      `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis`,
+      `[Worker ${workerId}] Batch priority refinement complete: ${emailsNeedingFullAnalysis.length}/${emailsToProcess.length} emails needed full LLM analysis (path: ${useLambda ? "lambda" : "pgboss"})`,
     );
     tracker.finish();
     return threadIdsToLock;
+  }
+
+  /**
+   * Dispatch the batch to the Lambda via SQS when USE_LAMBDA_PRIORITISATION=true.
+   *
+   * All emails in the batch are sent as a single SQS message (totalBatches=1).
+   * A PriorityAnalysisRun record is created so PriorityAnalysisFinalizerService
+   * can detect and recover from stalled Lambda invocations.
+   */
+  private async dispatchViaSqs(
+    workerId: string,
+    userId: string,
+    emails: Email[],
+    opts: { contexts: UserContext[]; protoCategories: ProtoCategory[] },
+  ): Promise<void> {
+    const { contexts, protoCategories } = opts;
+    const analysisId = randomUUID();
+
+    const threadMap = await this.loadThreadMapForEmails(emails);
+    const categoryMap = new Map(
+      contexts
+        .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
+        .map((ctx) => {
+          const { name } = parseCategoryValue(ctx.contextValue);
+          return [(ctx as UserContext).contextId, name] as const;
+        }),
+    );
+
+    const emailPayloads = this.buildBatchEmailPayloads(
+      emails,
+      threadMap,
+      categoryMap,
+    );
+    const userContext = this.buildUserContext(contexts, protoCategories);
+    const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
+
+    await this.prioritySqsDispatchService.enqueueAllBatchesViaSqs(
+      [{ batchNum: 0, batchPayload: emailPayloads }],
+      {
+        userId,
+        analysisId,
+        emails: emailPayloads,
+        userContext,
+        totalBatches: 1,
+      },
+      enqueueErrors,
+    );
+
+    const threadIds = [
+      ...new Set(emails.map((e) => e.emailThreadId).filter(Boolean)),
+    ] as string[];
+
+    await this.priorityAnalysisFinalizerService.createRun({
+      analysisId,
+      userId,
+      totalBatches: 1,
+      threadIds,
+    });
+
+    if (enqueueErrors.length > 0) {
+      this.logger.warn(
+        `[Worker ${workerId}] ${enqueueErrors.length} SQS enqueue error(s) for analysis ${analysisId}`,
+      );
+    } else {
+      this.logger.log(
+        `[Worker ${workerId}] Dispatched ${emails.length} email(s) to Lambda (analysis ${analysisId})`,
+      );
+    }
   }
 
   private async runLlmAnalysisAndApply(

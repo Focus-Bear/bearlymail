@@ -9,7 +9,6 @@ import { DebugService } from "../debug/debug.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailsService } from "./emails.service";
-import { GmailSyncService } from "./providers/gmail-sync.service";
 
 function makeDebugService(): jest.Mocked<DebugService> {
   return {
@@ -40,7 +39,6 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         { provide: DebugService, useValue: debugService },
         { provide: EmailsService, useValue: {} },
         { provide: EmailAdminService, useValue: {} },
-        { provide: GmailSyncService, useValue: {} },
         { provide: "PG_BOSS", useValue: {} },
       ],
     })

@@ -109,10 +109,10 @@ export async function refreshAttachmentsFromGmailForThread(
     throw new BadRequestException("Email is not linked to a thread");
   }
 
-  // 2. Find all emails in this thread
+  // 2. Find all emails in this thread using the provider thread ID (not the internal UUID)
   const threadEmails = await emailsService.getThreadEmails(
     userId,
-    triggerEmail.emailThreadId,
+    triggerEmail.threadId,
   );
 
   // 3. Create Gmail client once (not per email)
@@ -181,5 +181,5 @@ export async function refreshAttachmentsFromGmailForThread(
     });
   }
 
-  return { threadId: triggerEmail.emailThreadId, results };
+  return { threadId: triggerEmail.threadId, results };
 }

@@ -39,7 +39,7 @@ describe("EmailDebugController", () => {
   };
 
   const mockGmailSyncService = {
-    refreshAttachmentsFromGmail: jest.fn(),
+    refreshAttachmentsFromGmailForThread: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -82,5 +82,34 @@ describe("EmailDebugController", () => {
 
   it("should be defined", () => {
     expect(controller).toBeDefined();
+  });
+
+  describe("refreshAttachmentsFromGmail", () => {
+    it("should call refreshAttachmentsFromGmailForThread (not the single-email variant)", async () => {
+      const mockResult = {
+        threadId: "gmail-thread-hex-id",
+        results: [
+          {
+            emailId: "email-uuid",
+            gmailMessageId: "msg-id",
+            attachments: [],
+          },
+        ],
+      };
+      mockGmailSyncService.refreshAttachmentsFromGmailForThread.mockResolvedValue(
+        mockResult,
+      );
+
+      const req = { user: { userId: "user-123" } };
+      const result = await controller.refreshAttachmentsFromGmail(
+        req as any,
+        "email-uuid",
+      );
+
+      expect(
+        mockGmailSyncService.refreshAttachmentsFromGmailForThread,
+      ).toHaveBeenCalledWith("user-123", "email-uuid");
+      expect(result).toEqual(mockResult);
+    });
   });
 });

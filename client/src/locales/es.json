@@ -2830,7 +2830,7 @@
     }
   },
   "toneCheck": {
-    "toastChecking": "Verificando tono antes de enviar",
+    "toastChecking": "Verificando tono del correo antes de enviar...",
     "cancelSend": "Cancelar envío"
   }
 }

@@ -40,9 +40,9 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
       data-testid="tone-check-toast"
       style={{
         position: 'fixed',
-        bottom: theme.spacing.xl,
+        top: theme.spacing.xl,
         left: '50%',
-        transform: mounted ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(20px)',
+        transform: mounted ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(-20px)',
         opacity: mounted ? 1 : 0,
         transition: 'transform 0.25s ease-out, opacity 0.25s ease-out',
         zIndex: 10001,

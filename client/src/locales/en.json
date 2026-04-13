@@ -2827,7 +2827,7 @@
     }
   },
   "toneCheck": {
-    "toastChecking": "Checking tone before sending",
+    "toastChecking": "Checking tone of email before sending...",
     "cancelSend": "Cancel send"
   }
 }

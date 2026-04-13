@@ -151,4 +151,13 @@ export class GoogleAccountsService {
     });
     return count > 0;
   }
+
+  async markAccountNeedsRelogin(id: string, userId: string): Promise<void> {
+    const account = await this.findById(id, userId);
+    if (!account) {
+      throw new NotFoundException(ERROR_MESSAGES.GOOGLE_ACCOUNT_NOT_FOUND);
+    }
+    account.needsRelogin = true;
+    await this.googleAccountRepository.save(account);
+  }
 }

@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { PusherService } from "../pusher/pusher.service";
 import { UsersService } from "../users/users.service";
 import { ContactsService } from "./contacts.service";
@@ -16,6 +17,7 @@ export class ContactSyncProcessor implements OnModuleInit {
     private readonly contactsService: ContactsService,
     private readonly usersService: UsersService,
     private readonly pusherService: PusherService,
+    private readonly googleAccountsService: GoogleAccountsService,
   ) {}
 
   async onModuleInit() {
@@ -29,7 +31,23 @@ export class ContactSyncProcessor implements OnModuleInit {
 
         for (const user of users) {
           try {
-            if (user.googleCalendarAccessToken) {
+            /** Check if user should have contact sync based on User entity tokens */
+            const hasUserToken = !!user.googleCalendarAccessToken;
+
+            /** Check if user has any active GoogleAccount with a valid token */
+            let hasGoogleAccount = false;
+            if (!hasUserToken) {
+              try {
+                const primary = await this.googleAccountsService.findPrimary(
+                  user.id,
+                );
+                hasGoogleAccount = !!primary?.accessToken;
+              } catch {
+                hasGoogleAccount = false;
+              }
+            }
+
+            if (hasUserToken || hasGoogleAccount) {
               await this.boss.send(
                 JOB_NAMES.SYNC_CONTACTS,
                 { userId: user.id },

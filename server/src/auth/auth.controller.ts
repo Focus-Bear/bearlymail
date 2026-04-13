@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Logger,
   Post,
   Put,
@@ -12,9 +13,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import PgBoss from "pg-boss";
 
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { AUTH_ACTION_TYPES } from "../constants/domain-types";
+import { INJECT_TOKENS } from "../constants/inject-tokens";
+import { JOB_NAMES } from "../constants/job-names";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { logError } from "../utils/logger";
@@ -37,6 +41,7 @@ export class AuthController {
     private office365AccountsService: Office365AccountsService,
     private zohoAccountsService: ZohoAccountsService,
     private waitlistService: WaitlistService,
+    @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
   @Post("register")
@@ -340,6 +345,21 @@ export class AuthController {
           refreshToken,
           isPrimary,
         });
+        // Immediately trigger contact sync for newly linked Google account
+        this.boss
+          .send(
+            JOB_NAMES.SYNC_CONTACTS,
+            { userId: stateData.userId },
+            {
+              singletonKey: `sync-contacts-${stateData.userId}`,
+              singletonMinutes: 30,
+            },
+          )
+          .catch((err) => {
+            this.logger.warn(
+              `Failed to queue contact sync for newly linked Google account user ${stateData.userId}: ${err}`,
+            );
+          });
       }
       res.redirect(`${frontendUrl}/settings?googleConnected=true`);
       return true;

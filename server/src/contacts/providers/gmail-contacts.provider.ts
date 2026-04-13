@@ -11,6 +11,18 @@ import {
   RawContact,
 } from "../interfaces/contact-provider.interface";
 
+// Forward-ref to avoid circular dep at class-definition time
+let googleAccountsServiceGetter: () =>
+  | import("../../google-accounts/google-accounts.service").GoogleAccountsService
+  | null = null;
+export function setGoogleAccountsServiceGetter(
+  getter: () =>
+    | import("../../google-accounts/google-accounts.service").GoogleAccountsService
+    | null,
+) {
+  googleAccountsServiceGetter = getter;
+}
+
 @Injectable()
 export class GmailContactsProvider implements ContactProvider {
   readonly providerName = "gmail";
@@ -18,9 +30,31 @@ export class GmailContactsProvider implements ContactProvider {
 
   constructor(private usersService: UsersService) {}
 
+  /**
+   * Checks if the user is connected to Google for contact sync.
+   * Supports two connection models:
+   * 1. User.googleCalendarAccessToken — legacy direct OAuth on User entity
+   * 2. GoogleAccount entity with active accessToken — linked accounts via /google-accounts
+   */
   async isConnected(userId: string): Promise<boolean> {
     const user = await this.usersService.findOne(userId);
-    return !!user?.googleCalendarAccessToken;
+    // Legacy: token stored directly on user
+    if (user?.googleCalendarAccessToken) {
+      return true;
+    }
+    // Modern: token stored on GoogleAccount entity
+    const gas = googleAccountsServiceGetter?.();
+    if (gas) {
+      try {
+        const primary = await gas.findPrimary(userId);
+        if (primary?.accessToken) {
+          return true;
+        }
+      } catch {
+        // GoogleAccountsService not fully available, fall through
+      }
+    }
+    return false;
   }
 
   private extractRawContact(
@@ -61,14 +95,51 @@ export class GmailContactsProvider implements ContactProvider {
     };
   }
 
+  /**
+   * Gets Google OAuth credentials for a user.
+   * Checks both legacy (User entity) and modern (GoogleAccount entity) token storage.
+   * Returns null if no valid credentials found.
+   */
+  private async getGoogleOAuthCredentials(
+    userId: string,
+  ): Promise<{ accessToken: string; refreshToken?: string } | null> {
+    const user = await this.usersService.findOne(userId);
+
+    // Try GoogleAccount (modern linked accounts)
+    const gas = googleAccountsServiceGetter?.();
+    if (gas) {
+      try {
+        const primary = await gas.findPrimary(userId);
+        if (primary?.accessToken) {
+          return {
+            accessToken: primary.accessToken,
+            refreshToken: primary.refreshToken,
+          };
+        }
+      } catch {
+        // fall through to legacy
+      }
+    }
+
+    // Legacy: tokens stored directly on User entity
+    if (user?.googleCalendarAccessToken) {
+      return {
+        accessToken: user.googleCalendarAccessToken,
+        refreshToken: user.googleCalendarRefreshToken,
+      };
+    }
+
+    return null;
+  }
+
   async syncContacts(
     userId: string,
     _fullSync: boolean = false,
   ): Promise<number> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
-      this.logger.log(
-        `User ${userId} not connected to Google, skipping contact sync.`,
+    const creds = await this.getGoogleOAuthCredentials(userId);
+    if (!creds) {
+      this.logger.warn(
+        `User ${userId} has no Google credentials for contact sync — no googleCalendarAccessToken and no active GoogleAccount`,
       );
       return 0;
     }
@@ -79,18 +150,41 @@ export class GmailContactsProvider implements ContactProvider {
       process.env.GOOGLE_REDIRECT_URI,
     );
     oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
+      access_token: creds.accessToken,
+      refresh_token: creds.refreshToken,
     });
+
+    // Token refresh handler — write back to whichever entity holds the token
     oauth2Client.on("tokens", async (tokens) => {
-      if (tokens.access_token) {
-        await this.usersService.update(userId, {
-          googleCalendarAccessToken: tokens.access_token,
-          ...(tokens.refresh_token && {
-            googleCalendarRefreshToken: tokens.refresh_token,
-          }),
-        });
+      if (!tokens.access_token) return;
+      // Try to update GoogleAccount first (preferred)
+      const gas = googleAccountsServiceGetter?.();
+      if (gas) {
+        try {
+          const primary = await gas.findPrimary(userId);
+          if (primary) {
+            await gas.updateTokens(
+              primary.id,
+              userId,
+              tokens.access_token,
+              tokens.refresh_token,
+            );
+            this.logger.debug(
+              `Updated tokens on GoogleAccount ${primary.id} for user ${userId}`,
+            );
+            return;
+          }
+        } catch {
+          // fall through to legacy update
+        }
       }
+      // Legacy fallback — update User entity
+      await this.usersService.update(userId, {
+        googleCalendarAccessToken: tokens.access_token,
+        ...(tokens.refresh_token && {
+          googleCalendarRefreshToken: tokens.refresh_token,
+        }),
+      });
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
@@ -116,12 +210,34 @@ export class GmailContactsProvider implements ContactProvider {
       ) {
         errorMessage = String((error as { message?: unknown }).message);
       }
+      this.logger.error(
+        `Contact sync failed for user ${userId} — code=${errorCode} message=${errorMessage}`,
+      );
       if (
         errorCode === HTTP_STATUS.UNAUTHORIZED ||
         errorCode === HTTP_STATUS.FORBIDDEN ||
         errorMessage.includes("invalid_grant")
       ) {
-        await this.usersService.update(userId, { needsRelogin: true });
+        // Mark GoogleAccount needsRelogin if applicable
+        const gas = googleAccountsServiceGetter?.();
+        if (gas) {
+          try {
+            const primary = await gas.findPrimary(userId);
+            if (primary) {
+              await gas.markAccountNeedsRelogin(primary.id, userId);
+              this.logger.warn(
+                `Marked GoogleAccount ${primary.id} as needing relogin`,
+              );
+            } else {
+              await this.usersService.update(userId, { needsRelogin: true });
+            }
+          } catch {
+            // fallback to User entity
+            await this.usersService.update(userId, { needsRelogin: true });
+          }
+        } else {
+          await this.usersService.update(userId, { needsRelogin: true });
+        }
       }
       throw error;
     }
@@ -166,8 +282,8 @@ export class GmailContactsProvider implements ContactProvider {
     query: string,
     maxResults: number = 20,
   ): Promise<RawContact[]> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    const creds = await this.getGoogleOAuthCredentials(userId);
+    if (!creds) {
       return [];
     }
 
@@ -178,8 +294,8 @@ export class GmailContactsProvider implements ContactProvider {
     );
 
     oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
+      access_token: creds.accessToken,
+      refresh_token: creds.refreshToken,
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
@@ -235,8 +351,8 @@ export class GmailContactsProvider implements ContactProvider {
     userId: string,
     providerId: string,
   ): Promise<RawContact | null> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    const creds = await this.getGoogleOAuthCredentials(userId);
+    if (!creds) {
       return null;
     }
 
@@ -247,8 +363,8 @@ export class GmailContactsProvider implements ContactProvider {
     );
 
     oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
+      access_token: creds.accessToken,
+      refresh_token: creds.refreshToken,
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
@@ -293,10 +409,10 @@ export class GmailContactsProvider implements ContactProvider {
    */
 
   async fetchAllContacts(userId: string): Promise<RawContact[]> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
+    const creds = await this.getGoogleOAuthCredentials(userId);
+    if (!creds) {
       this.logger.log(
-        `User ${userId} has no Google access token, skipping contact fetch`,
+        `User ${userId} has no Google credentials for contact fetch — no googleCalendarAccessToken and no active GoogleAccount`,
       );
       return [];
     }
@@ -308,19 +424,36 @@ export class GmailContactsProvider implements ContactProvider {
     );
 
     oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
+      access_token: creds.accessToken,
+      refresh_token: creds.refreshToken,
     });
 
+    // Token refresh handler — write back to whichever entity holds the token
     oauth2Client.on("tokens", async (tokens) => {
-      if (tokens.access_token) {
-        await this.usersService.update(userId, {
-          googleCalendarAccessToken: tokens.access_token,
-          ...(tokens.refresh_token && {
-            googleCalendarRefreshToken: tokens.refresh_token,
-          }),
-        });
+      if (!tokens.access_token) return;
+      const gas = googleAccountsServiceGetter?.();
+      if (gas) {
+        try {
+          const primary = await gas.findPrimary(userId);
+          if (primary) {
+            await gas.updateTokens(
+              primary.id,
+              userId,
+              tokens.access_token,
+              tokens.refresh_token,
+            );
+            return;
+          }
+        } catch {
+          // fall through
+        }
       }
+      await this.usersService.update(userId, {
+        googleCalendarAccessToken: tokens.access_token,
+        ...(tokens.refresh_token && {
+          googleCalendarRefreshToken: tokens.refresh_token,
+        }),
+      });
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
@@ -473,7 +606,9 @@ export class GmailContactsProvider implements ContactProvider {
   }
 
   /**
-   * Handle API errors and update user status if needed
+   * Handle API errors and update user status if needed.
+   * Marks the GoogleAccount (preferred) or User entity as needing relogin
+   * when an auth error is detected.
    */
   private async handleApiError(userId: string, error: unknown): Promise<void> {
     const apiError = isApiError(error) ? error : null;
@@ -494,6 +629,18 @@ export class GmailContactsProvider implements ContactProvider {
       errorCode === HTTP_STATUS.UNAUTHORIZED ||
       errorMessage.includes("invalid_grant")
     ) {
+      const gas = googleAccountsServiceGetter?.();
+      if (gas) {
+        try {
+          const primary = await gas.findPrimary(userId);
+          if (primary) {
+            await gas.markAccountNeedsRelogin(primary.id, userId);
+            return;
+          }
+        } catch {
+          // fall through to User entity fallback
+        }
+      }
       await this.usersService.update(userId, { needsRelogin: true });
     }
   }

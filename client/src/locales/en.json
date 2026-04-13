@@ -2387,7 +2387,7 @@
       "traceLlmBeforeRuleOverride": "What the priority model returned before the rule override",
       "traceLlmCategoryRaw": "Model category",
       "referenceAllCategories": "Reference — all email categories",
-      "referenceProtoCategories": "Reference — proposed categories",
+      "referenceProtoCategories": "Reference — proto categories",
       "referenceUserContext": "Reference — user context",
       "categorySourceLabel": "Set by step",
       "categoryLabelUnreadable": "Category record {{shortId}}…",

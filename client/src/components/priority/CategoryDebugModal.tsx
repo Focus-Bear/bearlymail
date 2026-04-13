@@ -61,7 +61,10 @@ export const CategoryDebugModal: React.FC<CategoryDebugModalProps> = ({ emailId,
   );
 
   useEffect(() => {
-    void load(false);
+    void (async () => {
+      await load(false);
+      void load(true);
+    })();
   }, [load]);
 
   const handleCopy = async () => {

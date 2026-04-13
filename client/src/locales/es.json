@@ -1950,7 +1950,7 @@
       "traceLlmBeforeRuleOverride": "Lo que devolvió el modelo de prioridad antes de aplicar la regla",
       "traceLlmCategoryRaw": "Categoría del modelo",
       "referenceAllCategories": "Referencia — todas las categorías de correo",
-      "referenceProtoCategories": "Referencia — categorías propuestas",
+      "referenceProtoCategories": "Referencia — proto categorías",
       "referenceUserContext": "Referencia — contexto del usuario",
       "categorySourceLabel": "Paso que la fijó",
       "categoryLabelUnreadable": "Registro de categoría {{shortId}}…",

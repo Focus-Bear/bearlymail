@@ -13,6 +13,7 @@ import {
   QA_KEYWORD_SCAN,
 } from "../constants/llm-constants";
 import { MAX_PRIORITY_RETRIES } from "../constants/priority-constants";
+import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -586,7 +587,7 @@ export class LLMPriorityBatchService {
     }
 
     const useLambda =
-      process.env.USE_LAMBDA_PRIORITISATION === "true";
+      process.env.USE_LAMBDA_PRIORITISATION === ENV_BOOLEAN_STRING.TRUE;
 
     if (useLambda) {
       await this.dispatchViaSqs(workerId, userId, emailsNeedingFullAnalysis, {
@@ -660,7 +661,7 @@ export class LLMPriorityBatchService {
     );
 
     const threadIds = [
-      ...new Set(emails.map((e) => e.emailThreadId).filter(Boolean)),
+      ...new Set(emails.map((email) => email.emailThreadId).filter(Boolean)),
     ] as string[];
 
     await this.priorityAnalysisFinalizerService.createRun({

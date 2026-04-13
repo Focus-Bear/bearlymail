@@ -51,6 +51,12 @@ export const RETRY_CONSTANTS = {
  */
 export const MAX_FINALIZATION_RETRIES = 30;
 
+// Environment variable boolean string values
+export const ENV_BOOLEAN_STRING = {
+  TRUE: "true",
+  FALSE: "false",
+} as const;
+
 // Priority learning thresholds
 export const LEARNING_THRESHOLDS = {
   // Star count for high priority detection
@@ -59,4 +65,16 @@ export const LEARNING_THRESHOLDS = {
   MIN_VIP_OCCURRENCES: 2,
   // Minimum data points for category-specific response times
   MIN_CATEGORY_DATA_POINTS: 3,
+} as const;
+
+// SQS message size constants
+// SQS max is 256 KB; we use a 230 KB soft limit to leave headroom for metadata
+const SQS_MAX_BODY_KB_VALUE = 230;
+// Progressive trim lengths (chars) applied to email bodies before stripping entirely
+const SQS_BODY_TRIM_LONG = 500;
+const SQS_BODY_TRIM_MEDIUM = 200;
+const SQS_BODY_TRIM_SHORT = 50;
+export const SQS_CONSTANTS = {
+  MAX_BODY_KB: SQS_MAX_BODY_KB_VALUE,
+  TRIM_LENGTHS: [SQS_BODY_TRIM_LONG, SQS_BODY_TRIM_MEDIUM, SQS_BODY_TRIM_SHORT] as const,
 } as const;

@@ -28,6 +28,9 @@ export class PriorityAnalysisFinalizerService implements OnModuleInit {
   /** Cron: every 5 minutes. */
   private static readonly SCAN_CRON = "*/5 * * * *";
 
+  /** Maximum number of stalled runs to finalize per scan cycle. */
+  private static readonly MAX_STALLED_RUNS_PER_SCAN = 50;
+
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @InjectRepository(PriorityAnalysisRun)
@@ -91,7 +94,7 @@ export class PriorityAnalysisFinalizerService implements OnModuleInit {
 
     const stalledRuns = await this.runRepository.find({
       where: { status: "running", createdAt: LessThan(cutoff) },
-      take: 50,
+      take: PriorityAnalysisFinalizerService.MAX_STALLED_RUNS_PER_SCAN,
       order: { createdAt: "ASC" },
     });
 

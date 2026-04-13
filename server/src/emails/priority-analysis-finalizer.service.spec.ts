@@ -19,7 +19,8 @@ function makeRun(
   run.totalBatches = 1;
   run.completedBatches = 0;
   run.threadIds = ["thread-1", "thread-2"];
-  run.createdAt = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
+  // 10 minutes ago
+  run.createdAt = new Date(Date.now() - 10 * 60 * 1000);
   run.updatedAt = new Date();
   return Object.assign(run, overrides);
 }

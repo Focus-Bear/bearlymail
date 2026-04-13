@@ -15,8 +15,6 @@ import { Repository } from "typeorm";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ProtoCategory } from "../database/entities/proto-category.entity";
-import { UserContext } from "../database/entities/user-context.entity";
 import { DebugService } from "../debug/debug.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
@@ -81,15 +79,11 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
     mockEmailsService = {
       getEmailById: jest
         .fn()
-        .mockImplementation((_, emailId: string) =>
-          Promise.resolve(
-            emailId === "email-1"
-              ? EMAIL_1
-              : emailId === "email-2"
-                ? EMAIL_2
-                : null,
-          ),
-        ),
+        .mockImplementation((_, emailId: string) => {
+          if (emailId === "email-1") return Promise.resolve(EMAIL_1);
+          if (emailId === "email-2") return Promise.resolve(EMAIL_2);
+          return Promise.resolve(null);
+        }),
       getThreadEmails: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<EmailsService>;
 

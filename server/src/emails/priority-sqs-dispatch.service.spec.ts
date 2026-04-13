@@ -75,7 +75,8 @@ describe("trimPayloadToSqsLimit", () => {
   });
 
   it("should trim email bodies when payload exceeds 230 KB", () => {
-    const longBody = "x".repeat(300 * 1024); // 300 KB
+    // 300 KB body to exceed the SQS soft limit
+    const longBody = "x".repeat(300 * 1024);
     const payload: PriorityBatchPayload = {
       userId: "user-1",
       batchIndex: 0,
@@ -193,7 +194,8 @@ describe("PrioritySqsDispatchService", () => {
       expect(results[0]).toEqual({ jobId: null, batchNum: 0 });
       expect(results[1]).toEqual({ jobId: "msg-2", batchNum: 1 });
       expect(enqueueErrors).toHaveLength(1);
-      expect(enqueueErrors[0].batchNum).toBe(1); // batchNum is 0-indexed internally, so batchNum+1
+      // batchNum is 0-indexed internally, reported as batchNum+1 in errors
+      expect(enqueueErrors[0].batchNum).toBe(1);
     });
 
     it("should use unique deduplication IDs per batch", async () => {
@@ -234,7 +236,7 @@ describe("PrioritySqsDispatchService", () => {
       );
 
       const calledMessages = sqsService.sendPrioritisationMessageBatch.mock.calls[0][0];
-      const groupIds = calledMessages.map((m) => m.messageGroupId);
+      const groupIds = calledMessages.map((msg) => msg.messageGroupId);
       expect(groupIds[0]).toBe("analysis-xyz-batch-0");
       expect(groupIds[1]).toBe("analysis-xyz-batch-1");
       expect(new Set(groupIds).size).toBe(2);

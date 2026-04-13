@@ -12,6 +12,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import { SqsBatchMessage, SqsService } from "../aws/sqs.service";
+import { BYTE_CONVERSIONS, SQS_CONSTANTS } from "../constants/service-constants";
 
 /**
  * User context item for priority analysis.
@@ -92,15 +93,15 @@ export function buildPriorityBatchDeduplicationId(
 }
 
 /**
- * SQS max message size is 256 KB. We enforce a 230 KB soft limit to leave headroom
- * for SQS metadata and attribute overhead.
+ * SQS max message size is 256 KB. We enforce a soft limit (SQS_CONSTANTS.MAX_BODY_KB)
+ * to leave headroom for SQS metadata and attribute overhead.
  */
-const SQS_MAX_BODY_BYTES = 230 * 1024;
+const SQS_MAX_BODY_BYTES = SQS_CONSTANTS.MAX_BODY_KB * BYTE_CONVERSIONS.KB;
 
 /**
  * Ensure a batch payload fits within the SQS 256 KB message size limit.
- * If the serialised payload exceeds SQS_MAX_BODY_BYTES, email bodies are
- * progressively trimmed until the payload fits.
+ * Email bodies are progressively trimmed, then stripped. If the user context
+ * alone exceeds the limit, it is cleared as a last resort.
  */
 export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBatchPayload {
   const serialized = JSON.stringify(payload);
@@ -108,8 +109,7 @@ export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBa
     return payload;
   }
 
-  const TRIM_LENGTHS = [500, 200, 50];
-  for (const trimLen of TRIM_LENGTHS) {
+  for (const trimLen of SQS_CONSTANTS.TRIM_LENGTHS) {
     const trimmed: PriorityBatchPayload = {
       ...payload,
       emails: payload.emails.map((email) => ({
@@ -122,10 +122,27 @@ export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBa
     }
   }
 
-  // Last resort: strip bodies entirely
-  return {
+  // Strip bodies entirely
+  const strippedBodies: PriorityBatchPayload = {
     ...payload,
     emails: payload.emails.map((email) => ({ ...email, body: "" })),
+  };
+  if (Buffer.byteLength(JSON.stringify(strippedBodies), "utf-8") <= SQS_MAX_BODY_BYTES) {
+    return strippedBodies;
+  }
+
+  // Extreme last resort: user context alone exceeds the limit — clear it too
+  return {
+    ...strippedBodies,
+    userContext: {
+      urgentItems: [],
+      notUrgentItems: [],
+      goals: [],
+      workingOn: [],
+      dontCare: [],
+      emailCategories: [],
+      protoCategories: [],
+    },
   };
 }
 

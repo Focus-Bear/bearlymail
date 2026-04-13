@@ -34,4 +34,24 @@ describe('emailMentionsGitHub', () => {
   it('returns false for empty strings', () => {
     expect(emailMentionsGitHub('', '', '')).toBe(false);
   });
+
+  it('returns true when from is notifications@github.com even with no github in content', () => {
+    expect(emailMentionsGitHub('Meeting notes', 'See you tomorrow', '<p>Thanks!</p>', 'notifications@github.com')).toBe(
+      true
+    );
+  });
+
+  it('returns true when from contains notifications@github.com with display name', () => {
+    expect(emailMentionsGitHub('Issue update', '', '', 'GitHub <notifications@github.com>')).toBe(true);
+  });
+
+  it('is case-insensitive for sender check', () => {
+    expect(emailMentionsGitHub('Issue update', '', '', 'NOTIFICATIONS@GITHUB.COM')).toBe(true);
+  });
+
+  it('returns false when from is a different sender with no github in content', () => {
+    expect(emailMentionsGitHub('Meeting notes', 'See you tomorrow', '<p>Thanks!</p>', 'someone@example.com')).toBe(
+      false
+    );
+  });
 });

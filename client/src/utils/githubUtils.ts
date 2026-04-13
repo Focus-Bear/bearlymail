@@ -4,7 +4,11 @@
  * GitHubStatusSection also shows the card when the server returned links
  * (see serverFoundLinks check), so false-negatives here are non-fatal.
  */
-export function emailMentionsGitHub(subject?: string, body?: string, htmlBody?: string): boolean {
+export function emailMentionsGitHub(subject?: string, body?: string, htmlBody?: string, from?: string): boolean {
+  // GitHub notification emails always come from this address
+  if (from?.toLowerCase().includes('notifications@github.com')) {
+    return true;
+  }
   const searchText = `${subject || ''} ${body || ''} ${htmlBody || ''}`.toLowerCase();
   // Match "github" in any form including github.com URLs, GitHub Actions, etc.
   return (

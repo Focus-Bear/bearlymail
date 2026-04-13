@@ -37,7 +37,20 @@ interface GitHubLinkCardProps {
 }
 
 export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedActions = [], onRefresh, email }) => {
-  const status = link.status;
+  // Normalize legacy `project` field (string) from older database records to the new
+  // `projects` array format. Old records stored a single project name as a plain string;
+  // new records use an array of { name, status } objects.
+  const rawStatus = link.status;
+  const status = (() => {
+    if (!rawStatus) {
+      return rawStatus;
+    }
+    const legacyProject = (rawStatus as typeof rawStatus & { project?: string }).project;
+    if (legacyProject && !rawStatus.projects?.length) {
+      return { ...rawStatus, projects: [{ name: legacyProject }] };
+    }
+    return rawStatus;
+  })();
   const [activeAction, setActiveAction] = useState<SuggestedAction | null>(null);
 
   const issueInfo = { owner: link.owner, repo: link.repo, number: link.number };

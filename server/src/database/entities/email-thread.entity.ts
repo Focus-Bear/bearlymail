@@ -131,7 +131,7 @@ export class EmailThread {
         title?: string;
         labels?: Array<{ name: string; color: string }>;
         assignees?: Array<{ login: string; avatar_url: string }>;
-        project?: string;
+        projects?: Array<{ name: string; status?: string }>;
         reviewStatus?: "approved" | "changes_requested" | "pending" | null;
         commentsCount?: number;
         mergeable?: boolean;

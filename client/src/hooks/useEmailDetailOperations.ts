@@ -398,18 +398,25 @@ export function useEmailDetailOperations(
       return;
     }
 
-    // Belt-and-suspenders: ensure loading spinner is visible before any async work (#1347).
-    // useEmailDetailState already initialises loadingGithub=true, but this guards
-    // against any future state reset between mount and fetchGithubInfo being called.
-    setLoadingGithub(true);
-
-    // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
     const currentEmail = emailRef.current;
-    if (currentEmail && !emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody)) {
-      setGithubLinks([]);
-      setLoadingGithub(false);
-      githubFetchedRef.current = id; // Mark as processed so we don't check again
-      return;
+    // If cached links are already present (set by fetchEmail from server metadata), skip the
+    // keyword check and loading spinner — proceed silently to refresh the link status in the
+    // background. This allows status updates (e.g. PR merged) to appear without blocking display.
+    const hasCachedLinks = (currentEmail?.githubMetadata?.links?.length ?? 0) > 0;
+
+    if (!hasCachedLinks) {
+      // Belt-and-suspenders: ensure loading spinner is visible before any async work (#1347).
+      // useEmailDetailState already initialises loadingGithub=true, but this guards
+      // against any future state reset between mount and fetchGithubInfo being called.
+      setLoadingGithub(true);
+
+      // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
+      if (currentEmail && !emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody, currentEmail.from)) {
+        setGithubLinks([]);
+        setLoadingGithub(false);
+        githubFetchedRef.current = id; // Mark as processed so we don't check again
+        return;
+      }
     }
 
     // Mark as fetched BEFORE starting the async operation

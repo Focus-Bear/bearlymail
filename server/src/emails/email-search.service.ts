@@ -9,6 +9,7 @@ import {
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { LLMService } from "../llm/llm.service";
 import { searchLogger } from "../utils/search-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -640,6 +641,12 @@ export class EmailSearchService {
         matchedEmails.push(emailMap.get(messageId)!);
       }
     }
+    // Re-decrypt fields that may have been skipped during partial entity hydration.
+    // This guards against any QueryBuilder edge-cases where TypeORM transformers
+    // are not applied, ensuring encrypted content is never returned in search results.
+    for (const email of matchedEmails) {
+      decryptEmailEntityForApi(email);
+    }
     return matchedEmails;
   }
 
@@ -737,6 +744,47 @@ export class EmailSearchService {
    * Search for additional emails using alternative queries, excluding already-found email IDs.
    * Returns raw (unranked) results for the caller to optionally rank.
    */
+  private async searchExpandForQuery(
+    userId: string,
+    altQuery: string,
+    connectedProviders,
+  ): Promise<Array<{ receivedAt: Date; messageId?: string }>> {
+    let gmailQuery: string;
+    try {
+      gmailQuery =
+        await this.emailSearchRankingService.convertQueryToGmailSearch(
+          userId,
+          altQuery,
+        );
+    } catch {
+      gmailQuery = altQuery;
+    }
+    const results: Array<{ receivedAt: Date; messageId?: string }> = [];
+    for (const providerInfo of connectedProviders) {
+      const provider = await this.emailProviderManager.getProvider(
+        userId,
+        providerInfo.type,
+      );
+      if (!provider) continue;
+      try {
+        const searchResults = await provider.searchEmails(
+          userId,
+          gmailQuery,
+          QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
+        );
+        for (const result of searchResults) {
+          results.push(result as { receivedAt: Date; messageId?: string });
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Expand query "${gmailQuery}" on ${providerInfo.type} failed:`,
+          error,
+        );
+      }
+    }
+    return results;
+  }
+
   async searchExpand(
     userId: string,
     originalQuery: string,
@@ -765,44 +813,16 @@ export class EmailSearchService {
     }> = [];
 
     for (const altQuery of alternativeQueries) {
-      let gmailQuery: string;
-      try {
-        gmailQuery =
-          await this.emailSearchRankingService.convertQueryToGmailSearch(
-            userId,
-            altQuery,
-          );
-      } catch {
-        gmailQuery = altQuery;
-      }
-
-      for (const providerInfo of connectedProviders) {
-        const provider = await this.emailProviderManager.getProvider(
-          userId,
-          providerInfo.type,
-        );
-        if (!provider) continue;
-
-        try {
-          const searchResults = await provider.searchEmails(
-            userId,
-            gmailQuery,
-            QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
-          );
-          for (const result of searchResults) {
-            const msgId = (result as { messageId?: string }).messageId;
-            if (msgId && !newRawEmailIds.has(msgId)) {
-              newRawEmailIds.add(msgId);
-              allRawEmails.push(
-                result as { receivedAt: Date; messageId?: string },
-              );
-            }
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Expand query "${gmailQuery}" on ${providerInfo.type} failed:`,
-            error,
-          );
+      const providerResults = await this.searchExpandForQuery(
+        userId,
+        altQuery,
+        connectedProviders,
+      );
+      for (const result of providerResults) {
+        const msgId = result.messageId;
+        if (msgId && !newRawEmailIds.has(msgId)) {
+          newRawEmailIds.add(msgId);
+          allRawEmails.push(result);
         }
       }
     }
@@ -822,9 +842,12 @@ export class EmailSearchService {
     });
 
     // Filter out emails already shown
-    return dbEmails
+    const filtered = dbEmails
       .filter((emailEntry) => !existingEmailIds.has(emailEntry.id))
-      .slice(0, QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE) as EmailWithMetadata[];
+      .slice(0, QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE);
+    // Re-decrypt any fields that may have bypassed TypeORM column transformers.
+    filtered.forEach(decryptEmailEntityForApi);
+    return filtered as EmailWithMetadata[];
   }
 
   /**

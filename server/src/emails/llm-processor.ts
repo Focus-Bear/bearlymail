@@ -5,8 +5,8 @@ import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
 import { CloudWatchService } from "../aws/cloudwatch.service";
-import { CategoryRuleMatch } from "../category-rules/category-rules.types";
 import { CategoryRulesService } from "../category-rules/category-rules.service";
+import { CategoryRuleMatch } from "../category-rules/category-rules.types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import {
@@ -341,7 +341,8 @@ export class LLMProcessor implements OnModuleInit {
       workerId,
     );
     tracker.endPhase("dbUpdate");
-    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") { // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
+    if (!categoryRuleMatch && llmResult.categoryConfidence === "HIGH") {
+      // Issue #1671: generate proper 3-condition composite rules (sender + subject + body) instead of legacy single-signal rules.
       await this.tryGenerateCategoryRule(
         userId,
         emailId,

@@ -13,11 +13,11 @@ import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { computeEmailHmac } from "../utils/hmac-email";
+import type { CategoryRuleSuggestion } from "./category-rules.types";
 import {
   pickAutoCompositeBodyPhrase,
   pickAutoCompositeSubjectPhrase,
 } from "./category-rules-auto-composite.helper";
-import type { CategoryRuleSuggestion } from "./category-rules.types";
 
 /** Raw row returned by the thread-count aggregation query. */
 interface ThreadCountRow {
@@ -63,8 +63,7 @@ export function isSenderAlreadyCovered(
       return false;
     }
     const spec = rule.compositeSpec;
-    const senders =
-      spec.v === 2 ? spec.senderMatchesAny : [spec.sender];
+    const senders = spec.v === 2 ? spec.senderMatchesAny : [spec.sender];
     return senders.some(
       (sender) => normaliseSender(sender) === normalisedSender,
     );
@@ -134,10 +133,7 @@ export async function buildSuggestions(
   categoryNameFilter: string,
   normaliseSender: (raw: string) => string,
 ): Promise<CategoryRuleSuggestion[]> {
-  const candidateRows = await fetchCandidateSenderRows(
-    emailRepository,
-    userId,
-  );
+  const candidateRows = await fetchCandidateSenderRows(emailRepository, userId);
   if (candidateRows.length === 0) {
     return [];
   }
@@ -170,7 +166,9 @@ export async function buildSuggestions(
       continue;
     }
 
-    if (isSenderAlreadyCovered(normalisedSender, existingRules, normaliseSender)) {
+    if (
+      isSenderAlreadyCovered(normalisedSender, existingRules, normaliseSender)
+    ) {
       continue;
     }
 

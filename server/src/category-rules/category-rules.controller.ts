@@ -52,10 +52,7 @@ export class CategoryRulesController {
    * POST /category-rules/suggest
    */
   @Post("suggest")
-  async suggestRules(
-    @Request() req,
-    @Body() body: SuggestCategoryRulesDto,
-  ) {
+  async suggestRules(@Request() req, @Body() body: SuggestCategoryRulesDto) {
     return this.categoryRulesService.suggestCategoryRules(
       req.user.userId,
       body,

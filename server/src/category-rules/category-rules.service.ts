@@ -499,8 +499,6 @@ export class CategoryRulesService {
     return { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash };
   }
 
-  
-
   async peekMatchingRule(
     userId: string,
     email: EmailMetadata,
@@ -538,7 +536,9 @@ export class CategoryRulesService {
       ) {
         continue;
       }
-      const { matches } = evaluateComposite(spec, email, (raw) => this.normaliseSender(raw));
+      const { matches } = evaluateComposite(spec, email, (raw) =>
+        this.normaliseSender(raw),
+      );
       if (matches) {
         return {
           categoryName: rule.categoryName,
@@ -653,7 +653,9 @@ export class CategoryRulesService {
           (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION ||
             spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1)
         ) {
-          const ev = evaluateComposite(spec, email, (raw) => this.normaliseSender(raw));
+          const ev = evaluateComposite(spec, email, (raw) =>
+            this.normaliseSender(raw),
+          );
           patternMatches = ev.matches;
           compositeDetail = ev.detail;
         }

@@ -3,7 +3,10 @@ import {
   CompositeCategoryRuleSpecV1,
   CompositeCategoryRuleSpecV2,
 } from "../database/entities/category-rule.entity";
-import type { CompositeRuleEvaluationDetail, EmailMetadata } from "./category-rules.types";
+import type {
+  CompositeRuleEvaluationDetail,
+  EmailMetadata,
+} from "./category-rules.types";
 
 export function pickAutoCompositeSubjectPhrase(subject: string): string | null {
   const trimmed = subject.trim();
@@ -101,7 +104,9 @@ export function evaluateComposite(
   }
 
   const body = (email.bodyTextForMatch || "").toLowerCase();
-  const phrases = v2.bodyContainsAny.map((phrase) => phrase.trim()).filter(Boolean);
+  const phrases = v2.bodyContainsAny
+    .map((phrase) => phrase.trim())
+    .filter(Boolean);
   let bodyMatchedPhrase: string | null = null;
   const bodyOk = phrases.some((phrase) => {
     const lowerPhrase = phrase.toLowerCase();

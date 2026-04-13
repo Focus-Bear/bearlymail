@@ -6,6 +6,7 @@ import { In, Repository } from "typeorm";
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import {
   EnrichedSearchResult,
@@ -195,6 +196,8 @@ export class SearchEnrichmentService {
         settledMessageIds.add(messageId);
         const dbEmail = dbMap.get(messageId);
         if (dbEmail != null) {
+          // Ensure encrypted fields are decrypted — toEnrichedResult reads body/subject/from.
+          decryptEmailEntityForApi(dbEmail);
           job.enrichedResults.push(toEnrichedResult(dbEmail));
           job.progress.enriched++;
         } else {

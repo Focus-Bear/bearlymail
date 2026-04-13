@@ -8,8 +8,8 @@ import { DebugConfig } from "../database/entities/debug-config.entity";
 import { DebugService } from "../debug/debug.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
-import { GmailSyncService } from "./providers/gmail-sync.service";
 import { EmailsService } from "./emails.service";
+import { GmailSyncService } from "./providers/gmail-sync.service";
 
 function makeDebugService(): jest.Mocked<DebugService> {
   return {

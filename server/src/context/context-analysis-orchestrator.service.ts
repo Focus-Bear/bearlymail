@@ -258,11 +258,7 @@ export class ContextAnalysisOrchestratorService {
     const successfulEnqueues = jobResults.filter(
       (result) => result.jobId !== null,
     ).length;
-    await this.persistBatchState(
-      analysisRecord,
-      jobResults,
-      totalBatches,
-    );
+    await this.persistBatchState(analysisRecord, jobResults, totalBatches);
     await this.queueFinalizationJob(userId, analysisRecord, {
       totalBatches,
       totalThreads: threadIds.length,

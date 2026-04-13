@@ -17,6 +17,8 @@ interface CRMDealsSectionProps {
   senderEmail?: string;
   contactId?: string;
   emailSubject?: string;
+  /** When provided, shows a dismiss (X) button on the card header. */
+  onDismiss?: () => void;
 }
 
 const formatCurrency = (value: number | null, currency: string | null, locale: string): string | null => {
@@ -222,7 +224,7 @@ const useCRMDeals = (senderEmail: string | undefined, contactId: string | undefi
   return { deals, loading, error, hasFetched, fetchDeals };
 };
 
-export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, contactId }) => {
+export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, contactId, onDismiss }) => {
   const { t, i18n } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { deals, loading, error, hasFetched, fetchDeals } = useCRMDeals(senderEmail, contactId);
@@ -261,6 +263,8 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
       backgroundColor={CRM_BG}
       preview={preview}
       controls={<DealSectionControls t={t} />}
+      onDismiss={onDismiss}
+      dismissTitle={t('emailDetail.hideCard')}
     >
       <DealSectionContent loading={loading} error={error} deals={deals} locale={locale} t={t} />
     </CollapsibleSection>

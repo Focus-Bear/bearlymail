@@ -20,6 +20,8 @@ interface PrivateNotesSectionProps {
   onNoteContentChange: (content: string) => void;
   onToggleCollapsed: () => void;
   onSaveNote: () => void;
+  /** When provided, shows a dismiss (X) button on the card header. */
+  onDismiss?: () => void;
 }
 
 export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
@@ -28,6 +30,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
   onNoteContentChange,
   onToggleCollapsed,
   onSaveNote,
+  onDismiss,
 }) => {
   const { t } = useTranslation();
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +96,8 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
       accentColor={theme.colors.section.notes.accent}
       backgroundColor={theme.colors.section.notes.background}
       preview={preview}
+      onDismiss={onDismiss}
+      dismissTitle={t('emailDetail.hideCard')}
     >
       <textarea
         value={noteContent}

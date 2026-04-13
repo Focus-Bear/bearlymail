@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FiGithub } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
@@ -26,6 +27,8 @@ interface GitHubStatusSectionProps {
   email?: { subject?: string; body?: string; from?: string; fromName?: string } | null;
   /** GitHub-related suggested actions to route into the matching link cards. */
   suggestedGitHubActions?: SuggestedAction[];
+  /** When provided, shows a dismiss (X) button on the card header. */
+  onDismiss?: () => void;
 }
 
 export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
@@ -38,7 +41,9 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
   emailHtmlBody,
   email,
   suggestedGitHubActions = [],
+  onDismiss,
 }) => {
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Show the section when:
@@ -92,6 +97,8 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
       backgroundColor={GITHUB_BG}
       preview={preview}
       controls={controls}
+      onDismiss={onDismiss}
+      dismissTitle={t('emailDetail.hideCard')}
     >
       {loading ? (
         <GitHubStatusLoading />

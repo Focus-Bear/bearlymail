@@ -66,6 +66,8 @@ interface SummarySectionProps {
   onToggleCollapsed: () => void;
   onShowRuleModal: () => void;
   onUseCustomRule: (rule: { whenToUse: string; howToSummarize: string; ruleId?: string }) => void;
+  /** When provided, shows a dismiss (X) button on the card header. */
+  onDismiss?: () => void;
 }
 
 export const SummarySection: React.FC<SummarySectionProps> = ({
@@ -79,6 +81,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
   onToggleCollapsed,
   onShowRuleModal,
   onUseCustomRule,
+  onDismiss,
 }) => {
   const { t } = useTranslation();
 
@@ -169,6 +172,8 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
       backgroundColor={theme.colors.section.summary.background}
       preview={previewText}
       controls={controls}
+      onDismiss={onDismiss}
+      dismissTitle={t('emailDetail.hideCard')}
     >
       {(() => {
         if (isGeneratingSummary || emailIsProcessingSummary) {

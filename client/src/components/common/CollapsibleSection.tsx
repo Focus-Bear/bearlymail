@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiX } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 
 interface CollapsibleSectionProps {
@@ -12,6 +12,10 @@ interface CollapsibleSectionProps {
   preview?: React.ReactNode;
   controls?: React.ReactNode;
   children: React.ReactNode;
+  /** When provided, shows an X button that calls this handler to dismiss/hide the card. */
+  onDismiss?: () => void;
+  /** Tooltip text for the dismiss button. */
+  dismissTitle?: string;
 }
 
 export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
@@ -24,6 +28,8 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   preview,
   controls,
   children,
+  onDismiss,
+  dismissTitle,
 }) => {
   return (
     <div
@@ -104,6 +110,27 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           >
             {isCollapsed ? <FiChevronDown size={18} /> : <FiChevronUp size={18} />}
           </button>
+          {onDismiss && (
+            <button
+              onClick={event => {
+                event.stopPropagation();
+                onDismiss();
+              }}
+              title={dismissTitle}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: theme.colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                padding: theme.spacing.xs,
+                borderRadius: theme.borderRadius.sm,
+              }}
+            >
+              <FiX size={16} />
+            </button>
+          )}
         </div>
       </div>
 

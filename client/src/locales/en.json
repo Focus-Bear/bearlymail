@@ -585,7 +585,13 @@
     "sendNow": "Send Now",
     "viewContact": "View contact",
     "onlyVisibleToYou": "Only visible to you",
-    "onlyVisibleToYouSaved": "Only visible to you · Saved {{duration}}"
+    "onlyVisibleToYouSaved": "Only visible to you · Saved {{duration}}",
+    "hideCard": "Hide this card",
+    "displaySettings": "Display Settings",
+    "cardLabels": {
+      "github": "GitHub",
+      "crm": "Deals"
+    }
   },
   "settings": {
     "title": "Settings",

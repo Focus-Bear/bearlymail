@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
@@ -8,6 +8,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { TimePicker } from 'components/compose/TimePicker';
 import { CRMDealsSection } from 'components/crm/CRMDealsSection';
+import { CardDisplaySettings, CardDisplaySettingsButton } from 'components/email-detail/CardDisplaySettings';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { EmailDetailActions } from 'components/email-detail/EmailDetailActions';
 import { EmailDetailAnimationOverlay } from 'components/email-detail/EmailDetailAnimationOverlay';
@@ -44,6 +45,7 @@ import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
+import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
@@ -451,6 +453,12 @@ interface EmailDetailNotesAndActionsProps {
   isMobile: boolean;
   githubActions?: SuggestedAction[];
   emailContext?: { subject: string; body?: string; from: string; fromName?: string } | null;
+  hiddenCards: Set<CardType>;
+  onHideCard: (card: CardType) => void;
+  showCardSettings: boolean;
+  onToggleCardSettings: () => void;
+  onCloseCardSettings: () => void;
+  onShowCard: (card: CardType) => void;
 }
 
 // Extracted to reduce main component line count
@@ -471,6 +479,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   const isCompactOrInline =
     effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
+
+  const { hiddenCards, hideCard, showCard } = useCardVisibilityPreferences();
+  const [showCardSettings, setShowCardSettings] = useState(false);
 
   const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers({
     replyOptions: st.replyOptions,
@@ -530,6 +541,12 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         isMobile={isMobile}
         githubActions={githubActions}
         emailContext={emailContext}
+        hiddenCards={hiddenCards}
+        onHideCard={hideCard}
+        showCardSettings={showCardSettings}
+        onToggleCardSettings={() => setShowCardSettings(prev => !prev)}
+        onCloseCardSettings={() => setShowCardSettings(false)}
+        onShowCard={showCard}
       />
       <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
         {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
@@ -636,29 +653,38 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         {/* GitHub + CRM sections: shown in full and inline modes; in compact mode they appear in EmailDetailNotesAndActions above instead */}
         {effectiveVariant !== EMAIL_DETAIL_VARIANT_COMPACT && (
           <>
-            <div style={{ marginBottom: theme.spacing.xl }}>
-              <GitHubStatusSection
-                links={st.githubLinks}
-                loading={st.loadingGithub}
-                hasToken={st.hasGithubToken}
-                onRefresh={ops.refreshGithubInfo}
-                emailSubject={st.email?.subject}
-                emailBody={st.email?.body}
-                emailHtmlBody={st.email?.htmlBody}
-                email={emailContext}
-                suggestedGitHubActions={githubActions}
-              />
-            </div>
-            <div style={{ marginBottom: theme.spacing.xl }}>
-              <CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} />
-            </div>
+            {!hiddenCards.has('github') && (
+              <div style={{ marginBottom: theme.spacing.xl }}>
+                <GitHubStatusSection
+                  links={st.githubLinks}
+                  loading={st.loadingGithub}
+                  hasToken={st.hasGithubToken}
+                  onRefresh={ops.refreshGithubInfo}
+                  emailSubject={st.email?.subject}
+                  emailBody={st.email?.body}
+                  emailHtmlBody={st.email?.htmlBody}
+                  email={emailContext}
+                  suggestedGitHubActions={githubActions}
+                  onDismiss={() => hideCard('github')}
+                />
+              </div>
+            )}
+            {!hiddenCards.has('crm') && (
+              <div style={{ marginBottom: theme.spacing.xl }}>
+                <CRMDealsSection
+                  senderEmail={extractEmailAddress(st.email?.from)}
+                  emailSubject={st.email?.subject}
+                  onDismiss={() => hideCard('crm')}
+                />
+              </div>
+            )}
           </>
         )}
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && (
           <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />
         )}
         {/* Summary section is omitted in inline variant — panel mode is not a primary reading surface */}
-        {!isInline && (
+        {!isInline && !hiddenCards.has('summary') && (
           <SummarySection
             summary={st.summary}
             summaryType={st.summaryType}
@@ -670,6 +696,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)}
             onShowRuleModal={() => {}}
             onUseCustomRule={ops.handleUseCustomRule}
+            onDismiss={() => hideCard('summary')}
           />
         )}
         <EmailThreadView
@@ -707,41 +734,72 @@ const EmailDetailNotesAndActions: React.FC<EmailDetailNotesAndActionsProps> = ({
   isMobile,
   githubActions = [],
   emailContext = null,
+  hiddenCards,
+  onHideCard,
+  showCardSettings,
+  onToggleCardSettings,
+  onCloseCardSettings,
+  onShowCard,
 }) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
-    <PrivateNotesSection
-      noteContent={st.noteContent}
-      notesCollapsed={st.notesCollapsed}
-      onNoteContentChange={st.setNoteContent}
-      onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)}
-      onSaveNote={ops.handleSaveNote}
-    />
-    <ActionItemsSection
-      actionItems={st.actionItems}
-      newActionItem={st.newActionItem}
-      isGeneratingSummary={st.isGeneratingSummary}
-      onNewActionItemChange={st.setNewActionItem}
-      onAddActionItem={ops.handleAddActionItem}
-      onToggleActionItem={ops.handleToggleActionItem}
-      onDeleteActionItem={ops.handleDeleteActionItem}
-      onExtractActions={ops.handleExtractActions}
-      onRegenerateActionItems={ops.handleRegenerateActionItems}
-    />
+    <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.xs }}>
+      <CardDisplaySettingsButton onClick={onToggleCardSettings} />
+      <CardDisplaySettings
+        hiddenCards={hiddenCards}
+        onShowCard={onShowCard}
+        onHideCard={onHideCard}
+        isOpen={showCardSettings}
+        onClose={onCloseCardSettings}
+      />
+    </div>
+    {!hiddenCards.has('privateNotes') && (
+      <PrivateNotesSection
+        noteContent={st.noteContent}
+        notesCollapsed={st.notesCollapsed}
+        onNoteContentChange={st.setNoteContent}
+        onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)}
+        onSaveNote={ops.handleSaveNote}
+        onDismiss={() => onHideCard('privateNotes')}
+      />
+    )}
+    {!hiddenCards.has('actionItems') && (
+      <ActionItemsSection
+        actionItems={st.actionItems}
+        newActionItem={st.newActionItem}
+        isGeneratingSummary={st.isGeneratingSummary}
+        onNewActionItemChange={st.setNewActionItem}
+        onAddActionItem={ops.handleAddActionItem}
+        onToggleActionItem={ops.handleToggleActionItem}
+        onDeleteActionItem={ops.handleDeleteActionItem}
+        onExtractActions={ops.handleExtractActions}
+        onRegenerateActionItems={ops.handleRegenerateActionItems}
+        onDismiss={() => onHideCard('actionItems')}
+      />
+    )}
     {/* In compact (split-view) mode, GitHub and CRM go here to match the previous compactMode=true layout */}
     {effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT && (
       <>
-        <GitHubStatusSection
-          links={st.githubLinks}
-          loading={st.loadingGithub}
-          hasToken={st.hasGithubToken}
-          onRefresh={ops.refreshGithubInfo}
-          emailSubject={st.email?.subject}
-          emailBody={st.email?.body}
-          emailHtmlBody={st.email?.htmlBody}
-          email={emailContext}
-          suggestedGitHubActions={githubActions}
-        />
-        <CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} />
+        {!hiddenCards.has('github') && (
+          <GitHubStatusSection
+            links={st.githubLinks}
+            loading={st.loadingGithub}
+            hasToken={st.hasGithubToken}
+            onRefresh={ops.refreshGithubInfo}
+            emailSubject={st.email?.subject}
+            emailBody={st.email?.body}
+            emailHtmlBody={st.email?.htmlBody}
+            email={emailContext}
+            suggestedGitHubActions={githubActions}
+            onDismiss={() => onHideCard('github')}
+          />
+        )}
+        {!hiddenCards.has('crm') && (
+          <CRMDealsSection
+            senderEmail={extractEmailAddress(st.email?.from)}
+            emailSubject={st.email?.subject}
+            onDismiss={() => onHideCard('crm')}
+          />
+        )}
       </>
     )}
   </div>

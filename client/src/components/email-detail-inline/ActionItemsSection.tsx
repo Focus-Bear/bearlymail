@@ -31,6 +31,8 @@ interface ActionItemsSectionProps {
   onDeleteActionItem: (itemId: string) => void;
   onExtractActions: () => void;
   onRegenerateActionItems?: () => void;
+  /** When provided, shows a dismiss (X) button on the card header. */
+  onDismiss?: () => void;
 }
 
 export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
@@ -43,6 +45,7 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
   onDeleteActionItem,
   onExtractActions,
   onRegenerateActionItems,
+  onDismiss,
 }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -108,6 +111,8 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
       backgroundColor={ACTION_ITEMS_BG}
       preview={preview}
       controls={controls}
+      onDismiss={onDismiss}
+      dismissTitle={t('emailDetail.hideCard')}
     >
       <ActionItemList
         actionItems={actionItems}

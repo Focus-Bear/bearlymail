@@ -925,7 +925,13 @@
     "sendNow": "Enviar ahora",
     "viewContact": "Ver contacto",
     "onlyVisibleToYou": "Solo visible para ti",
-    "onlyVisibleToYouSaved": "Solo visible para ti · Guardado {{duration}}"
+    "onlyVisibleToYouSaved": "Solo visible para ti · Guardado {{duration}}",
+    "hideCard": "Ocultar esta tarjeta",
+    "displaySettings": "Configuración de visualización",
+    "cardLabels": {
+      "github": "GitHub",
+      "crm": "Tratos"
+    }
   },
   "contacts": {
     "title": "Contactos",

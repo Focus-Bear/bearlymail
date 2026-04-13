@@ -508,6 +508,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
               ) : undefined
             }
             isInitiallyExpanded={isAnchoredMatch}
+            searchable={isEmailCategory}
             {...commonProps}
           />
         );

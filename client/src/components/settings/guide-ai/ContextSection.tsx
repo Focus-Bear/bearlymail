@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { theme } from 'theme/theme';
-import { getEmailCategoryDisplayNameFromContextValue } from 'utils/emailCategoryContextUtils';
+import {
+  getEmailCategoryDescriptionFromContextValue,
+  getEmailCategoryDisplayNameFromContextValue,
+} from 'utils/emailCategoryContextUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { InfoTooltip } from 'components/InfoTooltip';
@@ -20,6 +23,7 @@ import {
   KEY_ESCAPE,
   STRING_NONE,
 } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 import { useCategoryRuleFromCategory } from 'contexts/CategoryRuleFromCategoryContext';
 
 const TRUNCATE_LENGTH = 100; // Characters before truncation
@@ -54,6 +58,8 @@ interface ContextSectionProps {
   onEditContextValueChange: (value: string) => void;
   /** If true, the section will be expanded by default (useful for deep-linking) */
   isInitiallyExpanded?: boolean;
+  /** If true, a search input is shown at the top of the section body to filter items */
+  searchable?: boolean;
 }
 
 interface ContextSectionBodyProps {
@@ -71,6 +77,9 @@ interface ContextSectionBodyProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
+  searchable?: boolean;
+  searchTerm?: string;
+  onSearchTermChange?: (value: string) => void;
 }
 
 const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
@@ -88,8 +97,29 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
   onAddingContextTypeChange,
   onEditingContextIdChange,
   onEditContextValueChange,
-}) => (
+  searchable,
+  searchTerm,
+  onSearchTermChange,
+}) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+    {searchable && (
+      <input
+        type="text"
+        value={searchTerm || ''}
+        onChange={event => onSearchTermChange?.(event.target.value)}
+        placeholder={t('settings.emailCategories.searchPlaceholder')}
+        style={{
+          padding: theme.spacing.sm,
+          borderRadius: theme.borderRadius.md,
+          border: `1px solid ${theme.colors.border.medium}`,
+          fontSize: theme.typography.fontSize.sm,
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      />
+    )}
     {filteredContexts.length > 0 ? (
       filteredContexts.map(context => (
         <ContextItem
@@ -103,6 +133,10 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
           onDeleteContext={onDeleteContext}
         />
       ))
+    ) : searchTerm ? (
+      <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}>
+        {t('settings.emailCategories.noSearchResults')}
+      </div>
     ) : (
       <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }} />
     )}
@@ -141,7 +175,8 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
       </button>
     )}
   </div>
-);
+  );
+};
 
 interface ContextSectionHeaderProps {
   title: string;
@@ -224,12 +259,27 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditingContextIdChange,
   onEditContextValueChange,
   isInitiallyExpanded = false,
+  searchable = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
+  const [searchTerm, setSearchTerm] = useState('');
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(ctx => keys.includes(ctx.contextKey));
   const addType = keys[0];
   const itemCount = filteredContexts.length;
+
+  const searchFilteredContexts =
+    searchable && searchTerm
+      ? filteredContexts.filter(ctx => {
+          const term = searchTerm.toLowerCase();
+          if (ctx.contextKey === CONTEXT_KEY_EMAIL_CATEGORY) {
+            const name = getEmailCategoryDisplayNameFromContextValue(ctx.contextValue).toLowerCase();
+            const desc = (getEmailCategoryDescriptionFromContextValue(ctx.contextValue) || '').toLowerCase();
+            return name.includes(term) || desc.includes(term) || ctx.contextId.toLowerCase().includes(term);
+          }
+          return ctx.contextValue.toLowerCase().includes(term);
+        })
+      : filteredContexts;
 
   React.useEffect(() => {
     if (isInitiallyExpanded) {
@@ -256,7 +306,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
       />
       {isExpanded && (
         <ContextSectionBody
-          filteredContexts={filteredContexts}
+          filteredContexts={searchFilteredContexts}
           addType={addType}
           addLabel={addLabel}
           addingContextType={addingContextType}
@@ -270,6 +320,9 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
           onAddingContextTypeChange={onAddingContextTypeChange}
           onEditingContextIdChange={onEditingContextIdChange}
           onEditContextValueChange={onEditContextValueChange}
+          searchable={searchable}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
         />
       )}
     </div>
@@ -588,9 +641,14 @@ interface ContextItemContentProps {
 
 const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const shouldTruncate = context.contextValue.length > TRUNCATE_LENGTH;
+  const isEmailCategory = context.contextKey === CONTEXT_KEY_EMAIL_CATEGORY;
+  const categoryDescription = isEmailCategory
+    ? getEmailCategoryDescriptionFromContextValue(context.contextValue)
+    : null;
+  const shouldTruncate = !isEmailCategory && context.contextValue.length > TRUNCATE_LENGTH;
   const displayValue =
     shouldTruncate && !isExpanded ? `${context.contextValue.substring(0, TRUNCATE_LENGTH)}...` : context.contextValue;
 
@@ -613,6 +671,22 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
                   </>
                 );
               })()}
+            </div>
+          ) : isEmailCategory ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, width: '100%' }}>
+              <span style={{ color: theme.colors.text.primary, wordBreak: 'break-word' }}>
+                {getEmailCategoryDisplayNameFromContextValue(context.contextValue)}
+              </span>
+              {categoryDescription && (
+                <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, wordBreak: 'break-word' }}>
+                  {categoryDescription}
+                </span>
+              )}
+              {user?.isAdmin && (
+                <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs, fontFamily: 'monospace', userSelect: 'all' }}>
+                  {t('settings.emailCategories.categoryUuid', { uuid: context.contextId })}
+                </span>
+              )}
             </div>
           ) : (
             <span style={{ color: theme.colors.text.primary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>

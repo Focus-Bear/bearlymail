@@ -2242,7 +2242,10 @@
       "addMatchingRuleTooltip": "Abre el formulario de regla compuesta con el nombre de esta categoría",
       "rulesCount_one": "{{count}} regla",
       "rulesCount_other": "{{count}} reglas",
-      "addMatchingRuleWithPrefix": "+ Añadir regla de coincidencia"
+      "addMatchingRuleWithPrefix": "+ Añadir regla de coincidencia",
+      "searchPlaceholder": "Buscar categorías...",
+      "noSearchResults": "Ninguna categoría coincide con tu búsqueda.",
+      "categoryUuid": "ID: {{uuid}}"
     },
     "deterministicCategoryRules": {
       "sectionTitle": "Reglas deterministas de categoría",

@@ -701,7 +701,10 @@
       "addMatchingRuleTooltip": "Open the composite rule form with this category name filled in",
       "rulesCount_one": "{{count}} rule",
       "rulesCount_other": "{{count}} rules",
-      "addMatchingRuleWithPrefix": "+ Add matching rule"
+      "addMatchingRuleWithPrefix": "+ Add matching rule",
+      "searchPlaceholder": "Search categories...",
+      "noSearchResults": "No categories match your search.",
+      "categoryUuid": "ID: {{uuid}}"
     },
     "deterministicCategoryRules": {
       "sectionTitle": "Deterministic category rules",

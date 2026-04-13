@@ -12,6 +12,7 @@ client/node_modules/
 server/dist/
 client/build/
 lambda/batch-analyzer/dist/
+lambda/email-prioritiser/dist/
 *.log
 server/coverage
 

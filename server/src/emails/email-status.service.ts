@@ -161,6 +161,12 @@ export class EmailStatusService {
    * match the triage tab total — e.g. bucket counts summed to 45 while the tab showed 142
    * because the tab uses getInboxSummary("triage") which applies starCount = 0 filtering.
    *
+   * Fix #1742: previously used strict `isBatched = false AND isSnoozed = false` conditions,
+   * which excluded threads whose batch/snooze time had already passed (e.g. isBatched=true
+   * with batchReleaseAt in the past). The inbox summary query counts those threads as visible,
+   * so the priority counts were far lower than the tab total (e.g. 1 vs 229 in triage).
+   * Now uses the same OR-based conditions as querySummaryRows in email-inbox.service.ts.
+   *
    * @param mode Inbox mode — applies the same starCount filter as getInboxSummary.
    *             Defaults to "triage" to preserve backwards compatibility.
    */
@@ -194,7 +200,11 @@ export class EmailStatusService {
          COUNT(*) FILTER (WHERE COALESCE("priorityScore", 0) < 0) AS "veryLow",
          COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS unprioritised
        FROM email_threads
-       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false ${modeFilter}`,
+       WHERE "userId" = $1
+         AND "isArchived" = false
+         AND ("isBatched" = false OR "batchReleaseAt" IS NULL OR "batchReleaseAt" <= NOW())
+         AND ("isSnoozed" = false OR "snoozeUntil" IS NULL OR "snoozeUntil" <= NOW())
+         ${modeFilter}`,
       [userId],
     );
     const row = rows[0] ?? {
@@ -273,8 +283,8 @@ export class EmailStatusService {
        FROM email_threads
        WHERE "userId" = $1
          AND "isArchived" = false
-         AND "isBatched" = false
-         AND "isSnoozed" = false
+         AND ("isBatched" = false OR "batchReleaseAt" IS NULL OR "batchReleaseAt" <= NOW())
+         AND ("isSnoozed" = false OR "snoozeUntil" IS NULL OR "snoozeUntil" <= NOW())
          AND "priorityScore" IS NOT NULL
          AND "priorityScore" >= 0
        GROUP BY FLOOR("priorityScore" / ${HISTOGRAM_BUCKET_SIZE})
@@ -287,8 +297,8 @@ export class EmailStatusService {
        FROM email_threads
        WHERE "userId" = $1
          AND "isArchived" = false
-         AND "isBatched" = false
-         AND "isSnoozed" = false
+         AND ("isBatched" = false OR "batchReleaseAt" IS NULL OR "batchReleaseAt" <= NOW())
+         AND ("isSnoozed" = false OR "snoozeUntil" IS NULL OR "snoozeUntil" <= NOW())
          AND "priorityScore" IS NULL`,
       [userId],
     );
@@ -325,7 +335,9 @@ export class EmailStatusService {
          COUNT(*) FILTER (WHERE "priorityScore" IS NOT NULL) AS "prioritisedCount",
          COUNT(*) FILTER (WHERE "priorityScore" IS NULL) AS "unprioritisedCount"
        FROM email_threads
-       WHERE "userId" = $1 AND "isArchived" = false AND "isBatched" = false AND "isSnoozed" = false`,
+       WHERE "userId" = $1 AND "isArchived" = false
+         AND ("isBatched" = false OR "batchReleaseAt" IS NULL OR "batchReleaseAt" <= NOW())
+         AND ("isSnoozed" = false OR "snoozeUntil" IS NULL OR "snoozeUntil" <= NOW())`,
       [userId],
     );
     const row = rows[0] ?? {

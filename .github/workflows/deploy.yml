@@ -276,6 +276,12 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build email-prioritiser Lambda
+        working-directory: lambda/email-prioritiser
+        run: |
+          npm ci
+          npm run build
+
       - name: CDK Deploy Application Stack
         working-directory: infrastructure
         run: |

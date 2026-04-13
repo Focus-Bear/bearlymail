@@ -217,7 +217,7 @@ async function callLlm(
 
   if (provider === "openai" || provider === "gemini" || model) {
     const client = await getOpenAIClient();
-    const chatParams: Record<string, unknown> = {
+    const chatParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
       model: effectiveModel,
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
@@ -225,10 +225,8 @@ async function callLlm(
       ],
       temperature,
       max_tokens: maxTokens,
+      ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     };
-    if (jsonMode) {
-      chatParams["response_format"] = { type: "json_object" };
-    }
     const response = await client.chat.completions.create(chatParams);
     return response.choices[0]?.message?.content || "{}";
   }

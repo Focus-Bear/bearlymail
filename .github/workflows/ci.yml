@@ -1,10 +1,30 @@
+# CI triggers
+# ===========
+# - `pull_request` → `main`: validates PRs (one run per sync when GitHub emits
+#   the event).
+# - `push` → `main` plus `claude/**` and `devin/**`: default-branch pushes, and
+#   bot branches where `pull_request` often does not run (PRs opened via
+#   `GITHUB_TOKEN` / App from another workflow).
+#
+# The same commit can trigger both `pull_request` and `push` on bot branches.
+# `concurrency` below uses the PR head commit (or push SHA) so only one run
+# finishes per commit; the other is cancelled (you may see one cancelled run in
+# the Actions UI).
+#
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'claude/**'
+      - 'devin/**'
   pull_request:
     branches: [main]
+
+concurrency:
+  group: ci-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   server-coverage:

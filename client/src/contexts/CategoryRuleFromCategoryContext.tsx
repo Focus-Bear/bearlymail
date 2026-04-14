@@ -5,7 +5,7 @@ export type CategoryRuleFromCategoryContextValue = {
   openAddRuleForCategoryDisplayName: (displayName: string) => void;
   rules: CategoryRuleDto[];
   onToggleEnabled: (id: string, nextEnabled: boolean) => void;
-  onDeleteRule: (id: string) => void;
+  onDeleteRule: (id: string) => Promise<void>;
   onEditRule: (rule: CategoryRuleDto) => void;
 };
 

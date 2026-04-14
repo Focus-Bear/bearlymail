@@ -7,12 +7,12 @@ export function getAxiosResponseErrorMessage(error: unknown): string | undefined
   if (!axios.isAxiosError(error) || !error.response?.data) {
     return undefined;
   }
-  const data = error.response.data as { message?: string | string[] };
-  if (typeof data.message === 'string') {
-    return data.message;
+  const responseData = error.response.data as { message?: string | string[] };
+  if (typeof responseData.message === 'string') {
+    return responseData.message;
   }
-  if (Array.isArray(data.message)) {
-    return data.message.join(', ');
+  if (Array.isArray(responseData.message)) {
+    return responseData.message.join(', ');
   }
   return undefined;
 }

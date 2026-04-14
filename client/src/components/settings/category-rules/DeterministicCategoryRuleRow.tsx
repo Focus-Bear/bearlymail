@@ -5,6 +5,7 @@ import type { CategoryRuleDto } from 'types/category-rules.types';
 import { specSenders, specSubjects } from 'types/category-rules.types';
 
 import { CATEGORY_RULE_KIND_COMPOSITE } from 'constants/category-rules';
+import { EMOJI_WARNING } from 'constants/emojis';
 
 const rowStyle: React.CSSProperties = {
   padding: theme.spacing.sm,
@@ -30,10 +31,20 @@ const btnStyle: React.CSSProperties = {
   fontSize: theme.typography.fontSize.xs,
 };
 
+const warningBadgeStyle: React.CSSProperties = {
+  fontSize: theme.typography.fontSize.xs,
+  padding: `2px ${theme.spacing.xs}`,
+  borderRadius: theme.borderRadius.sm,
+  backgroundColor: theme.colors.warning.light,
+  border: `1px solid ${theme.colors.warning.main}`,
+  color: theme.colors.text.secondary,
+  cursor: 'pointer',
+};
+
 export interface DeterministicCategoryRuleRowProps {
   rule: CategoryRuleDto;
   onToggleEnabled: (id: string, nextEnabled: boolean) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onEditComposite?: (rule: CategoryRuleDto) => void;
   onUpgradeToComposite?: (rule: CategoryRuleDto) => void;
 }
@@ -97,6 +108,16 @@ export const DeterministicCategoryRuleRow: React.FC<DeterministicCategoryRuleRow
         >
           {kindLabel}
         </span>
+        {!isComposite && (
+          <button
+            type="button"
+            title={t('settings.deterministicCategoryRules.legacyWeakWarning')}
+            onClick={() => onEditComposite?.(rule)}
+            style={warningBadgeStyle}
+          >
+            {EMOJI_WARNING} {t('settings.deterministicCategoryRules.upgradeToComposite')}
+          </button>
+        )}
         {!rule.isEnabled && (
           <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
             ({t('settings.deterministicCategoryRules.disabled')})

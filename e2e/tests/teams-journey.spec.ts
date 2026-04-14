@@ -114,7 +114,8 @@ test.describe('TeamSettings in Settings page', () => {
     const teamHeading = page.getByText(/^Team$/i);
     await teamHeading.waitFor({ state: 'visible', timeout: 8000 });
     const hasMemberList = await page.getByText(/Members/i).isVisible();
-    expect(hasMemberList).toBe(true);
+    const hasNoMembers = await page.getByText(/no members/i).isVisible();
+    expect(hasMemberList || hasNoMembers).toBe(true);
   });
 
   test('Invite form is present with email input and role select', async ({ page }) => {

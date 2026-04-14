@@ -9,7 +9,7 @@ import { theme } from 'theme/theme';
 import { ContactGroup } from 'types/contactGroup';
 
 import { COLOR_WHITE } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 interface ContactGroupMembershipProps {
   contactId: string;
@@ -41,13 +41,13 @@ export const ContactGroupMembership: React.FC<ContactGroupMembershipProps> = ({
   );
 
   const handleAddToGroup = async (group: ContactGroup) => {
-    const updatedIds = [...group.members.map(m => m.contactId), contactId];
+    const updatedIds = [...group.members.map(member => member.contactId), contactId];
     await updateMutation.mutateAsync({ id: group.id, payload: { memberContactIds: updatedIds } });
     setShowAddPanel(false);
   };
 
   const handleRemoveFromGroup = async (group: ContactGroup) => {
-    const updatedIds = group.members.map(m => m.contactId).filter(id => id !== contactId);
+    const updatedIds = group.members.map(member => member.contactId).filter(id => id !== contactId);
     await updateMutation.mutateAsync({ id: group.id, payload: { memberContactIds: updatedIds } });
   };
 
@@ -199,9 +199,9 @@ export const ContactGroupMembership: React.FC<ContactGroupMembershipProps> = ({
                 onChange={event => setNewGroupName(event.target.value)}
                 placeholder={t('settings.contactGroups.newGroupName')}
                 onKeyDown={event => {
-                  if (event.key === 'Enter') {
+                  if (event.key === KEY_ENTER) {
                     handleCreateAndAdd();
-                  } else if (event.key === 'Escape') {
+                  } else if (event.key === KEY_ESCAPE) {
                     setCreatingNew(false);
                     setNewGroupName('');
                   }

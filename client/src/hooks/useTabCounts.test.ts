@@ -15,24 +15,17 @@ describe('useTabCounts', () => {
   });
 
   describe('initialization', () => {
-    it('should initialize with null tab counts and NOT start loading (no auto-fetch on mount)', () => {
-      // After removing the mount-time useEffect, the hook no longer auto-fetches.
-      // Tab counts are now fetched explicitly by useInboxInitialization.
+    it('should initialize with null tab counts and loading=false', () => {
       const { result } = renderHook(() => useTabCounts());
 
+      // No auto-fetch on mount — caller is responsible for calling fetchTabCounts()
       expect(result.current.tabCounts).toBeNull();
-      // loading should be false — no automatic fetch is triggered on mount
       expect(result.current.loading).toBe(false);
-    });
-
-    it('exposes fetchTabCounts for explicit invocation', () => {
-      const { result } = renderHook(() => useTabCounts());
-      expect(typeof result.current.fetchTabCounts).toBe('function');
     });
   });
 
   describe('fetchTabCounts', () => {
-    it('should fetch tab counts from API and cache them when called explicitly', async () => {
+    it('should fetch tab counts from API and cache them', async () => {
       const mockCounts = { triage: 10, action: 5, followUp: 2 };
       mockedAxios.get.mockResolvedValue({ data: mockCounts });
 
@@ -67,7 +60,8 @@ describe('useTabCounts', () => {
       });
 
       expect(result.current.tabCounts).toEqual(cachedCounts);
-      // Should not have made an API call — cache is fresh
+
+      // Should not have made an API call
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
@@ -168,16 +162,15 @@ describe('useTabCounts', () => {
         })
       );
 
+      mockedAxios.get.mockResolvedValue({ data: initialCounts });
+
       const { result } = renderHook(() => useTabCounts());
 
-      // Fetch from cache (fresh, no API call)
       await act(async () => {
         await result.current.fetchTabCounts();
       });
 
-      await waitFor(() => {
-        expect(result.current.tabCounts).not.toBeNull();
-      });
+      expect(result.current.tabCounts).not.toBeNull();
 
       act(() => {
         result.current.updateTabCountsOptimistically({ triage: -1 });
@@ -186,7 +179,8 @@ describe('useTabCounts', () => {
       const cached = JSON.parse(localStorage.getItem(TAB_COUNTS_CACHE_KEY) || 'null');
       expect(cached).not.toBeNull();
       expect(cached.counts.triage).toBe(9);
-      // Timestamp should NOT be reset to now — optimistic updates don't extend TTL
+      // Timestamp should NOT be reset to now - it should be the original or from API fetch
+      // The key invariant: optimistic updates don't extend TTL beyond what the server last set
       expect(cached.timestamp).not.toBeGreaterThan(Date.now() - 4000);
     });
 

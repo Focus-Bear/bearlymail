@@ -39,13 +39,13 @@ import {
   SUMMARY_TYPE_CUSTOM_PREFIX,
 } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
 import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
 import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization';
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
-import { CardType, useCardVisibilityPreferences } from 'hooks/useCardVisibilityPreferences';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { TimeSuggestion } from 'hooks/useScheduledEmails';
 

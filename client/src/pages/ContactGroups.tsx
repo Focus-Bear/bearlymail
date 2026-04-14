@@ -2,8 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { ContactGroupsSection } from 'components/settings/ContactGroupsSection';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { ContactGroupsSection } from 'components/settings/ContactGroupsSection';
 import { EMOJI_MENU } from 'constants/emojis';
 import { STRING_AUTO, STRING_CENTER, STRING_FIXED, STRING_FLEX, STRING_HIDDEN, STRING_POINTER } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';

@@ -100,7 +100,7 @@ const CategoryRulesAccordionDemo: React.FC<{
     onToggleEnabled: (id: string, nextEnabled: boolean) => {
       setRules(prev => prev.map(rule => (rule.id === id ? { ...rule, isEnabled: nextEnabled } : rule)));
     },
-    onDeleteRule: (id: string) => {
+    onDeleteRule: async (id: string) => {
       setRules(prev => prev.filter(rule => rule.id !== id));
     },
     onEditRule: (rule: CategoryRuleDto) => {

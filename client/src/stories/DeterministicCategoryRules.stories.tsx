@@ -79,7 +79,7 @@ const MOCK_RULES: CategoryRuleDto[] = [
   },
 ];
 
-const noop = () => {};
+const noop = async () => {};
 
 const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <I18nextProvider i18n={i18n}>

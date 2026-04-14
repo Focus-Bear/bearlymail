@@ -8,7 +8,7 @@ import { DeterministicCategoryRuleRow } from 'components/settings/category-rules
 export interface DeterministicCategoryRulesPanelProps {
   rules: CategoryRuleDto[];
   onToggleEnabled: (id: string, nextEnabled: boolean) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onEditComposite?: (rule: CategoryRuleDto) => void;
   onUpgradeToComposite?: (rule: CategoryRuleDto) => void;
 }

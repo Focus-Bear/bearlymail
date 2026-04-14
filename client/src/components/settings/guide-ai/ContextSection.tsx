@@ -560,7 +560,10 @@ const ContextItem: React.FC<ContextItemProps> = ({
               key={matchingRule.id}
               rule={matchingRule}
               onToggleEnabled={(id, nextEnabled) => categoryRuleFromCategory?.onToggleEnabled(id, nextEnabled)}
-              onDelete={id => categoryRuleFromCategory?.onDeleteRule(id)}
+              onDelete={async id => {
+                  await categoryRuleFromCategory?.onDeleteRule(id);
+                }
+              }
               onEditComposite={ruleToEdit => categoryRuleFromCategory?.onEditRule(ruleToEdit)}
             />
           ))}

@@ -2,7 +2,7 @@
 
 > Use a **GitHub App installation token** instead of a PAT for `claude.yml`. Installation tokens are short-lived (~1 hour per job), revocable per-repo, and **are not** the workflow `GITHUB_TOKEN`, so PRs opened by Claude can still trigger `pull_request` workflows (e.g. `ci.yml`).
 
-This mirrors how OpenClaw authenticates (App ID + installation + PEM), but in **GitHub Actions** we mint the token with [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token) and pass it to [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) via the `github_token` input.
+This mirrors how OpenClaw authenticates (App ID + installation + PEM), but in **GitHub Actions** we mint the token with [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token), pass it to [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) via `github_token`, and **also** set `GITHUB_TOKEN` / `GH_TOKEN` on that step so `gh` and other tools do not keep using the workflow’s default token (see [Troubleshooting](#latest-commit-has-no-ci--only-skipped-checks)).
 
 ---
 
@@ -110,7 +110,7 @@ In `.github/workflows/claude.yml`:
 
 2. **Checkout** uses `token: ${{ steps.<id>.outputs.token || github.token }}` so `git push` uses the app token when configured.
 
-3. **Claude Code Action** gets `github_token: ${{ steps.<id>.outputs.token || github.token }}` so `gh` and API calls align with the same token.
+3. **Claude Code Action** gets `github_token: ${{ steps.<id>.outputs.token || github.token }}` **and** step `env` sets `GITHUB_TOKEN` and `GH_TOKEN` to the same value. GitHub’s runner always injects a job-level `GITHUB_TOKEN`; many CLIs read that first, so without this override pushes can still use the default token and **suppress** downstream CI.
 
 If the Client ID variable is **empty**, those steps are skipped and the workflow falls back to the default `GITHUB_TOKEN` behaviour (same as before you configured the app).
 
@@ -126,6 +126,16 @@ If the Client ID variable is **empty**, those steps are skipped and the workflow
 ---
 
 ## Troubleshooting
+
+### Latest commit has no CI / only skipped checks
+
+Symptoms: an older commit on the PR has full **CI** / **Client Type Check** runs, but a **newer** commit (often authored by `claude[bot]`) shows **no** `CI` workflow run and the commit’s checks only show skipped **claude** jobs.
+
+**Cause:** GitHub **does not start new workflow runs** for commits that were **pushed using the workflow’s default `GITHUB_TOKEN`** (same guardrail as PAT-less bots). If `gh`/`git` still use that token for `git push`, your App setup can look correct while pushes stay “silent” for CI.
+
+**Fix (in repo):** Ensure `claude.yml` sets **`GITHUB_TOKEN` and `GH_TOKEN` on the “Run Claude Code” step** to the installation token (already done on `main` after the follow-up fix). Merge that change, then re-trigger Claude or push any commit **without** using the default `GITHUB_TOKEN` (e.g. empty commit from your machine) to refresh checks.
+
+**Also verify:** In the workflow run that performed the push, the step **Create GitHub App installation token (optional)** is **not skipped**. If it is skipped, `vars.CLAUDE_GITHUB_APP_CLIENT_ID` is empty or not visible to this repository.
 
 ### Token step fails: “Could not create access token” / 401 / 403
 

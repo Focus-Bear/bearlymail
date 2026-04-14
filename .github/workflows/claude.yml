@@ -52,9 +52,16 @@ jobs:
           fetch-tags: true
           token: ${{ steps.claude_github_app_token.outputs.token || github.token }}
 
+      # Runner always injects GITHUB_TOKEN for the job; gh/git often prefer that over
+      # the action's github_token input alone. Override both here so pushes from this
+      # step use the installation token when configured — otherwise GitHub suppresses
+      # follow-up push/pull_request workflow runs for those commits.
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          GITHUB_TOKEN: ${{ steps.claude_github_app_token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.claude_github_app_token.outputs.token || github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.claude_github_app_token.outputs.token || github.token }}

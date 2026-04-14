@@ -25,6 +25,24 @@ jobs:
       id-token: write
       actions: read
     steps:
+      # Optional: installation token from YOUR GitHub App (not GITHUB_TOKEN) so PRs
+      # can trigger pull_request workflows. Set CLAUDE_GITHUB_APP_CLIENT_ID (variable)
+      # and CLAUDE_GITHUB_APP_PRIVATE_KEY (secret). See docs/claude-github-app-auth.md
+      - name: Create GitHub App installation token (optional)
+        id: claude_github_app_token
+        if: ${{ vars.CLAUDE_GITHUB_APP_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CLAUDE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CLAUDE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-actions: read
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -32,12 +50,14 @@ jobs:
           fetch-depth: 0
           # Also fetch tags so Claude has full context
           fetch-tags: true
+          token: ${{ steps.claude_github_app_token.outputs.token || github.token }}
 
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.claude_github_app_token.outputs.token || github.token }}
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |

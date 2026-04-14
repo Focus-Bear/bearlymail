@@ -302,16 +302,26 @@ export async function respondToInvitation(
 
 /**
  * Resolves the scheduling link URL for the given user.
- * Prefers the user profile's calendarBookingUrl, falls back to the
- * CALENDAR_BOOKING_URL environment variable.
+ * Priority order:
+ * 1. User profile's calendarBookingUrl (e.g. a Calendly link)
+ * 2. CALENDAR_BOOKING_URL environment variable
+ * 3. Built-in BearlyMail booking page (/book/{userId})
  */
 async function resolveSchedulingLinkUrl(
   service: CalendarService,
   userId: string,
-): Promise<string | null> {
+): Promise<string> {
   const user = await service.usersService.findOne(userId);
   const profileUrl = user?.calendarBookingUrl?.trim() || null;
-  return profileUrl || process.env.CALENDAR_BOOKING_URL || null;
+  if (profileUrl) {
+    return profileUrl;
+  }
+  const envUrl = (process.env.CALENDAR_BOOKING_URL || null)?.trim();
+  if (envUrl) {
+    return envUrl;
+  }
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  return `${frontendUrl.replace(/\/$/, "")}/book/${userId}`;
 }
 
 export async function generateMeetingReply(
@@ -327,12 +337,6 @@ export async function generateMeetingReply(
   }
 
   const schedulingLinkUrl = await resolveSchedulingLinkUrl(service, userId);
-
-  if (!schedulingLinkUrl) {
-    // No scheduling link configured — return an actionable message instead of
-    // hallucinating "no available slots".
-    return `To draft a meeting reply, please set up your scheduling link in BearlyMail settings first.`;
-  }
 
   let llmProvider: LLMProvider | undefined;
   if (provider) {
@@ -368,6 +372,122 @@ ${schedulingLinkUrl}
 Looking forward to it!
 
 Best regards`;
+  }
+}
+
+export interface MeetingProposalResult {
+  hasProposal: boolean;
+  proposedTime: string | null;
+  proposedTimeText: string | null;
+  topic: string | null;
+  durationMinutes: number | null;
+  isAvailable: boolean | null;
+  calendarConnected: boolean;
+}
+
+const DEFAULT_DURATION_MINUTES = 30;
+
+/**
+ * Detects whether the email proposes a specific meeting time and checks calendar availability.
+ * Uses the meeting proposal cached during summarization (EmailThread.meetingProposal) when
+ * available to avoid an extra LLM call. Falls back to on-demand LLM detection when the
+ * cached value is absent (e.g. email was summarised before this feature was deployed).
+ */
+export async function checkMeetingProposal(
+  service: CalendarService,
+  userId: string,
+  emailId: string,
+): Promise<MeetingProposalResult> {
+  const email = await service.emailsService.getEmailById(userId, emailId);
+  if (!email) {
+    throw new Error("Email not found");
+  }
+
+  // Use cached meeting proposal from summarization if available, otherwise call LLM.
+  let proposal: {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  };
+
+  const thread = email.emailThreadId
+    ? await service.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId, userId },
+      })
+    : null;
+
+  if (thread?.meetingProposal != null) {
+    proposal = thread.meetingProposal;
+  } else {
+    proposal = await service.llmService.detectMeetingProposal(
+      {
+        from: email.from,
+        fromName: email.fromName,
+        subject: email.subject,
+        body: email.body,
+      },
+      undefined,
+      userId,
+    );
+  }
+
+  if (!proposal.hasProposal || !proposal.proposedTime) {
+    return {
+      ...proposal,
+      isAvailable: null,
+      calendarConnected: false,
+    };
+  }
+
+  // Check calendar availability
+  const user = await service.usersService.findOne(userId);
+  if (!user?.googleCalendarAccessToken) {
+    return {
+      ...proposal,
+      isAvailable: null,
+      calendarConnected: false,
+    };
+  }
+
+  try {
+    const duration = proposal.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+    const proposedStart = new Date(proposal.proposedTime);
+    const proposedEnd = new Date(
+      proposedStart.getTime() + duration * MILLISECONDS.MINUTE,
+    );
+
+    const oauth2Client = service.createOAuth2Client(user);
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+    const freebusyResponse = await calendar.freebusy.query({
+      requestBody: {
+        timeMin: proposedStart.toISOString(),
+        timeMax: proposedEnd.toISOString(),
+        items: [{ id: "primary" }],
+      },
+    });
+
+    const busyPeriods =
+      freebusyResponse.data.calendars?.primary?.busy ?? [];
+    const isAvailable = busyPeriods.length === 0;
+
+    return {
+      ...proposal,
+      isAvailable,
+      calendarConnected: true,
+    };
+  } catch (error) {
+    logError(
+      "Failed to check calendar availability for proposed meeting time",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+    return {
+      ...proposal,
+      isAvailable: null,
+      calendarConnected: true,
+    };
   }
 }
 

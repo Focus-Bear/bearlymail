@@ -777,7 +777,25 @@
       "noCalendar": "Conecte Google Calendar en configuración para usar las funciones de programación.",
       "viewSlots": "Ver horarios disponibles",
       "availableSlots": "Horarios disponibles",
-      "noSlots": "No se encontraron horarios disponibles en los próximos 7 días."
+      "noSlots": "No se encontraron horarios disponibles en los próximos 7 días.",
+      "proposedTime": {
+        "description": "El remitente ha propuesto un horario específico. Cree una invitación de calendario para confirmarlo.",
+        "label": "Hora propuesta",
+        "available": "✓ Estás libre en este horario",
+        "conflict": "⚠ Tienes un conflicto en este horario",
+        "checkFailed": "No se pudo verificar la disponibilidad del calendario",
+        "createInvite": "Crear invitación de calendario",
+        "creating": "Creando...",
+        "viewEvent": "Ver en Google Calendar",
+        "edit": "Editar detalles",
+        "editTitle": "Editar detalles de la reunión",
+        "timeLabel": "Fecha y hora",
+        "durationLabel": "Duración",
+        "topicLabel": "Tema",
+        "durationMinutes": "{{minutes}} minutos",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar"
+      }
     },
     "checkTone": "Comprobar tono",
     "checking": "De cheques...",

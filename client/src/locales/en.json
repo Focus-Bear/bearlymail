@@ -534,7 +534,25 @@
       "noCalendar": "Connect Google Calendar in settings to use scheduling features.",
       "viewSlots": "View Available Slots",
       "availableSlots": "Available Times",
-      "noSlots": "No available slots found in the next 7 days."
+      "noSlots": "No available slots found in the next 7 days.",
+      "proposedTime": {
+        "description": "The sender has proposed a specific meeting time. Create a calendar invite to confirm it.",
+        "label": "Proposed time",
+        "available": "✓ You're free at this time",
+        "conflict": "⚠ You have a conflict at this time",
+        "checkFailed": "Could not check calendar availability",
+        "createInvite": "Create Calendar Invite",
+        "creating": "Creating...",
+        "viewEvent": "View in Google Calendar",
+        "edit": "Edit details",
+        "editTitle": "Edit meeting details",
+        "timeLabel": "Date & time",
+        "durationLabel": "Duration",
+        "topicLabel": "Topic",
+        "durationMinutes": "{{minutes}} minutes",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      }
     },
     "scheduleForMorning": "Schedule for tomorrow morning",
     "keepInAction": "I still need to take action",

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -9,13 +9,30 @@ import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CALENDAR } from 'constants/emojis';
-import { SHORT_TIMEOUT_MS } from 'constants/numbers';
-import { STRING_NONE } from 'constants/strings';
+import {
+  SCHEDULING_GAP_15_MIN,
+  SCHEDULING_GAP_30_MIN,
+  SCHEDULING_GAP_45_MIN,
+  SCHEDULING_GAP_60_MIN,
+  SCHEDULING_GAP_90_MIN,
+  SHORT_TIMEOUT_MS,
+} from 'constants/numbers';
+import { STRING_NONE, STRING_TRANSPARENT } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 
 interface SchedulingRequestCardProps {
   email: Email;
   onDraftReply?: (draft: string) => void;
+}
+
+interface MeetingProposal {
+  hasProposal: boolean;
+  proposedTime: string | null;
+  proposedTimeText: string | null;
+  topic: string | null;
+  durationMinutes: number | null;
+  isAvailable: boolean | null;
+  calendarConnected: boolean;
 }
 
 interface SchedulingActionButtonsProps {
@@ -82,11 +99,375 @@ const SchedulingActionButtons: React.FC<SchedulingActionButtonsProps> = ({
   );
 };
 
+/** Convert an ISO 8601 UTC string to a value suitable for a datetime-local input (local time). */
+function isoToDatetimeLocal(iso: string): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  // Format as YYYY-MM-DDTHH:mm in local time
+  const pad = (digit: number) => String(digit).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+/** Convert a datetime-local input value back to an ISO 8601 UTC string. */
+function datetimeLocalToIso(local: string): string {
+  const date = new Date(local);
+  return isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+const DURATION_OPTIONS = [
+  SCHEDULING_GAP_15_MIN,
+  SCHEDULING_GAP_30_MIN,
+  SCHEDULING_GAP_45_MIN,
+  SCHEDULING_GAP_60_MIN,
+  SCHEDULING_GAP_90_MIN,
+];
+
+interface EditMeetingFormProps {
+  initialTime: string;
+  initialDuration: number;
+  initialTopic: string;
+  onConfirm: (time: string, duration: number, topic: string) => void;
+  onCancel: () => void;
+}
+
+const EditMeetingForm: React.FC<EditMeetingFormProps> = ({
+  initialTime,
+  initialDuration,
+  initialTopic,
+  onConfirm,
+  onCancel,
+}) => {
+  const { t } = useTranslation();
+  const [time, setTime] = useState(isoToDatetimeLocal(initialTime));
+  const [duration, setDuration] = useState(initialDuration);
+  const [topic, setTopic] = useState(initialTopic);
+
+  const handleConfirm = () => {
+    const isoTime = datetimeLocalToIso(time);
+    if (!isoTime) {
+      return;
+    }
+    onConfirm(isoTime, duration, topic);
+  };
+
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.background.default,
+        borderRadius: theme.borderRadius.sm,
+        padding: theme.spacing.sm,
+        border: `1px solid ${theme.colors.border.light}`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing.sm,
+      }}
+    >
+      <div style={{ fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+        {t('emailDetail.schedulingRequest.proposedTime.editTitle')}
+      </div>
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+          {t('emailDetail.schedulingRequest.proposedTime.timeLabel')}
+        </span>
+        <input
+          type="datetime-local"
+          value={time}
+          onChange={(event) => setTime(event.target.value)}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.primary,
+            backgroundColor: theme.colors.background.paper,
+          }}
+        />
+      </label>
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+          {t('emailDetail.schedulingRequest.proposedTime.durationLabel')}
+        </span>
+        <select
+          value={duration}
+          onChange={(event) => setDuration(Number(event.target.value))}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.primary,
+            backgroundColor: theme.colors.background.paper,
+          }}
+        >
+          {DURATION_OPTIONS.map((mins) => (
+            <option key={mins} value={mins}>
+              {t('emailDetail.schedulingRequest.proposedTime.durationMinutes', { minutes: mins })}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+          {t('emailDetail.schedulingRequest.proposedTime.topicLabel')}
+        </span>
+        <input
+          type="text"
+          value={topic}
+          onChange={(event) => setTopic(event.target.value)}
+          maxLength={100}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.primary,
+            backgroundColor: theme.colors.background.paper,
+          }}
+        />
+      </label>
+
+      <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+        <button
+          onClick={handleConfirm}
+          style={{
+            flex: 1,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: theme.colors.primary.main,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.base,
+          }}
+        >
+          {t('emailDetail.schedulingRequest.proposedTime.confirm')}
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: STRING_TRANSPARENT,
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.base,
+          }}
+        >
+          {t('emailDetail.schedulingRequest.proposedTime.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface ProposedTimeCardProps {
+  proposal: MeetingProposal;
+  creating: boolean;
+  created: boolean;
+  eventLink: string | null;
+  emailSubject: string;
+  onCreateInvite: (time: string, duration: number, topic: string) => void;
+}
+
+const DEFAULT_DURATION = 30;
+
+const ProposedTimeCard: React.FC<ProposedTimeCardProps> = ({
+  proposal,
+  creating,
+  created,
+  eventLink,
+  emailSubject,
+  onCreateInvite,
+}) => {
+  const { t } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+
+  const availabilityColor =
+    proposal.isAvailable === true
+      ? theme.colors.accent.success
+      : proposal.isAvailable === false
+        ? theme.colors.accent.error
+        : theme.colors.text.tertiary;
+
+  const availabilityText =
+    proposal.isAvailable === true
+      ? t('emailDetail.schedulingRequest.proposedTime.available')
+      : proposal.isAvailable === false
+        ? t('emailDetail.schedulingRequest.proposedTime.conflict')
+        : proposal.calendarConnected
+          ? t('emailDetail.schedulingRequest.proposedTime.checkFailed')
+          : null;
+
+  const handleConfirmEdit = (time: string, duration: number, topic: string) => {
+    setIsEditing(false);
+    onCreateInvite(time, duration, topic);
+  };
+
+  if (isEditing && proposal.proposedTime) {
+    return (
+      <EditMeetingForm
+        initialTime={proposal.proposedTime}
+        initialDuration={proposal.durationMinutes ?? DEFAULT_DURATION}
+        initialTopic={proposal.topic ?? emailSubject ?? ''}
+        onConfirm={handleConfirmEdit}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+      {/* Proposed time details */}
+      <div
+        style={{
+          backgroundColor: theme.colors.background.default,
+          borderRadius: theme.borderRadius.sm,
+          padding: theme.spacing.sm,
+          border: `1px solid ${theme.colors.border.light}`,
+        }}
+      >
+        <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginBottom: '2px' }}>
+          {t('emailDetail.schedulingRequest.proposedTime.label')}
+        </div>
+        <div style={{ fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+          {proposal.proposedTimeText}
+        </div>
+        {proposal.topic && (
+          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginTop: '2px' }}>
+            {proposal.topic}
+          </div>
+        )}
+        {availabilityText && (
+          <div style={{ fontSize: theme.typography.fontSize.sm, color: availabilityColor, marginTop: theme.spacing.xs }}>
+            {availabilityText}
+          </div>
+        )}
+      </div>
+
+      {/* Create Calendar Invite button or view event link */}
+      {created && eventLink ? (
+        <a
+          href={eventLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.xs,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            backgroundColor: theme.colors.accent.success,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
+            borderRadius: theme.borderRadius.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+            fontSize: theme.typography.fontSize.lg,
+            textDecoration: 'none',
+          }}
+        >
+          {t('emailDetail.schedulingRequest.proposedTime.viewEvent')}
+        </a>
+      ) : (
+        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+          <button
+            onClick={() => onCreateInvite(
+              proposal.proposedTime!,
+              proposal.durationMinutes ?? DEFAULT_DURATION,
+              proposal.topic ?? emailSubject ?? 'Meeting',
+            )}
+            disabled={creating || created}
+            style={{
+              flex: 1,
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: creating ? theme.colors.border.medium : theme.colors.primary.main,
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
+              borderRadius: theme.borderRadius.md,
+              fontWeight: theme.typography.fontWeight.semibold,
+              cursor: creating ? 'not-allowed' : 'pointer',
+              fontSize: theme.typography.fontSize.lg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            {creating
+              ? t('emailDetail.schedulingRequest.proposedTime.creating')
+              : t('emailDetail.schedulingRequest.proposedTime.createInvite')}
+          </button>
+
+          {!creating && !created && proposal.proposedTime && (
+            <button
+              onClick={() => setIsEditing(true)}
+              title={t('emailDetail.schedulingRequest.proposedTime.edit')}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: STRING_TRANSPARENT,
+                color: theme.colors.text.secondary,
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.lg,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t('emailDetail.schedulingRequest.proposedTime.edit')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ email, onDraftReply }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [linkCopied, setLinkCopied] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [proposal, setProposal] = useState<MeetingProposal | null>(null);
+  const [proposalLoading, setProposalLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
+  const [eventLink, setEventLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setProposalLoading(true);
+    axios
+      .post<MeetingProposal>(`${API_URL}/calendar/check-proposed-time/${email.id}`)
+      .then((res) => {
+        if (!cancelled) {
+          setProposal(res.data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProposal(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setProposalLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [email.id]);
 
   const handleCopyLink = useCallback(async () => {
     const schedulingUrl = `${window.location.origin}/book/${user?.id ?? ''}`;
@@ -114,6 +495,34 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
       setDrafting(false);
     }
   }, [email.id, onDraftReply]);
+
+  const handleCreateInvite = useCallback(async (
+    proposedTime: string,
+    durationMinutes: number,
+    topic: string,
+  ) => {
+    setCreating(true);
+    captureEvent(ANALYTICS_EVENTS.SCHEDULING_DRAFT_REPLY_CLICKED, { email_id: email.id, action: 'create_invite' });
+    try {
+      const response = await axios.post<{ meetLink: string | null; eventId: string | null }>(
+        `${API_URL}/calendar/create-from-email-proposal`,
+        {
+          emailId: email.id,
+          proposedTime,
+          topic,
+          durationMinutes,
+        },
+      );
+      setCreated(true);
+      setEventLink(response.data.meetLink);
+    } catch (err) {
+      console.error('Failed to create calendar invite:', err);
+    } finally {
+      setCreating(false);
+    }
+  }, [email.id]);
+
+  const showProposedTimeCard = !proposalLoading && proposal?.hasProposal === true && Boolean(proposal.proposedTime);
 
   return (
     <div
@@ -148,15 +557,28 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({ em
           lineHeight: theme.typography.lineHeight.normal,
         }}
       >
-        {t('emailDetail.schedulingRequest.description')}
+        {showProposedTimeCard
+          ? t('emailDetail.schedulingRequest.proposedTime.description')
+          : t('emailDetail.schedulingRequest.description')}
       </div>
 
-      <SchedulingActionButtons
-        linkCopied={linkCopied}
-        drafting={drafting}
-        onCopyLink={handleCopyLink}
-        onDraftReply={handleDraftReply}
-      />
+      {showProposedTimeCard ? (
+        <ProposedTimeCard
+          proposal={proposal!}
+          creating={creating}
+          created={created}
+          eventLink={eventLink}
+          emailSubject={email.subject ?? ''}
+          onCreateInvite={handleCreateInvite}
+        />
+      ) : (
+        <SchedulingActionButtons
+          linkCopied={linkCopied}
+          drafting={drafting}
+          onCopyLink={handleCopyLink}
+          onDraftReply={handleDraftReply}
+        />
+      )}
     </div>
   );
 };

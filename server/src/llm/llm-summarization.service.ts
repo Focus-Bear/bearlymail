@@ -145,6 +145,13 @@ export class LLMSummarizationService {
     category: string | null;
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
+    meetingProposal: {
+      hasProposal: boolean;
+      proposedTime: string | null;
+      proposedTimeText: string | null;
+      topic: string | null;
+      durationMinutes: number | null;
+    } | null;
   }> {
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
@@ -199,6 +206,7 @@ export class LLMSummarizationService {
           ? cappedExistingActions.join("\n")
           : "",
       emailCategories,
+      currentDatetime: new Date().toISOString(),
     });
 
     const PHISHING_JSON_TOKEN_OVERHEAD = 150;
@@ -221,7 +229,7 @@ export class LLMSummarizationService {
   }
 
   /**
-   * Parse a `{ summary, phishing, sentiment, category, categoryExplanation, actionItems }` JSON response from the LLM.
+   * Parse a `{ summary, phishing, sentiment, category, categoryExplanation, actionItems, meetingProposal }` JSON response from the LLM.
    */
   parseSummaryWithPhishing(response: string): {
     summary: string;
@@ -230,6 +238,13 @@ export class LLMSummarizationService {
     category: string | null;
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
+    meetingProposal: {
+      hasProposal: boolean;
+      proposedTime: string | null;
+      proposedTimeText: string | null;
+      topic: string | null;
+      durationMinutes: number | null;
+    } | null;
   } {
     try {
       const parsed = tryParseJsonObjectFromLlmResponse(response);
@@ -244,6 +259,9 @@ export class LLMSummarizationService {
               ? parsed.categoryExplanation
               : null;
           const actionItems = this.validateActionItems(parsed.actionItems);
+          const meetingProposal = this.validateMeetingProposal(
+            parsed.meetingProposal,
+          );
           return {
             summary: summaryText,
             phishing: this.validatePhishingLLMResult(parsed.phishing),
@@ -251,6 +269,7 @@ export class LLMSummarizationService {
             category,
             categoryExplanation,
             actionItems,
+            meetingProposal,
           };
         }
       }
@@ -264,6 +283,29 @@ export class LLMSummarizationService {
       category: null,
       categoryExplanation: null,
       actionItems: null,
+      meetingProposal: null,
+    };
+  }
+
+  validateMeetingProposal(value: unknown): {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } | null {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Record<string, unknown>;
+    if (typeof raw.hasProposal !== "boolean") return null;
+    return {
+      hasProposal: raw.hasProposal,
+      proposedTime:
+        typeof raw.proposedTime === "string" ? raw.proposedTime : null,
+      proposedTimeText:
+        typeof raw.proposedTimeText === "string" ? raw.proposedTimeText : null,
+      topic: typeof raw.topic === "string" ? raw.topic : null,
+      durationMinutes:
+        typeof raw.durationMinutes === "number" ? raw.durationMinutes : null,
     };
   }
 
@@ -322,6 +364,13 @@ export class LLMSummarizationService {
     category: string | null;
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
+    meetingProposal: {
+      hasProposal: boolean;
+      proposedTime: string | null;
+      proposedTimeText: string | null;
+      topic: string | null;
+      durationMinutes: number | null;
+    } | null;
   }> {
     const PHISHING_JSON_TOKEN_OVERHEAD = 300;
 

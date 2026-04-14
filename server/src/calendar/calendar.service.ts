@@ -12,6 +12,7 @@ import {
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "../emails/emails.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { LLMService } from "../llm/llm.service";
@@ -29,7 +30,9 @@ import {
 import { BusyPeriod, calculateFreeSlots } from "./calendar-free-slots.helper";
 import { CalendarIcsService } from "./calendar-ics.service";
 import {
+  checkMeetingProposal,
   generateMeetingReply,
+  MeetingProposalResult,
   respondToInvitation,
   rsvpByEventId,
 } from "./calendar-invitation-response.service";
@@ -63,6 +66,8 @@ export class CalendarService {
     public schedulingPreferencesService: SchedulingPreferencesService,
     @InjectRepository(CalendarBooking)
     public calendarBookingRepository: Repository<CalendarBooking>,
+    @InjectRepository(EmailThread)
+    public emailThreadRepository: Repository<EmailThread>,
     public calendarAgendaService: CalendarAgendaService,
     public calendarIcsService: CalendarIcsService,
   ) {}
@@ -266,8 +271,9 @@ export class CalendarService {
     // Generate booking token for reschedule/cancel links
     const bookingToken = this.generateBookingToken();
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const rescheduleUrl = `${frontendUrl}/booking/${bookingToken}/reschedule`;
-    const cancelUrl = `${frontendUrl}/booking/${bookingToken}/cancel`;
+    const bookingBase = frontendUrl.replace(/\/$/, "");
+    const rescheduleUrl = `${bookingBase}/booking/${bookingToken}/reschedule`;
+    const cancelUrl = `${bookingBase}/booking/${bookingToken}/cancel`;
 
     // Add reschedule/cancel links to description
     const enhancedDescription = `${description || "Scheduled via BearlyMail"}
@@ -623,6 +629,48 @@ Manage this booking:
     provider?: "gemini" | "openai",
   ): Promise<string> {
     return generateMeetingReply(this, userId, emailId, provider);
+  }
+
+  /**
+   * Detect whether an email proposes a specific meeting time and check if
+   * that slot is free on the user's Google Calendar.
+   */
+  async checkMeetingProposal(
+    userId: string,
+    emailId: string,
+  ): Promise<MeetingProposalResult> {
+    return checkMeetingProposal(this, userId, emailId);
+  }
+
+  /**
+   * Create a calendar event using the sender of an email as the guest.
+   * Used when a sender proposes a specific time and the user confirms it.
+   */
+  async createEventFromEmailProposal(
+    userId: string,
+    emailId: string,
+    proposedTime: string,
+    topic: string,
+    durationMinutes: number,
+  ): Promise<{ meetLink: string | null; eventId: string | null }> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    const event = await this.createEvent({
+      userId,
+      startTime: proposedTime,
+      durationMinutes,
+      guestEmail: email.from,
+      guestName: email.fromName || undefined,
+      title: topic,
+    });
+
+    return {
+      meetLink: event.meetLink,
+      eventId: event.id ?? null,
+    };
   }
 
   // ---------------------------------------------------------------------------

@@ -8,13 +8,19 @@ import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMProvider } from "./llm.types";
 import { LLMCoreService } from "./llm-core.service";
 import {
+  LLM_OP_DETECT_MEETING_PROPOSAL,
   LLM_OP_GENERATE_FOLLOW_UP,
   LLM_OP_GENERATE_MEETING_REPLY,
   LLM_OP_GENERATE_REPLY,
   LLM_OP_GENERATE_REPLY_OPTIONS,
   type LLMOperation,
 } from "./llm-operations";
-import { getPrompt, renderPrompt, REPLY_PROMPT_IDS } from "./prompts";
+import {
+  CALENDAR_PROMPT_IDS,
+  getPrompt,
+  renderPrompt,
+  REPLY_PROMPT_IDS,
+} from "./prompts";
 
 /**
  * Domain service for LLM-powered reply generation (options, drafts, meeting replies, follow-ups).
@@ -413,5 +419,106 @@ export class LLMReplyService {
       LLM_OP_GENERATE_FOLLOW_UP,
     );
     return normalizeGeneratedReplyPlaintext(followUp);
+  }
+
+  /**
+   * Analyse an email to detect whether the sender proposes a specific meeting time.
+   * Returns structured proposal data (time, topic, duration) or hasProposal=false.
+   */
+  async detectMeetingProposal(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  }> {
+    const promptConfig = getPrompt(CALENDAR_PROMPT_IDS.DETECT_MEETING_PROPOSAL);
+    if (!promptConfig) {
+      this.logger.error(
+        "detect_meeting_proposal prompt not found — cannot detect meeting proposal",
+      );
+      return {
+        hasProposal: false,
+        proposedTime: null,
+        proposedTimeText: null,
+        topic: null,
+        durationMinutes: null,
+      };
+    }
+
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      currentDatetime: new Date().toISOString(),
+      from: email.from,
+      fromName: email.fromName || email.from,
+      subject: email.subject,
+      body: cleanedBody,
+    });
+
+    try {
+      const response = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: 0.1,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_TINY,
+          jsonMode: true,
+          userId,
+        },
+        provider,
+        userId,
+        LLM_OP_DETECT_MEETING_PROPOSAL,
+      );
+
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return {
+          hasProposal: false,
+          proposedTime: null,
+          proposedTimeText: null,
+          topic: null,
+          durationMinutes: null,
+        };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        hasProposal?: boolean;
+        proposedTime?: string | null;
+        proposedTimeText?: string | null;
+        topic?: string | null;
+        durationMinutes?: number | null;
+      };
+
+      return {
+        hasProposal: parsed.hasProposal === true,
+        proposedTime: parsed.proposedTime ?? null,
+        proposedTimeText: parsed.proposedTimeText ?? null,
+        topic: parsed.topic ?? null,
+        durationMinutes: parsed.durationMinutes ?? null,
+      };
+    } catch (error) {
+      this.logger.warn("Failed to detect meeting proposal", error);
+      return {
+        hasProposal: false,
+        proposedTime: null,
+        proposedTimeText: null,
+        topic: null,
+        durationMinutes: null,
+      };
+    }
   }
 }

@@ -72,6 +72,7 @@ export const CONTEXT_PROMPT_IDS = {
  */
 export const CALENDAR_PROMPT_IDS = {
   GENERATE_BOOKING_TITLE: "generate_booking_title",
+  DETECT_MEETING_PROPOSAL: "detect_meeting_proposal",
 } as const;
 
 /**
@@ -205,6 +206,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "batch-priority-triage.md",
     key: PRIORITY_PROMPT_IDS.BATCH_PRIORITY_TRIAGE,
+  },
+  {
+    file: "detect-meeting-proposal.md",
+    key: CALENDAR_PROMPT_IDS.DETECT_MEETING_PROPOSAL,
   },
 ];
 

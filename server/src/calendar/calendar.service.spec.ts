@@ -3,6 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { google } from "googleapis";
 
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "../emails/emails.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { LLMService } from "../llm/llm.service";
@@ -41,6 +42,7 @@ describe("CalendarService", () => {
   let emailsService: jest.Mocked<EmailsService>;
   let calendarIcsService: jest.Mocked<CalendarIcsService>;
   let mockCalendarBookingRepository: Record<string, unknown>;
+  let mockEmailThreadRepository: Record<string, unknown>;
   let mockOAuth2Client: Record<string, unknown>;
   let mockCalendar: Record<string, unknown>;
 
@@ -82,6 +84,10 @@ describe("CalendarService", () => {
       save: jest.fn(),
     };
 
+    mockEmailThreadRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+
     google.auth.OAuth2 = jest.fn().mockImplementation(() => mockOAuth2Client);
     (google.calendar as jest.Mock).mockReturnValue(mockCalendar);
 
@@ -91,6 +97,10 @@ describe("CalendarService", () => {
         {
           provide: getRepositoryToken(CalendarBooking),
           useValue: mockCalendarBookingRepository,
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
         },
         {
           provide: UsersService,
@@ -109,6 +119,7 @@ describe("CalendarService", () => {
           provide: LLMService,
           useValue: {
             generateMeetingReply: jest.fn(),
+            detectMeetingProposal: jest.fn(),
           },
         },
         {
@@ -642,16 +653,26 @@ describe("CalendarService", () => {
   describe("generateMeetingReply", () => {
     const BOOKING_URL = "https://cal.example.com/booking";
 
-    it("returns config prompt when schedulingLinkUrl is null (no profile URL, no env var)", async () => {
+    it("falls back to BearlyMail booking URL when no profile URL or env var is set", async () => {
       const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: null };
       usersService.findOne.mockResolvedValue(userWithoutBookingUrl);
       emailsService.getEmailById.mockResolvedValue(mockEmail);
       delete process.env.CALENDAR_BOOKING_URL;
+      delete process.env.FRONTEND_URL;
+      llmService.generateMeetingReply.mockResolvedValue(
+        "Here is my booking link...",
+      );
 
       const result = await service.generateMeetingReply("user-1", "email-1");
 
-      expect(result).toContain("set up your scheduling link");
-      expect(llmService.generateMeetingReply).not.toHaveBeenCalled();
+      expect(llmService.generateMeetingReply).toHaveBeenCalledWith(
+        expect.objectContaining({ from: mockEmail.from }),
+        [],
+        "http://localhost:3000/book/user-1",
+        undefined,
+        "user-1",
+      );
+      expect(result).toBe("Here is my booking link...");
     });
 
     it("calls llmService.generateMeetingReply with calendarBookingUrl from user profile when set", async () => {
@@ -707,15 +728,28 @@ describe("CalendarService", () => {
       delete process.env.CALENDAR_BOOKING_URL;
     });
 
-    it("returns null when neither profile URL nor env var is set", async () => {
+    it("falls back to BearlyMail booking URL with FRONTEND_URL when no profile URL or CALENDAR_BOOKING_URL", async () => {
       const userWithoutBookingUrl = { ...mockUser, calendarBookingUrl: "" };
       usersService.findOne.mockResolvedValue(userWithoutBookingUrl);
       emailsService.getEmailById.mockResolvedValue(mockEmail);
       delete process.env.CALENDAR_BOOKING_URL;
+      process.env.FRONTEND_URL = "https://app.bearlymail.com";
+      llmService.generateMeetingReply.mockResolvedValue(
+        "Here is my booking link...",
+      );
 
       const result = await service.generateMeetingReply("user-1", "email-1");
 
-      expect(result).toContain("set up your scheduling link");
+      expect(llmService.generateMeetingReply).toHaveBeenCalledWith(
+        expect.anything(),
+        [],
+        "https://app.bearlymail.com/book/user-1",
+        undefined,
+        "user-1",
+      );
+      expect(result).toBe("Here is my booking link...");
+
+      delete process.env.FRONTEND_URL;
     });
 
     it("should throw error when email not found", async () => {
@@ -1622,6 +1656,182 @@ describe("CalendarService", () => {
       await expect(
         service.rsvpByEventId("user-1", "gcal-event-123", "accepted"),
       ).rejects.toThrow("no attendees");
+    });
+  });
+
+  describe("checkMeetingProposal", () => {
+    it("returns hasProposal=false when LLM detects no proposal", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: false,
+        proposedTime: null,
+        proposedTimeText: null,
+        topic: null,
+        durationMinutes: null,
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(false);
+      expect(result.isAvailable).toBeNull();
+    });
+
+    it("returns isAvailable=null when calendar not connected", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-04-15T09:00:00Z",
+        proposedTimeText: "Tuesday 15 April at 9am",
+        topic: "Meeting Request",
+        durationMinutes: 30,
+      });
+      usersService.findOne.mockResolvedValue(
+        mockPartial({ ...mockUser, googleCalendarAccessToken: null }),
+      );
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.proposedTime).toBe("2026-04-15T09:00:00Z");
+      expect(result.isAvailable).toBeNull();
+      expect(result.calendarConnected).toBe(false);
+    });
+
+    it("returns isAvailable=true when the slot is free", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-04-15T09:00:00Z",
+        proposedTimeText: "Tuesday 15 April at 9am",
+        topic: "Meeting Request",
+        durationMinutes: 30,
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.isAvailable).toBe(true);
+      expect(result.calendarConnected).toBe(true);
+    });
+
+    it("returns isAvailable=false when the slot has a conflict", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      llmService.detectMeetingProposal = jest.fn().mockResolvedValue({
+        hasProposal: true,
+        proposedTime: "2026-04-15T09:00:00Z",
+        proposedTimeText: "Tuesday 15 April at 9am",
+        topic: "Meeting Request",
+        durationMinutes: 30,
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [
+                {
+                  start: "2026-04-15T09:00:00Z",
+                  end: "2026-04-15T10:00:00Z",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.isAvailable).toBe(false);
+    });
+
+    it("uses stored meetingProposal from EmailThread instead of calling LLM", async () => {
+      const emailWithThread = {
+        ...mockEmail,
+        emailThreadId: "thread-uuid-1",
+      };
+      emailsService.getEmailById.mockResolvedValue(emailWithThread);
+      mockEmailThreadRepository.findOne = jest.fn().mockResolvedValue({
+        id: "thread-uuid-1",
+        meetingProposal: {
+          hasProposal: true,
+          proposedTime: "2026-04-15T09:00:00Z",
+          proposedTimeText: "Tuesday 15 April at 9am",
+          topic: "Stored Topic",
+          durationMinutes: 45,
+        },
+      });
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: { calendars: { primary: { busy: [] } } },
+      });
+
+      const result = await service.checkMeetingProposal("user-1", "email-1");
+
+      expect(result.hasProposal).toBe(true);
+      expect(result.proposedTime).toBe("2026-04-15T09:00:00Z");
+      expect(result.topic).toBe("Stored Topic");
+      expect(result.durationMinutes).toBe(45);
+      expect(result.isAvailable).toBe(true);
+      // LLM should NOT have been called since we used the cached value
+      expect(llmService.detectMeetingProposal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createEventFromEmailProposal", () => {
+    it("creates calendar event with email sender as guest", async () => {
+      emailsService.getEmailById.mockResolvedValue(mockEmail);
+      usersService.findOne.mockResolvedValue(mockUser);
+      mockCalendarBookingRepository.save.mockResolvedValue({});
+      mockCalendar.events.insert.mockResolvedValue({
+        data: {
+          id: "gcal-event-new",
+          conferenceData: {
+            entryPoints: [
+              { entryPointType: "video", uri: "https://meet.google.com/abc-def" },
+            ],
+          },
+        },
+      });
+
+      const result = await service.createEventFromEmailProposal(
+        "user-1",
+        "email-1",
+        "2026-04-15T09:00:00Z",
+        "Meeting Request",
+        30,
+      );
+
+      expect(mockCalendar.events.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: expect.objectContaining({
+            summary: "Meeting Request",
+            attendees: expect.arrayContaining([
+              { email: "sender@example.com" },
+            ]),
+          }),
+        }),
+      );
+      expect(result.meetLink).toBe("https://meet.google.com/abc-def");
+      expect(result.eventId).toBe("gcal-event-new");
+    });
+
+    it("throws when email not found", async () => {
+      emailsService.getEmailById.mockResolvedValue(null);
+
+      await expect(
+        service.createEventFromEmailProposal(
+          "user-1",
+          "nonexistent",
+          "2026-04-15T09:00:00Z",
+          "Meeting",
+          30,
+        ),
+      ).rejects.toThrow("Email not found");
     });
   });
 });

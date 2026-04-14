@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -60,6 +61,71 @@ export class CalendarController {
         body?.provider,
       ),
     };
+  }
+
+  /**
+   * Analyse an email to detect whether the sender proposes a specific meeting
+   * time, and check whether that time is free on the user's calendar.
+   * POST /calendar/check-proposed-time/:emailId
+   */
+  @Post("check-proposed-time/:emailId")
+  async checkProposedTime(
+    @Request() req,
+    @Param("emailId") emailId: string,
+  ) {
+    try {
+      return await this.calendarService.checkMeetingProposal(
+        req.user.userId,
+        emailId,
+      );
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[check-proposed-time] error: ${message}`);
+      throw new InternalServerErrorException(
+        "An unexpected error occurred while checking the proposed meeting time",
+      );
+    }
+  }
+
+  /**
+   * Create a calendar event directly from an email proposal.
+   * Uses the email sender as the guest and the proposed time.
+   * POST /calendar/create-from-email-proposal
+   */
+  @Post("create-from-email-proposal")
+  async createFromEmailProposal(
+    @Request() req,
+    @Body()
+    body: {
+      emailId: string;
+      proposedTime: string;
+      topic: string;
+      durationMinutes?: number;
+    },
+  ) {
+    const DEFAULT_DURATION = 30;
+    if (!body.emailId || !body.proposedTime || !body.topic) {
+      throw new BadRequestException(
+        "emailId, proposedTime and topic are required",
+      );
+    }
+    try {
+      return await this.calendarService.createEventFromEmailProposal(
+        req.user.userId,
+        body.emailId,
+        body.proposedTime,
+        body.topic,
+        body.durationMinutes ?? DEFAULT_DURATION,
+      );
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[create-from-email-proposal] error: ${message}`);
+      throw new InternalServerErrorException(
+        "An unexpected error occurred while creating the calendar event",
+      );
+    }
   }
 
   @Post("invitation/:emailId/respond")

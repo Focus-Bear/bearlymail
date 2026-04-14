@@ -419,6 +419,7 @@ export class SummarizationService {
         category: null,
         categoryExplanation: null,
         actionItems: null,
+        meetingProposal: null,
       };
     }
 
@@ -520,6 +521,7 @@ export class SummarizationService {
         category: result.category,
         categoryExplanation: result.categoryExplanation,
         actionItems: result.actionItems ?? null,
+        meetingProposal: result.meetingProposal ?? null,
       };
     } catch (error) {
       logError(
@@ -631,6 +633,7 @@ export class SummarizationService {
         category: null,
         categoryExplanation: null,
         actionItems: null,
+        meetingProposal: null,
       };
     } catch (fallbackError) {
       const err =

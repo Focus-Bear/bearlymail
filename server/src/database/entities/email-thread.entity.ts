@@ -308,6 +308,21 @@ export class EmailThread {
   })
   hasBlockedLabel: boolean;
 
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment:
+      "Meeting proposal detected during summarization (stored to avoid re-running LLM on every email open). " +
+      "hasProposal=false means no specific time was found; null means not yet analysed.",
+  })
+  meetingProposal: {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } | null;
+
   @OneToMany(() => Email, (email) => email.thread)
   emails: Email[];
 }

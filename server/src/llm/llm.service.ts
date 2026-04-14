@@ -154,6 +154,13 @@ export class LLMService {
     category: string | null;
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
+    meetingProposal: {
+      hasProposal: boolean;
+      proposedTime: string | null;
+      proposedTimeText: string | null;
+      topic: string | null;
+      durationMinutes: number | null;
+    } | null;
   }> {
     const {
       emailBody,
@@ -199,6 +206,13 @@ export class LLMService {
     category: string | null;
     categoryExplanation: string | null;
     actionItems: Array<{ description: string; confidence: number }> | null;
+    meetingProposal: {
+      hasProposal: boolean;
+      proposedTime: string | null;
+      proposedTimeText: string | null;
+      topic: string | null;
+      durationMinutes: number | null;
+    } | null;
   }> {
     const {
       emailBody,
@@ -685,5 +699,26 @@ export class LLMService {
       provider,
       userId,
     );
+  }
+
+  // ─── Calendar / Meeting ───────────────────────────────────────────────────
+
+  async detectMeetingProposal(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  }> {
+    return this.llmReplyService.detectMeetingProposal(email, provider, userId);
   }
 }

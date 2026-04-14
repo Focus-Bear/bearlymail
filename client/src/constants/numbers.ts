@@ -198,7 +198,10 @@ export const POLLING_DELAY_MS = 500;
 
 // Scheduling options
 export const SCHEDULING_GAP_15_MIN = 15;
+export const SCHEDULING_GAP_30_MIN = 30;
 export const SCHEDULING_GAP_45_MIN = 45;
+export const SCHEDULING_GAP_60_MIN = 60;
+export const SCHEDULING_GAP_90_MIN = 90;
 
 // Font weight values for inline styles
 export const FONT_WEIGHT_BOLD_INLINE = 700;

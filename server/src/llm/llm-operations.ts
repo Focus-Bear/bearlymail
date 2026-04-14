@@ -117,6 +117,9 @@ export const LLM_OP_CATEGORY_SHORTLIST = "category_shortlist";
 // Batch priority triage: lightweight check if category/priority needs reanalysis (cheap model)
 export const LLM_OP_BATCH_PRIORITY_TRIAGE = "batch_priority_triage";
 
+// Detect whether an email proposes a specific meeting time and extract details
+export const LLM_OP_DETECT_MEETING_PROPOSAL = "detect_meeting_proposal";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -161,6 +164,7 @@ export type LLMOperation =
   | typeof LLM_OP_GENERATE_BOOKING_TITLE
   | typeof LLM_OP_CATEGORY_SHORTLIST
   | typeof LLM_OP_BATCH_PRIORITY_TRIAGE
+  | typeof LLM_OP_DETECT_MEETING_PROPOSAL
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -204,5 +208,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_GENERATE_BOOKING_TITLE]: "Generate Booking Title",
   [LLM_OP_CATEGORY_SHORTLIST]: "Category Shortlist",
   [LLM_OP_BATCH_PRIORITY_TRIAGE]: "Batch Priority Triage",
+  [LLM_OP_DETECT_MEETING_PROPOSAL]: "Detect Meeting Proposal",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

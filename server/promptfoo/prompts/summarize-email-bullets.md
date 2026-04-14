@@ -68,14 +68,24 @@ Context:
 Return a JSON object (no markdown fences) with exactly these fields.
 The **summary** value must be plain prose only (bullet-style text is fine). Do not put JSON or markdown inside the `summary` string.
 
+Current datetime (UTC): {{currentDatetime}}
+
 {
   "summary": "<your bullet-point summary here>",
   "phishing": <null if clearly legitimate, or { "is_phishing": true|false, "confidence": "low"|"medium"|"high", "reason": "<one sentence>" } if suspicious>,
   "sentiment": { "score": <number from -1.0 (very negative) to 1.0 (very positive), 0 = neutral>, "explanation": "<one sentence describing the tone>" },
   "category": "<choose from the available categories listed below, or Other if none fit>",
   "categoryExplanation": "<one sentence explaining why this category was chosen>",
-  "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }]
+  "actionItems": [{ "description": "<task the recipient needs to do>", "confidence": <0.0-1.0> }],
+  "meetingProposal": { "hasProposal": <true|false>, "proposedTime": "<ISO 8601 UTC or null>", "proposedTimeText": "<human-readable text from email or null>", "topic": "<meeting title max 60 chars or null>", "durationMinutes": <integer or null> }
 }
+
+MEETING PROPOSAL DETECTION — for the `meetingProposal` field:
+- Set `hasProposal: true` ONLY when the email proposes a **specific** date AND time (e.g. "Tuesday April 15 at 9am"). DO NOT set true for vague requests like "let's find a time", "sometime next week", or "when are you free?"
+- `proposedTime`: convert to ISO 8601 UTC using the current datetime above. If timezone is unknown, assume UTC. Null if no specific proposal.
+- `proposedTimeText`: the time as written in the email. Null if no proposal.
+- `topic`: derive from subject/body, max 60 chars. Null if no proposal.
+- `durationMinutes`: extract if stated (e.g. "30-minute call" → 30). Null if not specified.
 
 PHISHING ANALYSIS — when evaluating phishing, consider:
 - Does the sender domain match the domains linked in the body?

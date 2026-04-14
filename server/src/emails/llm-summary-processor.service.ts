@@ -39,6 +39,13 @@ type SummaryLlmCallResult = {
   category: string | null;
   categoryExplanation: string | null;
   actionItems: Array<{ description: string; confidence: number }> | null;
+  meetingProposal: {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } | null;
   error: unknown;
 };
 
@@ -261,6 +268,7 @@ export class LLMSummaryProcessorService {
             category: result.category,
             categoryExplanation: result.categoryExplanation,
             actionItems: result.actionItems ?? null,
+            meetingProposal: result.meetingProposal ?? null,
             error: null,
           };
         } catch (error) {
@@ -279,6 +287,7 @@ export class LLMSummaryProcessorService {
             category: null,
             categoryExplanation: null,
             actionItems: null,
+            meetingProposal: null,
             error,
           };
         }
@@ -397,6 +406,7 @@ export class LLMSummaryProcessorService {
       category,
       categoryExplanation,
       actionItems,
+      meetingProposal,
     } = result;
     const threadEmails = await this.emailsService.getThreadEmails(
       jobEntry.userId,
@@ -441,6 +451,7 @@ export class LLMSummaryProcessorService {
             ? { categoryId: matchedCategoryId }
             : {}),
           ...(protoCategoryId !== undefined ? { protoCategoryId } : {}),
+          ...(meetingProposal !== null ? { meetingProposal } : {}),
         },
       );
     }

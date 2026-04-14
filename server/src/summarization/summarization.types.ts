@@ -49,4 +49,11 @@ export interface SummarizeWithPhishingResult {
   category: string | null;
   categoryExplanation: string | null;
   actionItems: Array<{ description: string; confidence: number }> | null;
+  meetingProposal: {
+    hasProposal: boolean;
+    proposedTime: string | null;
+    proposedTimeText: string | null;
+    topic: string | null;
+    durationMinutes: number | null;
+  } | null;
 }

@@ -31,9 +31,24 @@ export function useInboxCategorySync({
       if (stableCategoryOrder.length === 0) {
         onUpdateStableCategoryOrder(summaryKeys, summaryCategories);
       } else {
-        const newKeys = summaryKeys.filter(key => !stableCategoryOrder.includes(key));
-        if (newKeys.length > 0) {
-          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys], summaryCategories);
+        // Re-order existing categories to match the server's priority-sorted order.
+        // The server sorts categories by their max thread priority score (descending),
+        // so we always reflect the latest priority ranking rather than the initial load
+        // order. Without this, a low-priority category (e.g. Newsletters, max -1) can
+        // remain pinned at the top even after a high-priority category (e.g. Payments,
+        // max 70) rises above it — because the old code only appended new keys.
+        // Client-only keys (categories loaded lazily that the server hasn't reported yet)
+        // are preserved at the end of the list.
+        const serverKeySet = new Set(summaryKeys);
+        const clientOnlyKeys = stableCategoryOrder.filter(key => !serverKeySet.has(key));
+        const reorderedKeys = [...summaryKeys, ...clientOnlyKeys];
+        // Only trigger an update when the order actually changed to avoid unnecessary
+        // re-renders that could disrupt the user while they are reading.
+        const orderChanged =
+          reorderedKeys.length !== stableCategoryOrder.length ||
+          reorderedKeys.some((key, idx) => key !== stableCategoryOrder[idx]);
+        if (orderChanged) {
+          onUpdateStableCategoryOrder(reorderedKeys, summaryCategories);
         }
       }
     } else if (!summaryCategories) {

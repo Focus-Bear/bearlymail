@@ -11,6 +11,9 @@ import { ContactGroup } from 'types/contactGroup';
 import { COLOR_WHITE } from 'constants/colors';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
+/** Opacity for primary controls that are temporarily disabled (matches common UI convention). */
+const DISABLED_PRIMARY_OPACITY = 0.6;
+
 interface ContactGroupMembershipProps {
   contactId: string;
   contactEmail: string;
@@ -219,7 +222,7 @@ export const ContactGroupMembership: React.FC<ContactGroupMembershipProps> = ({
                 disabled={createMutation.isPending || !newGroupName.trim()}
                 style={{
                   ...buttonPrimary,
-                  opacity: createMutation.isPending || !newGroupName.trim() ? 0.6 : 1,
+                  opacity: createMutation.isPending || !newGroupName.trim() ? DISABLED_PRIMARY_OPACITY : 1,
                   cursor: createMutation.isPending || !newGroupName.trim() ? 'not-allowed' : 'pointer',
                 }}
               >

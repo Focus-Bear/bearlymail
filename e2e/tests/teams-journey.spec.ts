@@ -110,12 +110,14 @@ test.describe('TeamSettings in Settings page', () => {
     await expect(page.getByText(/team/i).first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('shows member list or "no members" message', async ({ page }) => {
-    const teamHeading = page.getByText(/^Team$/i);
-    await teamHeading.waitFor({ state: 'visible', timeout: 8000 });
-    const hasMemberList = await page.getByText(/Members/i).isVisible();
-    const hasNoMembers = await page.getByText(/no members/i).isVisible();
-    expect(hasMemberList || hasNoMembers).toBe(true);
+  test('shows member list, empty state, or no-org message', async ({ page }) => {
+    // Team block loads org async; CI user (test@example.com) may have no org — then there is
+    // no "Members" heading, only team.settings.noOrg copy (en: "You are not part of a team organisation.").
+    await expect(page.getByRole('heading', { level: 2, name: /^team$/i })).toBeVisible({ timeout: 15000 });
+    const membersHeading = page.getByRole('heading', { level: 3, name: /^members$/i });
+    const noActiveMembers = page.getByText(/no active members yet/i);
+    const noOrg = page.getByText(/not part of a team organisation/i);
+    await expect(membersHeading.or(noActiveMembers).or(noOrg)).toBeVisible({ timeout: 15000 });
   });
 
   test('Invite form is present with email input and role select', async ({ page }) => {

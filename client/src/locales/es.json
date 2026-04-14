@@ -2313,7 +2313,6 @@
       "fieldRequiredError": "Este campo es obligatorio. Introduce al menos un valor.",
       "kindLegacyWeak": "⚠ Regla automática débil",
       "notApplicableMark": "—",
-      "confirmDelete": "¿Eliminar esta regla de categoría de forma permanente?",
       "addRuleChoiceTitle": "Añadir una regla de categoría",
       "addRuleChoiceDescription": "¿Cómo deseas crear una nueva regla?",
       "addRuleSuggestOption": "Sugerir reglas para mí",

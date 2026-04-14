@@ -771,7 +771,6 @@
       "fieldRequiredError": "This field is required. Enter at least one value.",
       "kindLegacyWeak": "⚠ Weak auto rule",
       "notApplicableMark": "—",
-      "confirmDelete": "Delete this category rule permanently?",
       "addRuleChoiceTitle": "Add a category rule",
       "addRuleChoiceDescription": "How would you like to create a new rule?",
       "addRuleSuggestOption": "Suggest rules for me",

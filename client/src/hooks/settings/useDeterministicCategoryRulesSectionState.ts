@@ -159,9 +159,6 @@ export function useDeterministicCategoryRulesSectionState() {
 
   const handleDelete = useCallback(
     async (id: string): Promise<void> => {
-      if (!window.confirm(t('settings.deterministicCategoryRules.confirmDelete'))) {
-        return;
-      }
       try {
         await deleteRule(id);
         showSuccess(t('settings.deterministicCategoryRules.deleteSuccess'));

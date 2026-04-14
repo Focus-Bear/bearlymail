@@ -123,6 +123,45 @@ describe('getCachedCategoryEmails / setCachedCategoryEmails', () => {
     setCachedCategoryEmails('inbox', 'My Category / Sub', emails);
     expect(getCachedCategoryEmails('inbox', 'My Category / Sub')).toEqual(emails);
   });
+
+  // ── TTL enforcement (fix #1769) ───────────────────────────────────────────
+
+  it('returns null when cache is expired (TTL enforcement)', () => {
+    const emails = [makeEmail('e-1')];
+    setCachedCategoryEmails('inbox', 'work', emails);
+
+    // Backdate the stored timestamp so the TTL has elapsed
+    const key = `bearlymail_${CACHE_VERSION}_cat_inbox_work`;
+    const raw = localStorage.getItem(key);
+    expect(raw).not.toBeNull();
+    const entry = JSON.parse(raw!);
+    entry.timestamp = Date.now() - 400_000; // 6+ minutes ago — well past the TTL
+    localStorage.setItem(key, JSON.stringify(entry));
+
+    expect(getCachedCategoryEmails('inbox', 'work', 300_000)).toBeNull();
+  });
+
+  it('returns cached value when cache is still within TTL', () => {
+    const emails = [makeEmail('e-2')];
+    setCachedCategoryEmails('inbox', 'work', emails);
+    // Entry was just written — timestamp is ~now, well within the TTL
+    expect(getCachedCategoryEmails('inbox', 'work', 300_000)).toEqual(emails);
+  });
+
+  it('returns cached value when no TTL is provided (default Infinity)', () => {
+    const emails = [makeEmail('e-3')];
+    setCachedCategoryEmails('inbox', 'personal', emails);
+
+    // Backdate the entry far in the past
+    const key = `bearlymail_${CACHE_VERSION}_cat_inbox_personal`;
+    const raw = localStorage.getItem(key);
+    const entry = JSON.parse(raw!);
+    entry.timestamp = Date.now() - 86_400_000; // 24 hours ago
+    localStorage.setItem(key, JSON.stringify(entry));
+
+    // No maxAgeMs passed → Infinity → always returns cached value
+    expect(getCachedCategoryEmails('inbox', 'personal')).toEqual(emails);
+  });
 });
 
 // ─── removeEmailFromCache ─────────────────────────────────────────────────────

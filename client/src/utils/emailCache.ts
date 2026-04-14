@@ -4,7 +4,7 @@
  * Pattern: stale-while-revalidate.
  * - On load: serve cached data immediately (no spinner), then refresh in background.
  * - On archive: remove the email from cache optimistically.
- * - TTL: 5 minutes. After that the cache is treated as stale but still shown while
+ * - TTL: 60 seconds. After that the cache is treated as stale but still shown while
  *   a background refresh runs.
  *
  * Fix #1571 Bug 1: cache keys now include a filter hash so that stale-while-revalidate
@@ -61,13 +61,21 @@ function categoryKey(mode: string, key: string, hash?: string): string {
   return `bearlymail_${CACHE_VERSION}_cat_${mode}_${safe}`;
 }
 
-function safeGet<T>(storageKey: string): T | null {
+/**
+ * Retrieve an entry from localStorage, returning its payload only if the entry
+ * exists and has not exceeded `maxAgeMs`. Returns `null` on any cache miss,
+ * TTL expiry, or parse error.
+ */
+function getWithTTL<T>(storageKey: string, maxAgeMs = Infinity): T | null {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) {
       return null;
     }
     const entry: CachedEntry<T> = JSON.parse(raw);
+    if (maxAgeMs !== Infinity && Date.now() - entry.timestamp > maxAgeMs) {
+      return null; // Treat as cache miss — TTL expired
+    }
     return entry.payload;
   } catch {
     return null;
@@ -97,19 +105,7 @@ function safeSet<T>(storageKey: string, value: T): void {
  * current filter configuration. Pass `filterHash(filters)` at the call site.
  */
 export function getCachedSummary(mode: string, maxAgeMs = Infinity, hash?: string): CategorySummaryItem[] | null {
-  try {
-    const raw = localStorage.getItem(summaryKey(mode, hash));
-    if (!raw) {
-      return null;
-    }
-    const entry: CachedEntry<CategorySummaryItem[]> = JSON.parse(raw);
-    if (maxAgeMs !== Infinity && Date.now() - entry.timestamp > maxAgeMs) {
-      return null; // Treat as cache miss — TTL expired
-    }
-    return entry.payload;
-  } catch {
-    return null;
-  }
+  return getWithTTL<CategorySummaryItem[]>(summaryKey(mode, hash), maxAgeMs);
 }
 
 export function setCachedSummary(mode: string, summary: CategorySummaryItem[], hash?: string): void {
@@ -142,8 +138,15 @@ export function invalidateSummaryCache(mode: string): void {
 
 // ─── Category emails ───────────────────────────────────────────────────────────
 
-export function getCachedCategoryEmails(mode: string, key: string, hash?: string): Email[] | null {
-  return safeGet<Email[]>(categoryKey(mode, key, hash));
+/**
+ * Return cached category emails only if they were stored within the last `maxAgeMs`
+ * milliseconds. Pass `Infinity` (default) to skip TTL enforcement.
+ *
+ * Fix #1769: category emails now honour the same TTL as the summary cache so that
+ * stale entries are re-fetched rather than served indefinitely.
+ */
+export function getCachedCategoryEmails(mode: string, key: string, maxAgeMs = Infinity, hash?: string): Email[] | null {
+  return getWithTTL<Email[]>(categoryKey(mode, key, hash), maxAgeMs);
 }
 
 export function setCachedCategoryEmails(mode: string, key: string, emails: Email[], hash?: string): void {

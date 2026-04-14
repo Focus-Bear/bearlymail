@@ -494,8 +494,11 @@ describe('serveCategoryFromCacheAndRefresh – root cause fix (#1213)', () => {
     // The fix ensures undefined summaryItem does NOT trigger markCategoryLoaded (old ?? 0 bug).
     (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
 
-    // Background refresh returns empty too (fire-and-forget path — test the pre-resolve state)
-    mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+    // Use a never-resolving Promise so the background refresh stays pending during this test.
+    // We want to verify only the synchronous cache path (which must NOT mark loaded when summary
+    // is undefined). Fix #1769 changed the background-refresh path to always call markCategoryLoaded,
+    // so letting it resolve would make this assertion trivially false.
+    mockedAxios.get.mockReturnValue(new Promise(() => {}) as ReturnType<typeof mockedAxios.get>);
 
     const { result } = renderHook(() => useEmailFetching({ mode: 'triage' }), { wrapper: createWrapper() });
 

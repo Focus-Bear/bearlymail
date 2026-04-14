@@ -35,7 +35,7 @@ jest.mock('utils/posthog', () => ({
 }));
 
 jest.mock('utils/calendarUtils', () => ({
-  isCalendarInvitation: () => false,
+  isCalendarInvitation: jest.fn(() => false),
 }));
 
 jest.mock('utils/unsubscribeUtils', () => ({
@@ -138,9 +138,50 @@ const baseProps = {
 
 beforeEach(() => {
   mockUseResponsiveBreakpoints.mockReturnValue({ isMobile: false, isTablet: false, isDesktop: true });
+  // Reset the isCalendarInvitation mock to its default (false) before each test
+  const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
+  isCalendarInvitation.mockReset();
+  isCalendarInvitation.mockImplementation(() => false);
 });
 
 describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
+  it('shows SchedulingRequestCard (not CalendarInviteActions) when email looks like a calendar invitation but has a detected meeting proposal (fixes #1780)', () => {
+    // Simulate the bug: subject contains "Calendar Invitation" keywords (isCalendarInvitation returns
+    // true) but the AI also detected a meeting proposal (schedulingActions is non-empty).
+    // SchedulingRequestCard must win — the user needs "Create Calendar Invite", not Accept/Decline.
+    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
+    isCalendarInvitation.mockReturnValueOnce(true);
+
+    render(
+      <EmailDetailActions
+        {...baseProps}
+        schedulingActions={[
+          { type: ACTION_TYPE_CALENDAR_CREATE_INVITE, label: 'Create invite' } as unknown as SuggestedAction,
+        ]}
+        onRespondToInvitation={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('SchedulingRequestCard')).toBeInTheDocument();
+    expect(screen.queryByTestId('CalendarInviteActions')).not.toBeInTheDocument();
+  });
+
+  it('shows CalendarInviteActions when email is a calendar invitation with no detected meeting proposal', () => {
+    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
+    isCalendarInvitation.mockReturnValueOnce(true);
+
+    render(
+      <EmailDetailActions
+        {...baseProps}
+        schedulingActions={[]}
+        onRespondToInvitation={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('CalendarInviteActions')).toBeInTheDocument();
+    expect(screen.queryByTestId('SchedulingRequestCard')).not.toBeInTheDocument();
+  });
+
   it('renders SchedulingRequestCard when schedulingActions contains scheduling_request', () => {
     render(
       <EmailDetailActions

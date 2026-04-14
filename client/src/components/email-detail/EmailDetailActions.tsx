@@ -291,15 +291,20 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
       }}
     >
       {hasIcsAttachment && <IcsInviteCard email={email} />}
-      {!hasIcsAttachment && isInvitation && onRespondToInvitation && (
+      {/* Meeting proposals take priority over generic calendar invitation detection.
+          If the AI identified a scheduling request / calendar_create_invite action,
+          show the SchedulingRequestCard (Create Calendar Invite) regardless of whether
+          isCalendarInvitation() also fires on the same email.  Only fall back to
+          CalendarInviteActions (Accept / Decline) when there is no meeting proposal. */}
+      {!hasIcsAttachment && hasSchedulingRequest && (
+        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />
+      )}
+      {!hasIcsAttachment && !hasSchedulingRequest && isInvitation && onRespondToInvitation && (
         <CalendarInviteActions
           email={email}
           onAccept={() => onRespondToInvitation(email.id, 'accepted')}
           onDecline={() => onRespondToInvitation(email.id, 'declined')}
         />
-      )}
-      {hasSchedulingRequest && !isInvitation && !hasIcsAttachment && (
-        <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />
       )}
 
       <QuickActionsSection

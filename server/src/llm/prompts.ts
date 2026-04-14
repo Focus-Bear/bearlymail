@@ -88,6 +88,7 @@ export const UTILITY_PROMPT_IDS = {
   CONSOLIDATE_CATEGORIES: "consolidate_categories",
   GENERATE_CATEGORIES_FROM_OTHER: "generate_categories_from_other",
   DETECT_OPT_OUT: "detect_opt_out",
+  SUGGEST_CATEGORY_RULES: "suggest_category_rules",
 } as const;
 
 /**
@@ -202,6 +203,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "category-shortlist.md",
     key: PRIORITY_PROMPT_IDS.CATEGORY_SHORTLIST,
+  },
+  {
+    file: "suggest-category-rules.md",
+    key: UTILITY_PROMPT_IDS.SUGGEST_CATEGORY_RULES,
   },
   {
     file: "batch-priority-triage.md",

@@ -115,7 +115,7 @@ export function useDeterministicCategoryRulesSectionState() {
     // We abuse prefillCategoryName for category and pass suggestion via a
     // dedicated state so CompositeCategoryRuleFormModal can receive it.
     setSuggestedSpec({
-      senderMatchesAny: [suggestion.sender],
+      senderMatchesAny: suggestion.suggestedSenderPatterns,
       subjectContainsAny: suggestion.suggestedSubjectPhrases,
       bodyContainsAny: suggestion.suggestedBodyPhrases,
     });

@@ -17,8 +17,14 @@ export interface EmailMetadata {
  * is persisted (issue #1714).
  */
 export interface CategoryRuleSuggestion {
-  /** Normalised sender email address for this suggestion. */
+  /** Representative sender pattern for display (may be a wildcard like *@github.com). */
   sender: string;
+  /**
+   * Suggested sender match patterns for the composite rule spec.
+   * May contain domain wildcards (e.g. `*@github.com`) when the LLM detects
+   * that multiple addresses from the same domain are involved.
+   */
+  suggestedSenderPatterns: string[];
   /** Category name inferred from recent LLM categorisations for this sender. */
   categoryName: string;
   /** Distinct subject phrases sampled from recent emails for this sender. */

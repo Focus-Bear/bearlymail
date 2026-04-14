@@ -70,6 +70,22 @@ export function specToV2(
 }
 
 /**
+ * Returns true when `normFrom` matches the sender `normPattern`.
+ * Supports domain wildcards of the form `*@domain.com`, which match any
+ * address at that domain (e.g. `*@github.com` matches `notifications@github.com`).
+ */
+export function senderMatchesPattern(
+  normFrom: string,
+  normPattern: string,
+): boolean {
+  if (normPattern.startsWith("*@")) {
+    const domain = normPattern.slice(2).toLowerCase();
+    return normFrom.endsWith("@" + domain);
+  }
+  return normPattern === normFrom;
+}
+
+/**
  * Evaluates a composite rule spec against an email, returning whether it
  * matches and per-condition detail for debug output.
  */
@@ -84,7 +100,7 @@ export function evaluateComposite(
   let senderOk = false;
   let senderMatchedValue: string | null = null;
   for (const sender of v2.senderMatchesAny) {
-    if (normaliseSender(sender) === normFrom) {
+    if (senderMatchesPattern(normFrom, normaliseSender(sender))) {
       senderOk = true;
       senderMatchedValue = sender;
       break;

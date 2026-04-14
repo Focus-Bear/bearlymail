@@ -8,21 +8,25 @@
 import { Repository } from "typeorm";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
+import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
 import type { CategoryRuleSuggestion } from "./category-rules.types";
-import {
-  pickAutoCompositeBodyPhrase,
-  pickAutoCompositeSubjectPhrase,
-} from "./category-rules-auto-composite.helper";
 
 /** Raw row returned by the thread-count aggregation query. */
 interface ThreadCountRow {
   hmac: string;
   threadCount: string;
+}
+
+/** Resolved sender info for a candidate sender row. */
+interface CandidateInfo {
+  hmac: string;
+  normSender: string;
+  domain: string | null;
+  threadCount: number;
 }
 
 /**
@@ -50,8 +54,19 @@ export async function fetchCandidateSenderRows(
 }
 
 /**
+ * Extracts the domain part from a normalised sender address.
+ * Returns null when the address contains no `@`.
+ */
+export function extractSenderDomain(normalisedSender: string): string | null {
+  const atIdx = normalisedSender.indexOf("@");
+  if (atIdx < 0) return null;
+  return normalisedSender.slice(atIdx + 1).toLowerCase();
+}
+
+/**
  * Returns true when the given normalised sender address is already covered by
  * an existing composite rule for this user.
+ * Supports domain wildcard patterns (e.g. `*@github.com`) stored in rule specs.
  */
 export function isSenderAlreadyCovered(
   normalisedSender: string,
@@ -64,57 +79,72 @@ export function isSenderAlreadyCovered(
     }
     const spec = rule.compositeSpec;
     const senders = spec.v === 2 ? spec.senderMatchesAny : [spec.sender];
-    return senders.some(
-      (sender) => normaliseSender(sender) === normalisedSender,
+    return senders.some((sender) =>
+      senderMatchesPattern(normalisedSender, normaliseSender(sender)),
     );
   });
 }
 
 /**
- * Builds a single CategoryRuleSuggestion from a batch of sample emails
- * for one sender. Returns null when not enough signal can be extracted.
+ * Returns true when `normalisedSender` is covered by any of the provided
+ * patterns. Supports domain wildcards (`*@domain.com`).
  */
-export function buildSuggestionFromSamples(
+function isCoveredByPatterns(
   normalisedSender: string,
+  patterns: string[],
+): boolean {
+  return patterns.some((pattern) =>
+    senderMatchesPattern(normalisedSender, pattern),
+  );
+}
+
+/**
+ * Builds a single CategoryRuleSuggestion from a batch of sample emails
+ * for one or more senders, using the LLM to extract SHORT, GENERIC phrases
+ * and decide on the sender pattern (may be a domain wildcard).
+ * Returns null when the LLM cannot identify usable patterns.
+ */
+export async function buildSuggestionFromSamplesWithLLM(
+  senderEmails: string[],
   sampleEmails: Pick<Email, "subject" | "body">[],
   threadCount: number,
   categoryName: string,
-): CategoryRuleSuggestion | null {
-  const subjectPhrases = new Set<string>();
-  const bodyPhrases = new Set<string>();
+  llmCategoriesService: LLMCategoriesService,
+): Promise<CategoryRuleSuggestion | null> {
+  const samples = sampleEmails.map((email) => ({
+    subject: email.subject || "",
+    body: email.body || "",
+  }));
 
-  for (const email of sampleEmails) {
-    const subject = (email.subject || "").trim();
-    if (subject) {
-      const phrase = pickAutoCompositeSubjectPhrase(subject);
-      if (phrase) {
-        subjectPhrases.add(phrase);
-      }
-    }
+  const result = await llmCategoriesService.suggestRulesFromEmailSamples(
+    categoryName,
+    senderEmails,
+    samples,
+  );
 
-    const bodyText = cleanEmailContent(
-      email.body || "",
-      null,
-      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-    );
-    const bodyPhrase = pickAutoCompositeBodyPhrase(bodyText || undefined);
-    if (bodyPhrase) {
-      bodyPhrases.add(bodyPhrase);
-    }
+  if (!result) {
+    return null;
   }
 
-  if (subjectPhrases.size === 0 || bodyPhrases.size === 0) {
+  const { fromMatchesAny, subjectContainsAny, bodyContainsAny } = result;
+
+  if (
+    fromMatchesAny.length === 0 ||
+    subjectContainsAny.length === 0 ||
+    bodyContainsAny.length === 0
+  ) {
     return null;
   }
 
   return {
-    sender: normalisedSender,
+    sender: fromMatchesAny[0],
+    suggestedSenderPatterns: fromMatchesAny,
     categoryName,
-    suggestedSubjectPhrases: Array.from(subjectPhrases).slice(
+    suggestedSubjectPhrases: subjectContainsAny.slice(
       0,
       CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES,
     ),
-    suggestedBodyPhrases: Array.from(bodyPhrases).slice(
+    suggestedBodyPhrases: bodyContainsAny.slice(
       0,
       CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
     ),
@@ -123,63 +153,121 @@ export function buildSuggestionFromSamples(
 }
 
 /**
- * Full suggest pipeline: finds candidate senders, filters out those already
- * covered by composite rules, builds suggestion objects from sampled emails.
+ * Full suggest pipeline: finds candidate senders, groups them by domain so
+ * that multiple addresses from the same domain (e.g. notifications@github.com
+ * and actions@github.com) are presented as a single suggestion with a domain
+ * wildcard pattern. Filters out senders already covered by composite rules.
  */
 export async function buildSuggestions(
-  emailRepository: Repository<Email>,
-  ruleRepository: Repository<CategoryRule>,
+  repositories: { email: Repository<Email>; rule: Repository<CategoryRule> },
   userId: string,
   categoryNameFilter: string,
   normaliseSender: (raw: string) => string,
+  llmCategoriesService: LLMCategoriesService,
 ): Promise<CategoryRuleSuggestion[]> {
-  const candidateRows = await fetchCandidateSenderRows(emailRepository, userId);
+  const candidateRows = await fetchCandidateSenderRows(
+    repositories.email,
+    userId,
+  );
   if (candidateRows.length === 0) {
     return [];
   }
 
-  const existingRules = await ruleRepository.find({
+  // Resolve the normalised sender for each candidate by fetching one probe
+  // email per HMAC (all emails with the same HMAC share the same sender).
+  const resolved = await Promise.all(
+    candidateRows.map(async (row) => {
+      const probe = await repositories.email.findOne({
+        where: { userId, senderEmailHmac: row.hmac },
+        select: ["from"],
+      });
+      if (!probe) return null;
+      const normSender = normaliseSender(probe.from);
+      if (!normSender) return null;
+      return {
+        hmac: row.hmac,
+        normSender,
+        domain: extractSenderDomain(normSender),
+        threadCount: parseInt(row.threadCount, 10),
+      };
+    }),
+  );
+
+  const resolvedCandidates = resolved.filter(
+    (candidate): candidate is CandidateInfo => candidate !== null,
+  );
+
+  // Group candidates by domain so that senders sharing a domain are processed
+  // together and can receive a single domain-wildcard suggestion.
+  const domainGroups = new Map<string, CandidateInfo[]>();
+  for (const candidate of resolvedCandidates) {
+    const key = candidate.domain ?? candidate.normSender;
+    const group = domainGroups.get(key) ?? [];
+    group.push(candidate);
+    domainGroups.set(key, group);
+  }
+
+  const existingRules = await repositories.rule.find({
     where: { userId, ruleKind: "composite" },
     select: ["compositeSpec"],
   });
 
   const suggestions: CategoryRuleSuggestion[] = [];
+  // Track sender patterns from newly added suggestions so that domain-sibling
+  // candidates (e.g. actions@github.com after *@github.com is added) are skipped.
+  const addedPatterns: string[] = [];
 
-  for (const row of candidateRows) {
+  for (const [, group] of domainGroups) {
     if (suggestions.length >= CATEGORY_RULE_COMPOSITE.SUGGEST_MAX_RESULTS) {
       break;
     }
 
-    const sampleEmails = await emailRepository.find({
-      where: { userId, senderEmailHmac: row.hmac },
-      order: { receivedAt: "DESC" },
-      take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
-      select: ["from", "subject", "body"],
-    });
+    const senderEmails = [...new Set(group.map((candidate) => candidate.normSender))];
+    const totalThreadCount = group.reduce(
+      (sum, candidate) => sum + candidate.threadCount,
+      0,
+    );
 
-    if (sampleEmails.length === 0) {
+    // Skip if every sender in this group is already covered by a DB rule or
+    // by a wildcard pattern we just added in this run.
+    const allCovered = senderEmails.every(
+      (sender) =>
+        isSenderAlreadyCovered(sender, existingRules, normaliseSender) ||
+        isCoveredByPatterns(sender, addedPatterns),
+    );
+    if (allCovered) {
       continue;
     }
 
-    const normalisedSender = normaliseSender(sampleEmails[0].from);
-    if (!normalisedSender) {
+    // Collect sample emails from all HMACs in this domain group (parallel).
+    const allSampleEmails = (
+      await Promise.all(
+        group.map(({ hmac }) =>
+          repositories.email.find({
+            where: { userId, senderEmailHmac: hmac },
+            order: { receivedAt: "DESC" },
+            take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
+            select: ["from", "subject", "body"],
+          }),
+        ),
+      )
+    ).flat();
+
+    if (allSampleEmails.length === 0) {
       continue;
     }
 
-    if (
-      isSenderAlreadyCovered(normalisedSender, existingRules, normaliseSender)
-    ) {
-      continue;
-    }
-
-    const suggestion = buildSuggestionFromSamples(
-      normalisedSender,
-      sampleEmails,
-      parseInt(row.threadCount, 10),
+    const suggestion = await buildSuggestionFromSamplesWithLLM(
+      senderEmails,
+      allSampleEmails,
+      totalThreadCount,
       categoryNameFilter,
+      llmCategoriesService,
     );
     if (suggestion) {
       suggestions.push(suggestion);
+      // Track the suggested sender patterns so siblings are skipped.
+      addedPatterns.push(...suggestion.suggestedSenderPatterns);
     }
   }
 

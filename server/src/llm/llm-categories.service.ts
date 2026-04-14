@@ -11,6 +11,7 @@ import {
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
   LLM_OP_IDENTIFY_CUSTOM_LABELS,
+  LLM_OP_SUGGEST_CATEGORY_RULES,
   type LLMOperation,
 } from "./llm-operations";
 import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
@@ -645,5 +646,118 @@ export class LLMCategoriesService {
       `[IDENTIFY-CUSTOM-LABELS] === FALLBACK === No custom labels identified`,
     );
     return [];
+  }
+
+  /**
+   * Uses the LLM to extract SHORT, GENERIC subject/body phrases and a sender
+   * pattern from a set of email samples (issue #1714).
+   *
+   * When multiple sender emails share the same domain the LLM may return a
+   * domain wildcard such as `*@github.com` in `fromMatchesAny`.
+   *
+   * Returns `null` when the LLM call fails or returns no usable phrases.
+   */
+  async suggestRulesFromEmailSamples(
+    categoryName: string,
+    senderEmails: string[],
+    emailSamples: Array<{ subject: string; body: string }>,
+    userId?: string,
+  ): Promise<{
+    fromMatchesAny: string[];
+    subjectContainsAny: string[];
+    bodyContainsAny: string[];
+  } | null> {
+    this.logger.log(
+      `[SUGGEST-CATEGORY-RULES] === START === category="${categoryName}" senders=${senderEmails.length} samples=${emailSamples.length}`,
+    );
+
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.SUGGEST_CATEGORY_RULES);
+    if (!promptConfig) {
+      this.logger.error(
+        "[SUGGEST-CATEGORY-RULES] ERROR: suggest_category_rules prompt not found",
+      );
+      return null;
+    }
+
+    const emailSamplesText = emailSamples
+      .map(
+        (sample, i) =>
+          `[Email ${i + 1}]\nSubject: ${sample.subject}\nBody preview: ${cleanEmailContent(sample.body || "", null, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
+      )
+      .join("\n\n");
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      categoryName,
+      senderEmails: senderEmails.join("\n"),
+      emailSamples: emailSamplesText,
+    });
+
+    try {
+      const response = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS,
+          jsonMode: true,
+          userId,
+        },
+        undefined,
+        userId,
+        LLM_OP_SUGGEST_CATEGORY_RULES,
+      );
+
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        this.logger.warn(
+          `[SUGGEST-CATEGORY-RULES] No JSON object found in response`,
+        );
+        return null;
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+
+      const parseStringArray = (value: unknown): string[] =>
+        Array.isArray(value)
+          ? (value as unknown[])
+              .filter((item): item is string => typeof item === "string" && item.trim() !== "")
+              .map((item) => item.trim())
+          : [];
+
+      const fromMatchesAny = parseStringArray(parsed.fromMatchesAny);
+      const subjectContainsAny = parseStringArray(parsed.subjectContainsAny);
+      const bodyContainsAny = parseStringArray(parsed.bodyContainsAny);
+
+      // Fall back to the provided sender emails if LLM omitted fromMatchesAny.
+      const effectiveFrom =
+        fromMatchesAny.length > 0 ? fromMatchesAny : senderEmails;
+
+      if (subjectContainsAny.length === 0 && bodyContainsAny.length === 0) {
+        this.logger.warn(
+          `[SUGGEST-CATEGORY-RULES] LLM returned no usable phrases for "${categoryName}"`,
+        );
+        return null;
+      }
+
+      this.logger.log(
+        `[SUGGEST-CATEGORY-RULES] === SUCCESS === from=${effectiveFrom.join(",")} subjects=${subjectContainsAny.length} body=${bodyContainsAny.length}`,
+      );
+      return {
+        fromMatchesAny: effectiveFrom,
+        subjectContainsAny,
+        bodyContainsAny,
+      };
+    } catch (error) {
+      this.logger.error(
+        `[SUGGEST-CATEGORY-RULES] ERROR: ${getErrorMessage(error)}`,
+      );
+      return null;
+    }
   }
 }

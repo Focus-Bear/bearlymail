@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { CategoryRulesService } from "./category-rules.service";
 
 const mockRuleRepo = () => ({
@@ -34,10 +35,15 @@ const mockEmailRepo = () => ({
   createQueryBuilder: jest.fn(),
 });
 
+const mockLLMCategoriesService = () => ({
+  suggestRulesFromEmailSamples: jest.fn(),
+});
+
 describe("CategoryRulesService", () => {
   let service: CategoryRulesService;
   let repo: ReturnType<typeof mockRuleRepo>;
   let emailRepo: ReturnType<typeof mockEmailRepo>;
+  let llmCategoriesService: ReturnType<typeof mockLLMCategoriesService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -51,15 +57,28 @@ describe("CategoryRulesService", () => {
           provide: getRepositoryToken(Email),
           useFactory: mockEmailRepo,
         },
+        {
+          provide: LLMCategoriesService,
+          useFactory: mockLLMCategoriesService,
+        },
       ],
     }).compile();
 
     service = module.get<CategoryRulesService>(CategoryRulesService);
     repo = module.get(getRepositoryToken(CategoryRule));
     emailRepo = module.get(getRepositoryToken(Email));
+    llmCategoriesService = module.get(LLMCategoriesService);
 
     // Default: sender has 15 threads — above both thresholds.
     emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "15" }));
+    // Default: no sample emails found for the sender
+    emailRepo.find.mockResolvedValue([]);
+    // Default: LLM returns generic phrases (with sender pattern)
+    llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
+      fromMatchesAny: ["alerts@acmecorp.com"],
+      subjectContainsAny: ["Build failed"],
+      bodyContainsAny: ["Pipeline step compile failed"],
+    });
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -211,8 +230,10 @@ describe("CategoryRulesService", () => {
   describe("generateCompositeRuleFromEmail", () => {
     const userId = "user-1";
 
-    it("creates a composite rule when sender, subject, and body yield phrases", async () => {
-      // emailRepo default returns cnt=15 (above threshold)
+    it("creates a composite rule using LLM-extracted generic phrases", async () => {
+      // emailRepo.createQueryBuilder default returns cnt=15 (above threshold)
+      // emailRepo.find default returns [] (no cached sample emails)
+      // llmCategoriesService default returns generic phrases
       repo.find.mockResolvedValue([]);
       const created = {
         id: "comp-1",
@@ -233,6 +254,11 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
+      expect(llmCategoriesService.suggestRulesFromEmailSamples).toHaveBeenCalledWith(
+        "CI",
+        ["alerts@acmecorp.com"],
+        expect.any(Array),
+      );
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ruleKind: "composite",
@@ -241,7 +267,7 @@ describe("CategoryRulesService", () => {
             v: 2,
             senderMatchesAny: ["alerts@acmecorp.com"],
             subjectContainsAny: ["Build failed"],
-            bodyContainsAny: ["Pipeline step compile failed on branch main."],
+            bodyContainsAny: ["Pipeline step compile failed"],
           }),
         }),
       );
@@ -263,6 +289,7 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
+      expect(llmCategoriesService.suggestRulesFromEmailSamples).not.toHaveBeenCalled();
       expect(repo.create).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
@@ -290,24 +317,83 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
+      expect(llmCategoriesService.suggestRulesFromEmailSamples).toHaveBeenCalled();
       expect(repo.create).toHaveBeenCalled();
       expect(result).toEqual(created);
     });
 
-    it("returns null and does not persist when body text is too short", async () => {
-      // emailRepo default returns cnt=15 (above threshold)
+    it("returns null and does not persist when LLM returns no usable phrases", async () => {
+      llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue(null);
+
       const result = await service.generateCompositeRuleFromEmail(
         userId,
         {
           from: "a@b.co",
           subject: "Hello",
-          bodyTextForMatch: "short",
+          bodyTextForMatch: "Some body text here",
         },
         "Cat",
       );
 
       expect(repo.create).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+
+    it("returns null and does not persist when LLM returns empty subject phrases", async () => {
+      llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
+        fromMatchesAny: ["a@b.co"],
+        subjectContainsAny: [],
+        bodyContainsAny: ["some phrase"],
+      });
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "a@b.co",
+          subject: "Hello",
+          bodyTextForMatch: "Some body text here",
+        },
+        "Cat",
+      );
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("uses domain wildcard from LLM as senderMatchesAny when returned", async () => {
+      // LLM decides *@acmecorp.com is the right sender pattern.
+      llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
+        fromMatchesAny: ["*@acmecorp.com"],
+        subjectContainsAny: ["Build failed"],
+        bodyContainsAny: ["Pipeline step compile failed"],
+      });
+      repo.find.mockResolvedValue([]);
+      const created = {
+        id: "comp-wildcard",
+        ruleKind: "composite",
+        categoryName: "CI",
+      };
+      repo.create.mockReturnValue(created);
+      repo.save.mockResolvedValue(created);
+
+      const result = await service.generateCompositeRuleFromEmail(
+        userId,
+        {
+          from: "alerts@acmecorp.com",
+          subject: "Build failed",
+          bodyTextForMatch: "Pipeline step compile failed on branch main.",
+        },
+        "CI",
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          compositeSpec: expect.objectContaining({
+            senderMatchesAny: ["*@acmecorp.com"],
+          }),
+        }),
+      );
+      expect(result).toEqual(created);
     });
 
     it("reuses an existing composite rule with the same spec and can update category", async () => {
@@ -320,7 +406,7 @@ describe("CategoryRulesService", () => {
           v: 2 as const,
           senderMatchesAny: ["alerts@acmecorp.com"],
           subjectContainsAny: ["Build failed"],
-          bodyContainsAny: ["Pipeline step compile failed on branch main."],
+          bodyContainsAny: ["Pipeline step compile failed"],
         },
       };
       repo.find.mockResolvedValue([existing]);
@@ -762,6 +848,70 @@ describe("CategoryRulesService", () => {
         from: "random@other.com",
         subject: "Invoice #999",
         bodyTextForMatch: "Amount due: $100",
+      });
+
+      expect(match).toBeNull();
+    });
+
+    it("matches a v2 composite rule with a domain wildcard sender pattern", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c-wildcard",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "GitHub Notifications",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 2,
+            senderMatchesAny: ["*@github.com"],
+            subjectContainsAny: ["pull request"],
+            bodyContainsAny: ["merged"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      // Different subdomain address from the same domain should still match.
+      const match = await service.findMatchingRule(userId, {
+        from: "actions@github.com",
+        subject: "pull request #42",
+        bodyTextForMatch: "Branch was merged into main.",
+      });
+
+      expect(match?.categoryName).toBe("GitHub Notifications");
+      expect(match?.ruleKind).toBe("composite");
+    });
+
+    it("domain wildcard does not match senders from a different domain", async () => {
+      repo.find.mockResolvedValue([
+        {
+          id: "c-wildcard-2",
+          ruleKind: "composite",
+          ruleType: null,
+          pattern: null,
+          patternHash: null,
+          categoryName: "GitHub Notifications",
+          subjectPrefix: null,
+          isEnabled: true,
+          compositeSpec: {
+            v: 2,
+            senderMatchesAny: ["*@github.com"],
+            subjectContainsAny: ["pull request"],
+            bodyContainsAny: ["merged"],
+          },
+          createdAt: new Date("2024-01-01"),
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+
+      const match = await service.findMatchingRule(userId, {
+        from: "bot@gitlab.com",
+        subject: "pull request opened",
+        bodyTextForMatch: "Feature branch merged into main.",
       });
 
       expect(match).toBeNull();

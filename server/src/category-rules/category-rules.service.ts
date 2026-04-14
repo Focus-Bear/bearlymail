@@ -15,6 +15,8 @@ import {
   CompositeCategoryRuleSpecV2,
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { LLMCategoriesService } from "../llm/llm-categories.service";
+import { computeEmailHmac } from "../utils/hmac-email";
 import type {
   CategoryRuleDto,
   CategoryRuleEvaluationDebug,
@@ -27,8 +29,6 @@ import type {
 import {
   compositeAutoSpecsMatch,
   evaluateComposite,
-  pickAutoCompositeBodyPhrase,
-  pickAutoCompositeSubjectPhrase,
   specToV2,
 } from "./category-rules-auto-composite.helper";
 import {
@@ -53,6 +53,7 @@ export class CategoryRulesService {
     private readonly categoryRuleRepository: Repository<CategoryRule>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    private readonly llmCategoriesService: LLMCategoriesService,
   ) {}
 
   private extractDomain(from: string): string | null {
@@ -248,29 +249,56 @@ export class CategoryRulesService {
       return null;
     }
 
-    const subjectPhrase = pickAutoCompositeSubjectPhrase(email.subject || "");
-    if (!subjectPhrase) {
+    // Fetch recent emails from this sender to give the LLM enough context for
+    // generic pattern extraction (issue #1714: no more verbatim phrases).
+    const senderHmac = computeEmailHmac(sender);
+    const sampleEmails = senderHmac
+      ? await this.emailRepository.find({
+          where: { userId, senderEmailHmac: senderHmac },
+          order: { receivedAt: "DESC" },
+          take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
+          select: ["subject", "body"],
+        })
+      : [];
+
+    // Always include the current email so the LLM has at least one sample.
+    const samples: Array<{ subject: string; body: string }> = [
+      { subject: email.subject || "", body: email.bodyTextForMatch || "" },
+      ...sampleEmails.map((emailSample) => ({
+        subject: emailSample.subject || "",
+        body: emailSample.body || "",
+      })),
+    ];
+
+    // Pass the sender email to the LLM so it can decide on the best pattern
+    // (exact address or domain wildcard like *@github.com).
+    const llmResult = await this.llmCategoriesService.suggestRulesFromEmailSamples(
+      trimmedCategory,
+      [sender],
+      samples,
+    );
+
+    if (
+      !llmResult ||
+      llmResult.subjectContainsAny.length === 0 ||
+      llmResult.bodyContainsAny.length === 0
+    ) {
       this.logger.debug(
-        `[CategoryRules] Skipping auto composite rule — no usable subject phrase for user ${userId}`,
+        `[CategoryRules] Skipping auto composite rule — LLM returned no usable phrases for user ${userId}`,
       );
       return null;
     }
 
-    const bodyPhrase = pickAutoCompositeBodyPhrase(email.bodyTextForMatch);
-    if (!bodyPhrase) {
-      this.logger.debug(
-        `[CategoryRules] Skipping auto composite rule — no usable body phrase for user ${userId}`,
-      );
-      return null;
-    }
+    const senderMatchesAny =
+      llmResult.fromMatchesAny.length > 0 ? llmResult.fromMatchesAny : [sender];
 
     let spec: CompositeCategoryRuleSpecV2;
     try {
       spec = this.normalizeCompositeSpecDto({
         categoryName: trimmedCategory,
-        senderMatchesAny: [sender],
-        subjectContainsAny: [subjectPhrase],
-        bodyContainsAny: [bodyPhrase],
+        senderMatchesAny,
+        subjectContainsAny: llmResult.subjectContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES),
+        bodyContainsAny: llmResult.bodyContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES),
       });
     } catch {
       return null;
@@ -296,11 +324,11 @@ export class CategoryRulesService {
     dto: SuggestCategoryRulesDto,
   ): Promise<CategoryRuleSuggestion[]> {
     return buildSuggestions(
-      this.emailRepository,
-      this.categoryRuleRepository,
+      { email: this.emailRepository, rule: this.categoryRuleRepository },
       userId,
       dto.categoryName?.trim() ?? "",
       (raw: string) => this.normaliseSender(raw),
+      this.llmCategoriesService,
     );
   }
 

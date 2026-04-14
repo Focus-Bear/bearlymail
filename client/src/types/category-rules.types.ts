@@ -35,7 +35,14 @@ export function specSubjects(spec: CompositeSpec): string[] {
  * The user confirms before it is persisted via the normal create flow.
  */
 export interface CategoryRuleSuggestion {
+  /** Representative sender pattern for display (may be a wildcard like *@github.com). */
   sender: string;
+  /**
+   * Suggested sender match patterns for the composite rule spec.
+   * May contain domain wildcards (e.g. `*@github.com`) when the LLM detects
+   * that multiple addresses from the same domain are involved.
+   */
+  suggestedSenderPatterns: string[];
   categoryName: string;
   suggestedSubjectPhrases: string[];
   suggestedBodyPhrases: string[];

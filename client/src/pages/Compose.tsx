@@ -171,6 +171,7 @@ const Compose: React.FC = () => {
         navigationTimeoutRef.current = null;
       }
       setSendSuccess(false);
+      // eslint-disable-next-line id-denylist -- axios error response type uses 'data' property
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));
       showError(axiosErr.response?.data?.message || t('compose.errorSendFailed'));

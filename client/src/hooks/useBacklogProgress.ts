@@ -20,8 +20,8 @@ export function useBacklogProgress() {
     queryKey: ['backlog-progress'],
     queryFn: fetchBacklogProgress,
     refetchInterval: query => {
-      const data = query.state.data;
-      return data?.isProcessing ? BACKLOG_PROGRESS_REFETCH_INTERVAL_MS : false;
+      const queryData = query.state.data;
+      return queryData?.isProcessing ? BACKLOG_PROGRESS_REFETCH_INTERVAL_MS : false;
     },
     staleTime: 5_000,
   });

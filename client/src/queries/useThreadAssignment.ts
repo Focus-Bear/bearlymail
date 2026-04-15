@@ -12,10 +12,10 @@ export function useAssignThread() {
   const queryClient = useQueryClient();
   return useMutation<EmailThread, Error, { threadId: string; assigneeUserId: string }>({
     mutationFn: async ({ threadId, assigneeUserId }) => {
-      const { data } = await axios.patch<EmailThread>(`${API_URL}/emails/threads/${threadId}/assign`, {
+      const { data: threadData } = await axios.patch<EmailThread>(`${API_URL}/emails/threads/${threadId}/assign`, {
         assigneeUserId,
       });
-      return data;
+      return threadData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbox'] });

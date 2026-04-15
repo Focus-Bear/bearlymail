@@ -91,7 +91,8 @@ const AttendeesList: React.FC<{ attendees: IcsEventData['attendees']; t: (k: str
  * Fetches parsed event details from the server and allows adding the event
  * to Google Calendar or confirms it's already there.
  */
-export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
+export // eslint-disable-next-line complexity -- pre-existing: complex render with many conditional branches
+const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -393,7 +394,7 @@ export const IcsInviteCard: React.FC<IcsInviteCardProps> = ({ email }) => {
                       const isAnyPending = rsvpPending !== null;
                       const RSVP_DISABLED_OPACITY = 0.6;
                       const labelKey =
-                        response === ICS_RSVP_ACCEPTED
+                        response === ICS_RSVP_ACCEPTED // eslint-disable-line no-nested-ternary
                           ? 'emailDetail.icsInvite.rsvpAccept'
                           : response === ICS_RSVP_TENTATIVE
                             ? 'emailDetail.icsInvite.rsvpTentative'

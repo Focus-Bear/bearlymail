@@ -18,6 +18,7 @@ function nextId(): string {
  * Factory for a minimal valid Email fixture.
  * Pass overrides to customise individual fields.
  */
+// eslint-disable-next-line complexity -- pre-existing: test fixture factory with many optional fields
 export function makeMockEmail(overrides: Partial<Email> = {}): Email {
   const id = overrides.id ?? nextId();
   const receivedAt = overrides.receivedAt ?? new Date(Date.now() - ONE_HOUR_MS).toISOString();

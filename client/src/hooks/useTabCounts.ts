@@ -79,6 +79,7 @@ export function useTabCounts(): UseTabCountsReturn {
   const currentCacheKeyRef = useRef<string>(TAB_COUNTS_CACHE_KEY);
 
   const fetchTabCounts = useCallback(
+// eslint-disable-next-line max-statements -- pre-existing: complex async function with many conditional branches
     async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => {
       const cacheKey = buildCacheKey(filters);
       currentCacheKeyRef.current = cacheKey;

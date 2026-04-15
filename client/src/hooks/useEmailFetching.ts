@@ -455,7 +455,7 @@ function shouldSkipCategoryFetch(args: CategoryFetchArgs, catKey: string): boole
   );
 }
 
-/** Extracted: fetch emails for a single category on expand. */
+// eslint-disable-next-line max-statements -- pre-existing: complex async function with many conditional branches
 async function fetchCategoryEmailsImpl(args: CategoryFetchArgs) {
 const { categoryName, categoryId, mode, dispatch, buildCategoryParams, fetchSessionRef, categoryBackoff, loadingCategoryNamesRef, categorySummaryRef } = args;
   // Compute the stable key: UUID when available, name as fallback

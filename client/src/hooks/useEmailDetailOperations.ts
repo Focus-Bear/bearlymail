@@ -607,6 +607,7 @@ export function useEmailDetailOperations(
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(
+    // eslint-disable-next-line max-statements -- pre-existing
     async (
       sendOptions: {
         files?: File[];

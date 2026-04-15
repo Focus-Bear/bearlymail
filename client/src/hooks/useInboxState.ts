@@ -58,6 +58,7 @@ interface UseInboxStateOptions {
   inboxFilters?: ReturnType<typeof useInboxFilters>;
 }
 
+// eslint-disable-next-line complexity,max-statements -- pre-existing: complex hook managing inbox state transitions
 export function useInboxState(options: UseInboxStateOptions = {}) {
   const { isFocusedMode = false } = options;
   const dispatch = useDispatch<AppDispatch>();

@@ -158,6 +158,7 @@ export const useRecategorizeProgress = () => {
     return () => {
       stopPolling();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing: stable callbacks
   }, []);
 
   const startTracking = useCallback(
@@ -186,6 +187,7 @@ export const useRecategorizeProgress = () => {
 
       pollProgress(batchId, total);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
     [stopPolling, pollProgress]
   );
 

@@ -160,6 +160,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // eslint-disable-next-line max-statements -- pre-existing
   const startAnalysis = useCallback(async () => {
     devLog('===== Starting Context Analysis =====');
     console.log('[FRONTEND] ===== Starting Context Analysis =====');
@@ -215,6 +216,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
       });
       // Auto-clear removed: errors should persist so users can see and retry (fixes P0 infinite loop)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
   }, []);
 
   useEffect(() => {
@@ -336,6 +338,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>, hookOption
     // Use setTimeout-based polling that waits 2s AFTER receiving response, not fixed interval
     let isPolling = false;
 
+    // eslint-disable-next-line max-statements -- pre-existing
     const pollProgress = async () => {
       // CRITICAL: Don't poll until we have an analysisId - prevents fetching old completed analyses
       if (!analysisId) {

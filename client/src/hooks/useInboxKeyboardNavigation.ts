@@ -28,6 +28,7 @@ export function useInboxKeyboardNavigation({
       return;
     }
 
+// eslint-disable-next-line complexity,max-statements -- pre-existing: complex keyboard handler with many conditional branches
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === KEY_ESCAPE && splitView.selectedEmailId) {
         splitView.closeEmail();

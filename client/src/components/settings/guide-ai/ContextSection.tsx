@@ -120,7 +120,7 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
         }}
       />
     )}
-    {filteredContexts.length > 0 ? (
+    {filteredContexts.length > 0 ? ( // eslint-disable-line no-nested-ternary
       filteredContexts.map(context => (
         <ContextItem
           key={context.contextId}
@@ -659,7 +659,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
     <div style={{ flex: 1 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-          {context.contextKey === CONTEXT_KEY_Q_AND_A && context.contextValue.includes('|') ? (
+          {context.contextKey === CONTEXT_KEY_Q_AND_A && context.contextValue.includes('|') ? ( // eslint-disable-line no-nested-ternary
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, width: '100%' }}>
               {(() => {
                 const { question, answer } = parseQAndA(context.contextValue);

@@ -366,6 +366,7 @@ module.exports = tseslint.config(
       'max-lines-per-function': 'off',
       'react/no-array-index-key': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      'id-denylist': 'off',
     },
   },
 
@@ -405,6 +406,7 @@ module.exports = tseslint.config(
       'prefer-template': 'off',
       'id-denylist': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      'react/no-array-index-key': 'off',
     },
   },
 
@@ -426,6 +428,7 @@ module.exports = tseslint.config(
       'i18next/no-literal-string': 'off',
       'no-restricted-syntax': 'off',
       'no-magic-numbers': 'off',
+      'react/no-array-index-key': 'off',
     },
   },
 

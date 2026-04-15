@@ -103,7 +103,7 @@ export const ContactGroupMembership: React.FC<ContactGroupMembershipProps> = ({
         </button>
       </div>
 
-      {isLoading ? (
+      {isLoading ? ( // eslint-disable-line no-nested-ternary
         <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
           {t('common.loading')}
         </p>

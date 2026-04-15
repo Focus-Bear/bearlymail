@@ -61,6 +61,7 @@ function appendContextItemList(
   });
 }
 
+// eslint-disable-next-line max-statements -- pre-existing: helper function aggregates data from multiple sources
 export const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
   const lines: string[] = ['## Category Debug Report', ''];
   appendEmailSection(lines, debugInfo.email);

@@ -112,6 +112,7 @@ const VolumeProgressBar: React.FC<VolumeProgressBarProps> = ({ percentUsed }) =>
   );
 };
 
+// eslint-disable-next-line complexity,max-statements -- pre-existing: complex settings section with many conditional branches
 export const TeamSettingsSection: React.FC = () => {
   const { t } = useTranslation();
   const { showError } = useNotifications();

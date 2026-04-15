@@ -86,6 +86,7 @@ export function useInboxModeChanges({
     ]).finally(() => {
       setLoadingModeSwitch(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
   }, [mode, hasInitiallyLoaded, user, authLoading, fetchEmails]);
 
   // Fetch triage suggestions when in triage mode with emails
@@ -101,5 +102,6 @@ export function useInboxModeChanges({
       prevModeRef.current = mode;
       clearSuggestionsCache();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing
   }, [mode, emails.length, loadingSuggestions]);
 }

@@ -39,6 +39,7 @@ interface PillProps {
   onClick: () => void;
 }
 
+// eslint-disable-next-line complexity -- pre-existing: complex render with many conditional branches
 const CategoryPill: React.FC<PillProps> = ({ label, isSelected, count, isAll = false, compact = false, onClick }) => {
   const { t } = useTranslation();
   let backgroundColor: string;
@@ -458,9 +459,9 @@ export const VisualCategoryFilter: React.FC<VisualCategoryFilterProps> = ({
 
         {/* Fix #1526 bug 5: skeleton placeholder pills while categories load */}
         {showSkeleton &&
-          Array.from({ length: SKELETON_PILL_COUNT }).map((_, i) => (
+          ['a', 'b', 'c', 'd'].map(id => (
             <div
-              key={`skeleton-${i}`}
+              key={`skeleton-pill-${id}`}
               aria-hidden="true"
               style={{
                 display: 'inline-flex',

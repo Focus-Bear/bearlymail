@@ -313,20 +313,13 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                       );
                     }
                     // contact suggestion
-                    const contact = suggestion;
+                    const { contact } = suggestion;
                     return (
                       <div
                         key={contact.id || contact.email}
                         onMouseDown={event => event.preventDefault()}
                         onTouchStart={event => event.preventDefault()}
-                        onClick={() =>
-                          onSelectSearchResult({
-                            id: contact.id,
-                            email: contact.email,
-                            name: contact.name,
-                            photoUrl: contact.photoUrl,
-                          } as Contact)
-                        }
+                        onClick={() => onSelectSearchResult(contact)}
                         style={{
                           padding: `8px ${FONT_SIZE_XS_PX}px`,
                           cursor: 'pointer',

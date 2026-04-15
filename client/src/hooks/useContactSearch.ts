@@ -136,15 +136,7 @@ export const useContactSearch = (): UseContactSearchResult => {
   // Merged suggestions: groups first (with distinct kind tag), then contacts
   const recipientSuggestions: RecipientSuggestion[] = [
     ...groupResults.map((grp): RecipientSuggestion => ({ kind: 'group', group: grp })),
-    ...searchResults.map(
-      (contact): RecipientSuggestion => ({
-        kind: 'contact',
-        id: contact.id,
-        email: contact.email,
-        name: contact.name,
-        photoUrl: contact.photoUrl,
-      })
-    ),
+    ...searchResults.map((contact): RecipientSuggestion => ({ kind: 'contact', contact })),
   ];
 
   return {

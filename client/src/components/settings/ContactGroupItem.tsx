@@ -37,7 +37,11 @@ export const ContactGroupItem: React.FC<ContactGroupItemProps> = ({ group }) => 
     }
     try {
       const res = await axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
-      setContactResults(res.data.filter(contact => contact.id && !editMemberIds.includes(contact.id)));
+      // Exclude non-local (Gmail-only) contacts — they have no UUID in the local DB
+      // and cannot be stored as group members.
+      setContactResults(
+        res.data.filter(contact => contact.id && contact.isLocal !== false && !editMemberIds.includes(contact.id))
+      );
     } catch {
       setContactResults([]);
     }

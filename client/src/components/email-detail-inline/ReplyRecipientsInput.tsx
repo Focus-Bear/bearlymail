@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { ContactGroup } from 'types/contactGroup';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, STRING_NONE } from 'constants/strings';
@@ -32,6 +33,7 @@ interface RecipientFieldProps {
   activeField: FieldType | null;
   setActiveField: (f: FieldType) => void;
   searchResults: Contact[];
+  recipientSuggestions: import('types/contactGroup').RecipientSuggestion[];
   selectedSuggestionIndex: number;
   inputValues: Record<FieldType, string>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
@@ -39,11 +41,11 @@ interface RecipientFieldProps {
   handleKeyDown: (
     event: React.KeyboardEvent,
     field: FieldType,
-    results: Contact[],
     idx: number,
     removeTag: (i: number, f: FieldType) => void
   ) => void;
   handleSelectContact: (contact: Contact, field: FieldType) => void;
+  handleSelectGroup: (group: ContactGroup, field: FieldType) => void;
   handleRemoveTag: (i: number, field: FieldType) => void;
   handleBlur: (field: FieldType) => void;
   setSelectedSuggestionIndex: (idx: number) => void;
@@ -63,12 +65,14 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
   activeField,
   setActiveField,
   searchResults,
+  recipientSuggestions,
   selectedSuggestionIndex,
   inputValues,
   dropdownRef,
   handleInputChange,
   handleKeyDown,
   handleSelectContact,
+  handleSelectGroup,
   handleRemoveTag,
   handleBlur,
   setSelectedSuggestionIndex,
@@ -135,7 +139,6 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
           handleKeyDown(
             event as unknown as React.KeyboardEvent,
             field,
-            searchResults,
             selectedSuggestionIndex,
             handleRemoveTag
           )
@@ -153,11 +156,13 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
       />
     </div>
 
-    {activeField === field && searchResults.length > 0 && (
+    {activeField === field && recipientSuggestions.length > 0 && (
       <RecipientSuggestions
+        suggestions={recipientSuggestions}
         contacts={searchResults}
         selectedIndex={selectedSuggestionIndex}
         onSelect={(contact: Contact) => handleSelectContact(contact, field)}
+        onSelectGroup={(group: ContactGroup) => handleSelectGroup(group, field)}
         onHover={(idx: number) => setSelectedSuggestionIndex(idx)}
         dropdownRef={dropdownRef}
         field={field}
@@ -187,12 +192,14 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     activeField,
     setActiveField,
     searchResults,
+    recipientSuggestions,
     selectedSuggestionIndex,
     inputValues,
     dropdownRef,
     handleInputChange,
     handleKeyDown,
     handleSelectContact,
+    handleSelectGroup,
     handleRemoveTag,
     handleBlur,
     setSelectedSuggestionIndex,
@@ -226,12 +233,14 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     activeField,
     setActiveField,
     searchResults,
+    recipientSuggestions,
     selectedSuggestionIndex,
     inputValues,
     dropdownRef,
     handleInputChange,
     handleKeyDown,
     handleSelectContact,
+    handleSelectGroup,
     handleRemoveTag,
     handleBlur,
     setSelectedSuggestionIndex,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Contact } from 'types/contact';
+import { ContactGroup, RecipientSuggestion } from 'types/contactGroup';
 
 import { API_URL } from 'config/api';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
@@ -13,6 +14,8 @@ import {
   KEY_BACKSPACE,
   KEY_ENTER,
   KEY_ESCAPE,
+  PROMISE_STATUS_FULFILLED,
+  SUGGESTION_KIND_GROUP,
 } from 'constants/strings';
 
 type FieldType = typeof EMAIL_FIELD_TO | typeof EMAIL_FIELD_CC | typeof EMAIL_FIELD_BCC;
@@ -27,6 +30,9 @@ const parseEmailsToTags = (value: string): string[] =>
     .split(',')
     .map(event => event.trim())
     .filter(event => event.length > 0);
+
+const formatRecipientDisplay = (name: string | undefined, email: string): string =>
+  name ? `${name} <${email}>` : email;
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,7 +83,7 @@ const applySelectContact = (
 ) => {
   const { toTags, ccTags, bccTags } = tags;
   const current = getTagsForField(field, toTags, ccTags, bccTags);
-  const display = contact.name ? `${contact.name} <${contact.email}>` : contact.email;
+  const display = formatRecipientDisplay(contact.name, contact.email);
   dispatchToField(field, [...current, display].join(', '), dispatch);
 };
 
@@ -112,7 +118,7 @@ function processRecipientKeyDown(params: {
   event: React.KeyboardEvent;
   field: FieldType;
   inputValue: string;
-  searchResults: Contact[];
+  suggestions: RecipientSuggestion[];
   selectedIdx: number;
   toTags: string[];
   ccTags: string[];
@@ -120,8 +126,10 @@ function processRecipientKeyDown(params: {
   dispatch: DispatchFns;
   handleRemoveTagFn: (i: number, f: FieldType) => void;
   handleSelectContactFn: (contact: Contact, f: FieldType) => void;
+  handleSelectGroupFn: (group: ContactGroup, f: FieldType) => void;
   setInputValues: React.Dispatch<React.SetStateAction<Record<FieldType, string>>>;
   setSearchResults: (r: Contact[]) => void;
+  setGroupResults: (r: ContactGroup[]) => void;
   setSelectedSuggestionIndex: React.Dispatch<React.SetStateAction<number>>;
   setActiveField: (f: FieldType | null) => void;
 }): void {
@@ -129,7 +137,7 @@ function processRecipientKeyDown(params: {
     event,
     field,
     inputValue,
-    searchResults,
+    suggestions,
     selectedIdx,
     toTags,
     ccTags,
@@ -137,8 +145,10 @@ function processRecipientKeyDown(params: {
     dispatch,
     handleRemoveTagFn,
     handleSelectContactFn,
+    handleSelectGroupFn,
     setInputValues,
     setSearchResults,
+    setGroupResults,
     setSelectedSuggestionIndex,
     setActiveField,
   } = params;
@@ -158,31 +168,43 @@ function processRecipientKeyDown(params: {
     isValidEmail(inputValue.trim())
   ) {
     event.preventDefault();
-    if (selectedIdx >= 0 && searchResults.length > 0) {
-      handleSelectContactFn(searchResults[selectedIdx], field);
+    if (selectedIdx >= 0 && suggestions.length > 0) {
+      const selected = suggestions[selectedIdx];
+      if (selected.kind === SUGGESTION_KIND_GROUP) {
+        handleSelectGroupFn(selected.group, field);
+      } else {
+        handleSelectContactFn(selected.contact, field);
+      }
     } else {
       const newTags = [...getTagsForField(field, toTags, ccTags, bccTags), inputValue.trim()];
       dispatchToField(field, newTags.join(', '), dispatch);
       setInputValues(prev => ({ ...prev, [field]: '' }));
       setSearchResults([]);
+      setGroupResults([]);
     }
     return;
   }
 
-  if (searchResults.length === 0) {
+  if (suggestions.length === 0) {
     return;
   }
   if (event.key === KEY_ARROW_DOWN) {
     event.preventDefault();
-    setSelectedSuggestionIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : prev));
+    setSelectedSuggestionIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
   } else if (event.key === KEY_ARROW_UP) {
     event.preventDefault();
     setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1));
   } else if (event.key === KEY_ENTER && selectedIdx >= 0) {
     event.preventDefault();
-    handleSelectContactFn(searchResults[selectedIdx], field);
+    const selected = suggestions[selectedIdx];
+    if (selected.kind === SUGGESTION_KIND_GROUP) {
+      handleSelectGroupFn(selected.group, field);
+    } else {
+      handleSelectContactFn(selected.contact, field);
+    }
   } else if (event.key === KEY_ESCAPE) {
     setSearchResults([]);
+    setGroupResults([]);
     setActiveField(null);
   }
 }
@@ -234,10 +256,21 @@ function processFieldBlur(params: {
   dispatch: DispatchFns;
   setInputValues: React.Dispatch<React.SetStateAction<Record<FieldType, string>>>;
   setSearchResults: (r: Contact[]) => void;
+  setGroupResults: (r: ContactGroup[]) => void;
   setActiveField: (f: FieldType | null) => void;
 }): void {
-  const { field, inputValues, toTags, ccTags, bccTags, dispatch, setInputValues, setSearchResults, setActiveField } =
-    params;
+  const {
+    field,
+    inputValues,
+    toTags,
+    ccTags,
+    bccTags,
+    dispatch,
+    setInputValues,
+    setSearchResults,
+    setGroupResults,
+    setActiveField,
+  } = params;
   const inputValue = inputValues[field]?.trim();
   if (inputValue && !/[\r\n]/.test(inputValue) && isValidEmail(inputValue)) {
     dispatchToField(field, [...getTagsForField(field, toTags, ccTags, bccTags), inputValue].join(', '), dispatch);
@@ -245,14 +278,16 @@ function processFieldBlur(params: {
   }
   setTimeout(() => {
     setSearchResults([]);
+    setGroupResults([]);
     setActiveField(null);
   }, DEBOUNCE_DELAY_200_MS);
 }
 
-// Sub-hook: manages contact search state, the search API call, and click-outside dismissal.
+// Sub-hook: manages contact/group search state, the search API calls, and click-outside dismissal.
 function useRecipientSearch() {
   const [activeField, setActiveField] = useState<FieldType | null>(null);
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
+  const [groupResults, setGroupResults] = useState<ContactGroup[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -260,14 +295,20 @@ function useRecipientSearch() {
   const searchContacts = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
+      setGroupResults([]);
       return;
     }
     try {
-      const response = await axios.get(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
-      setSearchResults(response.data);
+      const [contactsRes, groupsRes] = await Promise.allSettled([
+        axios.get<Contact[]>(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`),
+        axios.get<ContactGroup[]>(`${API_URL}/contact-groups/search?q=${encodeURIComponent(query)}`),
+      ]);
+      setSearchResults(contactsRes.status === PROMISE_STATUS_FULFILLED ? contactsRes.value.data : []);
+      setGroupResults(groupsRes.status === PROMISE_STATUS_FULFILLED ? groupsRes.value.data : []);
       setSelectedSuggestionIndex(-1);
     } catch {
       setSearchResults([]);
+      setGroupResults([]);
     }
   }, []);
 
@@ -275,6 +316,7 @@ function useRecipientSearch() {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setSearchResults([]);
+        setGroupResults([]);
         setActiveField(null);
       }
     };
@@ -287,6 +329,8 @@ function useRecipientSearch() {
     setActiveField,
     searchResults,
     setSearchResults,
+    groupResults,
+    setGroupResults,
     selectedSuggestionIndex,
     setSelectedSuggestionIndex,
     searchTimeoutRef,
@@ -323,6 +367,8 @@ export const useRecipients = ({
     setActiveField,
     searchResults,
     setSearchResults,
+    groupResults,
+    setGroupResults,
     selectedSuggestionIndex,
     setSelectedSuggestionIndex,
     searchTimeoutRef,
@@ -348,9 +394,34 @@ export const useRecipients = ({
       applySelectContact(contact, field, { toTags, ccTags, bccTags }, dispatch);
       setInputValues(prev => ({ ...prev, [field]: '' }));
       setSearchResults([]);
+      setGroupResults([]);
       setActiveField(null);
     },
-    [toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]
+    [toTags, ccTags, bccTags, dispatch, setSearchResults, setGroupResults, setActiveField]
+  );
+
+  // Expands a contact group into its individual members, adding each to the field.
+  const handleSelectGroup = useCallback(
+    (group: ContactGroup, field: FieldType) => {
+      const current = getTagsForField(field, toTags, ccTags, bccTags);
+      const memberTags = group.members.map(member => formatRecipientDisplay(member.name, member.email));
+      const newTags = [...current, ...memberTags];
+      dispatchToField(field, newTags.join(', '), dispatch);
+      setInputValues(prev => ({ ...prev, [field]: '' }));
+      setSearchResults([]);
+      setGroupResults([]);
+      setActiveField(null);
+    },
+    [toTags, ccTags, bccTags, dispatch, setSearchResults, setGroupResults, setActiveField]
+  );
+
+  // Merged suggestions: groups first, then contacts
+  const recipientSuggestions: RecipientSuggestion[] = useMemo(
+    () => [
+      ...groupResults.map((grp): RecipientSuggestion => ({ kind: 'group', group: grp })),
+      ...searchResults.map((contact): RecipientSuggestion => ({ kind: 'contact', contact })),
+    ],
+    [groupResults, searchResults]
   );
 
   const handleInputChange = useCallback(
@@ -374,7 +445,6 @@ export const useRecipients = ({
     (
       event: React.KeyboardEvent,
       field: FieldType,
-      searchResultsLocal: Contact[],
       selectedIdx: number,
       handleRemoveTagLocal: (i: number, f: FieldType) => void
     ) => {
@@ -382,7 +452,7 @@ export const useRecipients = ({
         event,
         field,
         inputValue: inputValues[field],
-        searchResults: searchResultsLocal,
+        suggestions: recipientSuggestions,
         selectedIdx,
         toTags,
         ccTags,
@@ -390,20 +460,25 @@ export const useRecipients = ({
         dispatch,
         handleRemoveTagFn: handleRemoveTagLocal,
         handleSelectContactFn: handleSelectContact,
+        handleSelectGroupFn: handleSelectGroup,
         setInputValues,
         setSearchResults,
+        setGroupResults,
         setSelectedSuggestionIndex,
         setActiveField,
       });
     },
     [
       inputValues,
+      recipientSuggestions,
       toTags,
       ccTags,
       bccTags,
       dispatch,
       handleSelectContact,
+      handleSelectGroup,
       setSearchResults,
+      setGroupResults,
       setSelectedSuggestionIndex,
       setActiveField,
     ]
@@ -420,9 +495,10 @@ export const useRecipients = ({
         dispatch,
         setInputValues,
         setSearchResults,
+        setGroupResults,
         setActiveField,
       }),
-    [inputValues, toTags, ccTags, bccTags, dispatch, setSearchResults, setActiveField]
+    [inputValues, toTags, ccTags, bccTags, dispatch, setSearchResults, setGroupResults, setActiveField]
   );
 
   // ── Drag-and-drop state ─────────────────────────────────────────────────────
@@ -463,6 +539,8 @@ export const useRecipients = ({
     setActiveField,
     searchResults,
     setSearchResults,
+    groupResults,
+    recipientSuggestions,
     selectedSuggestionIndex,
     setSelectedSuggestionIndex,
     inputValues,
@@ -471,6 +549,7 @@ export const useRecipients = ({
     handleInputChange,
     handleKeyDown,
     handleSelectContact,
+    handleSelectGroup,
     handleRemoveTag,
     handleBlur,
     dragSource,

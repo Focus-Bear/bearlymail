@@ -1,3 +1,5 @@
+import { Contact } from 'types/contact';
+
 export interface ContactGroupMemberSummary {
   contactId: string;
   email: string;
@@ -25,5 +27,5 @@ export interface UpdateContactGroupPayload {
 
 /** A union search result — either a contact or a group (used in compose dropdown). */
 export type RecipientSuggestion =
-  | { kind: 'contact'; id?: string; email: string; name?: string; photoUrl?: string }
+  | { kind: 'contact'; contact: Contact }
   | { kind: 'group'; group: ContactGroup };

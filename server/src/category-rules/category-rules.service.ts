@@ -15,6 +15,7 @@ import {
   CompositeCategoryRuleSpecV2,
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type {
@@ -53,6 +54,8 @@ export class CategoryRulesService {
     private readonly categoryRuleRepository: Repository<CategoryRule>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    @InjectRepository(UserContext)
+    private readonly userContextRepository: Repository<UserContext>,
     private readonly llmCategoriesService: LLMCategoriesService,
   ) {}
 
@@ -324,7 +327,11 @@ export class CategoryRulesService {
     dto: SuggestCategoryRulesDto,
   ): Promise<CategoryRuleSuggestion[]> {
     return buildSuggestions(
-      { email: this.emailRepository, rule: this.categoryRuleRepository },
+      {
+        email: this.emailRepository,
+        rule: this.categoryRuleRepository,
+        userContext: this.userContextRepository,
+      },
       userId,
       dto.categoryName?.trim() ?? "",
       (raw: string) => this.normaliseSender(raw),

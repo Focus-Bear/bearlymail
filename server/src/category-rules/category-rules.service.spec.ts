@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { CategoryRulesService } from "./category-rules.service";
 
@@ -20,19 +21,26 @@ const mockRuleRepo = () => ({
 const makeQbStub = (rawResult: { cnt: string }) => ({
   select: jest.fn().mockReturnThis(),
   addSelect: jest.fn().mockReturnThis(),
+  innerJoin: jest.fn().mockReturnThis(),
   where: jest.fn().mockReturnThis(),
   andWhere: jest.fn().mockReturnThis(),
   groupBy: jest.fn().mockReturnThis(),
   having: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
   limit: jest.fn().mockReturnThis(),
+  take: jest.fn().mockReturnThis(),
   getRawOne: jest.fn().mockResolvedValue(rawResult),
   getRawMany: jest.fn().mockResolvedValue([]),
+  getMany: jest.fn().mockResolvedValue([]),
 });
 
 const mockEmailRepo = () => ({
   find: jest.fn(),
   createQueryBuilder: jest.fn(),
+});
+
+const mockUserContextRepo = () => ({
+  find: jest.fn().mockResolvedValue([]),
 });
 
 const mockLLMCategoriesService = () => ({
@@ -56,6 +64,10 @@ describe("CategoryRulesService", () => {
         {
           provide: getRepositoryToken(Email),
           useFactory: mockEmailRepo,
+        },
+        {
+          provide: getRepositoryToken(UserContext),
+          useFactory: mockUserContextRepo,
         },
         {
           provide: LLMCategoriesService,

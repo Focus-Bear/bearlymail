@@ -10,6 +10,7 @@ import { Repository } from "typeorm";
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { ContextKey, UserContext } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
 import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
@@ -30,20 +31,66 @@ interface CandidateInfo {
 }
 
 /**
+ * Looks up the contextId (UUID) of the EMAIL_CATEGORY UserContext row whose
+ * decrypted contextValue matches the given category name (case-insensitive).
+ *
+ * Returns null when no matching category exists or when categoryName is empty.
+ * This UUID is used as the `categoryId` on EmailThread rows to filter emails
+ * that actually belong to the requested category.
+ */
+async function findCategoryContextId(
+  userContextRepository: Repository<UserContext>,
+  userId: string,
+  categoryName: string,
+): Promise<string | null> {
+  const normalizedName = categoryName.trim().toLowerCase();
+  if (!normalizedName) return null;
+
+  const contexts = await userContextRepository.find({
+    where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+    select: ["contextId", "contextValue"],
+  });
+
+  // contextValue is auto-decrypted by the TypeORM transformer
+  const match = contexts.find(
+    (ctx) => ctx.contextValue?.trim().toLowerCase() === normalizedName,
+  );
+  return match?.contextId ?? null;
+}
+
+/**
  * Fetches senders that have >= SUGGEST_MIN_THREAD_COUNT distinct threads.
+ * When categoryId is provided, only threads categorised under that category
+ * are counted — ensuring suggestions are relevant to the requested category
+ * and different categories with the same sender domain get distinct patterns.
+ *
  * Results are ordered by thread count descending and capped at
  * SUGGEST_MAX_RESULTS * 3 to allow for filtering before the final limit.
  */
 export async function fetchCandidateSenderRows(
   emailRepository: Repository<Email>,
   userId: string,
+  categoryId: string | null = null,
 ): Promise<ThreadCountRow[]> {
-  return emailRepository
+  const qb = emailRepository
     .createQueryBuilder("email")
     .select("email.senderEmailHmac", "hmac")
     .addSelect("COUNT(DISTINCT email.threadId)", "threadCount")
     .where("email.userId = :userId", { userId })
-    .andWhere("email.senderEmailHmac IS NOT NULL")
+    .andWhere("email.senderEmailHmac IS NOT NULL");
+
+  if (categoryId) {
+    // Join to email_threads to filter by category. Using the table name string
+    // (not the entity alias) avoids needing EmailThread in forFeature().
+    qb.innerJoin(
+      "email_threads",
+      "thread",
+      "thread.id = email.emailThreadId AND thread.categoryId = :categoryId",
+      { categoryId },
+    );
+  }
+
+  return qb
     .groupBy("email.senderEmailHmac")
     .having("COUNT(DISTINCT email.threadId) >= :min", {
       min: CATEGORY_RULE_COMPOSITE.SUGGEST_MIN_THREAD_COUNT,
@@ -51,6 +98,42 @@ export async function fetchCandidateSenderRows(
     .orderBy("COUNT(DISTINCT email.threadId)", "DESC")
     .limit(CATEGORY_RULE_COMPOSITE.SUGGEST_MAX_RESULTS * 3)
     .getRawMany<ThreadCountRow>();
+}
+
+/**
+ * Fetches recent sample emails for a sender HMAC.
+ * When categoryId is provided, only emails from threads categorised under
+ * that category are returned, so the LLM sees category-relevant examples.
+ */
+async function fetchSampleEmails(
+  emailRepository: Repository<Email>,
+  userId: string,
+  senderHmac: string,
+  categoryId: string | null,
+): Promise<Pick<Email, "from" | "subject" | "body">[]> {
+  if (categoryId) {
+    return emailRepository
+      .createQueryBuilder("email")
+      .select(["email.from", "email.subject", "email.body"])
+      .innerJoin(
+        "email_threads",
+        "thread",
+        "thread.id = email.emailThreadId AND thread.categoryId = :categoryId",
+        { categoryId },
+      )
+      .where("email.userId = :userId", { userId })
+      .andWhere("email.senderEmailHmac = :hmac", { hmac: senderHmac })
+      .orderBy("email.receivedAt", "DESC")
+      .take(CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER)
+      .getMany();
+  }
+
+  return emailRepository.find({
+    where: { userId, senderEmailHmac: senderHmac },
+    order: { receivedAt: "DESC" },
+    take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
+    select: ["from", "subject", "body"],
+  });
 }
 
 /**
@@ -153,21 +236,56 @@ export async function buildSuggestionFromSamplesWithLLM(
 }
 
 /**
+ * Groups resolved candidates by domain (or full address when there is no `@`),
+ * so that multiple senders from the same domain are batched into one suggestion.
+ */
+function groupCandidatesByDomain(
+  candidates: CandidateInfo[],
+): Map<string, CandidateInfo[]> {
+  const groups = new Map<string, CandidateInfo[]>();
+  for (const candidate of candidates) {
+    const key = candidate.domain ?? candidate.normSender;
+    const group = groups.get(key) ?? [];
+    group.push(candidate);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+/**
  * Full suggest pipeline: finds candidate senders, groups them by domain so
  * that multiple addresses from the same domain (e.g. notifications@github.com
  * and actions@github.com) are presented as a single suggestion with a domain
  * wildcard pattern. Filters out senders already covered by composite rules.
+ *
+ * When categoryName is non-empty, only emails from threads already categorised
+ * under that category are used as samples — ensuring the LLM generates patterns
+ * that actually match the category's emails and preventing the same rule from
+ * being generated for multiple categories that share a sender domain.
  */
 export async function buildSuggestions(
-  repositories: { email: Repository<Email>; rule: Repository<CategoryRule> },
+  repositories: {
+    email: Repository<Email>;
+    rule: Repository<CategoryRule>;
+    userContext: Repository<UserContext>;
+  },
   userId: string,
   categoryNameFilter: string,
   normaliseSender: (raw: string) => string,
   llmCategoriesService: LLMCategoriesService,
 ): Promise<CategoryRuleSuggestion[]> {
+  // Resolve the category's UUID so we can filter emails by category.
+  // Returns null for empty filter (fallback: use all emails) or unknown names.
+  const categoryId = await findCategoryContextId(
+    repositories.userContext,
+    userId,
+    categoryNameFilter,
+  );
+
   const candidateRows = await fetchCandidateSenderRows(
     repositories.email,
     userId,
+    categoryId,
   );
   if (candidateRows.length === 0) {
     return [];
@@ -199,13 +317,7 @@ export async function buildSuggestions(
 
   // Group candidates by domain so that senders sharing a domain are processed
   // together and can receive a single domain-wildcard suggestion.
-  const domainGroups = new Map<string, CandidateInfo[]>();
-  for (const candidate of resolvedCandidates) {
-    const key = candidate.domain ?? candidate.normSender;
-    const group = domainGroups.get(key) ?? [];
-    group.push(candidate);
-    domainGroups.set(key, group);
-  }
+  const domainGroups = groupCandidatesByDomain(resolvedCandidates);
 
   const existingRules = await repositories.rule.find({
     where: { userId, ruleKind: "composite" },
@@ -240,15 +352,11 @@ export async function buildSuggestions(
     }
 
     // Collect sample emails from all HMACs in this domain group (parallel).
+    // When categoryId is set, only emails from that category's threads are used.
     const allSampleEmails = (
       await Promise.all(
         group.map(({ hmac }) =>
-          repositories.email.find({
-            where: { userId, senderEmailHmac: hmac },
-            order: { receivedAt: "DESC" },
-            take: CATEGORY_RULE_COMPOSITE.SUGGEST_SAMPLE_EMAILS_PER_SENDER,
-            select: ["from", "subject", "body"],
-          }),
+          fetchSampleEmails(repositories.email, userId, hmac, categoryId),
         ),
       )
     ).flat();

@@ -186,10 +186,12 @@ describe("refreshAttachmentsFromGmailForThread", () => {
     expect(result.results).toHaveLength(2);
     expect(mockEmailsService.updateEmail).toHaveBeenCalledTimes(2);
     expect(mockEmailsService.updateEmail).toHaveBeenCalledWith(
+      userId,
       "email-1",
       expect.any(Object),
     );
     expect(mockEmailsService.updateEmail).toHaveBeenCalledWith(
+      userId,
       "email-2",
       expect.any(Object),
     );

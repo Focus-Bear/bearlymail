@@ -171,7 +171,7 @@ export class GmailService {
       );
     }
     if ((!existing.body || existing.body.trim() === "") && body) {
-      await this.emailsService.updateEmail(existing.id, { body, htmlBody });
+      await this.emailsService.updateEmail(userId, existing.id, { body, htmlBody });
     }
   }
 

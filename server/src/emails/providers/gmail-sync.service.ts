@@ -446,7 +446,7 @@ export class GmailSyncService {
         updates.attachments = parsedAttachments;
       }
       if (Object.keys(updates).length > 0) {
-        await this.emailsService.updateEmail(existing.id, updates);
+        await this.emailsService.updateEmail(userId, existing.id, updates);
       }
       return;
     }

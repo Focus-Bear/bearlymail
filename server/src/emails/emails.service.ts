@@ -448,10 +448,11 @@ export class EmailsService {
   }
 
   async updateEmail(
+    userId: string,
     emailId: string,
     updates: Partial<Email>,
   ): Promise<Email | null> {
-    return this.emailServiceDeps.emailCrudService.updateEmail(emailId, updates);
+    return this.emailServiceDeps.emailCrudService.updateEmail(userId, emailId, updates);
   }
 
   // ── Read / unread ──────────────────────────────────────────────────────────

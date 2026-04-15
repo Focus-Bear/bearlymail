@@ -68,7 +68,7 @@ export async function refreshAttachmentsFromGmailForUser(
   }
 
   const attachments = rawEmail.attachments ?? null;
-  await emailsService.updateEmail(email.id, { attachments });
+  await emailsService.updateEmail(userId, email.id, { attachments });
 
   return {
     gmailMessageId: email.messageId,
@@ -160,7 +160,7 @@ export async function refreshAttachmentsFromGmailForThread(
     }
 
     try {
-      await emailsService.updateEmail(threadEmail.id, { attachments });
+      await emailsService.updateEmail(userId, threadEmail.id, { attachments });
     } catch (error) {
       logger.warn(
         `refreshAttachmentsFromGmailForThread: updateEmail failed for emailId=${threadEmail.id}: ${error}`,

@@ -378,7 +378,7 @@ export class Office365Provider implements EmailProvider {
     );
     if (existing) {
       if (existing.isRead !== messageData.isRead) {
-        await this.emailsService.updateEmail(existing.id, {
+        await this.emailsService.updateEmail(userId, existing.id, {
           isRead: messageData.isRead || false,
         });
       }

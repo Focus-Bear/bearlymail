@@ -18,6 +18,25 @@ THREAD CONTEXT:
 - The conversation may have evolved from the original topic - prioritize where it is NOW
 - Clearly distinguish between what the user said/asked vs what others said/asked
 {% endif %}
+
+## Summary Perspective — CRITICAL
+
+{% if isThread %}
+When writing the summary, ALWAYS refer to the account owner as **"you"** — never use their actual name, even if you can infer it from the email content (e.g., from greetings like "Hi Jeremy" or from a quoted signature). Refer to other participants by their actual names.
+- ✅ Correct: "You mentioned things are going well. Ian Davidson is asking for your input on fundraising."
+- ❌ Wrong: "Jeremy says things are going well personally and asks for your input on fundraising."
+{% elif fromName %}
+{% if isUserSender %}
+This email was sent BY you to {{fromName}}. Write the summary from your perspective as the sender — use "you" to refer to yourself, never your own name.
+{% else %}
+This email was sent BY {{fromName}} to you. Write the summary from your perspective as the RECIPIENT:
+- Refer to the sender as "{{fromName}}"
+- Refer to yourself as "you" — do NOT use your own name even if {{fromName}} addresses you by name in the email
+- ✅ Correct: "{{fromName}} is asking for your input on fundraising."
+- ❌ Wrong: "Jeremy says things are going well and asks for your input."
+{% endif %}
+{% endif %}
+
 Please provide a bullet-point summary{% if isThread %} for the following email thread{% else %} for the following email{% endif %}:
 
 Subject: {{subject}}

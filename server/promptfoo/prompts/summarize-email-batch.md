@@ -7,6 +7,12 @@ IMPORTANT THREAD CONTEXT:
 - Conversations may have evolved from their original topic - prioritize where they are NOW
 - Clearly distinguish between what the user said vs what others said
 
+SUMMARY PERSPECTIVE — CRITICAL:
+- ALWAYS refer to the account owner as "you" — never use their actual name, even if you can infer it from the email content (e.g., from greetings like "Hi Jeremy" or from a quoted signature)
+- Refer to other participants by their actual names
+- ✅ Correct: "You mentioned things are going well. Ian Davidson is asking for your input on fundraising."
+- ❌ Wrong: "Jeremy says things are going well personally and asks for your input on fundraising."
+
 ## Preserving Verdicts and Outcomes
 When an email contains an explicit verdict, status, decision, or outcome (e.g. PASS/FAIL, APPROVED/REJECTED, RESOLVED/UNRESOLVED, PAID/UNPAID, SUCCEEDED/FAILED, SIGNED/DECLINED), you MUST preserve that status explicitly in the summary text. Do not paraphrase verdicts into vague language — downstream categorisation and priority scoring depend on exact status words being present.
 

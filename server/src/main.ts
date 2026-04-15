@@ -13,6 +13,7 @@ import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
+import { securityHeadersMiddleware } from "./utils/security-headers.middleware";
 
 // Initialize PostHog for global error tracking
 initializeGlobalErrorTracking();
@@ -48,6 +49,9 @@ async function bootstrap() {
     }
 
     const app = await NestFactory.create(AppModule);
+
+    // Security headers middleware (CASA Tier 2/3 compliance)
+    app.use(securityHeadersMiddleware);
 
     // Enable CORS for frontend (allow dev + production origins)
     const allowedOrigins = [

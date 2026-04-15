@@ -616,6 +616,43 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     // ============================================
+    // CloudFront Security Response Headers Policy
+    // Fixes: Anti-clickjacking, X-Content-Type-Options, HSTS, CSP, proxy/server header disclosure
+    // ============================================
+    const securityHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeadersPolicy', {
+      responseHeadersPolicyName: `BearlyMailSecurityHeaders-${this.node.addr.substring(0, 8)}`,
+      comment: 'Security headers for BearlyMail frontend (CASA Tier 2/3 compliance)',
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true }, // X-Content-Type-Options: nosniff
+        frameOptions: {
+          frameOption: cloudfront.HeadersFrameOption.DENY, // X-Frame-Options: DENY
+          override: true,
+        },
+        strictTransportSecurity: {
+          accessControlMaxAge: cdk.Duration.days(730), // 2 years
+          includeSubdomains: true,
+          preload: true,
+          override: true,
+        },
+        contentSecurityPolicy: {
+          contentSecurityPolicy:
+            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+          override: true,
+        },
+        xssProtection: {
+          protection: true,
+          modeBlock: true,
+          override: true,
+        },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+      },
+      removeHeaders: ['Server', 'X-Powered-By'],
+    });
+
+    // ============================================
     // CloudFront Distribution
     // ============================================
     let distribution: cloudfront.Distribution;
@@ -645,6 +682,7 @@ export class BearlyMailStack extends cdk.Stack {
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          responseHeadersPolicy: securityHeadersPolicy,
         },
         domainNames: isSubdomain ? [domainName] : [domainName, `www.${domainName}`],
         certificate: certificate,
@@ -699,6 +737,7 @@ export class BearlyMailStack extends cdk.Stack {
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          responseHeadersPolicy: securityHeadersPolicy,
         },
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
         comment: 'BearlyMail frontend distribution',

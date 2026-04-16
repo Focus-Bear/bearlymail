@@ -89,6 +89,7 @@ describe("refreshAttachmentsFromGmailForThread", () => {
   it("should use threadId (Gmail thread ID) not emailThreadId (internal UUID) to fetch thread emails", async () => {
     /* This is the core regression test for the bug: emailThreadId (UUID) was passed to getThreadEmails() which filters on the threadId column (hex string). */
     const triggerEmail = makeEmail();
+    // First call: trigger email lookup. Subsequent calls: DB verification reads after updateEmail.
     mockEmailsService.getEmailById.mockResolvedValue(triggerEmail);
     mockEmailsService.getThreadEmails.mockResolvedValue([triggerEmail]);
 
@@ -154,6 +155,7 @@ describe("refreshAttachmentsFromGmailForThread", () => {
   it("should refresh attachments for all emails in the thread", async () => {
     const email1 = makeThreadEmail("email-1", "msg-1");
     const email2 = makeThreadEmail("email-2", "msg-2");
+    // First call: trigger email lookup. Subsequent calls: DB verification reads after updateEmail.
     mockEmailsService.getEmailById.mockResolvedValue(email1);
     mockEmailsService.getThreadEmails.mockResolvedValue([email1, email2]);
 
@@ -195,6 +197,52 @@ describe("refreshAttachmentsFromGmailForThread", () => {
       "email-2",
       expect.any(Object),
     );
+  });
+
+  it("should include threadEmailCount and gmailCount/dbCount in response for debugging", async () => {
+    const email1 = makeThreadEmail("email-1", "msg-1");
+    const email2 = makeThreadEmail("email-2", "msg-2");
+    const attachment = makeAttachment();
+    const emailWithAttachments = { ...email1, attachments: [attachment] };
+
+    // First call returns trigger email, subsequent verification reads return email with attachments
+    mockEmailsService.getEmailById
+      .mockResolvedValueOnce(email1) // trigger email lookup
+      .mockResolvedValue(emailWithAttachments); // DB verification reads
+    mockEmailsService.getThreadEmails.mockResolvedValue([email1, email2]);
+    mockGmailClient.users.messages.get.mockResolvedValue({
+      data: {
+        id: "msg-1",
+        payload: {
+          parts: [
+            {
+              filename: attachment.filename,
+              mimeType: attachment.mimeType,
+              body: { attachmentId: attachment.attachmentId, size: attachment.size },
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await refreshAttachmentsFromGmailForThread(
+      {
+        emailsService: mockEmailsService as any,
+        gmailProvider: mockGmailProvider as any,
+        logger: mockLogger,
+      },
+      userId,
+      "email-1",
+    );
+
+    expect(result.threadEmailCount).toBe(2);
+    // Both emails use the same Gmail mock which always returns 1 attachment
+    const email1Result = result.results.find((r) => r.emailId === "email-1");
+    expect(email1Result?.gmailCount).toBe(1);
+    expect(email1Result?.dbCount).toBe(1); // verified from mock re-read
+    const email2Result = result.results.find((r) => r.emailId === "email-2");
+    expect(email2Result?.gmailCount).toBe(1); // same Gmail mock for all messages
+    expect(email2Result?.dbCount).toBe(1); // mock returns emailWithAttachments for all reads
   });
 
   it("should throw NotFoundException when trigger email is not found", async () => {

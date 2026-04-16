@@ -91,10 +91,18 @@ export async function refreshAttachmentsFromGmailForThread(
   emailId: string,
 ): Promise<{
   threadId: string;
+  threadEmailCount: number;
   results: Array<{
     emailId: string;
     gmailMessageId: string;
+    /** Attachments found in Gmail */
     attachments: EmailAttachment[] | null;
+    /** Count of attachments found in Gmail */
+    gmailCount: number | null;
+    /** Count of attachments verified in DB immediately after save (null = read-back failed or returned non-array) */
+    dbCount: number | null;
+    /** Error from DB re-read after save */
+    dbError?: string;
     error?: string;
   }>;
 }> {
@@ -115,6 +123,11 @@ export async function refreshAttachmentsFromGmailForThread(
     triggerEmail.threadId,
   );
 
+  logger.log(
+    `refreshAttachmentsFromGmailForThread: userId=${userId} threadId=${triggerEmail.threadId} ` +
+      `found ${threadEmails.length} emails in thread`,
+  );
+
   // 3. Create Gmail client once (not per email)
   const gmail = await gmailProvider.createGmailClientPublic(userId);
   if (!gmail) {
@@ -127,10 +140,15 @@ export async function refreshAttachmentsFromGmailForThread(
   const results = [];
   for (const threadEmail of threadEmails) {
     if (!threadEmail.messageId?.trim()) {
+      logger.warn(
+        `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} has no Gmail messageId — skipping`,
+      );
       results.push({
         emailId: threadEmail.id,
         gmailMessageId: "",
         attachments: null,
+        gmailCount: null,
+        dbCount: null,
         error: "No Gmail message ID",
       });
       continue;
@@ -145,6 +163,10 @@ export async function refreshAttachmentsFromGmailForThread(
       });
       const rawEmail = parseGmailMessage(apiResponse.data);
       attachments = rawEmail?.attachments ?? null;
+      logger.log(
+        `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} messageId=${threadEmail.messageId} ` +
+          `gmail_attachments=${attachments?.length ?? 0}`,
+      );
     } catch (error) {
       logger.warn(
         `refreshAttachmentsFromGmailForThread: Gmail API failed for messageId=${threadEmail.messageId}: ${formatGaxiosError(error)}`,
@@ -153,6 +175,8 @@ export async function refreshAttachmentsFromGmailForThread(
         emailId: threadEmail.id,
         gmailMessageId: threadEmail.messageId,
         attachments: null,
+        gmailCount: null,
+        dbCount: null,
         error:
           "Could not load from Gmail. It may have been deleted or the ID may be invalid.",
       });
@@ -168,18 +192,46 @@ export async function refreshAttachmentsFromGmailForThread(
       results.push({
         emailId: threadEmail.id,
         gmailMessageId: threadEmail.messageId,
-        attachments: null,
+        attachments,
+        gmailCount: attachments?.length ?? 0,
+        dbCount: null,
         error: "Failed to update email in database.",
       });
       continue;
+    }
+
+    // Verify the save by immediately re-reading from DB
+    let dbCount: number | null = null;
+    let dbError: string | undefined;
+    try {
+      const verified = await emailsService.getEmailById(
+        userId,
+        threadEmail.id,
+      );
+      const verifiedAttachments = verified?.attachments;
+      dbCount = Array.isArray(verifiedAttachments)
+        ? verifiedAttachments.length
+        : null;
+      logger.log(
+        `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} ` +
+          `save_verified: gmail=${attachments?.length ?? 0} db=${dbCount !== null ? dbCount : "non-array/null"}`,
+      );
+    } catch (verifyError) {
+      dbError = String(verifyError);
+      logger.warn(
+        `refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${threadEmail.id}: ${verifyError}`,
+      );
     }
 
     results.push({
       emailId: threadEmail.id,
       gmailMessageId: threadEmail.messageId,
       attachments,
+      gmailCount: attachments?.length ?? 0,
+      dbCount,
+      dbError,
     });
   }
 
-  return { threadId: triggerEmail.threadId, results };
+  return { threadId: triggerEmail.threadId, threadEmailCount: threadEmails.length, results };
 }

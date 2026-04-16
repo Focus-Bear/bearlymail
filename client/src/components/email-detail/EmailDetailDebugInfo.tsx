@@ -65,25 +65,46 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
   );
 };
 
+interface RefreshResult {
+  threadId: string;
+  threadEmailCount: number;
+  results: Array<{
+    emailId: string;
+    gmailMessageId: string;
+    attachments: Array<{ attachmentId: string; filename: string; mimeType: string; size: number }> | null;
+    gmailCount: number | null;
+    dbCount: number | null;
+    dbError?: string;
+    error?: string;
+  }>;
+}
+
 /** Admin-only debug information panel shown in email detail view. */
 export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced, githubLinks, loadingGithub, hasGithubToken }: Props) {
   const { t } = useTranslation();
   const emailData = email as any;
   const attachmentsNone = t('debug.emailDetail.attachmentsNone');
   const [refreshingAttachments, setRefreshingAttachments] = useState(false);
+  const [lastRefreshResult, setLastRefreshResult] = useState<RefreshResult | null>(null);
+  const [lastRefreshError, setLastRefreshError] = useState<string | null>(null);
 
   const handleRefreshAttachmentsFromGmail = async () => {
     if (!emailData?.id || refreshingAttachments) {
       return;
     }
     setRefreshingAttachments(true);
+    setLastRefreshResult(null);
+    setLastRefreshError(null);
     try {
-      await axios.post(`${API_URL}/emails/${emailData.id}/debug/refresh-attachments-from-gmail`);
+      const response = await axios.post<RefreshResult>(
+        `${API_URL}/emails/${emailData.id}/debug/refresh-attachments-from-gmail`,
+      );
+      setLastRefreshResult(response.data);
       await onAttachmentsSynced?.();
     } catch (err) {
       console.error('refreshAttachmentsFromGmail:', err);
       const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.refreshAttachmentsFailed');
-      alert(msg);
+      setLastRefreshError(msg);
     } finally {
       setRefreshingAttachments(false);
     }
@@ -208,6 +229,32 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
             </button>
           )}
         </div>
+        {lastRefreshError && (
+          <div style={{ marginTop: theme.spacing.sm, color: 'red', fontWeight: 600 }}>
+            {t('debug.emailDetail.refreshError')}: {lastRefreshError}
+          </div>
+        )}
+        {lastRefreshResult && (
+          <div style={{ marginTop: theme.spacing.sm, borderTop: `1px dashed ${theme.colors.border.light}`, paddingTop: theme.spacing.sm }}>
+            <strong>{t('debug.emailDetail.lastRefreshResult')}</strong>
+            <div>{t('debug.emailDetail.refreshThreadId')}: <code>{lastRefreshResult.threadId}</code></div>
+            <div>{t('debug.emailDetail.refreshThreadEmailCount')}: {lastRefreshResult.threadEmailCount}</div>
+            {lastRefreshResult.results.map((r, idx) => (
+              <div key={r.emailId} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
+                <div>[{idx}] emailId: {r.emailId}</div>
+                <div>&nbsp;&nbsp;gmailMsgId: {r.gmailMessageId || t('debug.emailDetail.notAvailable')}</div>
+                <div style={{ color: r.gmailCount != null && r.gmailCount > 0 ? 'green' : 'inherit' }}>
+                  &nbsp;&nbsp;{t('debug.emailDetail.refreshGmailCount')}: {r.gmailCount ?? t('debug.emailDetail.notAvailable')}
+                </div>
+                <div style={{ color: r.dbCount != null && r.dbCount > 0 ? 'green' : r.dbCount === 0 ? 'orange' : 'red' }}>
+                  &nbsp;&nbsp;{t('debug.emailDetail.refreshDbCount')}: {r.dbCount ?? t('debug.emailDetail.notAvailable')}
+                </div>
+                {r.error && <div style={{ color: 'red' }}>&nbsp;&nbsp;error: {r.error}</div>}
+                {r.dbError && <div style={{ color: 'orange' }}>&nbsp;&nbsp;dbError: {r.dbError}</div>}
+              </div>
+            ))}
+          </div>
+        )}
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
         <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
           <strong>{t('debug.emailDetail.githubTitle')}</strong>

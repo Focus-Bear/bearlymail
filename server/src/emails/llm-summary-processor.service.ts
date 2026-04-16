@@ -178,9 +178,10 @@ export class LLMSummaryProcessorService {
   }> {
     tracker.startPhase("dataFetch");
 
-    const candidates: SummaryJobEntry[] = [];
     const skipCount = { alreadyHasSummary: 0, notFound: 0 };
 
+    // Phase 1: fetch all emails (N+1 — pre-existing pattern)
+    const fetchedEntries: SummaryJobEntry[] = [];
     for (const job of jobArray) {
       const { userId, emailId } = job.data as {
         userId: string;
@@ -195,21 +196,91 @@ export class LLMSummaryProcessorService {
         continue;
       }
 
+      fetchedEntries.push({ job, userId, emailId, email });
+    }
+
+    // Phase 2: bulk-fetch lastSummarizedAt for all thread IDs that already
+    // have a summary, so the per-email staleness check runs in-memory
+    // without an extra query per email (avoids the N+1 pattern).
+    const threadLastSummarizedMap =
+      await this.buildThreadLastSummarizedMap(fetchedEntries);
+
+    // Phase 3: filter candidates using the pre-fetched thread data
+    const candidates: SummaryJobEntry[] = [];
+    for (const entry of fetchedEntries) {
+      const { email, emailId } = entry;
       if (
         email.summary &&
         email.summary.trim() !== "" &&
         !email.isProcessingSummary
       ) {
-        skipCount.alreadyHasSummary++;
-        continue;
+        const isStale = this.checkThreadStaleness(email, threadLastSummarizedMap);
+        if (!isStale) {
+          skipCount.alreadyHasSummary++;
+          continue;
+        }
+        this.logger.log(
+          `Email ${emailId} has summary but thread summary is stale — re-generating`,
+        );
       }
 
-      candidates.push({ job, userId, emailId, email });
+      candidates.push(entry);
     }
 
     const jobsToProcess = this.deduplicateByNewestThread(batchId, candidates);
     tracker.endPhase("dataFetch");
     return { jobsToProcess, skipCount };
+  }
+
+  /**
+   * Bulk-fetches `lastSummarizedAt` for every thread whose emails already
+   * have a summary. Returns a map of emailThreadId → lastSummarizedAt so
+   * the per-email staleness check can run in-memory.
+   */
+  private async buildThreadLastSummarizedMap(
+    fetchedEntries: SummaryJobEntry[],
+  ): Promise<Map<string, Date | null>> {
+    const entriesWithSummary = fetchedEntries.filter(
+      ({ email }) =>
+        email.summary && email.summary.trim() !== "" && !email.isProcessingSummary,
+    );
+    const threadIds = [
+      ...new Set(
+        entriesWithSummary
+          .map(({ email }) => email.emailThreadId)
+          .filter((id): id is string => id != null),
+      ),
+    ];
+    const threadLastSummarizedMap = new Map<string, Date | null>();
+    if (threadIds.length > 0) {
+      const threads = await this.emailThreadRepository.find({
+        where: { id: In(threadIds) },
+        select: ["id", "lastSummarizedAt"],
+      });
+      for (const thread of threads) {
+        threadLastSummarizedMap.set(thread.id, thread.lastSummarizedAt ?? null);
+      }
+    }
+    return threadLastSummarizedMap;
+  }
+
+  /**
+   * Returns true when the email arrived AFTER the thread's last full
+   * summarization (or the thread has never been summarized), meaning the
+   * existing summary does not include this email's content.
+   *
+   * Accepts a pre-fetched map of threadId → lastSummarizedAt to avoid
+   * per-email database queries.
+   */
+  private checkThreadStaleness(
+    email: Email,
+    threadLastSummarizedMap: Map<string, Date | null>,
+  ): boolean {
+    if (!email.emailThreadId) return false;
+    if (!threadLastSummarizedMap.has(email.emailThreadId)) return true;
+    const lastSummarizedAt = threadLastSummarizedMap.get(email.emailThreadId);
+    if (!lastSummarizedAt) return true;
+    return email.receivedAt != null && email.receivedAt > lastSummarizedAt;
   }
 
   private async fetchSummarizationRulesForJobs(

@@ -4,8 +4,10 @@
  * inputs are passed explicitly.
  */
 
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { cleanEmailForThread } from "../llm/email-content-cleaner";
 import { LLMService } from "../llm/llm.service";
 import { logWarn } from "../utils/logger";
 import {
@@ -13,6 +15,7 @@ import {
   mergePhishingSignalSets,
   PhishingSignals,
 } from "./phishing-detection.service";
+import { EmailWithHtmlBody } from "./summarization.types";
 
 /**
  * Build a cache key for phishing results based on sender + subject.
@@ -132,4 +135,63 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
     `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
   );
   return undefined;
+}
+
+/**
+ * Extracts the bare email address from a "Name <email>" or plain "email" string.
+ */
+function extractEmailAddress(from: string | undefined): string {
+  if (!from) return "";
+  const match = from.match(/<([^>]+)>/);
+  if (match) return match[1].toLowerCase();
+  return from.toLowerCase().trim();
+}
+
+/**
+ * Returns true when the email was sent by the inbox owner (identified by
+ * their plain email address).
+ */
+export function isEmailFromUser(
+  emailFrom: string | undefined,
+  userEmail: string,
+): boolean {
+  if (!userEmail || !emailFrom) return false;
+  const senderEmail = extractEmailAddress(emailFrom);
+  return senderEmail === userEmail;
+}
+
+/**
+ * Formats a list of messages into a single readable block for LLM summarisation.
+ * Shows the original message plus the most-recent messages from the thread.
+ */
+export function buildThreadText(
+  messagesToSummarize: Array<{
+    body: string;
+    fromName?: string;
+    from?: string;
+    receivedAt: Date | string;
+  }>,
+  allThreadEmails: Array<unknown>,
+  userEmail: string = "",
+): string {
+  const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
+  return messagesToSummarize
+    .map((emailEntry, idx) => {
+      const emailWithHtml = emailEntry as EmailWithHtmlBody;
+      const isFromUser = isEmailFromUser(emailEntry.from, userEmail);
+      const sender = isFromUser
+        ? "You"
+        : emailEntry.fromName || emailEntry.from;
+      const date = new Date(emailEntry.receivedAt).toLocaleString();
+      const cleanedBody = cleanEmailForThread(
+        emailEntry.body,
+        emailWithHtml.htmlBody,
+      );
+      const messageLabel =
+        idx === 0 && allThreadEmails.length > sliceCount + 1
+          ? "Original"
+          : `Message ${idx + 1}`;
+      return `[${messageLabel} from ${sender} on ${date}]:\n"""\n${cleanedBody}\n"""`;
+    })
+    .join("\n\n---\n\n");
 }

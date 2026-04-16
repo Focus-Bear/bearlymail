@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
@@ -36,6 +38,14 @@ describe("SummarizationService", () => {
     find: jest.fn().mockResolvedValue([]),
   };
 
+  const mockEmailRepository = {
+    update: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockEmailThreadRepository = {
+    update: jest.fn().mockResolvedValue({}),
+  };
+
   const mockErrorTrackingService = {
     captureException: jest.fn(),
     captureMessage: jest.fn(),
@@ -66,6 +76,14 @@ describe("SummarizationService", () => {
           useValue: mockUserContextRepository,
         },
         {
+          provide: getRepositoryToken(Email),
+          useValue: mockEmailRepository,
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
+        },
+        {
           provide: ErrorTrackingService,
           useValue: mockErrorTrackingService,
         },
@@ -81,6 +99,56 @@ describe("SummarizationService", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("persistSummaryForThread", () => {
+    it("should write plain summary to all thread emails and stamp lastSummarizedAt with the latest receivedAt", async () => {
+      const userId = "user-123";
+      const summary = "This is the full-thread summary";
+      const olderDate = new Date("2024-01-01");
+      const newerDate = new Date("2024-01-02");
+      const mockThreadEmails = [
+        { id: "email-123", receivedAt: olderDate },
+        { id: "email-456", receivedAt: newerDate },
+      ];
+
+      mockEmailsService.getThreadEmails.mockResolvedValue(mockThreadEmails);
+
+      await service.persistSummaryForThread(userId, "thread-123", "et-123", summary);
+
+      // update() receives a TypeORM In() operator for the id — check the update data
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.anything() }),
+        { summary: summary },
+      );
+      // lastSummarizedAt should be the most recent email's receivedAt, not new Date()
+      expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
+        { id: "et-123" },
+        { lastSummarizedAt: newerDate },
+      );
+    });
+
+    it("should do nothing when thread has no emails", async () => {
+      mockEmailsService.getThreadEmails.mockResolvedValue([]);
+
+      await service.persistSummaryForThread("user-123", "thread-123", "et-123", "summary");
+
+      expect(mockEmailRepository.update).not.toHaveBeenCalled();
+      expect(mockEmailThreadRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should not update thread when emailThreadId is null", async () => {
+      const mockThreadEmails = [
+        { id: "email-123", receivedAt: new Date("2024-01-01") },
+      ];
+
+      mockEmailsService.getThreadEmails.mockResolvedValue(mockThreadEmails);
+
+      await service.persistSummaryForThread("user-123", "thread-123", null, "summary");
+
+      expect(mockEmailRepository.update).toHaveBeenCalled();
+      expect(mockEmailThreadRepository.update).not.toHaveBeenCalled();
+    });
   });
 
   describe("summarizeEmail", () => {
@@ -475,6 +543,14 @@ describe("matchRuleDeterministic", () => {
         {
           provide: getRepositoryToken(UserContext),
           useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
+        {
+          provide: getRepositoryToken(Email),
+          useValue: { update: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: { update: jest.fn() },
         },
       ],
     }).compile();

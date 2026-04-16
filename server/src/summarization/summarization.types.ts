@@ -57,3 +57,15 @@ export interface SummarizeWithPhishingResult {
     durationMinutes: number | null;
   } | null;
 }
+
+/**
+ * Extended result returned by `summarizeEmailWithPhishing` (the public entry
+ * point). Includes the provider thread ID and DB thread FK so callers can
+ * invoke `persistSummaryForThread` without an extra round-trip to the DB.
+ */
+export interface SummarizeWithPhishingResultFull extends SummarizeWithPhishingResult {
+  /** Provider thread ID (e.g. Gmail thread ID). */
+  threadId: string;
+  /** FK to email_threads table. Null when the thread record has not yet been created. */
+  emailThreadId: string | null;
+}

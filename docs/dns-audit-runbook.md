@@ -119,7 +119,7 @@ Confirm the scope:
 ```bash
 # Via AWS CLI
 aws route53 change-resource-record-sets \
-  --hosted-zone-id Z04117591ORLVZWX6SSWO \
+  --hosted-zone-id <HOSTED_ZONE_ID> \
   --change-batch '{
     "Changes": [{
       "Action": "DELETE",

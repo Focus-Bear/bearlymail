@@ -235,10 +235,13 @@ jobs:
       - name: Create GitHub security issue on failure
         if: steps.audit.outputs.all_ok == 'false'
         uses: actions/github-script@v7
+        env:
+          AUDIT_ISSUES: ${{ steps.audit.outputs.issues }}
+          AUDIT_WARNINGS: ${{ steps.audit.outputs.warnings }}
         with:
           script: |
-            const issues   = `${{ steps.audit.outputs.issues }}`.trim();
-            const warnings = `${{ steps.audit.outputs.warnings }}`.trim();
+            const issues   = (process.env.AUDIT_ISSUES || '').trim();
+            const warnings = (process.env.AUDIT_WARNINGS || '').trim();
             const runUrl   = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const date     = new Date().toISOString().split('T')[0];
 

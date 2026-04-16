@@ -570,6 +570,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             threadEmails={st.threadEmails as Email[]}
             suggestedActions={otherActions}
             schedulingActions={schedulingActions}
+            loadingSchedulingActions={st.loadingSuggestedActions}
             showQuickActionsMenu={st.showQuickActionsMenu}
             selectedAction={st.selectedAction}
             onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)}

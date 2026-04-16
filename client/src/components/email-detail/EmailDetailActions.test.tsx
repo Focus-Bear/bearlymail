@@ -174,11 +174,29 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
       <EmailDetailActions
         {...baseProps}
         schedulingActions={[]}
+        loadingSchedulingActions={false}
         onRespondToInvitation={jest.fn()}
       />
     );
 
     expect(screen.getByTestId('CalendarInviteActions')).toBeInTheDocument();
+    expect(screen.queryByTestId('SchedulingRequestCard')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show CalendarInviteActions while scheduling actions are loading (#1788)', () => {
+    const { isCalendarInvitation } = jest.requireMock('utils/calendarUtils') as { isCalendarInvitation: jest.Mock };
+    isCalendarInvitation.mockReturnValueOnce(true);
+
+    render(
+      <EmailDetailActions
+        {...baseProps}
+        schedulingActions={[]}
+        loadingSchedulingActions={true}
+        onRespondToInvitation={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('CalendarInviteActions')).not.toBeInTheDocument();
     expect(screen.queryByTestId('SchedulingRequestCard')).not.toBeInTheDocument();
   });
 

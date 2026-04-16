@@ -421,6 +421,8 @@ export async function checkMeetingProposal(
   if (thread?.meetingProposal != null) {
     proposal = thread.meetingProposal;
   } else {
+    const prefs =
+      await service.schedulingPreferencesService.getPreferences(userId);
     proposal = await service.llmService.detectMeetingProposal(
       {
         from: email.from,
@@ -430,6 +432,7 @@ export async function checkMeetingProposal(
       },
       undefined,
       userId,
+      prefs.timezone,
     );
   }
 

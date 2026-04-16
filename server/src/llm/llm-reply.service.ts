@@ -434,6 +434,7 @@ export class LLMReplyService {
     },
     provider?: LLMProvider,
     userId?: string,
+    userTimezone?: string,
   ): Promise<{
     hasProposal: boolean;
     proposedTime: string | null;
@@ -467,6 +468,7 @@ export class LLMReplyService {
       fromName: email.fromName || email.from,
       subject: email.subject,
       body: cleanedBody,
+      userTimezone: userTimezone || "UTC",
     });
 
     try {

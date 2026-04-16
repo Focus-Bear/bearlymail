@@ -712,6 +712,7 @@ export class LLMService {
     },
     provider?: LLMProvider,
     userId?: string,
+    userTimezone?: string,
   ): Promise<{
     hasProposal: boolean;
     proposedTime: string | null;
@@ -719,6 +720,11 @@ export class LLMService {
     topic: string | null;
     durationMinutes: number | null;
   }> {
-    return this.llmReplyService.detectMeetingProposal(email, provider, userId);
+    return this.llmReplyService.detectMeetingProposal(
+      email,
+      provider,
+      userId,
+      userTimezone,
+    );
   }
 }

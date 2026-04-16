@@ -39,6 +39,9 @@ interface EmailDetailActionsProps {
   /** Scheduling-specific suggested actions (scheduling_request, calendar_create_invite).
    *  Separated upstream so they never appear in QuickActionsSection alongside SchedulingRequestCard. */
   schedulingActions?: SuggestedAction[];
+  /** True while suggested actions are being fetched. Prevents CalendarInviteActions from
+   *  flashing before we know whether a scheduling card should replace it (#1788). */
+  loadingSchedulingActions?: boolean;
   showQuickActionsMenu: boolean;
   selectedAction: SuggestedAction | null;
   onShowQuickActionsMenu: () => void;
@@ -125,6 +128,7 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   threadEmails = [],
   suggestedActions,
   schedulingActions = [],
+  loadingSchedulingActions = false,
   showQuickActionsMenu,
   selectedAction,
   onShowQuickActionsMenu,
@@ -300,7 +304,7 @@ const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
       {!hasIcsAttachment && hasSchedulingRequest && (
         <SchedulingRequestCard email={email} onDraftReply={onDraftReply} />
       )}
-      {!hasIcsAttachment && !hasSchedulingRequest && isInvitation && onRespondToInvitation && (
+      {!hasIcsAttachment && !hasSchedulingRequest && !loadingSchedulingActions && isInvitation && onRespondToInvitation && (
         <CalendarInviteActions
           email={email}
           onAccept={() => onRespondToInvitation(email.id, 'accepted')}

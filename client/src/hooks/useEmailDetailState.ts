@@ -93,7 +93,9 @@ export function useEmailDetailState() {
 
   // Quick actions state
   const [suggestedActions, setSuggestedActions] = useState<SuggestedAction[]>([]);
-  const [loadingSuggestedActions, setLoadingSuggestedActions] = useState(false);
+  // loadingSuggestedActions starts true so CalendarInviteActions never flashes before
+  // suggested actions are fetched — mirrors the same pattern used by loadingGithub (#1788).
+  const [loadingSuggestedActions, setLoadingSuggestedActions] = useState(true);
   const [showQuickActionsMenu, setShowQuickActionsMenu] = useState(false);
   const [selectedAction, setSelectedAction] = useState<SuggestedAction | null>(null);
 

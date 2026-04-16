@@ -1,0 +1,129 @@
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+
+import { PriorityTooltipCategory } from './PriorityTooltipCategory';
+
+const mockNavigate = jest.fn();
+
+jest.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
+jest.mock('contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { isAdmin: false } }),
+}));
+
+jest.mock('theme/theme', () => ({
+  theme: {
+    spacing: { xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
+    colors: {
+      background: { subtle: '#f5f5f5', paper: '#fff' },
+      text: { primary: '#111', secondary: '#666', tertiary: '#999' },
+      border: { light: '#e0e0e0' },
+    },
+    borderRadius: { sm: '4px' },
+    typography: {
+      fontSize: { xs: '11px', sm: '12px' },
+      fontWeight: { semibold: 600, medium: 500 },
+    },
+  },
+}));
+
+jest.mock('components/priority/CategoryDebugModal', () => ({
+  CategoryDebugModal: () => null,
+}));
+
+jest.mock('components/priority/CategoryOverrideModal', () => ({
+  CategoryOverrideModal: () => null,
+}));
+
+jest.mock('constants/strings', () => ({
+  CATEGORY_OTHER: 'Other',
+}));
+
+const defaultProps = {
+  category: 'Human GitHub issue status updates',
+  emailId: 'email-123',
+};
+
+describe('PriorityTooltipCategory', () => {
+  beforeEach(() => {
+    mockNavigate.mockClear();
+  });
+
+  it('does not show edit rule button when categoryExplanation is absent', () => {
+    render(<PriorityTooltipCategory {...defaultProps} />);
+    expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
+  });
+
+  it('does not show edit rule button when categoryExplanation does not indicate a deterministic rule', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        categoryExplanation="LLM assigned this category with high confidence"
+      />
+    );
+    expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
+  });
+
+  it('shows edit rule button when categoryExplanation indicates a deterministic rule match', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
+      />
+    );
+    expect(screen.getByTestId('edit-category-rule-btn')).toBeInTheDocument();
+  });
+
+  it('navigates to settings with encoded category name when edit rule button is clicked', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="Human GitHub issue status updates"
+        categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai'
+    );
+  });
+
+  it('navigates with correct encoding for category names with special characters', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="Bills & Invoices"
+        categoryExplanation='Matched deterministic rule (legacy): category="Bills & Invoices"'
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/settings?openEditRule=Bills%20%26%20Invoices#guide-our-ai'
+    );
+  });
+
+  it('edit rule button has correct accessible title and aria-label', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        categoryExplanation='Matched deterministic rule (composite): category="Test"'
+      />
+    );
+
+    const btn = screen.getByTestId('edit-category-rule-btn');
+    expect(btn).toHaveAttribute('title', 'priority.tooltip.editCategoryRule');
+    expect(btn).toHaveAttribute('aria-label', 'priority.tooltip.editCategoryRule');
+  });
+});

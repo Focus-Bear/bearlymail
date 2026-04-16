@@ -2310,6 +2310,7 @@
       "hoverToSeeDetails": "Hover to see details",
       "category": "Category",
       "showCategoryExplanation": "Show why this category was chosen",
+      "editCategoryRule": "Edit the rule that matched this category",
       "suggestedCategory": "Suggested Category",
       "loadError": "Failed to load priority explanation.",
       "noData": "No priority breakdown is available yet.",

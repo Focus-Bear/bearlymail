@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCategoryContextQuery } from 'queries/useCategoryContextQuery';
 import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rules.types';
@@ -137,6 +137,32 @@ export function useDeterministicCategoryRulesSectionState() {
     setEditingRule(rule);
     setModalOpen(true);
   }, []);
+
+  const hasHandledOpenEditRule = useRef(false);
+
+  useEffect(() => {
+    if (loading || hasHandledOpenEditRule.current) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const openEditRuleParam = params.get('openEditRule');
+    if (!openEditRuleParam) {
+      return;
+    }
+
+    hasHandledOpenEditRule.current = true;
+
+    const matchingRule = rules.find(rule => rule.categoryName === openEditRuleParam);
+    if (matchingRule) {
+      openEdit(matchingRule);
+    }
+
+    params.delete('openEditRule');
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${newSearch ? '?' + newSearch : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [loading, rules, openEdit]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);

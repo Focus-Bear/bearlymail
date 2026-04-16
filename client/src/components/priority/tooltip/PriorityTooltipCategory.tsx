@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiRefreshCw } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
 import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
 import { CATEGORY_OTHER } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+
+const DETERMINISTIC_RULE_PREFIX = 'Matched deterministic rule';
 
 interface PriorityTooltipCategoryProps {
   category: string;
@@ -21,6 +24,7 @@ interface PriorityTooltipCategoryProps {
 
 interface CategoryActionButtonsProps {
   categoryExplanation?: string | null;
+  category: string;
   showExplanation: boolean;
   onToggleExplanation: () => void;
   onOpenOverride: () => void;
@@ -42,6 +46,7 @@ const iconButtonStyle: React.CSSProperties = {
 
 const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
   categoryExplanation,
+  category,
   showExplanation,
   onToggleExplanation,
   onOpenOverride,
@@ -49,6 +54,13 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
   isAdmin,
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const isDeterministicRuleMatch = categoryExplanation?.startsWith(DETERMINISTIC_RULE_PREFIX) ?? false;
+
+  const handleEditRule = () => {
+    navigate(`/settings?openEditRule=${encodeURIComponent(category)}#guide-our-ai`);
+  };
+
   return (
     <>
       {categoryExplanation && (
@@ -58,6 +70,17 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
           title={t('priority.tooltip.showCategoryExplanation')}
         >
           {'ℹ️'}
+        </button>
+      )}
+      {isDeterministicRuleMatch && (
+        <button
+          onClick={handleEditRule}
+          style={iconButtonStyle}
+          title={t('priority.tooltip.editCategoryRule')}
+          aria-label={t('priority.tooltip.editCategoryRule')}
+          data-testid="edit-category-rule-btn"
+        >
+          {'⚙️'}
         </button>
       )}
       <button onClick={onOpenOverride} style={iconButtonStyle} title={t('priority.categoryOverride.buttonTitle')}>
@@ -163,6 +186,7 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
         </span>
         <CategoryActionButtons
           categoryExplanation={categoryExplanation}
+          category={category}
           showExplanation={showExplanation}
           onToggleExplanation={() => setShowExplanation(!showExplanation)}
           onOpenOverride={() => setShowOverrideModal(true)}

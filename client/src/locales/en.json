@@ -303,6 +303,7 @@
     "autoResponseBadge": "{{count}} auto-response · Last sent {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} auto-responses · Last sent {{sentAt}}",
     "note": "Note",
+    "phishingFlag": "Phishing",
     "unknownDate": "unknown date",
     "bulk": {
       "selected": "{{count}} email selected",

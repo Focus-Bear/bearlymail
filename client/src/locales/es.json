@@ -1558,6 +1558,7 @@
     "noUrgentEmails": "No se encontraron correos urgentes.",
     "noUrgentEmailsFound": "No se encontraron correos urgentes. Verifica nuevamente en la próxima entrega por lotes.",
     "note": "Nota",
+    "phishingFlag": "Phishing",
     "unknownDate": "fecha desconocida",
     "otherActions": "Otras acciones",
     "pressDeleteToArchive": "Presiona Eliminar para archivar",

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -33,7 +34,7 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
@@ -90,6 +91,7 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
       >
         {t('toneCheck.cancelSend')}
       </button>
-    </div>
+    </div>,
+    document.body
   );
 };

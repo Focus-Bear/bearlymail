@@ -6,10 +6,10 @@
 import { MILLISECONDS } from "./time-constants";
 
 export const AUTH_CONSTANTS = {
-  // Minimum password length required for user accounts
-  MIN_PASSWORD_LENGTH: 8,
-  // Number of salt rounds for bcrypt password hashing
-  BCRYPT_SALT_ROUNDS: 10,
+  // Minimum password length required for user accounts (OWASP ASVS v4.0 req 2.1.1)
+  MIN_PASSWORD_LENGTH: 12,
+  // Number of salt rounds for bcrypt password hashing (OWASP ASVS v4.0 req 2.4.1 recommends ≥12)
+  BCRYPT_SALT_ROUNDS: 12,
 } as const;
 
 // Number of random bytes for password reset token generation

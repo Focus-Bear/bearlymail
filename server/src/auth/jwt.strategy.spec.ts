@@ -132,5 +132,80 @@ describe("JwtStrategy", () => {
       expect(result).not.toHaveProperty("name");
       expect(result).not.toHaveProperty("isAdmin");
     });
+
+    describe("passwordChangedAt session invalidation", () => {
+      it("should accept a token issued after passwordChangedAt", async () => {
+        const passwordChangedAt = new Date("2026-01-01T00:00:00Z");
+        // iat is 10 minutes after password change
+        const iat = Math.floor(
+          new Date("2026-01-01T00:10:00Z").getTime() / 1000,
+        );
+        const payload = { sub: "user-123", email: "test@example.com", iat };
+        const mockUser = {
+          id: "user-123",
+          email: "test@example.com",
+          passwordChangedAt,
+          lastActivityAt: null,
+        };
+
+        mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
+
+        const result = await strategy.validate(payload);
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+      });
+
+      it("should reject a token issued before passwordChangedAt", async () => {
+        const passwordChangedAt = new Date("2026-01-01T00:10:00Z");
+        // iat is 5 minutes before password change
+        const iat = Math.floor(
+          new Date("2026-01-01T00:05:00Z").getTime() / 1000,
+        );
+        const payload = { sub: "user-123", email: "test@example.com", iat };
+        const mockUser = {
+          id: "user-123",
+          email: "test@example.com",
+          passwordChangedAt,
+          lastActivityAt: null,
+        };
+
+        mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
+
+        await expect(strategy.validate(payload)).rejects.toThrow(
+          UnauthorizedException,
+        );
+      });
+
+      it("should accept a token when passwordChangedAt is null", async () => {
+        const iat = Math.floor(Date.now() / 1000) - 60;
+        const payload = { sub: "user-123", email: "test@example.com", iat };
+        const mockUser = {
+          id: "user-123",
+          email: "test@example.com",
+          passwordChangedAt: null,
+          lastActivityAt: null,
+        };
+
+        mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
+
+        const result = await strategy.validate(payload);
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+      });
+
+      it("should accept a token when payload has no iat field", async () => {
+        const passwordChangedAt = new Date("2026-01-01T00:00:00Z");
+        const payload = { sub: "user-123", email: "test@example.com" };
+        const mockUser = {
+          id: "user-123",
+          email: "test@example.com",
+          passwordChangedAt,
+          lastActivityAt: null,
+        };
+
+        mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
+
+        const result = await strategy.validate(payload);
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+      });
+    });
   });
 });

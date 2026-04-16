@@ -264,6 +264,13 @@ export class User {
   @Index()
   lastActivityAt: Date | null;
 
+  @Column({
+    nullable: true,
+    comment:
+      "When the user last changed their password. JWTs issued before this timestamp are considered invalidated (OWASP ASVS req 3.3.1 / 3.3.2).",
+  })
+  passwordChangedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

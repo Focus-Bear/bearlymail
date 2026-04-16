@@ -116,7 +116,7 @@ export class AuthController {
 
     if (body.password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
       throw new BadRequestException(
-        "Password must be at least 8 characters long",
+        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters long`,
       );
     }
 
@@ -177,7 +177,10 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
+    // Use URL fragment (#token=) so the token is never sent to the server in
+    // subsequent requests and does not appear in server access logs or Referer
+    // headers. (OWASP ASVS req 8.1.1 / CWE-598)
+    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
   }
 
   @Get("microsoft")
@@ -210,7 +213,7 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
+    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
   }
 
   @Get("zoho")
@@ -243,7 +246,7 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
+    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
   }
 
   private determineOAuthErrorType(errorMessage: string): string {

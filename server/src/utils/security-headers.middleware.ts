@@ -10,6 +10,8 @@ import { NextFunction, Request, Response } from "express";
  * - X-Powered-By information disclosure
  * - XSS Protection header missing
  * - Referrer-Policy missing
+ * - Cache-Control: prevent sensitive API responses from being cached in proxies/CDNs
+ *   (OWASP ASVS req 8.3.4)
  */
 export function securityHeadersMiddleware(
   _req: Request,
@@ -28,6 +30,8 @@ export function securityHeadersMiddleware(
     "Content-Security-Policy",
     "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
   );
+  // Prevent sensitive API responses from being cached by proxies, CDNs, or load balancers.
+  res.setHeader("Cache-Control", "no-store");
   res.removeHeader("X-Powered-By");
   next();
 }

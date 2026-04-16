@@ -474,19 +474,17 @@ describe("AuthService", () => {
     });
   });
 
-  // Note: setupPassword test is skipped due to a bug in source code (line 316 uses 'u' instead of 'userItem')
-  describe.skip("setupPassword", () => {
-    const mockToken = "valid-token";
+  describe("setupPassword", () => {
+    const mockToken = "valid-token-abcdef1234567890abcdef1234567890";
     const futureDate = new Date();
     futureDate.setHours(futureDate.getHours() + 1);
 
-    it("should setup password and approve user with valid token", async () => {
+    it("should setup password and approve user with valid token, setting passwordChangedAt", async () => {
       const userWithToken = {
         ...mockUser,
         passwordSetupToken: mockToken,
         passwordSetupTokenExpiresAt: futureDate,
       };
-      // Mock findAll to return array with the user
       usersService.findAll.mockResolvedValue([userWithToken]);
       usersService.update.mockResolvedValue({
         ...userWithToken,
@@ -510,17 +508,19 @@ describe("AuthService", () => {
           passwordSetupToken: null,
           passwordSetupTokenExpiresAt: null,
           isApproved: true,
+          passwordChangedAt: expect.any(Date),
         }),
       );
       expect(result.access_token).toBe("jwt-token");
-      expect(bcrypt.hash).toHaveBeenCalledWith("new-password", 10);
+      // Verify bcrypt uses updated cost factor (12 rounds per OWASP ASVS req 2.4.1)
+      expect(bcrypt.hash).toHaveBeenCalledWith("new-password", 12);
     });
 
     it("should throw error for invalid token", async () => {
       usersService.findAll.mockResolvedValue([mockUser]);
 
       await expect(
-        service.setupPassword("invalid-token", "password"),
+        service.setupPassword("wrong-token-that-does-not-match", "password"),
       ).rejects.toThrow("Invalid or expired setup token");
     });
 
@@ -549,6 +549,21 @@ describe("AuthService", () => {
 
       await expect(
         service.setupPassword(mockToken, "password"),
+      ).rejects.toThrow("Invalid or expired setup token");
+    });
+
+    it("should reject token of different length (constant-time comparison)", async () => {
+      const userWithToken = {
+        ...mockUser,
+        passwordSetupToken: mockToken,
+        passwordSetupTokenExpiresAt: futureDate,
+      };
+      usersService.findAll.mockResolvedValue([userWithToken]);
+
+      // A token that is a prefix of mockToken — the SHA-256 hash comparison
+      // correctly rejects it because different inputs produce different digests
+      await expect(
+        service.setupPassword(mockToken.slice(0, 10), "password"),
       ).rejects.toThrow("Invalid or expired setup token");
     });
   });

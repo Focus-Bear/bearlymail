@@ -74,7 +74,9 @@ export class UsersService {
    */
   async findOneForAuth(
     id: string,
-  ): Promise<(User & { lastActivityAt: Date | null }) | null> {
+  ): Promise<
+    (User & { lastActivityAt: Date | null; passwordChangedAt: Date | null }) | null
+  > {
     return this.userRepository
       .createQueryBuilder("user")
       .select([
@@ -83,9 +85,16 @@ export class UsersService {
         "user.isAdmin",
         "user.isApproved",
         "user.lastActivityAt",
+        "user.passwordChangedAt",
       ])
       .where("user.id = :id", { id })
-      .getOne() as Promise<(User & { lastActivityAt: Date | null }) | null>;
+      .getOne() as Promise<
+      | (User & {
+          lastActivityAt: Date | null;
+          passwordChangedAt: Date | null;
+        })
+      | null
+    >;
   }
 
   /**

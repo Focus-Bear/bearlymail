@@ -633,12 +633,26 @@ export class AuthService {
     // Note: We need to query all users and filter in memory since passwordSetupToken is not indexed
     // In production, consider adding an index or using a separate table for tokens
     const users = await this.usersService.findAll();
-    const user = users.find(
-      (userItem) =>
-        userItem.passwordSetupToken === token &&
-        userItem.passwordSetupTokenExpiresAt &&
-        userItem.passwordSetupTokenExpiresAt > new Date(),
-    );
+
+    // Use constant-time comparison to prevent timing attacks on token values
+    // (OWASP ASVS req 2.9.3 / 6.2.7).
+    // Hash both values to a fixed 32-byte length with SHA-256 before comparing so
+    // that timingSafeEqual always runs in constant time with no early exit on length mismatch.
+    const tokenHash = crypto.createHash("sha256").update(token).digest();
+    const user = users.find((userItem) => {
+      if (
+        !userItem.passwordSetupToken ||
+        !userItem.passwordSetupTokenExpiresAt ||
+        userItem.passwordSetupTokenExpiresAt <= new Date()
+      ) {
+        return false;
+      }
+      const storedHash = crypto
+        .createHash("sha256")
+        .update(userItem.passwordSetupToken)
+        .digest();
+      return crypto.timingSafeEqual(storedHash, tokenHash);
+    });
 
     if (!user) {
       throw new Error(
@@ -652,12 +666,15 @@ export class AuthService {
       AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
     );
 
-    // Update user with password and approve them
+    const now = new Date();
+    // Update user with password, approve them, and record when password changed
+    // so that any previously issued JWTs are invalidated (OWASP ASVS req 3.3.1 / 3.3.2)
     await this.usersService.update(user.id, {
       password: hashedPassword,
       passwordSetupToken: null,
       passwordSetupTokenExpiresAt: null,
       isApproved: true,
+      passwordChangedAt: now,
     });
 
     // Refetch the user
@@ -684,7 +701,7 @@ export class AuthService {
     // Validate password length
     if (password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
       throw new Error(
-        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters long`,
+        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters`,
       );
     }
 
@@ -694,9 +711,11 @@ export class AuthService {
       AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
     );
 
-    // Update user with password
+    // Update password and record change timestamp so existing JWTs are invalidated
+    // (OWASP ASVS req 3.3.1 / 3.3.2)
     await this.usersService.update(userId, {
       password: hashedPassword,
+      passwordChangedAt: new Date(),
     });
 
     this.logger.log(

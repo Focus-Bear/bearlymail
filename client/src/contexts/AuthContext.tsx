@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { devLog } from 'utils/dev-logger';
+import { CACHE_VERSION } from 'utils/emailCache';
 import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -9,6 +10,28 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
 import { AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
+
+/**
+ * Clears all BearlyMail-owned localStorage entries (email cache, batch status,
+ * tab count cache, etc.) that may contain sensitive user data.
+ * Called on logout to prevent data leakage to the next browser session or user.
+ * (OWASP ASVS req 8.3.6)
+ */
+function clearSensitiveLocalStorage(): void {
+  try {
+    const prefix = `bearlymail_${CACHE_VERSION}_`;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch {
+    // Fail silently — logout must always complete
+  }
+}
 
 export interface User {
   id: string;
@@ -92,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
     localStorage.removeItem('token');
+    clearSensitiveLocalStorage();
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   }, []);

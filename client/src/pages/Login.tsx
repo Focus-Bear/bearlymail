@@ -26,16 +26,18 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for token in URL (from Google login redirect)
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    // Check for token in URL fragment (from OAuth callback redirect).
+    // The token is passed as a fragment (#token=...) rather than a query param
+    // (?token=...) so it is never sent to the server and stays out of access logs.
+    const hash = window.location.hash.slice(1); // strip leading '#'
+    const hashParams = new URLSearchParams(hash);
+    const token = hashParams.get('token');
     if (token) {
       localStorage.setItem('token', token);
-      devLog('Google OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+      devLog('OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
       // Set the axios header immediately before redirect
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Use navigate instead of window.location to avoid full page reload issues
-      // But we need a full reload to reinitialize the auth context
+      // Use window.location to force a full reload so the auth context reinitialises
       window.location.href = '/inbox';
       return;
     }

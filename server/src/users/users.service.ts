@@ -368,6 +368,33 @@ export class UsersService {
     return users.map((user) => user.id);
   }
 
+  /**
+   * Returns IDs of non-admin users whose last activity (or account creation if
+   * activity was never recorded) falls outside the given retention window.
+   * Used by the data-retention cleanup job to find accounts eligible for deletion.
+   */
+  async findUsersForDeletion(thresholdDays: number): Promise<string[]> {
+    const HOURS_PER_DAY = 24;
+    const MINUTES_PER_HOUR = 60;
+    const SECONDS_PER_MINUTE = 60;
+    const MS_PER_SECOND = 1000;
+    const msPerDay =
+      HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND;
+    const threshold = new Date(Date.now() - thresholdDays * msPerDay);
+
+    // COALESCE gives new users a grace period based on createdAt when
+    // lastActivityAt has not been recorded yet.  Admin accounts are always
+    // excluded so infrastructure access cannot be accidentally deleted.
+    const rows: { id: string }[] = await this.userRepository.query(
+      `SELECT id FROM users
+       WHERE COALESCE("lastActivityAt", "createdAt") < $1
+         AND "isAdmin" = false`,
+      [threshold],
+    );
+
+    return rows.map((row) => row.id);
+  }
+
   async deleteAccount(userId: string): Promise<void> {
     const user = await this.findOne(userId);
     if (!user) {

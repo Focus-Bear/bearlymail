@@ -137,21 +137,25 @@ export class BearlyMailStack extends cdk.Stack {
     // ============================================
     // Log Groups
     // ============================================
+    // 90-day retention satisfies GDPR audit requirements while keeping
+    // CloudWatch costs reasonable (logs.RetentionDays.THREE_MONTHS = 90 days).
+    const LOG_RETENTION = logs.RetentionDays.THREE_MONTHS;
+
     const webLogGroup = new logs.LogGroup(this, 'WebLogGroup', {
       logGroupName: '/ecs/bearlymail/web',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const workerLogGroup = new logs.LogGroup(this, 'WorkerLogGroup', {
       logGroupName: '/ecs/bearlymail/worker',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const dashboardLogGroup = new logs.LogGroup(this, 'QueueDashboardLogGroup', {
       logGroupName: '/ecs/bearlymail/queue-dashboard',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
@@ -576,7 +580,7 @@ export class BearlyMailStack extends cdk.Stack {
 
     const migrationLogGroup = new logs.LogGroup(this, 'MigrationLogGroup', {
       logGroupName: '/ecs/bearlymail/migration',
-      retention: logs.RetentionDays.ONE_MONTH,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 

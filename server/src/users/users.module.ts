@@ -7,6 +7,7 @@ import { BlockedSender } from "../database/entities/blocked-sender.entity";
 import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import { AccountDeletionProcessor } from "./account-deletion.processor";
 import { DataExportService } from "./data-export.service";
 import { DataImportService } from "./data-import.service";
 import { UsersController } from "./users.controller";
@@ -23,7 +24,12 @@ import { UsersService } from "./users.service";
       SummarizationRule,
     ]),
   ],
-  providers: [UsersService, DataExportService, DataImportService],
+  providers: [
+    UsersService,
+    DataExportService,
+    DataImportService,
+    AccountDeletionProcessor,
+  ],
   controllers: [UsersController],
   exports: [UsersService],
 })

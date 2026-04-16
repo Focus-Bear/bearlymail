@@ -472,4 +472,49 @@ describe("UsersService", () => {
       expect(result.needsPrivacyAcceptance).toBe(false);
     });
   });
+
+  describe("findUsersForDeletion", () => {
+    it("returns user IDs from the raw query result", async () => {
+      repository.query.mockResolvedValue([
+        { id: "user-1" },
+        { id: "user-2" },
+      ]);
+
+      const result = await service.findUsersForDeletion(30);
+
+      expect(result).toEqual(["user-1", "user-2"]);
+    });
+
+    it("passes a threshold date computed from the given retention days", async () => {
+      repository.query.mockResolvedValue([]);
+      const before = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      await service.findUsersForDeletion(30);
+
+      const after = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const calledWith: Date = repository.query.mock.calls[0][1][0];
+      expect(calledWith.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(calledWith.getTime()).toBeLessThanOrEqual(after.getTime() + 100);
+    });
+
+    it("uses COALESCE and excludes admins in the SQL query", async () => {
+      repository.query.mockResolvedValue([]);
+
+      await service.findUsersForDeletion(30);
+
+      const sql: string = repository.query.mock.calls[0][0];
+      expect(sql).toContain("COALESCE");
+      expect(sql).toContain("lastActivityAt");
+      expect(sql).toContain("createdAt");
+      expect(sql).toContain('"isAdmin" = false');
+    });
+
+    it("returns an empty array when no users are eligible", async () => {
+      repository.query.mockResolvedValue([]);
+
+      const result = await service.findUsersForDeletion(30);
+
+      expect(result).toEqual([]);
+    });
+  });
 });

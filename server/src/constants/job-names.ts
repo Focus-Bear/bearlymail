@@ -75,6 +75,9 @@ export const JOB_NAMES = {
 
   // Automated email workflows (#1483)
   EVALUATE_WORKFLOWS: "evaluate-workflows",
+
+  // Data retention
+  CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

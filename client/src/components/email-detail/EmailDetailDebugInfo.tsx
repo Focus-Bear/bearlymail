@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, GitHubLink } from 'types/email';
 import { getAxiosResponseErrorMessage } from 'utils/axios-error-message';
+import { emailMentionsGitHub } from 'utils/githubUtils';
 
 import { API_URL } from 'config/api';
 
@@ -15,6 +16,9 @@ interface Props {
   threadEmails: Email[];
   /** Re-load email + thread after Gmail attachment metadata is synced */
   onAttachmentsSynced?: () => Promise<void>;
+  githubLinks?: GitHubLink[];
+  loadingGithub?: boolean;
+  hasGithubToken?: boolean;
 }
 
 function formatStoredAttachmentsSummary(att: unknown, noneLabel: string): string {
@@ -62,7 +66,7 @@ const ThreadEmailsList: React.FC<ThreadEmailsListProps> = ({ threadEmails }) => 
 };
 
 /** Admin-only debug information panel shown in email detail view. */
-export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced }: Props) {
+export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced, githubLinks, loadingGithub, hasGithubToken }: Props) {
   const { t } = useTranslation();
   const emailData = email as any;
   const attachmentsNone = t('debug.emailDetail.attachmentsNone');
@@ -205,6 +209,41 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced 
           )}
         </div>
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
+        <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+          <strong>{t('debug.emailDetail.githubTitle')}</strong>
+          <div>
+            <strong>{t('debug.emailDetail.githubLoading')}:</strong>{' '}
+            {loadingGithub ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+          </div>
+          <div>
+            <strong>{t('debug.emailDetail.githubHasToken')}:</strong>{' '}
+            {hasGithubToken ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+          </div>
+          <div>
+            <strong>{t('debug.emailDetail.githubMentionsGitHub')}:</strong>{' '}
+            {emailMentionsGitHub(emailData.subject, emailData.body, emailData.htmlBody, emailData.from)
+              ? t('debug.emailDetail.true')
+              : t('debug.emailDetail.false')}
+          </div>
+          <div>
+            <strong>{t('debug.emailDetail.githubLinksCount')}:</strong> {githubLinks?.length ?? 0}
+          </div>
+          {githubLinks && githubLinks.length > 0 ? (
+            githubLinks.map((link, idx) => (
+              <div key={link.url ?? idx} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
+                {t('debug.emailDetail.githubLinkItem', {
+                  idx,
+                  url: link.url ?? `${link.owner}/${link.repo}#${link.number}`,
+                  type: link.type,
+                })}
+              </div>
+            ))
+          ) : (
+            <div style={{ marginLeft: theme.spacing.md, color: theme.colors.text.secondary }}>
+              {t('debug.emailDetail.githubNoLinks')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

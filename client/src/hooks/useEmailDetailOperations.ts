@@ -21,7 +21,7 @@ import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, TIMEOUT_800_MS } from 'constants/numbers';
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED, MS_PER_SECOND, SUBJECT_PREVIEW_LENGTH, TIMEOUT_800_MS } from 'constants/numbers';
 import {
   ANIMATION_TYPE_ARCHIVE,
   ANIMATION_TYPE_PRIORITY,
@@ -315,10 +315,16 @@ export function useEmailDetailOperations(
         });
         setGithubLinks(uniqueLinks);
         setLoadingGithub(false);
+        console.debug('[GitHub] fetchEmail: server returned links, fetchGithubInfo will refresh in background', {
+          emailId: id,
+          linkCount: uniqueLinks.length,
+          links: uniqueLinks.map((link: GitHubLink) => link.url),
+        });
       } else {
         // If no cached data, show loading state
         setGithubLinks([]);
         setLoadingGithub(true);
+        console.debug('[GitHub] fetchEmail: no server metadata, fetchGithubInfo will run', { emailId: id });
       }
 
       axios.put(`${API_URL}/emails/${id}/read`).catch(err => console.error('Error marking as read:', err));
@@ -393,36 +399,62 @@ export function useEmailDetailOperations(
       return;
     }
 
-    // Don't re-fetch if we already fetched for this email
+    // Don't re-fetch if we already fetched (or determined no GitHub links) for this email.
     if (githubFetchedRef.current === id) {
+      console.debug('[GitHub] fetchGithubInfo: already fetched, skipping', { emailId: id });
       return;
     }
 
     const currentEmail = emailRef.current;
-    // If cached links are already present (set by fetchEmail from server metadata), skip the
-    // keyword check and loading spinner — proceed silently to refresh the link status in the
-    // background. This allows status updates (e.g. PR merged) to appear without blocking display.
-    const hasCachedLinks = (currentEmail?.githubMetadata?.links?.length ?? 0) > 0;
+    // emailIsCurrent is true when emailRef has already been updated with the email we're
+    // fetching GitHub info for. When React hasn't re-rendered yet, emailRef.current may still
+    // hold the previous email — using it for keyword-matching or hasCachedLinks would be wrong.
+    const emailIsCurrent = currentEmail?.id === id;
+    // Only trust cached links from the ref when it matches the current email ID. A stale ref
+    // could give a false-negative (previous email had no links) and cause hasCachedLinks=false,
+    // which would then incorrectly clear the links fetchEmail already set from server metadata.
+    const hasCachedLinks = emailIsCurrent && (currentEmail?.githubMetadata?.links?.length ?? 0) > 0;
+
+    console.debug('[GitHub] fetchGithubInfo: starting', {
+      emailId: id,
+      currentEmailId: currentEmail?.id,
+      emailIsCurrent,
+      hasCachedLinks,
+      subject: currentEmail?.subject?.substring(0, SUBJECT_PREVIEW_LENGTH),
+      from: currentEmail?.from,
+    });
 
     if (!hasCachedLinks) {
-      // Belt-and-suspenders: ensure loading spinner is visible before any async work (#1347).
-      // useEmailDetailState already initialises loadingGithub=true, but this guards
-      // against any future state reset between mount and fetchGithubInfo being called.
-      setLoadingGithub(true);
+      if (emailIsCurrent) {
+        // Belt-and-suspenders: ensure loading spinner is visible before any async work (#1347).
+        // useEmailDetailState already initialises loadingGithub=true, but this guards
+        // against any future state reset between mount and fetchGithubInfo being called.
+        // Skip when emailRef is stale: fetchEmail may have already shown server links and cleared
+        // the loading state — resetting it here would flash a spurious spinner.
+        setLoadingGithub(true);
 
-      // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
-      if (currentEmail && !emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody, currentEmail.from)) {
-        setGithubLinks([]);
-        setLoadingGithub(false);
-        githubFetchedRef.current = id; // Mark as processed so we don't check again
-        return;
+        // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
+        if (!emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody, currentEmail.from)) {
+          console.debug('[GitHub] fetchGithubInfo: email does not mention GitHub, clearing links', {
+            emailId: id,
+            subject: currentEmail.subject?.substring(0, SUBJECT_PREVIEW_LENGTH),
+            from: currentEmail?.from,
+          });
+          setGithubLinks([]);
+          setLoadingGithub(false);
+          githubFetchedRef.current = id; // Mark as processed so we don't check again
+          return;
+        }
       }
+      // If emailRef is stale, skip the loading spinner and keyword check but still proceed to
+      // the API call — the server will return the correct links for the current email ID.
     }
 
     // Mark as fetched BEFORE starting the async operation
     githubFetchedRef.current = id;
 
     // Async fetch - doesn't block render
+    console.debug('[GitHub] fetchGithubInfo: calling API', { emailId: id });
     try {
       const response = await axios.get(`${API_URL}/github/emails/${id}`);
       // Only update if we're still looking at the same email
@@ -437,10 +469,17 @@ export function useEmailDetailOperations(
           seen.add(key);
           return true;
         });
+        console.debug('[GitHub] fetchGithubInfo: API response', {
+          emailId: id,
+          linkCount: uniqueLinks.length,
+          hasToken: response.data.hasToken,
+          links: uniqueLinks.map((link: GitHubLink) => link.url),
+        });
         setGithubLinks(uniqueLinks);
         setHasGithubToken(response.data.hasToken !== false);
       }
     } catch (error: unknown) {
+      console.debug('[GitHub] fetchGithubInfo: API error', { emailId: id, error });
       if (
         axios.isAxiosError(error) &&
         (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN)

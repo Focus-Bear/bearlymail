@@ -615,7 +615,14 @@
       "to": "Para",
       "cc": "CC",
       "true": "verdadero",
-      "false": "falso"
+      "false": "falso",
+      "githubTitle": "Depuración de tarjeta GitHub",
+      "githubLinksCount": "Vínculos (del estado)",
+      "githubLoading": "Cargando",
+      "githubHasToken": "Tiene token",
+      "githubMentionsGitHub": "El correo menciona GitHub",
+      "githubLinkItem": "{{idx}}: {{url}} ({{type}})",
+      "githubNoLinks": "Sin vínculos"
     },
     "adminPanel": {
       "title": "Información de depuración (solo administrador)",

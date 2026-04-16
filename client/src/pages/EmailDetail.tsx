@@ -721,6 +721,9 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             await ops.fetchEmail();
             await ops.fetchThreadEmails();
           }}
+          githubLinks={st.githubLinks}
+          loadingGithub={st.loadingGithub}
+          hasGithubToken={st.hasGithubToken}
         />
       )}
       <ToneCheckToast visible={st.checkingTone} onCancel={ops.cancelToneCheck} />

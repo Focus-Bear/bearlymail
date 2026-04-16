@@ -2158,7 +2158,14 @@
       "to": "To",
       "cc": "CC",
       "true": "true",
-      "false": "false"
+      "false": "false",
+      "githubTitle": "GitHub Card Debug",
+      "githubLinksCount": "Links (from state)",
+      "githubLoading": "Loading",
+      "githubHasToken": "Has Token",
+      "githubMentionsGitHub": "Email Mentions GitHub",
+      "githubLinkItem": "{{idx}}: {{url}} ({{type}})",
+      "githubNoLinks": "No links"
     },
     "adminPanel": {
       "title": "Debug Information (Admin Only)",

@@ -58,11 +58,6 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState('');
   const [meetLink, setMeetLink] = useState<string | undefined>(undefined);
 
-  const getAuthHeaders = useCallback((): Record<string, string> => {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
-
   const fetchSlots = useCallback(
     async (currentOffset: number, append = false) => {
       const currentLimit = append ? LOAD_MORE_SLOTS : INITIAL_SLOTS;
@@ -74,9 +69,10 @@ const BookingPage: React.FC = () => {
           setLoading(true);
         }
 
+        // withCredentials is set globally in config/api.ts; the HttpOnly JWT cookie
+        // is sent automatically, so no manual Authorization header is needed.
         const response = await axios.get(
-          `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`,
-          { headers: getAuthHeaders() }
+          `${API_URL}/public/calendar/${userId}/slots?daysAhead=${currentDaysAhead}&offset=${currentOffset}&limit=${currentLimit}`
         );
 
         if (append) {
@@ -106,7 +102,7 @@ const BookingPage: React.FC = () => {
         setLoadingMore(false);
       }
     },
-    [userId, user?.id, t, getAuthHeaders]
+    [userId, user?.id, t]
   );
 
   useEffect(() => {
@@ -145,7 +141,6 @@ const BookingPage: React.FC = () => {
           additionalGuests,
           agenda: agenda.trim() || undefined,
         },
-        { headers: getAuthHeaders() }
       );
       if (bookingResponse.data?.meetLink) {
         setMeetLink(bookingResponse.data.meetLink);

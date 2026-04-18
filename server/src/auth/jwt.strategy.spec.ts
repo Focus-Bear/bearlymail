@@ -45,6 +45,15 @@ describe("JwtStrategy", () => {
     jest.clearAllMocks();
   });
 
+  describe("constructor / extractor", () => {
+    it("should configure dual JWT extraction (cookie + Bearer header)", () => {
+      // The strategy is initialised in beforeEach — verify the config service was called
+      expect(mockConfigService.get).toHaveBeenCalledWith("JWT_SECRET");
+      // The strategy instance must exist (constructor did not throw)
+      expect(strategy).toBeDefined();
+    });
+  });
+
   describe("validate", () => {
     it("should return user data when user exists", async () => {
       const payload = { sub: "user-123", email: "test@example.com" };

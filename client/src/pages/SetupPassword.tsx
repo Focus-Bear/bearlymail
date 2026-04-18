@@ -214,12 +214,12 @@ const SetupPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/auth/setup-password`, { token, password });
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      await axios.post(`${API_URL}/auth/setup-password`, { token, password });
+      // JWT is set as an HttpOnly cookie by the server (OWASP ASVS GAP-4).
+      // Use a full-page reload so useAuthInitialization re-runs and picks up the
+      // new cookie to populate the user context.
       captureEvent(ANALYTICS_EVENTS.PASSWORD_SETUP_COMPLETED);
-      navigate('/inbox');
+      window.location.href = '/inbox';
     } catch (err: unknown) {
       setError(getAxiosErrorMessage(err, t('auth.setupPasswordError')));
     } finally {

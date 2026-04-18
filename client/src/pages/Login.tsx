@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { theme } from 'theme/theme';
 import { devLog } from 'utils/dev-logger';
 import { getAxiosErrorMessage } from 'utils/errors';
@@ -26,23 +25,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for token in URL fragment (from OAuth callback redirect).
-    // The token is passed as a fragment (#token=...) rather than a query param
-    // (?token=...) so it is never sent to the server and stays out of access logs.
-    const hash = window.location.hash.slice(1); // strip leading '#'
-    const hashParams = new URLSearchParams(hash);
-    const token = hashParams.get('token');
-    if (token) {
-      localStorage.setItem('token', token);
-      devLog('OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-      // Set the axios header immediately before redirect
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Use window.location to force a full reload so the auth context reinitialises
-      window.location.href = '/inbox';
-      return;
-    }
+    // OAuth callbacks now set an HttpOnly cookie and redirect directly to /inbox
+    // (OWASP ASVS GAP-4). The legacy #token= URL fragment is no longer used.
 
-    // If user is already authenticated, redirect to inbox
+    // If user is already authenticated (cookie still valid), redirect to inbox
     if (!loading && user) {
       devLog('User already authenticated, redirecting to inbox');
       navigate('/inbox');

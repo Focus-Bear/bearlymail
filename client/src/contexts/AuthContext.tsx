@@ -114,9 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
+    // Remove any legacy localStorage token that may have been stored before the
+    // HttpOnly cookie migration (OWASP ASVS GAP-4). Also clear sensitive cache.
     localStorage.removeItem('token');
     clearSensitiveLocalStorage();
     delete axios.defaults.headers.common['Authorization'];
+    // Ask the server to clear the HttpOnly cookie (client JS cannot clear it directly)
+    axios.post(`${API_URL}/auth/logout`).catch(() => {
+      // Ignore errors — the user is logged out locally regardless
+    });
     setUser(null);
   }, []);
 
@@ -147,13 +153,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       throw err;
     }
-    const { access_token, user } = response.data;
+    const { user } = response.data;
+    // The JWT is now set as an HttpOnly cookie by the server (OWASP ASVS GAP-4).
+    // No token storage in localStorage; the browser sends the cookie automatically
+    // on every subsequent request to the API.
+    devLog('Login successful — JWT stored in HttpOnly cookie by server');
 
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track login event and identify user (NO PII)
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_IN, {
@@ -166,13 +171,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name?: string) => {
     const response = await axios.post(`${API_URL}/auth/register`, { email, password, name });
-    const { access_token, user } = response.data;
-
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    const { user } = response.data;
+    // JWT is set as an HttpOnly cookie by the server (see login() above)
     setUser(user);
     // Track registration event and identify user (NO PII)
     captureEvent(ANALYTICS_EVENTS.USER_REGISTERED);

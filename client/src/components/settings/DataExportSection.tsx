@@ -71,11 +71,11 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   );
 };
 
-async function performExport(token: string | null): Promise<Blob> {
+async function performExport(): Promise<Blob> {
+  // credentials: 'include' sends the HttpOnly JWT cookie automatically (OWASP ASVS GAP-4)
   const response = await fetch(`${API_URL}/users/me/export`, {
     method: 'GET',
     credentials: 'include',
-    headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
     throw new Error('Export failed');
@@ -94,11 +94,12 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-async function submitImport(importData: unknown, token: string | null): Promise<ImportResult> {
+async function submitImport(importData: unknown): Promise<ImportResult> {
+  // credentials: 'include' sends the HttpOnly JWT cookie automatically (OWASP ASVS GAP-4)
   const response = await fetch(`${API_URL}/users/me/import`, {
     method: 'POST',
     credentials: 'include',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ importPayload: importData }),
   });
   if (!response.ok) {
@@ -124,7 +125,7 @@ export const DataExportSection: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const blob = await performExport(localStorage.getItem('token'));
+      const blob = await performExport();
       downloadBlob(blob, `bearlymail-export-${new Date().toISOString().split('T')[0]}.json`);
       captureEvent(ANALYTICS_EVENTS.DATA_EXPORT_COMPLETED);
     } catch {
@@ -151,7 +152,7 @@ export const DataExportSection: React.FC = () => {
     setSuccessMessage(null);
     try {
       const importData = parseImportFile(await file.text(), t);
-      const result = await submitImport(importData, localStorage.getItem('token'));
+      const result = await submitImport(importData);
       if (result.success) {
         const details = formatImportDetails(result);
         setSuccessMessage(

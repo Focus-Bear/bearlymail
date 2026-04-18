@@ -5,36 +5,18 @@ import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 
 import { resetInterceptorsForTesting, setupAxiosInterceptors } from './axios-interceptors';
 
-// Helper to create a JWT token with expiration
-const createJWT = (exp: number): string => {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub: 'user-123', exp }));
-  return `${header}.${payload}.signature`;
-};
-
 describe('axios-interceptors', () => {
   let mockLogout: jest.Mock;
-  // mock.calls[0] holds the handler functions registered via interceptors.*.use():
+  // The response interceptor is the only one registered; its handlers are:
   // [0] = success handler, [1] = error handler
-  type RequestInterceptorHandlers = [
-    (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>,
-    (err: unknown) => Promise<never>,
-  ];
   type ResponseInterceptorHandlers = [
     (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>,
     (err: unknown) => Promise<never>,
   ];
-  let requestInterceptor: RequestInterceptorHandlers;
   let responseInterceptor: ResponseInterceptorHandlers;
-  let removeItemSpy: jest.SpyInstance;
+  let responseUseSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Clear localStorage
-    localStorage.clear();
-
-    // Set up spies on localStorage
-    removeItemSpy = jest.spyOn(Storage.prototype, 'removeItem');
-
     mockLogout = jest.fn();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -47,13 +29,11 @@ describe('axios-interceptors', () => {
     resetInterceptorsForTesting();
 
     // Spy on interceptor registration
-    const requestUseSpy = jest.spyOn(axios.interceptors.request, 'use');
-    const responseUseSpy = jest.spyOn(axios.interceptors.response, 'use');
+    responseUseSpy = jest.spyOn(axios.interceptors.response, 'use');
 
     setupAxiosInterceptors(mockLogout);
 
-    // Capture the interceptors (cast because jest spy types include optional overloads)
-    requestInterceptor = requestUseSpy.mock.calls[0] as unknown as RequestInterceptorHandlers;
+    // Capture the registered response interceptor
     responseInterceptor = responseUseSpy.mock.calls[0] as unknown as ResponseInterceptorHandlers;
   });
 
@@ -65,98 +45,24 @@ describe('axios-interceptors', () => {
 
   describe('setupAxiosInterceptors', () => {
     it('should only set up interceptors once', () => {
-      const requestUseSpy = jest.spyOn(axios.interceptors.request, 'use');
-      const responseUseSpy = jest.spyOn(axios.interceptors.response, 'use');
+      const callCountBefore = responseUseSpy.mock.calls.length;
 
       // Call setup again
       setupAxiosInterceptors(mockLogout);
 
       // Should not add more interceptors
-      expect(requestUseSpy).toHaveBeenCalledTimes(1);
-      expect(responseUseSpy).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('request interceptor', () => {
-    it('should add Authorization header for valid token', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const token = createJWT(futureExp);
-      localStorage.setItem('token', token);
-
-      const config = {
-        headers: {},
-        url: '/api/test',
-      };
-
-      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
-
-      expect(result.headers.Authorization).toBe(`Bearer ${token}`);
+      expect(responseUseSpy.mock.calls.length).toBe(callCountBefore);
     });
 
-    it('should not add Authorization header when no token exists', async () => {
-      const config = {
-        headers: {},
-        url: '/api/test',
-      };
+    it('should not register a request interceptor (cookies are sent automatically)', () => {
+      // Reset and spy on request interceptor registration
+      resetInterceptorsForTesting();
+      const requestUseSpy = jest.spyOn(axios.interceptors.request, 'use');
 
-      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
+      setupAxiosInterceptors(mockLogout);
 
-      expect(result.headers.Authorization).toBeUndefined();
-    });
-
-    it('should remove expired token and not add Authorization header', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const token = createJWT(pastExp);
-      localStorage.setItem('token', token);
-
-      const config = {
-        headers: {},
-        url: '/api/test',
-      };
-
-      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
-
-      expect(removeItemSpy).toHaveBeenCalledWith('token');
-      expect(result.headers.Authorization).toBeUndefined();
-    });
-
-    it('should handle invalid token format', async () => {
-      localStorage.setItem('token', 'invalid-token');
-
-      const config = {
-        headers: {},
-        url: '/api/test',
-      };
-
-      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
-
-      // Invalid token should be treated as expired
-      expect(removeItemSpy).toHaveBeenCalledWith('token');
-      expect(result.headers.Authorization).toBeUndefined();
-    });
-
-    it('should handle token without expiration', async () => {
-      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-      const payload = btoa(JSON.stringify({ sub: 'user-123' })); // No exp
-      const token = `${header}.${payload}.signature`;
-      localStorage.setItem('token', token);
-
-      const config = {
-        headers: {},
-        url: '/api/test',
-      };
-
-      const result = await requestInterceptor[0](config as InternalAxiosRequestConfig);
-
-      // Token without exp is treated as valid (isTokenExpired returns false when no exp)
-      expect(result.headers.Authorization).toBe(`Bearer ${token}`);
-    });
-
-    it('should handle request interceptor errors', async () => {
-      const error = new Error('Request error');
-      const errorHandler = requestInterceptor[1];
-
-      await expect(errorHandler(error)).rejects.toThrow('Request error');
+      // No request interceptor should be registered — JWT travels via HttpOnly cookie
+      expect(requestUseSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -189,7 +95,7 @@ describe('axios-interceptors', () => {
 
     it('should call logout for /users/me GET request with _skipInterceptor flag', async () => {
       // When _skipInterceptor is true, the request should NOT be treated as an initial auth check
-      // So logout SHOULD be called (the flag overrides the special handling)
+      // So logout SHOULD be called
       const error = {
         response: { status: HTTP_UNAUTHORIZED },
         config: {
@@ -205,7 +111,7 @@ describe('axios-interceptors', () => {
       expect(mockLogout).toHaveBeenCalled();
     });
 
-    it('should logout when 401 and no token exists', async () => {
+    it('should call logout when 401 is returned for a non-auth-check request', async () => {
       const error = {
         response: { status: HTTP_UNAUTHORIZED },
         config: {
@@ -217,48 +123,6 @@ describe('axios-interceptors', () => {
       const errorHandler = responseInterceptor[1];
 
       await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(mockLogout).toHaveBeenCalled();
-    });
-
-    it('should logout when 401 and token is expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600;
-      const token = createJWT(pastExp);
-      localStorage.setItem('token', token);
-
-      const error = {
-        response: { status: HTTP_UNAUTHORIZED },
-        config: {
-          url: '/api/other',
-          method: 'post',
-        },
-      };
-
-      const errorHandler = responseInterceptor[1];
-
-      await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(console.log).toHaveBeenCalledWith('Token expired (401), logging out');
-      expect(removeItemSpy).toHaveBeenCalledWith('token');
-      expect(mockLogout).toHaveBeenCalled();
-    });
-
-    it('should logout when 401 with valid token (token revoked)', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600;
-      const token = createJWT(futureExp);
-      localStorage.setItem('token', token);
-
-      const error = {
-        response: { status: HTTP_UNAUTHORIZED },
-        config: {
-          url: '/api/other',
-          method: 'post',
-        },
-      };
-
-      const errorHandler = responseInterceptor[1];
-
-      await expect(errorHandler(error)).rejects.toEqual(error);
-      expect(console.warn).toHaveBeenCalledWith('Got 401 with valid token, clearing and logging out');
-      expect(removeItemSpy).toHaveBeenCalledWith('token');
       expect(mockLogout).toHaveBeenCalled();
     });
 

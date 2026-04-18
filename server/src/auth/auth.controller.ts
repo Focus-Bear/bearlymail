@@ -13,10 +13,11 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { Response } from "express";
 import PgBoss from "pg-boss";
 
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
-import { AUTH_ACTION_TYPES } from "../constants/domain-types";
+import { AUTH_ACTION_TYPES, NODE_ENV_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
@@ -30,6 +31,25 @@ import { JwtAuthGuard } from "./jwt-auth.guard";
 import { LocalAuthGuard } from "./local-auth.guard";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
+
+/**
+ * Cookie options for the JWT HttpOnly cookie.
+ * `secure` is enabled only in production to allow local HTTP development.
+ * `sameSite: 'strict'` prevents cross-site request forgery (OWASP ASVS req 3.4.3).
+ */
+function jwtCookieOptions(isProduction: boolean): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: "strict";
+  maxAge: number;
+} {
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "strict",
+    maxAge: AUTH_CONSTANTS.COOKIE_MAX_AGE_MS,
+  };
+}
 
 @Controller("auth")
 export class AuthController {
@@ -54,9 +74,33 @@ export class AuthController {
     );
   }
 
+  /**
+   * Clears the HttpOnly JWT cookie, effectively logging the user out on the server side.
+   * The client should also clear any local state (Redux, React context) after calling this.
+   */
+  @Post("logout")
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie(AUTH_CONSTANTS.COOKIE_NAME);
+    return { success: true };
+  }
+
   @Post("setup-password")
-  async setupPassword(@Body() body: { token: string; password: string }) {
-    return this.authService.setupPassword(body.token, body.password);
+  async setupPassword(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const loginData = await this.authService.setupPassword(
+      body.token,
+      body.password,
+    );
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    return loginData;
   }
 
   /**
@@ -79,16 +123,30 @@ export class AuthController {
 
   /**
    * Complete the password-reset flow using the token from the reset email.
-   * Validates the token, sets the new password, and returns a login response
-   * (access token + user object) so the frontend can auto-log the user in.
+   * Validates the token, sets the new password, and sets the HttpOnly JWT cookie
+   * so the frontend can transition the user to an authenticated state.
    */
   @Post("reset-password")
-  async resetPassword(@Body() body: { token: string; password: string }) {
+  async resetPassword(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     if (!body.token || !body.password) {
       throw new BadRequestException("Token and password are required");
     }
     try {
-      return await this.authService.resetPassword(body.token, body.password);
+      const loginData = await this.authService.resetPassword(
+        body.token,
+        body.password,
+      );
+      const isProduction =
+        process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+      res.cookie(
+        AUTH_CONSTANTS.COOKIE_NAME,
+        loginData.access_token,
+        jwtCookieOptions(isProduction),
+      );
+      return loginData;
     } catch (error) {
       throw new BadRequestException(
         error.message || "Failed to reset password",
@@ -143,8 +201,16 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post("login")
-  async login(@Request() req) {
-    return this.authService.login(req.user);
+  async login(@Request() req, @Res({ passthrough: true }) res: Response) {
+    const loginData = await this.authService.login(req.user);
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    return loginData;
   }
 
   @Get("google")
@@ -155,7 +221,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(
     @Request() req,
-    @Res() res,
+    @Res() res: Response,
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -177,10 +243,15 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    // Use URL fragment (#token=) so the token is never sent to the server in
-    // subsequent requests and does not appear in server access logs or Referer
-    // headers. (OWASP ASVS req 8.1.1 / CWE-598)
-    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    // Set HttpOnly cookie — token is never exposed to JavaScript (OWASP ASVS GAP-4)
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    res.redirect(`${frontendUrl}/inbox`);
   }
 
   @Get("microsoft")
@@ -191,7 +262,7 @@ export class AuthController {
   @UseGuards(MicrosoftAuthGuard)
   async microsoftAuthRedirect(
     @Request() req,
-    @Res() res,
+    @Res() res: Response,
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -213,7 +284,14 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    res.redirect(`${frontendUrl}/inbox`);
   }
 
   @Get("zoho")
@@ -224,7 +302,7 @@ export class AuthController {
   @UseGuards(ZohoAuthGuard)
   async zohoAuthRedirect(
     @Request() req,
-    @Res() res,
+    @Res() res: Response,
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -246,7 +324,14 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    res.redirect(`${frontendUrl}/login#token=${loginData.access_token}`);
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      loginData.access_token,
+      jwtCookieOptions(isProduction),
+    );
+    res.redirect(`${frontendUrl}/inbox`);
   }
 
   private determineOAuthErrorType(errorMessage: string): string {
@@ -263,7 +348,7 @@ export class AuthController {
   private redirectWithAuthError(
     error: Error,
     frontendUrl: string,
-    res,
+    res: Response,
     providerName: string,
   ) {
     const errorMessage = error?.message || "Authentication failed";
@@ -290,7 +375,7 @@ export class AuthController {
   private async handleGoogleConnectionState(
     state: string,
     req,
-    res,
+    res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);
@@ -378,7 +463,7 @@ export class AuthController {
   private async handleMicrosoftConnectionState(
     state: string,
     req,
-    res,
+    res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);
@@ -445,7 +530,7 @@ export class AuthController {
   private async handleZohoConnectionState(
     state: string,
     req,
-    res,
+    res: Response,
     frontendUrl: string,
   ): Promise<boolean> {
     const stateData = this.parseOAuthState(state);

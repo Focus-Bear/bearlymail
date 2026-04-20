@@ -1,7 +1,7 @@
 # DNS Subdomain Takeover Audit — Runbook
 
 **Related**: GAP-7 in `docs/security-remediation-plan.md` | SAQ Q7 compliance requirement  
-**Workflow**: `.github/proposed-workflows/dns-audit.yml` (copy to `.github/workflows/` to activate)  
+**Workflow**: `.github/workflows/dns-audit.yml`  
 **Severity**: High — a successful subdomain takeover allows an attacker to serve content under `bearlymail.com` and steal user credentials or session cookies.
 
 ---
@@ -32,7 +32,7 @@ The workflow checks these subdomains on every run. **Keep this list in sync with
 
 When you provision a new DNS record:
 
-1. Open `.github/proposed-workflows/dns-audit.yml` (or `.github/workflows/dns-audit.yml` once activated).
+1. Open `.github/workflows/dns-audit.yml`.
 2. Add the new subdomain to the `DOMAINS` array near the top of the `Run DNS audit` step:
 
 ```yaml

@@ -3,7 +3,6 @@ name: DNS Subdomain Takeover Audit
 # GAP-7 / SAQ Q7: Automated monitoring for stale DNS entries and subdomain takeover risk.
 # Runs weekly to check all CNAME records resolve correctly and creates a security issue on failure.
 #
-# To activate: copy this file to .github/workflows/dns-audit.yml
 # Requires: issues: write permission (already set below)
 
 on:

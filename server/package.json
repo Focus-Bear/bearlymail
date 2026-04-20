@@ -132,7 +132,7 @@
     "jest": "^30.3.0",
     "js-yaml": "^4.1.1",
     "jscodeshift": "^17.3.0",
-    "nodemon": "^3.0.2",
+    "nodemon": "^3.1.14",
     "prettier": "^3.1.1",
     "promptfoo": "^0.120.4",
     "source-map-support": "^0.5.21",

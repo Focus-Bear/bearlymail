@@ -11,6 +11,7 @@ import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
 import { GuideOurAISection } from 'components/settings/GuideOurAISection';
 import { IntegrationsSection } from 'components/settings/IntegrationsSection';
+import { MfaSection } from 'components/settings/MfaSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
@@ -274,6 +275,8 @@ const Settings: React.FC = () => {
         />
 
         <SetPasswordSection />
+
+        {user?.isAdmin && <MfaSection />}
 
         <TeamSettingsSection />
 

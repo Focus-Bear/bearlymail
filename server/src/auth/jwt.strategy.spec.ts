@@ -70,6 +70,7 @@ describe("JwtStrategy", () => {
       expect(result).toEqual({
         userId: "user-123",
         email: "test@example.com",
+        mfaVerified: false,
       });
       expect(mockUsersService.findOneForAuth).toHaveBeenCalledWith("user-123");
     });
@@ -100,6 +101,7 @@ describe("JwtStrategy", () => {
       expect(result).toEqual({
         userId: "user-123",
         email: "test@example.com",
+        mfaVerified: false,
       });
     });
 
@@ -160,7 +162,7 @@ describe("JwtStrategy", () => {
         mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
         const result = await strategy.validate(payload);
-        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com", mfaVerified: false });
       });
 
       it("should reject a token issued before passwordChangedAt", async () => {
@@ -197,7 +199,7 @@ describe("JwtStrategy", () => {
         mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
         const result = await strategy.validate(payload);
-        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com", mfaVerified: false });
       });
 
       it("should accept a token when payload has no iat field", async () => {
@@ -213,7 +215,7 @@ describe("JwtStrategy", () => {
         mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
         const result = await strategy.validate(payload);
-        expect(result).toEqual({ userId: "user-123", email: "test@example.com" });
+        expect(result).toEqual({ userId: "user-123", email: "test@example.com", mfaVerified: false });
       });
     });
   });

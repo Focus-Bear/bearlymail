@@ -13,6 +13,11 @@ interface JwtPayload {
   email?: string;
   /** Issued-at timestamp (seconds since epoch) — set automatically by JwtService.sign() */
   iat?: number;
+  /**
+   * Set to true in MFA-elevated tokens (after TOTP verification).
+   * Required for access to admin endpoints (SAQ Q35 / GAP-2).
+   */
+  mfaVerified?: boolean;
 }
 
 /**
@@ -79,6 +84,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       this.usersService.updateLastActivity(payload.sub).catch(() => {});
     }
 
-    return { userId: user.id, email: user.email };
+    return {
+      userId: user.id,
+      email: user.email,
+      mfaVerified: payload.mfaVerified === true,
+    };
   }
 }

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Logger,
@@ -10,6 +11,7 @@ import {
   Query,
   Request,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
@@ -197,6 +199,76 @@ export class AuthController {
   async hasPassword(@Request() req) {
     const hasPassword = await this.authService.hasPassword(req.user.userId);
     return { hasPassword };
+  }
+
+  // ─── MFA / TOTP endpoints ──────────────────────────────────────────────────
+
+  /**
+   * Initiate TOTP MFA setup. Returns the secret and a QR-code data URL.
+   * The secret is saved but MFA is not yet active until mfa/enable is called.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post("mfa/setup")
+  async mfaSetup(@Request() req) {
+    try {
+      return await this.authService.setupMfa(req.user.userId);
+    } catch (error) {
+      throw new BadRequestException(error.message || "Failed to initiate MFA setup");
+    }
+  }
+
+  /**
+   * Confirm MFA setup by verifying the first TOTP code.
+   * On success MFA becomes active for the account.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post("mfa/enable")
+  async mfaEnable(@Request() req, @Body() body: { token: string }) {
+    if (!body.token) throw new BadRequestException("Token is required");
+    const ok = await this.authService.enableMfa(req.user.userId, body.token);
+    if (!ok) throw new BadRequestException("Invalid TOTP code. Please try again.");
+    return { success: true, message: "MFA enabled successfully" };
+  }
+
+  /**
+   * Verify a TOTP code and receive an MFA-elevated JWT (8-hour expiry).
+   * This elevated token satisfies the AdminGuard MFA check (SAQ Q35 / GAP-2).
+   * Rate-limited to 10 attempts per minute to prevent brute-force.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Post("mfa/verify")
+  async mfaVerify(@Request() req, @Body() body: { token: string }) {
+    if (!body.token) throw new BadRequestException("Token is required");
+    const result = await this.authService.verifyMfaAndElevate(
+      req.user.userId,
+      req.user.email,
+      body.token,
+    );
+    if (!result) throw new UnauthorizedException("Invalid TOTP code");
+    return result;
+  }
+
+  /**
+   * Disable MFA for the authenticated user.
+   * Requires verification of the current TOTP code.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete("mfa")
+  async mfaDisable(@Request() req, @Body() body: { token: string }) {
+    if (!body.token) throw new BadRequestException("Token is required");
+    const ok = await this.authService.disableMfa(req.user.userId, body.token);
+    if (!ok) throw new BadRequestException("Invalid TOTP code. Please try again.");
+    return { success: true, message: "MFA disabled successfully" };
+  }
+
+  /**
+   * Return the MFA status for the currently authenticated user.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get("mfa/status")
+  async mfaStatus(@Request() req) {
+    return this.authService.getMfaStatus(req.user.userId);
   }
 
   @UseGuards(LocalAuthGuard)

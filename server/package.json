@@ -86,7 +86,7 @@
     "googleapis": "^128.0.0",
     "i18next": "^26.0.6",
     "luxon": "^3.7.2",
-    "mjml": "^4.18.0",
+    "mjml": "^5.0.1",
     "natural": "^6.10.3",
     "node-ical": "^0.25.6",
     "openai": "^6.21.0",
@@ -181,7 +181,8 @@
       "node_modules/(?!(@octokit|universal-user-agent|before-after-hook)/)"
     ],
     "moduleNameMapper": {
-      "^app-root-path$": "<rootDir>/__mocks__/app-root-path.ts"
+      "^app-root-path$": "<rootDir>/__mocks__/app-root-path.ts",
+      "^mjml$": "<rootDir>/__mocks__/mjml.ts"
     },
     "setupFilesAfterEnv": [
       "../jest.setup.ts"

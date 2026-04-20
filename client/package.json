@@ -90,7 +90,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "jscodeshift": "^17.3.0",
-    "typescript-eslint": "^8.18.2",
+    "typescript-eslint": "^8.58.2",
     "prettier": "^3.8.1",
     "serve": "^14.2.6",
     "storybook": "^8.6.17",

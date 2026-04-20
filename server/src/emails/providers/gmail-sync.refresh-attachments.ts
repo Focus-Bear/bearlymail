@@ -86,6 +86,30 @@ type EmailRefreshResult = {
   error?: string;
 };
 
+async function verifyDbAttachments(
+  emailsService: EmailsService,
+  logger: Logger,
+  userId: string,
+  emailId: string,
+  gmailCount: number,
+): Promise<{ dbCount: number | null; dbError?: string }> {
+  try {
+    const verified = await emailsService.getEmailById(userId, emailId);
+    const verifiedAttachments = verified?.attachments;
+    let dbCount: number | null = null;
+    if (Array.isArray(verifiedAttachments)) {
+      dbCount = verifiedAttachments.length;
+    } else if (verifiedAttachments === null) {
+      dbCount = 0;
+    }
+    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${emailId} save_verified: gmail=${gmailCount} db=${dbCount !== null ? dbCount : "non-array/null"}`);
+    return { dbCount };
+  } catch (verifyError) {
+    logger.warn(`refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${emailId}: ${verifyError}`);
+    return { dbCount: null, dbError: String(verifyError) };
+  }
+}
+
 async function processEmailRefresh(
   emailsService: EmailsService,
   logger: Logger,
@@ -122,17 +146,7 @@ async function processEmailRefresh(
     return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount: null, error: "Failed to update email in database." };
   }
 
-  let dbCount: number | null = null;
-  let dbError: string | undefined;
-  try {
-    const verified = await emailsService.getEmailById(userId, threadEmail.id);
-    const verifiedAttachments = verified?.attachments;
-    dbCount = Array.isArray(verifiedAttachments) ? verifiedAttachments.length : verifiedAttachments === null ? 0 : null;
-    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} save_verified: gmail=${attachments?.length ?? 0} db=${dbCount !== null ? dbCount : "non-array/null"}`);
-  } catch (verifyError) {
-    dbError = String(verifyError);
-    logger.warn(`refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${threadEmail.id}: ${verifyError}`);
-  }
+  const { dbCount, dbError } = await verifyDbAttachments(emailsService, logger, userId, threadEmail.id, attachments?.length ?? 0);
 
   return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount, dbError };
 }

@@ -206,19 +206,29 @@ Options:
 `);
 }
 
+/** Synchronous sleep between `gh` calls without busy-waiting when possible. */
 function ghSleep(cfg) {
   const s = cfg.sleepBetweenGh;
   if (!(s > 0)) return;
+  const ms = Math.min(2_147_483_647, Math.max(0, Math.round(s * 1000)));
+
+  function sleepAtomics() {
+    try {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    } catch {
+      const until = Date.now() + ms;
+      while (Date.now() < until) {}
+    }
+  }
+
   if (process.platform === "win32") {
-    const until = Date.now() + s * 1000;
-    while (Date.now() < until) {}
+    sleepAtomics();
     return;
   }
   try {
     execSync(`sleep ${s}`, { stdio: "ignore" });
   } catch {
-    const until = Date.now() + s * 1000;
-    while (Date.now() < until) {}
+    sleepAtomics();
   }
 }
 
@@ -1008,30 +1018,48 @@ function syncPrTriageLabels(cfg, prNumber, targetLabel) {
     return;
   }
 
-  for (const lab of ALL_TRIAGED_PR_LABELS) {
-    try {
-      execFileSync("gh", ["pr", "edit", String(prNumber), "-R", cfg.repo, "--remove-label", lab], {
-        stdio: "pipe",
-      });
-    } catch {
-      /* not applied */
-    }
+  /** @type {Set<string>} */
+  let current;
+  try {
+    const row = ghJson(["pr", "view", String(prNumber), "-R", cfg.repo, "--json", "labels"]);
     ghSleep(cfg);
+    current = new Set((row?.labels ?? []).map((l) => l.name));
+  } catch {
+    console.warn(`  [warn] Could not read labels on PR #${prNumber}`);
+    current = new Set();
   }
 
-  if (targetLabel) {
-    try {
-      execFileSync("gh", ["pr", "edit", String(prNumber), "-R", cfg.repo, "--add-label", targetLabel], {
-        stdio: "pipe",
-      });
-      console.log(`  [action] PR #${prNumber} label set to ${targetLabel}`);
-    } catch (e) {
-      console.warn(`  [warn] Could not add label "${targetLabel}" on PR #${prNumber}`);
+  const args = ["pr", "edit", String(prNumber), "-R", cfg.repo];
+  let changed = false;
+  for (const lab of ALL_TRIAGED_PR_LABELS) {
+    if (lab !== targetLabel && current.has(lab)) {
+      args.push("--remove-label", lab);
+      changed = true;
     }
-    ghSleep(cfg);
-  } else {
-    console.log(`  [action] PR #${prNumber}: removed triaged/* labels (no blocking triage issue)`);
   }
+  if (targetLabel && !current.has(targetLabel)) {
+    args.push("--add-label", targetLabel);
+    changed = true;
+  }
+
+  if (!changed) {
+    if (!targetLabel) {
+      console.log(`  [action] PR #${prNumber}: removed triaged/* labels (no blocking triage issue)`);
+    }
+    return;
+  }
+
+  try {
+    execFileSync("gh", args, { stdio: "pipe" });
+    if (targetLabel) {
+      console.log(`  [action] PR #${prNumber} label set to ${targetLabel}`);
+    } else {
+      console.log(`  [action] PR #${prNumber}: removed triaged/* labels (no blocking triage issue)`);
+    }
+  } catch {
+    console.warn(`  [warn] Could not sync labels on PR #${prNumber}`);
+  }
+  ghSleep(cfg);
 }
 
 function checkRunIsCompletedFailure(c) {
@@ -1254,11 +1282,13 @@ function main() {
     ensurePrTriageLabelsExist(cfg);
   }
 
+  const reviewWf = cfg.reviewReadyWorkflowName;
+
   for (const row of prs) {
     const checks = row.statusCheckRollup || [];
     const rollupStats = summarizeStatusCheckRollup(checks);
     const rollupLen = rollupStats.total;
-    const hasCi = checks.some((c) => c.workflowName === "CI");
+    const hasCi = checks.some((c) => c.workflowName === reviewWf);
     const conflict = row.mergeable === "CONFLICTING" || row.mergeStateStatus === "DIRTY";
     const failed = checks.filter((c) => checkRunIsCompletedFailure(c));
     const failCount = failed.length;
@@ -1301,9 +1331,9 @@ function main() {
       postClaudeComment(cfg, row.number, body, wfCache, row.headRefName);
     } else if (ciMissing) {
       console.log(
-        `  [decision] No @claude ping for PR #${row.number}: status rollup has no workflow named "CI" (has_ci=false, ci_missing=1).`,
+        `  [decision] No @claude ping for PR #${row.number}: status rollup has no workflow named "${reviewWf}" (has_ci=false, ci_missing=1).`,
       );
-      console.log("  [info] No CI rollup / no CI workflow name \"CI\" in API response.");
+      console.log(`  [info] No CI rollup / no workflow named "${reviewWf}" in API response.`);
       if (cfg.triggerMissingCi) {
         console.log("  [action] Attempting empty commit on head branch to trigger CI …");
         try {

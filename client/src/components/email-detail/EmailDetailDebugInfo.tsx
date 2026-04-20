@@ -239,18 +239,18 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
             <strong>{t('debug.emailDetail.lastRefreshResult')}</strong>
             <div>{t('debug.emailDetail.refreshThreadId')}: <code>{lastRefreshResult.threadId}</code></div>
             <div>{t('debug.emailDetail.refreshThreadEmailCount')}: {lastRefreshResult.threadEmailCount}</div>
-            {lastRefreshResult.results.map((r, idx) => (
-              <div key={r.emailId} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
-                <div>[{idx}] emailId: {r.emailId}</div>
-                <div>&nbsp;&nbsp;gmailMsgId: {r.gmailMessageId || t('debug.emailDetail.notAvailable')}</div>
-                <div style={{ color: r.gmailCount != null && r.gmailCount > 0 ? 'green' : 'inherit' }}>
-                  &nbsp;&nbsp;{t('debug.emailDetail.refreshGmailCount')}: {r.gmailCount ?? t('debug.emailDetail.notAvailable')}
+            {lastRefreshResult.results.map((emailRes, idx) => (
+              <div key={emailRes.emailId} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
+                <div>[{idx}] emailId: {emailRes.emailId}</div>
+                <div>&nbsp;&nbsp;gmailMsgId: {emailRes.gmailMessageId || t('debug.emailDetail.notAvailable')}</div>
+                <div style={{ color: emailRes.gmailCount != null && emailRes.gmailCount > 0 ? 'green' : 'inherit' }}>
+                  &nbsp;&nbsp;{t('debug.emailDetail.refreshGmailCount')}: {emailRes.gmailCount ?? t('debug.emailDetail.notAvailable')}
                 </div>
-                <div style={{ color: r.dbCount != null && r.dbCount > 0 ? 'green' : r.dbCount === 0 ? 'orange' : 'red' }}>
-                  &nbsp;&nbsp;{t('debug.emailDetail.refreshDbCount')}: {r.dbCount ?? t('debug.emailDetail.notAvailable')}
+                <div style={{ color: emailRes.dbCount != null && emailRes.dbCount > 0 ? 'green' : emailRes.dbCount === 0 ? 'orange' : 'red' }}>
+                  &nbsp;&nbsp;{t('debug.emailDetail.refreshDbCount')}: {emailRes.dbCount ?? t('debug.emailDetail.notAvailable')}
                 </div>
-                {r.error && <div style={{ color: 'red' }}>&nbsp;&nbsp;error: {r.error}</div>}
-                {r.dbError && <div style={{ color: 'orange' }}>&nbsp;&nbsp;dbError: {r.dbError}</div>}
+                {emailRes.error && <div style={{ color: 'red' }}>&nbsp;&nbsp;error: {emailRes.error}</div>}
+                {emailRes.dbError && <div style={{ color: 'orange' }}>&nbsp;&nbsp;dbError: {emailRes.dbError}</div>}
               </div>
             ))}
           </div>

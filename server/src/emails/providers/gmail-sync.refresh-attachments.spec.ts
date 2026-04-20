@@ -163,6 +163,7 @@ describe("refreshAttachmentsFromGmailForThread", () => {
     mockGmailClient.users.messages.get.mockResolvedValue({
       data: {
         id: "msg-1",
+        threadId: gmailThreadId,
         payload: {
           parts: [
             {
@@ -207,12 +208,13 @@ describe("refreshAttachmentsFromGmailForThread", () => {
 
     // First call returns trigger email, subsequent verification reads return email with attachments
     mockEmailsService.getEmailById
-      .mockResolvedValueOnce(email1) // trigger email lookup
-      .mockResolvedValue(emailWithAttachments); // DB verification reads
+      .mockResolvedValueOnce(email1)
+      .mockResolvedValue(emailWithAttachments);
     mockEmailsService.getThreadEmails.mockResolvedValue([email1, email2]);
     mockGmailClient.users.messages.get.mockResolvedValue({
       data: {
         id: "msg-1",
+        threadId: gmailThreadId,
         payload: {
           parts: [
             {
@@ -237,12 +239,12 @@ describe("refreshAttachmentsFromGmailForThread", () => {
 
     expect(result.threadEmailCount).toBe(2);
     // Both emails use the same Gmail mock which always returns 1 attachment
-    const email1Result = result.results.find((r) => r.emailId === "email-1");
+    const email1Result = result.results.find((item) => item.emailId === "email-1");
     expect(email1Result?.gmailCount).toBe(1);
-    expect(email1Result?.dbCount).toBe(1); // verified from mock re-read
-    const email2Result = result.results.find((r) => r.emailId === "email-2");
-    expect(email2Result?.gmailCount).toBe(1); // same Gmail mock for all messages
-    expect(email2Result?.dbCount).toBe(1); // mock returns emailWithAttachments for all reads
+    expect(email1Result?.dbCount).toBe(1);
+    const email2Result = result.results.find((item) => item.emailId === "email-2");
+    expect(email2Result?.gmailCount).toBe(1);
+    expect(email2Result?.dbCount).toBe(1);
   });
 
   it("should throw NotFoundException when trigger email is not found", async () => {

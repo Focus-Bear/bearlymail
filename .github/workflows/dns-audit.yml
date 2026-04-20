@@ -1,0 +1,314 @@
+name: DNS Subdomain Takeover Audit
+
+# GAP-7 / SAQ Q7: Automated monitoring for stale DNS entries and subdomain takeover risk.
+# Runs weekly to check all CNAME records resolve correctly and creates a security issue on failure.
+#
+# Requires: issues: write permission (already set below)
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Enable verbose debug output'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  dns-audit:
+    name: DNS Subdomain Takeover Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install DNS tools
+        run: sudo apt-get install -y dnsutils curl
+
+      - name: Run DNS audit
+        id: audit
+        env:
+          DEBUG: ${{ inputs.debug || 'false' }}
+        run: |
+          set -euo pipefail
+
+          # ----------------------------------------------------------------
+          # Subdomains to monitor (derived from infrastructure/bin/app.ts)
+          # Add new subdomains here whenever you provision a new DNS record.
+          # ----------------------------------------------------------------
+          DOMAINS=(
+            "app.bearlymail.com"
+            "api.app.bearlymail.com"
+            "queue.api.app.bearlymail.com"
+          )
+
+          # Known-safe CNAME target suffixes (AWS managed, not takeover-prone)
+          # These resolve to alias records pointing at AWS-managed load balancers
+          # and CloudFront distributions that are under our control.
+          SAFE_CNAME_PATTERNS=(
+            "\.cloudfront\.net\.$"
+            "\.elb\.amazonaws\.com\.$"
+            "\.execute-api\.[a-z0-9-]+\.amazonaws\.com\.$"
+          )
+
+          # Services known to be vulnerable to subdomain takeover when the
+          # backing resource is deleted.
+          VULNERABLE_CNAME_PATTERNS=(
+            "\.s3-website[.-]"
+            "\.s3\.amazonaws\.com\."
+            "\.s3\.us-east-1\.amazonaws\.com\."
+            "\.github\.io\."
+            "\.herokuapp\.com\."
+            "\.herokudns\.com\."
+            "\.trafficmanager\.net\."
+            "\.azurewebsites\.net\."
+            "\.cloudapp\.net\."
+            "\.azureedge\.net\."
+            "\.fastly\.net\."
+            "\.netlify\.com\."
+            "\.netlify\.app\."
+            "\.vercel\.app\."
+            "\.surge\.sh\."
+            "\.wpengine\.com\."
+            "\.pantheonsite\.io\."
+          )
+
+          ISSUES=""
+          WARNINGS=""
+          ALL_OK=true
+
+          debug() {
+            if [ "$DEBUG" = "true" ]; then
+              echo "DEBUG: $*"
+            fi
+          }
+
+          check_domain() {
+            local DOMAIN="$1"
+            echo ""
+            echo "━━━ Checking: $DOMAIN ━━━"
+
+            # ---- 1. Does the domain resolve at all? ----
+            RAW_RESOLUTION=$(dig +short "$DOMAIN" 2>/dev/null || true)
+            debug "Raw resolution: $RAW_RESOLUTION"
+
+            if [ -z "$RAW_RESOLUTION" ]; then
+              ISSUES="${ISSUES}
+          - **${DOMAIN}**: NXDOMAIN — domain does not resolve. If it was recently deprovisioned, remove its DNS record immediately to prevent takeover."
+              ALL_OK=false
+              return
+            fi
+
+            # ---- 2. Follow CNAME chain ----
+            CNAME_TARGET=$(dig +short CNAME "$DOMAIN" 2>/dev/null || true)
+            debug "CNAME target: ${CNAME_TARGET:-none}"
+
+            if [ -n "$CNAME_TARGET" ]; then
+              echo "  CNAME: $DOMAIN → $CNAME_TARGET"
+
+              # Check if the CNAME target itself resolves
+              CNAME_RESOLVES=$(dig +short "$CNAME_TARGET" 2>/dev/null || true)
+              debug "CNAME target resolves to: ${CNAME_RESOLVES:-nothing}"
+
+              if [ -z "$CNAME_RESOLVES" ]; then
+                ISSUES="${ISSUES}
+          - **${DOMAIN}**: CNAME points to \`${CNAME_TARGET}\` which does not resolve. **High risk of subdomain takeover** — an attacker could register this target."
+                ALL_OK=false
+              fi
+
+              # Check for vulnerable third-party CNAME targets
+              for PATTERN in "${VULNERABLE_CNAME_PATTERNS[@]}"; do
+                if echo "$CNAME_TARGET" | grep -qiE "$PATTERN"; then
+                  # Probe the CNAME target for takeover indicators
+                  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+                    "https://${DOMAIN}" 2>/dev/null || echo "000")
+                  debug "HTTP status for $DOMAIN: $HTTP_STATUS"
+
+                  # 404/NoSuchBucket/There is no app at that URL = classic takeover indicators
+                  BODY=$(curl -s --max-time 10 "https://${DOMAIN}" 2>/dev/null | head -c 2000 || true)
+                  TAKEOVER_INDICATORS=(
+                    "NoSuchBucket"
+                    "There is no app at that URL"
+                    "No Such Account"
+                    "Repository not found"
+                    "There isn't a GitHub Pages site here"
+                    "404 Not Found"
+                    "Fastly error: unknown domain"
+                    "The feed has not been found"
+                    "No settings were found for this company"
+                  )
+                  for INDICATOR in "${TAKEOVER_INDICATORS[@]}"; do
+                    if echo "$BODY" | grep -qi "$INDICATOR"; then
+                      ISSUES="${ISSUES}
+          - **${DOMAIN}**: CNAME points to \`${CNAME_TARGET}\` (${PATTERN%-*} service) and the target returned a takeover indicator: \`${INDICATOR}\`. **Immediate action required.**"
+                      ALL_OK=false
+                      break
+                    fi
+                  done
+                  if [ "$ALL_OK" = "true" ]; then
+                    WARNINGS="${WARNINGS}
+          - **${DOMAIN}**: CNAME points to \`${CNAME_TARGET}\` — this service type is historically vulnerable to subdomain takeover. Verified it resolves correctly (HTTP ${HTTP_STATUS}), but monitor closely."
+                  fi
+                  break
+                fi
+              done
+            fi
+
+            # ---- 3. Verify A/AAAA record exists (or is reachable via alias) ----
+            A_RECORDS=$(dig +short A "$DOMAIN" 2>/dev/null || true)
+            AAAA_RECORDS=$(dig +short AAAA "$DOMAIN" 2>/dev/null || true)
+            debug "A records: ${A_RECORDS:-none}"
+            debug "AAAA records: ${AAAA_RECORDS:-none}"
+
+            if [ -z "$A_RECORDS" ] && [ -z "$AAAA_RECORDS" ]; then
+              # Could be a CNAME-only domain that has its own issues (caught above)
+              if [ -z "$CNAME_TARGET" ]; then
+                ISSUES="${ISSUES}
+          - **${DOMAIN}**: No A, AAAA, or CNAME records found. DNS entry is orphaned."
+                ALL_OK=false
+              fi
+            else
+              echo "  Resolves to IP(s): $(echo "$A_RECORDS $AAAA_RECORDS" | tr '\n' ' ')"
+            fi
+
+            # ---- 4. HTTP liveness check ----
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+              -H "User-Agent: BearlyMail-DNS-Audit/1.0" \
+              "https://${DOMAIN}" 2>/dev/null || echo "000")
+            debug "HTTP status: $HTTP_STATUS"
+
+            case "$HTTP_STATUS" in
+              2*|3*|401|403)
+                echo "  HTTP check: ✅ $HTTP_STATUS"
+                ;;
+              000)
+                WARNINGS="${WARNINGS}
+          - **${DOMAIN}**: HTTP check timed out or TLS handshake failed (status 000). Could indicate a decommissioned service."
+                ;;
+              *)
+                WARNINGS="${WARNINGS}
+          - **${DOMAIN}**: HTTP check returned unexpected status $HTTP_STATUS. Investigate if this is expected."
+                ;;
+            esac
+          }
+
+          for DOMAIN in "${DOMAINS[@]}"; do
+            check_domain "$DOMAIN"
+          done
+
+          echo ""
+          echo "━━━ Audit Complete ━━━"
+
+          # Write outputs for the next step
+          {
+            echo "all_ok=${ALL_OK}"
+            echo "issues<<AUDIT_EOF"
+            echo "${ISSUES}"
+            echo "AUDIT_EOF"
+            echo "warnings<<AUDIT_EOF"
+            echo "${WARNINGS}"
+            echo "AUDIT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$ALL_OK" = "false" ]; then
+            echo ""
+            echo "❌ Audit FAILED — critical issues detected. A GitHub issue will be created."
+            exit 0  # Don't fail the step; let the issue-creation step run
+          else
+            echo ""
+            if [ -n "$WARNINGS" ]; then
+              echo "⚠️  Audit passed with warnings (no critical issues)."
+            else
+              echo "✅ All DNS records look healthy."
+            fi
+          fi
+
+      - name: Create GitHub security issue on failure
+        if: steps.audit.outputs.all_ok == 'false'
+        uses: actions/github-script@v7
+        env:
+          AUDIT_ISSUES: ${{ steps.audit.outputs.issues }}
+          AUDIT_WARNINGS: ${{ steps.audit.outputs.warnings }}
+        with:
+          script: |
+            const issues   = (process.env.AUDIT_ISSUES || '').trim();
+            const warnings = (process.env.AUDIT_WARNINGS || '').trim();
+            const runUrl   = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const date     = new Date().toISOString().split('T')[0];
+
+            const body = [
+              '## 🔴 DNS Subdomain Takeover Risk Detected',
+              '',
+              `**Automated DNS audit on ${date} detected critical issues that require immediate attention.**`,
+              '',
+              '---',
+              '',
+              '### Critical Issues',
+              '',
+              issues || '_No critical issues recorded (check workflow logs)_',
+              '',
+              ...(warnings ? ['### Warnings', '', warnings, ''] : []),
+              '---',
+              '',
+              '### Immediate Actions Required',
+              '',
+              '1. **Identify** which DNS record(s) are affected (see issues above).',
+              '2. **Verify** whether the backing resource (CloudFront distribution, ALB, S3 bucket, etc.) still exists.',
+              '3. **If the resource no longer exists**: remove the DNS record immediately via Route53.',
+              '4. **If it does exist but is misconfigured**: re-associate the DNS record with the correct resource.',
+              '5. **Confirm resolution**: re-run the workflow via Actions → DNS Subdomain Takeover Audit → Run workflow.',
+              '6. **Update** `docs/dns-audit-runbook.md` if new subdomains were discovered.',
+              '',
+              '---',
+              '',
+              '### References',
+              '',
+              '- Runbook: `docs/dns-audit-runbook.md`',
+              '- Security plan: `docs/security-remediation-plan.md` (GAP-7)',
+              '- Compliance: SAQ Q7',
+              `- Workflow run: ${runUrl}`,
+              '',
+              '> _Generated automatically by the [DNS Subdomain Takeover Audit](' + runUrl + ') workflow._',
+            ].join('\n');
+
+            // Avoid duplicate open issues for the same problem
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,dns-takeover',
+            });
+
+            if (existing.data.length > 0) {
+              const issue = existing.data[0];
+              console.log(`Updating existing issue #${issue.number}`);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `### 🔄 Re-audit on ${date}\n\n${body}`,
+              });
+            } else {
+              console.log('Creating new security issue');
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🔴 Security: DNS Subdomain Takeover Risk Detected (${date})`,
+                body,
+                labels: ['security', 'dns-takeover'],
+              });
+            }
+
+      - name: Fail workflow if critical issues found
+        if: steps.audit.outputs.all_ok == 'false'
+        run: |
+          echo "❌ DNS audit found critical issues. See the created GitHub issue for details."
+          exit 1

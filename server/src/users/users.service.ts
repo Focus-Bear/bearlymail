@@ -4,6 +4,10 @@ import { IsNull, LessThan, Repository } from "typeorm";
 
 import { writeDebugLog } from "../auth/auth-logger";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import {
+  DeletedAccount,
+  DeletionReason,
+} from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
@@ -21,6 +25,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(DeletedAccount)
+    private deletedAccountRepository: Repository<DeletedAccount>,
   ) {}
 
   async create(userData: Partial<User>): Promise<User> {
@@ -150,6 +156,10 @@ export class UsersService {
       .where("user.id = :id", { id })
       .getOne();
     return !!result;
+  }
+
+  hashEmail(email: string): string {
+    return EncryptionHelper.hashEmail(email);
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -395,153 +405,76 @@ export class UsersService {
     return rows.map((row) => row.id);
   }
 
-  async deleteAccount(userId: string): Promise<void> {
+  /**
+   * Returns the deleted account record for an email hash, if one exists.
+   * Used by AuthService to show a "data deleted" message on login.
+   */
+  async findDeletedAccountByEmailHash(
+    emailHash: string,
+  ): Promise<DeletedAccount | null> {
+    return this.deletedAccountRepository.findOne({ where: { emailHash } });
+  }
+
+  async deleteAccount(
+    userId: string,
+    reason: DeletionReason = DeletionReason.MANUAL,
+  ): Promise<void> {
     const user = await this.findOne(userId);
     if (!user) {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
 
-    const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId}`;
+    const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId} (reason: ${reason})`;
     writeDebugLog(logMsg);
 
-    // Delete all related data in the correct order (respecting foreign key constraints)
-    // Using raw queries since we only have access to the User repository
+    if (user.emailHash) {
+      await this.deletedAccountRepository.upsert(
+        {
+          emailHash: user.emailHash,
+          passwordHash: user.password ?? null,
+          deletionReason: reason,
+        },
+        { conflictPaths: ["emailHash"] },
+      );
+    }
 
-    // Delete action items
-    await this.userRepository.query(
-      `DELETE FROM action_items WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete suggested replies
-    await this.userRepository.query(
-      `DELETE FROM suggested_replies WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete reply drafts
-    await this.userRepository.query(
-      `DELETE FROM reply_drafts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete private notes
-    await this.userRepository.query(
-      `DELETE FROM private_notes WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete auto response logs
-    await this.userRepository.query(
-      `DELETE FROM auto_response_logs WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete auto response suppressions
-    await this.userRepository.query(
-      `DELETE FROM auto_response_suppressions WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete follow-ups
-    await this.userRepository.query(
-      `DELETE FROM follow_ups WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete emails
-    await this.userRepository.query(`DELETE FROM emails WHERE "userId" = $1`, [
-      userId,
-    ]);
-
-    // Delete email threads
-    await this.userRepository.query(
-      `DELETE FROM email_threads WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete scan emails
-    await this.userRepository.query(
-      `DELETE FROM scan_emails WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete contacts
-    await this.userRepository.query(
-      `DELETE FROM contacts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete blocked senders
-    await this.userRepository.query(
-      `DELETE FROM blocked_senders WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete blocked keywords
-    await this.userRepository.query(
-      `DELETE FROM blocked_keywords WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete batch schedules
-    await this.userRepository.query(
-      `DELETE FROM batch_schedules WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete user contexts
-    await this.userRepository.query(
-      `DELETE FROM user_contexts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete context analyses
-    await this.userRepository.query(
-      `DELETE FROM context_analyses WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete summarization rules
-    await this.userRepository.query(
-      `DELETE FROM summarization_rules WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete priority overrides
-    await this.userRepository.query(
-      `DELETE FROM priority_overrides WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete token usage (nullable userId, so use IS NOT DISTINCT FROM)
-    await this.userRepository.query(
-      `DELETE FROM token_usage WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete Google accounts
-    await this.userRepository.query(
-      `DELETE FROM google_accounts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete Office365 accounts
-    await this.userRepository.query(
-      `DELETE FROM office365_accounts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Delete Zoho accounts
-    await this.userRepository.query(
-      `DELETE FROM zoho_accounts WHERE "userId" = $1`,
-      [userId],
-    );
-
-    // Finally, delete the user
+    await this.deleteUserRelatedData(userId);
     await this.userRepository.delete(userId);
 
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
     writeDebugLog(completedMsg);
+  }
+
+  private async deleteUserRelatedData(userId: string): Promise<void> {
+    const userTables = [
+      "action_items",
+      "suggested_replies",
+      "reply_drafts",
+      "private_notes",
+      "auto_response_logs",
+      "auto_response_suppressions",
+      "follow_ups",
+      "emails",
+      "email_threads",
+      "scan_emails",
+      "contacts",
+      "blocked_senders",
+      "blocked_keywords",
+      "batch_schedules",
+      "user_contexts",
+      "context_analyses",
+      "summarization_rules",
+      "priority_overrides",
+      "token_usage",
+      "google_accounts",
+      "office365_accounts",
+      "zoho_accounts",
+    ];
+    for (const tableName of userTables) {
+      await this.userRepository.query(
+        `DELETE FROM ${tableName} WHERE "userId" = $1`,
+        [userId],
+      );
+    }
   }
 }

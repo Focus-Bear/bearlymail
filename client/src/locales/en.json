@@ -117,6 +117,13 @@
       "description": "Please use \"Continue with Google\" above, or set a password via",
       "forgotPasswordLink": "Forgot Password"
     },
+    "deletedAccountError": {
+      "inactivityTitle": "Your account was deleted due to inactivity",
+      "inactivityDescription": "Your account and all associated data were automatically deleted after 30 days of inactivity, as described in our",
+      "manualTitle": "Your account has been deleted",
+      "manualDescription": "Your account and all associated data were deleted as requested, as described in our",
+      "privacyPolicyLink": "Privacy Policy"
+    },
     "forgotPassword": {
       "title": "Forgot Password",
       "description": "Enter your email address and we will send you a link to reset your password.",

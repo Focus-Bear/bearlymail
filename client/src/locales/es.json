@@ -271,6 +271,13 @@
       "description": "Por favor usa \"Continuar con Google\" arriba, o establece una contraseña mediante",
       "forgotPasswordLink": "Contraseña olvidada"
     },
+    "deletedAccountError": {
+      "inactivityTitle": "Tu cuenta fue eliminada por inactividad",
+      "inactivityDescription": "Tu cuenta y todos los datos asociados fueron eliminados automáticamente después de 30 días de inactividad, según lo descrito en nuestra",
+      "manualTitle": "Tu cuenta ha sido eliminada",
+      "manualDescription": "Tu cuenta y todos los datos asociados fueron eliminados según lo solicitado, según lo descrito en nuestra",
+      "privacyPolicyLink": "Política de Privacidad"
+    },
     "forgotPassword": {
       "title": "Contraseña olvidada",
       "description": "Ingresa tu dirección de correo y te enviaremos un enlace para restablecer tu contraseña.",

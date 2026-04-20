@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { DeletionReason } from "../database/entities/deleted-account.entity";
 import { logErrorToFile } from "../utils/error-logger";
 import { UsersService } from "./users.service";
 
@@ -60,7 +61,7 @@ export class AccountDeletionProcessor implements OnModuleInit {
 
     for (const userId of userIds) {
       try {
-        await this.usersService.deleteAccount(userId);
+        await this.usersService.deleteAccount(userId, DeletionReason.INACTIVITY);
         deleted++;
         this.logger.log(
           `[AccountDeletion] Deleted inactive account userId=${userId}`,

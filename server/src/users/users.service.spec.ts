@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { DeletedAccount, DeletionReason } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { mockPartial } from "../test/helpers/mock-utils";
@@ -20,6 +21,7 @@ jest.mock("../auth/auth-logger", () => ({
 describe("UsersService", () => {
   let service: UsersService;
   let repository: jest.Mocked<Repository<User>>;
+  let deletedAccountRepository: jest.Mocked<Repository<DeletedAccount>>;
 
   const mockUser: User = {
     id: "user-1",
@@ -49,6 +51,14 @@ describe("UsersService", () => {
             find: jest.fn(),
             update: jest.fn(),
             query: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(DeletedAccount),
+          useValue: {
+            findOne: jest.fn(),
+            upsert: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -56,6 +66,7 @@ describe("UsersService", () => {
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(getRepositoryToken(User));
+    deletedAccountRepository = module.get(getRepositoryToken(DeletedAccount));
     jest.clearAllMocks();
   });
 
@@ -473,6 +484,14 @@ describe("UsersService", () => {
     });
   });
 
+  describe("hashEmail", () => {
+    it("should delegate to EncryptionHelper.hashEmail", () => {
+      const result = service.hashEmail("test@example.com");
+      expect(EncryptionHelper.hashEmail).toHaveBeenCalledWith("test@example.com");
+      expect(result).toBe("hash_test@example.com");
+    });
+  });
+
   describe("findUsersForDeletion", () => {
     it("returns user IDs from the raw query result", async () => {
       repository.query.mockResolvedValue([
@@ -515,6 +534,93 @@ describe("UsersService", () => {
       const result = await service.findUsersForDeletion(30);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("findDeletedAccountByEmailHash", () => {
+    it("should return deleted account record when found", async () => {
+      const mockDeleted = {
+        id: "del-1",
+        emailHash: "some-hash",
+        passwordHash: "bcrypt-hash",
+        deletionReason: DeletionReason.INACTIVITY,
+        deletedAt: new Date(),
+      } as DeletedAccount;
+      deletedAccountRepository.findOne.mockResolvedValue(mockDeleted);
+
+      const result = await service.findDeletedAccountByEmailHash("some-hash");
+
+      expect(deletedAccountRepository.findOne).toHaveBeenCalledWith({
+        where: { emailHash: "some-hash" },
+      });
+      expect(result).toEqual(mockDeleted);
+    });
+
+    it("should return null when no deleted account found", async () => {
+      deletedAccountRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findDeletedAccountByEmailHash("unknown-hash");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("deleteAccount", () => {
+    it("should save a tombstone to deleted_accounts before deleting", async () => {
+      const userWithPassword = {
+        ...mockUser,
+        emailHash: "hash_test@example.com",
+        password: "bcrypt-hash",
+      } as User;
+      // findOne is called twice: once in deleteAccount, once in deleteAccount chain
+      repository.findOne.mockResolvedValue(userWithPassword);
+      repository.query.mockResolvedValue([]);
+      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
+
+      await service.deleteAccount("user-1", DeletionReason.INACTIVITY);
+
+      expect(deletedAccountRepository.upsert).toHaveBeenCalledWith(
+        {
+          emailHash: "hash_test@example.com",
+          passwordHash: "bcrypt-hash",
+          deletionReason: DeletionReason.INACTIVITY,
+        },
+        { conflictPaths: ["emailHash"] },
+      );
+      expect(repository.delete).toHaveBeenCalledWith("user-1");
+    });
+
+    it("should default to MANUAL deletion reason", async () => {
+      const userWithPassword = {
+        ...mockUser,
+        emailHash: "hash_test@example.com",
+        password: "bcrypt-hash",
+      } as User;
+      repository.findOne.mockResolvedValue(userWithPassword);
+      repository.query.mockResolvedValue([]);
+      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
+
+      await service.deleteAccount("user-1");
+
+      expect(deletedAccountRepository.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ deletionReason: DeletionReason.MANUAL }),
+        expect.anything(),
+      );
+    });
+
+    it("should skip upsert when user has no emailHash", async () => {
+      const userNoHash = {
+        ...mockUser,
+        emailHash: null,
+        password: "bcrypt-hash",
+      } as unknown as User;
+      repository.findOne.mockResolvedValue(userNoHash);
+      repository.query.mockResolvedValue([]);
+      repository.delete = jest.fn().mockResolvedValue({ affected: 1 });
+
+      await service.deleteAccount("user-1");
+
+      expect(deletedAccountRepository.upsert).not.toHaveBeenCalled();
     });
   });
 });

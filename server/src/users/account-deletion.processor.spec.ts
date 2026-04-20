@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { DeletionReason } from "../database/entities/deleted-account.entity";
 import { AccountDeletionProcessor } from "./account-deletion.processor";
 import { UsersService } from "./users.service";
 
@@ -74,7 +75,7 @@ describe("AccountDeletionProcessor", () => {
   });
 
   describe("handleCleanupInactiveAccounts", () => {
-    it("deletes all inactive accounts found", async () => {
+    it("deletes all inactive accounts with INACTIVITY reason", async () => {
       mockUsersService.findUsersForDeletion.mockResolvedValue([
         "user-1",
         "user-2",
@@ -84,8 +85,14 @@ describe("AccountDeletionProcessor", () => {
       await processor.handleCleanupInactiveAccounts();
 
       expect(mockUsersService.findUsersForDeletion).toHaveBeenCalledWith(30);
-      expect(mockUsersService.deleteAccount).toHaveBeenCalledWith("user-1");
-      expect(mockUsersService.deleteAccount).toHaveBeenCalledWith("user-2");
+      expect(mockUsersService.deleteAccount).toHaveBeenCalledWith(
+        "user-1",
+        DeletionReason.INACTIVITY,
+      );
+      expect(mockUsersService.deleteAccount).toHaveBeenCalledWith(
+        "user-2",
+        DeletionReason.INACTIVITY,
+      );
       expect(mockUsersService.deleteAccount).toHaveBeenCalledTimes(2);
     });
 

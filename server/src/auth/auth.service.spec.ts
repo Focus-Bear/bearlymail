@@ -4,6 +4,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
 import PgBoss from "pg-boss";
 
+import { DeletedAccount, DeletionReason } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
@@ -11,7 +12,6 @@ import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
 import { TotpService } from "./totp.service";
-
 
 jest.mock("bcrypt");
 jest.mock("./auth-logger", () => ({
@@ -62,6 +62,8 @@ describe("AuthService", () => {
       findAll: jest.fn(),
       wasUserInactive: jest.fn().mockResolvedValue(false),
       updateLastActivity: jest.fn().mockResolvedValue(undefined),
+      hashEmail: jest.fn().mockReturnValue("hashed-email"),
+      findDeletedAccountByEmailHash: jest.fn().mockResolvedValue(null),
     };
 
     const mockJwtService = {
@@ -153,13 +155,82 @@ describe("AuthService", () => {
       );
     });
 
-    it("should return null when user is not found", async () => {
+    it("should return null when user is not found and no deleted account record", async () => {
       usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue(null);
 
       const result = await service.validateUser("test@example.com", "password");
 
       expect(result).toBeNull();
       expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it("should return null when user is not found and deleted account has no passwordHash", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: null,
+        deletionReason: DeletionReason.INACTIVITY,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+
+      const result = await service.validateUser("test@example.com", "password");
+
+      expect(result).toBeNull();
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it("should throw DeletedAccountException when deleted account found and password matches (inactivity)", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.INACTIVITY,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.validateUser("test@example.com", "password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "inactivity" }),
+      });
+    });
+
+    it("should throw DeletedAccountException when deleted account found and password matches (manual)", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.MANUAL,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.validateUser("test@example.com", "password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "manual" }),
+      });
+    });
+
+    it("should return null (not reveal deletion) when deleted account found but password does not match", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.MANUAL,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      const result = await service.validateUser("test@example.com", "wrong-password");
+
+      expect(result).toBeNull();
     });
 
     it("should return null when password is incorrect", async () => {

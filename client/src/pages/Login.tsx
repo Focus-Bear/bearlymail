@@ -10,7 +10,7 @@ import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
+import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
@@ -20,6 +20,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
+  const [deletedAccountReason, setDeletedAccountReason] = useState<'manual' | 'inactivity' | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const Login: React.FC = () => {
     event.preventDefault();
     setError('');
     setIsOAuthOnlyError(false);
+    setDeletedAccountReason(null);
 
     try {
       await login(email, password);
@@ -48,6 +50,9 @@ const Login: React.FC = () => {
         setIsOAuthOnlyError(true);
         // Set a non-empty error string so the error block renders (handled by isOAuthOnlyError flag)
         setError('OAUTH_ONLY_ACCOUNT');
+      } else if (err instanceof DeletedAccountError) {
+        setDeletedAccountReason(err.deletionReason);
+        setError('ACCOUNT_DELETED');
       } else {
         setError(getAxiosErrorMessage(err, t('auth.authenticationFailed')));
       }
@@ -97,6 +102,7 @@ const Login: React.FC = () => {
           password={password}
           error={error}
           isOAuthOnlyError={isOAuthOnlyError}
+          deletedAccountReason={deletedAccountReason}
           onEmailChange={setEmail}
           onPasswordChange={setPassword}
           onSubmit={handleSubmit}

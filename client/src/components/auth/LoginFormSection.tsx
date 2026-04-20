@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { DELETION_REASON_INACTIVITY, STRING_NONE } from 'constants/strings';
 
 interface LoginFormSectionProps {
   email: string;
@@ -12,6 +12,11 @@ interface LoginFormSectionProps {
   error: string;
   /** When true, the error is an OAUTH_ONLY_ACCOUNT error and a specific message is shown. */
   isOAuthOnlyError?: boolean;
+  /**
+   * When set, the account was deleted for this reason and a specific
+   * "data was deleted" message is shown instead of the generic error.
+   */
+  deletedAccountReason?: 'manual' | 'inactivity' | null;
   onEmailChange: (email: string) => void;
   onPasswordChange: (password: string) => void;
   onSubmit: (event: React.FormEvent) => void;
@@ -183,12 +188,15 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
   password,
   error,
   isOAuthOnlyError,
+  deletedAccountReason,
   onEmailChange,
   onPasswordChange,
   onSubmit,
   onGoogleLogin,
 }) => {
   const { t } = useTranslation();
+
+  const isDeletedAccountError = !!deletedAccountReason;
 
   return (
     <div
@@ -212,7 +220,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
         {t('auth.loginTitle')}
       </h1>
 
-      {error && !isOAuthOnlyError && (
+      {error && !isOAuthOnlyError && !isDeletedAccountError && (
         <div
           role="alert"
           aria-live="polite"
@@ -245,6 +253,36 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
           {t('auth.oauthOnlyError.description')}{' '}
           <Link to="/forgot-password" style={{ color: theme.colors.primary.main, textDecoration: 'underline' }}>
             {t('auth.oauthOnlyError.forgotPasswordLink')}
+          </Link>
+          {'.'}
+        </div>
+      )}
+
+      {isDeletedAccountError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            backgroundColor: `${theme.colors.accent.warning ?? theme.colors.accent.error}20`,
+            color: theme.colors.text.primary,
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.md,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: '1.5',
+          }}
+        >
+          <strong>
+            {deletedAccountReason === DELETION_REASON_INACTIVITY
+              ? t('auth.deletedAccountError.inactivityTitle')
+              : t('auth.deletedAccountError.manualTitle')}
+          </strong>
+          <br />
+          {deletedAccountReason === DELETION_REASON_INACTIVITY
+            ? t('auth.deletedAccountError.inactivityDescription')
+            : t('auth.deletedAccountError.manualDescription')}{' '}
+          <Link to="/privacy-policy" style={{ color: theme.colors.primary.main, textDecoration: 'underline' }}>
+            {t('auth.deletedAccountError.privacyPolicyLink')}
           </Link>
           {'.'}
         </div>

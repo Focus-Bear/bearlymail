@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
+import { DeletedAccount } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { UsersService } from "./users.service";
 
@@ -35,6 +36,13 @@ describe("UsersService — inactivity tracking", () => {
             delete: jest.fn(),
             count: jest.fn(),
             createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(DeletedAccount),
+          useValue: {
+            findOne: jest.fn(),
+            upsert: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

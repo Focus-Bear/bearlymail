@@ -8,7 +8,7 @@ import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
-import { AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
+import { AUTH_ERROR_ACCOUNT_DELETED, AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 /**
@@ -57,6 +57,21 @@ export class OAuthOnlyAccountError extends Error {
   constructor() {
     super('OAUTH_ONLY_ACCOUNT');
     this.name = 'OAuthOnlyAccountError';
+  }
+}
+
+/**
+ * Thrown by login() when the server returns ACCOUNT_DELETED.
+ * The caller (Login page) should check `error instanceof DeletedAccountError`
+ * to render a "your data was deleted per our privacy policy" message.
+ */
+export class DeletedAccountError extends Error {
+  readonly deletionReason: 'manual' | 'inactivity';
+
+  constructor(deletionReason: 'manual' | 'inactivity' = 'manual') {
+    super('ACCOUNT_DELETED');
+    this.name = 'DeletedAccountError';
+    this.deletionReason = deletionReason;
   }
 }
 
@@ -143,13 +158,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       response = await axios.post(`${API_URL}/auth/login`, { email, password });
     } catch (err: unknown) {
-      // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
-      // render a specific, actionable message.
-      if (
-        axios.isAxiosError(err) &&
-        (err.response?.data as { error?: string } | undefined)?.error === AUTH_ERROR_OAUTH_ONLY
-      ) {
-        throw new OAuthOnlyAccountError();
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string; deletionReason?: string } | undefined;
+        // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
+        // render a specific, actionable message.
+        if (data?.error === AUTH_ERROR_OAUTH_ONLY) {
+          throw new OAuthOnlyAccountError();
+        }
+        // Detect ACCOUNT_DELETED and surface a typed error with the reason.
+        if (data?.error === AUTH_ERROR_ACCOUNT_DELETED) {
+          throw new DeletedAccountError(
+            (data.deletionReason as 'manual' | 'inactivity') ?? 'manual',
+          );
+        }
       }
       throw err;
     }

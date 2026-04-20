@@ -24,6 +24,7 @@ BearlyMail processes personal data (email content, account information, usage pa
 | Authentication tokens | Session lifetime (24 h) | Security |
 | Password reset tokens | 1 hour | Security |
 | API keys (user-supplied, encrypted) | Until user removes or account deleted | User consent |
+| Inactivity tombstone (email hash + password hash only) | 90 days after account deletion | Used solely to show "data deleted" message on login; contains no PII |
 
 ### Automated Inactivity Deletion
 
@@ -32,6 +33,15 @@ Accounts with no recorded activity for **30 consecutive days** are automatically
 The retention window can be adjusted via the `DATA_RETENTION_DAYS` environment variable. Administrator accounts are always excluded from automated deletion.
 
 "Activity" is defined as any authenticated API call that triggers `updateLastActivity()` — login, inbox load, email action, settings change, etc. New accounts that have never made an authenticated API call use their `createdAt` date as the inactivity baseline.
+
+#### What happens when an account is deleted for inactivity
+
+1. A daily background job identifies accounts where `lastActivityAt` (or `createdAt` for new accounts) is older than 30 days.
+2. All account data is deleted: emails, threads, summaries, priorities, context, linked accounts, and the user record itself.
+3. A minimal tombstone record is created containing only the **SHA-256 hash** of your email address and your **bcrypt password hash** (no plaintext data). This record is used solely to show you an informative message if you try to log in again.
+4. The tombstone itself is deleted after **90 days**.
+
+No advance notification is sent before automatic deletion. To avoid deletion, log in at least once every 30 days.
 
 ### Application Logs (CloudWatch)
 
@@ -69,6 +79,8 @@ Deletion is synchronous and irreversible. The following data is permanently remo
 - Batch schedules and auto-responder settings
 - OAuth tokens (Google, Microsoft, Zoho)
 - All token-usage audit records for the user
+
+The same tombstone mechanism described above applies to manual deletion — a minimal record (email hash + password hash only) is retained for 90 days so that if you sign up again with the same email, you will see a message explaining that your previous data was deleted per our privacy policy.
 
 ---
 

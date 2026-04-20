@@ -27,6 +27,7 @@ import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthLogger, writeDebugLog } from "./auth-logger";
+import { DeletedAccountException } from "./exceptions/deleted-account.exception";
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
 import { TotpService, TotpSetupData } from "./totp.service";
 
@@ -81,8 +82,24 @@ export class AuthService {
     password: string,
   ): Promise<UserWithoutPassword | null> {
     const user = await this.usersService.findByEmail(email);
-    // unknown email
-    if (!user) return null;
+
+    // No active account — check if this email belonged to a deleted account.
+    // If the password also matches we show an informative "data deleted" message.
+    if (!user) {
+      const emailHash = this.usersService.hashEmail(email);
+      const deleted =
+        await this.usersService.findDeletedAccountByEmailHash(emailHash);
+      if (deleted?.passwordHash) {
+        const passwordMatches = await bcrypt.compare(
+          password,
+          deleted.passwordHash,
+        );
+        if (passwordMatches) {
+          throw new DeletedAccountException(deleted.deletionReason);
+        }
+      }
+      return null;
+    }
 
     // OAuth-only account — no password hash set
     if (!user.password || user.password.length === 0) {

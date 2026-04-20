@@ -8,6 +8,9 @@
  *
  * Optional PR labels `triaged/*` (see PR_TRIAGE_LABELS env): worst issue wins — conflicts, CI failure, or CI missing.
  *
+ * Orphan branch scan (SCAN_ORPHAN_CLAUDE_BRANCHES): lists repo branches matching `claude/issue-<n>*`, keeps those whose
+ * **tip commit** is within CLAUDE_ORPHAN_BRANCH_MAX_AGE_HOURS (default 48), opens a draft PR if none exists (issue OPEN).
+ *
  * Usage: node scripts/pr-claude-triage.mjs [options]
  * Env vars: same as the former bash script (see printHelp).
  */
@@ -70,6 +73,10 @@ function buildConfig(argv, env) {
     /** Ignore workflow runs whose updated_at/created_at are older than this (ms). 0 = no age limit. Default 2h. */
     claudeWorkflowActiveMaxAgeMs: parseClaudeWorkflowMaxAgeMs(env.CLAUDE_WORKFLOW_ACTIVE_MAX_AGE_MS),
     prTriageLabels: env.PR_TRIAGE_LABELS !== "0" && flags.prTriageLabels,
+    /** List remote claude/issue-* branches with a recent tip commit and open a draft PR if none exists. */
+    scanOrphanClaudeBranches: env.SCAN_ORPHAN_CLAUDE_BRANCHES !== "0" && flags.scanOrphanClaudeBranches,
+    /** Max age of the **tip commit** (hours) for orphan-branch auto–PR (default 48). */
+    claudeOrphanBranchMaxAgeHours: numEnv(env.CLAUDE_ORPHAN_BRANCH_MAX_AGE_HOURS, 48),
   };
 }
 
@@ -98,6 +105,7 @@ function parseArgv(argv) {
     reviewReadySummary: process.env.REVIEW_READY_SUMMARY !== "0",
     reviewReadyExcludeUnaddressedGemini: process.env.REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI !== "0",
     prTriageLabels: process.env.PR_TRIAGE_LABELS !== "0",
+    scanOrphanClaudeBranches: process.env.SCAN_ORPHAN_CLAUDE_BRANCHES !== "0",
     bustIssueCache: false,
   };
 
@@ -146,6 +154,9 @@ function parseArgv(argv) {
       case "--no-pr-triage-labels":
         out.prTriageLabels = false;
         break;
+      case "--no-scan-orphan-claude-branches":
+        out.scanOrphanClaudeBranches = false;
+        break;
       case "--no-issue-triage-cache":
         out.issueTriageCache = false;
         break;
@@ -171,6 +182,8 @@ Same behavior and environment variables as the legacy shell script.
 Also: REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI (default on), GEMINI_REVIEW_BOT_SUBSTRING (default: gemini).
       CLAUDE_WORKFLOW_ACTIVE_MAX_AGE_MS (default 7200000): ignore stale queued runs; 0 disables age filter.
       PR_TRIAGE_LABELS (default on): sync triaged/* PR labels; --no-pr-triage-labels to disable.
+      SCAN_ORPHAN_CLAUDE_BRANCHES (default on): open draft PRs for recent claude/issue-* branches with no PR.
+      CLAUDE_ORPHAN_BRANCH_MAX_AGE_HOURS (default 48): tip commit must be newer than this for orphan scan.
 
 Options:
   -h, --help
@@ -186,6 +199,7 @@ Options:
   --no-review-ready-summary
   --no-review-ready-gemini-filter   Do not exclude PRs with unaddressed Gemini bot feedback (see env below)
   --no-pr-triage-labels             Do not add/update triaged/* labels on PRs
+  --no-scan-orphan-claude-branches  Skip scanning repo branches for recent claude/issue-* without a PR
   --no-issue-triage-cache
   --bust-issue-triage-cache
   --sleep SECONDS
@@ -425,6 +439,188 @@ function countPrsForHeadBranch(cfg, stateFilter, branch) {
   return Array.isArray(n) ? n.length : 0;
 }
 
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** @returns {number | null} */
+function parseIssueNumFromClaudeBranchName(cfg, branchName) {
+  const prefix = cfg.claudeIssueBranchPrefix;
+  const re = new RegExp(`^${escapeRegex(prefix)}(\\d+)(-.+)?$`);
+  const m = branchName.match(re);
+  return m ? Number(m[1]) : null;
+}
+
+function listAllRepoBranchNames(cfg) {
+  const names = [];
+  let page = 1;
+  while (true) {
+    const batch = ghJson(["api", `repos/${cfg.repo}/branches?per_page=100&page=${page}`], { optional: true });
+    ghSleep(cfg);
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    for (const b of batch) {
+      if (b?.name) names.push(b.name);
+    }
+    if (batch.length < 100) break;
+    page += 1;
+  }
+  return names;
+}
+
+/** Latest of author/committer date on branch tip (ms), or null. */
+function getBranchTipLatestMs(cfg, branchName) {
+  const path = `repos/${cfg.repo}/commits/${encodeURIComponent(branchName)}`;
+  const detail = ghJson(["api", path], { optional: true });
+  ghSleep(cfg);
+  if (!detail?.commit) return null;
+  const auth = Date.parse(detail.commit.author?.date || "");
+  const com = Date.parse(detail.commit.committer?.date || "");
+  const ms = Math.max(Number.isFinite(auth) ? auth : 0, Number.isFinite(com) ? com : 0);
+  return ms > 0 ? ms : null;
+}
+
+/**
+ * Open a draft PR from an existing remote head if no open/merged PR uses that branch name.
+ */
+function attemptDraftPrFromClaudeBranch(cfg, branchName, issueNum) {
+  const prBase = cfg.defaultPrBase;
+  const openN = countPrsForHeadBranch(cfg, "open", branchName);
+  const mergedN = countPrsForHeadBranch(cfg, "merged", branchName);
+
+  if (openN > 0) {
+    let prUrl =
+      ghExec(["pr", "list", "-R", cfg.repo, "--state", "open", "--head", branchName, "--json", "url", "-q", ".[0].url"], {
+        optional: true,
+      }) || "";
+    prUrl = prUrl.trim();
+    if (!prUrl || prUrl === "null") {
+      prUrl =
+        ghExec(
+          ["pr", "list", "-R", cfg.repo, "--state", "open", "--head", `${cfg.repoOwner}:${branchName}`, "--json", "url", "-q", ".[0].url"],
+          { optional: true },
+        )?.trim() || "";
+    }
+    console.log(`  Open PR already exists for head ${branchName}${prUrl ? ` → ${prUrl}` : ""}`);
+    return;
+  }
+  if (mergedN > 0) {
+    console.log("  A merged PR already used this branch naming pattern; skip auto-create.");
+    return;
+  }
+
+  let title =
+    ghExec(["issue", "view", String(issueNum), "-R", cfg.repo, "--json", "title", "-q", ".title"], { optional: true })?.trim() ||
+    `Issue #${issueNum}`;
+  ghSleep(cfg);
+
+  if (cfg.dryRun) {
+    console.log(`  [dry-run] gh pr create --draft --base ${prBase} --head ${branchName} --title "${title}" ...`);
+    return;
+  }
+  try {
+    execFileSync(
+      "gh",
+      [
+        "pr",
+        "create",
+        "-R",
+        cfg.repo,
+        "--draft",
+        "--base",
+        prBase,
+        "--head",
+        branchName,
+        "--title",
+        title,
+        "--body",
+        `References #${issueNum}`,
+      ],
+      { stdio: "inherit" },
+    );
+    console.log(`  Created PR from ${branchName} → ${prBase}.`);
+    ghSleep(cfg);
+  } catch {
+    console.warn(`  [warn] gh pr create failed (try gh pr create --head ${cfg.repoOwner}:${branchName} manually)`);
+  }
+}
+
+/**
+ * Finds remote `claude/issue-<n>` branches whose **tip commit** is within {@link Config#claudeOrphanBranchMaxAgeHours}
+ * and opens a draft PR when there is no open or merged PR for that head (issue must be OPEN).
+ */
+function triageRecentOrphanClaudeBranches(cfg) {
+  if (!cfg.triageClaudeIssues || !cfg.scanOrphanClaudeBranches) return;
+
+  const maxAgeMs = cfg.claudeOrphanBranchMaxAgeHours * 3600000;
+  const hours = cfg.claudeOrphanBranchMaxAgeHours;
+
+  console.log("");
+  console.log(
+    `Scan orphan Claude branches: tip commit ≤ ${hours}h old, no existing PR (pattern ${cfg.claudeIssueBranchPrefix}<n>[-suffix]) …`,
+  );
+
+  const allNames = listAllRepoBranchNames(cfg);
+  const matching = [];
+  for (const name of allNames) {
+    const issueNum = parseIssueNumFromClaudeBranchName(cfg, name);
+    if (issueNum != null) matching.push({ name, issueNum });
+  }
+
+  if (matching.length === 0) {
+    console.log("  No branches match the Claude issue branch pattern.");
+    console.log("");
+    return;
+  }
+
+  let withinWindow = 0;
+  let attempted = 0;
+
+  for (const { name, issueNum } of matching.sort((a, b) => a.name.localeCompare(b.name))) {
+    const tipMs = getBranchTipLatestMs(cfg, name);
+    if (tipMs == null) {
+      console.log(`  [warn] ${name}: could not read tip commit; skip`);
+      continue;
+    }
+    const ageMs = Date.now() - tipMs;
+    if (ageMs > maxAgeMs) continue;
+    withinWindow += 1;
+
+    const openN = countPrsForHeadBranch(cfg, "open", name);
+    const mergedN = countPrsForHeadBranch(cfg, "merged", name);
+    if (openN > 0 || mergedN > 0) continue;
+
+    if (cfg.issueTriageCache && issueTriageShouldSkip(cfg, issueNum)) {
+      console.log(`  ${name} (issue #${issueNum}): skip (issue triage cache)`);
+      continue;
+    }
+
+    let state = ghExec(["issue", "view", String(issueNum), "-R", cfg.repo, "--json", "state", "-q", ".state"], {
+      optional: true,
+    });
+    state = (state || "").trim();
+    ghSleep(cfg);
+    if (state) issueTriagePersist(cfg, issueNum, state);
+    if (state !== "OPEN") {
+      console.log(`  ${name}: issue #${issueNum} is ${state || "unknown"} — skip draft PR`);
+      continue;
+    }
+
+    const ageHr = ageMs / 3600000;
+    console.log("");
+    console.log(
+      `  [decision] Orphan branch ${name}: tip ${ageHr.toFixed(1)}h old, issue #${issueNum} OPEN, no PR — creating draft PR.`,
+    );
+    attempted += 1;
+    attemptDraftPrFromClaudeBranch(cfg, name, issueNum);
+  }
+
+  console.log("");
+  console.log(
+    `  Orphan scan done: ${matching.length} branch(es) matched pattern; ${withinWindow} with tip ≤ ${hours}h; ${attempted} draft PR attempt(s).`,
+  );
+  console.log("");
+}
+
 /**
  * Posts or skips the @claude triage comment; always logs why.
  * @returns {'posted' | 'dry_run' | 'skipped' | 'failed'}
@@ -507,7 +703,6 @@ function postClaudeComment(cfg, num, body, wfCache, headBranch = null) {
 
 function processOneClaudeIssueNumber(cfg, N, wfCache) {
   const maxDays = cfg.claudeIssueStuckMaxDays;
-  const prBase = cfg.defaultPrBase;
   const sub = cfg.claudeBotLoginSubstring.toLowerCase();
 
   if (cfg.issueTriageCache && issueTriageShouldSkip(cfg, N)) {
@@ -536,49 +731,7 @@ function processOneClaudeIssueNumber(cfg, N, wfCache) {
   if (branch) {
     console.log(`  Remote branch exists (${branch}).`);
     ghSleep(cfg);
-    const openN = countPrsForHeadBranch(cfg, "open", branch);
-    const mergedN = countPrsForHeadBranch(cfg, "merged", branch);
-
-    if (openN > 0) {
-      let prUrl =
-        ghExec(["pr", "list", "-R", cfg.repo, "--state", "open", "--head", branch, "--json", "url", "-q", ".[0].url"], {
-          optional: true,
-        }) || "";
-      prUrl = prUrl.trim();
-      if (!prUrl || prUrl === "null") {
-        prUrl =
-          ghExec(
-            ["pr", "list", "-R", cfg.repo, "--state", "open", "--head", `${cfg.repoOwner}:${branch}`, "--json", "url", "-q", ".[0].url"],
-            { optional: true },
-          )?.trim() || "";
-      }
-      console.log(`  Open PR already exists for head ${branch}${prUrl ? ` → ${prUrl}` : ""}`);
-      return;
-    }
-    if (mergedN > 0) {
-      console.log("  A merged PR already used this branch naming pattern; skip auto-create.");
-      return;
-    }
-
-    let title =
-      ghExec(["issue", "view", String(N), "-R", cfg.repo, "--json", "title", "-q", ".title"], { optional: true })?.trim() ||
-      `Issue #${N}`;
-
-    if (cfg.dryRun) {
-      console.log(`  [dry-run] gh pr create --draft --base ${prBase} --head ${branch} --title "${title}" ...`);
-      return;
-    }
-    try {
-      execFileSync(
-        "gh",
-        ["pr", "create", "-R", cfg.repo, "--draft", "--base", prBase, "--head", branch, "--title", title, "--body", `References #${N}`],
-        { stdio: "inherit" },
-      );
-      console.log(`  Created PR from ${branch} → ${prBase}.`);
-      ghSleep(cfg);
-    } catch {
-      console.warn(`  [warn] gh pr create failed (try gh pr create --head ${cfg.repoOwner}:${branch} manually)`);
-    }
+    attemptDraftPrFromClaudeBranch(cfg, branch, Number(N));
     return;
   }
 
@@ -619,6 +772,7 @@ function processOneClaudeIssueNumber(cfg, N, wfCache) {
 
 function triageClaudeIssuesAndBranches(cfg, wfCache) {
   if (!cfg.triageClaudeIssues) return;
+  triageRecentOrphanClaudeBranches(cfg);
   console.log("Triage Claude issue branches / stuck issue comments ...");
   const candidates = collectCandidateClaudeIssues(cfg);
   if (candidates.length === 0) {

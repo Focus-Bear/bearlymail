@@ -37,3 +37,6 @@ Thumbs.db
 
 .gemini/
 gha-creds-*.json
+
+# Local script caches (e.g. scripts/pr-claude-triage.sh issue triage)
+.cache/

@@ -76,6 +76,81 @@ export async function refreshAttachmentsFromGmailForUser(
   };
 }
 
+type EmailRefreshResult = {
+  emailId: string;
+  gmailMessageId: string;
+  attachments: EmailAttachment[] | null;
+  gmailCount: number | null;
+  dbCount: number | null;
+  dbError?: string;
+  error?: string;
+};
+
+async function verifyDbAttachments(
+  emailsService: EmailsService,
+  logger: Logger,
+  userId: string,
+  emailId: string,
+  gmailCount: number,
+): Promise<{ dbCount: number | null; dbError?: string }> {
+  try {
+    const verified = await emailsService.getEmailById(userId, emailId);
+    const verifiedAttachments = verified?.attachments;
+    let dbCount: number | null = null;
+    if (Array.isArray(verifiedAttachments)) {
+      dbCount = verifiedAttachments.length;
+    } else if (verifiedAttachments === null) {
+      dbCount = 0;
+    }
+    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${emailId} save_verified: gmail=${gmailCount} db=${dbCount !== null ? dbCount : "non-array/null"}`);
+    return { dbCount };
+  } catch (verifyError) {
+    logger.warn(`refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${emailId}: ${verifyError}`);
+    return { dbCount: null, dbError: String(verifyError) };
+  }
+}
+
+async function processEmailRefresh(
+  emailsService: EmailsService,
+  logger: Logger,
+  gmail: gmail_v1.Gmail,
+  userId: string,
+  threadEmail: { id: string; messageId: string },
+): Promise<EmailRefreshResult> {
+  if (!threadEmail.messageId?.trim()) {
+    logger.warn(
+      `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} has no Gmail messageId — skipping`,
+    );
+    return { emailId: threadEmail.id, gmailMessageId: "", attachments: null, gmailCount: null, dbCount: null, error: "No Gmail message ID" };
+  }
+
+  let attachments: EmailAttachment[] | null = null;
+  try {
+    const apiResponse = await gmail.users.messages.get({ userId: "me", id: threadEmail.messageId, format: "full" });
+    const rawEmail = parseGmailMessage(apiResponse.data);
+    if (!rawEmail) {
+      logger.warn(`refreshAttachmentsFromGmailForThread: Could not parse Gmail message for emailId=${threadEmail.id}`);
+      return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments: null, gmailCount: null, dbCount: null, error: "Could not parse Gmail message payload" };
+    }
+    attachments = rawEmail.attachments ?? null;
+    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} messageId=${threadEmail.messageId} gmail_attachments=${attachments?.length ?? 0}`);
+  } catch (error) {
+    logger.warn(`refreshAttachmentsFromGmailForThread: Gmail API failed for messageId=${threadEmail.messageId}: ${formatGaxiosError(error)}`);
+    return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments: null, gmailCount: null, dbCount: null, error: "Could not load from Gmail. It may have been deleted or the ID may be invalid." };
+  }
+
+  try {
+    await emailsService.updateEmail(userId, threadEmail.id, { attachments });
+  } catch (error) {
+    logger.warn(`refreshAttachmentsFromGmailForThread: updateEmail failed for emailId=${threadEmail.id}: ${error}`);
+    return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount: null, error: "Failed to update email in database." };
+  }
+
+  const { dbCount, dbError } = await verifyDbAttachments(emailsService, logger, userId, threadEmail.id, attachments?.length ?? 0);
+
+  return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount, dbError };
+}
+
 /**
  * Re-fetches attachment metadata from Gmail for ALL emails in the same thread.
  * Used by the "Refresh attachments from Gmail" debug feature when users expect
@@ -91,16 +166,11 @@ export async function refreshAttachmentsFromGmailForThread(
   emailId: string,
 ): Promise<{
   threadId: string;
-  results: Array<{
-    emailId: string;
-    gmailMessageId: string;
-    attachments: EmailAttachment[] | null;
-    error?: string;
-  }>;
+  threadEmailCount: number;
+  results: EmailRefreshResult[];
 }> {
   const { emailsService, gmailProvider, logger } = deps;
 
-  // 1. Find the trigger email to get the thread
   const triggerEmail = await emailsService.getEmailById(userId, emailId);
   if (!triggerEmail) {
     throw new NotFoundException("Email not found");
@@ -109,77 +179,18 @@ export async function refreshAttachmentsFromGmailForThread(
     throw new BadRequestException("Email is not linked to a thread");
   }
 
-  // 2. Find all emails in this thread using the provider thread ID (not the internal UUID)
-  const threadEmails = await emailsService.getThreadEmails(
-    userId,
-    triggerEmail.threadId,
-  );
+  const threadEmails = await emailsService.getThreadEmails(userId, triggerEmail.threadId);
+  logger.log(`refreshAttachmentsFromGmailForThread: userId=${userId} threadId=${triggerEmail.threadId} found ${threadEmails.length} emails in thread`);
 
-  // 3. Create Gmail client once (not per email)
   const gmail = await gmailProvider.createGmailClientPublic(userId);
   if (!gmail) {
-    throw new ServiceUnavailableException(
-      "Gmail is not connected for this account",
-    );
+    throw new ServiceUnavailableException("Gmail is not connected for this account");
   }
 
-  // 4. Process each email sequentially to avoid rate limits
-  const results = [];
+  const results: EmailRefreshResult[] = [];
   for (const threadEmail of threadEmails) {
-    if (!threadEmail.messageId?.trim()) {
-      results.push({
-        emailId: threadEmail.id,
-        gmailMessageId: "",
-        attachments: null,
-        error: "No Gmail message ID",
-      });
-      continue;
-    }
-
-    let attachments = null;
-    try {
-      const apiResponse = await gmail.users.messages.get({
-        userId: "me",
-        id: threadEmail.messageId,
-        format: "full",
-      });
-      const rawEmail = parseGmailMessage(apiResponse.data);
-      attachments = rawEmail?.attachments ?? null;
-    } catch (error) {
-      logger.warn(
-        `refreshAttachmentsFromGmailForThread: Gmail API failed for messageId=${threadEmail.messageId}: ${formatGaxiosError(error)}`,
-      );
-      results.push({
-        emailId: threadEmail.id,
-        gmailMessageId: threadEmail.messageId,
-        attachments: null,
-        error:
-          "Could not load from Gmail. It may have been deleted or the ID may be invalid.",
-      });
-      continue;
-    }
-
-    try {
-      await emailsService.updateEmail(userId, threadEmail.id, { attachments });
-    } catch (error) {
-      logger.warn(
-        `refreshAttachmentsFromGmailForThread: updateEmail failed for emailId=${threadEmail.id}: ${error}`,
-      );
-      results.push({
-        emailId: threadEmail.id,
-        gmailMessageId: threadEmail.messageId,
-        attachments: null,
-        error: "Failed to update email in database.",
-      });
-      continue;
-    }
-
-    results.push({
-      emailId: threadEmail.id,
-      gmailMessageId: threadEmail.messageId,
-      attachments,
-    });
+    results.push(await processEmailRefresh(emailsService, logger, gmail, userId, threadEmail));
   }
 
-  return { threadId: triggerEmail.threadId, results };
+  return { threadId: triggerEmail.threadId, threadEmailCount: threadEmails.length, results };
 }

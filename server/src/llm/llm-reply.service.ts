@@ -87,6 +87,7 @@ export class LLMReplyService {
       userJobTitle?: string;
       emailExamples?: string[];
       calendarLink?: string | null;
+      userInstructions?: string;
     },
     provider?: LLMProvider,
     userId?: string,
@@ -123,6 +124,7 @@ export class LLMReplyService {
     const userJobTitle = userContext.userJobTitle || "";
     const emailExamples = userContext.emailExamples?.slice(0, 5) || [];
     const calendarLink = userContext.calendarLink || "";
+    const userInstructions = userContext.userInstructions || "";
 
     if (emailExamples.length > 0) {
       this.logger.debug(
@@ -142,6 +144,8 @@ export class LLMReplyService {
       body: cleanedBody,
       threadContext,
       hasThreadContext: threadContext.length > 0,
+      userInstructions,
+      hasUserInstructions: userInstructions.length > 0,
     });
 
     const response = await this.generateText(

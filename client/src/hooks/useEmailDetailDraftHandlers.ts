@@ -116,6 +116,7 @@ export function useEmailDetailDraftHandlers(options: {
     setShowReplyComposer(false);
     setDraft('');
     setReplyOptions(null);
+    setSelectedReplyOption(-1);
     setToneCheckResult(null);
     customDraftRef.current = '';
   };

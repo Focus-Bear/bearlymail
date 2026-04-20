@@ -864,6 +864,9 @@
     "snoozePlaceholder": "2h, mañana...",
     "suggestActions": "Sugerir acciones",
     "suggestedReplies": "Respuestas sugeridas",
+    "customReplyPromptPlaceholder": "Describe cómo quieres responder...",
+    "generateCustomReply": "Generar",
+    "generatingCustomReply": "Generando...",
     "suggestedRevision": "Revisión sugerida:",
     "summaryTypes": {
       "actionItems": "Elementos de acción",

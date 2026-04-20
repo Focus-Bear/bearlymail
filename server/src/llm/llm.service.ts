@@ -412,6 +412,7 @@ export class LLMService {
       userJobTitle?: string;
       emailExamples?: string[];
       calendarLink?: string | null;
+      userInstructions?: string;
     },
     provider?: LLMProvider,
     userId?: string,

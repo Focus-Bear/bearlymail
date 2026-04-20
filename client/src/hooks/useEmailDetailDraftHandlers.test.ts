@@ -20,9 +20,9 @@ describe('useEmailDetailDraftHandlers', () => {
   });
 
   const replyOptions = [
+    { label: 'Custom', text: '' },
     { label: 'Suggestion A', text: 'Hello from A' },
     { label: 'Suggestion B', text: 'Hello from B' },
-    { label: 'Custom', text: '' },
   ];
 
   it('handleDraftChange sets draft and clears tone check result', () => {
@@ -85,15 +85,15 @@ describe('useEmailDetailDraftHandlers', () => {
       result.current.handleDraftChange('user typed content');
     });
 
-    // User switches to a suggestion tab (idx 0 = 'Suggestion A', not Custom)
+    // User switches to a suggestion tab (idx 1 = 'Suggestion A', not Custom)
     act(() => {
-      result.current.handleReplyOptionSelect(0, 'Hello from A');
+      result.current.handleReplyOptionSelect(1, 'Hello from A');
     });
     expect(setters.setDraft).toHaveBeenLastCalledWith('Hello from A');
 
-    // User switches back to Custom tab (idx 2 = 'Custom')
+    // User switches back to Custom tab (idx 0 = 'Custom')
     act(() => {
-      result.current.handleReplyOptionSelect(2, '');
+      result.current.handleReplyOptionSelect(0, '');
     });
     expect(setters.setDraft).toHaveBeenLastCalledWith('user typed content');
   });
@@ -112,10 +112,10 @@ describe('useEmailDetailDraftHandlers', () => {
     );
 
     act(() => {
-      result.current.handleReplyOptionSelect(1, 'Hello from B');
+      result.current.handleReplyOptionSelect(2, 'Hello from B');
     });
 
-    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(1);
+    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(2);
     expect(setters.setDraft).toHaveBeenCalledWith('Hello from B');
   });
 
@@ -134,17 +134,17 @@ describe('useEmailDetailDraftHandlers', () => {
     );
 
     act(() => {
-      // Simulate: user clicks "Suggestion A" (idx 0, not Custom)
-      result.current.handleReplyOptionSelect(0, 'Hello from A');
+      // Simulate: user clicks "Suggestion A" (idx 1, not Custom at 0)
+      result.current.handleReplyOptionSelect(1, 'Hello from A');
       // Simulate: Tiptap fires handleDraftChange synchronously in the same tick
       result.current.handleDraftChange('Hello from A');
     });
 
-    // setSelectedReplyOption should have been called with 0 (Suggestion A) and
-    // the subsequent handleDraftChange must NOT override it back to Custom (idx 2).
+    // setSelectedReplyOption should have been called with 1 (Suggestion A) and
+    // the subsequent handleDraftChange must NOT override it back to Custom (idx 0).
     const calls = setters.setSelectedReplyOption.mock.calls.map(call => call[0]);
-    // The last call must be idx 0, not the Custom idx (2)
-    expect(calls[calls.length - 1]).toBe(0);
+    // The last call must be idx 1, not the Custom idx (0)
+    expect(calls[calls.length - 1]).toBe(1);
   });
 
   it('handleDraftChange without prior handleReplyOptionSelect still switches to Custom', async () => {
@@ -165,8 +165,8 @@ describe('useEmailDetailDraftHandlers', () => {
       result.current.handleDraftChange('user typed something');
     });
 
-    // Should switch to Custom tab (idx 2)
-    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(2);
+    // Should switch to Custom tab (idx 0, since Custom is first)
+    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(0);
   });
 
   it('handleDraftChange after microtask clears flag — subsequent typing resets to Custom', async () => {
@@ -184,7 +184,7 @@ describe('useEmailDetailDraftHandlers', () => {
 
     // Select option A
     act(() => {
-      result.current.handleReplyOptionSelect(0, 'Hello from A');
+      result.current.handleReplyOptionSelect(1, 'Hello from A');
     });
 
     // Wait for the microtask (Promise.resolve) to clear the flag
@@ -198,8 +198,8 @@ describe('useEmailDetailDraftHandlers', () => {
     });
 
     const calls = setters.setSelectedReplyOption.mock.calls.map(call => call[0]);
-    // Last call should be Custom idx (2)
-    expect(calls[calls.length - 1]).toBe(2);
+    // Last call should be Custom idx (0)
+    expect(calls[calls.length - 1]).toBe(0);
   });
 
   it('handleReplyClose clears all reply state', () => {
@@ -225,6 +225,7 @@ describe('useEmailDetailDraftHandlers', () => {
     expect(setters.setShowReplyComposer).toHaveBeenCalledWith(false);
     expect(setters.setDraft).toHaveBeenLastCalledWith('');
     expect(setters.setReplyOptions).toHaveBeenCalledWith(null);
+    expect(setters.setSelectedReplyOption).toHaveBeenCalledWith(-1);
     expect(setters.setToneCheckResult).toHaveBeenLastCalledWith(null);
     expect(result.current.customDraftRef.current).toBe('');
   });

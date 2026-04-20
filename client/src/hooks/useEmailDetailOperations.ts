@@ -77,6 +77,7 @@ export function useEmailDetailOperations(
     setDraft,
     replyOptions,
     setReplyOptions,
+    selectedReplyOption,
     setSelectedReplyOption,
     setShowReplyComposer,
     replyMode,
@@ -616,6 +617,7 @@ export function useEmailDetailOperations(
       replyOptions,
       setReplyOptions,
       setDraft,
+      selectedReplyOption,
       setSelectedReplyOption,
       setLoadingReplies,
       setReplyMode,
@@ -630,7 +632,7 @@ export function useEmailDetailOperations(
     user?.email
   );
 
-  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer } = draftOps;
+  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer, generateFromCustomPrompt, generatingFromCustomPrompt } = draftOps;
 
   // Archive, snooze and delete operations extracted to sub-hook
   const archiveOps = useEmailDetailArchiveOps({
@@ -958,6 +960,8 @@ export function useEmailDetailOperations(
     handleCreateCustomRule,
     handleOpenReplyComposer,
     handleGenerateDraft,
+    generateFromCustomPrompt,
+    generatingFromCustomPrompt,
     handleSendReply,
     cancelToneCheck,
     disputeToneCheck,

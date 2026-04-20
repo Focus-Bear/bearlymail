@@ -514,6 +514,9 @@
     "regenerateActions": "Regenerate Actions",
     "suggestedReplies": "Suggested Replies",
     "generating": "Generating...",
+    "customReplyPromptPlaceholder": "Describe how you want to reply...",
+    "generateCustomReply": "Generate",
+    "generatingCustomReply": "Generating...",
     "calendarInvite": {
       "title": "Calendar Invitation",
       "accept": "Accept",

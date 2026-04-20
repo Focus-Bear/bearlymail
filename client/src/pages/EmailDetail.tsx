@@ -618,6 +618,8 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onShowBcc={() => st.setShowBcc(true)}
               onDraftChange={handleDraftChange}
               onReplyOptionSelect={handleReplyOptionSelect}
+              onGenerateFromPrompt={ops.generateFromCustomPrompt}
+              generatingFromPrompt={ops.generatingFromCustomPrompt}
               onClose={handleReplyClose}
               onSend={params =>
                 ops.handleSendReply({

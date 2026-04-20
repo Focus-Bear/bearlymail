@@ -18,6 +18,10 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
+import * as guardduty from 'aws-cdk-lib/aws-guardduty';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as path from 'path';
 import { Construct } from 'constructs';
 
 export interface BearlyMailStackProps extends cdk.StackProps {
@@ -135,6 +139,115 @@ export class BearlyMailStack extends cdk.Stack {
     props.emailPrioritisationQueue?.grantSendMessages(taskRole);
 
     // ============================================
+    // Feedback Screenshots Bucket (private, AV-scanned via GuardDuty)
+    // ============================================
+    const feedbackScreenshotsBucket = new s3.Bucket(this, 'FeedbackScreenshotsBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      lifecycleRules: [
+        {
+          // Auto-delete screenshots after 90 days (feedback data retention)
+          expiration: cdk.Duration.days(90),
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Grant ECS task role access to the screenshots bucket
+    feedbackScreenshotsBucket.grantPut(taskRole);
+    feedbackScreenshotsBucket.grantRead(taskRole);
+    feedbackScreenshotsBucket.grantDelete(taskRole);
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObjectTagging'],
+      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    }));
+
+    // ============================================
+    // GuardDuty Malware Protection for S3 (GAP-1)
+    //
+    // GuardDuty scans every uploaded object and tags it:
+    //   GuardDutyMalwareScanStatus = NO_THREATS_FOUND | THREATS_FOUND | UNSUPPORTED | FAILED
+    //
+    // Prerequisite: GuardDuty must be enabled in the AWS account before deploying.
+    //   aws guardduty create-detector --enable --region <region>
+    // ============================================
+    const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
+      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com'),
+      description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
+    });
+
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject',
+        's3:GetObjectVersion',
+        's3:PutObjectTagging',
+        's3:GetObjectTagging',
+      ],
+      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    }));
+
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket', 's3:GetBucketLocation'],
+      resources: [feedbackScreenshotsBucket.bucketArn],
+    }));
+
+    new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
+      role: guardDutyMalwareRole.roleArn,
+      protectedResource: {
+        s3Bucket: {
+          bucketName: feedbackScreenshotsBucket.bucketName,
+          objectPrefixes: ['feedback/'],
+        },
+      },
+      actions: {
+        tagging: { status: 'ENABLED' },
+      },
+    });
+
+    // ============================================
+    // Lambda: Delete malicious files detected by GuardDuty
+    // ============================================
+    const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
+      entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 128,
+      description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
+      logRetention: logs.RetentionDays.ONE_MONTH,
+    });
+
+    // Allow the Lambda to delete objects from the screenshots bucket
+    feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
+
+    // EventBridge rule: trigger Lambda on GuardDuty Malware:S3/* findings
+    const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
+      description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
+      eventPattern: {
+        source: ['aws.guardduty'],
+        detailType: ['GuardDuty Finding'],
+        detail: {
+          type: [{ prefix: 'Malware:S3/' }],
+        },
+      },
+    });
+
+    guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
+      retryAttempts: 2,
+    }));
+
+    new cdk.CfnOutput(this, 'FeedbackScreenshotsBucketName', {
+      value: feedbackScreenshotsBucket.bucketName,
+      description: 'Feedback screenshots S3 bucket (set FEEDBACK_SCREENSHOTS_BUCKET to this value)',
+      exportName: 'BearlyMail-Feedback-Screenshots-Bucket',
+    });
+
+    // ============================================
     // Log Groups
     // ============================================
     // 90-day retention satisfies GDPR audit requirements while keeping
@@ -198,6 +311,7 @@ export class BearlyMailStack extends cdk.Stack {
         DB_SSL: 'true',
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
+        FEEDBACK_SCREENSHOTS_BUCKET: feedbackScreenshotsBucket.bucketName,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),

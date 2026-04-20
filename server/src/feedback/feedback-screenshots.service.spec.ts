@@ -6,12 +6,14 @@ import {
 import { FeedbackScreenshotsService } from "./feedback-screenshots.service";
 
 // Mock AWS SDK — prevent real S3 calls in unit tests
+const mockS3Send = jest.fn().mockResolvedValue({});
 jest.mock("@aws-sdk/client-s3", () => ({
   S3Client: jest.fn().mockImplementation(() => ({
-    send: jest.fn().mockResolvedValue({}),
+    send: mockS3Send,
   })),
   PutObjectCommand: jest.fn(),
   GetObjectCommand: jest.fn(),
+  GetObjectTaggingCommand: jest.fn(),
   DeleteObjectCommand: jest.fn(),
 }));
 
@@ -141,7 +143,10 @@ describe("FeedbackScreenshotsService", () => {
   });
 
   describe("getPresignedGetUrl", () => {
-    it("should return a presigned GET URL for a valid key", async () => {
+    it("should return a presigned GET URL when scan status is NO_THREATS_FOUND", async () => {
+      mockS3Send.mockResolvedValueOnce({
+        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" }],
+      });
       const url = await service.getPresignedGetUrl("feedback/user/file.jpg");
       expect(typeof url).toBe("string");
       expect(url).toContain("s3.example.com");
@@ -154,6 +159,53 @@ describe("FeedbackScreenshotsService", () => {
         "feedback/user/file.jpg",
       );
       expect(url).toBe("");
+    });
+  });
+
+  describe("getPresignedGetUrl — GuardDuty scan status gate", () => {
+    it("should serve a presigned URL when scan status is NO_THREATS_FOUND", async () => {
+      mockS3Send.mockResolvedValueOnce({
+        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" }],
+      });
+
+      const url = await service.getPresignedGetUrl("feedback/user/file.jpg");
+      expect(url).toContain("s3.example.com");
+    });
+
+    it("should throw UnprocessableEntityException when scan status is THREATS_FOUND", async () => {
+      mockS3Send.mockResolvedValueOnce({
+        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "THREATS_FOUND" }],
+      });
+
+      await expect(
+        service.getPresignedGetUrl("feedback/user/file.jpg"),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it("should throw UnprocessableEntityException when scan tag is absent (scan pending, fail-closed)", async () => {
+      mockS3Send.mockResolvedValueOnce({ TagSet: [] });
+
+      await expect(
+        service.getPresignedGetUrl("feedback/user/file.jpg"),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it("should throw UnprocessableEntityException when scan status is UNSUPPORTED (fail-closed)", async () => {
+      mockS3Send.mockResolvedValueOnce({
+        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "UNSUPPORTED" }],
+      });
+
+      await expect(
+        service.getPresignedGetUrl("feedback/user/file.jpg"),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it("should throw UnprocessableEntityException when GetObjectTagging fails (fail-closed)", async () => {
+      mockS3Send.mockRejectedValueOnce(new Error("AccessDenied"));
+
+      await expect(
+        service.getPresignedGetUrl("feedback/user/file.jpg"),
+      ).rejects.toThrow(UnprocessableEntityException);
     });
   });
 

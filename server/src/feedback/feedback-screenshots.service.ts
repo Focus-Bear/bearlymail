@@ -7,6 +7,7 @@ import {
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  GetObjectTaggingCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -112,16 +113,73 @@ export class FeedbackScreenshotsService {
   /**
    * Generate a presigned GET URL for admin access to a screenshot.
    * TTL is 1 hour (3600 s) per plan.
+   *
+   * Checks the GuardDuty Malware Protection scan tag before issuing a URL.
+   * Objects tagged THREATS_FOUND are blocked; the Lambda remediation job
+   * will delete them asynchronously.
    */
   async getPresignedGetUrl(key: string): Promise<string> {
     if (!this.bucket) {
       return "";
     }
 
+    await this.assertCleanScanStatus(key);
+
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     return getSignedUrl(this.s3, command, {
       expiresIn: PRESIGN_GET_EXPIRY_SECONDS,
     });
+  }
+
+  /**
+   * Read the GuardDuty Malware Protection scan tag from the S3 object.
+   *
+   * Fail-closed: access is only permitted when the tag is explicitly
+   * `NO_THREATS_FOUND`. Every other outcome (tag absent, scan pending,
+   * THREATS_FOUND, UNSUPPORTED, FAILED, or tag-read error) is treated as
+   * unsafe and raises HTTP 422.
+   */
+  private async assertCleanScanStatus(key: string): Promise<void> {
+    let scanStatus: string | undefined;
+    try {
+      const taggingResult = await this.s3.send(
+        new GetObjectTaggingCommand({ Bucket: this.bucket, Key: key }),
+      );
+      scanStatus = taggingResult.TagSet?.find(
+        (tag) => tag.Key === "GuardDutyMalwareScanStatus",
+      )?.Value;
+    } catch (err) {
+      // Cannot read tags → fail-closed: deny access rather than assume safety.
+      this.logger.error(
+        `Could not read scan tags for key="${key}": ${(err as Error).message} — denying access (fail-closed)`,
+      );
+      throw new UnprocessableEntityException(
+        "Unable to verify malware scan status. Access denied pending verification.",
+      );
+    }
+
+    if (scanStatus === "THREATS_FOUND") {
+      this.logger.error(
+        `Blocked access to malware-flagged screenshot: key="${key}"`,
+      );
+      throw new UnprocessableEntityException(
+        "This file was flagged as malicious and cannot be accessed.",
+      );
+    }
+
+    if (scanStatus !== "NO_THREATS_FOUND") {
+      // Tag absent (scan still pending), UNSUPPORTED, FAILED, or unknown value.
+      // Fail-closed: do not issue a presigned URL until the scan confirms safety.
+      const reason = scanStatus
+        ? `scan status is "${scanStatus}"`
+        : "scan tag is absent (scan may be pending)";
+      this.logger.warn(
+        `Blocking access to screenshot key="${key}" — ${reason} (fail-closed)`,
+      );
+      throw new UnprocessableEntityException(
+        "File access is blocked pending malware scan completion.",
+      );
+    }
   }
 
   /**

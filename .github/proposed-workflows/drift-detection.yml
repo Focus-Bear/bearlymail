@@ -1,0 +1,297 @@
+# Infrastructure Drift Detection (SAQ Q16 / GAP-9)
+#
+# Runs daily to detect:
+#   1. CDK drift  — differences between the checked-in CDK code and the live
+#                   CloudFormation stacks (i.e. someone changed CDK code but
+#                   hasn't deployed, or the stacks were modified outside CDK).
+#   2. CFN drift  — resources that were modified outside of CloudFormation
+#                   (i.e. someone used the AWS console or CLI to tamper with
+#                   deployed infrastructure directly).
+#
+# On drift the workflow posts to the Zoho Cliq channel used by other alerts,
+# so the security/ops team is notified without polling the console.
+#
+# NOTE: This file lives in .github/proposed-workflows/ rather than
+# .github/workflows/ so it can be reviewed before being activated.
+# Move it to .github/workflows/ (and commit) to enable it.
+#
+# OIDC auth: scheduled runs originate from the default branch (main), so
+# the OIDC sub claim is `repo:Focus-Bear/BearlyMail:ref:refs/heads/main`,
+# which is already trusted by the BearlyMail-GitHubActions-DeploymentRole.
+# No additional role or environment gate is required.
+#
+# Required secret (set in repo Settings → Secrets and variables → Actions):
+#   AWS_DEPLOYMENT_ROLE_ARN — full ARN of the BearlyMail-GitHubActions-DeploymentRole
+#   e.g. arn:aws:iam::<account-id>:role/BearlyMail-GitHubActions-DeploymentRole
+
+name: Infrastructure Drift Detection
+
+on:
+  schedule:
+    # Daily at 06:00 UTC (16:00 AEST / 17:00 AEDT)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      stacks:
+        description: 'Space-separated list of stack names to check (leave blank for all)'
+        required: false
+        default: ''
+
+env:
+  AWS_REGION: ap-southeast-2
+  # All BearlyMail stacks (order matters for cdk diff — dependencies first)
+  ALL_STACKS: >-
+    BearlyMailNetworkingStack
+    BearlyMailSecretsStack
+    BearlyMailDatabaseStack
+    BearlyMailContextAnalysisStack
+    BearlyMailEmailPrioritisationStack
+    BearlyMailStack
+    BearlyMailGitHubActionsStack
+
+jobs:
+  detect-drift:
+    name: Detect Infrastructure Drift
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================
+      # AWS credentials via OIDC (no static keys)
+      # ============================================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOYMENT_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ============================================
+      # Build environment
+      # ============================================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infrastructure/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure
+        run: npm ci
+
+      # Lambda functions must be built so CDK can synthesize the full app
+      - name: Build Lambda functions
+        run: |
+          (cd lambda/batch-analyzer && npm ci && npm run build)
+          (cd lambda/email-prioritiser && npm ci && npm run build)
+
+      # ============================================
+      # CDK Drift: compare CDK code vs live CFN stacks
+      # ============================================
+      - name: CDK Drift Detection
+        id: cdk_drift
+        working-directory: infrastructure
+        run: |
+          STACKS="${{ github.event.inputs.stacks || env.ALL_STACKS }}"
+
+          echo "## CDK Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "Comparing checked-in CDK code with deployed CloudFormation stacks." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          CDK_DRIFT_FOUND=false
+
+          for STACK in $STACKS; do
+            echo "### $STACK" >> "$GITHUB_STEP_SUMMARY"
+
+            # cdk diff exits 0 (no diff) or 1 (has diff); capture both
+            DIFF_OUTPUT=$(npx cdk diff "$STACK" 2>&1) && CDK_EXIT=0 || CDK_EXIT=$?
+
+            if echo "$DIFF_OUTPUT" | grep -q "There were no differences\|No differences"; then
+              echo "✅ No CDK drift" >> "$GITHUB_STEP_SUMMARY"
+            elif [ $CDK_EXIT -eq 0 ] && [ -z "$DIFF_OUTPUT" ]; then
+              echo "✅ No CDK drift" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "⚠️ CDK drift detected:" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              # Limit output to avoid huge summaries
+              echo "$DIFF_OUTPUT" | head -80 >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              CDK_DRIFT_FOUND=true
+            fi
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "cdk_drift_found=$CDK_DRIFT_FOUND" >> "$GITHUB_OUTPUT"
+
+      # ============================================
+      # CFN Drift: detect resources modified outside CloudFormation
+      # ============================================
+      - name: CloudFormation Stack Drift Detection
+        id: cfn_drift
+        run: |
+          STACKS="${{ github.event.inputs.stacks || env.ALL_STACKS }}"
+
+          echo "## CloudFormation Stack Drift Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "Detecting resources modified outside of CloudFormation." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          CFN_DRIFT_FOUND=false
+
+          for STACK in $STACKS; do
+            echo "### $STACK" >> "$GITHUB_STEP_SUMMARY"
+
+            # Initiate drift detection; skip stack if it doesn't exist
+            DETECTION_ID=$(aws cloudformation detect-stack-drift \
+              --stack-name "$STACK" \
+              --query 'StackDriftDetectionId' \
+              --output text 2>/dev/null) || {
+              echo "⏭️ Stack not found or inaccessible — skipping" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            }
+
+            echo "Drift detection initiated (id: $DETECTION_ID)"
+
+            # Wait until detection completes using the built-in AWS CLI waiter
+            aws cloudformation wait stack-drift-detection-complete \
+              --stack-drift-detection-id "$DETECTION_ID" || true
+
+            DRIFT_STATUS=$(aws cloudformation describe-stack-drift-detection-status \
+              --stack-drift-detection-id "$DETECTION_ID" \
+              --query 'StackDriftStatus' \
+              --output text)
+
+            case "$DRIFT_STATUS" in
+              IN_SYNC)
+                echo "✅ In sync — no out-of-band changes detected" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              DRIFTED)
+                echo "⚠️ **DRIFTED** — resources were modified outside CloudFormation" >> "$GITHUB_STEP_SUMMARY"
+                # List the drifted resources
+                DRIFTED_RESOURCES=$(aws cloudformation describe-stack-resource-drifts \
+                  --stack-name "$STACK" \
+                  --stack-resource-drift-status-filters MODIFIED DELETED \
+                  --query 'StackResourceDrifts[*].[LogicalResourceId,ResourceType,StackResourceDriftStatus]' \
+                  --output table 2>/dev/null || echo "(unable to retrieve resource details)")
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                echo "$DRIFTED_RESOURCES" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                CFN_DRIFT_FOUND=true
+                ;;
+              NOT_CHECKED)
+                echo "ℹ️ Not checked (stack may have no supported resources)" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                echo "⚠️ Detection status: $DRIFT_STATUS" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+            esac
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "cfn_drift_found=$CFN_DRIFT_FOUND" >> "$GITHUB_OUTPUT"
+
+      # ============================================
+      # AWS Config compliance summary
+      # ============================================
+      - name: AWS Config Compliance Summary
+        id: config_compliance
+        run: |
+          echo "## AWS Config Compliance" >> "$GITHUB_STEP_SUMMARY"
+          echo "Managed rules evaluating S3, RDS, ECS, and CloudTrail resources." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          NON_COMPLIANT_FOUND=false
+
+          # List BearlyMail Config rules (prefixed with 'bearlymail-')
+          RULES=$(aws configservice describe-config-rules \
+            --query "ConfigRules[?starts_with(ConfigRuleName, 'bearlymail-')].ConfigRuleName" \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$RULES" ]; then
+            echo "ℹ️ No BearlyMail Config rules found. Deploy the CDK stack to enable monitoring." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Rule | Compliance |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|------|-----------|" >> "$GITHUB_STEP_SUMMARY"
+            for RULE in $RULES; do
+              COMPLIANCE=$(aws configservice get-compliance-details-by-config-rule \
+                --config-rule-name "$RULE" \
+                --compliance-types NON_COMPLIANT \
+                --query 'length(EvaluationResults)' \
+                --output text 2>/dev/null || echo "unknown")
+              if [ "$COMPLIANCE" = "0" ] || [ "$COMPLIANCE" = "None" ]; then
+                echo "| $RULE | ✅ Compliant |" >> "$GITHUB_STEP_SUMMARY"
+              elif [ "$COMPLIANCE" = "unknown" ]; then
+                echo "| $RULE | ⚠️ Unknown |" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "| $RULE | ❌ Non-compliant ($COMPLIANCE resources) |" >> "$GITHUB_STEP_SUMMARY"
+                NON_COMPLIANT_FOUND=true
+              fi
+            done
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "non_compliant_found=$NON_COMPLIANT_FOUND" >> "$GITHUB_OUTPUT"
+
+      # ============================================
+      # Summary footer
+      # ============================================
+      - name: Write summary footer
+        run: |
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          CDK="${{ steps.cdk_drift.outputs.cdk_drift_found }}"
+          CFN="${{ steps.cfn_drift.outputs.cfn_drift_found }}"
+          NC="${{ steps.config_compliance.outputs.non_compliant_found }}"
+
+          if [ "$CDK" = "true" ] || [ "$CFN" = "true" ] || [ "$NC" = "true" ]; then
+            echo "### 🚨 Action Required" >> "$GITHUB_STEP_SUMMARY"
+            echo "Drift or non-compliance detected. Review the details above and remediate any" >> "$GITHUB_STEP_SUMMARY"
+            echo "unauthorized changes. See the [security remediation guide](docs/security-remediation-plan.md)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ✅ All Clear" >> "$GITHUB_STEP_SUMMARY"
+            echo "No CDK drift, no CloudFormation drift, and all Config rules are compliant." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # ============================================
+      # Notify Zoho Cliq on drift/non-compliance
+      # ============================================
+      - name: Notify on drift or non-compliance
+        if: |
+          steps.cdk_drift.outputs.cdk_drift_found == 'true' ||
+          steps.cfn_drift.outputs.cfn_drift_found == 'true' ||
+          steps.config_compliance.outputs.non_compliant_found == 'true'
+        env:
+          ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ${{ secrets.ZOHO_CLIQ_BACKEND_BOT_WEBHOOK }}
+          ZOHO_CLIQ_API_KEY: ${{ secrets.ZOHO_CLIQ_API_KEY }}
+          ZOHO_CLIQ_CHANNEL: ${{ secrets.ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL }}
+        run: |
+          if [ -z "$ZOHO_CLIQ_BACKEND_BOT_WEBHOOK" ] || [ -z "$ZOHO_CLIQ_API_KEY" ]; then
+            echo "Cliq credentials not set — skipping notification"
+            exit 0
+          fi
+
+          CDK_MSG=""
+          CFN_MSG=""
+          NC_MSG=""
+          [ "${{ steps.cdk_drift.outputs.cdk_drift_found }}" = "true" ] && CDK_MSG="\n• CDK drift: deployed stacks differ from checked-in code"
+          [ "${{ steps.cfn_drift.outputs.cfn_drift_found }}" = "true" ] && CFN_MSG="\n• CFN drift: resources were modified outside CloudFormation"
+          [ "${{ steps.config_compliance.outputs.non_compliant_found }}" = "true" ] && NC_MSG="\n• AWS Config: one or more resources are non-compliant"
+
+          CLIQ_URL="${ZOHO_CLIQ_BACKEND_BOT_WEBHOOK}?zapikey=${ZOHO_CLIQ_API_KEY}"
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "channel": "${ZOHO_CLIQ_CHANNEL}",
+            "message": "*:warning: Infrastructure Drift Detected*\n\nThe daily drift-detection check found issues:${CDK_MSG}${CFN_MSG}${NC_MSG}\n\n*Run:* ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\n\nPlease review and remediate any unauthorised changes."
+          }
+          EOF
+          )
+
+          curl -s -X POST "$CLIQ_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            || echo "Warning: Failed to send Cliq notification (non-fatal)"

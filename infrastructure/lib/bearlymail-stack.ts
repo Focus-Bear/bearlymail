@@ -53,6 +53,10 @@ export interface BearlyMailStackProps extends cdk.StackProps {
    * AppStack calls grantSendMessages(taskRole) and injects queueUrl into container environments.
    */
   emailPrioritisationQueue?: sqs.Queue;
+  /** RDS Proxy endpoint — used as DB_HOST for all ECS containers */
+  rdsProxyEndpoint: string;
+  /** ECS security group (from BearlyMailDatabaseStack) — pre-authorised for RDS Proxy ingress */
+  ecsSecurityGroup: ec2.ISecurityGroup;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -305,7 +309,7 @@ export class BearlyMailStack extends cdk.Stack {
         NODE_ENV: 'production',
         PORT: '3001',
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
@@ -354,6 +358,7 @@ export class BearlyMailStack extends cdk.Stack {
       listenerPort: 80,
       healthCheckGracePeriod: cdk.Duration.seconds(60),
       targetProtocol: elbv2.ApplicationProtocol.HTTP,
+      securityGroups: [props.ecsSecurityGroup],
     });
 
     // Configure health check
@@ -421,7 +426,7 @@ export class BearlyMailStack extends cdk.Stack {
         WORKER_PROCESSES: '2', // 2 workers on 1024 CPU / 2048 MiB task; each worker loads full NestJS + TypeORM + providers (~480 MiB each)
         LLM_PRIORITY_CONCURRENCY: '25', // 25 teamSize × 2 worker processes = 50 concurrent refine-priority jobs
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
@@ -455,6 +460,7 @@ export class BearlyMailStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
+      securityGroups: [props.ecsSecurityGroup],
     });
 
     // ============================================
@@ -617,7 +623,7 @@ export class BearlyMailStack extends cdk.Stack {
       environment: {
         NODE_ENV: 'production',
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
@@ -653,6 +659,7 @@ export class BearlyMailStack extends cdk.Stack {
       subnetSelection: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
+      securityGroups: [props.ecsSecurityGroup],
       containerOverrides: [
         {
           containerName: 'CronContainer',

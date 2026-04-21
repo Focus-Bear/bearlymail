@@ -1654,6 +1654,8 @@
     "refreshing": "Refreshing...",
     "assignedTo": "Assigned to",
     "statusNoLinks": "No GitHub links found in this email",
+    "linksCount": "{{count}} link",
+    "linksCount_plural": "{{count}} links",
     "open": "Open",
     "closed": "Closed",
     "merged": "Merged",

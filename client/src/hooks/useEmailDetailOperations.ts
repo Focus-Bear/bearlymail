@@ -316,7 +316,15 @@ export function useEmailDetailOperations(
         });
         setGithubLinks(uniqueLinks);
         setLoadingGithub(false);
-        console.debug('[GitHub] fetchEmail: server returned links, fetchGithubInfo will refresh in background', {
+        // Mark as fetched so fetchGithubInfo skips the API call and doesn't overwrite these links.
+        // fetchGithubInfo runs immediately after fetchEmail (before React re-renders), so
+        // emailRef.current is still the previous email — if we don't set this, fetchGithubInfo
+        // will call the API and overwrite server-provided links with potentially empty results.
+        // Server returning links implies a valid GitHub token, so set hasToken to avoid
+        // showing the connection prompt.
+        setHasGithubToken(true);
+        githubFetchedRef.current = id ?? null;
+        console.debug('[GitHub] fetchEmail: server returned links, marked as fetched to prevent overwrite', {
           emailId: id,
           linkCount: uniqueLinks.length,
           links: uniqueLinks.map((link: GitHubLink) => link.url),

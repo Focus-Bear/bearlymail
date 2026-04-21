@@ -1132,6 +1132,8 @@
     "saveToken": "Guardar token",
     "status": "Estado de GitHub",
     "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
+    "linksCount": "{{count}} enlace",
+    "linksCount_plural": "{{count}} enlaces",
     "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
     "connectionPrompt": {
       "title": "Conectar GitHub para obtener información mejorada",

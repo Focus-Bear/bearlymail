@@ -15,7 +15,7 @@
  * Env vars: same as the former bash script (see printHelp).
  */
 
-import { execFileSync, execSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -211,24 +211,12 @@ function ghSleep(cfg) {
   const s = cfg.sleepBetweenGh;
   if (!(s > 0)) return;
   const ms = Math.min(2_147_483_647, Math.max(0, Math.round(s * 1000)));
-
-  function sleepAtomics() {
-    try {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-    } catch {
-      const until = Date.now() + ms;
-      while (Date.now() < until) {}
-    }
-  }
-
-  if (process.platform === "win32") {
-    sleepAtomics();
-    return;
-  }
   try {
-    execSync(`sleep ${s}`, { stdio: "ignore" });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
   } catch {
-    sleepAtomics();
+    // Fallback for environments where SharedArrayBuffer is restricted
+    const until = Date.now() + ms;
+    while (Date.now() < until) {}
   }
 }
 
@@ -1018,35 +1006,14 @@ function syncPrTriageLabels(cfg, prNumber, targetLabel) {
     return;
   }
 
-  /** @type {Set<string>} */
-  let current;
-  try {
-    const row = ghJson(["pr", "view", String(prNumber), "-R", cfg.repo, "--json", "labels"]);
-    ghSleep(cfg);
-    current = new Set((row?.labels ?? []).map((l) => l.name));
-  } catch {
-    console.warn(`  [warn] Could not read labels on PR #${prNumber}`);
-    current = new Set();
-  }
-
   const args = ["pr", "edit", String(prNumber), "-R", cfg.repo];
-  let changed = false;
   for (const lab of ALL_TRIAGED_PR_LABELS) {
-    if (lab !== targetLabel && current.has(lab)) {
+    if (lab !== targetLabel) {
       args.push("--remove-label", lab);
-      changed = true;
     }
   }
-  if (targetLabel && !current.has(targetLabel)) {
+  if (targetLabel) {
     args.push("--add-label", targetLabel);
-    changed = true;
-  }
-
-  if (!changed) {
-    if (!targetLabel) {
-      console.log(`  [action] PR #${prNumber}: removed triaged/* labels (no blocking triage issue)`);
-    }
-    return;
   }
 
   try {

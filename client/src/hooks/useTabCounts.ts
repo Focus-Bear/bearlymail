@@ -21,12 +21,15 @@ interface TabCountChanges {
 interface UseTabCountsReturn {
   tabCounts: TabCounts | null;
   loading: boolean;
-  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => Promise<void>;
+  fetchTabCounts: (force?: boolean, filters?: Partial<InboxFilter> | null, signal?: AbortSignal, silent?: boolean) => Promise<void>;
   updateTabCountsOptimistically: (changes: TabCountChanges) => void;
 }
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3'; // Bumped to invalidate old cache shape
 const TAB_COUNTS_CACHE_TTL = 30000; // 30 seconds
+// Background poll interval — long enough to avoid hammering the server but short enough
+// to catch batch deliveries and sync events while the user stays on one tab.
+const TAB_COUNTS_POLL_INTERVAL_MS = 60_000; // 60 seconds
 
 interface CacheEntry {
   counts: TabCounts;
@@ -77,10 +80,16 @@ export function useTabCounts(): UseTabCountsReturn {
   // updateTabCountsOptimistically writes to the correct filtered entry instead
   // of always falling back to the base key.
   const currentCacheKeyRef = useRef<string>(TAB_COUNTS_CACHE_KEY);
+  // Track filters used in the most recent fetch so background polling re-uses them.
+  const lastFiltersRef = useRef<Partial<InboxFilter> | null | undefined>(undefined);
+  // Only start background polling after the first successful fetch to avoid
+  // spurious requests on mount before useInboxInitialization has run.
+  const hasEverFetchedRef = useRef(false);
 
   const fetchTabCounts = useCallback(
 // eslint-disable-next-line max-statements -- pre-existing: complex async function with many conditional branches
-    async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal) => {
+    async (force = false, filters?: Partial<InboxFilter> | null, signal?: AbortSignal, silent = false) => {
+      lastFiltersRef.current = filters;
       const cacheKey = buildCacheKey(filters);
       currentCacheKeyRef.current = cacheKey;
 
@@ -92,6 +101,7 @@ export function useTabCounts(): UseTabCountsReturn {
             const age = Date.now() - cacheEntry.timestamp;
             if (age < TAB_COUNTS_CACHE_TTL) {
               setTabCounts(cacheEntry.counts);
+              hasEverFetchedRef.current = true;
               return;
             }
           }
@@ -100,7 +110,9 @@ export function useTabCounts(): UseTabCountsReturn {
         }
       }
 
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       try {
         const qs = buildQueryParams(filters);
         const response = await axios.get(`${API_URL}/emails/tab-counts${qs}`, { signal });
@@ -109,7 +121,13 @@ export function useTabCounts(): UseTabCountsReturn {
           action: response.data.action || 0,
           followUp: response.data.followUp || 0,
         };
-        setTabCounts(counts);
+        // Only update state if this fetch is still for the current filters.
+        // A background poll for a previous filter set may complete after the user
+        // has switched filters; discarding stale results prevents incorrect counts.
+        if (currentCacheKeyRef.current === cacheKey) {
+          setTabCounts(counts);
+        }
+        hasEverFetchedRef.current = true;
 
 // Cache the result
       const cacheEntry: CacheEntry = {
@@ -148,7 +166,9 @@ export function useTabCounts(): UseTabCountsReturn {
         // ignore cache read errors
       }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -195,6 +215,33 @@ export function useTabCounts(): UseTabCountsReturn {
   // on mode switches) with the correct active filters. A standalone unfiltered mount fetch
   // here produced a stale/wrong count when filters were active, and doubled the
   // tab-counts request on every inbox open. See #1665.
+
+  // Stable ref for background poll callback — always captures fresh hasEverFetchedRef /
+  // lastFiltersRef values without making them reactive deps of the interval effect.
+  // (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const backgroundPollRef = useRef<() => void>(() => {});
+  backgroundPollRef.current = () => {
+    // Don't poll until the first explicit fetch has completed — avoids duplicate
+    // requests on mount before useInboxInitialization has run.
+    if (!hasEverFetchedRef.current) {
+      return;
+    }
+    fetchTabCounts(true, lastFiltersRef.current, undefined, true).catch(err => {
+      if (!(err instanceof Error && err.name === ABORT_ERROR_NAME) && !axios.isCancel(err)) {
+        console.error('Background tab count refresh failed:', err);
+      }
+    });
+  };
+
+  // Background polling: refresh tab counts on a fixed interval so counts stay
+  // accurate while the user remains on one tab (e.g. a batch delivery updating
+  // the triage count while the user is in the action tab).
+  useEffect(() => {
+    const interval = setInterval(() => {
+      backgroundPollRef.current();
+    }, TAB_COUNTS_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []); // empty — backgroundPollRef is always current
 
   return {
     tabCounts,

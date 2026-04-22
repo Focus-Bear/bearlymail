@@ -7,7 +7,6 @@ import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cloudfrontOrigins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
@@ -816,6 +815,71 @@ export class BearlyMailStack extends cdk.Stack {
     // ============================================
     // CloudFront Distribution
     // ============================================
+
+    // Single origin instance shared across all behaviors to avoid creating multiple OACs
+    const frontendOrigin = cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket);
+
+    // index.html must never be cached (by CloudFront or browsers) so that SRI hashes in the HTML
+    // always match the currently-deployed assets. Without this, a stale cached index.html can
+    // reference asset filenames/hashes from a previous build, causing SRI verification failures
+    // and a blank screen.
+    const indexHtmlNoCachePolicy = new cloudfront.ResponseHeadersPolicy(this, 'IndexHtmlNoCachePolicy', {
+      responseHeadersPolicyName: `BearlyMailIndexHtmlNoCache-${this.node.addr.substring(0, 8)}`,
+      comment: 'Security headers and no-cache for index.html',
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true },
+        frameOptions: {
+          frameOption: cloudfront.HeadersFrameOption.DENY,
+          override: true,
+        },
+        strictTransportSecurity: {
+          accessControlMaxAge: cdk.Duration.days(730),
+          includeSubdomains: true,
+          preload: true,
+          override: true,
+        },
+        contentSecurityPolicy: {
+          contentSecurityPolicy:
+            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+          override: true,
+        },
+        xssProtection: {
+          protection: true,
+          modeBlock: true,
+          override: true,
+        },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+      },
+      customHeadersBehavior: {
+        customHeaders: [
+          { header: 'Cache-Control', value: 'no-store', override: true },
+        ],
+      },
+      removeHeaders: ['Server', 'X-Powered-By'],
+    });
+
+    const indexHtmlBehavior: cloudfront.BehaviorOptions = {
+      origin: frontendOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      responseHeadersPolicy: indexHtmlNoCachePolicy,
+    };
+
+    // Static assets (JS/CSS bundles) are content-addressed (hashed filenames) and safe to cache.
+    const staticAssetsBehavior: cloudfront.BehaviorOptions = {
+      origin: frontendOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+      compress: true,
+      cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      responseHeadersPolicy: securityHeadersPolicy,
+    };
+
     let distribution: cloudfront.Distribution;
     const hostedZone = props?.hostedZone;
     const certificateArn = props?.certificateArn;
@@ -837,13 +901,17 @@ export class BearlyMailStack extends cdk.Stack {
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
         defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
+          origin: frontendOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          responseHeadersPolicy: securityHeadersPolicy,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          responseHeadersPolicy: indexHtmlNoCachePolicy,
+        },
+        additionalBehaviors: {
+          'index.html': indexHtmlBehavior,
+          'static/*': staticAssetsBehavior,
         },
         domainNames: isSubdomain ? [domainName] : [domainName, `www.${domainName}`],
         certificate: certificate,
@@ -892,13 +960,17 @@ export class BearlyMailStack extends cdk.Stack {
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
         defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
+          origin: frontendOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          responseHeadersPolicy: securityHeadersPolicy,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          responseHeadersPolicy: indexHtmlNoCachePolicy,
+        },
+        additionalBehaviors: {
+          'index.html': indexHtmlBehavior,
+          'static/*': staticAssetsBehavior,
         },
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
         comment: 'BearlyMail frontend distribution',
@@ -921,16 +993,6 @@ export class BearlyMailStack extends cdk.Stack {
         ],
       });
     }
-
-    // S3 Deployment: deploy the built React app to the frontend bucket
-    // Build the frontend first: cd client && npm run build
-    // Then cdk deploy BearlyMailStack (or deploy manually: aws s3 sync client/build s3://<bucket> --delete)
-    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
-      sources: [s3deploy.Source.asset('../client/build')],
-      destinationBucket: frontendBucket,
-      distribution,
-      distributionPaths: ['/*'],
-    });
 
     // ============================================
     // CloudTrail (API Audit Trail — SAQ Q16 / GAP-9)

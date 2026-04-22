@@ -104,7 +104,7 @@ export class BearlyMailStack extends cdk.Stack {
     // ============================================
     const ecsSecurityGroup = new ec2.SecurityGroup(this, 'EcsSecurityGroup', {
       vpc,
-      description: 'Security group for ECS tasks (web, worker, cron) - allows RDS Proxy access',
+      description: 'Security group for ECS tasks (web, worker, cron) to allow RDS Proxy access',
       allowAllOutbound: true,
     });
 

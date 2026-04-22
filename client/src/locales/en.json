@@ -163,8 +163,8 @@
     "archive": "Archive",
     "snooze": "Snooze",
     "snoozeUntil": "Snooze Until",
-    "snoozeTooltip": "Enter a time like '2h', 'tomorrow', 'next Monday', or 'in 3 days'",
-    "snoozePlaceholder": "e.g., tomorrow...",
+    "snoozeTooltip": "Enter a time like '4h', '5pm', 'Wed 3pm', 'tomorrow', or 'next Monday'",
+    "snoozePlaceholder": "e.g., 4h, 5pm, tomorrow...",
     "toggleStar": "Toggle star"
   },
   "inbox": {
@@ -437,7 +437,7 @@
     "forward": "Forward",
     "forwardSoon": "Forward functionality coming soon",
     "snooze": "Snooze",
-    "snoozePlaceholder": "2h, tomorrow...",
+    "snoozePlaceholder": "4h, 5pm, tomorrow...",
     "archive": "Archive",
     "aiSummary": "AI Summary",
     "expandSummary": "Expand summary",

@@ -300,6 +300,64 @@ describe("SnoozeService", () => {
       jest.useRealTimers();
     });
 
+    it("should parse time-of-day (5pm) via chrono", async () => {
+      const now = new Date("2024-01-01T12:00:00Z");
+      const expected5pm = new Date("2024-01-01T17:00:00Z");
+      (chrono.parseDate as jest.Mock).mockReturnValue(expected5pm);
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+
+      const result = await service.snoozeEmail("user-1", "email-1", "5pm");
+
+      expect(result.snoozeUntil?.getTime()).toBe(expected5pm.getTime());
+
+      jest.useRealTimers();
+    });
+
+    it("should parse day and time (Wed 3pm) via chrono", async () => {
+      const now = new Date("2024-01-01T12:00:00Z");
+      const expectedWed3pm = new Date("2024-01-03T15:00:00Z");
+      (chrono.parseDate as jest.Mock).mockReturnValue(expectedWed3pm);
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+
+      const result = await service.snoozeEmail(
+        "user-1",
+        "email-1",
+        "Wed 3pm",
+      );
+
+      expect(result.snoozeUntil?.getTime()).toBe(expectedWed3pm.getTime());
+
+      jest.useRealTimers();
+    });
+
+    it("should parse 4 hours (4h)", async () => {
+      const now = new Date("2024-01-01T12:00:00Z");
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+
+      const result = await service.snoozeEmail("user-1", "email-1", "4h");
+
+      const expectedTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
+
+      jest.useRealTimers();
+    });
+
+    it("should parse 6 hours (6h)", async () => {
+      const now = new Date("2024-01-01T12:00:00Z");
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+
+      const result = await service.snoozeEmail("user-1", "email-1", "6h");
+
+      const expectedTime = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+      expect(result.snoozeUntil?.getTime()).toBe(expectedTime.getTime());
+
+      jest.useRealTimers();
+    });
+
     it("should default to 1 hour if parsing fails", async () => {
       const now = new Date("2024-01-01T12:00:00Z");
       jest.useFakeTimers();
@@ -425,6 +483,33 @@ describe("SnoozeService", () => {
       expect(result).toHaveProperty("id");
       expect(result).toHaveProperty("isSnoozed", false);
       expect(result).toHaveProperty("snoozeUntil", null);
+    });
+  });
+
+  describe("chrono-node natural language parsing (real library)", () => {
+    const realChrono = jest.requireActual<typeof import("chrono-node")>(
+      "chrono-node",
+    );
+
+    it("should parse '5pm' to today at 17:00", () => {
+      const now = new Date("2024-01-15T10:00:00");
+      const result = realChrono.parseDate("5pm", now);
+
+      expect(result).not.toBeNull();
+      expect(result!.getHours()).toBe(17);
+      expect(result!.getMinutes()).toBe(0);
+    });
+
+    it("should parse 'Wed 3pm' to the next Wednesday at 15:00", () => {
+      // 2024-01-15 is a Monday
+      const now = new Date("2024-01-15T10:00:00");
+      const result = realChrono.parseDate("Wed 3pm", now);
+
+      expect(result).not.toBeNull();
+      // Wednesday is day 3
+      expect(result!.getDay()).toBe(3);
+      expect(result!.getHours()).toBe(15);
+      expect(result!.getMinutes()).toBe(0);
     });
   });
 });

@@ -201,13 +201,15 @@ export class Email {
     nullable: true,
     transformer: encryptedJsonTransformer,
     comment:
-      "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
+      "JSON array of attachment metadata: {attachmentId, filename, mimeType, size, inlineData?}[]",
   })
   attachments: Array<{
     attachmentId: string;
     filename: string;
     mimeType: string;
     size: number;
+    /** Base64-encoded content for inline MIME parts (e.g. text/calendar). */
+    inlineData?: string;
   }> | null;
 
   // Priority explanation moved to EmailThread entity (thread-level property)

@@ -220,6 +220,16 @@ export class EmailsService {
       (att) => att.attachmentId === attachmentId,
     );
     if (!attachment) throw new Error("Attachment not found in email");
+    // Inline attachments (e.g. text/calendar parts with no Gmail attachment ID)
+    // store their content directly in inlineData. Return it without a provider call.
+    if (typeof attachment.inlineData === "string") {
+      return {
+        attachmentBuffer: Buffer.from(attachment.inlineData, "base64url"),
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+      };
+    }
     const provider =
       await this.emailServiceDeps.emailProviderManager.getPrimaryProvider(
         userId,

@@ -210,6 +210,9 @@ function shouldSkipLikelyInlinePart(
   return cd.includes("inline");
 }
 
+/** MIME types that represent iCalendar data. */
+const CALENDAR_MIME_TYPES = new Set(["text/calendar", "application/ics"]);
+
 /**
  * Extract attachment metadata from Gmail message payload
  */
@@ -223,6 +226,8 @@ export function extractAttachmentsFromPayload(
   const findAttachments = (part: gmail_v1.Schema$MessagePart): void => {
     const { body } = part;
     const attachmentId = body?.attachmentId;
+    const mimeType = (part.mimeType ?? "").toLowerCase();
+
     if (attachmentId && !shouldSkipLikelyInlinePart(part)) {
       const filename = resolveAttachmentFilename(part);
       attachments.push({
@@ -230,6 +235,18 @@ export function extractAttachmentsFromPayload(
         filename: filename || "attachment",
         mimeType: part.mimeType || "application/octet-stream",
         size: body?.size ?? 0,
+      });
+    } else if (!attachmentId && body?.data && CALENDAR_MIME_TYPES.has(mimeType)) {
+      // Inline calendar part: Gmail embeds small ICS files directly in body.data
+      // rather than giving them a separate attachmentId. Capture them with a
+      // synthetic ID so the IcsInviteCard can detect and serve them.
+      const filename = resolveAttachmentFilename(part) || "invite.ics";
+      attachments.push({
+        attachmentId: `inline-ics-${attachments.length}`,
+        filename,
+        mimeType: mimeType || "text/calendar",
+        size: body.size ?? 0,
+        inlineData: body.data,
       });
     }
 

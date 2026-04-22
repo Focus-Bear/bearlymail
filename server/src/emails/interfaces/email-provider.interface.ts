@@ -6,6 +6,10 @@ export interface EmailAttachment {
   filename: string;
   mimeType: string;
   size: number;
+  /** Base64-encoded content for inline MIME parts (e.g. text/calendar) that
+   *  have no Gmail attachment ID. When present the content is served directly
+   *  without a round-trip to the Gmail Attachments API. */
+  inlineData?: string;
 }
 
 /**

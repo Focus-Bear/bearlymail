@@ -57,8 +57,8 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   emailPrioritisationQueue?: sqs.Queue;
   /** RDS Proxy endpoint — used as DB_HOST for all ECS containers */
   rdsProxyEndpoint: string;
-  /** ECS security group (from BearlyMailDatabaseStack) — pre-authorised for RDS Proxy ingress */
-  ecsSecurityGroup: ec2.ISecurityGroup;
+  /** RDS Proxy security group (from BearlyMailDatabaseStack) — ecsSecurityGroup ingress rule added here */
+  rdsProxySecurityGroup: ec2.ISecurityGroup;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -88,6 +88,40 @@ export class BearlyMailStack extends cdk.Stack {
     const database = props.database;
     const dbSecret = props.dbSecret;
     const appSecrets = props.appSecrets;
+
+    // ============================================
+    // ECS Security Group
+    //
+    // Created here (not in DatabaseStack) to prevent a CDK dependency cycle.
+    // ApplicationLoadBalancedFargateService auto-adds an ALB→ECS ingress rule;
+    // if the security group were in DatabaseStack that rule would create an
+    // implicit DatabaseStack→BearlyMailStack reference, cycling with the
+    // explicit BearlyMailStack→DatabaseStack dependency.
+    //
+    // The RDS Proxy ingress rule is added via CfnSecurityGroupIngress (below)
+    // so it stays in this stack and only creates the safe direction:
+    // BearlyMailStack→DatabaseStack.
+    // ============================================
+    const ecsSecurityGroup = new ec2.SecurityGroup(this, 'EcsSecurityGroup', {
+      vpc,
+      description: 'Security group for ECS tasks (web, worker, cron) — allows RDS Proxy access',
+      allowAllOutbound: true,
+    });
+
+    // Allow ECS tasks to connect to the RDS Proxy.
+    // Using CfnSecurityGroupIngress keeps the resource in this stack
+    // (BearlyMailStack references rdsProxySecurityGroup from DatabaseStack —
+    // already the safe direction). If we called rdsProxySecurityGroup.addIngressRule()
+    // instead, CDK would place the rule in DatabaseStack referencing our ALB SG,
+    // recreating the cycle.
+    new ec2.CfnSecurityGroupIngress(this, 'EcsToRdsProxyIngress', {
+      groupId: props.rdsProxySecurityGroup.securityGroupId,
+      sourceSecurityGroupId: ecsSecurityGroup.securityGroupId,
+      ipProtocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      description: 'Allow ECS tasks to connect via RDS Proxy',
+    });
 
     // ============================================
     // ECS Cluster
@@ -360,7 +394,7 @@ export class BearlyMailStack extends cdk.Stack {
       listenerPort: 80,
       healthCheckGracePeriod: cdk.Duration.seconds(60),
       targetProtocol: elbv2.ApplicationProtocol.HTTP,
-      securityGroups: [props.ecsSecurityGroup],
+      securityGroups: [ecsSecurityGroup],
     });
 
     // Configure health check
@@ -462,7 +496,7 @@ export class BearlyMailStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
-      securityGroups: [props.ecsSecurityGroup],
+      securityGroups: [ecsSecurityGroup],
     });
 
     // ============================================
@@ -661,7 +695,7 @@ export class BearlyMailStack extends cdk.Stack {
       subnetSelection: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
-      securityGroups: [props.ecsSecurityGroup],
+      securityGroups: [ecsSecurityGroup],
       containerOverrides: [
         {
           containerName: 'CronContainer',

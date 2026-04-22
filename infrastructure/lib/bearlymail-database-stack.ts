@@ -28,12 +28,6 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
    */
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
 
-  /**
-   * Security group for ECS tasks (web, worker, cron).
-   * Created here so the ingress rule on rdsProxySecurityGroup stays within
-   * a single stack and avoids a cross-stack cyclic reference.
-   */
-  public readonly ecsSecurityGroup: ec2.SecurityGroup;
 
   constructor(
     scope: Construct,
@@ -146,25 +140,6 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       this.lambdaSecurityGroup,
       ec2.Port.tcp(5432),
       "Allow Lambda to connect via RDS Proxy",
-    );
-
-    // ============================================
-    // ECS Security Group (for BearlyMailStack web/worker/cron tasks)
-    // ============================================
-    this.ecsSecurityGroup = new ec2.SecurityGroup(
-      this,
-      "EcsSecurityGroup",
-      {
-        vpc,
-        description: "Security group for ECS tasks (web, worker, cron) — allows RDS Proxy access",
-        allowAllOutbound: true,
-      },
-    );
-
-    this.rdsProxySecurityGroup.addIngressRule(
-      this.ecsSecurityGroup,
-      ec2.Port.tcp(5432),
-      "Allow ECS tasks to connect via RDS Proxy",
     );
 
     // ============================================

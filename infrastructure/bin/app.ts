@@ -143,7 +143,7 @@ const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   contextAnalysisQueue: contextAnalysisStack.queue,
   emailPrioritisationQueue: emailPrioritisationStack.queue,
   rdsProxyEndpoint: databaseStack.rdsProxyEndpoint,
-  ecsSecurityGroup: databaseStack.ecsSecurityGroup,
+  rdsProxySecurityGroup: databaseStack.rdsProxySecurityGroup,
 });
 
 appStack.addDependency(networkingStack);

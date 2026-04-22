@@ -105,7 +105,7 @@ function parseArgv(argv) {
     issueTriageCache: process.env.ISSUE_TRIAGE_CACHE !== "0",
     reviewReadySummary: process.env.REVIEW_READY_SUMMARY !== "0",
     reviewReadyExcludeUnaddressedGemini: process.env.REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI !== "0",
-    resolveStaleGeminiThreads: process.env.RESOLVE_STALE_GEMINI_THREADS === "1",
+    resolveStaleGeminiThreads: process.env.RESOLVE_STALE_GEMINI_THREADS !== "0",
     prTriageLabels: process.env.PR_TRIAGE_LABELS !== "0",
     scanOrphanClaudeBranches: process.env.SCAN_ORPHAN_CLAUDE_BRANCHES !== "0",
     bustIssueCache: false,
@@ -192,8 +192,8 @@ Also: REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI (default on), GEMINI_REVIEW_BOT_SU
       PR_TRIAGE_LABELS (default on): sync triaged/* PR labels; --no-pr-triage-labels to disable.
       SCAN_ORPHAN_CLAUDE_BRANCHES (default on): open draft PRs for recent claude/issue-* branches with no PR.
       CLAUDE_ORPHAN_BRANCH_MAX_AGE_HOURS (default 48): tip commit must be newer than this for orphan scan.
-      RESOLVE_STALE_GEMINI_THREADS (default off): set to 1 to auto-resolve Gemini threads whose comments
-        predate the PR's latest commit (requires GraphQL write access via gh api graphql).
+      RESOLVE_STALE_GEMINI_THREADS (default on): set to 0 to disable auto-resolving Gemini threads whose
+        comments predate the PR's latest commit (requires GraphQL write access via gh api graphql).
 
 Options:
   -h, --help
@@ -208,8 +208,8 @@ Options:
   --no-skip-active-claude
   --no-review-ready-summary
   --no-review-ready-gemini-filter   Do not exclude PRs with unaddressed Gemini bot feedback (see env below)
-  --resolve-stale-gemini-threads    Auto-resolve Gemini threads whose comments predate the latest commit
-  --no-resolve-stale-gemini-threads Disable auto-resolution of stale Gemini threads (default)
+  --resolve-stale-gemini-threads    Auto-resolve Gemini threads whose comments predate the latest commit (default)
+  --no-resolve-stale-gemini-threads Disable auto-resolution of stale Gemini threads
   --no-pr-triage-labels             Do not add/update triaged/* labels on PRs
   --no-scan-orphan-claude-branches  Skip scanning repo branches for recent claude/issue-* without a PR
   --no-issue-triage-cache
@@ -944,7 +944,7 @@ function prTipCommitTimestampMs(cfg, prNumber) {
  * Resolve unresolved Gemini review threads where the thread's first comment predates
  * the PR's latest commit (i.e., the code was updated after the review was posted).
  * Requires GraphQL write access via `gh api graphql`.
- * Controlled by `--resolve-stale-gemini-threads` / `RESOLVE_STALE_GEMINI_THREADS=1`.
+ * On by default; disable with `--no-resolve-stale-gemini-threads` / `RESOLVE_STALE_GEMINI_THREADS=0`.
  */
 function resolveAddressedGeminiThreads(cfg, prNumber) {
   if (!cfg.resolveStaleGeminiThreads) return;

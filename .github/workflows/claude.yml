@@ -1,5 +1,23 @@
 name: Claude Code
 
+# Explicit token scopes for the whole workflow (GITHUB_TOKEN + OIDC). Job keeps the
+# same set so PR/issue label changes via API or `gh pr edit --add-label/--remove-label`
+# are allowed; `issues` + `pull-requests` are both required for label endpoints on PRs.
+#
+# `gh` (GraphQL) also expands pull requests with project cards, status check rollups, etc.
+# Without `repository-projects:read` and `statuses:read` you get "Resource not accessible by
+# integration" on operations that need those nodes — including some review-thread / PR flows.
+# See: https://github.com/cli/cli/issues/6274
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+  checks: read
+  repository-projects: read
+  statuses: read
+
 on:
   issue_comment:
     types: [created]
@@ -24,6 +42,9 @@ jobs:
       issues: write
       id-token: write
       actions: read
+      checks: read
+      repository-projects: read
+      statuses: read
     steps:
       # Optional: installation token from YOUR GitHub App (not GITHUB_TOKEN) so PRs
       # can trigger pull_request workflows. Set CLAUDE_GITHUB_APP_CLIENT_ID (variable)
@@ -39,9 +60,13 @@ jobs:
           repositories: |
             ${{ github.event.repository.name }}
           permission-contents: write
+          permission-metadata: read
           permission-issues: write
           permission-pull-requests: write
           permission-actions: read
+          permission-checks: read
+          permission-repository-projects: read
+          permission-statuses: read
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -62,6 +87,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.claude_github_app_token.outputs.token || github.token }}
           GH_TOKEN: ${{ steps.claude_github_app_token.outputs.token || github.token }}
+          # Avoid gh prompting for auth/confirm in Actions (token must still have scopes above).
+          GH_PROMPT_DISABLED: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.claude_github_app_token.outputs.token || github.token }}
@@ -77,6 +104,7 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
+          # (Do not put unescaped " inside the --append-system-prompt string: it breaks the shell argv and can truncate --allowedTools.)
           claude_args: |
-            --append-system-prompt "NEVER commit to main. Create branches named claude/issue-${{ github.event.issue.number }}. Write unit tests. When you're done with the branch, open a draft PR referencing the issue - this is pre-approved. Make it "References #2344" not "Closes #4545" because I don't want the issue to auto-close when I merge the PR. You don't have to wait for approval to create a PR. IMPORTANT: before pushing, always run 'git fetch origin main' and rebase on latest main if there have been other commits to avoid merge conflicts."
-            --allowedTools "Edit,MultiEdit,Write,Read,Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(yarn:*)"
+            --append-system-prompt "NEVER commit to main. Create branches named claude/issue-${{ github.event.issue.number }}. Write unit tests. When you are done with the branch, open a draft PR referencing the issue - this is pre-approved. In the PR body use References #issue (not Closes #issue) so the issue does not auto-close on merge. You do not have to wait for approval to create a PR. IMPORTANT: before pushing, always run git fetch origin main and rebase on latest main if there have been other commits to avoid merge conflicts."
+            --allowedTools "Edit,MultiEdit,Write,Read,Bash(git fetch*),Bash(git merge*),Bash(git rebase*),Bash(git cherry-pick*),Bash(git reset*),Bash(git checkout*),Bash(git stash*),Bash(git branch*),Bash(gh*),Bash(npm*),Bash(yarn:*)"

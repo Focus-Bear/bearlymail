@@ -14,7 +14,9 @@
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres",
     "db:reset": "docker-compose down -v && docker-compose up -d postgres",
-    "db:psql": "docker-compose exec postgres psql -U postgres -d adhd_email_client"
+    "db:psql": "docker-compose exec postgres psql -U postgres -d adhd_email_client",
+    "pr-triage": "node scripts/pr-claude-triage.mjs",
+    "pr-triage:dry-run": "node scripts/pr-claude-triage.mjs --dry-run"
   },
   "keywords": [
     "email",

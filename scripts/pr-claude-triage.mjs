@@ -1331,7 +1331,7 @@ function main() {
     const checks = row.statusCheckRollup || [];
     const rollupStats = summarizeStatusCheckRollup(checks);
     const rollupLen = rollupStats.total;
-    const hasCi = checks.some((c) => c.workflowName === reviewWf);
+    const hasCi = checks.some((c) => c.workflowName === cfg.reviewReadyWorkflowName);
     const conflict = row.mergeable === "CONFLICTING" || row.mergeStateStatus === "DIRTY";
     const failed = checks.filter((c) => checkRunIsCompletedFailure(c));
     const failCount = failed.length;

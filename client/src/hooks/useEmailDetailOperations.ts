@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -693,7 +694,9 @@ export function useEmailDetailOperations(
         const controller = new AbortController();
         toneCheckAbortRef.current = controller;
 
-        setCheckingTone(true);
+        // flushSync ensures the toast is painted before the async API call starts,
+        // preventing React 18 batching from deferring the visible=true render.
+        flushSync(() => setCheckingTone(true));
         try {
           const toneResponse = await axios.post(
             `${API_URL}/llm/check-tone`,

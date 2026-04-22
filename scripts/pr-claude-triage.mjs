@@ -70,6 +70,7 @@ function buildConfig(argv, env) {
     reviewReadyExcludeUnaddressedGemini:
       env.REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI !== "0" && flags.reviewReadyExcludeUnaddressedGemini,
     geminiReviewBotSubstring: (env.GEMINI_REVIEW_BOT_SUBSTRING || "gemini").toLowerCase(),
+    resolveStaleGeminiThreads: flags.resolveStaleGeminiThreads,
     /** Ignore workflow runs whose updated_at/created_at are older than this (ms). 0 = no age limit. Default 2h. */
     claudeWorkflowActiveMaxAgeMs: parseClaudeWorkflowMaxAgeMs(env.CLAUDE_WORKFLOW_ACTIVE_MAX_AGE_MS),
     prTriageLabels: env.PR_TRIAGE_LABELS !== "0" && flags.prTriageLabels,
@@ -104,6 +105,7 @@ function parseArgv(argv) {
     issueTriageCache: process.env.ISSUE_TRIAGE_CACHE !== "0",
     reviewReadySummary: process.env.REVIEW_READY_SUMMARY !== "0",
     reviewReadyExcludeUnaddressedGemini: process.env.REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI !== "0",
+    resolveStaleGeminiThreads: process.env.RESOLVE_STALE_GEMINI_THREADS === "1",
     prTriageLabels: process.env.PR_TRIAGE_LABELS !== "0",
     scanOrphanClaudeBranches: process.env.SCAN_ORPHAN_CLAUDE_BRANCHES !== "0",
     bustIssueCache: false,
@@ -151,6 +153,12 @@ function parseArgv(argv) {
       case "--no-review-ready-gemini-filter":
         out.reviewReadyExcludeUnaddressedGemini = false;
         break;
+      case "--resolve-stale-gemini-threads":
+        out.resolveStaleGeminiThreads = true;
+        break;
+      case "--no-resolve-stale-gemini-threads":
+        out.resolveStaleGeminiThreads = false;
+        break;
       case "--no-pr-triage-labels":
         out.prTriageLabels = false;
         break;
@@ -184,6 +192,8 @@ Also: REVIEW_READY_EXCLUDE_UNADDRESSED_GEMINI (default on), GEMINI_REVIEW_BOT_SU
       PR_TRIAGE_LABELS (default on): sync triaged/* PR labels; --no-pr-triage-labels to disable.
       SCAN_ORPHAN_CLAUDE_BRANCHES (default on): open draft PRs for recent claude/issue-* branches with no PR.
       CLAUDE_ORPHAN_BRANCH_MAX_AGE_HOURS (default 48): tip commit must be newer than this for orphan scan.
+      RESOLVE_STALE_GEMINI_THREADS (default off): set to 1 to auto-resolve Gemini threads whose comments
+        predate the PR's latest commit (requires GraphQL write access via gh api graphql).
 
 Options:
   -h, --help
@@ -198,6 +208,8 @@ Options:
   --no-skip-active-claude
   --no-review-ready-summary
   --no-review-ready-gemini-filter   Do not exclude PRs with unaddressed Gemini bot feedback (see env below)
+  --resolve-stale-gemini-threads    Auto-resolve Gemini threads whose comments predate the latest commit
+  --no-resolve-stale-gemini-threads Disable auto-resolution of stale Gemini threads (default)
   --no-pr-triage-labels             Do not add/update triaged/* labels on PRs
   --no-scan-orphan-claude-branches  Skip scanning repo branches for recent claude/issue-* without a PR
   --no-issue-triage-cache
@@ -929,6 +941,70 @@ function prTipCommitTimestampMs(cfg, prNumber) {
 }
 
 /**
+ * Resolve unresolved Gemini review threads where the thread's first comment predates
+ * the PR's latest commit (i.e., the code was updated after the review was posted).
+ * Requires GraphQL write access via `gh api graphql`.
+ * Controlled by `--resolve-stale-gemini-threads` / `RESOLVE_STALE_GEMINI_THREADS=1`.
+ */
+function resolveAddressedGeminiThreads(cfg, prNumber) {
+  if (!cfg.resolveStaleGeminiThreads) return;
+
+  const tipMs = prTipCommitTimestampMs(cfg, prNumber);
+  if (tipMs == null) return;
+
+  const [owner, repoName] = cfg.repo.split("/");
+  const query = `query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:50){nodes{id isResolved isOutdated comments(first:1){nodes{author{login}createdAt}}}}}}}`;
+
+  let data;
+  try {
+    const raw = execFileSync(
+      "gh",
+      ["api", "graphql", "-f", `query=${query}`, "-f", `owner=${owner}`, "-f", `repo=${repoName}`, "-F", `pr=${prNumber}`],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    data = JSON.parse(raw.trim());
+    ghSleep(cfg);
+  } catch {
+    console.warn(`  [warn] resolveAddressedGeminiThreads: could not fetch review threads for PR #${prNumber} (GraphQL access required).`);
+    return;
+  }
+
+  const threads = data?.data?.repository?.pullRequest?.reviewThreads?.nodes ?? [];
+  const toResolve = threads.filter((t) => {
+    if (t.isResolved) return false;
+    const firstComment = t.comments?.nodes?.[0];
+    if (!firstComment) return false;
+    if (!loginMatchesGeminiBot(firstComment.author?.login, cfg)) return false;
+    const commentMs = Date.parse(firstComment.createdAt || "");
+    return Number.isFinite(commentMs) && commentMs < tipMs;
+  });
+
+  if (toResolve.length === 0) {
+    console.log(`  [gemini-threads] PR #${prNumber}: no addressed Gemini threads to resolve.`);
+    return;
+  }
+
+  const mutation = `mutation($id:ID!){markPullRequestReviewThreadAsResolved(input:{threadId:$id}){thread{isResolved}}}`;
+  for (const t of toResolve) {
+    if (cfg.dryRun) {
+      console.log(`  [dry-run] Would resolve Gemini thread ${t.id} on PR #${prNumber}.`);
+      continue;
+    }
+    try {
+      execFileSync(
+        "gh",
+        ["api", "graphql", "-f", `query=${mutation}`, "-f", `id=${t.id}`],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+      console.log(`  [action] Resolved Gemini review thread ${t.id} on PR #${prNumber}.`);
+      ghSleep(cfg);
+    } catch {
+      console.warn(`  [warn] Could not resolve Gemini thread ${t.id} on PR #${prNumber}.`);
+    }
+  }
+}
+
+/**
  * GitHub `statusCheckRollup` is one row per **check run** (every matrix leg, CodeQL language,
  * job, etc.), not one per workflow — the count is usually much larger than the merge box summary.
  */
@@ -1269,6 +1345,7 @@ function main() {
       `  mergeable=${row.mergeable ?? "UNKNOWN"} mergeStateStatus=${row.mergeStateStatus ?? "UNKNOWN"}  ${formatCheckRollupLog(rollupStats)}  has_ci=${hasCi}  failures=${failCount}  conflict=${conflict ? 1 : 0}  ci_missing=${ciMissing ? 1 : 0}`,
     );
 
+    resolveAddressedGeminiThreads(cfg, row.number);
     syncPrTriageLabels(cfg, row.number, targetLabel);
 
     const parts = [];

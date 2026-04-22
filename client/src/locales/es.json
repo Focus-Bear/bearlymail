@@ -1465,7 +1465,8 @@
       "recategorizeNone": "No hay correos para recategorizar en triaje, acción o seguimiento.",
       "recategorizeError": "No se pudo iniciar la recategorización. Por favor, inténtalo de nuevo.",
       "loadingContent": "Cargando correos...",
-      "dangerousPhishing": "PELIGROSO: posible intento de phishing"
+      "dangerousPhishing": "PELIGROSO: posible intento de phishing",
+      "newsletterBlockTip": "💡 Bloquea remitentes rápidamente - ahorra tiempo en comparación con tener que encontrar la forma de darse de baja"
     },
     "protoCategory": {
       "convertToCategory": "Convertir a categoría",

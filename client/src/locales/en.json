@@ -339,7 +339,8 @@
       "recategorizeNone": "No emails to recategorise in triage, action, or follow-up.",
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
-      "dangerousPhishing": "DANGEROUS: potential phishing attempt"
+      "dangerousPhishing": "DANGEROUS: potential phishing attempt",
+      "newsletterBlockTip": "💡 Quickly block senders - saves time compared to having to figure out how to unsubscribe"
     },
     "protoCategory": {
       "convertToCategory": "Convert to category",

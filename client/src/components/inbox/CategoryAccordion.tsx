@@ -7,6 +7,7 @@ import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationTo
 import { OPACITY_DISABLED } from 'constants/numbers';
 import {
   CATEGORY_DANGEROUS_PHISHING,
+  CATEGORY_NEWSLETTERS,
   CATEGORY_OTHER,
   MODE_AUTORESPONDED,
   PHISHING_CONFIDENCE_HIGH,
@@ -50,6 +51,61 @@ const EDIT_ICON = '⚙️';
 const REANALYSE_ICON = '🔄';
 
 const ARCHIVE_ALL_ICON = '🗄️';
+
+const NEWSLETTER_BLOCK_TIP_DISMISSED_KEY = 'bearlymail_newsletter_block_tip_dismissed';
+const NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE = 'true';
+
+const NewsletterBlockTip: React.FC = () => {
+  const { t } = useTranslation();
+  const [isDismissed, setIsDismissed] = useState(
+    () => localStorage.getItem(NEWSLETTER_BLOCK_TIP_DISMISSED_KEY) === NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE
+  );
+
+  const handleDismiss = useCallback(() => {
+    localStorage.setItem(NEWSLETTER_BLOCK_TIP_DISMISSED_KEY, NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE);
+    setIsDismissed(true);
+  }, []);
+
+  if (isDismissed) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: theme.colors.warning.light,
+        border: `1px solid ${theme.colors.accent.warning}`,
+        borderRadius: theme.borderRadius.md,
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        marginBottom: theme.spacing.sm,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+      }}
+    >
+      <span style={{ flex: 1 }}>{t('inbox.category.newsletterBlockTip')}</span>
+      <button
+        onClick={handleDismiss}
+        style={{
+          background: 'transparent',
+          border: STRING_NONE,
+          cursor: 'pointer',
+          fontSize: theme.typography.fontSize.xl,
+          color: theme.colors.text.tertiary,
+          padding: '0',
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+        title={t('common.dismiss')}
+        aria-label={t('common.dismiss')}
+      >
+        ×
+      </button>
+    </div>
+  );
+};
 
 interface ReanalyseButtonProps {
   onClick: (event: React.MouseEvent) => void;
@@ -346,6 +402,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const emailCount = count !== undefined ? count : emails.length;
   const emailIds = emails.map(event => event.id);
   const isOtherCategory = category === CATEGORY_OTHER;
+  const isNewsletterCategory = category === CATEGORY_NEWSLETTERS;
 
   // Auto-collapse is handled entirely by the parent (InboxCategoryItem) which has
   // better context: it checks both isLoaded and categoryItem.count before collapsing,
@@ -443,6 +500,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       >
         <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
           <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')} isNearBudget={isNearBudget}>
+            {isNewsletterCategory && <NewsletterBlockTip />}
             {children}
           </CategoryAccordionContent>
         </div>

@@ -231,7 +231,13 @@ export class BearlyMailStack extends cdk.Stack {
 
     guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ['s3:ListBucket', 's3:GetBucketLocation', 's3:GetBucketOwnershipControls'],
+      actions: [
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketOwnershipControls',
+        's3:GetBucketAcl',
+        's3:GetBucketPublicAccessBlock',
+      ],
       resources: [feedbackScreenshotsBucket.bucketArn],
     }));
 

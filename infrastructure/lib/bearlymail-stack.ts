@@ -214,7 +214,11 @@ export class BearlyMailStack extends cdk.Stack {
     //   aws guardduty create-detector --enable --region <region>
     // ============================================
     const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
-      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com'),
+      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': this.account },
+        },
+      }),
       description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
     });
 
@@ -237,6 +241,8 @@ export class BearlyMailStack extends cdk.Stack {
         's3:GetBucketOwnershipControls',
         's3:GetBucketAcl',
         's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicy',
+        's3:GetBucketPolicyStatus',
       ],
       resources: [feedbackScreenshotsBucket.bucketArn],
     }));

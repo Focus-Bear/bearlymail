@@ -19,9 +19,9 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
 import * as config from 'aws-cdk-lib/aws-config';
-import * as guardduty from 'aws-cdk-lib/aws-guardduty';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+// import * as guardduty from 'aws-cdk-lib/aws-guardduty'; // disabled: GuardDuty temporarily commented out
+// import * as lambda from 'aws-cdk-lib/aws-lambda'; // disabled: GuardDuty temporarily commented out
+// import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs'; // disabled: GuardDuty temporarily commented out
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -205,92 +205,86 @@ export class BearlyMailStack extends cdk.Stack {
     }));
 
     // ============================================
-    // GuardDuty Malware Protection for S3 (GAP-1)
+    // GuardDuty Malware Protection for S3 (GAP-1) — TEMPORARILY DISABLED
     //
-    // GuardDuty scans every uploaded object and tags it:
-    //   GuardDutyMalwareScanStatus = NO_THREATS_FOUND | THREATS_FOUND | UNSUPPORTED | FAILED
+    // Disabled due to persistent IAM permission errors when deploying
+    // FeedbackScreenshotsMalwareProtectionPlan. Re-enable once the
+    // GuardDuty permissions issue is resolved.
     //
-    // Prerequisite: GuardDuty must be enabled in the AWS account before deploying.
-    //   aws guardduty create-detector --enable --region <region>
-    // ============================================
-    const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
-      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
-        conditions: {
-          StringEquals: { 'aws:SourceAccount': this.account },
-        },
-      }),
-      description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
-    });
-
-    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        's3:GetObject',
-        's3:GetObjectVersion',
-        's3:PutObjectTagging',
-        's3:GetObjectTagging',
-      ],
-      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
-    }));
-
-    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        's3:ListBucket',
-        's3:GetBucketLocation',
-        's3:GetBucketOwnershipControls',
-        's3:GetBucketAcl',
-        's3:GetBucketPublicAccessBlock',
-        's3:GetBucketPolicy',
-        's3:GetBucketPolicyStatus',
-      ],
-      resources: [feedbackScreenshotsBucket.bucketArn],
-    }));
-
-    new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
-      role: guardDutyMalwareRole.roleArn,
-      protectedResource: {
-        s3Bucket: {
-          bucketName: feedbackScreenshotsBucket.bucketName,
-          objectPrefixes: ['feedback/'],
-        },
-      },
-      actions: {
-        tagging: { status: 'ENABLED' },
-      },
-    });
-
-    // ============================================
+    // const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
+    //   assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
+    //     conditions: {
+    //       StringEquals: { 'aws:SourceAccount': this.account },
+    //     },
+    //   }),
+    //   description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
+    // });
+    //
+    // guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+    //   effect: iam.Effect.ALLOW,
+    //   actions: [
+    //     's3:GetObject',
+    //     's3:GetObjectVersion',
+    //     's3:PutObjectTagging',
+    //     's3:GetObjectTagging',
+    //   ],
+    //   resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    // }));
+    //
+    // guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+    //   effect: iam.Effect.ALLOW,
+    //   actions: [
+    //     's3:ListBucket',
+    //     's3:GetBucketLocation',
+    //     's3:GetBucketOwnershipControls',
+    //     's3:GetBucketAcl',
+    //     's3:GetBucketPublicAccessBlock',
+    //     's3:GetBucketPolicy',
+    //     's3:GetBucketPolicyStatus',
+    //   ],
+    //   resources: [feedbackScreenshotsBucket.bucketArn],
+    // }));
+    //
+    // new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
+    //   role: guardDutyMalwareRole.roleArn,
+    //   protectedResource: {
+    //     s3Bucket: {
+    //       bucketName: feedbackScreenshotsBucket.bucketName,
+    //       objectPrefixes: ['feedback/'],
+    //     },
+    //   },
+    //   actions: {
+    //     tagging: { status: 'ENABLED' },
+    //   },
+    // });
+    //
     // Lambda: Delete malicious files detected by GuardDuty
-    // ============================================
-    const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
-      entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 128,
-      description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
-      logRetention: logs.RetentionDays.ONE_MONTH,
-    });
-
-    // Allow the Lambda to delete objects from the screenshots bucket
-    feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
-
+    // const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
+    //   entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
+    //   handler: 'handler',
+    //   runtime: lambda.Runtime.NODEJS_20_X,
+    //   timeout: cdk.Duration.seconds(30),
+    //   memorySize: 128,
+    //   description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
+    //   logRetention: logs.RetentionDays.ONE_MONTH,
+    // });
+    // feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
+    //
     // EventBridge rule: trigger Lambda on GuardDuty Malware:S3/* findings
-    const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
-      description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
-      eventPattern: {
-        source: ['aws.guardduty'],
-        detailType: ['GuardDuty Finding'],
-        detail: {
-          type: [{ prefix: 'Malware:S3/' }],
-        },
-      },
-    });
-
-    guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
-      retryAttempts: 2,
-    }));
+    // const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
+    //   description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
+    //   eventPattern: {
+    //     source: ['aws.guardduty'],
+    //     detailType: ['GuardDuty Finding'],
+    //     detail: {
+    //       type: [{ prefix: 'Malware:S3/' }],
+    //     },
+    //   },
+    // });
+    // guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
+    //   retryAttempts: 2,
+    // }));
+    // ============================================
 
     new cdk.CfnOutput(this, 'FeedbackScreenshotsBucketName', {
       value: feedbackScreenshotsBucket.bucketName,

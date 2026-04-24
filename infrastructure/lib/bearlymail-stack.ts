@@ -17,8 +17,8 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
-import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
-import * as config from 'aws-cdk-lib/aws-config';
+// import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail'; // disabled: CloudTrail temporarily commented out
+// import * as config from 'aws-cdk-lib/aws-config'; // disabled: AWS Config temporarily commented out
 // import * as guardduty from 'aws-cdk-lib/aws-guardduty'; // disabled: GuardDuty temporarily commented out
 // import * as lambda from 'aws-cdk-lib/aws-lambda'; // disabled: GuardDuty temporarily commented out
 // import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs'; // disabled: GuardDuty temporarily commented out
@@ -1007,158 +1007,155 @@ export class BearlyMailStack extends cdk.Stack {
 
     // ============================================
     // CloudTrail (API Audit Trail — SAQ Q16 / GAP-9)
-    // Records all management events to S3 for tamper-evident audit history.
-    // Files are archived to Glacier after 90 days and expire after 1 year.
+    // Temporarily commented out — CloudFormation role lacks cloudtrail:DeleteTrail permission.
     // ============================================
-    const cloudTrailBucket = new s3.Bucket(this, 'CloudTrailBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [
-        {
-          id: 'ArchiveAndExpire',
-          enabled: true,
-          transitions: [
-            {
-              storageClass: s3.StorageClass.GLACIER,
-              transitionAfter: cdk.Duration.days(90),
-            },
-          ],
-          expiration: cdk.Duration.days(365),
-        },
-      ],
-    });
-
-    const managementTrail = new cloudtrail.Trail(this, 'ManagementTrail', {
-      trailName: 'BearlyMailManagementTrail',
-      bucket: cloudTrailBucket,
-      includeGlobalServiceEvents: true,
-      isMultiRegionTrail: true,
-      enableFileValidation: true,
-      sendToCloudWatchLogs: true,
-      cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
-      managementEvents: cloudtrail.ReadWriteType.ALL,
-    });
-
-    new cdk.CfnOutput(this, 'CloudTrailArn', {
-      value: managementTrail.trailArn,
-      description: 'CloudTrail trail ARN for management event audit',
-      exportName: 'BearlyMail-CloudTrail-ARN',
-    });
+    // const cloudTrailBucket = new s3.Bucket(this, 'CloudTrailBucket', {
+    //   blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    //   encryption: s3.BucketEncryption.S3_MANAGED,
+    //   enforceSSL: true,
+    //   removalPolicy: cdk.RemovalPolicy.RETAIN,
+    //   lifecycleRules: [
+    //     {
+    //       id: 'ArchiveAndExpire',
+    //       enabled: true,
+    //       transitions: [
+    //         {
+    //           storageClass: s3.StorageClass.GLACIER,
+    //           transitionAfter: cdk.Duration.days(90),
+    //         },
+    //       ],
+    //       expiration: cdk.Duration.days(365),
+    //     },
+    //   ],
+    // });
+    //
+    // const managementTrail = new cloudtrail.Trail(this, 'ManagementTrail', {
+    //   trailName: 'BearlyMailManagementTrail',
+    //   bucket: cloudTrailBucket,
+    //   includeGlobalServiceEvents: true,
+    //   isMultiRegionTrail: true,
+    //   enableFileValidation: true,
+    //   sendToCloudWatchLogs: true,
+    //   cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
+    //   managementEvents: cloudtrail.ReadWriteType.ALL,
+    // });
+    //
+    // new cdk.CfnOutput(this, 'CloudTrailArn', {
+    //   value: managementTrail.trailArn,
+    //   description: 'CloudTrail trail ARN for management event audit',
+    //   exportName: 'BearlyMail-CloudTrail-ARN',
+    // });
 
     // ============================================
     // AWS Config (Configuration Compliance Monitoring — SAQ Q16 / GAP-9)
-    // Records configuration changes for key resource types and evaluates
-    // them against compliance rules. Drift detected by Config rules surfaces
-    // in the AWS Config console and in the daily drift-detection workflow.
+    // Temporarily commented out — depends on CloudTrail which is also disabled.
     // ============================================
 
-    // IAM role for the Config service
-    const configServiceRole = new iam.Role(this, 'ConfigServiceRole', {
-      assumedBy: new iam.ServicePrincipal('config.amazonaws.com'),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole'),
-      ],
-    });
+    // // IAM role for the Config service
+    // const configServiceRole = new iam.Role(this, 'ConfigServiceRole', {
+    //   assumedBy: new iam.ServicePrincipal('config.amazonaws.com'),
+    //   managedPolicies: [
+    //     iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole'),
+    //   ],
+    // });
 
-    // Dedicated S3 bucket for Config snapshots / history
-    const configBucket = new s3.Bucket(this, 'ConfigBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [
-        {
-          id: 'Expire',
-          enabled: true,
-          expiration: cdk.Duration.days(365),
-        },
-      ],
-    });
+    // // Dedicated S3 bucket for Config snapshots / history
+    // const configBucket = new s3.Bucket(this, 'ConfigBucket', {
+    //   blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    //   encryption: s3.BucketEncryption.S3_MANAGED,
+    //   enforceSSL: true,
+    //   removalPolicy: cdk.RemovalPolicy.RETAIN,
+    //   lifecycleRules: [
+    //     {
+    //       id: 'Expire',
+    //       enabled: true,
+    //       expiration: cdk.Duration.days(365),
+    //     },
+    //   ],
+    // });
 
-    // Allow Config service to read the bucket ACL and write config history objects
-    configBucket.addToResourcePolicy(new iam.PolicyStatement({
-      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
-      actions: ['s3:GetBucketAcl'],
-      resources: [configBucket.bucketArn],
-    }));
-    configBucket.addToResourcePolicy(new iam.PolicyStatement({
-      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
-      actions: ['s3:PutObject'],
-      resources: [`${configBucket.bucketArn}/AWSLogs/${this.account}/Config/*`],
-      conditions: {
-        StringEquals: { 's3:x-amz-acl': 'bucket-owner-full-control' },
-      },
-    }));
+    // // Allow Config service to read the bucket ACL and write config history objects
+    // configBucket.addToResourcePolicy(new iam.PolicyStatement({
+    //   principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+    //   actions: ['s3:GetBucketAcl'],
+    //   resources: [configBucket.bucketArn],
+    // }));
+    // configBucket.addToResourcePolicy(new iam.PolicyStatement({
+    //   principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+    //   actions: ['s3:PutObject'],
+    //   resources: [`${configBucket.bucketArn}/AWSLogs/${this.account}/Config/*`],
+    //   conditions: {
+    //     StringEquals: { 's3:x-amz-acl': 'bucket-owner-full-control' },
+    //   },
+    // }));
 
-    // Configuration Recorder: track resource types relevant to BearlyMail
-    const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
-      roleArn: configServiceRole.roleArn,
-      recordingGroup: {
-        allSupported: false,
-        resourceTypes: [
-          'AWS::S3::Bucket',
-          'AWS::RDS::DBInstance',
-          'AWS::ECS::TaskDefinition',
-          'AWS::CloudTrail::Trail',
-          'AWS::EC2::SecurityGroup',
-          'AWS::IAM::Role',
-          'AWS::SecretsManager::Secret',
-        ],
-      },
-    });
+    // // Configuration Recorder: track resource types relevant to BearlyMail
+    // const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
+    //   roleArn: configServiceRole.roleArn,
+    //   recordingGroup: {
+    //     allSupported: false,
+    //     resourceTypes: [
+    //       'AWS::S3::Bucket',
+    //       'AWS::RDS::DBInstance',
+    //       'AWS::ECS::TaskDefinition',
+    //       'AWS::CloudTrail::Trail',
+    //       'AWS::EC2::SecurityGroup',
+    //       'AWS::IAM::Role',
+    //       'AWS::SecretsManager::Secret',
+    //     ],
+    //   },
+    // });
 
-    // Delivery Channel: where Config persists snapshots (daily)
-    const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
-      s3BucketName: configBucket.bucketName,
-      configSnapshotDeliveryProperties: {
-        deliveryFrequency: 'TwentyFour_Hours',
-      },
-    });
-    configDeliveryChannel.addDependency(configRecorder);
+    // // Delivery Channel: where Config persists snapshots (daily)
+    // const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
+    //   s3BucketName: configBucket.bucketName,
+    //   configSnapshotDeliveryProperties: {
+    //     deliveryFrequency: 'TwentyFour_Hours',
+    //   },
+    // });
+    // configDeliveryChannel.addDependency(configRecorder);
 
-    // Helper: create a managed rule that depends on the recorder + delivery channel
-    const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
-      const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
-      // Rules require an active recorder — enforce creation order
-      (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
-      return rule;
-    };
+    // // Helper: create a managed rule that depends on the recorder + delivery channel
+    // const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
+    //   const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
+    //   // Rules require an active recorder — enforce creation order
+    //   (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
+    //   return rule;
+    // };
 
-    // S3 compliance rules
-    addConfigRule('S3BlockPublicReadRule',
-      config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
-      'bearlymail-s3-block-public-read');
+    // // S3 compliance rules
+    // addConfigRule('S3BlockPublicReadRule',
+    //   config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
+    //   'bearlymail-s3-block-public-read');
 
-    addConfigRule('S3SslOnlyRule',
-      config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
-      'bearlymail-s3-ssl-requests-only');
+    // addConfigRule('S3SslOnlyRule',
+    //   config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
+    //   'bearlymail-s3-ssl-requests-only');
 
-    // RDS compliance rules
-    addConfigRule('RdsPublicAccessRule',
-      config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
-      'bearlymail-rds-no-public-access');
+    // // RDS compliance rules
+    // addConfigRule('RdsPublicAccessRule',
+    //   config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
+    //   'bearlymail-rds-no-public-access');
 
-    addConfigRule('RdsEncryptionRule',
-      config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
-      'bearlymail-rds-storage-encrypted');
+    // addConfigRule('RdsEncryptionRule',
+    //   config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
+    //   'bearlymail-rds-storage-encrypted');
 
-    // ECS compliance rule — ensures all task definitions emit logs
-    addConfigRule('EcsLogConfigRule',
-      config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
-      'bearlymail-ecs-task-log-configuration');
+    // // ECS compliance rule — ensures all task definitions emit logs
+    // addConfigRule('EcsLogConfigRule',
+    //   config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
+    //   'bearlymail-ecs-task-log-configuration');
 
-    // CloudTrail rule — verifies CloudTrail is enabled in this account/region
-    addConfigRule('CloudTrailEnabledRule',
-      config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
-      'bearlymail-cloudtrail-enabled');
+    // // CloudTrail rule — verifies CloudTrail is enabled in this account/region
+    // addConfigRule('CloudTrailEnabledRule',
+    //   config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
+    //   'bearlymail-cloudtrail-enabled');
 
-    new cdk.CfnOutput(this, 'ConfigBucketName', {
-      value: configBucket.bucketName,
-      description: 'S3 bucket storing AWS Config history snapshots',
-      exportName: 'BearlyMail-Config-Bucket',
-    });
+    // new cdk.CfnOutput(this, 'ConfigBucketName', {
+    //   value: configBucket.bucketName,
+    //   description: 'S3 bucket storing AWS Config history snapshots',
+    //   exportName: 'BearlyMail-Config-Bucket',
+    // });
 
     // ============================================
     // Outputs

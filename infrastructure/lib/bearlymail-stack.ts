@@ -217,10 +217,9 @@ export class BearlyMailStack extends cdk.Stack {
       }),
       description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
     });
-    // Exclude from the account-wide permissions boundary (PermissionsBoundaryAspect in bin/app.ts).
-    // The boundary policy does not include the S3 bucket-ownership-validation actions that GuardDuty
-    // requires, so applying it would silently deny those permissions at the effective-policy level.
-    guardDutyMalwareRole.node.addMetadata('bearlymail:skip-permissions-boundary', true);
+    // This role must carry the account permissions boundary (PermissionsBoundaryAspect in bin/app.ts).
+    // Ensure the managed policy BearlyMail-PermissionBoundary allows the same S3 actions as the
+    // inline policy below on feedback screenshot buckets; otherwise GuardDuty plan validation fails.
 
     // Object-level permissions (read content, write scan result tag)
     guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({

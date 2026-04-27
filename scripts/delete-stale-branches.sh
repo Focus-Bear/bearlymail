@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 #
-# Delete remote branches that are either:
-#   - merged via a GitHub PR (same-repo head branches only), OR
-#   - older than N days based on the tip commit's committed date (UTC).
+# Delete remote branches that match either criteria:
+#
+#   1) Merged PR heads — branch name was the head ref of a merged PR into this repo, and the PR head
+#      repo is this repo (not a fork). Sources: REST pulls API + GraphQL pullRequests(states:MERGED)
+#      with headRepository filter (covers edge cases REST can miss).
+#
+#   2) Stale by age — tip commit on the branch is older than N days (UTC), even if no PR matched.
 #
 # Defaults to dry-run. Pass --execute to delete for real.
 #
@@ -27,7 +31,9 @@ EXCLUDE_BRANCHES=()
 
 usage() {
   cat <<'EOF'
-Delete stale remote branches (merged PR heads or tip older than N days).
+Delete remote branches that:
+  • Were the head branch of a merged PR (same-repository heads only — fork PR branch names are ignored), or
+  • Have no qualifying merged PR but whose tip commit is older than N days.
 
 Options:
   -h, --help                 Show this help
@@ -103,17 +109,59 @@ else
 fi
 echo
 
-# --- Merged PR head refs (same repository only) ---
+# --- Merged PR head refs (same repository only; fork PR heads are excluded) ---
 MERGED_HEADS_FILE="$(mktemp)"
 trap 'rm -f "$MERGED_HEADS_FILE"' EXIT
 
-echo "Fetching merged pull request head branches..."
+echo "Fetching merged PR head branch names (REST: pulls API)..."
 gh api --paginate "repos/${REPO}/pulls?state=all&per_page=100" \
   --jq ".[] | select(.merged_at != null) | select(.head.repo != null) | select(.head.repo.full_name == \"${REPO}\") | .head.ref" \
-  2>/dev/null | sort -u >"$MERGED_HEADS_FILE" || true
+  2>/dev/null >>"$MERGED_HEADS_FILE" || true
 
+echo "Fetching merged PR head branch names (GraphQL: merged PRs, same-repo heads only)..."
+GQL_MERGED_QUERY='
+query($owner: String!, $name: String!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: [MERGED], first: 100, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        headRefName
+        headRepository { nameWithOwner }
+      }
+    }
+  }
+}'
+CURSOR_M=""
+while true; do
+  if [[ -z "$CURSOR_M" ]]; then
+    RESP_M="$(gh api graphql -f query="$GQL_MERGED_QUERY" -F owner="$REPO_OWNER" -F name="$REPO_NAME" -F cursor=null)"
+  else
+    RESP_M="$(gh api graphql -f query="$GQL_MERGED_QUERY" -F owner="$REPO_OWNER" -F name="$REPO_NAME" -F cursor="$CURSOR_M")"
+  fi
+
+  if echo "$RESP_M" | jq -e '.errors != null and (.errors | length) > 0' >/dev/null 2>&1; then
+    echo "Warning: GraphQL merged-PR query failed; continuing with REST merged heads only." >&2
+    echo "$RESP_M" | jq '.errors' >&2
+    break
+  fi
+
+  echo "$RESP_M" | jq -r --arg repo "$REPO" '
+    .data.repository.pullRequests.nodes[]
+    | select(.headRepository != null and .headRepository.nameWithOwner == $repo)
+    | .headRefName
+    | select(. != null and . != "")
+  ' >>"$MERGED_HEADS_FILE"
+
+  HAS_NEXT_M="$(echo "$RESP_M" | jq -r '.data.repository.pullRequests.pageInfo.hasNextPage')"
+  if [[ "$HAS_NEXT_M" != "true" ]]; then
+    break
+  fi
+  CURSOR_M="$(echo "$RESP_M" | jq -r '.data.repository.pullRequests.pageInfo.endCursor')"
+done
+
+sort -u "$MERGED_HEADS_FILE" -o "$MERGED_HEADS_FILE"
 merged_count="$(wc -l <"$MERGED_HEADS_FILE" | tr -d ' ')"
-echo "Merged PR head branches recorded: $merged_count"
+echo "Unique merged same-repo PR head branch names recorded: $merged_count"
 echo
 
 # --- All heads + tip commit dates (GraphQL) ---

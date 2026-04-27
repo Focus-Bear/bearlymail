@@ -13,9 +13,9 @@ import { BearlyMailEmailPrioritisationStack } from '../lib/bearlymail-email-prio
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
-// Metadata key used to exclude a specific IAM Role from the permissions boundary.
-// Use guardDutyMalwareRole.node.addMetadata(SKIP_BOUNDARY_METADATA, true) on the L2
-// Role construct to prevent the boundary from being applied to that role.
+// Escape hatch only: skipping the boundary removes the same cap as the org SCP enforces on
+// roles (blast radius if CDK/deploy credentials are abused). Prefer extending
+// BearlyMail-PermissionBoundary so every role, including special principals, stays bounded.
 const SKIP_BOUNDARY_METADATA = 'bearlymail:skip-permissions-boundary';
 
 class PermissionsBoundaryAspect implements cdk.IAspect {

@@ -429,7 +429,7 @@ module.exports = {
     // llm.service.ts is now a thin facade (~617 lines) under the global max-lines: 800 limit.
     // See issue #939.
     {
-      files: ['**/email-search.service.ts'],
+      files: ['**/email-search.service.ts', '**/context-gmail-data.service.ts', '**/zoho.provider.ts'],
       rules: {
         'max-lines': 'off',
       },

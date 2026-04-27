@@ -1,5 +1,6 @@
 // Export all entities to ensure they're loaded in the correct order
 export { ActionItem } from "./action-item.entity";
+export { DeletedAccount } from "./deleted-account.entity";
 export { AutoResponseLog } from "./auto-response-log.entity";
 export { AutoResponseSuppression } from "./auto-response-suppression.entity";
 export { BatchSchedule } from "./batch-schedule.entity";

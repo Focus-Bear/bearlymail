@@ -81,9 +81,10 @@ const getPriorityLabel = (priorityLevel: string): { label: string; emoji: string
 
 const SUBJECT_PREVIEW_CHARS = 50;
 
-async function loadRecentEmails(token: string): Promise<RecentEmail[]> {
+async function loadRecentEmails(): Promise<RecentEmail[]> {
+  // credentials: 'include' sends the HttpOnly JWT cookie automatically (OWASP ASVS GAP-4)
   const response = await fetch(`${API_URL}/auto-responder/recent-emails?limit=10`, {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   });
   if (!response.ok) {
     throw new Error('Failed to fetch recent emails');
@@ -92,10 +93,12 @@ async function loadRecentEmails(token: string): Promise<RecentEmail[]> {
   return responseJson.emails || [];
 }
 
-async function loadEmailPreview(emailId: string, token: string): Promise<EmailPreviewResult> {
+async function loadEmailPreview(emailId: string): Promise<EmailPreviewResult> {
+  // credentials: 'include' sends the HttpOnly JWT cookie automatically (OWASP ASVS GAP-4)
   const response = await fetch(`${API_URL}/auto-responder/preview-email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ emailId }),
   });
   if (!response.ok) {
@@ -259,14 +262,10 @@ function useEmailPreviewState() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecentEmails = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      return;
-    }
     setIsLoadingEmails(true);
     setError(null);
     try {
-      setRecentEmails(await loadRecentEmails(token));
+      setRecentEmails(await loadRecentEmails());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recent emails');
     } finally {
@@ -275,14 +274,10 @@ function useEmailPreviewState() {
   }, []);
 
   const fetchPreviewForEmail = useCallback(async (emailId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      return;
-    }
     setIsLoadingPreview(true);
     setError(null);
     try {
-      setPreview(await loadEmailPreview(emailId, token));
+      setPreview(await loadEmailPreview(emailId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate preview');
       setPreview(null);

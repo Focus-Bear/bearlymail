@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import axios from 'axios';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
@@ -55,8 +56,12 @@ export function useEmailDetailToneCheck() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setCheckingTone(true);
-    setDisputeResult(null);
+    // flushSync guarantees the loading state is painted before the async API call
+    // starts, preventing React 18 batching from skipping the visible=true render.
+    flushSync(() => {
+      setCheckingTone(true);
+      setDisputeResult(null);
+    });
     try {
       const currentTime = getCurrentTimeInTimezone(timezoneRef.current);
       const toneResponse = await axios.post(

@@ -111,6 +111,20 @@ export class SummarizationController {
       id,
       rule,
     );
+
+    // Persist the full-thread summary to the DB so subsequent page loads show
+    // the refreshed version. Fire-and-forget — the response is already correct.
+    this.summarizationService
+      .persistSummaryForThread(
+        req.user.userId,
+        result.threadId,
+        result.emailThreadId,
+        result.summary,
+      )
+      .catch(() => {
+        // Non-critical: response already contains the correct summary
+      });
+
     return {
       summary: result.summary,
       phishingSignal: result.phishingSignal ?? null,

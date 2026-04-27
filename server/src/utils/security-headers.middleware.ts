@@ -28,7 +28,7 @@ export function securityHeadersMiddleware(
   );
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+    "frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'self'",
   );
   // Prevent sensitive API responses from being cached by proxies, CDNs, or load balancers.
   res.setHeader("Cache-Control", "no-store");

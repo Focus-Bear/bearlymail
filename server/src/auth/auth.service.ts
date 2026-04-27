@@ -27,7 +27,11 @@ import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthLogger, writeDebugLog } from "./auth-logger";
+import { DeletedAccountException } from "./exceptions/deleted-account.exception";
 import { OAuthOnlyAccountException } from "./exceptions/oauth-only-account.exception";
+import { TotpService, TotpSetupData } from "./totp.service";
+
+const MFA_TOKEN_EXPIRY = "8h";
 
 const INITIAL_SYNC_DELAY_MS = 2000;
 
@@ -65,6 +69,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private totpService: TotpService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     @Inject(forwardRef(() => WaitlistService))
     private waitlistService: WaitlistService,
@@ -77,8 +82,24 @@ export class AuthService {
     password: string,
   ): Promise<UserWithoutPassword | null> {
     const user = await this.usersService.findByEmail(email);
-    // unknown email
-    if (!user) return null;
+
+    // No active account — check if this email belonged to a deleted account.
+    // If the password also matches we show an informative "data deleted" message.
+    if (!user) {
+      const emailHash = this.usersService.hashEmail(email);
+      const deleted =
+        await this.usersService.findDeletedAccountByEmailHash(emailHash);
+      if (deleted?.passwordHash) {
+        const passwordMatches = await bcrypt.compare(
+          password,
+          deleted.passwordHash,
+        );
+        if (passwordMatches) {
+          throw new DeletedAccountException(deleted.deletionReason);
+        }
+      }
+      return null;
+    }
 
     // OAuth-only account — no password hash set
     if (!user.password || user.password.length === 0) {
@@ -735,5 +756,57 @@ export class AuthService {
       throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
     }
     return !!user.password && user.password.length > 0;
+  }
+
+  // ─── MFA / TOTP ────────────────────────────────────────────────────────────
+
+  /**
+   * Initiate MFA setup: generate a TOTP secret and QR code for the user.
+   * MFA is NOT yet active — the user must verify a code via enableMfa().
+   */
+  async setupMfa(userId: string): Promise<TotpSetupData> {
+    return this.totpService.setupMfa(userId);
+  }
+
+  /**
+   * Verify the first TOTP code and activate MFA for the user.
+   */
+  async enableMfa(userId: string, token: string): Promise<boolean> {
+    return this.totpService.enableMfa(userId, token);
+  }
+
+  /**
+   * Verify a TOTP token and, if valid, return an MFA-elevated JWT.
+   * The elevated JWT carries `mfaVerified: true` and expires in 8 hours.
+   * Required before admin endpoints can be accessed (SAQ Q35 / GAP-2).
+   */
+  async verifyMfaAndElevate(
+    userId: string,
+    email: string,
+    token: string,
+  ): Promise<{ access_token: string } | null> {
+    const valid = await this.totpService.verifyMfa(userId, token);
+    if (!valid) return null;
+
+    const elevatedToken = this.jwtService.sign(
+      { sub: userId, email, mfaVerified: true },
+      { expiresIn: MFA_TOKEN_EXPIRY },
+    );
+    this.logger.log(`[MFA] Elevated JWT issued for user ${userId}`);
+    return { access_token: elevatedToken };
+  }
+
+  /**
+   * Disable MFA after verifying the current TOTP code.
+   */
+  async disableMfa(userId: string, token: string): Promise<boolean> {
+    return this.totpService.disableMfa(userId, token);
+  }
+
+  /**
+   * Return the MFA enabled status for the authenticated user.
+   */
+  async getMfaStatus(userId: string): Promise<{ enabled: boolean }> {
+    return this.totpService.getMfaStatus(userId);
   }
 }

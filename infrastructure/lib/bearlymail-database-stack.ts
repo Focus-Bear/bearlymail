@@ -28,6 +28,7 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
    */
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
 
+
   constructor(
     scope: Construct,
     id: string,
@@ -80,7 +81,7 @@ export class BearlyMailDatabaseStack extends cdk.Stack {
       deleteAutomatedBackups: false,
       removalPolicy: cdk.RemovalPolicy.RETAIN, // Don't delete DB on stack deletion
       deletionProtection: false, // Set to true in production
-      multiAz: false, // Set to true for production HA
+      multiAz: true,
       publiclyAccessible: false,
       enablePerformanceInsights: true,
       performanceInsightRetention: rds.PerformanceInsightRetention.DEFAULT,

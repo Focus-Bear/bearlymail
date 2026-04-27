@@ -38,7 +38,7 @@ export function useEmailDetailState() {
   // Reply state
   const [draft, setDraft] = useState<string | null>(null);
   const [replyOptions, setReplyOptions] = useState<Array<{ label: string; text: string }> | null>(null);
-  const [selectedReplyOption, setSelectedReplyOption] = useState<number>(0);
+  const [selectedReplyOption, setSelectedReplyOption] = useState<number>(-1);
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll' | 'forward'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');

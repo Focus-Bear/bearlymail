@@ -108,13 +108,10 @@ describe('AuthContext', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(localStorage.getItem('token')).toBe('test-token');
-      });
-
-      await waitFor(() => {
-        expect(axios.defaults.headers.common['Authorization']).toBe('Bearer test-token');
-      });
+      // JWT is now stored in an HttpOnly cookie by the server — NOT in localStorage
+      expect(localStorage.getItem('token')).toBeNull();
+      // No manual Authorization header — cookie is sent automatically via withCredentials
+      expect(axios.defaults.headers.common['Authorization']).toBeUndefined();
 
       await waitFor(() => {
         expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_logged_in', {
@@ -208,9 +205,8 @@ describe('AuthContext', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(localStorage.getItem('token')).toBe('test-token');
-      });
+      // JWT is set in an HttpOnly cookie by the server — NOT in localStorage
+      expect(localStorage.getItem('token')).toBeNull();
 
       await waitFor(() => {
         expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_registered');
@@ -302,10 +298,12 @@ describe('AuthContext', () => {
   });
 
   describe('logout', () => {
-    it('should logout user and clear token', async () => {
-      // Set up logged in state
-      localStorage.setItem('token', 'test-token');
-      axios.defaults.headers.common['Authorization'] = 'Bearer test-token';
+    it('should logout user, clear legacy localStorage token, and call server logout', async () => {
+      // Set up a legacy localStorage token (simulating a pre-migration session)
+      localStorage.setItem('token', 'legacy-token');
+      axios.defaults.headers.common['Authorization'] = 'Bearer legacy-token';
+      // Logout calls POST /auth/logout to clear the HttpOnly cookie
+      mockedAxios.post.mockResolvedValue({ data: { success: true } });
 
       render(
         <AuthProvider>
@@ -316,13 +314,20 @@ describe('AuthContext', () => {
       const logoutButton = screen.getByText('Logout');
       await userEvent.click(logoutButton);
 
+      // Legacy localStorage token removed
       await waitFor(() => {
         expect(localStorage.getItem('token')).toBeNull();
       });
 
+      // Authorization header cleared
       expect(axios.defaults.headers.common['Authorization']).toBeUndefined();
       expect(mockedPosthog.captureEvent).toHaveBeenCalledWith('user_logged_out');
       expect(mockedPosthog.resetPostHog).toHaveBeenCalled();
+
+      // Server logout called to clear the HttpOnly cookie
+      await waitFor(() => {
+        expect(mockedAxios.post).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'));
+      });
     });
   });
 

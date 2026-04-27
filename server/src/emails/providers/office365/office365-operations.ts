@@ -267,6 +267,26 @@ export async function searchEmailsViaOffice365(
 }
 
 /**
+ * Fetch all messages in a thread via Office365 using conversationId filter.
+ */
+export async function fetchThreadMessagesViaOffice365(
+  graphClient: AxiosInstance,
+  threadId: string,
+  limit: number,
+): Promise<MicrosoftGraphMessage[]> {
+  const response = await graphClient.get("/me/messages", {
+    params: {
+      $filter: `conversationId eq '${threadId}'`,
+      $top: limit,
+      $select:
+        "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance",
+    },
+  });
+
+  return response.data.value || [];
+}
+
+/**
  * Handle auth error with retry using refreshed token
  */
 export function isAuthError(error: unknown): boolean {

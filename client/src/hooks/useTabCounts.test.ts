@@ -7,11 +7,17 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3';
+const TAB_COUNTS_POLL_INTERVAL_MS = 60_000;
 
 describe('useTabCounts', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('initialization', () => {
@@ -224,6 +230,239 @@ describe('useTabCounts', () => {
       });
 
       expect(result.current.tabCounts).toEqual({ triage: 9, action: 6, followUp: 2 });
+    });
+  });
+
+  describe('background polling', () => {
+    it('should not poll before the first fetch has occurred', async () => {
+      renderHook(() => useTabCounts());
+
+      // Advance time past one poll interval — no fetch should happen since
+      // hasEverFetchedRef is still false
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+      });
+
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it('should poll with force=true after the first fetch completes', async () => {
+      const initialCounts = { triage: 5, action: 3, followUp: 1 };
+      const updatedCounts = { triage: 8, action: 3, followUp: 1 };
+      mockedAxios.get
+        .mockResolvedValueOnce({ data: initialCounts })
+        .mockResolvedValueOnce({ data: updatedCounts });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      // First explicit fetch
+      await act(async () => {
+        await result.current.fetchTabCounts(true);
+      });
+
+      expect(result.current.tabCounts).toEqual(initialCounts);
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+      // Advance time to trigger the background poll
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+      });
+
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+      });
+
+      expect(result.current.tabCounts).toEqual(updatedCounts);
+    });
+
+    it('should use the last-used filters when polling', async () => {
+      const filters = { minPriority: 30 };
+      const initialCounts = { triage: 2, action: 1, followUp: 0 };
+      const updatedCounts = { triage: 5, action: 1, followUp: 0 };
+      mockedAxios.get
+        .mockResolvedValueOnce({ data: initialCounts })
+        .mockResolvedValueOnce({ data: updatedCounts });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      // Fetch with filters
+      await act(async () => {
+        await result.current.fetchTabCounts(true, filters);
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.stringContaining('minPriority=30'),
+        expect.anything()
+      );
+
+      // Trigger background poll
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+      });
+
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+      });
+
+      // The poll should have used the same filters
+      expect(mockedAxios.get).toHaveBeenLastCalledWith(
+        expect.stringContaining('minPriority=30'),
+        expect.anything()
+      );
+      expect(result.current.tabCounts).toEqual(updatedCounts);
+    });
+
+    it('should poll repeatedly on each interval tick', async () => {
+      const counts = { triage: 1, action: 1, followUp: 0 };
+      mockedAxios.get.mockResolvedValue({ data: counts });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      await act(async () => {
+        await result.current.fetchTabCounts(true);
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+      // Advance three full poll intervals
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 3);
+      });
+
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledTimes(4); // 1 initial + 3 polls
+      });
+    });
+
+    it('should not set loading=true during background poll (silent mode)', async () => {
+      const initialCounts = { triage: 5, action: 3, followUp: 1 };
+      const updatedCounts = { triage: 8, action: 3, followUp: 1 };
+
+      let resolveBackgroundFetch!: (value: unknown) => void;
+      mockedAxios.get
+        .mockResolvedValueOnce({ data: initialCounts })
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveBackgroundFetch = resolve;
+            })
+        );
+
+      const { result } = renderHook(() => useTabCounts());
+
+      // First explicit fetch — loading should cycle true → false
+      await act(async () => {
+        await result.current.fetchTabCounts(true);
+      });
+      expect(result.current.loading).toBe(false);
+
+      // Advance timer to trigger background poll — loading must NOT become true
+      act(() => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+      });
+      expect(result.current.loading).toBe(false);
+
+      // Resolve the background fetch — loading should still remain false
+      await act(async () => {
+        resolveBackgroundFetch({ data: updatedCounts });
+      });
+      expect(result.current.loading).toBe(false);
+      expect(result.current.tabCounts).toEqual(updatedCounts);
+    });
+
+    it('should discard stale poll results when filters have changed', async () => {
+      const filterA = { minPriority: 10 };
+      const filterB = { minPriority: 50 };
+      const countsForA = { triage: 20, action: 10, followUp: 5 };
+      const countsForB = { triage: 3, action: 1, followUp: 0 };
+
+      let resolveSlowFetch!: (value: unknown) => void;
+      mockedAxios.get
+        // First call: slow fetch for filterA (simulates in-flight poll)
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveSlowFetch = resolve;
+            })
+        )
+        // Second call: fast fetch for filterB
+        .mockResolvedValueOnce({ data: countsForB });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      // Start fetch for filterA (in flight, not yet resolved)
+      const fetchAPromise = result.current.fetchTabCounts(true, filterA);
+
+      // Immediately start fetch for filterB — this updates currentCacheKeyRef to keyB
+      await act(async () => {
+        await result.current.fetchTabCounts(true, filterB);
+      });
+
+      expect(result.current.tabCounts).toEqual(countsForB);
+
+      // Now resolve the stale filterA fetch — state should NOT be overwritten
+      await act(async () => {
+        resolveSlowFetch({ data: countsForA });
+        await fetchAPromise;
+      });
+
+      // Counts should still reflect filterB, not the stale filterA result
+      expect(result.current.tabCounts).toEqual(countsForB);
+    });
+
+    it('should stop polling when the hook unmounts', async () => {
+      const counts = { triage: 1, action: 0, followUp: 0 };
+      mockedAxios.get.mockResolvedValue({ data: counts });
+
+      const { result, unmount } = renderHook(() => useTabCounts());
+
+      await act(async () => {
+        await result.current.fetchTabCounts(true);
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+      unmount();
+
+      // Advance past the poll interval — no further requests should fire
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS * 2);
+      });
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('should start polling after a cache hit on first fetch', async () => {
+      const cachedCounts = { triage: 3, action: 2, followUp: 1 };
+      localStorage.setItem(
+        TAB_COUNTS_CACHE_KEY,
+        JSON.stringify({ counts: cachedCounts, timestamp: Date.now() })
+      );
+
+      const updatedCounts = { triage: 6, action: 2, followUp: 1 };
+      mockedAxios.get.mockResolvedValue({ data: updatedCounts });
+
+      const { result } = renderHook(() => useTabCounts());
+
+      // First fetch hits the cache (no API call)
+      await act(async () => {
+        await result.current.fetchTabCounts();
+      });
+
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+      expect(result.current.tabCounts).toEqual(cachedCounts);
+
+      // Background poll should still fire and call the API with force=true
+      await act(async () => {
+        jest.advanceTimersByTime(TAB_COUNTS_POLL_INTERVAL_MS);
+      });
+
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+      });
+
+      expect(result.current.tabCounts).toEqual(updatedCounts);
     });
   });
 });

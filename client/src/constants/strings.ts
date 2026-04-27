@@ -320,6 +320,10 @@ export const ERROR_TYPE_PENDING_APPROVAL = 'pending_approval' as const;
 export const ERROR_TYPE_NOT_ON_WAITLIST = 'not_on_waitlist' as const;
 export const ERROR_TYPE_AUTH_ERROR = 'auth_error' as const;
 
+// Deletion reasons (must match server DeletionReason enum)
+export const DELETION_REASON_INACTIVITY = 'inactivity' as const;
+export const DELETION_REASON_MANUAL = 'manual' as const;
+
 // Booking Status
 export const BOOKING_IDLE = 'idle' as const;
 export const BOOKING_SUBMITTING = 'submitting' as const;
@@ -451,6 +455,7 @@ export const QA_TAB_APPROVED = 'approved' as const;
 
 // Auth error types
 export const AUTH_ERROR_OAUTH_ONLY = 'OAUTH_ONLY_ACCOUNT' as const;
+export const AUTH_ERROR_ACCOUNT_DELETED = 'ACCOUNT_DELETED' as const;
 
 // Environment values
 export const ENV_PRODUCTION = 'production' as const;

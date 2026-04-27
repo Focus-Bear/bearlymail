@@ -162,6 +162,7 @@ export async function sendReplyViaZoho(
 export async function sendEmailViaZoho(
   zohoClient: AxiosInstance,
   zohoAccountId: string,
+  fromAddress: string,
   params: {
     to: Array<{ email: string; name?: string }>;
     subject: string;
@@ -171,41 +172,25 @@ export async function sendEmailViaZoho(
   },
 ): Promise<{ messageId: string; threadId: string }> {
   const { to, subject, body: htmlBody, cc, bcc } = params;
-  interface ZohoRecipient {
-    address: string;
-    personal?: string;
-  }
-  interface ZohoMessageBody {
-    to: ZohoRecipient[];
-    subject: string;
-    content: { html: string };
-    cc?: ZohoRecipient[];
-    bcc?: ZohoRecipient[];
-  }
-  const message: ZohoMessageBody = {
-    to: to.map((result) => ({ address: result.email, personal: result.name })),
+
+  const message: Record<string, string> = {
+    fromAddress,
+    toAddress: to.map((recipient) => recipient.email).join(','),
     subject,
-    content: { html: htmlBody },
+    content: htmlBody,
   };
 
-  if (cc?.length)
-    message.cc = cc.map((result) => ({
-      address: result.email,
-      personal: result.name,
-    }));
-  if (bcc?.length)
-    message.bcc = bcc.map((result) => ({
-      address: result.email,
-      personal: result.name,
-    }));
+  if (cc?.length) message.ccAddress = cc.map((recipient) => recipient.email).join(',');
+  if (bcc?.length) message.bccAddress = bcc.map((recipient) => recipient.email).join(',');
 
   const response = await zohoClient.post(
     `/accounts/${zohoAccountId}/messages`,
     message,
   );
-  const messageId = response.data.data?.uid || `msg-${Date.now()}`;
 
-  return { messageId, threadId: response.data.data?.threadId || messageId };
+  const responseData = response.data.data;
+  const messageId = responseData?.messageId || `msg-${Date.now()}`;
+  return { messageId, threadId: responseData?.threadId || messageId };
 }
 
 /**
@@ -221,6 +206,26 @@ export async function searchEmailsViaZoho(
     `/accounts/${zohoAccountId}/messages/search`,
     {
       params: { query, limit: maxResults },
+    },
+  );
+  return response.data.data || [];
+}
+
+/**
+ * Fetch all messages in a thread via Zoho using the threadId parameter.
+ * Unlike searchEmails which uses Gmail-style query syntax that Zoho doesn't support,
+ * this uses Zoho's direct messages endpoint with threadId param.
+ */
+export async function fetchThreadMessagesViaZoho(
+  zohoClient: AxiosInstance,
+  zohoAccountId: string,
+  threadId: string,
+  limit: number,
+): Promise<ZohoMailMessage[]> {
+  const response = await zohoClient.get(
+    `/accounts/${zohoAccountId}/messages`,
+    {
+      params: { threadId, limit },
     },
   );
   return response.data.data || [];

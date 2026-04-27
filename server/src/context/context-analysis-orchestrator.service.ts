@@ -288,7 +288,7 @@ export class ContextAnalysisOrchestratorService {
     analysisRecord.fetchedSentCount = 0;
     await this.contextAnalysisRepository.save(analysisRecord);
 
-    const generalThreadIds = await this.gmailDataService.getThreadIdsFromGmail(
+    const generalThreadIds = await this.gmailDataService.getThreadIdsFromProvider(
       userId,
       twelveDaysAgo,
       fiveDaysAgo,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -77,6 +78,7 @@ export function useEmailDetailOperations(
     setDraft,
     replyOptions,
     setReplyOptions,
+    selectedReplyOption,
     setSelectedReplyOption,
     setShowReplyComposer,
     replyMode,
@@ -315,7 +317,15 @@ export function useEmailDetailOperations(
         });
         setGithubLinks(uniqueLinks);
         setLoadingGithub(false);
-        console.debug('[GitHub] fetchEmail: server returned links, fetchGithubInfo will refresh in background', {
+        // Mark as fetched so fetchGithubInfo skips the API call and doesn't overwrite these links.
+        // fetchGithubInfo runs immediately after fetchEmail (before React re-renders), so
+        // emailRef.current is still the previous email — if we don't set this, fetchGithubInfo
+        // will call the API and overwrite server-provided links with potentially empty results.
+        // Server returning links implies a valid GitHub token, so set hasToken to avoid
+        // showing the connection prompt.
+        setHasGithubToken(true);
+        githubFetchedRef.current = id ?? null;
+        console.debug('[GitHub] fetchEmail: server returned links, marked as fetched to prevent overwrite', {
           emailId: id,
           linkCount: uniqueLinks.length,
           links: uniqueLinks.map((link: GitHubLink) => link.url),
@@ -616,6 +626,7 @@ export function useEmailDetailOperations(
       replyOptions,
       setReplyOptions,
       setDraft,
+      selectedReplyOption,
       setSelectedReplyOption,
       setLoadingReplies,
       setReplyMode,
@@ -630,7 +641,7 @@ export function useEmailDetailOperations(
     user?.email
   );
 
-  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer } = draftOps;
+  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer, generateFromCustomPrompt, generatingFromCustomPrompt } = draftOps;
 
   // Archive, snooze and delete operations extracted to sub-hook
   const archiveOps = useEmailDetailArchiveOps({
@@ -683,7 +694,9 @@ export function useEmailDetailOperations(
         const controller = new AbortController();
         toneCheckAbortRef.current = controller;
 
-        setCheckingTone(true);
+        // flushSync ensures the toast is painted before the async API call starts,
+        // preventing React 18 batching from deferring the visible=true render.
+        flushSync(() => setCheckingTone(true));
         try {
           const toneResponse = await axios.post(
             `${API_URL}/llm/check-tone`,
@@ -958,6 +971,8 @@ export function useEmailDetailOperations(
     handleCreateCustomRule,
     handleOpenReplyComposer,
     handleGenerateDraft,
+    generateFromCustomPrompt,
+    generatingFromCustomPrompt,
     handleSendReply,
     cancelToneCheck,
     disputeToneCheck,

@@ -192,6 +192,7 @@
     "authenticationFailed": "Error de autenticación",
     "confirmPassword": "Confirmar contraseña",
     "continueWithGoogle": "Continuar con Google",
+    "continueWithZoho": "Continuar con Zoho",
     "email": "Correo electrónico",
     "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
@@ -238,6 +239,12 @@
         "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
         "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA."
       },
+      "zoho": {
+        "title": "Acceso a Zoho",
+        "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
+        "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA.",
+        "continue": "continuar con Zoho"
+      },
       "calendar": {
         "title": "Eventos del calendario",
         "description": "Ver tu disponibilidad y crear invitaciones de reuniones. BearlyMail solo gestiona eventos de calendario, no tus calendarios en sí."
@@ -270,6 +277,13 @@
       "title": "Esta cuenta usa inicio de sesión social",
       "description": "Por favor usa \"Continuar con Google\" arriba, o establece una contraseña mediante",
       "forgotPasswordLink": "Contraseña olvidada"
+    },
+    "deletedAccountError": {
+      "inactivityTitle": "Tu cuenta fue eliminada por inactividad",
+      "inactivityDescription": "Tu cuenta y todos los datos asociados fueron eliminados automáticamente después de 30 días de inactividad, según lo descrito en nuestra",
+      "manualTitle": "Tu cuenta ha sido eliminada",
+      "manualDescription": "Tu cuenta y todos los datos asociados fueron eliminados según lo solicitado, según lo descrito en nuestra",
+      "privacyPolicyLink": "Política de Privacidad"
     },
     "forgotPassword": {
       "title": "Contraseña olvidada",
@@ -756,8 +770,8 @@
     "archive": "Archivar",
     "snooze": "Posponer",
     "snoozeUntil": "Posponer hasta",
-    "snoozeTooltip": "Ingresa un tiempo como '2h', 'mañana', 'próximo lunes' o 'en 3 días'",
-    "snoozePlaceholder": "ej., mañana...",
+    "snoozeTooltip": "Ingresa un tiempo como '4h', '5pm', 'mié 3pm', 'mañana' o 'próximo lunes'",
+    "snoozePlaceholder": "ej., 4h, 5pm, mañana...",
     "toggleStar": "Alternar estrella"
   },
   "emailDetail": {
@@ -866,10 +880,13 @@
       "neutral": "Neutral",
       "positive": "Positivo"
     },
-    "snooze": "Siesta",
-    "snoozePlaceholder": "2h, mañana...",
+    "snooze": "Posponer",
+    "snoozePlaceholder": "4h, 5pm, mañana...",
     "suggestActions": "Sugerir acciones",
     "suggestedReplies": "Respuestas sugeridas",
+    "customReplyPromptPlaceholder": "Describe cómo quieres responder...",
+    "generateCustomReply": "Generar",
+    "generatingCustomReply": "Generando...",
     "suggestedRevision": "Revisión sugerida:",
     "summaryTypes": {
       "actionItems": "Elementos de acción",
@@ -1122,6 +1139,8 @@
     "saveToken": "Guardar token",
     "status": "Estado de GitHub",
     "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
+    "linksCount": "{{count}} enlace",
+    "linksCount_plural": "{{count}} enlaces",
     "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
     "connectionPrompt": {
       "title": "Conectar GitHub para obtener información mejorada",
@@ -1453,7 +1472,8 @@
       "recategorizeNone": "No hay correos para recategorizar en triaje, acción o seguimiento.",
       "recategorizeError": "No se pudo iniciar la recategorización. Por favor, inténtalo de nuevo.",
       "loadingContent": "Cargando correos...",
-      "dangerousPhishing": "PELIGROSO: posible intento de phishing"
+      "dangerousPhishing": "PELIGROSO: posible intento de phishing",
+      "newsletterBlockTip": "💡 Bloquea remitentes rápidamente - ahorra tiempo en comparación con tener que encontrar la forma de darse de baja"
     },
     "protoCategory": {
       "convertToCategory": "Convertir a categoría",
@@ -1564,6 +1584,7 @@
     "noUrgentEmails": "No se encontraron correos urgentes.",
     "noUrgentEmailsFound": "No se encontraron correos urgentes. Verifica nuevamente en la próxima entrega por lotes.",
     "note": "Nota",
+    "phishingFlag": "Phishing",
     "unknownDate": "fecha desconocida",
     "otherActions": "Otras acciones",
     "pressDeleteToArchive": "Presiona Eliminar para archivar",
@@ -2654,6 +2675,29 @@
       "updateButton": "Actualizar contraseña",
       "success": "¡Contraseña establecida correctamente! Ahora puedes iniciar sesión con tu correo electrónico y contraseña.",
       "error": "Error al establecer la contraseña. Por favor intenta de nuevo."
+    },
+    "mfa": {
+      "title": "Autenticación de Dos Factores (MFA)",
+      "descriptionEnabled": "La autenticación de dos factores está activa. Tu cuenta requiere un código único de tu aplicación de autenticación para acceder a funciones de administrador.",
+      "descriptionDisabled": "Las cuentas de administrador deben tener la autenticación de dos factores (MFA) habilitada. Configura una aplicación de autenticación (p. ej. Google Authenticator, Authy) para proteger tu cuenta.",
+      "statusEnabled": "Habilitado",
+      "statusDisabled": "No habilitado",
+      "setupButton": "Configurar MFA",
+      "disableButton": "Deshabilitar MFA",
+      "setupInstructions": "Abre tu aplicación de autenticación (Google Authenticator, Authy, 1Password, etc.), elige 'Agregar cuenta' → 'Ingresar clave de configuración' e ingresa la clave secreta a continuación. Luego ingresa el código de 6 dígitos para confirmar.",
+      "secretKeyLabel": "Clave secreta",
+      "openAppInstructions": "¿En móvil? Toca para",
+      "openInApp": "abrir en la aplicación de autenticación",
+      "enterCodePrompt": "Ingresa el código de 6 dígitos de tu aplicación de autenticación:",
+      "tokenLabel": "Código de autenticación de 6 dígitos",
+      "tokenLengthError": "Por favor ingresa un código de 6 dígitos",
+      "confirmButton": "Confirmar y habilitar",
+      "disableConfirmButton": "Confirmar deshabilitación",
+      "disableConfirmPrompt": "Ingresa tu código de autenticación actual de 6 dígitos para deshabilitar MFA:",
+      "enabledSuccess": "MFA habilitado correctamente. Tu cuenta de administrador ahora está protegida con autenticación de dos factores.",
+      "disabledSuccess": "MFA ha sido deshabilitado.",
+      "setupError": "Error al iniciar la configuración de MFA. Por favor intenta de nuevo.",
+      "verifyError": "Código inválido. Por favor verifica tu aplicación de autenticación e intenta de nuevo."
     },
     "noContext": "Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
     "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",

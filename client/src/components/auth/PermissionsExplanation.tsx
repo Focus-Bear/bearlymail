@@ -5,11 +5,12 @@ import { theme } from 'theme/theme';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_SHIELD } from 'constants/emojis';
 import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
-import { STRING_NONE } from 'constants/strings';
+import { PROVIDER_GOOGLE, STRING_NONE } from 'constants/strings';
 
 interface PermissionsExplanationProps {
   onContinue: () => void;
   onCancel: () => void;
+  provider: 'google' | 'zoho';
 }
 
 interface PermissionItemProps {
@@ -43,11 +44,14 @@ const PermissionItem: React.FC<PermissionItemProps> = ({ icon, title, descriptio
 
 interface PermissionsContentProps {
   t: (key: string) => string;
+  provider: 'google' | 'zoho';
 }
 
-const PermissionsContent: React.FC<PermissionsContentProps> = ({ t }) => (
+const PermissionsContent: React.FC<PermissionsContentProps> = ({ t, provider}) => (
   <>
     <div style={{ marginBottom: theme.spacing.xl }}>
+      { provider === PROVIDER_GOOGLE ?
+      (<>
       <PermissionItem
         icon="📧"
         title={t('auth.permissions.gmail.title')}
@@ -90,6 +94,42 @@ const PermissionsContent: React.FC<PermissionsContentProps> = ({ t }) => (
         title={t('auth.permissions.contacts.title')}
         description={t('auth.permissions.contacts.description')}
       />
+      </>) : (
+        <>
+        <PermissionItem
+        icon="📧"
+        title={t('auth.permissions.zoho.title')}
+        description={t('auth.permissions.zoho.description')}
+      />
+      <div
+        style={{
+          backgroundColor: `${theme.colors.success.main}08`,
+          border: `1px solid ${theme.colors.success.main}30`,
+          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.md,
+          marginTop: `-${theme.spacing.sm}`,
+          marginBottom: theme.spacing.lg,
+          marginLeft: `calc(${theme.typography.fontSize['2xl']} + ${theme.spacing.md})`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: theme.spacing.sm,
+        }}
+      >
+        <span style={{ fontSize: theme.typography.fontSize.sm }}>{EMOJI_SHIELD}</span>
+        <p
+          style={{
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.xs,
+            lineHeight: 1.5,
+            margin: 0,
+            fontStyle: 'italic',
+          }}
+        >
+          {t('auth.permissions.zoho.sendClarification')}
+        </p>
+      </div>
+        </>
+        )}
     </div>
 
     <div
@@ -118,10 +158,11 @@ const PermissionsContent: React.FC<PermissionsContentProps> = ({ t }) => (
 interface PermissionsActionsProps {
   onCancel: () => void;
   onContinue: () => void;
+  provider: 'google' | 'zoho';
   t: (key: string) => string;
 }
 
-const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onContinue, t }) => (
+const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onContinue, provider, t }) => (
   <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
     <button
       onClick={onCancel}
@@ -157,7 +198,7 @@ const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onCon
         event.currentTarget.style.backgroundColor = theme.colors.primary.main;
       }}
     >
-      {t('auth.permissions.continue')}
+     {provider === PROVIDER_GOOGLE ? t('auth.permissions.continue') : t('auth.permissions.zoho.continue')}
     </button>
   </div>
 );
@@ -167,7 +208,7 @@ const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onCon
  * Shown before Google OAuth to explain why BearlyMail needs each permission
  * Only shown once per user (tracked via localStorage)
  */
-export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ onContinue, onCancel }) => {
+export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ onContinue,provider, onCancel }) => {
   const { t } = useTranslation();
 
   return (
@@ -219,8 +260,8 @@ export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ 
           {t('auth.permissions.intro')}
         </p>
 
-        <PermissionsContent t={t} />
-        <PermissionsActions onCancel={onCancel} onContinue={onContinue} t={t} />
+        <PermissionsContent provider={provider} t={t} />
+        <PermissionsActions onCancel={onCancel} onContinue={onContinue} provider={provider}  t={t} />
       </div>
     </div>
   );

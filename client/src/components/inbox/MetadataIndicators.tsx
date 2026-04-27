@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
+import { shouldShowPhishingAlert } from 'components/email-detail/emailPhishingWarning.helpers';
 import { EMOJI_CHECK, EMOJI_NOTE } from 'constants/emojis';
 
 const EMOJI_ROBOT = '🤖';
+const EMOJI_PHISHING = '🛑';
 
 interface MetadataIndicatorsProps {
   email: Email;
@@ -14,11 +16,13 @@ interface MetadataIndicatorsProps {
 export const MetadataIndicators: React.FC<MetadataIndicatorsProps> = ({ email }) => {
   const { t } = useTranslation();
   const hasAutoResponseMetadata = email.autoResponseCount !== undefined && email.autoResponseCount > 0;
+  const showPhishingBadge = shouldShowPhishingAlert(email.phishingConfidence);
 
   const hasIndicators =
     (email.actionItemsCount !== undefined && email.actionItemsCount > 0) ||
     email.hasPrivateNote ||
-    hasAutoResponseMetadata;
+    hasAutoResponseMetadata ||
+    showPhishingBadge;
 
   if (!hasIndicators) {
     return null;
@@ -35,6 +39,23 @@ export const MetadataIndicators: React.FC<MetadataIndicatorsProps> = ({ email })
         alignItems: 'center',
       }}
     >
+      {showPhishingBadge && (
+        <span
+          data-testid="phishing-badge"
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.error.main,
+            backgroundColor: theme.colors.error.light,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.sm,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+          }}
+        >
+          {EMOJI_PHISHING} {t('inbox.phishingFlag')}
+        </span>
+      )}
       {hasAutoResponseMetadata && (
         <span
           style={{

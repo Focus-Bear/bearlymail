@@ -7,7 +7,6 @@ import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cloudfrontOrigins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
@@ -18,6 +17,12 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
+import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
+import * as config from 'aws-cdk-lib/aws-config';
+import * as guardduty from 'aws-cdk-lib/aws-guardduty';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as path from 'path';
 import { Construct } from 'constructs';
 
 export interface BearlyMailStackProps extends cdk.StackProps {
@@ -49,6 +54,10 @@ export interface BearlyMailStackProps extends cdk.StackProps {
    * AppStack calls grantSendMessages(taskRole) and injects queueUrl into container environments.
    */
   emailPrioritisationQueue?: sqs.Queue;
+  /** RDS Proxy endpoint — used as DB_HOST for all ECS containers */
+  rdsProxyEndpoint: string;
+  /** RDS Proxy security group (from BearlyMailDatabaseStack) — ecsSecurityGroup ingress rule added here */
+  rdsProxySecurityGroup: ec2.ISecurityGroup;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -78,6 +87,40 @@ export class BearlyMailStack extends cdk.Stack {
     const database = props.database;
     const dbSecret = props.dbSecret;
     const appSecrets = props.appSecrets;
+
+    // ============================================
+    // ECS Security Group
+    //
+    // Created here (not in DatabaseStack) to prevent a CDK dependency cycle.
+    // ApplicationLoadBalancedFargateService auto-adds an ALB→ECS ingress rule;
+    // if the security group were in DatabaseStack that rule would create an
+    // implicit DatabaseStack→BearlyMailStack reference, cycling with the
+    // explicit BearlyMailStack→DatabaseStack dependency.
+    //
+    // The RDS Proxy ingress rule is added via CfnSecurityGroupIngress (below)
+    // so it stays in this stack and only creates the safe direction:
+    // BearlyMailStack→DatabaseStack.
+    // ============================================
+    const ecsSecurityGroup = new ec2.SecurityGroup(this, 'EcsSecurityGroup', {
+      vpc,
+      description: 'Security group for ECS tasks (web, worker, cron) to allow RDS Proxy access',
+      allowAllOutbound: true,
+    });
+
+    // Allow ECS tasks to connect to the RDS Proxy.
+    // Using CfnSecurityGroupIngress keeps the resource in this stack
+    // (BearlyMailStack references rdsProxySecurityGroup from DatabaseStack —
+    // already the safe direction). If we called rdsProxySecurityGroup.addIngressRule()
+    // instead, CDK would place the rule in DatabaseStack referencing our ALB SG,
+    // recreating the cycle.
+    new ec2.CfnSecurityGroupIngress(this, 'EcsToRdsProxyIngress', {
+      groupId: props.rdsProxySecurityGroup.securityGroupId,
+      sourceSecurityGroupId: ecsSecurityGroup.securityGroupId,
+      ipProtocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      description: 'Allow ECS tasks to connect via RDS Proxy',
+    });
 
     // ============================================
     // ECS Cluster
@@ -135,23 +178,186 @@ export class BearlyMailStack extends cdk.Stack {
     props.emailPrioritisationQueue?.grantSendMessages(taskRole);
 
     // ============================================
+    // Feedback Screenshots Bucket (private, AV-scanned via GuardDuty)
+    // ============================================
+    const feedbackScreenshotsBucket = new s3.Bucket(this, 'FeedbackScreenshotsBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      lifecycleRules: [
+        {
+          // Auto-delete screenshots after 90 days (feedback data retention)
+          expiration: cdk.Duration.days(90),
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Grant ECS task role access to the screenshots bucket
+    feedbackScreenshotsBucket.grantPut(taskRole);
+    feedbackScreenshotsBucket.grantRead(taskRole);
+    feedbackScreenshotsBucket.grantDelete(taskRole);
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObjectTagging'],
+      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    }));
+
+    // ============================================
+    // GuardDuty Malware Protection for S3 (GAP-1)
+    // ============================================
+    // IAM role that GuardDuty assumes to read objects and write scan result tags.
+    // Trust policy scoped to this account to prevent confused-deputy attacks.
+    const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
+      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': this.account },
+        },
+      }),
+      description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
+    });
+    // Exclude from the account-wide permissions boundary (PermissionsBoundaryAspect in bin/app.ts).
+    // The boundary policy does not include the S3 bucket-ownership-validation actions that GuardDuty
+    // requires, so applying it would silently deny those permissions at the effective-policy level.
+    guardDutyMalwareRole.node.addMetadata('bearlymail:skip-permissions-boundary', true);
+
+    // Object-level permissions (read content, write scan result tag)
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject',
+        's3:GetObjectVersion',
+        's3:PutObjectTagging',
+        's3:GetObjectTagging',
+      ],
+      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    }));
+
+    // Bucket-level permissions — required for GuardDuty to validate bucket ownership
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketOwnershipControls',
+        's3:GetBucketAcl',
+        's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicy',
+        's3:GetBucketPolicyStatus',
+      ],
+      resources: [feedbackScreenshotsBucket.bucketArn],
+    }));
+
+    // Explicit bucket policy statements for GuardDuty role.
+    // GuardDuty validates the role's permissions synchronously when creating
+    // the MalwareProtectionPlan. Adding the permissions to the bucket policy
+    // (in addition to the role's inline policy) ensures they are visible
+    // regardless of IAM propagation timing.
+    feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [guardDutyMalwareRole],
+      actions: [
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketOwnershipControls',
+        's3:GetBucketAcl',
+        's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicy',
+        's3:GetBucketPolicyStatus',
+        's3:GetObject',
+        's3:GetObjectVersion',
+        's3:PutObjectTagging',
+        's3:GetObjectTagging',
+      ],
+      resources: [
+        feedbackScreenshotsBucket.bucketArn,
+        feedbackScreenshotsBucket.arnForObjects('*'),
+      ],
+    }));
+
+    const malwareProtectionPlan = new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
+      role: guardDutyMalwareRole.roleArn,
+      protectedResource: {
+        s3Bucket: {
+          bucketName: feedbackScreenshotsBucket.bucketName,
+          objectPrefixes: ['feedback/'],
+        },
+      },
+      actions: {
+        tagging: { status: 'ENABLED' },
+      },
+    });
+    // Ensure the role's inline policy (DefaultPolicy) is fully attached before
+    // GuardDuty validates the role's permissions during plan creation.
+    // Without this, CloudFormation may attempt to create the plan before the
+    // policy resource is complete, causing an IAM permissions validation failure.
+    const guardDutyRolePolicy = guardDutyMalwareRole.node.tryFindChild('DefaultPolicy') as cdk.CfnResource | undefined;
+    if (guardDutyRolePolicy) {
+      malwareProtectionPlan.addDependsOn(guardDutyRolePolicy);
+    }
+    // Ensure bucket policy is applied before GuardDuty validates permissions.
+    // GuardDuty validates the bucket policy synchronously during plan creation,
+    // so the bucket policy resource must exist before the plan is created.
+    if (feedbackScreenshotsBucket.policy) {
+      malwareProtectionPlan.addDependsOn(feedbackScreenshotsBucket.policy.node.defaultChild as cdk.CfnResource);
+    }
+
+    // Lambda: Delete malicious files detected by GuardDuty
+    const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
+      entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 128,
+      description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
+      logRetention: logs.RetentionDays.ONE_MONTH,
+    });
+    feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
+
+    // EventBridge rule: trigger Lambda on GuardDuty Malware:S3/* findings
+    const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
+      description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
+      eventPattern: {
+        source: ['aws.guardduty'],
+        detailType: ['GuardDuty Finding'],
+        detail: {
+          type: [{ prefix: 'Malware:S3/' }],
+        },
+      },
+    });
+    guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
+      retryAttempts: 2,
+    }));
+    // ============================================
+
+    new cdk.CfnOutput(this, 'FeedbackScreenshotsBucketName', {
+      value: feedbackScreenshotsBucket.bucketName,
+      description: 'Feedback screenshots S3 bucket (set FEEDBACK_SCREENSHOTS_BUCKET to this value)',
+      exportName: 'BearlyMail-Feedback-Screenshots-Bucket',
+    });
+
+    // ============================================
     // Log Groups
     // ============================================
+    // 90-day retention satisfies GDPR audit requirements while keeping
+    // CloudWatch costs reasonable (logs.RetentionDays.THREE_MONTHS = 90 days).
+    const LOG_RETENTION = logs.RetentionDays.THREE_MONTHS;
+
     const webLogGroup = new logs.LogGroup(this, 'WebLogGroup', {
       logGroupName: '/ecs/bearlymail/web',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const workerLogGroup = new logs.LogGroup(this, 'WorkerLogGroup', {
       logGroupName: '/ecs/bearlymail/worker',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const dashboardLogGroup = new logs.LogGroup(this, 'QueueDashboardLogGroup', {
       logGroupName: '/ecs/bearlymail/queue-dashboard',
-      retention: logs.RetentionDays.ONE_WEEK,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
@@ -188,12 +394,13 @@ export class BearlyMailStack extends cdk.Stack {
         NODE_ENV: 'production',
         PORT: '3001',
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
+        FEEDBACK_SCREENSHOTS_BUCKET: feedbackScreenshotsBucket.bucketName,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
@@ -236,6 +443,7 @@ export class BearlyMailStack extends cdk.Stack {
       listenerPort: 80,
       healthCheckGracePeriod: cdk.Duration.seconds(60),
       targetProtocol: elbv2.ApplicationProtocol.HTTP,
+      securityGroups: [ecsSecurityGroup],
     });
 
     // Configure health check
@@ -246,6 +454,11 @@ export class BearlyMailStack extends cdk.Stack {
       healthyThresholdCount: 2,
       unhealthyThresholdCount: 3,
     });
+
+    // Allow ALB to reach ECS tasks on container port 3001.
+    // When a custom security group is passed to ApplicationLoadBalancedFargateService,
+    // CDK does not automatically add the ALB→ECS ingress rule, so it must be explicit.
+    webService.service.connections.allowFrom(webService.loadBalancer, ec2.Port.tcp(3001));
 
     // ============================================
     // API custom domain (api.app.bearlymail.com) + HTTPS
@@ -303,7 +516,7 @@ export class BearlyMailStack extends cdk.Stack {
         WORKER_PROCESSES: '2', // 2 workers on 1024 CPU / 2048 MiB task; each worker loads full NestJS + TypeORM + providers (~480 MiB each)
         LLM_PRIORITY_CONCURRENCY: '25', // 25 teamSize × 2 worker processes = 50 concurrent refine-priority jobs
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
@@ -337,6 +550,7 @@ export class BearlyMailStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
+      securityGroups: [ecsSecurityGroup],
     });
 
     // ============================================
@@ -499,7 +713,7 @@ export class BearlyMailStack extends cdk.Stack {
       environment: {
         NODE_ENV: 'production',
         FRONTEND_URL: frontendUrl,
-        DB_HOST: database.instanceEndpoint.hostname,
+        DB_HOST: props.rdsProxyEndpoint,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
         DB_SSL: 'true',
@@ -535,6 +749,7 @@ export class BearlyMailStack extends cdk.Stack {
       subnetSelection: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
+      securityGroups: [ecsSecurityGroup],
       containerOverrides: [
         {
           containerName: 'CronContainer',
@@ -576,7 +791,7 @@ export class BearlyMailStack extends cdk.Stack {
 
     const migrationLogGroup = new logs.LogGroup(this, 'MigrationLogGroup', {
       logGroupName: '/ecs/bearlymail/migration',
-      retention: logs.RetentionDays.ONE_MONTH,
+      retention: LOG_RETENTION,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
@@ -655,6 +870,71 @@ export class BearlyMailStack extends cdk.Stack {
     // ============================================
     // CloudFront Distribution
     // ============================================
+
+    // Single origin instance shared across all behaviors to avoid creating multiple OACs
+    const frontendOrigin = cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket);
+
+    // index.html must never be cached (by CloudFront or browsers) so that SRI hashes in the HTML
+    // always match the currently-deployed assets. Without this, a stale cached index.html can
+    // reference asset filenames/hashes from a previous build, causing SRI verification failures
+    // and a blank screen.
+    const indexHtmlNoCachePolicy = new cloudfront.ResponseHeadersPolicy(this, 'IndexHtmlNoCachePolicy', {
+      responseHeadersPolicyName: `BearlyMailIndexHtmlNoCache-${this.node.addr.substring(0, 8)}`,
+      comment: 'Security headers and no-cache for index.html',
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true },
+        frameOptions: {
+          frameOption: cloudfront.HeadersFrameOption.DENY,
+          override: true,
+        },
+        strictTransportSecurity: {
+          accessControlMaxAge: cdk.Duration.days(730),
+          includeSubdomains: true,
+          preload: true,
+          override: true,
+        },
+        contentSecurityPolicy: {
+          contentSecurityPolicy:
+            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+          override: true,
+        },
+        xssProtection: {
+          protection: true,
+          modeBlock: true,
+          override: true,
+        },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+      },
+      customHeadersBehavior: {
+        customHeaders: [
+          { header: 'Cache-Control', value: 'no-store', override: true },
+        ],
+      },
+      removeHeaders: ['Server', 'X-Powered-By'],
+    });
+
+    const indexHtmlBehavior: cloudfront.BehaviorOptions = {
+      origin: frontendOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      responseHeadersPolicy: indexHtmlNoCachePolicy,
+    };
+
+    // Static assets (JS/CSS bundles) are content-addressed (hashed filenames) and safe to cache.
+    const staticAssetsBehavior: cloudfront.BehaviorOptions = {
+      origin: frontendOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+      compress: true,
+      cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      responseHeadersPolicy: securityHeadersPolicy,
+    };
+
     let distribution: cloudfront.Distribution;
     const hostedZone = props?.hostedZone;
     const certificateArn = props?.certificateArn;
@@ -676,13 +956,17 @@ export class BearlyMailStack extends cdk.Stack {
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
         defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
+          origin: frontendOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          responseHeadersPolicy: securityHeadersPolicy,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          responseHeadersPolicy: indexHtmlNoCachePolicy,
+        },
+        additionalBehaviors: {
+          'index.html': indexHtmlBehavior,
+          'static/*': staticAssetsBehavior,
         },
         domainNames: isSubdomain ? [domainName] : [domainName, `www.${domainName}`],
         certificate: certificate,
@@ -731,13 +1015,17 @@ export class BearlyMailStack extends cdk.Stack {
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
         defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
+          origin: frontendOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          responseHeadersPolicy: securityHeadersPolicy,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          responseHeadersPolicy: indexHtmlNoCachePolicy,
+        },
+        additionalBehaviors: {
+          'index.html': indexHtmlBehavior,
+          'static/*': staticAssetsBehavior,
         },
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
         comment: 'BearlyMail frontend distribution',
@@ -761,14 +1049,160 @@ export class BearlyMailStack extends cdk.Stack {
       });
     }
 
-    // S3 Deployment: deploy the built React app to the frontend bucket
-    // Build the frontend first: cd client && npm run build
-    // Then cdk deploy BearlyMailStack (or deploy manually: aws s3 sync client/build s3://<bucket> --delete)
-    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
-      sources: [s3deploy.Source.asset('../client/build')],
-      destinationBucket: frontendBucket,
-      distribution,
-      distributionPaths: ['/*'],
+    // ============================================
+    // CloudTrail (API Audit Trail — SAQ Q16 / GAP-9)
+    // ============================================
+    const cloudTrailBucket = new s3.Bucket(this, 'CloudTrailBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      lifecycleRules: [
+        {
+          id: 'ArchiveAndExpire',
+          enabled: true,
+          transitions: [
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
+          expiration: cdk.Duration.days(365),
+        },
+      ],
+    });
+
+    const managementTrail = new cloudtrail.Trail(this, 'ManagementTrail', {
+      trailName: 'BearlyMailManagementTrail',
+      bucket: cloudTrailBucket,
+      includeGlobalServiceEvents: true,
+      isMultiRegionTrail: true,
+      enableFileValidation: true,
+      sendToCloudWatchLogs: true,
+      cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
+      managementEvents: cloudtrail.ReadWriteType.ALL,
+    });
+    // The CDK bootstrap cfn-exec role's permissions boundary excludes
+    // cloudtrail:DeleteTrail, which causes DELETE_FAILED during rollbacks.
+    // RETAIN ensures CloudFormation never attempts to delete this trail.
+    (managementTrail.node.defaultChild as cdk.CfnResource).applyRemovalPolicy(
+      cdk.RemovalPolicy.RETAIN,
+    );
+
+    new cdk.CfnOutput(this, 'CloudTrailArn', {
+      value: managementTrail.trailArn,
+      description: 'CloudTrail trail ARN for management event audit',
+      exportName: 'BearlyMail-CloudTrail-ARN',
+    });
+
+    // ============================================
+    // AWS Config (Configuration Compliance Monitoring — SAQ Q16 / GAP-9)
+    // ============================================
+
+    // IAM role for the Config service
+    const configServiceRole = new iam.Role(this, 'ConfigServiceRole', {
+      assumedBy: new iam.ServicePrincipal('config.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole'),
+      ],
+    });
+
+    // Dedicated S3 bucket for Config snapshots / history
+    const configBucket = new s3.Bucket(this, 'ConfigBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      lifecycleRules: [
+        {
+          id: 'Expire',
+          enabled: true,
+          expiration: cdk.Duration.days(365),
+        },
+      ],
+    });
+
+    // Allow Config service to read the bucket ACL and write config history objects
+    configBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+      actions: ['s3:GetBucketAcl'],
+      resources: [configBucket.bucketArn],
+    }));
+    configBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+      actions: ['s3:PutObject'],
+      resources: [`${configBucket.bucketArn}/AWSLogs/${this.account}/Config/*`],
+      conditions: {
+        StringEquals: { 's3:x-amz-acl': 'bucket-owner-full-control' },
+      },
+    }));
+
+    // Configuration Recorder: track resource types relevant to BearlyMail
+    const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
+      roleArn: configServiceRole.roleArn,
+      recordingGroup: {
+        allSupported: false,
+        resourceTypes: [
+          'AWS::S3::Bucket',
+          'AWS::RDS::DBInstance',
+          'AWS::ECS::TaskDefinition',
+          'AWS::CloudTrail::Trail',
+          'AWS::EC2::SecurityGroup',
+          'AWS::IAM::Role',
+          'AWS::SecretsManager::Secret',
+        ],
+      },
+    });
+
+    // Delivery Channel: where Config persists snapshots (daily)
+    const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
+      s3BucketName: configBucket.bucketName,
+      configSnapshotDeliveryProperties: {
+        deliveryFrequency: 'TwentyFour_Hours',
+      },
+    });
+    configDeliveryChannel.addDependency(configRecorder);
+
+    // Helper: create a managed rule that depends on the recorder + delivery channel
+    const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
+      const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
+      // Rules require an active recorder — enforce creation order
+      (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
+      return rule;
+    };
+
+    // S3 compliance rules
+    addConfigRule('S3BlockPublicReadRule',
+      config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
+      'bearlymail-s3-block-public-read');
+
+    addConfigRule('S3SslOnlyRule',
+      config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
+      'bearlymail-s3-ssl-requests-only');
+
+    // RDS compliance rules
+    addConfigRule('RdsPublicAccessRule',
+      config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
+      'bearlymail-rds-no-public-access');
+
+    addConfigRule('RdsEncryptionRule',
+      config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
+      'bearlymail-rds-storage-encrypted');
+
+    // ECS compliance rule — ensures all task definitions emit logs
+    addConfigRule('EcsLogConfigRule',
+      config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
+      'bearlymail-ecs-task-log-configuration');
+
+    // CloudTrail rule — verifies CloudTrail is enabled in this account/region
+    addConfigRule('CloudTrailEnabledRule',
+      config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
+      'bearlymail-cloudtrail-enabled');
+
+    new cdk.CfnOutput(this, 'ConfigBucketName', {
+      value: configBucket.bucketName,
+      description: 'S3 bucket storing AWS Config history snapshots',
+      exportName: 'BearlyMail-Config-Bucket',
     });
 
     // ============================================
@@ -837,4 +1271,3 @@ export class BearlyMailStack extends cdk.Stack {
     });
   }
 }
-

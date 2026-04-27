@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { theme } from 'theme/theme';
 import { devLog } from 'utils/dev-logger';
 import { getAxiosErrorMessage } from 'utils/errors';
@@ -11,7 +10,8 @@ import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
-import { OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
+import { PROVIDER_ZOHO } from 'constants/strings';
+import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
@@ -21,28 +21,17 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
+  const [deletedAccountReason, setDeletedAccountReason] = useState<'manual' | 'inactivity' | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<'google' | 'zoho'>('google');
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for token in URL fragment (from OAuth callback redirect).
-    // The token is passed as a fragment (#token=...) rather than a query param
-    // (?token=...) so it is never sent to the server and stays out of access logs.
-    const hash = window.location.hash.slice(1); // strip leading '#'
-    const hashParams = new URLSearchParams(hash);
-    const token = hashParams.get('token');
-    if (token) {
-      localStorage.setItem('token', token);
-      devLog('OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-      // Set the axios header immediately before redirect
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Use window.location to force a full reload so the auth context reinitialises
-      window.location.href = '/inbox';
-      return;
-    }
+    // OAuth callbacks now set an HttpOnly cookie and redirect directly to /inbox
+    // (OWASP ASVS GAP-4). The legacy #token= URL fragment is no longer used.
 
-    // If user is already authenticated, redirect to inbox
+    // If user is already authenticated (cookie still valid), redirect to inbox
     if (!loading && user) {
       devLog('User already authenticated, redirecting to inbox');
       navigate('/inbox');
@@ -53,6 +42,7 @@ const Login: React.FC = () => {
     event.preventDefault();
     setError('');
     setIsOAuthOnlyError(false);
+    setDeletedAccountReason(null);
 
     try {
       await login(email, password);
@@ -62,6 +52,9 @@ const Login: React.FC = () => {
         setIsOAuthOnlyError(true);
         // Set a non-empty error string so the error block renders (handled by isOAuthOnlyError flag)
         setError('OAUTH_ONLY_ACCOUNT');
+      } else if (err instanceof DeletedAccountError) {
+        setDeletedAccountReason(err.deletionReason);
+        setError('ACCOUNT_DELETED');
       } else {
         setError(getAxiosErrorMessage(err, t('auth.authenticationFailed')));
       }
@@ -74,10 +67,25 @@ const Login: React.FC = () => {
 
     if (!hasSeenPermissions) {
       // Show permissions explanation modal
+      setPendingProvider('google');
       setShowPermissionsModal(true);
     } else {
       // Proceed directly to Google OAuth
       proceedToGoogleOAuth();
+    }
+  };
+  
+  const handleZohoLogin = () => {
+    // Check if user has seen the permissions explanation before
+    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
+
+    if (!hasSeenPermissions) {
+      // Show permissions explanation modal
+      setPendingProvider('zoho');
+      setShowPermissionsModal(true);
+    } else {
+      // Proceed directly to Zoho OAuth
+      proceedToZohoOAuth();
     }
   };
 
@@ -87,6 +95,21 @@ const Login: React.FC = () => {
     window.location.href = `${API_URL}/auth/google`;
   };
 
+  const proceedToZohoOAuth = () => {
+    captureEvent(ANALYTICS_EVENTS.ZOHO_LOGIN_INITIATED);
+    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
+    window.location.href = `${API_URL}/auth/zoho`;
+  };
+
+  const handlePermissionsContinue = () => {
+  setShowPermissionsModal(false);
+  if (pendingProvider === PROVIDER_ZOHO) {
+    proceedToZohoOAuth();
+  } else {
+    proceedToGoogleOAuth();
+  }
+};
+
   const handlePermissionsCancel = () => {
     setShowPermissionsModal(false);
   };
@@ -94,7 +117,7 @@ const Login: React.FC = () => {
   return (
     <>
       {showPermissionsModal && (
-        <PermissionsExplanation onContinue={proceedToGoogleOAuth} onCancel={handlePermissionsCancel} />
+        <PermissionsExplanation provider={pendingProvider} onContinue={handlePermissionsContinue} onCancel={handlePermissionsCancel} />
       )}
       <div
         style={{
@@ -111,10 +134,12 @@ const Login: React.FC = () => {
           password={password}
           error={error}
           isOAuthOnlyError={isOAuthOnlyError}
+          deletedAccountReason={deletedAccountReason}
           onEmailChange={setEmail}
           onPasswordChange={setPassword}
           onSubmit={handleSubmit}
           onGoogleLogin={handleGoogleLogin}
+          onZohoLogin={handleZohoLogin}
         />
       </div>
     </>

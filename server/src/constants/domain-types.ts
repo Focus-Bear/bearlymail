@@ -243,6 +243,13 @@ export const CATEGORY_RESERVED_NAMES = {
 export type CategoryReservedName =
   (typeof CATEGORY_RESERVED_NAMES)[keyof typeof CATEGORY_RESERVED_NAMES];
 
+export const DEFAULT_CATEGORY_NAMES = {
+  NEWSLETTERS: "Newsletters",
+} as const;
+
+export type DefaultCategoryName =
+  (typeof DEFAULT_CATEGORY_NAMES)[keyof typeof DEFAULT_CATEGORY_NAMES];
+
 export const PRIORITY_LEARNING_REASONS = {
   WRONG_SENDER_PRIORITY: "wrong_sender_priority",
   TOPIC_MISMATCH: "topic_mismatch",

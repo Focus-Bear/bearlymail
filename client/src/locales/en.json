@@ -38,6 +38,7 @@
     "loginTitle": "Welcome Back",
     "registerTitle": "Create Account",
     "continueWithGoogle": "Continue with Google",
+    "continueWithZoho": "Continue with Zoho",
     "or": "OR",
     "email": "Email",
     "password": "Password",
@@ -84,6 +85,12 @@
         "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
         "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder."
       },
+      "zoho": {
+        "title": "Zoho Access",
+        "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
+        "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder.",
+        "continue": "continue with Zoho"
+      },
       "calendar": {
         "title": "Calendar Events",
         "description": "View your availability and create meeting invitations. BearlyMail only manages calendar events, not your calendars themselves."
@@ -116,6 +123,13 @@
       "title": "This account uses social login",
       "description": "Please use \"Continue with Google\" above, or set a password via",
       "forgotPasswordLink": "Forgot Password"
+    },
+    "deletedAccountError": {
+      "inactivityTitle": "Your account was deleted due to inactivity",
+      "inactivityDescription": "Your account and all associated data were automatically deleted after 30 days of inactivity, as described in our",
+      "manualTitle": "Your account has been deleted",
+      "manualDescription": "Your account and all associated data were deleted as requested, as described in our",
+      "privacyPolicyLink": "Privacy Policy"
     },
     "forgotPassword": {
       "title": "Forgot Password",
@@ -156,8 +170,8 @@
     "archive": "Archive",
     "snooze": "Snooze",
     "snoozeUntil": "Snooze Until",
-    "snoozeTooltip": "Enter a time like '2h', 'tomorrow', 'next Monday', or 'in 3 days'",
-    "snoozePlaceholder": "e.g., tomorrow...",
+    "snoozeTooltip": "Enter a time like '4h', '5pm', 'Wed 3pm', 'tomorrow', or 'next Monday'",
+    "snoozePlaceholder": "e.g., 4h, 5pm, tomorrow...",
     "toggleStar": "Toggle star"
   },
   "inbox": {
@@ -303,6 +317,7 @@
     "autoResponseBadge": "{{count}} auto-response · Last sent {{sentAt}}",
     "autoResponseBadge_plural": "{{count}} auto-responses · Last sent {{sentAt}}",
     "note": "Note",
+    "phishingFlag": "Phishing",
     "unknownDate": "unknown date",
     "bulk": {
       "selected": "{{count}} email selected",
@@ -331,7 +346,8 @@
       "recategorizeNone": "No emails to recategorise in triage, action, or follow-up.",
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
-      "dangerousPhishing": "DANGEROUS: potential phishing attempt"
+      "dangerousPhishing": "DANGEROUS: potential phishing attempt",
+      "newsletterBlockTip": "💡 Quickly block senders - saves time compared to having to figure out how to unsubscribe"
     },
     "protoCategory": {
       "convertToCategory": "Convert to category",
@@ -429,7 +445,7 @@
     "forward": "Forward",
     "forwardSoon": "Forward functionality coming soon",
     "snooze": "Snooze",
-    "snoozePlaceholder": "2h, tomorrow...",
+    "snoozePlaceholder": "4h, 5pm, tomorrow...",
     "archive": "Archive",
     "aiSummary": "AI Summary",
     "expandSummary": "Expand summary",
@@ -513,6 +529,9 @@
     "regenerateActions": "Regenerate Actions",
     "suggestedReplies": "Suggested Replies",
     "generating": "Generating...",
+    "customReplyPromptPlaceholder": "Describe how you want to reply...",
+    "generateCustomReply": "Generate",
+    "generatingCustomReply": "Generating...",
     "calendarInvite": {
       "title": "Calendar Invitation",
       "accept": "Accept",
@@ -999,6 +1018,29 @@
       "updateButton": "Update Password",
       "success": "Password set successfully! You can now log in with your email and password.",
       "error": "Failed to set password. Please try again."
+    },
+    "mfa": {
+      "title": "Two-Factor Authentication (MFA)",
+      "descriptionEnabled": "Two-factor authentication is active. Your account requires a one-time code from your authenticator app to access admin features.",
+      "descriptionDisabled": "Admin accounts must have two-factor authentication (MFA) enabled. Set up an authenticator app (e.g. Google Authenticator, Authy) to secure your account.",
+      "statusEnabled": "Enabled",
+      "statusDisabled": "Not enabled",
+      "setupButton": "Set Up MFA",
+      "disableButton": "Disable MFA",
+      "setupInstructions": "Open your authenticator app (Google Authenticator, Authy, 1Password, etc.), choose 'Add account' → 'Enter setup key', and enter the secret key below. Then enter the 6-digit code to confirm.",
+      "secretKeyLabel": "Secret key",
+      "openAppInstructions": "On mobile? Tap to",
+      "openInApp": "open in authenticator app",
+      "enterCodePrompt": "Enter the 6-digit code from your authenticator app:",
+      "tokenLabel": "6-digit authenticator code",
+      "tokenLengthError": "Please enter a 6-digit code",
+      "confirmButton": "Confirm & Enable",
+      "disableConfirmButton": "Confirm Disable",
+      "disableConfirmPrompt": "Enter your current 6-digit authenticator code to disable MFA:",
+      "enabledSuccess": "MFA enabled successfully. Your admin account is now protected with two-factor authentication.",
+      "disabledSuccess": "MFA has been disabled.",
+      "setupError": "Failed to start MFA setup. Please try again.",
+      "verifyError": "Invalid code. Please check your authenticator app and try again."
     },
     "analysis": {
       "failed": "Analysis failed",
@@ -1620,6 +1662,8 @@
     "refreshing": "Refreshing...",
     "assignedTo": "Assigned to",
     "statusNoLinks": "No GitHub links found in this email",
+    "linksCount": "{{count}} link",
+    "linksCount_plural": "{{count}} links",
     "open": "Open",
     "closed": "Closed",
     "merged": "Merged",

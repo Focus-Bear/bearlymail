@@ -35,6 +35,7 @@ import {
   sendEmail,
   sendReply,
   trashThread,
+  fetchThreadMessagesOffice365,
   unarchiveThread,
 } from "./office365/office365-actions.service";
 import {
@@ -69,7 +70,6 @@ export class Office365Provider implements EmailProvider {
   ) {
     this.client = new Office365Client(office365AccountsService, configService);
   }
-
   async isConnected(userId: string): Promise<boolean> {
     return this.office365AccountsService.hasConnectedOffice365(userId);
   }
@@ -748,6 +748,14 @@ export class Office365Provider implements EmailProvider {
     maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
   ): Promise<RawEmailMessage[]> {
     return searchEmails(this, userId, query, maxResults);
+  }
+
+  async fetchThreadMessages(
+    userId: string,
+    threadId: string,
+    limit = 50,
+  ): Promise<RawEmailMessage[]> {
+    return fetchThreadMessagesOffice365(this, userId, threadId, limit);
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {

@@ -40,6 +40,7 @@ const defaultProps = {
   onPasswordChange: jest.fn(),
   onSubmit: jest.fn(),
   onGoogleLogin: jest.fn(),
+  onZohoLogin: jest.fn(),
 };
 
 describe('LoginFormSection accessibility', () => {

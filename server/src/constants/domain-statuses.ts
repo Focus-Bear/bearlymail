@@ -81,6 +81,11 @@ export const SCHEDULED_EMAIL_STATUS = {
 export type ScheduledEmailStatus =
   (typeof SCHEDULED_EMAIL_STATUS)[keyof typeof SCHEDULED_EMAIL_STATUS];
 
+export const PROMISE_STATUS = {
+  FULFILLED: "fulfilled",
+  REJECTED: "rejected",
+} as const;
+
 export const CALENDAR_ENTRY_POINT_TYPES = {
   VIDEO: "video",
   PHONE: "phone",

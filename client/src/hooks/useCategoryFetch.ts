@@ -46,9 +46,13 @@ export function useCategoryFetch({
   const dispatch = useDispatch<AppDispatch>();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
+  /** Keys queued for background (silent) preload — fetch without visual accordion expansion. */
+  const [preloadKeys, setPreloadKeys] = useState<Set<string>>(new Set());
   const hasAutoExpandedRef = useRef(false);
   const expandedCategoriesRef = useRef(expandedCategories);
   expandedCategoriesRef.current = expandedCategories;
+  const stableCategoryOrderRef = useRef(stableCategoryOrder);
+  stableCategoryOrderRef.current = stableCategoryOrder;
 
   // Tracks which category keys have had a fetch dispatched in the current session.
   // This guards against the category expansion effect firing twice for the same key
@@ -64,7 +68,43 @@ export function useCategoryFetch({
   const exhaustedCategoryNamesRef = useRef(exhaustedCategoryNames);
   exhaustedCategoryNamesRef.current = exhaustedCategoryNames;
 
+  /**
+   * When the user expands a category, find the next unloaded category in
+   * stableCategoryOrder and queue it for a silent background fetch so it is
+   * ready before the user scrolls down to it.
+   */
+  const triggerLookaheadPreload = useCallback((expandedKey: string) => {
+    const order = stableCategoryOrderRef.current;
+    const loaded = loadedCategoryNamesRef.current;
+    const loading = loadingCategoryNamesRef.current;
+    const exhausted = exhaustedCategoryNamesRef.current;
+    const expanded = expandedCategoriesRef.current;
+
+    const idx = order.indexOf(expandedKey);
+    for (let i = idx + 1; i < order.length; i++) {
+      const nextKey = order[i];
+      if (
+        !loaded.includes(nextKey) &&
+        !loading.includes(nextKey) &&
+        !exhausted.includes(nextKey) &&
+        !expanded.has(nextKey) &&
+        !fetchSessionRef.current.has(nextKey)
+      ) {
+        setPreloadKeys(prev => {
+          if (prev.has(nextKey)) {
+            return prev;
+          }
+          const next = new Set(prev);
+          next.add(nextKey);
+          return next;
+        });
+        break;
+      }
+    }
+  }, []);
+
   const toggleCategory = useCallback((categoryKey: string) => {
+    const isExpanding = !expandedCategoriesRef.current.has(categoryKey);
     setExpandedCategories(prev => {
       const next = new Set(prev);
       if (next.has(categoryKey)) {
@@ -74,7 +114,10 @@ export function useCategoryFetch({
       }
       return next;
     });
-  }, []);
+    if (isExpanding) {
+      triggerLookaheadPreload(categoryKey);
+    }
+  }, [triggerLookaheadPreload]);
 
   const updateStableCategoryOrder = useCallback((categoryKeys: string[], summaryItems?: CategorySummaryItem[]) => {
     if (categoryKeys.length > 0) {
@@ -96,13 +139,14 @@ export function useCategoryFetch({
   const resetForModeChange = useCallback(() => {
     setStableCategoryOrder([]);
     setExpandedCategories(new Set());
+    setPreloadKeys(new Set());
     hasAutoExpandedRef.current = false;
     fetchSessionRef.current = new Set();
     dispatch(categoryResetAll());
   }, [dispatch]);
 
-  // Single effect: for each expanded category not yet loaded/loading, trigger a fetch.
-  // Reads loaded/loading state from refs to avoid re-render loops.
+  // Single effect: for each expanded or preload-queued category not yet loaded/loading,
+  // trigger a fetch. Reads loaded/loading state from refs to avoid re-render loops.
   useEffect(() => {
     if (!categorySummary) {
       return;
@@ -110,7 +154,7 @@ export function useCategoryFetch({
 
     const keyToItem = new Map(categorySummary.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
 
-    expandedCategories.forEach(key => {
+    const dispatchFetch = (key: string) => {
       if (
         loadedCategoryNamesRef.current.includes(key) ||
         loadingCategoryNamesRef.current.includes(key) ||
@@ -165,8 +209,14 @@ export function useCategoryFetch({
           // Also clear on error so the retry mechanism can re-dispatch if needed.
           fetchSessionRef.current.delete(key);
         });
-    });
-  }, [categorySummary, expandedCategories, fetchCategoryEmails, dispatch]);
+    };
+
+    expandedCategories.forEach(dispatchFetch);
+    if (preloadKeys.size > 0) {
+      preloadKeys.forEach(dispatchFetch);
+      setPreloadKeys(new Set());
+    }
+  }, [categorySummary, expandedCategories, preloadKeys, fetchCategoryEmails, dispatch]);
 
   return {
     expandedCategories,

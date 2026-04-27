@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import {
   ContextKey,
@@ -16,10 +18,8 @@ import {
   decryptUserContextEntityForApi,
 } from "../encryption/entity-api-decrypt.util";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
-import {
-  cleanEmailContent,
-  cleanEmailForThread,
-} from "../llm/email-content-cleaner";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { LLMProvider, LLMService } from "../llm/llm.service";
 import { getPrompt, SUMMARY_PROMPT_IDS, SUMMARY_TYPES } from "../llm/prompts";
 import { UsersService } from "../users/users.service";
@@ -29,11 +29,14 @@ import { PhishingSignal, PhishingSignals } from "./phishing-detection.service";
 import {
   buildPhishingCacheKey,
   buildPhishingContext,
+  buildThreadText,
+  isEmailFromUser,
 } from "./summarization.helpers";
 import {
   EmailWithHtmlBody,
   SummarizationRule,
   SummarizeWithPhishingResult,
+  SummarizeWithPhishingResultFull,
   ThreadData,
 } from "./summarization.types";
 
@@ -53,6 +56,10 @@ export class SummarizationService {
     private summarizationRuleRepository: Repository<SummarizationRuleEntity>,
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
     private errorTrackingService: ErrorTrackingService,
     private usersService: UsersService,
   ) {}
@@ -85,54 +92,6 @@ export class SummarizationService {
   private async getUserEmail(userId: string): Promise<string> {
     const user = await this.usersService.findOneForAuth(userId);
     return user?.email?.toLowerCase() || "";
-  }
-
-  private extractEmailAddress(from: string | undefined): string {
-    if (!from) return "";
-    const match = from.match(/<([^>]+)>/);
-    if (match) return match[1].toLowerCase();
-    return from.toLowerCase().trim();
-  }
-
-  private isEmailFromUser(
-    emailFrom: string | undefined,
-    userEmail: string,
-  ): boolean {
-    if (!userEmail || !emailFrom) return false;
-    const senderEmail = this.extractEmailAddress(emailFrom);
-    return senderEmail === userEmail;
-  }
-
-  private buildThreadText(
-    messagesToSummarize: Array<{
-      body: string;
-      fromName?: string;
-      from?: string;
-      receivedAt: Date | string;
-    }>,
-    allThreadEmails: Array<unknown>,
-    userEmail: string = "",
-  ): string {
-    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
-    return messagesToSummarize
-      .map((emailEntry, idx) => {
-        const emailWithHtml = emailEntry as EmailWithHtmlBody;
-        const isFromUser = this.isEmailFromUser(emailEntry.from, userEmail);
-        const sender = isFromUser
-          ? "You"
-          : emailEntry.fromName || emailEntry.from;
-        const date = new Date(emailEntry.receivedAt).toLocaleString();
-        const cleanedBody = cleanEmailForThread(
-          emailEntry.body,
-          emailWithHtml.htmlBody,
-        );
-        const messageLabel =
-          idx === 0 && allThreadEmails.length > sliceCount + 1
-            ? "Original"
-            : `Message ${idx + 1}`;
-        return `[${messageLabel} from ${sender} on ${date}]:\n"""\n${cleanedBody}\n"""`;
-      })
-      .join("\n\n---\n\n");
   }
 
   private async generateLLMSummary(options: {
@@ -213,7 +172,7 @@ export class SummarizationService {
             allThreadEmails[0],
             ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
           ];
-    const threadText = this.buildThreadText(
+    const threadText = buildThreadText(
       messagesToSummarize,
       allThreadEmails,
       userEmail,
@@ -319,7 +278,7 @@ export class SummarizationService {
             allThreadEmails[0],
             ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
           ];
-    const threadText = this.buildThreadText(
+    const threadText = buildThreadText(
       messagesToSummarize,
       allThreadEmails,
       userEmail,
@@ -364,7 +323,7 @@ export class SummarizationService {
     emailId: string,
     rule: SummarizationRule,
     prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
-  ): Promise<SummarizeWithPhishingResult> {
+  ): Promise<SummarizeWithPhishingResultFull> {
     const email =
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
@@ -388,7 +347,7 @@ export class SummarizationService {
             ...allThreadEmails.slice(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE),
           ];
 
-    const threadText = this.buildThreadText(
+    const threadText = buildThreadText(
       messagesToSummarize,
       allThreadEmails,
       userEmail,
@@ -400,6 +359,9 @@ export class SummarizationService {
 
     const cacheKey = buildPhishingCacheKey(email.from, email.subject);
     const cached = this.phishingCache.get(cacheKey);
+    const threadId = email.threadId;
+    const emailThreadId = email.emailThreadId ?? null;
+
     if (cached && cached.expiresAt > Date.now()) {
       const summary = await this.generateLLMSummary({
         email: { ...emailWithHtml, subject },
@@ -420,18 +382,20 @@ export class SummarizationService {
         categoryExplanation: null,
         actionItems: null,
         meetingProposal: null,
+        threadId,
+        emailThreadId,
       };
     }
 
     const llmProvider: LLMProvider | undefined = rule.provider ?? undefined;
-    const isUserSender = this.isEmailFromUser(email.from, userEmail);
+    const isUserSender = isEmailFromUser(email.from, userEmail);
     const bodyForLLM =
       messagesToSummarize.length > 1
         ? threadText
         : cleanEmailContent(emailWithHtml.body, emailWithHtml.htmlBody);
     const emailCategories = await this.buildEmailCategoriesPromptText(userId);
 
-    return this.summarizeEmailWithCombinedPhishing(emailWithHtml, {
+    const result = await this.summarizeEmailWithCombinedPhishing(emailWithHtml, {
       subject,
       threadText,
       bodyForLLM,
@@ -448,6 +412,7 @@ export class SummarizationService {
       fromName: email.fromName || "",
       emailCategories,
     });
+    return { ...result, threadId, emailThreadId };
   }
 
   private async summarizeEmailWithCombinedPhishing(
@@ -713,6 +678,53 @@ export class SummarizationService {
     }
 
     return result;
+  }
+
+  /**
+   * Persists a freshly-generated summary to every email in the thread and
+   * stamps `EmailThread.lastSummarizedAt` so future staleness checks work.
+   *
+   * Called fire-and-forget after a manual summary refresh so the UI does not
+   * wait for the DB write but the stored summary stays in sync.
+   *
+   * `threadId` is the provider's thread ID (e.g. Gmail thread ID).
+   * `emailThreadId` is the DB UUID of the EmailThread row.
+   * Using the latest email's `receivedAt` (rather than `new Date()`) ensures
+   * that any email arriving after that timestamp is still detected as stale.
+   */
+  async persistSummaryForThread(
+    userId: string,
+    threadId: string,
+    emailThreadId: string | null,
+    summary: string,
+  ): Promise<void> {
+    const threadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      threadId,
+      { limit: 50 },
+    );
+
+    const threadEmailIds = threadEmails.map((email) => email.id);
+    if (threadEmailIds.length === 0) return;
+
+    const plainSummary = extractPlainSummary(summary);
+
+    await this.emailRepository.update(
+      { id: In(threadEmailIds) },
+      { summary: plainSummary },
+    );
+
+    if (emailThreadId) {
+      const latestReceivedAt = threadEmails.reduce<Date>(
+        (latest, threadEmail) =>
+          threadEmail.receivedAt > latest ? threadEmail.receivedAt : latest,
+        new Date(0),
+      );
+      await this.emailThreadRepository.update(
+        { id: emailThreadId },
+        { lastSummarizedAt: latestReceivedAt },
+      );
+    }
   }
 
   async getSummarizationRules(

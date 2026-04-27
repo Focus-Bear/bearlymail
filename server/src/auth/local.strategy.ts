@@ -4,6 +4,7 @@ import { Strategy } from "passport-local";
 
 import { User } from "../database/entities/user.entity";
 import { AuthService } from "./auth.service";
+import { DeletedAccountException } from "./exceptions/deleted-account.exception";
 
 type UserWithoutPassword = Omit<User, "password">;
 
@@ -24,6 +25,12 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       }
       return user;
     } catch (error: unknown) {
+      // DeletedAccountException is an UnauthorizedException — re-throw it
+      // before the generic UnauthorizedException check so the structured
+      // ACCOUNT_DELETED payload is preserved for the frontend.
+      if (error instanceof DeletedAccountException) {
+        throw error;
+      }
       // If it's already an UnauthorizedException, re-throw it
       if (error instanceof UnauthorizedException) {
         throw error;

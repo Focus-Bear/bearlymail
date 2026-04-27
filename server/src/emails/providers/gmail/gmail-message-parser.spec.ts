@@ -116,5 +116,116 @@ describe("gmail-message-parser — attachments", () => {
       const result = extractAttachmentsFromPayload(payload);
       expect(result?.[0].filename).toBe("attachment");
     });
+
+    describe("inline ICS calendar attachments", () => {
+      const ICS_BASE64 = Buffer.from(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART:20260521T040000Z\r\nDTEND:20260521T050000Z\r\nSUMMARY:Test meeting\r\nEND:VEVENT\r\nEND:VCALENDAR",
+      ).toString("base64");
+
+      it("captures inline text/calendar part without attachmentId", () => {
+        const payload: gmail_v1.Schema$MessagePart = {
+          mimeType: "multipart/mixed",
+          partId: "",
+          parts: [
+            {
+              mimeType: "text/plain",
+              partId: "0",
+              body: { data: "aGVsbG8=", size: 5 },
+            },
+            {
+              mimeType: "text/calendar",
+              filename: "invite.ics",
+              partId: "1",
+              body: { data: ICS_BASE64, size: ICS_BASE64.length },
+            },
+          ],
+        };
+        const result = extractAttachmentsFromPayload(payload);
+        expect(result).toHaveLength(1);
+        expect(result![0]).toMatchObject({
+          attachmentId: "inline-ics-0",
+          filename: "invite.ics",
+          mimeType: "text/calendar",
+          inlineData: ICS_BASE64,
+        });
+      });
+
+      it("uses default filename invite.ics when calendar part has no filename", () => {
+        const payload: gmail_v1.Schema$MessagePart = {
+          mimeType: "multipart/mixed",
+          partId: "",
+          parts: [
+            {
+              mimeType: "text/calendar",
+              filename: "",
+              partId: "1",
+              body: { data: ICS_BASE64, size: 10 },
+            },
+          ],
+        };
+        const result = extractAttachmentsFromPayload(payload);
+        expect(result![0].filename).toBe("invite.ics");
+      });
+
+      it("captures application/ics inline part", () => {
+        const payload: gmail_v1.Schema$MessagePart = {
+          mimeType: "multipart/mixed",
+          partId: "",
+          parts: [
+            {
+              mimeType: "application/ics",
+              filename: "event.ics",
+              partId: "1",
+              body: { data: ICS_BASE64, size: 10 },
+            },
+          ],
+        };
+        const result = extractAttachmentsFromPayload(payload);
+        expect(result).toHaveLength(1);
+        expect(result![0].attachmentId).toBe("inline-ics-0");
+        expect(result![0].mimeType).toBe("application/ics");
+      });
+
+      it("ignores inline text/calendar part that has no body data", () => {
+        const payload: gmail_v1.Schema$MessagePart = {
+          mimeType: "multipart/mixed",
+          partId: "",
+          parts: [
+            {
+              mimeType: "text/calendar",
+              partId: "1",
+              body: { size: 0 },
+            },
+          ],
+        };
+        const result = extractAttachmentsFromPayload(payload);
+        expect(result).toBeUndefined();
+      });
+
+      it("still captures normal Gmail attachment alongside inline ICS", () => {
+        const payload: gmail_v1.Schema$MessagePart = {
+          mimeType: "multipart/mixed",
+          partId: "",
+          parts: [
+            {
+              mimeType: "application/pdf",
+              filename: "report.pdf",
+              partId: "1",
+              body: { attachmentId: "att_pdf_123", size: 50_000 },
+            },
+            {
+              mimeType: "text/calendar",
+              filename: "invite.ics",
+              partId: "2",
+              body: { data: ICS_BASE64, size: ICS_BASE64.length },
+            },
+          ],
+        };
+        const result = extractAttachmentsFromPayload(payload);
+        expect(result).toHaveLength(2);
+        expect(result![0].attachmentId).toBe("att_pdf_123");
+        expect(result![1].attachmentId).toBe("inline-ics-1");
+      });
+    });
   });
 });

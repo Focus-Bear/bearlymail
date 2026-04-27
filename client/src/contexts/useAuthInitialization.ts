@@ -57,16 +57,6 @@ export const useAuthInitialization = (
 ) => {
   const logoutRef = useRef<(() => void) | null>(null);
 
-  const isTokenExpired = (token: string): boolean => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / MS_PER_SECOND);
-      return payload.exp ? payload.exp < now : false;
-    } catch {
-      return true;
-    }
-  };
-
   logoutRef.current = logout;
 
   useEffect(() => {
@@ -76,53 +66,45 @@ export const useAuthInitialization = (
       }
     });
 
-    const token = localStorage.getItem('token');
-    console.log('Checking for token on app load:', token ? 'FOUND' : 'NOT FOUND');
+    // Remove any legacy localStorage token from before the HttpOnly cookie migration.
+    // The JWT is now in an HttpOnly cookie sent automatically by the browser.
+    // We still clear old tokens to avoid stale data in localStorage.
+    localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
 
-    if (token) {
-      if (isTokenExpired(token)) {
-        console.log('Token is expired, clearing');
-        localStorage.removeItem('token');
-        setLoading(false);
-        return;
-      }
+    // Attempt to fetch the current user. The HttpOnly cookie is sent automatically
+    // by the browser (withCredentials: true is set globally in config/api.ts).
+    // A 401 response means the user is not logged in (no cookie or expired token).
+    console.log('Checking authentication via /users/me (HttpOnly cookie)');
 
-      console.log('Token found and valid, verifying with server...');
-
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUserWithRetry(`${API_URL}/users/me`)
-        .then(userData => {
-          console.log('User data fetched successfully:', userData?.email || 'no email');
-          setUser(userData);
-          if (userData?.id) {
-            identifyUser(userData.id, {
-              isAdmin: userData.isAdmin,
-            });
-          }
-        })
-        .catch(error => {
-          console.error('Failed to fetch user:', {
-            status: error.response?.status,
-            message: error.message,
-            url: error.config?.url,
+    fetchUserWithRetry(`${API_URL}/users/me`)
+      .then(userData => {
+        console.log('User data fetched successfully:', userData?.email || 'no email');
+        setUser(userData);
+        if (userData?.id) {
+          identifyUser(userData.id, {
+            isAdmin: userData.isAdmin,
           });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to fetch user:', {
+          status: error.response?.status,
+          message: error.message,
+          url: error.config?.url,
+        });
 
-          const status = error.response?.status;
-          if (status === HTTP_UNAUTHORIZED || isTokenExpired(token)) {
-            // Auth failure — clear token and redirect to login
-            localStorage.removeItem('token');
-            delete axios.defaults.headers.common['Authorization'];
-            setUser(null);
-          } else {
-            // Service error (503, network error etc.) — keep token, show error state
-            console.error('Service unavailable after retries, showing error state');
-            setServiceError(true);
-          }
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+        const status = error.response?.status;
+        if (status === HTTP_UNAUTHORIZED) {
+          // No valid cookie / token — user is not logged in
+          setUser(null);
+        } else {
+          // Service error (503, network error etc.) — show error state
+          console.error('Service unavailable after retries, showing error state');
+          setServiceError(true);
+        }
+      })
+      .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- pre-existing: setServiceError is stable
   }, [setUser, setLoading, retryCount]);
 };

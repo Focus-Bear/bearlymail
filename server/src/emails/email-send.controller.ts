@@ -14,7 +14,7 @@ import {
 import { FilesInterceptor } from "@nestjs/platform-express";
 import PgBoss from "pg-boss";
 
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
@@ -33,7 +33,7 @@ import { SendEmailBody } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard )
 export class EmailSendController {
   constructor(
     private readonly emailsService: EmailsService,

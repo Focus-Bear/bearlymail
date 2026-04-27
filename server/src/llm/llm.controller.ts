@@ -164,6 +164,7 @@ export class LLMController {
         body: string;
       };
       context?: { tone?: string; writingStyle?: string };
+      userInstructions?: string;
     },
   ) {
     const user = await this.usersService.findOne(req.user.userId);
@@ -181,6 +182,7 @@ export class LLMController {
       userName: resolveUserDisplayName(user),
       userJobTitle: resolveUserJobTitle(user),
       emailExamples,
+      userInstructions: body.userInstructions,
     };
 
     return this.llmService.generateReplyOptions(

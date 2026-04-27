@@ -1,8 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { Request } from "express";
 import { ExtractJwt, Strategy } from "passport-jwt";
 
+import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { MILLISECONDS } from "../constants/time-constants";
 import { UsersService } from "../users/users.service";
 
@@ -11,6 +13,31 @@ interface JwtPayload {
   email?: string;
   /** Issued-at timestamp (seconds since epoch) — set automatically by JwtService.sign() */
   iat?: number;
+  /**
+   * Set to true in MFA-elevated tokens (after TOTP verification).
+   * Required for access to admin endpoints (SAQ Q35 / GAP-2).
+   */
+  mfaVerified?: boolean;
+}
+
+/**
+ * Extracts the JWT from the HttpOnly cookie by parsing the raw Cookie header.
+ * Does not require cookie-parser middleware. Returns null when the cookie is
+ * absent so passport-jwt falls through to the next extractor.
+ */
+function extractFromCookie(req: Request): string | null {
+  const cookieHeader = req?.headers?.cookie;
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx > 0) {
+      const name = part.slice(0, eqIdx).trim();
+      if (name === AUTH_CONSTANTS.COOKIE_NAME) {
+        return decodeURIComponent(part.slice(eqIdx + 1).trim());
+      }
+    }
+  }
+  return null;
 }
 
 @Injectable()
@@ -20,7 +47,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private usersService: UsersService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Dual-read: HttpOnly cookie first (browser clients), Bearer header as fallback
+      // (API clients, mobile apps, backward-compat during transition). OWASP ASVS GAP-4.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        extractFromCookie,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>("JWT_SECRET") || "your-secret-key",
     });
@@ -52,6 +84,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       this.usersService.updateLastActivity(payload.sub).catch(() => {});
     }
 
-    return { userId: user.id, email: user.email };
+    return {
+      userId: user.id,
+      email: user.email,
+      mfaVerified: payload.mfaVerified === true,
+    };
   }
 }

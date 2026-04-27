@@ -5,10 +5,12 @@
  * If two callers request the same URL simultaneously, the second caller awaits
  * the first caller's Promise instead of firing a duplicate network request.
  *
- * The cache is keyed on URL + the auth token from localStorage so that requests
- * issued under different auth states never share a pending Promise. The entry
- * is removed from the map once the request settles (success or error), so the
- * next invocation always triggers a fresh network call.
+ * The cache is keyed on the URL. The entry is removed from the map once the
+ * request settles (success or error), so the next invocation always triggers a
+ * fresh network call.
+ *
+ * On logout, call flushDeduplicatedFetchCache() to discard any pending entries
+ * so the next session starts clean.
  *
  * Usage:
  *   import { deduplicatedGet } from 'utils/deduplicateFetch';
@@ -19,15 +21,7 @@ import axios, { AxiosResponse } from 'axios';
 const pending = new Map<string, Promise<AxiosResponse>>();
 
 function buildKey(url: string): string {
-  try {
-    // Scope dedup key to the current auth token so that a token change
-    // (e.g. re-login) never shares an in-flight request with the old session.
-    const token = localStorage.getItem('token') ?? 'anon';
-    // Only use first 8 chars of token to avoid PII in map keys
-    return `${url}||${token.slice(0, 8)}`;
-  } catch {
-    return url;
-  }
+  return url;
 }
 
 /**

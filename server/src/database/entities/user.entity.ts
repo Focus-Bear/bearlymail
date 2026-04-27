@@ -271,6 +271,21 @@ export class User {
   })
   passwordChangedAt: Date | null;
 
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment:
+      "TOTP secret for MFA (encrypted). Set during setup, null until MFA is configured.",
+  })
+  totpSecret: string | null;
+
+  @Column({
+    default: false,
+    comment:
+      "Whether TOTP-based MFA is active for this account. Required for admin accounts (SAQ Q35, GAP-2).",
+  })
+  totpEnabled: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

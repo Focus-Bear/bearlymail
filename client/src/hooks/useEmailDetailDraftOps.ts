@@ -1,6 +1,8 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import axios from 'axios';
 import { Email } from 'types/email';
+import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { normalizeAiReplyPlaintext, plainTextToHtml } from 'utils/emailUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
@@ -57,14 +59,45 @@ function buildReplyRecipientsForMode(
   return { recipients: targetEmail.replyTo || targetEmail.from, cc: null };
 }
 
+const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];
+
+interface SuggestedReplyResponse {
+  options: Array<{ label: string; text: string }>;
+  isGenerating: boolean;
+  lastEmailId: string | null;
+}
+
 // Pure helper: resets reply options to empty Custom state.
 // Does NOT touch setDraft — the user's typed content must never be overwritten by suggestion generation.
 function resetDraftToCustom(
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
   setSelectedReplyOption: (i: number) => void
 ): void {
-  setReplyOptions([{ label: 'Custom', text: '' }]);
-  setSelectedReplyOption(0);
+  setReplyOptions(CUSTOM_ONLY_OPTIONS);
+  setSelectedReplyOption(-1);
+}
+
+// Pure helper: applies generated options to state, converting plain text to HTML.
+// Only resets selection to -1 if no explicit selection has been made yet, to avoid
+// overriding a custom-prompt selection (which sets the option to 0).
+function applyRawOptions(
+  rawOptions: Array<{ label: string; text: string }> | null,
+  setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
+  setSelectedReplyOption: (i: number) => void,
+  currentSelectedReplyOption: number
+): void {
+  if (rawOptions && rawOptions.length > 0) {
+    const htmlOptions = rawOptions.map(opt => ({
+      ...opt,
+      text: sanitizeAndProcessHtml(plainTextToHtml(normalizeAiReplyPlaintext(opt.text))),
+    }));
+    setReplyOptions([{ label: 'Custom', text: '' }, ...htmlOptions]);
+  } else {
+    setReplyOptions(CUSTOM_ONLY_OPTIONS);
+  }
+  if (currentSelectedReplyOption === -1) {
+    setSelectedReplyOption(-1);
+  }
 }
 
 type DraftOpsState = Pick<
@@ -74,6 +107,7 @@ type DraftOpsState = Pick<
   | 'replyOptions'
   | 'setReplyOptions'
   | 'setDraft'
+  | 'selectedReplyOption'
   | 'setSelectedReplyOption'
   | 'setLoadingReplies'
   | 'setReplyMode'
@@ -87,12 +121,14 @@ type DraftOpsState = Pick<
 >;
 
 // Sub-hook: encapsulates draft generation logic with its own abort-controller refs.
+// Checks pre-generated suggestions first, then falls back to on-demand LLM call.
 function useDraftGenerationCallback(
   id: string | undefined,
   email: Email | null,
   setLoadingReplies: (v: boolean) => void,
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
-  setSelectedReplyOption: (i: number) => void
+  setSelectedReplyOption: (i: number) => void,
+  selectedReplyOption: number
 ): () => Promise<void> {
   const draftAbortControllerRef = useRef<AbortController | null>(null);
   const draftGenerationEmailIdRef = useRef<string | null>(null);
@@ -116,28 +152,61 @@ function useDraftGenerationCallback(
 
     setLoadingReplies(true);
     try {
-      const response = await axios.post(
-        `${API_URL}/llm/suggest-replies`,
-        { originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body } },
-        { signal: controller.signal }
-      );
-
-      if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
-        return;
+      // Step 1: Check pre-generated suggestions from background job
+      let rawOptions: Array<{ label: string; text: string }> | null = null;
+      if (email.emailThreadId) {
+        try {
+          const preGenResponse = await axios.get<SuggestedReplyResponse>(
+            `${API_URL}/suggested-replies/${email.emailThreadId}`,
+            { signal: controller.signal }
+          );
+          if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
+            return;
+          }
+          const preGen = preGenResponse.data;
+          if (preGen?.options?.length > 0) {
+            rawOptions = preGen.options;
+            captureEvent(ANALYTICS_EVENTS.REPLY_DRAFT_GENERATED, {
+              email_id: id,
+              draft_count: rawOptions.length,
+              source: 'pre_generated',
+            });
+          }
+          // If still generating in background but no options yet, fall through to on-demand
+        } catch {
+          // Pre-generated fetch failed; fall through to on-demand
+          if (controller.signal.aborted) {
+            return;
+          }
+        }
       }
 
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        captureEvent(ANALYTICS_EVENTS.REPLY_DRAFT_GENERATED, { email_id: id, draft_count: response.data.length });
-        const optionsWithCustom = [{ label: 'Custom', text: '' }, ...response.data];
-        setReplyOptions(optionsWithCustom);
-        // Do NOT call setDraft here — suggestions arriving asynchronously must never overwrite
-        // content the user has already typed in the Custom tab (fixes #562).
-        setSelectedReplyOption(0);
-      } else {
-        resetDraftToCustom(setReplyOptions, setSelectedReplyOption);
+      // Step 2: On-demand generation if no pre-generated options
+      if (!rawOptions) {
+        if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
+          return;
+        }
+        const response = await axios.post(
+          `${API_URL}/llm/suggest-replies`,
+          { originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body } },
+          { signal: controller.signal }
+        );
+        if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
+          return;
+        }
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          rawOptions = response.data;
+          captureEvent(ANALYTICS_EVENTS.REPLY_DRAFT_GENERATED, {
+            email_id: id,
+            draft_count: rawOptions.length,
+            source: 'on_demand',
+          });
+        }
       }
+
+      applyRawOptions(rawOptions, setReplyOptions, setSelectedReplyOption, selectedReplyOption);
     } catch (error) {
-      if (axios.isCancel(error)) {
+      if (axios.isCancel(error) || controller.signal.aborted) {
         return;
       }
       if (draftGenerationEmailIdRef.current !== currentEmailId) {
@@ -150,7 +219,65 @@ function useDraftGenerationCallback(
         setLoadingReplies(false);
       }
     }
-  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
+  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption, selectedReplyOption]);
+}
+
+// Sub-hook: generates a single reply from a custom user prompt.
+function useGenerateFromCustomPromptCallback(
+  id: string | undefined,
+  email: Email | null,
+  setSelectedReplyOption: (i: number) => void,
+  setDraft: (draft: string) => void
+): [(prompt: string) => Promise<void>, boolean] {
+  const [generating, setGenerating] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const generate = useCallback(
+    async (userInstructions: string) => {
+      if (!id || !email || !userInstructions.trim()) {
+        return;
+      }
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setGenerating(true);
+      try {
+        const response = await axios.post(
+          `${API_URL}/llm/suggest-replies`,
+          {
+            originalEmail: { from: email.from, fromName: email.fromName, subject: email.subject, body: email.body },
+            userInstructions: userInstructions.trim(),
+          },
+          { signal: controller.signal }
+        );
+        if (controller.signal.aborted) {
+          return;
+        }
+        const rawOptions: Array<{ label: string; text: string }> = response.data ?? [];
+        if (rawOptions.length > 0) {
+          const htmlText = sanitizeAndProcessHtml(plainTextToHtml(normalizeAiReplyPlaintext(rawOptions[0].text)));
+          // Update options list: keep Custom + existing AI options, but set draft to generated text
+          setDraft(htmlText);
+          // Select Custom tab (index 0) so the generated text appears in the textarea
+          setSelectedReplyOption(0);
+        }
+      } catch (error) {
+        if (axios.isCancel(error) || controller.signal.aborted) {
+          return;
+        }
+        console.error('Error generating custom reply:', error);
+      } finally {
+        if (!controller.signal.aborted) {
+          setGenerating(false);
+        }
+      }
+    },
+    [id, email, setSelectedReplyOption, setDraft]
+  );
+
+  return [generate, generating];
 }
 
 export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsState, userEmail: string | undefined) {
@@ -160,6 +287,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     replyOptions,
     setReplyOptions,
     setDraft,
+    selectedReplyOption,
     setSelectedReplyOption,
     setLoadingReplies,
     setReplyMode,
@@ -178,7 +306,14 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     email,
     setLoadingReplies,
     setReplyOptions,
-    setSelectedReplyOption
+    setSelectedReplyOption,
+    selectedReplyOption
+  );
+  const [generateFromCustomPrompt, generatingFromCustomPrompt] = useGenerateFromCustomPromptCallback(
+    id,
+    email,
+    setSelectedReplyOption,
+    setDraft
   );
 
   const handleOpenReplyComposer = useCallback(
@@ -246,5 +381,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     ...draftCrud,
     handleGenerateDraft,
     handleOpenReplyComposer,
+    generateFromCustomPrompt,
+    generatingFromCustomPrompt,
   };
 }

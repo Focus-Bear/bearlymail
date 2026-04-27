@@ -47,11 +47,11 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Show the section when:
-  //   (a) the email text explicitly mentions "github" (keyword gate), OR
+  //   (a) the email text (or from address) mentions GitHub, OR
   //   (b) the server already found GitHub links — avoids false-negative when the
   //       keyword only appears in HTML content that doesn't reach the plain-text check.
   const serverFoundLinks = links.length > 0;
-  if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody) && !serverFoundLinks) {
+  if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody, email?.from) && !serverFoundLinks) {
     return null;
   }
 
@@ -59,11 +59,15 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
     return <GitHubConnectionPrompt />;
   }
 
-  if (!loading && links.length === 0) {
-    return null;
+  const isEmpty = !loading && links.length === 0;
+  let preview: string;
+  if (loading) {
+    preview = t('github.refreshing');
+  } else if (isEmpty) {
+    preview = t('github.statusNoLinks');
+  } else {
+    preview = t('github.linksCount', { count: links.length });
   }
-
-  const preview = loading ? 'Loading...' : `${links.length} link${links.length !== 1 ? 's' : ''}`;
 
   const controls = (
     <button
@@ -81,7 +85,7 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
         display: 'flex',
         alignItems: 'center',
       }}
-      title="Refresh"
+      title={t('github.refresh')}
     >
       🔄
     </button>
@@ -102,6 +106,33 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
     >
       {loading ? (
         <GitHubStatusLoading />
+      ) : isEmpty ? (
+        <div
+          style={{
+            padding: theme.spacing.md,
+            color: theme.colors.text.secondary,
+            fontSize: theme.typography.fontSize.sm,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
+          <span>{t('github.statusNoLinks')}</span>
+          <button
+            onClick={onRefresh}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.sm,
+              color: theme.colors.text.secondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              padding: `2px ${theme.spacing.xs}`,
+            }}
+          >
+            {t('github.refresh')}
+          </button>
+        </div>
       ) : (
         <GitHubLinksList links={links} suggestedActions={suggestedGitHubActions} onRefresh={onRefresh} email={email} />
       )}

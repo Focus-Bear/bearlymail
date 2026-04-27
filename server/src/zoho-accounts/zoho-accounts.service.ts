@@ -27,6 +27,10 @@ export class ZohoAccountsService {
     private usersService: UsersService,
   ) {}
 
+  async update(id: string, updateData: Partial<ZohoAccount>): Promise<void> {
+    await this.zohoAccountRepository.update(id, updateData);
+  }
+
   async create(options: CreateZohoAccountOptions): Promise<ZohoAccount> {
     const {
       userId,

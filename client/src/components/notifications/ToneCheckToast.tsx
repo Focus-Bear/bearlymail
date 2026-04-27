@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -13,27 +14,17 @@ interface ToneCheckToastProps {
 /**
  * Fixed-position toast shown while a tone check is in progress.
  * Displays a loading spinner, status text, and a "Cancel send" link.
- * Stays visible regardless of scroll position so the user always knows
- * the tone check is running — even when the Send button is off-screen.
+ * Rendered via React portal to document.body so it is always visible
+ * regardless of parent overflow/z-index/transform stacking contexts.
  */
 export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCancel }) => {
   const { t } = useTranslation();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    if (visible) {
-      // Small delay to trigger CSS transition after mount
-      const timer = setTimeout(() => setMounted(true), 10);
-      return () => clearTimeout(timer);
-    }
-    setMounted(false);
-  }, [visible]);
 
   if (!visible) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
@@ -42,9 +33,8 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
         position: 'fixed',
         top: theme.spacing.xl,
         left: '50%',
-        transform: mounted ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(-20px)',
-        opacity: mounted ? 1 : 0,
-        transition: 'transform 0.25s ease-out, opacity 0.25s ease-out',
+        transform: 'translateX(-50%)',
+        animation: 'toast-fade-in 0.2s ease-out',
         zIndex: 10001,
         backgroundColor: theme.colors.background.paper,
         border: `1px solid ${theme.colors.border.medium}`,
@@ -90,6 +80,7 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
       >
         {t('toneCheck.cancelSend')}
       </button>
-    </div>
+    </div>,
+    document.body
   );
 };

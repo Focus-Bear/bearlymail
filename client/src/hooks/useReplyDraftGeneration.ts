@@ -77,7 +77,7 @@ function applyGeneratedOptions(
   } else {
     setReplyOptions(CUSTOM_ONLY_OPTIONS);
   }
-  setSelectedReplyOption(0);
+  setSelectedReplyOption(-1);
 }
 
 interface UseReplyDraftGenerationOptions {
@@ -151,7 +151,7 @@ interface ReplyGenerationState extends ReplyGenerationStateSetters {
 
 function useReplyGenerationState(): ReplyGenerationState {
   const [replyOptions, setReplyOptions] = useState<Array<{ label: string; text: string }> | null>(null);
-  const [selectedReplyOption, setSelectedReplyOption] = useState<number>(0);
+  const [selectedReplyOption, setSelectedReplyOption] = useState<number>(-1);
   const [draft, setDraft] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
@@ -190,7 +190,7 @@ function buildDebugInfo(
 function resetReplyGenerationState(setters: ReplyGenerationStateSetters): void {
   setters.setReplyOptions(null);
   setters.setDraft(null);
-  setters.setSelectedReplyOption(0);
+  setters.setSelectedReplyOption(-1);
   setters.setLoadingReplies(false);
   setters.setIsGeneratingInBackground(false);
   setters.setDebugInfo(null);

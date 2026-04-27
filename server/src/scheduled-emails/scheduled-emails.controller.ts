@@ -9,12 +9,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ScheduledEmailsService } from "./scheduled-emails.service";
 
 @Controller("scheduled-emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class ScheduledEmailsController {
   constructor(
     private readonly scheduledEmailsService: ScheduledEmailsService,

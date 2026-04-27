@@ -4,12 +4,14 @@ import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
 import PgBoss from "pg-boss";
 
+import { DeletedAccount, DeletionReason } from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { AuthService } from "./auth.service";
+import { TotpService } from "./totp.service";
 
 jest.mock("bcrypt");
 jest.mock("./auth-logger", () => ({
@@ -26,6 +28,7 @@ describe("AuthService", () => {
   let boss: jest.Mocked<PgBoss>;
   let waitlistService: jest.Mocked<WaitlistService>;
   let emailBacklogService: jest.Mocked<EmailBacklogService>;
+  let totpService: jest.Mocked<TotpService>;
 
   const mockUser: User = {
     id: "user-1",
@@ -59,6 +62,8 @@ describe("AuthService", () => {
       findAll: jest.fn(),
       wasUserInactive: jest.fn().mockResolvedValue(false),
       updateLastActivity: jest.fn().mockResolvedValue(undefined),
+      hashEmail: jest.fn().mockReturnValue("hashed-email"),
+      findDeletedAccountByEmailHash: jest.fn().mockResolvedValue(null),
     };
 
     const mockJwtService = {
@@ -75,6 +80,14 @@ describe("AuthService", () => {
 
     const mockEmailBacklogService = {
       queueBacklogProcessing: jest.fn().mockResolvedValue({ threadCount: 0 }),
+    };
+
+    const mockTotpService = {
+      setupMfa: jest.fn(),
+      enableMfa: jest.fn(),
+      verifyMfa: jest.fn(),
+      disableMfa: jest.fn(),
+      getMfaStatus: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -100,6 +113,10 @@ describe("AuthService", () => {
           provide: EmailBacklogService,
           useValue: mockEmailBacklogService,
         },
+        {
+          provide: TotpService,
+          useValue: mockTotpService,
+        },
       ],
     }).compile();
 
@@ -109,6 +126,7 @@ describe("AuthService", () => {
     boss = module.get("PG_BOSS");
     waitlistService = module.get(WaitlistService);
     emailBacklogService = module.get(EmailBacklogService);
+    totpService = module.get(TotpService);
 
     // Mock bcrypt.compare
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -137,13 +155,82 @@ describe("AuthService", () => {
       );
     });
 
-    it("should return null when user is not found", async () => {
+    it("should return null when user is not found and no deleted account record", async () => {
       usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue(null);
 
       const result = await service.validateUser("test@example.com", "password");
 
       expect(result).toBeNull();
       expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it("should return null when user is not found and deleted account has no passwordHash", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: null,
+        deletionReason: DeletionReason.INACTIVITY,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+
+      const result = await service.validateUser("test@example.com", "password");
+
+      expect(result).toBeNull();
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it("should throw DeletedAccountException when deleted account found and password matches (inactivity)", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.INACTIVITY,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.validateUser("test@example.com", "password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "inactivity" }),
+      });
+    });
+
+    it("should throw DeletedAccountException when deleted account found and password matches (manual)", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.MANUAL,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.validateUser("test@example.com", "password"),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "manual" }),
+      });
+    });
+
+    it("should return null (not reveal deletion) when deleted account found but password does not match", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      usersService.findDeletedAccountByEmailHash.mockResolvedValue({
+        id: "del-1",
+        emailHash: "hashed-email",
+        passwordHash: "stored-bcrypt-hash",
+        deletionReason: DeletionReason.MANUAL,
+        deletedAt: new Date(),
+      } as DeletedAccount);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      const result = await service.validateUser("test@example.com", "wrong-password");
+
+      expect(result).toBeNull();
     });
 
     it("should return null when password is incorrect", async () => {
@@ -624,6 +711,82 @@ describe("AuthService", () => {
       const result = await service.resetPassword(mockToken, "new-password");
 
       expect(result.access_token).toBe("jwt-token");
+    });
+  });
+
+  describe("verifyMfaAndElevate", () => {
+    it("should return elevated JWT when TOTP token is valid", async () => {
+      totpService.verifyMfa.mockResolvedValue(true);
+      jwtService.sign.mockReturnValue("elevated-jwt");
+
+      const result = await service.verifyMfaAndElevate(
+        mockUser.id,
+        mockUser.email,
+        "123456",
+      );
+
+      expect(result).toEqual({ access_token: "elevated-jwt" });
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ mfaVerified: true }),
+        expect.objectContaining({ expiresIn: "8h" }),
+      );
+    });
+
+    it("should return null when TOTP token is invalid", async () => {
+      totpService.verifyMfa.mockResolvedValue(false);
+
+      const result = await service.verifyMfaAndElevate(
+        mockUser.id,
+        mockUser.email,
+        "000000",
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("setupMfa", () => {
+    it("should delegate to TotpService.setupMfa", async () => {
+      const setupData = {
+        secret: "TESTSECRET",
+        otpauthUrl: "otpauth://totp/...",
+      };
+      totpService.setupMfa.mockResolvedValue(setupData);
+
+      const result = await service.setupMfa(mockUser.id);
+
+      expect(result).toEqual(setupData);
+      expect(totpService.setupMfa).toHaveBeenCalledWith(mockUser.id);
+    });
+  });
+
+  describe("enableMfa", () => {
+    it("should return true when token is valid", async () => {
+      totpService.enableMfa.mockResolvedValue(true);
+      const result = await service.enableMfa(mockUser.id, "123456");
+      expect(result).toBe(true);
+    });
+
+    it("should return false when token is invalid", async () => {
+      totpService.enableMfa.mockResolvedValue(false);
+      const result = await service.enableMfa(mockUser.id, "000000");
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("disableMfa", () => {
+    it("should return true when token is valid", async () => {
+      totpService.disableMfa.mockResolvedValue(true);
+      const result = await service.disableMfa(mockUser.id, "123456");
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("getMfaStatus", () => {
+    it("should return the MFA status from TotpService", async () => {
+      totpService.getMfaStatus.mockResolvedValue({ enabled: true });
+      const result = await service.getMfaStatus(mockUser.id);
+      expect(result).toEqual({ enabled: true });
     });
   });
 });

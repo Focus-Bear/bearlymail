@@ -8,7 +8,7 @@ import { captureEvent, identifyUser, resetPostHog } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_WHITE } from 'constants/colors';
-import { AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
+import { AUTH_ERROR_ACCOUNT_DELETED, AUTH_ERROR_OAUTH_ONLY } from 'constants/strings';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 /**
@@ -57,6 +57,21 @@ export class OAuthOnlyAccountError extends Error {
   constructor() {
     super('OAUTH_ONLY_ACCOUNT');
     this.name = 'OAuthOnlyAccountError';
+  }
+}
+
+/**
+ * Thrown by login() when the server returns ACCOUNT_DELETED.
+ * The caller (Login page) should check `error instanceof DeletedAccountError`
+ * to render a "your data was deleted per our privacy policy" message.
+ */
+export class DeletedAccountError extends Error {
+  readonly deletionReason: 'manual' | 'inactivity';
+
+  constructor(deletionReason: 'manual' | 'inactivity' = 'manual') {
+    super('ACCOUNT_DELETED');
+    this.name = 'DeletedAccountError';
+    this.deletionReason = deletionReason;
   }
 }
 
@@ -114,9 +129,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     resetPostHog();
+    // Remove any legacy localStorage token that may have been stored before the
+    // HttpOnly cookie migration (OWASP ASVS GAP-4). Also clear sensitive cache.
     localStorage.removeItem('token');
     clearSensitiveLocalStorage();
     delete axios.defaults.headers.common['Authorization'];
+    // Ask the server to clear the HttpOnly cookie (client JS cannot clear it directly)
+    axios.post(`${API_URL}/auth/logout`).catch(() => {
+      // Ignore errors — the user is logged out locally regardless
+    });
     setUser(null);
   }, []);
 
@@ -137,23 +158,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       response = await axios.post(`${API_URL}/auth/login`, { email, password });
     } catch (err: unknown) {
-      // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
-      // render a specific, actionable message.
-      if (
-        axios.isAxiosError(err) &&
-        (err.response?.data as { error?: string } | undefined)?.error === AUTH_ERROR_OAUTH_ONLY
-      ) {
-        throw new OAuthOnlyAccountError();
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string; deletionReason?: string } | undefined;
+        // Detect OAUTH_ONLY_ACCOUNT and surface a typed error so the UI can
+        // render a specific, actionable message.
+        if (data?.error === AUTH_ERROR_OAUTH_ONLY) {
+          throw new OAuthOnlyAccountError();
+        }
+        // Detect ACCOUNT_DELETED and surface a typed error with the reason.
+        if (data?.error === AUTH_ERROR_ACCOUNT_DELETED) {
+          throw new DeletedAccountError(
+            (data.deletionReason as 'manual' | 'inactivity') ?? 'manual',
+          );
+        }
       }
       throw err;
     }
-    const { access_token, user } = response.data;
+    const { user } = response.data;
+    // The JWT is now set as an HttpOnly cookie by the server (OWASP ASVS GAP-4).
+    // No token storage in localStorage; the browser sends the cookie automatically
+    // on every subsequent request to the API.
+    devLog('Login successful — JWT stored in HttpOnly cookie by server');
 
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
     // Track login event and identify user (NO PII)
     captureEvent(ANALYTICS_EVENTS.USER_LOGGED_IN, {
@@ -166,13 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name?: string) => {
     const response = await axios.post(`${API_URL}/auth/register`, { email, password, name });
-    const { access_token, user } = response.data;
-
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    const { user } = response.data;
+    // JWT is set as an HttpOnly cookie by the server (see login() above)
     setUser(user);
     // Track registration event and identify user (NO PII)
     captureEvent(ANALYTICS_EVENTS.USER_REGISTERED);

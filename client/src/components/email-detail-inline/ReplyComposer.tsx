@@ -72,6 +72,8 @@ interface ReplyComposerProps {
   onShowBcc: () => void;
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
+  onGenerateFromPrompt?: (prompt: string) => void;
+  generatingFromPrompt?: boolean;
   onClose: () => void;
   onSend: (params: {
     files?: File[];
@@ -311,6 +313,8 @@ interface ReplyComposerBodyProps {
   onShowCc: () => void;
   onShowBcc: () => void;
   onReplyOptionSelect: (index: number, text: string) => void;
+  onGenerateFromPrompt?: (prompt: string) => void;
+  generatingFromPrompt?: boolean;
   onDraftChange: (draft: string) => void;
   onPasteFiles: (pastedFiles: File[]) => void;
   onInlineImage: (cid: string, file: File) => void;
@@ -360,6 +364,8 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   onShowCc,
   onShowBcc,
   onReplyOptionSelect,
+  onGenerateFromPrompt,
+  generatingFromPrompt,
   onDraftChange,
   onPasteFiles,
   onInlineImage,
@@ -394,6 +400,8 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       replyOptions={replyOptions}
       selectedReplyOption={selectedReplyOption}
       onSelect={onReplyOptionSelect}
+      onGenerateFromPrompt={onGenerateFromPrompt}
+      generatingFromPrompt={generatingFromPrompt}
     />
     <ReplyDraftTextarea
       draft={draft}
@@ -470,6 +478,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onShowBcc,
   onDraftChange,
   onReplyOptionSelect,
+  onGenerateFromPrompt,
+  generatingFromPrompt,
   onClose,
   onSend,
   onUseRevisedText,
@@ -544,6 +554,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onShowCc,
     onShowBcc,
     onReplyOptionSelect,
+    onGenerateFromPrompt,
+    generatingFromPrompt,
     onDraftChange: handleDraftChange,
     onPasteFiles: handlePasteFiles,
     onInlineImage: handleInlineImage,

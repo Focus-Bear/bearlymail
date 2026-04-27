@@ -408,6 +408,89 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
       }),
     );
 
+    // CloudTrail permissions (for CDK to deploy the ManagementTrail)
+    deploymentRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudTrailPermissions",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "cloudtrail:CreateTrail",
+          "cloudtrail:UpdateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:StartLogging",
+          "cloudtrail:StopLogging",
+          "cloudtrail:GetTrail",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:ListTrails",
+          "cloudtrail:AddTags",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:GetEventSelectors",
+          "cloudtrail:CreateServiceLinkedChannel",
+        ],
+        resources: ["*"],
+      }),
+    );
+
+    // AWS Config permissions (for CDK to deploy recorder, delivery channel, and rules)
+    deploymentRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "ConfigPermissions",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "config:PutConfigurationRecorder",
+          "config:DeleteConfigurationRecorder",
+          "config:DescribeConfigurationRecorders",
+          "config:DescribeConfigurationRecorderStatus",
+          "config:StartConfigurationRecorder",
+          "config:StopConfigurationRecorder",
+          "config:PutDeliveryChannel",
+          "config:DeleteDeliveryChannel",
+          "config:DescribeDeliveryChannels",
+          "config:DescribeDeliveryChannelStatus",
+          "config:PutConfigRule",
+          "config:DeleteConfigRule",
+          "config:DescribeConfigRules",
+          "config:GetComplianceDetailsByConfigRule",
+          "config:GetComplianceSummaryByConfigRule",
+          "config:GetComplianceSummaryByResourceType",
+          "config:ListDiscoveredResources",
+        ],
+        resources: ["*"],
+      }),
+    );
+
+    // iam:PassRole is scoped to BearlyMail roles only, and only to config.amazonaws.com,
+    // to prevent privilege escalation through the deployment role.
+    deploymentRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "ConfigPassRole",
+        effect: iam.Effect.ALLOW,
+        actions: ["iam:PassRole"],
+        resources: ["arn:aws:iam::*:role/BearlyMail-*"],
+        conditions: {
+          StringEquals: {
+            "iam:PassedToService": "config.amazonaws.com",
+          },
+        },
+      }),
+    );
+
+    // CloudFormation drift detection permissions (used by the drift-detection workflow)
+    deploymentRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudFormationDriftPermissions",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "cloudformation:DetectStackDrift",
+          "cloudformation:DescribeStackDriftDetectionStatus",
+          "cloudformation:DescribeStackResourceDrifts",
+          "cloudformation:DetectStackResourceDrift",
+        ],
+        resources: ["*"],
+      }),
+    );
+
     this.deploymentRoleArn = deploymentRole.roleArn;
 
     // ============================================

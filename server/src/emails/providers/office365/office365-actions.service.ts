@@ -9,6 +9,7 @@ import type { Office365Provider } from "../office365.provider";
 import { parseOffice365Message } from "./office365-message-parser";
 import {
   archiveThreadInOffice365,
+  fetchThreadMessagesViaOffice365,
   isAuthError,
   searchEmailsViaOffice365,
   sendEmailViaOffice365,
@@ -203,6 +204,41 @@ export async function unarchiveThread(
       return;
     }
     throw new Error("Failed to unarchive thread");
+  }
+}
+
+export async function fetchThreadMessagesOffice365(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+  limit = 50,
+): Promise<RawEmailMessage[]> {
+  const primaryAccount = await provider.office365AccountsService.findPrimary(
+    userId,
+  );
+  if (!primaryAccount) return [];
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    const messages = await fetchThreadMessagesViaOffice365(
+      graphClient,
+      threadId,
+      limit,
+    );
+    return messages
+      .map((msg) => parseOffice365Message(msg))
+      .filter((msg): msg is RawEmailMessage => msg !== null);
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      return fetchThreadMessagesOffice365(provider, userId, threadId, limit);
+    }
+    return [];
   }
 }
 

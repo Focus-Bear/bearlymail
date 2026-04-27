@@ -18,9 +18,14 @@ No writing examples available. Use a {{tone}} tone.
 {% endif %}
 
 ## Task
+{% if hasUserInstructions %}
+The user has provided specific instructions for the reply. Generate 1 reply option that follows these instructions:
+**User instructions:** {{userInstructions}}
+{% else %}
 Generate 2 distinct reply options based on the email content:
 1. A "Positive/Agree" option (e.g., accepting a meeting, agreeing to a proposal)
 2. A "Negative/Decline/Defer" option (e.g., declining politely, asking for more time)
+{% endif %}
 
 CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE EXACTLY:
 - Include proper line breaks between paragraphs using actual newline characters (\n)
@@ -65,4 +70,4 @@ Subject: {{subject}}
 
 {{body}}
 
-Generate 2 reply options.
+IMPORTANT: Your entire response must be ONLY valid JSON matching this structure: { "options": [{ "label": string, "text": string }] }. Do not include any text before or after the JSON.

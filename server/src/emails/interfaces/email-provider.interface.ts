@@ -6,6 +6,10 @@ export interface EmailAttachment {
   filename: string;
   mimeType: string;
   size: number;
+  /** Base64-encoded content for inline MIME parts (e.g. text/calendar) that
+   *  have no Gmail attachment ID. When present the content is served directly
+   *  without a round-trip to the Gmail Attachments API. */
+  inlineData?: string;
 }
 
 /**
@@ -171,6 +175,19 @@ export interface EmailProvider {
     userId: string,
     query: string,
     maxResults?: number,
+  ): Promise<RawEmailMessage[]>;
+
+  /**
+   * Fetch all messages in a specific thread.
+   * For Gmail: uses thread ID directly on the Gmail API.
+   * For Zoho: uses the messages endpoint with threadId param (not searchEmails,
+   *   which uses Gmail-style query syntax Zoho doesn't support).
+   * For O365: uses conversationId filter.
+   */
+  fetchThreadMessages(
+    userId: string,
+    threadId: string,
+    limit?: number,
   ): Promise<RawEmailMessage[]>;
 
   /**

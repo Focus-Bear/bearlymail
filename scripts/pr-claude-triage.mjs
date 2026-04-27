@@ -12,13 +12,23 @@
  *   node scripts/pr-claude-triage.mjs --pr 1852
  *   node scripts/pr-claude-triage.mjs --dry-run
  *
- * By default, posts an @claude triage comment when CI failures, merge conflicts, or Gemini threads need
- * work — not for workflow approval. For blocked workflow runs it tries POST …/actions/runs/{id}/approve
+ * By default, posts an @claude triage comment when CI failures, merge conflicts, or
+ * Gemini threads need work (not for missing/under-counted check runs; those are nudged via an **automatic**
+ * empty commit in code — see `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW`). Not for workflow
+ * approval or "wait for more green checks" / merge-block only (see PR_TRIAGE_MIN_PASSED_CHECKS). For blocked
+ * workflow runs it tries POST …/actions/runs/{id}/approve
  * (where GitHub allows), then **pushes an empty commit** on the PR branch to re-trigger CI if runs stay
  * blocked (Git Data API by default; set `PR_TRIAGE_USE_LOCAL_GIT=1` to use your clone: empty commit, `push`,
  * then `git checkout -`). Use `--dry-run` to only print.
  *
- * Workflow handling runs before the per-PR rollup so new check runs can appear on the updated head SHA.
+ * Fetches check runs for the head **before** workflow handling: if any are queued or in progress, this run
+ * does not approve workflows or push any empty commit (it waits; next invocation re-evaluates).
+ * After that, if the head has **fewer** than `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW` check run
+ * rows (default: 5), and none are in progress, no failed checks, and the tip is not already the triage
+ * empty-commit message, an empty commit is pushed to seed/re-run CI.
+ * Note: the PR “Checks” UI can show “All checks have passed” for the runs that *exist* while the main
+ * matrix was **skipped** (path filters, `if:` conditions) — the REST check-runs API may list `conclusion:
+ * "skipped"` for some jobs, or only a few runs (e.g. one CodeQL) if other workflows never created runs.
  *
  * After PRs, finds remote `claude/*` branches with no open PR and **opens a pull request** for each branch
  * whose **first commit vs the default branch** is **within the last 7 days** (via compare API), unless
@@ -40,9 +50,12 @@
  *                            Data API, then `git checkout -` so the shell returns to the previous branch.
  *                            Implies a clean worktree and `origin` for this repository.
  *   PR_TRIAGE_GIT_CWD       directory for the above (default: cwd). Must match the repo you pass with -R.
- *   PR_TRIAGE_READY_FOR_REVIEW_LABEL  if unset: label name `ready-for-review`. If empty: do not set/remove
- *                            that label. Otherwise: that label is added when a PR is "ready to review" and
- *                            removed when it is not.
+ *   PR_TRIAGE_STATE_LABELS  empty = disable all triage state labels. Otherwise: sync one state label per PR
+ *   PR_TRIAGE_MIN_PASSED_CHECKS  minimum completed *success* check runs before “ready” (default 7; 0 = off)
+ *   PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW  if check run *count* on the head is **below** this (default: 5),
+ *                            push the automated empty commit when not busy/failing (0 = never by this path)
+ *   PR_TRIAGE_LABEL_*      override names (see DEFAULT_TRIAGE_STATE_LABELS in source): MERGE_CONFLICT,
+ *                            MERGE_STATE_UNKNOWN, CI_FAILING, INSUFFICIENT_SUCCESS, GEMINI_REVIEW, …
  */
 
 import { execFileSync, execSync } from "node:child_process";
@@ -52,6 +65,35 @@ const DEFAULT_REPO = "Focus-Bear/BearlyMail";
 const API_VERSION = "2022-11-28";
 const DEFAULT_GEMINI_ACTIONED_LABEL = "all-gemini-feedback-actioned";
 const DEFAULT_READY_FOR_REVIEW_LABEL = "ready-for-review";
+
+/** One label at a time; higher items win. Removed when PR leaves that state. */
+const DEFAULT_TRIAGE_STATE_LABELS = {
+  mergeConflict: "triage/merge-conflict",
+  mergeStateUnknown: "triage/merge-state-unknown",
+  ciFailing: "triage/ci-failing",
+  geminiReview: "triage/gemini-review-pending",
+  workflowApproval: "triage/workflow-approval-needed",
+  ciMissing: "triage/ci-missing",
+  ciInProgress: "triage/ci-in-progress",
+  ready: "ready-for-review",
+  /** When triage ping is set but no specific label slot matches (e.g. env disabled a name). */
+  needsAttention: "triage/needs-attention",
+  /** `completed_ok` is below PR_TRIAGE_MIN_PASSED_CHECKS and nothing else already explains it. */
+  insufficientSuccess: "triage/insufficient-check-successes",
+};
+
+const TRIAGE_LABEL_COLORS = {
+  mergeConflict: "b60205",
+  mergeStateUnknown: "d4c5f9",
+  ciFailing: "d93f0b",
+  geminiReview: "f9d0c4",
+  workflowApproval: "c2e0c6",
+  ciMissing: "fef2c0",
+  ciInProgress: "c5def5",
+  ready: "0e8a16",
+  needsAttention: "5319E7",
+  insufficientSuccess: "e99695",
+};
 
 /** Hidden marker so we do not spam duplicate triage comments on reruns. */
 const TRIAGE_COMMENT_MARKER = "<!-- pr-ci-gemini-triage -->";
@@ -101,6 +143,7 @@ function parseArgs(argv) {
     noCreateOrphanPrs: false,
     noEmptyCommitRetrigger: false,
     noReadyForReviewLabel: false,
+    noTriageStateLabels: false,
     deleteMergedClaudeBranches: false,
     help: false,
   };
@@ -115,6 +158,7 @@ function parseArgs(argv) {
     else if (a === "--no-create-orphan-prs") out.noCreateOrphanPrs = true;
     else if (a === "--no-empty-commit-retrigger") out.noEmptyCommitRetrigger = true;
     else if (a === "--no-ready-for-review-label") out.noReadyForReviewLabel = true;
+    else if (a === "--no-triage-state-labels") out.noTriageStateLabels = true;
     else if (a === "--delete-merged-claude-branches") out.deleteMergedClaudeBranches = true;
     else if (a === "-h" || a === "--help") out.help = true;
     else if (a === "-R" || a === "--repo") {
@@ -191,18 +235,116 @@ function getGeminiActionedLabel() {
 }
 
 /**
- * Label applied when a PR is in the "ready to review" triage state (and removed when not).
- * `PR_TRIAGE_READY_FOR_REVIEW_LABEL` empty = off; unset = `ready-for-review` unless `--no-ready-for-review-label`.
- * @param {{ noReadyForReviewLabel?: boolean }} [args]
+ * @param {{ noTriageStateLabels?: boolean } | null} [args]
+ * @returns {boolean}
  */
-function getReadyForReviewLabelName(args) {
-  if (args?.noReadyForReviewLabel) return null;
-  const v = process.env.PR_TRIAGE_READY_FOR_REVIEW_LABEL;
-  if (v === "") return null;
-  if (v != null && v !== "") {
-    return v.trim() || null;
+function triageStateLabelsGloballyEnabled(args) {
+  if (args?.noTriageStateLabels) return false;
+  if (process.env.PR_TRIAGE_STATE_LABELS === "") return false;
+  return true;
+}
+
+/**
+ * @param {{ noTriageStateLabels?: boolean, noReadyForReviewLabel?: boolean } | null} [args]
+ * @returns {null | {
+ *   mergeConflict: string | null,
+ *   mergeStateUnknown: string | null,
+ *   ciFailing: string | null,
+ *   insufficientSuccess: string | null,
+ *   geminiReview: string | null,
+ *   workflowApproval: string | null,
+ *   ciMissing: string | null,
+ *   ciInProgress: string | null,
+ *   needsAttention: string | null,
+ *   ready: string | null,
+ * }}
+ */
+function getTriageStateLabelConfig(args) {
+  if (!triageStateLabelsGloballyEnabled(args)) return null;
+  const pick = (envKey, def) => {
+    const v = process.env[envKey];
+    if (v === "") return null;
+    if (v != null && String(v).trim() !== "") return String(v).trim();
+    return def;
+  };
+  let ready = null;
+  if (!args?.noReadyForReviewLabel) {
+    if (process.env.PR_TRIAGE_READY_FOR_REVIEW_LABEL === "") {
+      ready = null;
+    } else if (
+      process.env.PR_TRIAGE_READY_FOR_REVIEW_LABEL != null &&
+      process.env.PR_TRIAGE_READY_FOR_REVIEW_LABEL !== ""
+    ) {
+      ready = String(process.env.PR_TRIAGE_READY_FOR_REVIEW_LABEL).trim() || null;
+    } else {
+      ready = DEFAULT_READY_FOR_REVIEW_LABEL;
+    }
   }
-  return DEFAULT_READY_FOR_REVIEW_LABEL;
+
+  return {
+    mergeConflict: pick("PR_TRIAGE_LABEL_MERGE_CONFLICT", DEFAULT_TRIAGE_STATE_LABELS.mergeConflict),
+    mergeStateUnknown: pick("PR_TRIAGE_LABEL_MERGE_STATE_UNKNOWN", DEFAULT_TRIAGE_STATE_LABELS.mergeStateUnknown),
+    ciFailing: pick("PR_TRIAGE_LABEL_CI_FAILING", DEFAULT_TRIAGE_STATE_LABELS.ciFailing),
+    geminiReview: pick("PR_TRIAGE_LABEL_GEMINI_REVIEW", DEFAULT_TRIAGE_STATE_LABELS.geminiReview),
+    workflowApproval: pick("PR_TRIAGE_LABEL_WORKFLOW_APPROVAL", DEFAULT_TRIAGE_STATE_LABELS.workflowApproval),
+    ciMissing: pick("PR_TRIAGE_LABEL_CI_MISSING", DEFAULT_TRIAGE_STATE_LABELS.ciMissing),
+    ciInProgress: pick("PR_TRIAGE_LABEL_CI_IN_PROGRESS", DEFAULT_TRIAGE_STATE_LABELS.ciInProgress),
+    needsAttention: pick("PR_TRIAGE_LABEL_NEEDS_ATTENTION", DEFAULT_TRIAGE_STATE_LABELS.needsAttention),
+    insufficientSuccess: pick("PR_TRIAGE_LABEL_INSUFFICIENT_SUCCESS", DEFAULT_TRIAGE_STATE_LABELS.insufficientSuccess),
+    ready,
+  };
+}
+
+/**
+ * @param {NonNullable<ReturnType<typeof getTriageStateLabelConfig>>} L
+ * @returns {string[]}
+ */
+function getAllManagedTriageLabelNames(L) {
+  const set = new Set();
+  for (const v of Object.values(L)) {
+    if (v && typeof v === "string") set.add(v);
+  }
+  return [...set];
+}
+
+/**
+ * Single triage state label (priority order). `none` = remove all managed labels.
+ * @param {Record<string, unknown>} row
+ * @param {{ triage_ping_recommended: boolean }} ping
+ * @param {NonNullable<ReturnType<typeof getTriageStateLabelConfig>>} L
+ */
+function computeDesiredTriageStateLabel(row, ping, L) {
+  if (row.conflict === 1 && L.mergeConflict) {
+    return { key: "merge_conflict", name: L.mergeConflict, stateKey: "mergeConflict" };
+  }
+  if (row.mergeability_indeterminate && L.mergeStateUnknown) {
+    return { key: "merge_state_unknown", name: L.mergeStateUnknown, stateKey: "mergeStateUnknown" };
+  }
+  if ((row.failures ?? 0) > 0 && L.ciFailing) {
+    return { key: "ci_failing", name: L.ciFailing, stateKey: "ciFailing" };
+  }
+  if ((row.queued_or_running ?? 0) > 0 && L.ciInProgress) {
+    return { key: "ci_in_progress", name: L.ciInProgress, stateKey: "ciInProgress" };
+  }
+  if ((row.ci_missing ?? 0) === 1 && L.ciMissing) {
+    return { key: "ci_missing", name: L.ciMissing, stateKey: "ciMissing" };
+  }
+  if (hasInsufficientCompletedSuccessCount(row) && L.insufficientSuccess) {
+    return { key: "insufficient_success", name: L.insufficientSuccess, stateKey: "insufficientSuccess" };
+  }
+  if (geminiUnresolvedBlocksTriage(row) && L.geminiReview) {
+    return { key: "gemini", name: L.geminiReview, stateKey: "geminiReview" };
+  }
+  if ((row.workflows_awaiting_approval_after ?? 0) > 0 && L.workflowApproval) {
+    return { key: "workflow_approval", name: L.workflowApproval, stateKey: "workflowApproval" };
+  }
+  if (!ping.triage_ping_recommended && (row.queued_or_running ?? 0) === 0 && L.ready) {
+    return { key: "ready", name: L.ready, stateKey: "ready" };
+  }
+  if (ping.triage_ping_recommended && L.needsAttention) {
+    return { key: "needs_attention", name: L.needsAttention, stateKey: "needsAttention" };
+  }
+  return { key: "none", name: null, stateKey: "none" };
 }
 
 /**
@@ -1142,20 +1284,35 @@ async function processForkWorkflowApprovals(owner, repo, headSha, headBranchName
   };
 }
 
-const readyForReviewLabelCreateCache = new Set();
+const triageLabelCreateCache = new Set();
+
+const TRIAGE_LABEL_DESCRIPTIONS = {
+  mergeConflict: "Merge conflicts with the base branch (pr-claude-triage)",
+  mergeStateUnknown: "GitHub mergeable state not resolved yet (pr-claude-triage)",
+  ciFailing: "One or more check runs failed (pr-claude-triage)",
+  insufficientSuccess: "Not enough successful (green) check runs vs configured minimum (pr-claude-triage)",
+  geminiReview: "Unresolved Gemini Code Assist review threads (pr-claude-triage)",
+  workflowApproval: "GitHub Actions runs awaiting maintainer approval (pr-claude-triage)",
+  ciMissing: "No check runs on the current head (pr-claude-triage)",
+  ciInProgress: "CI still queued or running (pr-claude-triage)",
+  ready: "No triage blockers; ready for human review (pr-claude-triage)",
+  needsAttention: "Triage automation flagged this PR; see comments or checks (pr-claude-triage)",
+};
 
 /**
- * Create the label in the repository if missing (attach requires the label to exist).
- * @param {string} labelName
+ * Create the label in the repository if missing.
+ * @param {string} stateKey
  */
-async function ensureRepositoryLabelExistsForTriage(owner, repo, labelName) {
+async function ensureRepositoryTriageLabelExists(owner, repo, labelName, stateKey) {
   const key = `${owner}/${repo}/${labelName}`;
-  if (readyForReviewLabelCreateCache.has(key)) return;
+  if (triageLabelCreateCache.has(key)) return;
+  const color = TRIAGE_LABEL_COLORS[stateKey] || "5319E7";
+  const description = TRIAGE_LABEL_DESCRIPTIONS[stateKey] || "pr-claude-triage state label";
   try {
     await githubRestPost(`/repos/${owner}/${repo}/labels`, {
       name: labelName,
-      color: "5319E7",
-      description: "PR is ready for review (pr-claude-triage)",
+      color,
+      description,
     });
   } catch (e) {
     const m = (e && e.message) || String(e);
@@ -1163,45 +1320,72 @@ async function ensureRepositoryLabelExistsForTriage(owner, repo, labelName) {
       throw e;
     }
   }
-  readyForReviewLabelCreateCache.add(key);
+  triageLabelCreateCache.add(key);
 }
 
 /**
- * Add/remove the "ready for review" label to match the triage state (ready = no blockers, CI not in flight).
- * @param {string} labelName
- * @param {{ shouldHave: boolean, labels: Array<{ name?: string } | null | undefined>, dryRun: boolean }} ctx
- * @returns {Promise<"disabled" | "unchanged" | "added" | "removed" | "dry_run_would_add" | "dry_run_would_remove" | "error">}
+ * Removes any managed triage label that is not `desiredName`, then adds `desiredName` if set.
+ * @param {string[]} managedNames
+ * @param {string | null} desiredName
+ * @returns {Promise<{ key: string, removed: string[], added: string | null, dryRun: boolean, error?: boolean }>}
  */
-async function ensurePrReadyForReviewLabel(owner, repo, issueNumber, labelName, ctx) {
-  if (!labelName) return "disabled";
-  const { shouldHave, labels, dryRun } = ctx;
-  const has = (labels ?? []).some((l) => l && l.name === labelName);
-  if (shouldHave && !has) {
-    if (dryRun) return "dry_run_would_add";
-    try {
-      await ensureRepositoryLabelExistsForTriage(owner, repo, labelName);
-      await githubRestPost(`/repos/${owner}/${repo}/issues/${issueNumber}/labels`, { labels: [labelName] });
-    } catch (e) {
-      console.error(`[ready-for-review label] add failed for #${issueNumber}: ${(e && e.message) || e}`);
-      return "error";
-    }
-    return "added";
+async function syncTriageStateLabels(
+  owner,
+  repo,
+  issueNumber,
+  currentLabelNodes,
+  desiredName,
+  managedNames,
+  desiredStateKey,
+  dryRun,
+) {
+  const present = new Set(
+    (currentLabelNodes ?? []).map((l) => (l && l.name) || "").filter(Boolean),
+  );
+  const managed = new Set(managedNames);
+  const toRemove = [...present].filter((n) => managed.has(n) && n !== desiredName);
+  const needAdd = Boolean(desiredName) && !present.has(desiredName);
+
+  if (toRemove.length === 0 && !needAdd) {
+    return { key: desiredStateKey, removed: [], added: null, dryRun: false, error: false };
   }
-  if (!shouldHave && has) {
-    if (dryRun) return "dry_run_would_remove";
-    const enc = encodeURIComponent(labelName);
+  if (dryRun) {
+    return {
+      key: desiredStateKey,
+      removed: toRemove,
+      added: needAdd ? desiredName : null,
+      dryRun: true,
+      error: false,
+    };
+  }
+  for (const name of toRemove) {
+    const enc = encodeURIComponent(name);
     const { ok, status, text } = await githubRestDelete(
       `/repos/${owner}/${repo}/issues/${issueNumber}/labels/${enc}`,
     );
     if (!ok) {
       console.error(
-        `[ready-for-review label] remove failed for #${issueNumber}: http=${status} ${(text || "").slice(0, 200)}`,
+        `[triage label] remove ${name} failed for #${issueNumber}: http=${status} ${(text || "").slice(0, 200)}`,
       );
-      return "error";
+      return { key: desiredStateKey, removed: [], added: null, dryRun: false, error: true };
     }
-    return "removed";
   }
-  return "unchanged";
+  if (needAdd && desiredName) {
+    try {
+      await ensureRepositoryTriageLabelExists(owner, repo, desiredName, desiredStateKey);
+      await githubRestPost(`/repos/${owner}/${repo}/issues/${issueNumber}/labels`, { labels: [desiredName] });
+    } catch (e) {
+      console.error(`[triage label] add failed for #${issueNumber}: ${(e && e.message) || e}`);
+      return { key: desiredStateKey, removed: toRemove, added: null, dryRun: false, error: true };
+    }
+  }
+  return {
+    key: desiredStateKey,
+    removed: toRemove,
+    added: needAdd ? desiredName : null,
+    dryRun: false,
+    error: false,
+  };
 }
 
 async function fetchIssueComments(owner, repo, issueNumber) {
@@ -1402,13 +1586,12 @@ async function fetchPullRequestMergeStateGraphql(owner, repo, prNumber) {
   if (!p) {
     return null;
   }
+  const ms = p.mergeStateStatus != null ? String(p.mergeStateStatus) : "UNKNOWN";
   if (p.mergeable == null) {
-    return null;
+    // mergeable can be null while mergeStateStatus is already DIRTY — do not drop the conflict.
+    return { mergeable: "UNKNOWN", mergeStateStatus: ms };
   }
-  return {
-    mergeable: String(p.mergeable),
-    mergeStateStatus: p.mergeStateStatus != null ? String(p.mergeStateStatus) : "UNKNOWN",
-  };
+  return { mergeable: String(p.mergeable), mergeStateStatus: ms };
 }
 
 /**
@@ -1421,14 +1604,15 @@ function applyGraphqlMergeableToPr(pr, gql) {
   if (!gql) {
     return { ...pr, mergeability_indeterminate: true };
   }
-  const m = gql.mergeable;
-  const s = gql.mergeStateStatus || "UNKNOWN";
+  const m = (gql.mergeable || "UNKNOWN").toString().toUpperCase();
+  const s = (gql.mergeStateStatus || "UNKNOWN").toString().toUpperCase();
 
   if (m === "CONFLICTING" || s === "DIRTY") {
     return {
       ...pr,
       mergeable: false,
       mergeable_state: "dirty",
+      mergeStateStatus: gql.mergeStateStatus ?? null,
       mergeability_indeterminate: false,
     };
   }
@@ -1438,24 +1622,38 @@ function applyGraphqlMergeableToPr(pr, gql) {
       ...pr,
       mergeable: true,
       mergeable_state: s === "UNKNOWN" ? "unknown" : s.toLowerCase(),
+      mergeStateStatus: gql.mergeStateStatus ?? null,
       mergeability_indeterminate: false,
     };
   }
 
-  /* m === "UNKNOWN" (GraphQL) */
-  if (s === "DIRTY") {
+  if (m === "UNKNOWN" && s === "DIRTY") {
     return {
       ...pr,
       mergeable: false,
       mergeable_state: "dirty",
+      mergeStateStatus: gql.mergeStateStatus ?? null,
       mergeability_indeterminate: false,
     };
   }
 
   return {
     ...pr,
+    mergeStateStatus: gql.mergeStateStatus ?? null,
     mergeability_indeterminate: true,
   };
+}
+
+/**
+ * GraphQL merge fields say there are merge conflicts (stale REST may still show mergeable: true).
+ * @param {{ mergeable: string, mergeStateStatus: string } | null} gql
+ * @returns {boolean}
+ */
+function isGraphqlMergeStateConflicting(gql) {
+  if (!gql) return false;
+  const m = (gql.mergeable || "").toString().toUpperCase();
+  const s = (gql.mergeStateStatus || "").toString().toUpperCase();
+  return m === "CONFLICTING" || s === "DIRTY" || (m === "UNKNOWN" && s === "DIRTY");
 }
 
 /**
@@ -1483,10 +1681,11 @@ async function refreshPullMergeStatus(owner, repo, pr) {
       return current;
     }
     if (current.mergeable === false) {
-      return current;
+      break;
     }
     if (current.mergeable === true) {
-      return current;
+      // REST can report true while conflicts exist; always reconcile with GraphQL after the loop.
+      break;
     }
 
     if (attempt < maxAttempts - 1) {
@@ -1494,20 +1693,24 @@ async function refreshPullMergeStatus(owner, repo, pr) {
     }
   }
 
-  const needsGraphql =
+  const restIndeterminate =
     current.mergeable == null || isMergeableStateRestUnknown(current.mergeable_state);
 
-  if (needsGraphql) {
-    try {
-      const gqlState = await fetchPullRequestMergeStateGraphql(owner, repo, pr.number);
-      current = applyGraphqlMergeableToPr(current, gqlState);
-    } catch (e) {
-      console.warn(
-        `[warn] GraphQL merge state fallback failed for PR #${pr.number}: ${(e && e.message) || e}`,
-      );
-      if (current.mergeable == null && isMergeableStateRestUnknown(current.mergeable_state)) {
-        current = { ...current, mergeability_indeterminate: true };
+  try {
+    const gqlState = await fetchPullRequestMergeStateGraphql(owner, repo, pr.number);
+    if (gqlState) {
+      if (isGraphqlMergeStateConflicting(gqlState)) {
+        current = applyGraphqlMergeableToPr(current, gqlState);
+      } else if (restIndeterminate) {
+        current = applyGraphqlMergeableToPr(current, gqlState);
       }
+    }
+  } catch (e) {
+    console.warn(
+      `[warn] GraphQL merge state for PR #${pr.number} failed: ${(e && e.message) || e}`,
+    );
+    if (current.mergeable == null && isMergeableStateRestUnknown(current.mergeable_state)) {
+      current = { ...current, mergeability_indeterminate: true };
     }
   }
 
@@ -1515,14 +1718,23 @@ async function refreshPullMergeStatus(owner, repo, pr) {
 }
 
 /**
- * Conflicts: mergeable_state "dirty", or mergeable false once GitHub has finished computing.
+ * Conflicts: REST `mergeable_state` `dirty`, GraphQL `mergeStateStatus` `DIRTY`,
+ * or mergeable false / CONFLICTING once GitHub has finished computing.
+ * @param {Record<string, unknown>} pr
  */
 function hasMergeConflict(pr) {
   const state = String(pr.mergeable_state ?? "").toLowerCase();
   if (state === "dirty") {
     return true;
   }
-  return pr.mergeable === false;
+  if (pr.mergeable === false) {
+    return true;
+  }
+  const g = String(pr.mergeStateStatus ?? "").toUpperCase();
+  if (g === "DIRTY") {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -1621,6 +1833,51 @@ function summarizeCheckRuns(checkRuns) {
   };
 }
 
+/**
+ * @returns {number} 0 = do not enforce a minimum count of green check runs
+ */
+function getMinRequiredPassedCheckRuns() {
+  const n = parseInt(String(process.env.PR_TRIAGE_MIN_PASSED_CHECKS ?? "7"), 10);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
+/**
+ * @returns {number} 0 = do not auto-push the stalled-head empty commit; otherwise push when `check_runs` is **strictly below** this.
+ */
+function getCheckRunCountFloorForAutoEmptyCommit() {
+  const n = parseInt(
+    String(process.env.PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW ?? "5"),
+    10,
+  );
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
+/**
+ * GitHub merge is not "clean" (required status checks, reviews, branch rules, or failing check hooks).
+ * `blocked` and `unstable` are common when the PR cannot be merged from the button yet.
+ */
+function mergeableStateIsBlockingGates(mergeableState) {
+  const s = String(mergeableState ?? "").toLowerCase();
+  return s === "blocked" || s === "unstable";
+}
+
+/**
+ * `completed_ok` is below the configured floor while CI is finished (no in-flight, no red checks).
+ * We do **not** use `mergeable_state` here: "blocked" often just means a human review is required, while
+ * the PR is still in a *ready for review* state. Zero check runs is left to the `ci_missing` label instead.
+ * @param {Record<string, unknown>} row
+ */
+function hasInsufficientCompletedSuccessCount(row) {
+  const min = getMinRequiredPassedCheckRuns();
+  if (min <= 0) return false;
+  if ((row.check_runs ?? 0) < 1) return false;
+  if ((row.queued_or_running ?? 0) > 0) return false;
+  if ((row.failures ?? 0) > 0) return false;
+  return (row.completed_ok ?? 0) < min;
+}
+
 async function fetchCheckRunsForSha(owner, repo, sha) {
   // Default `filter=latest` omits many runs (e.g. in-progress — no completed_at). Use `all` to match
   // the PR "Checks" tab, including concurrent push + pull_request jobs.
@@ -1646,6 +1903,150 @@ async function fetchCheckRunsForSha(owner, repo, sha) {
     url = parseNextLink(res.headers.get("Link"));
   }
   return runs;
+}
+
+/**
+ * @param {string | null | undefined} message
+ * @returns {boolean}
+ */
+function isEmptyCiRetriggerCommitMessage(message) {
+  if (message == null) return false;
+  const m = String(message).trim();
+  return m === CI_RETRIGGER_COMMIT_MESSAGE;
+}
+
+/**
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} sha
+ * @returns {Promise<string | null>}
+ */
+async function fetchCommitMessageForSha(owner, repo, sha) {
+  if (!sha) return null;
+  const data = await githubRest(
+    `/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}`,
+  );
+  const msg = data?.commit?.message;
+  return msg != null ? String(msg) : null;
+}
+
+/**
+ * If the check-run **row count** on the head is below `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW` (default 5)
+ * and nothing is busy, push an empty commit to seed/re-run CI (same as workflow-approval retrigger), unless
+ * the tip is already the triage empty commit. Path/`if` skips are not fixed by a second empty commit.
+ * @param {{
+ *   owner: string,
+ *   repo: string,
+ *   headRef: string,
+ *   headSha: string,
+ *   checkRuns: unknown[],
+ *   ci: { check_runs: number, completed_ok: number, completed_fail: number, skipped: number, cancelled: number, queued_or_running: number, has_ci: boolean, failures: number },
+ *   prMerge: Record<string, unknown>,
+ *   dryRun: boolean,
+ *   noEmptyCommitRetrigger: boolean,
+ *   preferLocalGitForEmptyRetrigger: boolean,
+ *   gitCwd: string,
+ *   workflowEmptyRetriggerOk: boolean,
+ * }} args
+ */
+async function maybeRetriggerCiStalledHeadEmptyCommit(args) {
+  const {
+    owner,
+    repo,
+    headRef,
+    headSha,
+    checkRuns,
+    ci,
+    prMerge,
+    dryRun,
+    noEmptyCommitRetrigger,
+    preferLocalGitForEmptyRetrigger,
+    gitCwd,
+    workflowEmptyRetriggerOk,
+  } = args;
+
+  const minBelow = getCheckRunCountFloorForAutoEmptyCommit();
+
+  const empty = (extra) => ({
+    headSha,
+    checkRuns,
+    ci,
+    stalled_head_empty_commit_retrigger: extra,
+  });
+
+  const skip = (reason) => empty({ skipped: true, reason });
+
+  if (minBelow === 0) {
+    return empty(null);
+  }
+  if (noEmptyCommitRetrigger) {
+    return skip("no_empty_commit_retrigger");
+  }
+  if (!headRef || String(headRef).length === 0) {
+    return skip("no_head_ref");
+  }
+  if (workflowEmptyRetriggerOk) {
+    return skip("workflow_empty_commit_already_pushed");
+  }
+  if (hasMergeConflict(prMerge)) {
+    return skip("merge_conflict");
+  }
+  if ((ci.check_runs ?? 0) >= minBelow) {
+    return empty(null);
+  }
+  if ((ci.queued_or_running ?? 0) > 0) {
+    return skip("queued_or_in_progress");
+  }
+  if ((ci.failures ?? 0) > 0) {
+    return skip("check_failures");
+  }
+
+  let tipMsg;
+  try {
+    tipMsg = await fetchCommitMessageForSha(owner, repo, headSha);
+  } catch {
+    return skip("commit_message_fetch_failed");
+  }
+  if (isEmptyCiRetriggerCommitMessage(tipMsg)) {
+    return skip("tip_already_retrigger_empty_commit");
+  }
+
+  if (dryRun) {
+    return {
+      headSha,
+      checkRuns,
+      ci,
+      stalled_head_empty_commit_retrigger: {
+        dry_run: true,
+        would: true,
+        reason: "stalled_head_retrigger",
+        min_check_runs_to_skip_auto: minBelow,
+        have_check_runs: ci.check_runs ?? 0,
+      },
+    };
+  }
+
+  const r = await pushEmptyCommitForCiRetrigger(owner, repo, headRef, {
+    preferLocalGit: Boolean(preferLocalGitForEmptyRetrigger),
+    gitCwd: typeof gitCwd === "string" ? gitCwd : undefined,
+  });
+  if (!r.ok) {
+    return {
+      headSha,
+      checkRuns,
+      ci,
+      stalled_head_empty_commit_retrigger: { ok: false, detail: r.detail, reason: "stalled_head_retrigger" },
+    };
+  }
+  const newSha = r.new_head_sha;
+  const newRuns = await fetchCheckRunsForSha(owner, repo, newSha);
+  const newCi = summarizeCheckRuns(newRuns);
+  return {
+    headSha: newSha,
+    checkRuns: newRuns,
+    ci: newCi,
+    stalled_head_empty_commit_retrigger: { ...r, reason: "stalled_head_retrigger" },
+  };
 }
 
 /**
@@ -1714,12 +2115,12 @@ function formatUnknown(val) {
 }
 
 /**
- * When to recommend a triage ping: CI failure, merge conflict, open Gemini threads, or workflows still awaiting approval.
- * (Console / exit-code rollup — includes workflow approval backlog.)
+ * When the rollup is not "ready to merge" / "healthy": CI, merge, Gemini, branch protection, or enough green checks.
+ * (Console / exit-code rollup — includes workflow approval backlog and mergeability vs PR_TRIAGE_MIN_PASSED_CHECKS.)
  */
 function triagePingRecommended(row) {
   const reasons = [];
-  if (row.failures > 0) {
+  if ((row.failures ?? 0) > 0) {
     reasons.push(`completed check failures (${row.failures})`);
   }
   if (row.conflict === 1) {
@@ -1729,6 +2130,22 @@ function triagePingRecommended(row) {
     reasons.push(
       "mergeable state not resolved by API (confirm on PR: conflicts / behind base / or wait for GitHub to finish computing)",
     );
+  }
+  if (row.ci_missing === 1) {
+    reasons.push("no check runs on the current head (CI not reported yet, or not triggered on this commit)");
+  }
+  if ((row.queued_or_running ?? 0) > 0) {
+    reasons.push(
+      `check run(s) queued or in progress (${row.queued_or_running}) — wait for CI to finish before calling it green`,
+    );
+  }
+  if (hasInsufficientCompletedSuccessCount(row)) {
+    const min = getMinRequiredPassedCheckRuns();
+    let line = `insufficient green check run count (${row.completed_ok ?? 0} success, need at least ${min} per PR_TRIAGE_MIN_PASSED_CHECKS)`;
+    if ((row.skipped ?? 0) > 0) {
+      line += `; ${row.skipped} run(s) have conclusion "skipped" in the API (if the main CI was skipped, check workflow if:/paths; a no-op retrigger can still skip the same work)`;
+    }
+    reasons.push(line);
   }
   const wfPending = row.workflows_awaiting_approval_after ?? 0;
   if (wfPending > 0) {
@@ -1746,13 +2163,16 @@ function triagePingRecommended(row) {
 }
 
 /**
- * Whether to post an @claude triage comment. Workflow approval is done by this script via the token
- * (`postApproveWorkflowRun`); Claude cannot approve Actions runs, so we never include that in the bot ping.
+ * Whether to post an @claude triage comment. Skips: workflow approval (this script or UI), in-flight checks,
+ * mergeability-only gates (not enough green checks, GitHub "blocked" until more checks), which are not code fixes.
  */
 function claudeTriagePingRecommended(row) {
   if ((row.failures ?? 0) > 0) return true;
   if (row.conflict === 1) return true;
   if (row.mergeability_indeterminate) return true;
+  if ((row.queued_or_running ?? 0) > 0) return false;
+  if (mergeableStateIsBlockingGates(row.mergeable_state)) return false;
+  if (hasInsufficientCompletedSuccessCount(row)) return false;
   if (geminiUnresolvedBlocksTriage(row)) return true;
   return false;
 }
@@ -1761,7 +2181,7 @@ function formatDecisionLine(prNumber, ping, row) {
   if (!ping.triage_ping_recommended) {
     const inFlight = (row?.queued_or_running ?? 0) > 0;
     if (inFlight) {
-      return `[decision] No triage ping for PR #${prNumber}: ${row.queued_or_running} check run(s) still queued or in progress — wait for CI to finish before treating this as ready. No completed check failures, merge conflict flag clear, Gemini: ${geminiUnresolvedTriageStatePhrase(row)}, workflow approval gate clear.`;
+      return `[decision] No triage ping for PR #${prNumber}: ${row.queued_or_running} check run(s) still queued or in progress — this should have forced a triage ping; if you see this line, re-run the script (bug).`;
     }
     if (
       (row.gemini_unresolved_count ?? 0) > 0 &&
@@ -1770,7 +2190,13 @@ function formatDecisionLine(prNumber, ping, row) {
       const name = getGeminiActionedLabel() ?? "all-gemini-feedback-actioned";
       return `[decision] No triage ping for PR #${prNumber}: no completed check failures, merge/clear, workflows not blocked. Open Gemini thread(s) on the diff, but \`${name}\` is set — we trust (not triage-blocking).`;
     }
-    return `[decision] No triage ping for PR #${prNumber}: CI rollup looks healthy (no completed failures), merge conflict flag clear, no unresolved Gemini inline threads, workflows not blocked on approval.`;
+    const min = getMinRequiredPassedCheckRuns();
+    const mss = row.mergeable_state != null ? String(row.mergeable_state) : "null";
+    const acc =
+      min > 0
+        ? `green check runs: ${row.completed_ok ?? 0} (min ${min} from PR_TRIAGE_MIN_PASSED_CHECKS); mergeable_state=${mss}`
+        : "PR_TRIAGE_MIN_PASSED_CHECKS=0 (no minimum count enforced); mergeable_state not covered by that rule";
+    return `[decision] No triage ping for PR #${prNumber}: ${acc}. No completed failures, merge conflict flag clear, no unresolved triage-inline Gemini, workflows not blocked on approval.`;
   }
   const joined = ping.triage_ping_reasons.join("; ");
   return `[decision] Triage ping recommended for PR #${prNumber}: ${joined}.`;
@@ -1785,8 +2211,8 @@ function createEmptySummary() {
     readyToReview: [],
     /** PRs with no triage blockers but check runs still queued/running (not "ready" yet) */
     ciInProgress: [],
-    readyForReviewLabelAdded: [],
-    readyForReviewLabelRemoved: [],
+    /** Triage state label sync events (see DEFAULT_TRIAGE_STATE_LABELS) */
+    triageStateLabelSync: [],
   };
 }
 
@@ -1822,7 +2248,7 @@ function printConsoleSummary(summary, orphanClaudeBranches) {
   }
   console.log("");
   console.log(
-    "3. Workflow approval still pending (script tried API; you may need **Approve workflows** in the GitHub UI)",
+    "3. Triage ping is on but no @claude comment (e.g. workflow approval, merge rules, or waiting for more green checks — not a code-only fix for the bot)",
   );
   if (summary.workflowApprovalPending.length === 0) {
     console.log("   (none)");
@@ -1850,21 +2276,17 @@ function printConsoleSummary(summary, orphanClaudeBranches) {
     }
   }
   console.log("");
-  const rfa = summary.readyForReviewLabelAdded?.length ?? 0;
-  const rfr = summary.readyForReviewLabelRemoved?.length ?? 0;
-  if (rfa + rfr > 0) {
-    console.log("5b. ready-for-review label (this run)");
-    if (rfa > 0) {
-      console.log(`   added (${rfa}):`);
-      for (const p of summary.readyForReviewLabelAdded) {
-        console.log(prLine(p));
-      }
-    }
-    if (rfr > 0) {
-      console.log(`   removed (${rfr}):`);
-      for (const p of summary.readyForReviewLabelRemoved) {
-        console.log(prLine(p));
-      }
+  const tls = summary.triageStateLabelSync?.length ?? 0;
+  if (tls > 0) {
+    console.log("5b. Triage state labels (this run)");
+    for (const p of summary.triageStateLabelSync) {
+      const err = p.error ? " [error]" : "";
+      const dr = p.dry_run ? " (dry-run)" : "";
+      const rm = (p.removed && p.removed.length) ? ` −${p.removed.join(", ")}` : "";
+      const ad = p.added ? ` +${p.added}` : "";
+      console.log(
+        `   - #${p.number} → ${p.to_key ?? "?"}${p.to_label ? ` (${p.to_label})` : ""}${rm}${ad}${dr}${err}`,
+      );
     }
     console.log("");
   }
@@ -1892,12 +2314,13 @@ Options:
   -R, --repo OWNER/REPO          Repository (default: GITHUB_REPOSITORY or ${DEFAULT_REPO})
   --pr N                         Only process PR #N
   --fail-on-gemini-unresolved    Exit 2 if any PR still has triage-blocking Gemini threads (the all-gemini-feedback-actioned label waives; see GEMINI_ACTIONED_LABEL)
-  --fail-on-triage-ping          Exit 2 if any PR recommends a triage ping (CI, conflict, or Gemini)
+  --fail-on-triage-ping          Exit 2 if any PR recommends a triage ping (CI, merge, min green checks, conflict, or Gemini, etc.)
   --dry-run                      Do not post comments, approve workflows, push empty commits, open orphan PRs, or delete remote branches
   --force-comment                Post even if a Claude workflow is still running (overrides duplicate skip)
   --no-approve-workflows         Do not POST workflow approvals (still counts runs awaiting approval)
-  --no-empty-commit-retrigger    If runs stay blocked after approve API, do not push an empty commit to re-trigger CI
-  --no-ready-for-review-label    Do not add/remove the ready-for-review triage label on PRs
+  --no-empty-commit-retrigger    Do not push an empty commit to re-trigger CI (workflow, stalled-head, or any path)
+  --no-triage-state-labels      Do not sync triage/* state labels (see PR_TRIAGE_STATE_LABELS)
+  --no-ready-for-review-label   Do not use the "ready" slot (others still apply if triage labels are on)
   --no-create-orphan-prs         List orphan claude/* branches only; do not open PRs for them
   --delete-merged-claude-branches  When orphan PR is skipped (already merged / already in base), delete the remote claude/* branch
   -h, --help                     This help
@@ -1906,14 +2329,21 @@ Default: approves workflow runs where the API allows; if runs stay blocked on th
 empty git commit on the PR branch to re-trigger CI. Then rolls up CI. Opens PRs
 for orphan claude/* branches when the branch's first commit vs the base is within 7 days; PR title is
 #N plus issue title when the branch is claude/issue-N-*. Base = default branch (PR_TRIAGE_BASE_BRANCH).
-Posts @claude triage comments only for CI / merge / Gemini. Token: **Contents** (write, for empty commits), **Actions** (read/write), **Pull requests**, **Issues**.
+Posts @claude triage comments for CI / merge / Gemini (not for “too few check run rows” — the script auto-pushes an empty commit). Token: **Contents** (write, for empty commits), **Actions** (read/write), **Pull requests**, **Issues**.
 
 Environment:
   GITHUB_TOKEN or GH_TOKEN
   PR_TRIAGE_BASE_BRANCH   Base branch for orphan claude/* PRs (default: repo default branch from API)
   PR_TRIAGE_USE_LOCAL_GIT  "1"/"true": use local git in PR_TRIAGE_GIT_CWD (or cwd) for empty CI retrigger
   PR_TRIAGE_GIT_CWD        Repo root for PR_TRIAGE_USE_LOCAL_GIT (default: process cwd; origin must match -R)
-  PR_TRIAGE_READY_FOR_REVIEW_LABEL  Label for "ready" PRs; unset = ready-for-review, empty = do not use
+  PR_TRIAGE_STATE_LABELS   If empty: disable all triage state label syncing. Unset: enabled (one label/PR, priority)
+  PR_TRIAGE_MIN_PASSED_CHECKS  Minimum *completed success* check runs to treat the rollup as green (default: 7; 0 = off)
+  PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW  If head has **fewer** than this many check *run rows* (default: 5) and
+                            CI is not busy, push the automated empty commit; 0 = never
+  PR_TRIAGE_LABEL_*        Optional overrides: MERGE_CONFLICT, MERGE_STATE_UNKNOWN, CI_FAILING,
+                            INSUFFICIENT_SUCCESS, GEMINI_REVIEW, WORKFLOW_APPROVAL, CI_MISSING, CI_IN_PROGRESS, NEEDS_ATTENTION
+                            (empty = disable that slot)
+  PR_TRIAGE_READY_FOR_REVIEW_LABEL  "Ready" state label; unset=ready-for-review; empty=disable that slot
   GEMINI_REVIEW_BOTS      comma-separated logins (default: gemini-code-assist)
   GEMINI_ACTIONED_LABEL   PR label name that means Gemini is fully addressed; unset = "all-gemini-feedback-actioned", empty = disable
 `);
@@ -1930,7 +2360,10 @@ Environment:
     shouldUseLocalGitForRetrigger() &&
     isInsideGitWorkTree(gitCwd) &&
     originRemoteMatchesRepository(gitCwd, owner, repo);
-  const readyForReviewLabelName = getReadyForReviewLabelName(args);
+  const triageLabelConfig = getTriageStateLabelConfig(args);
+  const managedTriageLabelNames = triageLabelConfig
+    ? getAllManagedTriageLabelNames(triageLabelConfig)
+    : [];
 
   const bots = geminiBotSet();
   const allOpenPulls = await listOpenPulls(owner, repo);
@@ -1952,10 +2385,14 @@ Environment:
     const prMerge = await refreshPullMergeStatus(owner, repo, pr);
     const headRef = prMerge.head?.ref ?? "";
 
+    let checkRuns = await fetchCheckRunsForSha(owner, repo, headSha);
+    let ci = summarizeCheckRuns(checkRuns);
+    const checksInProgress = (ci.queued_or_running ?? 0) > 0;
+
     const wfResult = await processForkWorkflowApprovals(owner, repo, headSha, headRef, {
       dryRun: args.dryRun,
-      disabled: args.noApproveWorkflows,
-      noEmptyCommitRetrigger: args.noEmptyCommitRetrigger,
+      disabled: args.noApproveWorkflows || checksInProgress,
+      noEmptyCommitRetrigger: args.noEmptyCommitRetrigger || checksInProgress,
       preferLocalGitForEmptyRetrigger,
       gitCwd,
     });
@@ -1964,8 +2401,28 @@ Environment:
       headSha = wfResult.workflows_effective_head_sha;
     }
 
-    const checkRuns = await fetchCheckRunsForSha(owner, repo, headSha);
-    const ci = summarizeCheckRuns(checkRuns);
+    if (!checksInProgress) {
+      checkRuns = await fetchCheckRunsForSha(owner, repo, headSha);
+      ci = summarizeCheckRuns(checkRuns);
+    }
+    const workflowEmptyRetriggerOk = wfResult.workflows_empty_commit_retrigger?.ok === true;
+    const stalledEmptyResult = await maybeRetriggerCiStalledHeadEmptyCommit({
+      owner,
+      repo,
+      headRef,
+      headSha,
+      checkRuns,
+      ci,
+      prMerge,
+      dryRun: args.dryRun,
+      noEmptyCommitRetrigger: args.noEmptyCommitRetrigger,
+      preferLocalGitForEmptyRetrigger,
+      gitCwd,
+      workflowEmptyRetriggerOk,
+    });
+    headSha = stalledEmptyResult.headSha;
+    checkRuns = stalledEmptyResult.checkRuns;
+    ci = stalledEmptyResult.ci;
     const gemini = await fetchUnresolvedGeminiThreads(owner, repo, prMerge.number, bots);
     const actionedLabel = getGeminiActionedLabel();
     const hasActionedLabel = prHasGeminiActionedLabel(prMerge);
@@ -1978,8 +2435,13 @@ Environment:
       mergeable: prMerge.mergeable,
       mergeable_state: prMerge.mergeable_state ?? null,
       mergeability_indeterminate: prMerge.mergeability_indeterminate === true,
+      pr_triage_min_passed_checks: getMinRequiredPassedCheckRuns(),
+      pr_triage_auto_empty_commit_min_check_runs: getCheckRunCountFloorForAutoEmptyCommit(),
+      /** True on the pre-workflow read: we did not approve workflows or empty-commit retrigger that run. */
+      triage_waits_on_check_runs: checksInProgress,
       ...wfResult,
       ...ci,
+      stalled_head_empty_commit_retrigger: stalledEmptyResult.stalled_head_empty_commit_retrigger,
       conflict: hasMergeConflict(prMerge) ? 1 : 0,
       ci_missing: ci.check_runs === 0 ? 1 : 0,
       ...gemini,
@@ -2011,8 +2473,9 @@ Environment:
       } else {
         summary.readyToReview.push(prBrief);
       }
+    } else if ((row.queued_or_running ?? 0) > 0 && !row.claude_triage_ping_recommended) {
+      summary.ciInProgress.push(prBrief);
     } else if (!row.claude_triage_ping_recommended) {
-      // e.g. workflows still awaiting approval — handled by token, not @claude
       summary.workflowApprovalPending.push(prBrief);
     } else if (commentResult.action === "posted") {
       summary.reworkCommentPosted.push(prBrief);
@@ -2028,24 +2491,40 @@ Environment:
       });
     }
 
-    const shouldHaveReadyForReviewLabel =
-      !ping.triage_ping_recommended && (row.queued_or_running ?? 0) === 0;
-    const readyLabelAction = await ensurePrReadyForReviewLabel(
-      owner,
-      repo,
-      prMerge.number,
-      readyForReviewLabelName,
-      {
-        shouldHave: shouldHaveReadyForReviewLabel,
-        labels: prMerge.labels ?? [],
-        dryRun: args.dryRun,
-      },
-    );
-    row.ready_for_review_label = readyLabelAction;
-    if (readyLabelAction === "added") {
-      summary.readyForReviewLabelAdded.push(prBrief);
-    } else if (readyLabelAction === "removed") {
-      summary.readyForReviewLabelRemoved.push(prBrief);
+    const desiredTriage = triageLabelConfig
+      ? computeDesiredTriageStateLabel(row, ping, triageLabelConfig)
+      : { key: "none", name: null, stateKey: "none" };
+    const labelSync = triageLabelConfig
+      ? await syncTriageStateLabels(
+          owner,
+          repo,
+          prMerge.number,
+          prMerge.labels ?? [],
+          desiredTriage.name,
+          managedTriageLabelNames,
+          desiredTriage.stateKey,
+          args.dryRun,
+        )
+      : { key: "none", removed: [], added: null, dryRun: false, error: false };
+    row.triage_state_key = desiredTriage.key;
+    row.triage_state_label = desiredTriage.name;
+    row.triage_state_label_sync = labelSync;
+    if (triageLabelConfig) {
+      const hasWork =
+        (labelSync.removed && labelSync.removed.length > 0) ||
+        labelSync.added != null ||
+        labelSync.error;
+      if (hasWork) {
+        summary.triageStateLabelSync.push({
+          ...prBrief,
+          to_key: desiredTriage.key,
+          to_label: desiredTriage.name,
+          removed: labelSync.removed || [],
+          added: labelSync.added,
+          dry_run: labelSync.dryRun,
+          error: labelSync.error === true,
+        });
+      }
     }
 
     results.push(row);
@@ -2072,8 +2551,13 @@ Environment:
           );
         }
       }
+      if (checksInProgress) {
+        console.log(
+          "  [note] Not approving workflows or empty-commit retriggers: some check run(s) are still queued or in progress on the head; waiting (no changes made).",
+        );
+      }
       console.log(
-        `  check_runs=${ci.check_runs} completed_ok=${ci.completed_ok} completed_fail=${ci.completed_fail} skipped=${ci.skipped} cancelled=${ci.cancelled} queued_or_running=${ci.queued_or_running} has_ci=${ci.has_ci} failures=${ci.failures} conflict=${row.conflict} mergeability_indeterminate=${row.mergeability_indeterminate ? 1 : 0} ci_missing=${row.ci_missing}`,
+        `  check_runs=${ci.check_runs} completed_ok=${ci.completed_ok} completed_fail=${ci.completed_fail} skipped=${ci.skipped} cancelled=${ci.cancelled} queued_or_running=${ci.queued_or_running} has_ci=${ci.has_ci} failures=${ci.failures} conflict=${row.conflict} mergeability_indeterminate=${row.mergeability_indeterminate ? 1 : 0} ci_missing=${row.ci_missing} min_passed_checks=${row.pr_triage_min_passed_checks ?? getMinRequiredPassedCheckRuns()} auto_empty_below_check_runs=${row.pr_triage_auto_empty_commit_min_check_runs ?? getCheckRunCountFloorForAutoEmptyCommit()}`,
       );
       const labelBit =
         row.gemini_feedback_actioned_label == null
@@ -2084,24 +2568,30 @@ Environment:
       );
       console.log(formatDecisionLine(prMerge.number, ping, row));
       if (args.dryRun && wfBefore > 0) {
-        console.log(
-          `  [action] Dry-run: would call approve API for ${wfBefore} workflow run(s) (omit --dry-run to run).`,
-        );
-        if (wfResult.workflows_would_empty_commit_retrigger) {
+        if (checksInProgress) {
           console.log(
-            `  [action] Dry-run: would push an empty commit to \`${headRef}\` if runs are still blocked after that.`,
+            `  [note] Dry-run: would not approve ${wfBefore} workflow run(s) (check run(s) in progress on head — re-run when CI settles).`,
           );
-        }
-        if (wfResult.workflows_would_prefer_local_git) {
+        } else {
           console.log(
-            `  [action] Dry-run: would use local git in \`${gitCwd}\` (empty commit + push, then \`git checkout -\`) if runs are still blocked; otherwise the Git Data API.`,
+            `  [action] Dry-run: would call approve API for ${wfBefore} workflow run(s) (omit --dry-run to run).`,
           );
+          if (wfResult.workflows_would_empty_commit_retrigger) {
+            console.log(
+              `  [action] Dry-run: would push an empty commit to \`${headRef}\` if runs are still blocked after that.`,
+            );
+          }
+          if (wfResult.workflows_would_prefer_local_git) {
+            console.log(
+              `  [action] Dry-run: would use local git in \`${gitCwd}\` (empty commit + push, then \`git checkout -\`) if runs are still blocked; otherwise the Git Data API.`,
+            );
+          }
         }
       } else if (args.noApproveWorkflows && wfBefore > 0) {
         console.log(
           `  [action] Workflow approval disabled (--no-approve-workflows); ${wfBefore} run(s) still awaiting approval.`,
         );
-      } else if (!args.dryRun && !args.noApproveWorkflows && wfBefore > 0) {
+      } else if (!args.dryRun && !args.noApproveWorkflows && wfBefore > 0 && !checksInProgress) {
         if (wfApproved > 0) {
           console.log(
             `  [action] Approved ${wfApproved} workflow run(s) awaiting maintainer approval (${wfAfter} still waiting).`,
@@ -2128,6 +2618,28 @@ Environment:
           }
         }
       }
+      {
+        const she = stalledEmptyResult.stalled_head_empty_commit_retrigger;
+        if (she) {
+          if (she.dry_run && she.would) {
+            console.log(
+              `  [action] Dry-run: would push an empty commit on \`${headRef}\` (check run count ${she.have_check_runs ?? "?" } < ${she.min_check_runs_to_skip_auto ?? "?" } per PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW) to re-run/seed CI.`,
+            );
+          } else if (she.ok && she.new_head_sha && she.previous_sha) {
+            const via = "via" in she ? she.via : undefined;
+            console.log(
+              `  [action] Pushed empty commit (stalled/short check list on head) to re-run CI: ${she.previous_sha.slice(0, 7)} → ${she.new_head_sha.slice(0, 7)}${via ? ` (${via})` : ""}`,
+            );
+            if (via === "local") {
+              console.log(
+                "  [note] Restored the previous checked-out ref with `git checkout -` (local git retrigger).",
+              );
+            }
+          } else if (she.ok === false && she.detail) {
+            console.log(`  [action] Stalled-head empty-commit retrigger failed: ${she.detail || ""}`);
+          }
+        }
+      }
       if (commentResult.action === "posted") {
         console.log(`  [action] Posted triage comment: ${commentResult.url}`);
       } else if (commentResult.action === "skipped") {
@@ -2145,27 +2657,39 @@ Environment:
           console.log(
             `  [note] No @claude comment: ${wfAfter} workflow run(s) still flagged after approve API + optional empty-commit push. You may still need **Approve workflows** in the GitHub UI for some policies; see \`! approve failed\` / empty-commit lines above.`,
           );
+        } else if ((row.queued_or_running ?? 0) > 0) {
+          console.log(
+            `  [note] No @claude comment: check runs still in progress; wait for completion before a code-triage follow-up from the bot.`,
+          );
+        } else if (mergeableStateIsBlockingGates(row.mergeable_state)) {
+          console.log(
+            `  [note] No @claude comment: GitHub still blocks merge (mergeable_state: ${row.mergeable_state != null ? String(row.mergeable_state) : "null"}) — usually required checks/reviews/branch rules, not a one-off @claude fix.`,
+          );
+        } else if (hasInsufficientCompletedSuccessCount(row)) {
+          console.log(
+            `  [note] No @claude comment: not enough green check run(s) yet (${row.completed_ok ?? 0}/${getMinRequiredPassedCheckRuns()}) — wait for more jobs to complete.`,
+          );
         } else {
           console.log(
-            `  [note] No @claude comment: workflow gates cleared by this run (not @claude).`,
+            `  [note] No @claude comment: this triage signal is not delegated to the bot (see \`[decision]\` line and triage_ping_reasons in JSON).`,
           );
         }
       }
-      if (readyForReviewLabelName && readyLabelAction !== "disabled" && readyLabelAction !== "unchanged") {
-        if (readyLabelAction === "added") {
+      if (triageLabelConfig) {
+        if (labelSync.error) {
+          console.log(`  [action] Triage state label sync failed (state ${desiredTriage.key}).`);
+        } else if (
+          (labelSync.removed && labelSync.removed.length > 0) ||
+          labelSync.added != null
+        ) {
+          const dr = labelSync.dryRun ? " (dry-run)" : "";
+          const rm = labelSync.removed?.length ? ` −${labelSync.removed.join(", ")}` : "";
+          const ad = labelSync.added != null ? ` +${labelSync.added}` : "";
           console.log(
-            `  [action] Added label \`${readyForReviewLabelName}\` (ready for review).`,
+            `  [action] Triage labels${dr}: ${desiredTriage.key}${
+              desiredTriage.name ? ` (\`${desiredTriage.name}\`)` : ""
+            }${rm}${ad}`,
           );
-        } else if (readyLabelAction === "removed") {
-          console.log(
-            `  [action] Removed label \`${readyForReviewLabelName}\` (no longer in ready state).`,
-          );
-        } else if (readyLabelAction === "dry_run_would_add" || readyLabelAction === "dry_run_would_remove") {
-          console.log(
-            `  [action] Dry-run: would ${readyLabelAction === "dry_run_would_add" ? "add" : "remove"} label \`${readyForReviewLabelName}\`.`,
-          );
-        } else if (readyLabelAction === "error") {
-          console.log("  [action] ready-for-review label: update failed (see log above).");
         }
       }
       console.log("");
@@ -2278,8 +2802,7 @@ Environment:
             workflow_approval_pending: summary.workflowApprovalPending,
             ready_to_review: summary.readyToReview,
             ci_in_progress: summary.ciInProgress,
-            ready_for_review_label_added: summary.readyForReviewLabelAdded,
-            ready_for_review_label_removed: summary.readyForReviewLabelRemoved,
+            triage_state_label_sync: summary.triageStateLabelSync,
           },
         },
         null,

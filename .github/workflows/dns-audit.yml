@@ -233,7 +233,7 @@ jobs:
 
       - name: Create GitHub security issue on failure
         if: steps.audit.outputs.all_ok == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           AUDIT_ISSUES: ${{ steps.audit.outputs.issues }}
           AUDIT_WARNINGS: ${{ steps.audit.outputs.warnings }}

@@ -44,6 +44,7 @@ export function useEmailDetailState() {
   const [replyRecipients, setReplyRecipients] = useState<string>('');
   const [replyCc, setReplyCc] = useState<string>('');
   const [replyBcc, setReplyBcc] = useState<string>('');
+  const [replySubject, setReplySubject] = useState<string>('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -158,6 +159,8 @@ export function useEmailDetailState() {
     setReplyCc,
     replyBcc,
     setReplyBcc,
+    replySubject,
+    setReplySubject,
     showCc,
     setShowCc,
     showBcc,

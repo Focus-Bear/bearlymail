@@ -116,6 +116,7 @@ type DraftOpsState = Pick<
   | 'setReplyRecipients'
   | 'setReplyCc'
   | 'setReplyBcc'
+  | 'setReplySubject'
   | 'setShowCc'
   | 'setShowBcc'
 >;
@@ -296,6 +297,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,
+    setReplySubject,
     setShowCc,
     setShowBcc,
   } = state;
@@ -344,6 +346,12 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
           setReplyCc(cc);
           setShowCc(true);
         }
+        const rawSubject = targetEmail.subject || '';
+        if (mode === REPLY_MODE_FORWARD) {
+          setReplySubject(rawSubject.toLowerCase().startsWith('fwd:') ? rawSubject : `Fwd: ${rawSubject}`);
+        } else {
+          setReplySubject(rawSubject.toLowerCase().startsWith('re:') ? rawSubject : `Re: ${rawSubject}`);
+        }
       }
 
       // AI draft generation is only meaningful for replies, not forwards
@@ -371,6 +379,7 @@ export function useEmailDetailDraftOps(id: string | undefined, state: DraftOpsSt
       setReplyRecipients,
       setReplyCc,
       setReplyBcc,
+      setReplySubject,
       setShowCc,
       setShowBcc,
       handleGenerateDraft,

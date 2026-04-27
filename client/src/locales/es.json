@@ -868,6 +868,7 @@
     "replySentError": "No se pudo enviar la respuesta. Por favor inténtalo de nuevo.",
     "replySentSuccess": "¡Respuesta enviada exitosamente!",
     "replyScheduledSuccess": "¡Respuesta programada exitosamente!",
+    "replySubjectLabel": "Asunto",
     "schedule": "Programar",
     "saveNote": "Guardar nota",
     "scoreBreakdown": "Desglose de puntuación",

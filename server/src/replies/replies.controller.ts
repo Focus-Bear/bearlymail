@@ -25,6 +25,7 @@ import { EmailsService } from "../emails/emails.service";
 import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { buildReplySubject } from "../utils/reply-subject.util";
 import { RepliesService, ReplyRule } from "./replies.service";
 
 @Controller("replies")
@@ -102,6 +103,7 @@ export class RepliesController {
       recipients?: string;
       cc?: string;
       bcc?: string;
+      subject?: string;
       replyAll?: boolean | string;
       isForward?: boolean | string;
       expectedReplyHours?: number | string;
@@ -176,6 +178,7 @@ export class RepliesController {
       recipients: body.recipients || undefined,
       cc: body.cc || undefined,
       bcc: body.bcc || undefined,
+      subject: body.subject || undefined,
       isForward,
     });
     return { message: "Reply sent successfully" };
@@ -193,15 +196,6 @@ export class RepliesController {
     }
   }
 
-  private buildScheduledSubject(subject: string, isForward: boolean): string {
-    if (isForward) {
-      return subject.toLowerCase().startsWith("fwd:")
-        ? subject
-        : `Fwd: ${subject}`;
-    }
-    return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
-  }
-
   private async scheduleReply(
     userId: string,
     emailId: string,
@@ -210,6 +204,7 @@ export class RepliesController {
       recipients?: string;
       cc?: string;
       bcc?: string;
+      subject?: string;
       scheduledSendAt?: string;
       userTimezone?: string;
     },
@@ -224,7 +219,7 @@ export class RepliesController {
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     decryptEmailEntityForApi(email);
 
-    const subject = this.buildScheduledSubject(email.subject, parsed.isForward);
+    const subject = body.subject?.trim() || buildReplySubject(email.subject, parsed.isForward);
     const replyToAddress = body.recipients?.trim()
       ? body.recipients
       : email.replyTo || email.from;

@@ -17,6 +17,7 @@ export interface SendReplyPayload {
   cc: string | null;
   bcc: string | null;
   replyMode: string;
+  subject?: string;
   expectedReplyHours?: number;
   scheduledSendAt?: Date;
   files: File[];
@@ -32,6 +33,9 @@ export function buildSendReplyFormData(payload: SendReplyPayload): FormData {
   formData.append('recipients', payload.recipients);
   formData.append('replyAll', String(payload.replyMode === REPLY_MODE_REPLY_ALL));
   formData.append('isForward', String(payload.replyMode === REPLY_MODE_FORWARD));
+  if (payload.subject) {
+    formData.append('subject', payload.subject);
+  }
   if (payload.cc) {
     formData.append('cc', payload.cc);
   }
@@ -72,6 +76,7 @@ export async function sendReplyRequest(payload: SendReplyPayload): Promise<void>
       bcc: payload.bcc || undefined,
       replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
       isForward: payload.replyMode === REPLY_MODE_FORWARD,
+      subject: payload.subject || undefined,
       forwardAttachmentIds: payload.forwardAttachmentIds?.length ? payload.forwardAttachmentIds : undefined,
       expectedReplyHours: payload.expectedReplyHours,
       scheduledSendAt: payload.scheduledSendAt?.toISOString(),

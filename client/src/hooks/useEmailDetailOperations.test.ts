@@ -140,6 +140,8 @@ const createMockState = () => ({
   setReplyCc: jest.fn(),
   replyBcc: '',
   setReplyBcc: jest.fn(),
+  replySubject: 'Re: Test Subject',
+  setReplySubject: jest.fn(),
   showCc: false,
   setShowCc: jest.fn(),
   showBcc: false,

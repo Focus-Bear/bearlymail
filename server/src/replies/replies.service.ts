@@ -23,6 +23,7 @@ import { UsersService } from "../users/users.service";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
+import { buildReplySubject } from "../utils/reply-subject.util";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -547,18 +548,6 @@ ${closing}`;
   }
 
   /**
-   * Build the reply subject with the appropriate prefix (Re:/Fwd:).
-   */
-  private buildReplySubject(subject: string, isForward: boolean): string {
-    if (isForward) {
-      return subject.toLowerCase().startsWith("fwd:")
-        ? subject
-        : `Fwd: ${subject}`;
-    }
-    return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
-  }
-
-  /**
    * Gather all attachment data (user-supplied + forwarded) and resolve the
    * reply-to address.  Returns the complete payload ready for dispatch.
    */
@@ -573,6 +562,7 @@ ${closing}`;
       inlineImages?: InlineImage[];
       forwardAttachmentIds?: string[];
       recipients?: string;
+      subject?: string;
       isForward?: boolean;
     };
   }): Promise<ReplyPayload> {
@@ -583,6 +573,7 @@ ${closing}`;
       inlineImages,
       forwardAttachmentIds,
       recipients,
+      subject: customSubject,
       isForward = false,
     } = options;
 
@@ -603,7 +594,7 @@ ${closing}`;
       user.emailSignature,
     );
 
-    const replySubject = this.buildReplySubject(email.subject, isForward);
+    const replySubject = customSubject?.trim() || buildReplySubject(email.subject, isForward);
 
     const replyToAddress =
       recipients && recipients.trim()
@@ -705,6 +696,7 @@ ${closing}`;
       recipients?: string;
       cc?: string;
       bcc?: string;
+      subject?: string;
       isForward?: boolean;
     } = {},
   ): Promise<void> {

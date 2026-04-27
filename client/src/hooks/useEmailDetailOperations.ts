@@ -89,6 +89,8 @@ export function useEmailDetailOperations(
     setReplyCc,
     replyBcc,
     setReplyBcc,
+    replySubject,
+    setReplySubject,
     setShowCc,
     setShowBcc,
     setLoadingReplies,
@@ -635,6 +637,7 @@ export function useEmailDetailOperations(
       setReplyRecipients,
       setReplyCc,
       setReplyBcc,
+      setReplySubject,
       setShowCc,
       setShowBcc,
     },
@@ -740,6 +743,7 @@ export function useEmailDetailOperations(
       const currentReplyCc = replyCc;
       const currentReplyBcc = replyBcc;
       const currentReplyMode = replyMode;
+      const currentReplySubject = replySubject;
       const currentId = id;
 
       setShowReplyComposer(false);
@@ -753,6 +757,7 @@ export function useEmailDetailOperations(
           cc: currentReplyCc,
           bcc: currentReplyBcc,
           replyMode: currentReplyMode,
+          subject: currentReplySubject || undefined,
           expectedReplyHours,
           scheduledSendAt,
           files,
@@ -802,6 +807,7 @@ export function useEmailDetailOperations(
       replyRecipients,
       replyCc,
       replyBcc,
+      replySubject,
       disputeResult,
       triggerAnimation,
       t,

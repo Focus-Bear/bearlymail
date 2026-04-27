@@ -483,6 +483,7 @@
     "replySentSuccess": "Reply sent successfully!",
     "replyScheduledSuccess": "Reply scheduled successfully!",
     "replySentError": "Failed to send reply. Please try again.",
+    "replySubjectLabel": "Subject",
     "schedule": "Schedule",
     "backToInbox": "Back to Inbox",
     "clickToCopyEmail": "Click to copy email address",

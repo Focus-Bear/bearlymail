@@ -600,6 +600,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               replyRecipients={st.replyRecipients}
               replyCc={st.replyCc}
               replyBcc={st.replyBcc}
+              replySubject={st.replySubject}
               showCc={st.showCc}
               showBcc={st.showBcc}
               draft={st.draft}
@@ -614,6 +615,7 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               onReplyRecipientsChange={st.setReplyRecipients}
               onCcChange={st.setReplyCc}
               onBccChange={st.setReplyBcc}
+              onSubjectChange={st.setReplySubject}
               onShowCc={() => st.setShowCc(true)}
               onShowBcc={() => st.setShowBcc(true)}
               onDraftChange={handleDraftChange}

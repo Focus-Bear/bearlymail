@@ -50,6 +50,8 @@ export interface EmailDetailState {
   setReplyCc: (cc: string) => void;
   replyBcc: string;
   setReplyBcc: (bcc: string) => void;
+  replySubject: string;
+  setReplySubject: (subject: string) => void;
   showCc: boolean;
   setShowCc: (show: boolean) => void;
   showBcc: boolean;

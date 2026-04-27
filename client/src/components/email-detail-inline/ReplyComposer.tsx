@@ -50,6 +50,7 @@ interface ReplyComposerProps {
   replyRecipients: string;
   replyCc: string;
   replyBcc: string;
+  replySubject: string;
   showCc: boolean;
   showBcc: boolean;
   draft: string | null;
@@ -68,6 +69,7 @@ interface ReplyComposerProps {
   onReplyRecipientsChange: (recipients: string) => void;
   onCcChange: (cc: string) => void;
   onBccChange: (bcc: string) => void;
+  onSubjectChange: (subject: string) => void;
   onShowCc: () => void;
   onShowBcc: () => void;
   onDraftChange: (draft: string) => void;
@@ -285,6 +287,7 @@ interface ReplyComposerBodyProps {
   replyRecipients: string;
   replyCc: string;
   replyBcc: string;
+  replySubject: string;
   showCc: boolean;
   showBcc: boolean;
   draft: string | null;
@@ -310,6 +313,7 @@ interface ReplyComposerBodyProps {
   onReplyRecipientsChange: (recipients: string) => void;
   onCcChange: (cc: string) => void;
   onBccChange: (bcc: string) => void;
+  onSubjectChange: (subject: string) => void;
   onShowCc: () => void;
   onShowBcc: () => void;
   onReplyOptionSelect: (index: number, text: string) => void;
@@ -336,6 +340,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   replyRecipients,
   replyCc,
   replyBcc,
+  replySubject,
   showCc,
   showBcc,
   draft,
@@ -361,6 +366,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   onReplyRecipientsChange,
   onCcChange,
   onBccChange,
+  onSubjectChange,
   onShowCc,
   onShowBcc,
   onReplyOptionSelect,
@@ -380,7 +386,9 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
   autoSendCountdown,
   onCancelAutoSend,
   onSendNow,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <>
     <ReplyComposerHeader replyMode={replyMode} onClose={onClose} />
     <ReplyRecipientsInput
@@ -395,6 +403,33 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       onShowCc={onShowCc}
       onShowBcc={onShowBcc}
     />
+    <div style={{ marginBottom: theme.spacing.sm }}>
+      <label
+        htmlFor={`reply-subject-${currentEmailId ?? 'default'}`}
+        style={{
+          display: 'block',
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }}
+      >
+        {t('emailDetail.replySubjectLabel')}:
+      </label>
+      <input
+        id={`reply-subject-${currentEmailId ?? 'default'}`}
+        type="text"
+        value={replySubject}
+        onChange={event => onSubjectChange(event.target.value)}
+        style={{
+          width: '100%',
+          padding: '4px 8px',
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          fontSize: theme.typography.fontSize.sm,
+          boxSizing: 'border-box',
+        }}
+      />
+    </div>
     <ReplyOptionsSelector
       loadingReplies={loadingReplies}
       replyOptions={replyOptions}
@@ -448,7 +483,8 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
       onClearSchedule={onClearSchedule}
     />
   </>
-);
+  );
+};
 
 export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   showReplyComposer,
@@ -471,9 +507,11 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   currentEmailObjectId,
   currentEmailThreadId,
   scheduledSendAt,
+  replySubject,
   onReplyRecipientsChange,
   onCcChange,
   onBccChange,
+  onSubjectChange,
   onShowCc,
   onShowBcc,
   onDraftChange,
@@ -526,6 +564,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     replyRecipients,
     replyCc,
     replyBcc,
+    replySubject,
     showCc,
     showBcc,
     draft,
@@ -551,6 +590,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onReplyRecipientsChange,
     onCcChange,
     onBccChange,
+    onSubjectChange,
     onShowCc,
     onShowBcc,
     onReplyOptionSelect,

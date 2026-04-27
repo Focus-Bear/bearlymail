@@ -1,8 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { UsersService } from "../users/users.service";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailSendController } from "./email-send.controller";
@@ -45,6 +47,14 @@ describe("EmailSendController", () => {
     hasConnectedGmail: jest.fn().mockResolvedValue(true),
   };
 
+  const mockOffice365AccountsService = {
+    hasConnectedOffice365: jest.fn().mockResolvedValue(false),
+  };
+
+  const mockZohoAccountsService = {
+    hasConnectedZoho: jest.fn().mockResolvedValue(false),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailSendController],
@@ -76,6 +86,14 @@ describe("EmailSendController", () => {
         {
           provide: GoogleAccountsService,
           useValue: mockGoogleAccountsService,
+        },
+        {
+          provide: Office365AccountsService,
+          useValue: mockOffice365AccountsService,
+        },
+        {
+          provide: ZohoAccountsService,
+          useValue: mockZohoAccountsService,
         },
       ],
     }).compile();

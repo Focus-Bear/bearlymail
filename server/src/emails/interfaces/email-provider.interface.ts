@@ -178,6 +178,19 @@ export interface EmailProvider {
   ): Promise<RawEmailMessage[]>;
 
   /**
+   * Fetch all messages in a specific thread.
+   * For Gmail: uses thread ID directly on the Gmail API.
+   * For Zoho: uses the messages endpoint with threadId param (not searchEmails,
+   *   which uses Gmail-style query syntax Zoho doesn't support).
+   * For O365: uses conversationId filter.
+   */
+  fetchThreadMessages(
+    userId: string,
+    threadId: string,
+    limit?: number,
+  ): Promise<RawEmailMessage[]>;
+
+  /**
    * Archive a thread (remove from inbox)
    * Note: For Gmail, this removes the INBOX label. For O365/Zoho, this moves to archive folder.
    */

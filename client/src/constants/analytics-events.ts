@@ -52,6 +52,7 @@ export const ANALYTICS_EVENTS = {
   GITHUB_CONNECT_CLICKED: 'github_connect_clicked',
   GITHUB_DISCONNECT_CLICKED: 'github_disconnect_clicked',
   GOOGLE_LOGIN_INITIATED: 'google_login_initiated',
+  ZOHO_LOGIN_INITIATED: 'zoho_login_initiated',
   HELP_LINK_CLICKED: 'help_link_clicked',
   INBOX_MODE_CHANGED: 'inbox_mode_changed',
   INBOX_VIEWED: 'inbox_viewed',

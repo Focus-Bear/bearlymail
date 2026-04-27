@@ -10,6 +10,7 @@ import { LoginFormSection } from 'components/auth/LoginFormSection';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { PROVIDER_ZOHO } from 'constants/strings';
 import { DeletedAccountError, OAuthOnlyAccountError, useAuth } from 'contexts/AuthContext';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
@@ -22,6 +23,7 @@ const Login: React.FC = () => {
   const [isOAuthOnlyError, setIsOAuthOnlyError] = useState(false);
   const [deletedAccountReason, setDeletedAccountReason] = useState<'manual' | 'inactivity' | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<'google' | 'zoho'>('google');
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -65,10 +67,25 @@ const Login: React.FC = () => {
 
     if (!hasSeenPermissions) {
       // Show permissions explanation modal
+      setPendingProvider('google');
       setShowPermissionsModal(true);
     } else {
       // Proceed directly to Google OAuth
       proceedToGoogleOAuth();
+    }
+  };
+  
+  const handleZohoLogin = () => {
+    // Check if user has seen the permissions explanation before
+    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
+
+    if (!hasSeenPermissions) {
+      // Show permissions explanation modal
+      setPendingProvider('zoho');
+      setShowPermissionsModal(true);
+    } else {
+      // Proceed directly to Zoho OAuth
+      proceedToZohoOAuth();
     }
   };
 
@@ -78,6 +95,21 @@ const Login: React.FC = () => {
     window.location.href = `${API_URL}/auth/google`;
   };
 
+  const proceedToZohoOAuth = () => {
+    captureEvent(ANALYTICS_EVENTS.ZOHO_LOGIN_INITIATED);
+    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
+    window.location.href = `${API_URL}/auth/zoho`;
+  };
+
+  const handlePermissionsContinue = () => {
+  setShowPermissionsModal(false);
+  if (pendingProvider === PROVIDER_ZOHO) {
+    proceedToZohoOAuth();
+  } else {
+    proceedToGoogleOAuth();
+  }
+};
+
   const handlePermissionsCancel = () => {
     setShowPermissionsModal(false);
   };
@@ -85,7 +117,7 @@ const Login: React.FC = () => {
   return (
     <>
       {showPermissionsModal && (
-        <PermissionsExplanation onContinue={proceedToGoogleOAuth} onCancel={handlePermissionsCancel} />
+        <PermissionsExplanation provider={pendingProvider} onContinue={handlePermissionsContinue} onCancel={handlePermissionsCancel} />
       )}
       <div
         style={{
@@ -107,6 +139,7 @@ const Login: React.FC = () => {
           onPasswordChange={setPassword}
           onSubmit={handleSubmit}
           onGoogleLogin={handleGoogleLogin}
+          onZohoLogin={handleZohoLogin}
         />
       </div>
     </>

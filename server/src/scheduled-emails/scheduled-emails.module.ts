@@ -14,7 +14,9 @@ import { ContactsModule } from "../contacts/contacts.module";
 import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { UsersModule } from "../users/users.module";
+import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { ScheduledEmailsController } from "./scheduled-emails.controller";
 import { ScheduledEmailsService } from "./scheduled-emails.service";
 import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor";
@@ -26,6 +28,8 @@ import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor"
     ContactsModule,
     UsersModule,
     GoogleAccountsModule,
+    Office365AccountsModule,
+    ZohoAccountsModule,
   ],
   controllers: [ScheduledEmailsController],
   providers: [ScheduledEmailsService, SendScheduledEmailsProcessor],

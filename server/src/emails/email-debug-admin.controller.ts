@@ -27,7 +27,7 @@ import {
 import PgBoss from "pg-boss";
 
 import { AdminGuard } from "../auth/admin.guard";
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BOOLEAN_STRING_VALUES } from "../constants/domain-types";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
@@ -39,7 +39,7 @@ import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailDebugAdminController {
   private readonly logger = new Logger(EmailDebugAdminController.name);
 

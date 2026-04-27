@@ -17,13 +17,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { EMAIL_CONTROLLER_DEFAULTS } from "./email-controller.helpers";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailSearchOpsController {
   private readonly logger = new Logger(EmailSearchOpsController.name);
 

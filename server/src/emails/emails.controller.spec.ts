@@ -4,7 +4,9 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
@@ -49,6 +51,14 @@ describe("EmailsController", () => {
     hasConnectedGmail: jest.fn().mockResolvedValue(true),
   };
 
+  const mockOffice365AccountsService = {
+    hasConnectedOffice365: jest.fn().mockResolvedValue(false),
+  };
+
+  const mockZohoAccountsService = {
+    hasConnectedZoho: jest.fn().mockResolvedValue(false),
+  };
+
   const mockUsersService = {
     findOneWithTokens: jest
       .fn()
@@ -82,6 +92,14 @@ describe("EmailsController", () => {
         {
           provide: GoogleAccountsService,
           useValue: mockGoogleAccountsService,
+        },
+        {
+          provide: Office365AccountsService,
+          useValue: mockOffice365AccountsService,
+        },
+        {
+          provide: ZohoAccountsService,
+          useValue: mockZohoAccountsService,
         },
         {
           provide: UsersService,

@@ -34,6 +34,16 @@ import { LocalAuthGuard } from "./local-auth.guard";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 
+interface ZohoAuthUser {
+  id: string;
+  email?: string;
+  name?: string;
+  zohoProfile?: { Zuid: string; Email: string; Display_Name?: string };
+  zohoAccessToken?: string;
+  zohoRefreshToken?: string;
+  zohoId?: string;
+}
+
 /**
  * Cookie options for the JWT HttpOnly cookie.
  * `secure` is enabled only in production to allow local HTTP development.
@@ -394,6 +404,58 @@ export class AuthController {
         frontendUrl,
       );
       if (handled) return;
+    }
+
+    // Save tokens during standard login
+    const zohoUser = req.user as ZohoAuthUser;
+    const zProfile = zohoUser.zohoProfile;
+    const zAccessToken = zohoUser.zohoAccessToken;
+    const zRefreshToken = zohoUser.zohoRefreshToken;
+    const zohoId = zohoUser.zohoId || zProfile?.Zuid;
+    const zEmail = zProfile?.Email || zohoUser.email;
+    const zName = zProfile?.Display_Name || zohoUser.name || "";
+
+    // Check for missing required fields before proceeding
+    const missingFields = [
+      !zohoUser.id && "userId",
+      !zohoId && "zohoId",
+      !zAccessToken && "accessToken",
+      !zEmail && "email",
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      this.logger.warn(
+        `[Zoho] Incomplete account data — missing fields: ${missingFields.join(", ")}`,
+      );
+      return this.redirectWithAuthError(
+        new Error(`Incomplete Zoho profile received. Missing: ${missingFields.join(", ")}`),
+        frontendUrl,
+        res,
+        "Zoho",
+      );
+    }
+
+    // All required fields present — proceed with upsert
+    const existingAccounts = await this.zohoAccountsService.findAllByUser(zohoUser.id);
+    const accountExists = existingAccounts.find((acc) => acc.zohoId === zohoId);
+
+    if (accountExists) {
+      await this.zohoAccountsService.updateTokens(
+        accountExists.id,
+        zohoUser.id,
+        zAccessToken,
+        zRefreshToken,
+      );
+    } else {
+      await this.zohoAccountsService.create({
+        userId: zohoUser.id,
+        zohoId,
+        email: zEmail,
+        name: zName,
+        accessToken: zAccessToken,
+        refreshToken: zRefreshToken,
+        isPrimary: existingAccounts.length === 0,
+      });
     }
     const loginData = await this.authService.login(req.user);
     const isProduction =

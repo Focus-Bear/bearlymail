@@ -21,14 +21,16 @@ interface LoginFormSectionProps {
   onPasswordChange: (password: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   onGoogleLogin: () => void;
+  onZohoLogin: () => void;
 }
 
 interface OAuthSectionProps {
   onGoogleLogin: () => void;
+  onZohoLogin: () => void;
   t: (key: string) => string;
 }
 
-const OAuthSection: React.FC<OAuthSectionProps> = ({ onGoogleLogin, t }) => (
+const OAuthSection: React.FC<OAuthSectionProps> = ({ onGoogleLogin, onZohoLogin, t }) => (
   <>
     <button
       type="button"
@@ -52,6 +54,29 @@ const OAuthSection: React.FC<OAuthSectionProps> = ({ onGoogleLogin, t }) => (
     >
       <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: '18px', height: '18px' }} />
       {t('auth.continueWithGoogle')}
+    </button>
+    <button
+      type="button"
+      onClick={onZohoLogin}
+      style={{
+        width: '100%',
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.paper,
+        color: theme.colors.text.primary,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.medium,
+        cursor: 'pointer',
+        marginBottom: theme.spacing.lg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing.sm,
+      }}
+    >
+      <img src="https://www.zoho.com/favicon.ico" alt="Zoho" style={{ width: '18px', height: '18px' }} />
+      {t('auth.continueWithZoho')}
     </button>
 
     <div
@@ -193,6 +218,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
   onPasswordChange,
   onSubmit,
   onGoogleLogin,
+  onZohoLogin,
 }) => {
   const { t } = useTranslation();
 
@@ -288,7 +314,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
         </div>
       )}
 
-      <OAuthSection onGoogleLogin={onGoogleLogin} t={t} />
+      <OAuthSection onGoogleLogin={onGoogleLogin} onZohoLogin={onZohoLogin} t={t} />
 
       <EmailPasswordForm
         email={email}

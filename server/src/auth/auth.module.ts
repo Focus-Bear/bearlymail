@@ -21,6 +21,7 @@ import { MicrosoftStrategy } from "./microsoft.strategy";
 import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 import { TotpService } from "./totp.service";
 import { ZohoStrategy } from "./zoho.strategy";
+import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { ZohoStrategy } from "./zoho.strategy";
     AdminGuard,
     GmailRequiredGuard,
     OptionalJwtAuthGuard,
+    EmailProviderRequiredGuard
   ],
   controllers: [AuthController],
   exports: [
@@ -59,6 +61,7 @@ import { ZohoStrategy } from "./zoho.strategy";
     TotpService,
     AdminGuard,
     GmailRequiredGuard,
+    EmailProviderRequiredGuard,
     PassportModule,
     JwtModule,
     OptionalJwtAuthGuard,

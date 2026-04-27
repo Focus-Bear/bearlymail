@@ -9,6 +9,7 @@ import type { ZohoProvider } from "../zoho.provider";
 import { parseZohoMessage } from "./zoho-message-parser";
 import {
   archiveThreadInZoho,
+  fetchThreadMessagesViaZoho,
   isAuthError,
   searchEmailsViaZoho,
   sendEmailViaZoho,
@@ -36,7 +37,7 @@ export async function sendReply(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const zohoAccountId = await provider.client.getAccountId(
+    const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
     );
@@ -82,11 +83,8 @@ export async function sendEmail(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const zohoAccountId = await provider.client.getAccountId(
-      userId,
-      accessToken,
-    );
-    return await sendEmailViaZoho(zohoClient, zohoAccountId, {
+    const { zohoAccountId, mailboxAddress } = await provider.client.getAccountId(userId, accessToken);
+    return await sendEmailViaZoho(zohoClient, zohoAccountId, mailboxAddress, {
       to,
       subject,
       body,
@@ -118,7 +116,7 @@ export async function searchEmails(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const zohoAccountId = await provider.client.getAccountId(
+    const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
     );
@@ -158,7 +156,7 @@ export async function archiveThread(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const zohoAccountId = await provider.client.getAccountId(
+    const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
     );
@@ -194,7 +192,7 @@ export async function unarchiveThread(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const zohoAccountId = await provider.client.getAccountId(
+    const { zohoAccountId } = await provider.client.getAccountId(
       userId,
       accessToken,
     );
@@ -224,4 +222,45 @@ export async function trashThread(
 ): Promise<void> {
   provider.logger.debug(`trashThread called for Zoho (using archive instead)`);
   await archiveThread(provider, userId, threadId);
+}
+
+export async function fetchThreadMessagesZoho(
+  provider: ZohoProvider,
+  userId: string,
+  threadId: string,
+  limit = 50,
+): Promise<RawEmailMessage[]> {
+  const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
+  if (!primaryAccount) return [];
+
+  let { accessToken } = primaryAccount;
+  const zohoClient = provider.client.createZohoClient(accessToken);
+
+  try {
+    const { zohoAccountId } = await provider.client.getAccountId(
+      userId,
+      accessToken,
+    );
+    const messages = await fetchThreadMessagesViaZoho(
+      zohoClient,
+      zohoAccountId,
+      threadId,
+      limit,
+    );
+    return messages
+      .map((msg) => parseZohoMessage(msg))
+      .filter((msg): msg is RawEmailMessage => msg !== null);
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      return fetchThreadMessagesZoho(provider, userId, threadId, limit);
+    }
+    provider.logger.warn(
+      `Failed to fetch thread messages for user ${userId}: ${error}`,
+    );
+    return [];
+  }
 }

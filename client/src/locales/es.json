@@ -192,6 +192,7 @@
     "authenticationFailed": "Error de autenticación",
     "confirmPassword": "Confirmar contraseña",
     "continueWithGoogle": "Continuar con Google",
+    "continueWithZoho": "Continuar con Zoho",
     "email": "Correo electrónico",
     "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
@@ -237,6 +238,12 @@
         "title": "Acceso a Gmail",
         "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
         "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA."
+      },
+      "zoho": {
+        "title": "Acceso a Zoho",
+        "description": "Lee y organiza tus correos: prioriza tu bandeja de entrada, archiva, pospone y gestiona etiquetas.",
+        "sendClarification": "BearlyMail solo enviará correos en tu nombre si tú redactas y envías manualmente dentro de BearlyMail, o si activas explícitamente el contestador automático con IA.",
+        "continue": "continuar con Zoho"
       },
       "calendar": {
         "title": "Eventos del calendario",

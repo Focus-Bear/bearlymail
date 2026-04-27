@@ -12,13 +12,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AssignThreadDto } from "./dto/assign-thread.dto";
 import { EmailAssignmentService } from "./email-assignment.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailAssignmentController {
   constructor(
     private readonly emailAssignmentService: EmailAssignmentService,

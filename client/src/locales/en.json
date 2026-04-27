@@ -38,6 +38,7 @@
     "loginTitle": "Welcome Back",
     "registerTitle": "Create Account",
     "continueWithGoogle": "Continue with Google",
+    "continueWithZoho": "Continue with Zoho",
     "or": "OR",
     "email": "Email",
     "password": "Password",
@@ -83,6 +84,12 @@
         "title": "Gmail Access",
         "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
         "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder."
+      },
+      "zoho": {
+        "title": "Zoho Access",
+        "description": "Read and organize your emails — prioritize your inbox, archive, snooze, and manage labels.",
+        "sendClarification": "BearlyMail will only send emails on your behalf if you manually compose and send within BearlyMail, or if you explicitly enable the AI autoresponder.",
+        "continue": "continue with Zoho"
       },
       "calendar": {
         "title": "Calendar Events",

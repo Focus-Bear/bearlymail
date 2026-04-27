@@ -31,6 +31,7 @@ import {
 import { ScanEmailService } from "../scan-email.service";
 import {
   archiveThread,
+  fetchThreadMessagesZoho,
   searchEmails,
   sendEmail,
   sendReply,
@@ -48,6 +49,8 @@ import {
   getExistingThreadUpdates,
   verifyThreadStatusesInZoho,
 } from "./zoho/zoho-sync";
+
+const ZOHO_SECONDS_EPOCH_THRESHOLD = 10 * MS_PER_SECOND * MS_PER_SECOND * MS_PER_SECOND;
 
 @Injectable()
 export class ZohoProvider implements EmailProvider {
@@ -89,9 +92,7 @@ export class ZohoProvider implements EmailProvider {
   async syncEmails(userId: string): Promise<void> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
-      this.logger.log(
-        `User ${userId} not connected to Zoho Mail, skipping sync.`,
-      );
+      this.logger.log(`User ${userId} not connected to Zoho Mail, skipping sync.`);
       return;
     }
 
@@ -105,37 +106,47 @@ export class ZohoProvider implements EmailProvider {
     const isRecentLogin = isWithinGracePeriod(user);
 
     if (!primaryAccount.refreshToken) {
-      await this.handleMissingRefreshToken(
-        userId,
-        user,
-        primaryAccount,
-        isRecentLogin,
-      );
-    }
-
-    const { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    let zohoAccountId: string;
-    try {
-      zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      this.logger.debug(`Token validated for user ${userId}`);
-    } catch (refreshError: unknown) {
-      await this.handleTokenValidationError(
-        userId,
-        user,
-        primaryAccount,
-        refreshError,
-      );
+      await this.handleMissingRefreshToken(userId, user, primaryAccount, isRecentLogin);
     }
 
     try {
-      await this.performSync(userId, zohoClient, zohoAccountId!, isInitialSync);
-      await this.usersService.update(userId, {
-        lastEmailSyncAt: new Date(),
-      });
+      const { zohoClient, zohoAccountId } = await this.validateAndGetZohoClient(userId, user, primaryAccount);
+      await this.performSync(userId, zohoClient, zohoAccountId, isInitialSync);
+      await this.usersService.update(userId, { lastEmailSyncAt: new Date() });
     } catch (error: unknown) {
       await this.handleSyncError(userId, user, primaryAccount, error);
+    }
+  }
+
+  private async validateAndGetZohoClient(
+    userId: string,
+    user: User,
+    primaryAccount: ZohoAccount,
+  ): Promise<{ accessToken: string; zohoClient: AxiosInstance; zohoAccountId: string }> {
+    let { accessToken } = primaryAccount;
+    let zohoClient = this.client.createZohoClient(accessToken);
+
+    try {
+      const { zohoAccountId } = await this.client.getAccountId(userId, accessToken);
+      this.logger.debug(`Token validated for user ${userId}`);
+      return { accessToken, zohoClient, zohoAccountId };
+    } catch (refreshError: unknown) {
+      if (!isAuthError(refreshError)) {
+        this.logger.error(`Non-auth error during token validation for user ${userId}:`, refreshError);
+        return await this.handleTokenValidationError(userId, user, primaryAccount, refreshError);
+      }
+      this.logger.debug(`Token validation failed for user ${userId}, attempting refresh...`);
+      try {
+        accessToken = await this.client.refreshTokenIfNeeded(userId, primaryAccount.id);
+        this.logger.debug(`Token successfully refreshed for user ${userId}`);
+        zohoClient = this.client.createZohoClient(accessToken);
+        const { zohoAccountId } = await this.client.getAccountId(userId, accessToken);
+        this.logger.debug(`Token re-validated after refresh for user ${userId}`);
+        return { accessToken, zohoClient, zohoAccountId };
+      } catch (retryError) {
+        this.logger.error(`Token refresh OR re-validation failed for user ${userId}:`, retryError);
+        return await this.handleTokenValidationError(userId, user, primaryAccount, retryError);
+      }
     }
   }
 
@@ -154,17 +165,10 @@ export class ZohoProvider implements EmailProvider {
     );
 
     if (!isRecentLogin && !primaryAccount.needsRelogin) {
-      await this.zohoAccountsService.updateTokens(
-        primaryAccount.id,
-        userId,
-        primaryAccount.accessToken,
-        undefined,
-      );
+      await this.zohoAccountsService.updateTokens(primaryAccount.id, userId, primaryAccount.accessToken, undefined);
       throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
     } else if (isRecentLogin) {
-      throw new Error(
-        "Refresh token missing (within grace period - will retry)",
-      );
+      throw new Error("Refresh token missing (within grace period - will retry)");
     }
     throw new Error(ERROR_MESSAGES.REFRESH_TOKEN_MISSING);
   }
@@ -178,7 +182,9 @@ export class ZohoProvider implements EmailProvider {
     let currentAccount = primaryAccount;
     try {
       currentAccount = await this.zohoAccountsService.findPrimary(userId);
-    } catch {}
+    } catch (_err) {
+      this.logger.warn(`[handleTokenValidationError] Could not refresh account for user ${userId}`);
+    }
 
     const isRecentLoginNow = isWithinGracePeriod(user);
     await logAuthFailure(
@@ -194,17 +200,10 @@ export class ZohoProvider implements EmailProvider {
     );
 
     if (!isRecentLoginNow) {
-      await this.zohoAccountsService.updateTokens(
-        currentAccount.id,
-        userId,
-        currentAccount.accessToken,
-        undefined,
-      );
+      await this.zohoAccountsService.update(currentAccount.id, { needsRelogin: true });
       throw new Error("Token validation failed - please log in again");
     }
-    throw new Error(
-      "Token validation failed (within grace period - will retry)",
-    );
+    throw new Error("Token validation failed (within grace period - will retry)");
   }
 
   private async performSync(
@@ -213,40 +212,35 @@ export class ZohoProvider implements EmailProvider {
     zohoAccountId: string,
     isInitialSync: boolean,
   ): Promise<void> {
-    const [inboxResponse, importantResponse] = await Promise.all([
-      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-        params: {
-          limit: 500,
-          sort: "receivedTime",
-          sortorder: "desc",
-          folderid: "inbox",
-          isRead: false,
-        },
-      }),
-      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-        params: {
-          limit: 500,
-          sort: "receivedTime",
-          sortorder: "desc",
-          importance: "high",
-        },
-      }),
-    ]);
+    // Fetch folders to get numeric folder IDs (cached per account; refreshed every hour)
+    const folderMap = await this.client.getFolderMap(zohoClient, zohoAccountId);
+
+    const inboxFolderId = folderMap[ZOHO_FOLDER_IDS.INBOX];
+    this.logger.debug(`[performSync] inboxFolderId: ${inboxFolderId}`);
+
+    // Single inbox fetch — sortorder and importance not supported by Zoho AU
+    const inboxResponse = await zohoClient.get(
+      `accounts/${zohoAccountId}/messages/view`,
+      { params: { limit: QUERY_LIMITS.INBOX_TOTAL, folderId: inboxFolderId } }
+    );
+
+    this.logger.debug(`[performSync] inboxMessages count: ${inboxResponse.data.data?.length}`);
 
     const inboxMessages = inboxResponse.data.data || [];
-    const importantMessages = importantResponse.data.data || [];
 
     const threadMap = new Map<string, ZohoMailMessage[]>();
-    for (const msg of [...inboxMessages, ...importantMessages]) {
-      if (!msg.uid) continue;
-      const threadId = msg.threadId || msg.uid;
+    for (const msg of inboxMessages) {
+      // Zoho list response uses messageId not uid — normalize
+      const msgId = msg.uid || msg.messageId;
+      if (!msgId) continue;
+      msg.uid = msgId;
+
+      const threadId = msg.threadId || msgId;
       if (!threadMap.has(threadId)) threadMap.set(threadId, []);
       threadMap.get(threadId)!.push(msg);
     }
 
-    this.logger.debug(
-      `Found ${inboxMessages.length} inbox and ${importantMessages.length} important messages`,
-    );
+    this.logger.debug(`Found ${inboxMessages.length} inbox messages, ${threadMap.size} threads`);
 
     const threadUpdates = await this.processThreads({
       userId,
@@ -255,20 +249,11 @@ export class ZohoProvider implements EmailProvider {
       zohoClient,
       zohoAccountId,
       isInitialSync,
+      folderId: inboxFolderId,
     });
     await this.applyThreadUpdates(userId, threadUpdates);
-    await this.checkExistingStarredThreads(
-      userId,
-      threadMap,
-      zohoClient,
-      zohoAccountId,
-    );
-    await this.checkNonArchivedThreads(
-      userId,
-      threadMap,
-      zohoClient,
-      zohoAccountId,
-    );
+    await this.checkExistingStarredThreads(userId, threadMap, zohoClient, zohoAccountId);
+    await this.checkNonArchivedThreads(userId, threadMap, zohoClient, zohoAccountId);
   }
 
   private async processThreads(options: {
@@ -277,19 +262,13 @@ export class ZohoProvider implements EmailProvider {
     inboxMessages: ZohoMailMessage[];
     zohoClient: AxiosInstance;
     zohoAccountId: string;
+    folderId: string;
     isInitialSync: boolean;
   }): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
     archivedUpdates: { threadId: string; isArchived: boolean }[];
   }> {
-    const {
-      userId,
-      threadMap,
-      inboxMessages,
-      zohoClient,
-      zohoAccountId,
-      isInitialSync,
-    } = options;
+    const { userId, threadMap, inboxMessages, zohoClient, zohoAccountId, folderId, isInitialSync } = options;
     const starUpdates: { threadId: string; starCount: number }[] = [];
     const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
 
@@ -298,12 +277,10 @@ export class ZohoProvider implements EmailProvider {
 
       try {
         const latestMessage = messages.sort(
-          (itemA, itemB) =>
-            (itemB.receivedTime || 0) - (itemA.receivedTime || 0),
+          (itemA, itemB) => Number(itemB.receivedTime || 0) - Number(itemA.receivedTime || 0),
         )[0];
         const isInInbox = inboxMessages.some(
-          (message) =>
-            message.threadId === threadId || message.uid === threadId,
+          (message) => message.threadId === threadId || message.uid === threadId,
         );
         const isImportant = latestMessage.importance === EMAIL_IMPORTANCE.HIGH;
 
@@ -318,6 +295,7 @@ export class ZohoProvider implements EmailProvider {
             threadId,
             zohoClient,
             zohoAccountId,
+            folderId,
             starCount: isImportant ? 3 : 0,
             isInitialSync,
           });
@@ -337,33 +315,25 @@ export class ZohoProvider implements EmailProvider {
     zohoClient: AxiosInstance;
     zohoAccountId: string;
     starCount: number;
+    folderId: string;
     isInitialSync: boolean;
   }): Promise<void> {
-    const {
-      userId,
-      message,
-      threadId: _threadId,
-      zohoClient,
-      zohoAccountId,
-      starCount,
-      isInitialSync,
-    } = options;
+    const { userId, message, zohoClient, zohoAccountId, starCount, folderId, isInitialSync } = options;
+
     const fullMsg = await zohoClient.get(
-      `/accounts/${zohoAccountId}/messages/${message.uid}`,
+      `accounts/${zohoAccountId}/folders/${folderId}/messages/${message.uid}/content`
     );
-    const messageData = (fullMsg.data.data || fullMsg.data) as ZohoMailMessage;
-    const rawEmail = parseZohoMessage(messageData);
+    const responseBody = fullMsg.data as { content?: string; [key: string]: unknown };
+    const nestedBody = responseBody['data'] as { content?: string } | undefined;
+    const bodyContent = nestedBody?.content || responseBody.content || '';
+    const mergedMessageData = { ...message, content: bodyContent };
+    const rawEmail = parseZohoMessage(mergedMessageData);
     if (!rawEmail) return;
 
-    const existing = await this.emailsService.getEmailByMessageId(
-      userId,
-      message.uid,
-    );
+    const existing = await this.emailsService.getEmailByMessageId(userId, message.uid);
     if (existing) {
-      if (existing.isRead !== messageData.isRead) {
-        await this.emailsService.updateEmail(userId, existing.id, {
-          isRead: messageData.isRead || false,
-        });
+      if (existing.isRead !== mergedMessageData.isRead) {
+        await this.emailsService.updateEmail(userId, existing.id, { isRead: mergedMessageData.isRead || false });
       }
       return;
     }
@@ -377,16 +347,10 @@ export class ZohoProvider implements EmailProvider {
 
   private handleThreadProcessingError(threadId: string, error: unknown): void {
     if (isApiError(error) && error.code === HTTP_STATUS.NOT_FOUND) {
-      this.logger.debug(
-        `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`,
-      );
+      this.logger.debug(`Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`);
     } else {
-      const errorMsg =
-        isError(error) || isApiError(error) ? error.message : "Unknown";
-      this.logger.warn(
-        `Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
-        errorMsg,
-      );
+      const errorMsg = isError(error) || isApiError(error) ? error.message : "Unknown";
+      this.logger.warn(`Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`, errorMsg);
     }
   }
 
@@ -398,15 +362,9 @@ export class ZohoProvider implements EmailProvider {
     },
   ): Promise<void> {
     if (updates.starUpdates.length > 0)
-      await this.emailsService.batchUpdateThreadStarCount(
-        userId,
-        updates.starUpdates,
-      );
+      await this.emailsService.batchUpdateThreadStarCount(userId, updates.starUpdates);
     if (updates.archivedUpdates.length > 0)
-      await this.emailsService.batchUpdateThreadArchivedStatuses(
-        userId,
-        updates.archivedUpdates,
-      );
+      await this.emailsService.batchUpdateThreadArchivedStatuses(userId, updates.archivedUpdates);
   }
 
   private async checkExistingStarredThreads(
@@ -415,31 +373,18 @@ export class ZohoProvider implements EmailProvider {
     zohoClient: AxiosInstance,
     zohoAccountId: string,
   ): Promise<void> {
-    const existingStarredThreads =
-      await this.emailsService.getExistingStarredThreads(userId);
+    const existingStarredThreads = await this.emailsService.getExistingStarredThreads(userId);
     const threadMapKeys = new Set(threadMap.keys());
-    const updates = await getExistingThreadUpdates(
-      userId,
-      existingStarredThreads,
-      threadMapKeys,
-      zohoClient,
-      zohoAccountId,
-    );
+    const updates = await getExistingThreadUpdates(userId, existingStarredThreads, threadMapKeys, zohoClient, zohoAccountId);
 
     if (updates.length > 0) {
       await this.emailsService.batchUpdateThreadStarCount(
         userId,
-        updates.map((update) => ({
-          threadId: update.threadId,
-          starCount: update.starCount,
-        })),
+        updates.map((update) => ({ threadId: update.threadId, starCount: update.starCount })),
       );
       await this.emailsService.batchUpdateThreadArchivedStatuses(
         userId,
-        updates.map((update) => ({
-          threadId: update.threadId,
-          isArchived: update.isArchived,
-        })),
+        updates.map((update) => ({ threadId: update.threadId, isArchived: update.isArchived })),
       );
     }
   }
@@ -450,36 +395,22 @@ export class ZohoProvider implements EmailProvider {
     zohoClient: AxiosInstance,
     zohoAccountId: string,
   ): Promise<void> {
-    const threadsNeedingCheck =
-      await this.emailsService.getNonArchivedThreadsNeedingCheck(
-        userId,
-        QUERY_LIMITS.PROVIDER_BATCH_SIZE,
-      );
-    const threadsToCheck = threadsNeedingCheck.filter(
-      (id) => !threadMap.has(id),
+    const threadsNeedingCheck = await this.emailsService.getNonArchivedThreadsNeedingCheck(
+      userId,
+      QUERY_LIMITS.PROVIDER_BATCH_SIZE,
     );
+    const threadsToCheck = threadsNeedingCheck.filter((id) => !threadMap.has(id));
 
     if (threadsToCheck.length > 0) {
-      const updates = await verifyThreadStatusesInZoho(
-        userId,
-        threadsToCheck,
-        zohoClient,
-        zohoAccountId,
-      );
+      const updates = await verifyThreadStatusesInZoho(userId, threadsToCheck, zohoClient, zohoAccountId);
       if (updates.length > 0) {
         await this.emailsService.batchUpdateThreadStarCount(
           userId,
-          updates.map((update) => ({
-            threadId: update.threadId,
-            starCount: update.starCount,
-          })),
+          updates.map((update) => ({ threadId: update.threadId, starCount: update.starCount })),
         );
         await this.emailsService.batchUpdateThreadArchivedStatuses(
           userId,
-          updates.map((update) => ({
-            threadId: update.threadId,
-            isArchived: update.isArchived,
-          })),
+          updates.map((update) => ({ threadId: update.threadId, isArchived: update.isArchived })),
         );
         await this.emailsService.updateThreadsLastCheckedAt(
           userId,
@@ -499,35 +430,25 @@ export class ZohoProvider implements EmailProvider {
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isAuthErrorFlag =
       apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
-      (apiError?.response &&
-        apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
+      (apiError?.response && apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
       errorMsg.includes("Token refresh failed");
 
     if (isAuthErrorFlag) {
       let currentUser: User | null = user;
       try {
         currentUser = await this.usersService.findOne(userId);
-      } catch {}
+      } catch (_err) {
+        this.logger.warn(`[handleSyncError] Could not refresh user record for ${userId}`);
+      }
       const isRecentLogin = isWithinGracePeriod(currentUser || user);
-      await logAuthFailure(
-        userId,
-        currentUser?.email || null,
-        "syncEmails-zohoApi",
-        error,
-        {
-          hasRefreshToken: !!primaryAccount.refreshToken,
-          isRecentLogin,
-          gracePeriodActive: isRecentLogin,
-        },
-      );
+      await logAuthFailure(userId, currentUser?.email || null, "syncEmails-zohoApi", error, {
+        hasRefreshToken: !!primaryAccount.refreshToken,
+        isRecentLogin,
+        gracePeriodActive: isRecentLogin,
+      });
 
       if (!isRecentLogin) {
-        await this.zohoAccountsService.updateTokens(
-          primaryAccount.id,
-          userId,
-          primaryAccount.accessToken,
-          undefined,
-        );
+        await this.zohoAccountsService.updateTokens(primaryAccount.id, userId, primaryAccount.accessToken, undefined);
       }
     }
     throw error;
@@ -537,10 +458,7 @@ export class ZohoProvider implements EmailProvider {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) return;
 
-    const existing = await this.scanEmailService.findByMessageId(
-      userId,
-      messageId,
-    );
+    const existing = await this.scanEmailService.findByMessageId(userId, messageId);
     if (existing) {
       await this.updateScanProgress(userId);
       return;
@@ -550,21 +468,18 @@ export class ZohoProvider implements EmailProvider {
     const zohoClient = this.client.createZohoClient(accessToken);
 
     try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
+      const { zohoAccountId } = await this.client.getAccountId(userId, accessToken);
       const fullMsg = await zohoClient.get(
-        `/accounts/${zohoAccountId}/messages/${messageId}`,
+        `accounts/${zohoAccountId}/messages/${messageId}/content`,
       );
-      const messageData = (fullMsg.data.data ||
-        fullMsg.data) as ZohoMailMessage;
+      const messageData = (fullMsg.data.data || fullMsg.data) as ZohoMailMessage;
       const rawEmail = parseZohoMessage(messageData);
       if (!rawEmail) {
         await this.updateScanProgress(userId);
         return;
       }
 
-      const isArchived =
-        messageData.folderId !== ZOHO_FOLDER_IDS.INBOX &&
-        messageData.folderId !== ZOHO_FOLDER_IDS.TRASH;
+      const isArchived = messageData.folderId !== ZOHO_FOLDER_IDS.INBOX && messageData.folderId !== ZOHO_FOLDER_IDS.TRASH;
       const isDeleted = messageData.folderId === ZOHO_FOLDER_IDS.TRASH;
       const tags = (messageData.tags as string[]) || [];
       await this.scanEmailService.createScanEmail(userId, {
@@ -579,7 +494,9 @@ export class ZohoProvider implements EmailProvider {
         try {
           await this.client.refreshTokenIfNeeded(userId, primaryAccount.id);
           await this.processScanEmail(userId, messageId);
-        } catch {}
+        } catch (_retryErr) {
+          this.logger.warn(`[processScanEmail] Token refresh retry failed for user ${userId}`);
+        }
       }
     }
   }
@@ -602,33 +519,30 @@ export class ZohoProvider implements EmailProvider {
     }
   }
 
-  /** Fetches recent inbox + trash messages from Zoho and filters to the last DAYS.WEEK days. */
   private async fetchRecentZohoMessages(
     zohoClient: AxiosInstance,
     zohoAccountId: string,
   ): Promise<ZohoMailMessage[]> {
+    const foldersResponse = await zohoClient.get(`accounts/${zohoAccountId}/folders`);
+    const folders: { folderName: string; folderId: string }[] = foldersResponse.data.data || [];
+    const folderMap = folders.reduce<Record<string, string>>((acc, folder) => {
+      acc[folder.folderName.toLowerCase()] = folder.folderId;
+      return acc;
+    }, {});
+
+    const inboxFolderId = folderMap[ZOHO_FOLDER_IDS.INBOX];
+    const trashFolderId = folderMap[ZOHO_FOLDER_IDS.TRASH];
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
-    const sevenDaysAgoTimestamp = Math.floor(
-      sevenDaysAgo.getTime() / MS_PER_SECOND,
-    );
+    const sevenDaysAgoMs = sevenDaysAgo.getTime();
 
     const [inboxResponse, trashResponse] = await Promise.all([
-      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-        params: {
-          limit: 200,
-          sort: "receivedTime",
-          sortorder: "desc",
-          folderid: "inbox",
-        },
+      zohoClient.get(`accounts/${zohoAccountId}/messages/view`, {
+        params: { limit: QUERY_LIMITS.MAX_THREADS_FOR_ANALYSIS, folderId: inboxFolderId },
       }),
-      zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
-        params: {
-          limit: 100,
-          sort: "receivedTime",
-          sortorder: "desc",
-          folderid: "trash",
-        },
+      zohoClient.get(`accounts/${zohoAccountId}/messages/view`, {
+        params: { limit: QUERY_LIMITS.THREAD_QUERY, folderId: trashFolderId },
       }),
     ]);
 
@@ -636,9 +550,17 @@ export class ZohoProvider implements EmailProvider {
       ...(inboxResponse.data.data || []),
       ...(trashResponse.data.data || []),
     ] as ZohoMailMessage[];
-    return allMessages.filter(
-      (msg) => (msg.receivedTime ?? 0) >= sevenDaysAgoTimestamp,
-    );
+
+    // Normalize messageId to uid
+    for (const msg of allMessages) {
+      msg.uid = msg.uid || msg.messageId;
+    }
+
+    return allMessages.filter((msg) => {
+      const rt = Number(msg.receivedTime) || 0;
+      const rtMs = rt < ZOHO_SECONDS_EPOCH_THRESHOLD ? rt * MS_PER_SECOND : rt;
+      return rtMs >= sevenDaysAgoMs;
+    });
   }
 
   async scanHistory(userId: string): Promise<void> {
@@ -649,27 +571,20 @@ export class ZohoProvider implements EmailProvider {
     const zohoClient = this.client.createZohoClient(accessToken);
 
     try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      const filteredMessages = await this.fetchRecentZohoMessages(
-        zohoClient,
-        zohoAccountId,
-      );
-      const total = Math.min(
-        filteredMessages.length,
-        BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
-      );
+      const {zohoAccountId} = await this.client.getAccountId(userId, accessToken);
+      const filteredMessages = await this.fetchRecentZohoMessages(zohoClient, zohoAccountId);
+      const total = Math.min(filteredMessages.length, BODY_PREVIEW_LENGTHS.BATCH_PREVIEW);
 
-      await this.usersService.update(userId, {
-        scanTotal: total,
-        scanProgress: 0,
-      });
+      await this.usersService.update(userId, { scanTotal: total, scanProgress: 0 });
       this.progressUpdateCounters.set(userId, 0);
 
       for (let i = 0; i < total; i++) {
         if (!filteredMessages[i].uid) continue;
         try {
           await this.processScanEmail(userId, filteredMessages[i].uid);
-        } catch {}
+        } catch (_scanErr) {
+          this.logger.warn(`[scanHistory] Failed to scan message ${filteredMessages[i].uid} for user ${userId}`);
+        }
       }
 
       const finalProgress = await this.usersService.incrementScanProgress(
@@ -688,13 +603,12 @@ export class ZohoProvider implements EmailProvider {
     } catch (error: unknown) {
       if (isAuthError(error)) {
         try {
-          accessToken = await this.client.refreshTokenIfNeeded(
-            userId,
-            primaryAccount.id,
-          );
+          await this.client.refreshTokenIfNeeded(userId, primaryAccount.id);
           await this.scanHistory(userId);
           return;
-        } catch {}
+        } catch (_retryErr) {
+          this.logger.warn(`[scanHistory] Token refresh retry failed for user ${userId}`);
+        }
         throw new Error("Token refresh failed - please reconnect");
       }
       throw error;
@@ -703,13 +617,7 @@ export class ZohoProvider implements EmailProvider {
 
   async sendReply(
     userId: string,
-    params: {
-      threadId: string;
-      to: string;
-      subject: string;
-      body: string;
-      options?: SendReplyOptions;
-    },
+    params: { threadId: string; to: string; subject: string; body: string; options?: SendReplyOptions },
   ): Promise<{ messageId: string; threadId: string }> {
     return sendReply(this, userId, params);
   }
@@ -728,12 +636,12 @@ export class ZohoProvider implements EmailProvider {
     return sendEmail(this, userId, params);
   }
 
-  async searchEmails(
-    userId: string,
-    query: string,
-    maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
-  ): Promise<RawEmailMessage[]> {
+  async searchEmails(userId: string, query: string, maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS): Promise<RawEmailMessage[]> {
     return searchEmails(this, userId, query, maxResults);
+  }
+
+  async fetchThreadMessages(userId: string, threadId: string, limit = 50): Promise<RawEmailMessage[]> {
+    return fetchThreadMessagesZoho(this, userId, threadId, limit);
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
@@ -744,30 +652,16 @@ export class ZohoProvider implements EmailProvider {
     return unarchiveThread(this, userId, threadId);
   }
 
-  async syncStarStatusToGmail(
-    _userId: string,
-    threadId: string,
-    _starCount: number,
-  ): Promise<void> {
-    this.logger.debug(
-      `syncStarStatusToGmail called for Zoho (not implemented): ${threadId}`,
-    );
+  async syncStarStatusToGmail(_userId: string, threadId: string, _starCount: number): Promise<void> {
+    this.logger.debug(`syncStarStatusToGmail called for Zoho (not implemented): ${threadId}`);
   }
 
-  async snoozeThread(
-    _userId: string,
-    threadId: string,
-    _snoozeUntil: Date,
-  ): Promise<void> {
-    this.logger.warn(
-      `snoozeThread called for Zoho (not implemented): ${threadId}`,
-    );
+  async snoozeThread(_userId: string, threadId: string, _snoozeUntil: Date): Promise<void> {
+    this.logger.warn(`snoozeThread called for Zoho (not implemented): ${threadId}`);
   }
 
   async unsnoozeThread(userId: string, threadId: string): Promise<void> {
-    this.logger.warn(
-      `unsnoozeThread called for Zoho (not implemented): ${threadId}`,
-    );
+    this.logger.warn(`unsnoozeThread called for Zoho (not implemented): ${threadId}`);
   }
 
   async getAttachment(
@@ -775,23 +669,12 @@ export class ZohoProvider implements EmailProvider {
     _messageId: string,
     _attachmentId: string,
     _attachmentMetadata?: { filename: string; mimeType: string; size: number },
-  ): Promise<{
-    attachmentBuffer: Buffer;
-    filename: string;
-    mimeType: string;
-    size: number;
-  }> {
+  ): Promise<{ attachmentBuffer: Buffer; filename: string; mimeType: string; size: number }> {
     throw new Error("Attachment download not yet implemented for Zoho");
   }
 
-  async addLabelToThread(
-    _userId: string,
-    threadId: string,
-    labelName: string,
-  ): Promise<void> {
-    this.logger.debug(
-      `addLabelToThread called for Zoho (not implemented): ${threadId}, label=${labelName}`,
-    );
+  async addLabelToThread(_userId: string, threadId: string, labelName: string): Promise<void> {
+    this.logger.debug(`addLabelToThread called for Zoho (not implemented): ${threadId}, label=${labelName}`);
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {

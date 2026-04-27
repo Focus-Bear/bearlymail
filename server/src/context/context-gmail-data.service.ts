@@ -1,5 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { gmail_v1, google } from "googleapis";
 
+import { PROMISE_STATUS } from "../constants/domain-statuses";
+import { GMAIL_LABELS } from "../constants/email-labels";
+import { ERROR_MESSAGES } from "../constants/error-messages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -7,6 +11,12 @@ import {
   EmailProvider,
   RawEmailMessage,
 } from "../emails/interfaces/email-provider.interface";
+import { GmailProvider } from "../emails/providers/gmail.provider";
+import {
+  formatGaxiosError,
+  getErrorMessage,
+  getGaxiosErrorDetails,
+} from "../types/common";
 import { UsersService } from "../users/users.service";
 import {
   buildDateRangeQuery,
@@ -16,16 +26,6 @@ import {
 
 const EMAIL_FETCH_LIMIT = 400;
 const NON_GMAIL_SENT_FETCH_BUFFER_MULTIPLIER = 1.5;
-import { gmail_v1, google } from "googleapis";
-
-import { GMAIL_LABELS } from "../constants/email-labels";
-import { ERROR_MESSAGES } from "../constants/error-messages";
-import { GmailProvider } from "../emails/providers/gmail.provider";
-import {
-  formatGaxiosError,
-  getErrorMessage,
-  getGaxiosErrorDetails,
-} from "../types/common";
 
 export interface ThreadEmail {
   id: string;
@@ -300,6 +300,76 @@ export class ContextEmailDataService {
       `[CONTEXT-ANALYSIS] Gmail returned ${allThreadIds.length} thread IDs`,
     );
     return allThreadIds;
+  }
+
+   /**
+   * Provider-agnostic version of getThreadIdsFromGmail.
+   * For Gmail users: delegates to the existing fast Gmail thread-ID-only path.
+   * For Zoho/Office365 users: fetches via searchEmails and extracts unique thread IDs.
+   * Use this instead of getThreadIdsFromGmail when the caller should support all providers.
+   */
+  async getThreadIdsFromProvider(
+    userId: string,
+    after: Date,
+    before: Date,
+    limit: number = EMAIL_FETCH_LIMIT,
+  ): Promise<string[]> {
+    const provider = await this.getProviderForUser(userId);
+    const providerType = this.getProviderTypeName(provider);
+
+    // Gmail: use the existing fast thread-ID-only path (avoids fetching full messages)
+    if (provider instanceof GmailProvider) {
+      return this.getThreadIdsFromGmail(userId, after, before, limit);
+    }
+
+    // Zoho / Office365: use searchEmails and extract unique thread IDs
+    const dateQuery = buildDateRangeQuery(provider, after, before);
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] ${providerType} getThreadIdsFromProvider query: "${dateQuery}"`,
+    );
+    const messages = await provider.searchEmails(userId, dateQuery, limit * 3);
+    const threadIds = [
+      ...new Set(messages.map((msg: RawEmailMessage) => msg.threadId)),
+    ].slice(0, limit) as string[];
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] ${providerType} returned ${threadIds.length} thread IDs`,
+    );
+    return threadIds;
+  }
+
+   /**
+   * Provider-agnostic version of fetchThreadsByIds.
+   * For Gmail users: delegates to the existing fetchThreadsByIds (direct Gmail API).
+   * For Zoho/Office365 users: fetches via searchEmails and groups by threadId.
+   * Use this instead of fetchThreadsByIds when the caller should support all providers.
+   */
+  async fetchThreadsByIdsFromProvider(
+    userId: string,
+    threadIds: string[],
+  ): Promise<ThreadData[]> {
+    const provider = await this.getProviderForUser(userId);
+
+    // Gmail: use the existing direct Gmail API path
+    if (provider instanceof GmailProvider) {
+      return this.fetchThreadsByIds(userId, threadIds);
+    }
+
+    // Zoho/Office365: use the direct thread-messages endpoint in parallel (not searchEmails,
+    // which uses Gmail-style query syntax that Zoho's search API doesn't support)
+    const results = await Promise.allSettled(
+      threadIds.map((threadId) => provider.fetchThreadMessages(userId, threadId)),
+    );
+    const allMessages: RawEmailMessage[] = [];
+    for (const [i, result] of results.entries()) {
+      if (result.status === PROMISE_STATUS.FULFILLED) {
+        allMessages.push(...result.value);
+      } else {
+        this.logger.warn(
+          `[CONTEXT-ANALYSIS] Failed to fetch thread ${threadIds[i]}: ${getErrorMessage(result.reason)}`,
+        );
+      }
+    }
+    return this.groupMessagesByThread(allMessages, provider);
   }
 
   /**

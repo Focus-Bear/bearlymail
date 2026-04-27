@@ -31,7 +31,7 @@ import {
 } from "@nestjs/common";
 import PgBoss from "pg-boss";
 
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
@@ -59,7 +59,7 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { SearchEnrichmentService } from "./search-enrichment.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard)
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailsController {
   private readonly logger = new Logger(EmailsController.name);
 

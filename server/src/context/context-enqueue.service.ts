@@ -64,7 +64,7 @@ export class ContextEnqueueService {
       batchPayload: BatchPayloadItem[];
     }> = [];
 
-    const allFetchedThreads = await this.gmailDataService.fetchThreadsByIds(
+    const allFetchedThreads = await this.gmailDataService.fetchThreadsByIdsFromProvider(
       userId,
       threadIds,
     );

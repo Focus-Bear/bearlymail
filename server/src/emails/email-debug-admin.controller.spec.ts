@@ -2,10 +2,14 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { AdminGuard } from "../auth/admin.guard";
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DebugConfig } from "../database/entities/debug-config.entity";
 import { DebugService } from "../debug/debug.service";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
+import { UsersService } from "../users/users.service";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailsService } from "./emails.service";
@@ -40,12 +44,28 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         { provide: EmailsService, useValue: {} },
         { provide: EmailAdminService, useValue: {} },
         { provide: "PG_BOSS", useValue: {} },
+        {
+          provide: GoogleAccountsService,
+          useValue: { hasConnectedGmail: jest.fn().mockResolvedValue(true) },
+        },
+        {
+          provide: Office365AccountsService,
+          useValue: { hasConnectedOffice365: jest.fn().mockResolvedValue(false) },
+        },
+        {
+          provide: ZohoAccountsService,
+          useValue: { hasConnectedZoho: jest.fn().mockResolvedValue(false) },
+        },
+        {
+          provide: UsersService,
+          useValue: { findOneWithTokens: jest.fn().mockResolvedValue(null) },
+        },
       ],
     })
       // Override guards so unit tests don't need a full auth setup
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
-      .overrideGuard(GmailRequiredGuard)
+      .overrideGuard(EmailProviderRequiredGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AdminGuard)
       .useValue({ canActivate: () => true })
@@ -71,7 +91,7 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
     expect(guardNames).toContain("JwtAuthGuard");
   });
 
-  it("has GmailRequiredGuard applied at controller level", () => {
+  it("has EmailProviderRequiredGuard applied at controller level", () => {
     const guards = Reflect.getMetadata(
       "__guards__",
       EmailDebugAdminController,
@@ -81,7 +101,7 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         ? (guard as { name: string }).name
         : String(guard),
     );
-    expect(guardNames).toContain("GmailRequiredGuard");
+    expect(guardNames).toContain("EmailProviderRequiredGuard");
   });
 
   // ─── PATCH admin/debug/configs/:feature ──────────────────────────────────────

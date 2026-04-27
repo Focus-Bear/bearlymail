@@ -432,6 +432,33 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  async fetchThreadMessages(
+    userId: string,
+    threadId: string,
+    limit = 50,
+  ): Promise<RawEmailMessage[]> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) return [];
+
+    try {
+      const threadResponse = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full",
+      });
+      const messages = threadResponse.data.messages || [];
+      return messages
+        .slice(0, limit)
+        .map((msg) => parseGmailMessage(msg))
+        .filter((msg): msg is RawEmailMessage => msg !== null);
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch thread messages for user ${userId}: ${error}`,
+      );
+      return [];
+    }
+  }
+
   /**
    * Metadata-only Gmail search — ~10x faster than searchEmails.
    *

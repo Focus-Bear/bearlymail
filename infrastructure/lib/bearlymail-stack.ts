@@ -291,15 +291,16 @@ export class BearlyMailStack extends cdk.Stack {
     // GuardDuty validates the role's permissions during plan creation.
     // Without this, CloudFormation may attempt to create the plan before the
     // policy resource is complete, causing an IAM permissions validation failure.
-    const guardDutyRolePolicy = guardDutyMalwareRole.node.tryFindChild('DefaultPolicy') as cdk.CfnResource | undefined;
+    // L2 `iam.Policy` is not a CfnResource; use `node.addDependency` for create order.
+    const guardDutyRolePolicy = guardDutyMalwareRole.node.tryFindChild('DefaultPolicy');
     if (guardDutyRolePolicy) {
-      malwareProtectionPlan.addDependsOn(guardDutyRolePolicy);
+      malwareProtectionPlan.node.addDependency(guardDutyRolePolicy);
     }
     // Ensure bucket policy is applied before GuardDuty validates permissions.
     // GuardDuty validates the bucket policy synchronously during plan creation,
     // so the bucket policy resource must exist before the plan is created.
     if (feedbackScreenshotsBucket.policy) {
-      malwareProtectionPlan.addDependsOn(feedbackScreenshotsBucket.policy.node.defaultChild as cdk.CfnResource);
+      malwareProtectionPlan.node.addDependency(feedbackScreenshotsBucket.policy);
     }
 
     // Lambda: Delete malicious files detected by GuardDuty

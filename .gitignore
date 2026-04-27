@@ -37,3 +37,6 @@ Thumbs.db
 
 .gemini/
 gha-creds-*.json
+
+# PR triage script cache
+.cache/

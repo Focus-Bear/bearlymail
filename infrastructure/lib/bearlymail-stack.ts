@@ -17,11 +17,11 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
-// import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail'; // disabled: CloudTrail temporarily commented out
-// import * as config from 'aws-cdk-lib/aws-config'; // disabled: AWS Config temporarily commented out
-// import * as guardduty from 'aws-cdk-lib/aws-guardduty'; // disabled: GuardDuty temporarily commented out
-// import * as lambda from 'aws-cdk-lib/aws-lambda'; // disabled: GuardDuty temporarily commented out
-// import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs'; // disabled: GuardDuty temporarily commented out
+import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
+import * as config from 'aws-cdk-lib/aws-config';
+import * as guardduty from 'aws-cdk-lib/aws-guardduty';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -205,85 +205,129 @@ export class BearlyMailStack extends cdk.Stack {
     }));
 
     // ============================================
-    // GuardDuty Malware Protection for S3 (GAP-1) — TEMPORARILY DISABLED
-    //
-    // Disabled due to persistent IAM permission errors when deploying
-    // FeedbackScreenshotsMalwareProtectionPlan. Re-enable once the
-    // GuardDuty permissions issue is resolved.
-    //
-    // const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
-    //   assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
-    //     conditions: {
-    //       StringEquals: { 'aws:SourceAccount': this.account },
-    //     },
-    //   }),
-    //   description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
-    // });
-    //
-    // guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
-    //   effect: iam.Effect.ALLOW,
-    //   actions: [
-    //     's3:GetObject',
-    //     's3:GetObjectVersion',
-    //     's3:PutObjectTagging',
-    //     's3:GetObjectTagging',
-    //   ],
-    //   resources: [feedbackScreenshotsBucket.arnForObjects('*')],
-    // }));
-    //
-    // guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
-    //   effect: iam.Effect.ALLOW,
-    //   actions: [
-    //     's3:ListBucket',
-    //     's3:GetBucketLocation',
-    //     's3:GetBucketOwnershipControls',
-    //     's3:GetBucketAcl',
-    //     's3:GetBucketPublicAccessBlock',
-    //     's3:GetBucketPolicy',
-    //     's3:GetBucketPolicyStatus',
-    //   ],
-    //   resources: [feedbackScreenshotsBucket.bucketArn],
-    // }));
-    //
-    // new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
-    //   role: guardDutyMalwareRole.roleArn,
-    //   protectedResource: {
-    //     s3Bucket: {
-    //       bucketName: feedbackScreenshotsBucket.bucketName,
-    //       objectPrefixes: ['feedback/'],
-    //     },
-    //   },
-    //   actions: {
-    //     tagging: { status: 'ENABLED' },
-    //   },
-    // });
-    //
+    // GuardDuty Malware Protection for S3 (GAP-1)
+    // ============================================
+    // IAM role that GuardDuty assumes to read objects and write scan result tags.
+    // Trust policy scoped to this account to prevent confused-deputy attacks.
+    const guardDutyMalwareRole = new iam.Role(this, 'GuardDutyMalwareProtectionRole', {
+      assumedBy: new iam.ServicePrincipal('malware-protection-plan.guardduty.amazonaws.com', {
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': this.account },
+        },
+      }),
+      description: 'Allows GuardDuty Malware Protection to read objects and write scan tags',
+    });
+    // Exclude from the account-wide permissions boundary (PermissionsBoundaryAspect in bin/app.ts).
+    // The boundary policy does not include the S3 bucket-ownership-validation actions that GuardDuty
+    // requires, so applying it would silently deny those permissions at the effective-policy level.
+    guardDutyMalwareRole.node.addMetadata('bearlymail:skip-permissions-boundary', true);
+
+    // Object-level permissions (read content, write scan result tag)
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject',
+        's3:GetObjectVersion',
+        's3:PutObjectTagging',
+        's3:GetObjectTagging',
+      ],
+      resources: [feedbackScreenshotsBucket.arnForObjects('*')],
+    }));
+
+    // Bucket-level permissions — required for GuardDuty to validate bucket ownership
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketOwnershipControls',
+        's3:GetBucketAcl',
+        's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicy',
+        's3:GetBucketPolicyStatus',
+      ],
+      resources: [feedbackScreenshotsBucket.bucketArn],
+    }));
+
+    // Explicit bucket policy statements for GuardDuty role.
+    // GuardDuty validates the role's permissions synchronously when creating
+    // the MalwareProtectionPlan. Adding the permissions to the bucket policy
+    // (in addition to the role's inline policy) ensures they are visible
+    // regardless of IAM propagation timing.
+    feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [guardDutyMalwareRole],
+      actions: [
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketOwnershipControls',
+        's3:GetBucketAcl',
+        's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicy',
+        's3:GetBucketPolicyStatus',
+        's3:GetObject',
+        's3:GetObjectVersion',
+        's3:PutObjectTagging',
+        's3:GetObjectTagging',
+      ],
+      resources: [
+        feedbackScreenshotsBucket.bucketArn,
+        feedbackScreenshotsBucket.arnForObjects('*'),
+      ],
+    }));
+
+    const malwareProtectionPlan = new guardduty.CfnMalwareProtectionPlan(this, 'FeedbackScreenshotsMalwareProtectionPlan', {
+      role: guardDutyMalwareRole.roleArn,
+      protectedResource: {
+        s3Bucket: {
+          bucketName: feedbackScreenshotsBucket.bucketName,
+          objectPrefixes: ['feedback/'],
+        },
+      },
+      actions: {
+        tagging: { status: 'ENABLED' },
+      },
+    });
+    // Ensure the role's inline policy (DefaultPolicy) is fully attached before
+    // GuardDuty validates the role's permissions during plan creation.
+    // Without this, CloudFormation may attempt to create the plan before the
+    // policy resource is complete, causing an IAM permissions validation failure.
+    const guardDutyRolePolicy = guardDutyMalwareRole.node.tryFindChild('DefaultPolicy') as cdk.CfnResource | undefined;
+    if (guardDutyRolePolicy) {
+      malwareProtectionPlan.addDependsOn(guardDutyRolePolicy);
+    }
+    // Ensure bucket policy is applied before GuardDuty validates permissions.
+    // GuardDuty validates the bucket policy synchronously during plan creation,
+    // so the bucket policy resource must exist before the plan is created.
+    if (feedbackScreenshotsBucket.policy) {
+      malwareProtectionPlan.addDependsOn(feedbackScreenshotsBucket.policy.node.defaultChild as cdk.CfnResource);
+    }
+
     // Lambda: Delete malicious files detected by GuardDuty
-    // const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
-    //   entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
-    //   handler: 'handler',
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   timeout: cdk.Duration.seconds(30),
-    //   memorySize: 128,
-    //   description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
-    //   logRetention: logs.RetentionDays.ONE_MONTH,
-    // });
-    // feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
-    //
+    const avScanRemediationFn = new lambdaNodejs.NodejsFunction(this, 'AvScanRemediationFunction', {
+      entry: path.join(__dirname, '../lambda/av-scan/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 128,
+      description: 'Deletes S3 objects flagged as malware by GuardDuty Malware Protection',
+      logRetention: logs.RetentionDays.ONE_MONTH,
+    });
+    feedbackScreenshotsBucket.grantDelete(avScanRemediationFn);
+
     // EventBridge rule: trigger Lambda on GuardDuty Malware:S3/* findings
-    // const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
-    //   description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
-    //   eventPattern: {
-    //     source: ['aws.guardduty'],
-    //     detailType: ['GuardDuty Finding'],
-    //     detail: {
-    //       type: [{ prefix: 'Malware:S3/' }],
-    //     },
-    //   },
-    // });
-    // guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
-    //   retryAttempts: 2,
-    // }));
+    const guardDutyMalwareRule = new events.Rule(this, 'GuardDutyMalwareRule', {
+      description: 'Trigger remediation Lambda when GuardDuty detects malware in S3',
+      eventPattern: {
+        source: ['aws.guardduty'],
+        detailType: ['GuardDuty Finding'],
+        detail: {
+          type: [{ prefix: 'Malware:S3/' }],
+        },
+      },
+    });
+    guardDutyMalwareRule.addTarget(new targets.LambdaFunction(avScanRemediationFn, {
+      retryAttempts: 2,
+    }));
     // ============================================
 
     new cdk.CfnOutput(this, 'FeedbackScreenshotsBucketName', {
@@ -1007,155 +1051,159 @@ export class BearlyMailStack extends cdk.Stack {
 
     // ============================================
     // CloudTrail (API Audit Trail — SAQ Q16 / GAP-9)
-    // Temporarily commented out — CloudFormation role lacks cloudtrail:DeleteTrail permission.
     // ============================================
-    // const cloudTrailBucket = new s3.Bucket(this, 'CloudTrailBucket', {
-    //   blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    //   encryption: s3.BucketEncryption.S3_MANAGED,
-    //   enforceSSL: true,
-    //   removalPolicy: cdk.RemovalPolicy.RETAIN,
-    //   lifecycleRules: [
-    //     {
-    //       id: 'ArchiveAndExpire',
-    //       enabled: true,
-    //       transitions: [
-    //         {
-    //           storageClass: s3.StorageClass.GLACIER,
-    //           transitionAfter: cdk.Duration.days(90),
-    //         },
-    //       ],
-    //       expiration: cdk.Duration.days(365),
-    //     },
-    //   ],
-    // });
-    //
-    // const managementTrail = new cloudtrail.Trail(this, 'ManagementTrail', {
-    //   trailName: 'BearlyMailManagementTrail',
-    //   bucket: cloudTrailBucket,
-    //   includeGlobalServiceEvents: true,
-    //   isMultiRegionTrail: true,
-    //   enableFileValidation: true,
-    //   sendToCloudWatchLogs: true,
-    //   cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
-    //   managementEvents: cloudtrail.ReadWriteType.ALL,
-    // });
-    //
-    // new cdk.CfnOutput(this, 'CloudTrailArn', {
-    //   value: managementTrail.trailArn,
-    //   description: 'CloudTrail trail ARN for management event audit',
-    //   exportName: 'BearlyMail-CloudTrail-ARN',
-    // });
+    const cloudTrailBucket = new s3.Bucket(this, 'CloudTrailBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      lifecycleRules: [
+        {
+          id: 'ArchiveAndExpire',
+          enabled: true,
+          transitions: [
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
+          expiration: cdk.Duration.days(365),
+        },
+      ],
+    });
+
+    const managementTrail = new cloudtrail.Trail(this, 'ManagementTrail', {
+      trailName: 'BearlyMailManagementTrail',
+      bucket: cloudTrailBucket,
+      includeGlobalServiceEvents: true,
+      isMultiRegionTrail: true,
+      enableFileValidation: true,
+      sendToCloudWatchLogs: true,
+      cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
+      managementEvents: cloudtrail.ReadWriteType.ALL,
+    });
+    // The CDK bootstrap cfn-exec role's permissions boundary excludes
+    // cloudtrail:DeleteTrail, which causes DELETE_FAILED during rollbacks.
+    // RETAIN ensures CloudFormation never attempts to delete this trail.
+    (managementTrail.node.defaultChild as cdk.CfnResource).applyRemovalPolicy(
+      cdk.RemovalPolicy.RETAIN,
+    );
+
+    new cdk.CfnOutput(this, 'CloudTrailArn', {
+      value: managementTrail.trailArn,
+      description: 'CloudTrail trail ARN for management event audit',
+      exportName: 'BearlyMail-CloudTrail-ARN',
+    });
 
     // ============================================
     // AWS Config (Configuration Compliance Monitoring — SAQ Q16 / GAP-9)
-    // Temporarily commented out — depends on CloudTrail which is also disabled.
     // ============================================
 
-    // // IAM role for the Config service
-    // const configServiceRole = new iam.Role(this, 'ConfigServiceRole', {
-    //   assumedBy: new iam.ServicePrincipal('config.amazonaws.com'),
-    //   managedPolicies: [
-    //     iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole'),
-    //   ],
-    // });
+    // IAM role for the Config service
+    const configServiceRole = new iam.Role(this, 'ConfigServiceRole', {
+      assumedBy: new iam.ServicePrincipal('config.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole'),
+      ],
+    });
 
-    // // Dedicated S3 bucket for Config snapshots / history
-    // const configBucket = new s3.Bucket(this, 'ConfigBucket', {
-    //   blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    //   encryption: s3.BucketEncryption.S3_MANAGED,
-    //   enforceSSL: true,
-    //   removalPolicy: cdk.RemovalPolicy.RETAIN,
-    //   lifecycleRules: [
-    //     {
-    //       id: 'Expire',
-    //       enabled: true,
-    //       expiration: cdk.Duration.days(365),
-    //     },
-    //   ],
-    // });
+    // Dedicated S3 bucket for Config snapshots / history
+    const configBucket = new s3.Bucket(this, 'ConfigBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      lifecycleRules: [
+        {
+          id: 'Expire',
+          enabled: true,
+          expiration: cdk.Duration.days(365),
+        },
+      ],
+    });
 
-    // // Allow Config service to read the bucket ACL and write config history objects
-    // configBucket.addToResourcePolicy(new iam.PolicyStatement({
-    //   principals: [new iam.ServicePrincipal('config.amazonaws.com')],
-    //   actions: ['s3:GetBucketAcl'],
-    //   resources: [configBucket.bucketArn],
-    // }));
-    // configBucket.addToResourcePolicy(new iam.PolicyStatement({
-    //   principals: [new iam.ServicePrincipal('config.amazonaws.com')],
-    //   actions: ['s3:PutObject'],
-    //   resources: [`${configBucket.bucketArn}/AWSLogs/${this.account}/Config/*`],
-    //   conditions: {
-    //     StringEquals: { 's3:x-amz-acl': 'bucket-owner-full-control' },
-    //   },
-    // }));
+    // Allow Config service to read the bucket ACL and write config history objects
+    configBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+      actions: ['s3:GetBucketAcl'],
+      resources: [configBucket.bucketArn],
+    }));
+    configBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('config.amazonaws.com')],
+      actions: ['s3:PutObject'],
+      resources: [`${configBucket.bucketArn}/AWSLogs/${this.account}/Config/*`],
+      conditions: {
+        StringEquals: { 's3:x-amz-acl': 'bucket-owner-full-control' },
+      },
+    }));
 
-    // // Configuration Recorder: track resource types relevant to BearlyMail
-    // const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
-    //   roleArn: configServiceRole.roleArn,
-    //   recordingGroup: {
-    //     allSupported: false,
-    //     resourceTypes: [
-    //       'AWS::S3::Bucket',
-    //       'AWS::RDS::DBInstance',
-    //       'AWS::ECS::TaskDefinition',
-    //       'AWS::CloudTrail::Trail',
-    //       'AWS::EC2::SecurityGroup',
-    //       'AWS::IAM::Role',
-    //       'AWS::SecretsManager::Secret',
-    //     ],
-    //   },
-    // });
+    // Configuration Recorder: track resource types relevant to BearlyMail
+    const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
+      roleArn: configServiceRole.roleArn,
+      recordingGroup: {
+        allSupported: false,
+        resourceTypes: [
+          'AWS::S3::Bucket',
+          'AWS::RDS::DBInstance',
+          'AWS::ECS::TaskDefinition',
+          'AWS::CloudTrail::Trail',
+          'AWS::EC2::SecurityGroup',
+          'AWS::IAM::Role',
+          'AWS::SecretsManager::Secret',
+        ],
+      },
+    });
 
-    // // Delivery Channel: where Config persists snapshots (daily)
-    // const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
-    //   s3BucketName: configBucket.bucketName,
-    //   configSnapshotDeliveryProperties: {
-    //     deliveryFrequency: 'TwentyFour_Hours',
-    //   },
-    // });
-    // configDeliveryChannel.addDependency(configRecorder);
+    // Delivery Channel: where Config persists snapshots (daily)
+    const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
+      s3BucketName: configBucket.bucketName,
+      configSnapshotDeliveryProperties: {
+        deliveryFrequency: 'TwentyFour_Hours',
+      },
+    });
+    configDeliveryChannel.addDependency(configRecorder);
 
-    // // Helper: create a managed rule that depends on the recorder + delivery channel
-    // const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
-    //   const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
-    //   // Rules require an active recorder — enforce creation order
-    //   (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
-    //   return rule;
-    // };
+    // Helper: create a managed rule that depends on the recorder + delivery channel
+    const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
+      const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
+      // Rules require an active recorder — enforce creation order
+      (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
+      return rule;
+    };
 
-    // // S3 compliance rules
-    // addConfigRule('S3BlockPublicReadRule',
-    //   config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
-    //   'bearlymail-s3-block-public-read');
+    // S3 compliance rules
+    addConfigRule('S3BlockPublicReadRule',
+      config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
+      'bearlymail-s3-block-public-read');
 
-    // addConfigRule('S3SslOnlyRule',
-    //   config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
-    //   'bearlymail-s3-ssl-requests-only');
+    addConfigRule('S3SslOnlyRule',
+      config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
+      'bearlymail-s3-ssl-requests-only');
 
-    // // RDS compliance rules
-    // addConfigRule('RdsPublicAccessRule',
-    //   config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
-    //   'bearlymail-rds-no-public-access');
+    // RDS compliance rules
+    addConfigRule('RdsPublicAccessRule',
+      config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
+      'bearlymail-rds-no-public-access');
 
-    // addConfigRule('RdsEncryptionRule',
-    //   config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
-    //   'bearlymail-rds-storage-encrypted');
+    addConfigRule('RdsEncryptionRule',
+      config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
+      'bearlymail-rds-storage-encrypted');
 
-    // // ECS compliance rule — ensures all task definitions emit logs
-    // addConfigRule('EcsLogConfigRule',
-    //   config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
-    //   'bearlymail-ecs-task-log-configuration');
+    // ECS compliance rule — ensures all task definitions emit logs
+    addConfigRule('EcsLogConfigRule',
+      config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
+      'bearlymail-ecs-task-log-configuration');
 
-    // // CloudTrail rule — verifies CloudTrail is enabled in this account/region
-    // addConfigRule('CloudTrailEnabledRule',
-    //   config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
-    //   'bearlymail-cloudtrail-enabled');
+    // CloudTrail rule — verifies CloudTrail is enabled in this account/region
+    addConfigRule('CloudTrailEnabledRule',
+      config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
+      'bearlymail-cloudtrail-enabled');
 
-    // new cdk.CfnOutput(this, 'ConfigBucketName', {
-    //   value: configBucket.bucketName,
-    //   description: 'S3 bucket storing AWS Config history snapshots',
-    //   exportName: 'BearlyMail-Config-Bucket',
-    // });
+    new cdk.CfnOutput(this, 'ConfigBucketName', {
+      value: configBucket.bucketName,
+      description: 'S3 bucket storing AWS Config history snapshots',
+      exportName: 'BearlyMail-Config-Bucket',
+    });
 
     // ============================================
     // Outputs

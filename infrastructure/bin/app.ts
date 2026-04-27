@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Aspects } from 'aws-cdk-lib';
 import { IConstruct } from 'constructs';
 import { BearlyMailStack } from '../lib/bearlymail-stack';
@@ -14,6 +13,11 @@ import { BearlyMailEmailPrioritisationStack } from '../lib/bearlymail-email-prio
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
+// Metadata key used to exclude a specific IAM Role from the permissions boundary.
+// Use guardDutyMalwareRole.node.addMetadata(SKIP_BOUNDARY_METADATA, true) on the L2
+// Role construct to prevent the boundary from being applied to that role.
+const SKIP_BOUNDARY_METADATA = 'bearlymail:skip-permissions-boundary';
+
 class PermissionsBoundaryAspect implements cdk.IAspect {
   private readonly boundaryArn: string;
 
@@ -21,18 +25,20 @@ class PermissionsBoundaryAspect implements cdk.IAspect {
     this.boundaryArn = boundaryArn;
   }
 
+  private hasSkipMetadata(node: IConstruct): boolean {
+    return node.node.metadata.some(m => m.type === SKIP_BOUNDARY_METADATA);
+  }
+
   visit(node: IConstruct): void {
-    // Catch L2 roles
-    if (node instanceof cdk.aws_iam.Role) {
-      const cfnRole = node.node.defaultChild as cdk.aws_iam.CfnRole;
-      cfnRole.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
-    }
-    // Catch L1 CfnRole directly
-    if (node instanceof cdk.aws_iam.CfnRole) {
-      node.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
-    }
-    // Catch ANY CloudFormation resource of type AWS::IAM::Role
+    // Target all IAM Role resources at the CloudFormation level (L1).
+    // This avoids redundant overrides on L2 constructs and catches all roles,
+    // including those without an L2 wrapper.
     if (node instanceof cdk.CfnResource && node.cfnResourceType === 'AWS::IAM::Role') {
+      // Check for skip metadata on the resource itself or its parent (L2 construct)
+      if (this.hasSkipMetadata(node)) return;
+      const parent = node.node.scope;
+      if (parent && this.hasSkipMetadata(parent)) return;
+
       node.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
     }
   }

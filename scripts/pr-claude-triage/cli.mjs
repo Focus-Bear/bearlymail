@@ -250,7 +250,6 @@ Environment:
       workflowEmptyRetriggerOk,
     });
     headSha = stalledEmptyResult.headSha;
-    checkRuns = stalledEmptyResult.checkRuns;
     ci = stalledEmptyResult.ci;
     const gemini = await fetchUnresolvedGeminiThreads(owner, repo, prMerge.number, bots);
     const issueCommentsForAttestation = await fetchIssueComments(owner, repo, prMerge.number);

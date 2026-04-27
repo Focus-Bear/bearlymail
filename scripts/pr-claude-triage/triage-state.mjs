@@ -15,7 +15,6 @@ import {
 } from "./constants.mjs";
 import { hasActiveClaudeCodeWorkflow, geminiUnresolvedBlocksTriage, getGeminiActionedLabel, getGeminiClaudeAttestationSubstring } from "./gemini.mjs";
 import { fetchIssueComments, githubRestDelete, githubRestPost } from "./github.mjs";
-import { localConflictResolutionTookOver } from "./conflict-resolver.mjs";
 import { mergeableStateIsBlockingGates } from "./merge-state.mjs";
 
 /**
@@ -339,10 +338,6 @@ export function buildTriageCommentBody(row) {
 
   let i = 1;
   const hasCiFailures = (row.failures ?? 0) > 0;
-  // Merge conflicts are intentionally never surfaced in the @claude github comment —
-  // they are routed to a local `claude -p` session instead (see conflict-resolver.mjs).
-  // The triage/merge-conflict label still flags the PR for a human; that's enough.
-  const hasConflict = false;
   const hasMergeIndeterminate = row.mergeability_indeterminate === true;
   const geminiN = row.gemini_unresolved_count ?? 0;
   const hasGemini = geminiUnresolvedBlocksTriage(row);
@@ -355,14 +350,11 @@ export function buildTriageCommentBody(row) {
     lines.push("");
   }
 
-  if (hasConflict) {
-    lines.push(`### ${i++}. Merge conflicts`);
-    lines.push(
-      `This PR does **not** merge cleanly into the base branch. Resolve conflicts (merge ` +
-        `\`main\` / rebase), fix any fallout, and push.`,
-    );
-    lines.push("");
-  } else if (hasMergeIndeterminate) {
+  // Merge conflicts are intentionally never surfaced in this @claude github comment —
+  // they are routed to a local `claude -p` session instead (see conflict-resolver.mjs).
+  // Indeterminate mergeable state (GitHub still computing) still gets a section; that's
+  // not the same as a confirmed conflict.
+  if (hasMergeIndeterminate) {
     lines.push(`### ${i++}. Merge status`);
     lines.push(
       "GitHub APIs did not return a definitive merge result in time. The PR may still show **merge conflicts** " +

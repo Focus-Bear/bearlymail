@@ -114,9 +114,15 @@ MERGED_HEADS_FILE="$(mktemp)"
 trap 'rm -f "$MERGED_HEADS_FILE"' EXIT
 
 echo "Fetching merged PR head branch names (REST: pulls API)..."
-gh api --paginate "repos/${REPO}/pulls?state=all&per_page=100" \
+# state=closed (vs state=all) skips open PRs we'd discard anyway via merged_at, which keeps
+# the response payload smaller on long-history repos. We append (>>) because the GraphQL
+# pass below adds more refs to the same file. A failure here is non-fatal — GraphQL covers
+# the same ground — but we surface a warning instead of silencing stderr.
+if ! gh api --paginate "repos/${REPO}/pulls?state=closed&per_page=100" \
   --jq ".[] | select(.merged_at != null) | select(.head.repo != null) | select(.head.repo.full_name == \"${REPO}\") | .head.ref" \
-  2>/dev/null >>"$MERGED_HEADS_FILE" || true
+  >>"$MERGED_HEADS_FILE"; then
+  echo "Warning: REST pulls API failed; falling back to GraphQL only for merged-branch detection." >&2
+fi
 
 echo "Fetching merged PR head branch names (GraphQL: merged PRs, same-repo heads only)..."
 GQL_MERGED_QUERY='

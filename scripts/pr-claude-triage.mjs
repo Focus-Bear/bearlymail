@@ -12,11 +12,13 @@
  *   node scripts/pr-claude-triage.mjs --pr 1852
  *   node scripts/pr-claude-triage.mjs --dry-run
  *
- * By default, posts an @claude triage comment when CI failures, merge conflicts, or
- * Gemini threads need work — **except** that merge conflicts are routed to a local `claude -p`
- * session in an isolated git worktree (`.claude/worktrees/conflict-pr-{N}`) when a usable local
- * clone is available. If the local clone, origin remote, or `claude` CLI is missing, falls back
- * to the @claude github ping for conflicts. (Not for missing/under-counted check runs; those are nudged via an **automatic**
+ * By default, posts an @claude triage comment when CI failures or Gemini threads need work.
+ * Merge conflicts are **never** surfaced in the @claude github comment — they are routed to a
+ * local `claude -p` session in an isolated git worktree (`.claude/worktrees/conflict-pr-{N}`)
+ * when a usable local clone with matching origin and the `claude` CLI are available. When the
+ * local resolver can't run, the script logs that and leaves the conflict for a human (the
+ * `triage/merge-conflict` label still flags the PR). (Not for missing/under-counted check
+ * runs; those are nudged via an **automatic**
  * empty commit in code — see `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW`). Not for workflow
  * approval or "wait for more green checks" / merge-block only (see PR_TRIAGE_MIN_PASSED_CHECKS). For blocked
  * workflow runs it tries POST …/actions/runs/{id}/approve

@@ -50,7 +50,8 @@
  *                            Data API, then `git checkout -` so the shell returns to the previous branch.
  *                            Implies a clean worktree and `origin` for this repository.
  *   PR_TRIAGE_GIT_CWD       directory for the above (default: cwd). Must match the repo you pass with -R.
- *   PR_TRIAGE_STATE_LABELS  empty = disable all triage state labels. Otherwise: sync one state label per PR
+ *   PR_TRIAGE_STATE_LABELS  empty = disable all triage state labels. Otherwise: remove script-managed labels
+ *                            at the start of each PR, then apply one state label matching current CI/Gemini/merge
  *   PR_TRIAGE_MIN_PASSED_CHECKS  minimum completed *success* check runs before “ready” (default 7; 0 = off)
  *   PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW  if check run *count* on the head is **below** this (default: 5),
  *                            push the automated empty commit when not busy/failing (0 = never by this path)
@@ -94,6 +95,32 @@ const TRIAGE_LABEL_COLORS = {
   needsAttention: "5319E7",
   insufficientSuccess: "e99695",
 };
+
+/** Human-readable meaning of `computeDesiredTriageStateLabel` / JSON `triage_state_key` (for console + summary). */
+const TRIAGE_STATE_KEY_HUMAN = {
+  merge_conflict: "Merge conflicts with the base branch",
+  merge_state_unknown: "Merge status not resolved yet (GitHub)",
+  ci_failing: "One or more CI checks failed",
+  ci_in_progress: "CI still queued or running",
+  ci_missing: "No check runs on the current commit",
+  insufficient_success: "Not enough green checks vs configured minimum",
+  gemini: "Unresolved Gemini Code Assist threads (triage-blocking)",
+  workflow_approval: "GitHub Actions waiting for workflow approval",
+  ready: "No scripted triage blockers; ready for human review",
+  needs_attention: "Triage ping recommended (see checks / comments)",
+  none: "No triage state label (nothing in scope for this bot)",
+};
+
+/**
+ * @param {string} key
+ * @returns {string}
+ */
+function triageStateKeyHumanSentence(key) {
+  if (key && typeof key === "string" && TRIAGE_STATE_KEY_HUMAN[key]) {
+    return TRIAGE_STATE_KEY_HUMAN[key];
+  }
+  return key ? String(key) : "Unknown state";
+}
 
 /** Hidden marker so we do not spam duplicate triage comments on reruns. */
 const TRIAGE_COMMENT_MARKER = "<!-- pr-ci-gemini-triage -->";
@@ -2276,21 +2303,33 @@ function printConsoleSummary(summary, orphanClaudeBranches) {
     }
   }
   console.log("");
+  console.log("6. Labels updated by this script (triage/* and ready-for-review slot)");
+  console.log(
+    "   Only labels configured for pr-claude-triage are touched; other PR labels are left alone.",
+  );
   const tls = summary.triageStateLabelSync?.length ?? 0;
-  if (tls > 0) {
-    console.log("5b. Triage state labels (this run)");
+  if (tls === 0) {
+    console.log("   (none — no GitHub label changes this run)");
+  } else {
     for (const p of summary.triageStateLabelSync) {
-      const err = p.error ? " [error]" : "";
-      const dr = p.dry_run ? " (dry-run)" : "";
-      const rm = (p.removed && p.removed.length) ? ` −${p.removed.join(", ")}` : "";
-      const ad = p.added ? ` +${p.added}` : "";
-      console.log(
-        `   - #${p.number} → ${p.to_key ?? "?"}${p.to_label ? ` (${p.to_label})` : ""}${rm}${ad}${dr}${err}`,
-      );
+      const err = p.error ? " [ERROR]" : "";
+      const dr = p.dry_run ? " [dry-run]" : "";
+      const human = p.to_key_human || triageStateKeyHumanSentence(p.to_key);
+      const labelPart = p.to_label ? ` Label: \`${p.to_label}\`.` : "";
+      const rm =
+        p.removed && p.removed.length
+          ? ` Removed: ${p.removed.map((n) => `\`${n}\``).join(", ")}.`
+          : "";
+      const ad =
+        p.added != null && p.added !== ""
+          ? ` Added: \`${p.added}\`.`
+          : " Added: (none).";
+      console.log(`   - PR #${p.number}: ${human}.${labelPart}${rm}${ad}${dr}${err}`);
+      console.log(`     ${p.title} — ${p.url}`);
     }
-    console.log("");
   }
-  console.log("6. Remote claude/* branches with no open PR");
+  console.log("");
+  console.log("7. Remote claude/* branches with no open PR");
   if (orphans.length === 0) {
     console.log("   (none — every claude/* head on the remote has an open PR, or there are no claude/* branches)");
   } else {
@@ -2336,7 +2375,7 @@ Environment:
   PR_TRIAGE_BASE_BRANCH   Base branch for orphan claude/* PRs (default: repo default branch from API)
   PR_TRIAGE_USE_LOCAL_GIT  "1"/"true": use local git in PR_TRIAGE_GIT_CWD (or cwd) for empty CI retrigger
   PR_TRIAGE_GIT_CWD        Repo root for PR_TRIAGE_USE_LOCAL_GIT (default: process cwd; origin must match -R)
-  PR_TRIAGE_STATE_LABELS   If empty: disable all triage state label syncing. Unset: enabled (one label/PR, priority)
+  PR_TRIAGE_STATE_LABELS   If empty: disable triage label syncing. Unset: enabled — clears this script's labels on each PR first, then applies one matching label (priority order)
   PR_TRIAGE_MIN_PASSED_CHECKS  Minimum *completed success* check runs to treat the rollup as green (default: 7; 0 = off)
   PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW  If head has **fewer** than this many check *run rows* (default: 5) and
                             CI is not busy, push the automated empty commit; 0 = never
@@ -2385,6 +2424,36 @@ Environment:
     const prMerge = await refreshPullMergeStatus(owner, repo, pr);
     const headRef = prMerge.head?.ref ?? "";
 
+    /** Snapshot before we remove script-managed labels (strip), so trust labels like GEMINI_ACTIONED stay correct. */
+    const geminiFeedbackActionedFromIssue = prHasGeminiActionedLabel(prMerge);
+
+    /** @type {{ key: string, removed: string[], added: string | null, dryRun: boolean, error?: boolean }} */
+    let stripLabelsResult = {
+      key: "none",
+      removed: [],
+      added: null,
+      dryRun: false,
+      error: false,
+    };
+    /** Labels as if script-managed names were removed (matches GitHub after a successful strip). */
+    let labelsSansManaged = prMerge.labels ?? [];
+    if (triageLabelConfig) {
+      stripLabelsResult = await syncTriageStateLabels(
+        owner,
+        repo,
+        prMerge.number,
+        prMerge.labels ?? [],
+        null,
+        managedTriageLabelNames,
+        "none",
+        args.dryRun,
+      );
+      const managedSet = new Set(managedTriageLabelNames);
+      labelsSansManaged = (prMerge.labels ?? []).filter(
+        (l) => l && typeof l.name === "string" && !managedSet.has(l.name),
+      );
+    }
+
     let checkRuns = await fetchCheckRunsForSha(owner, repo, headSha);
     let ci = summarizeCheckRuns(checkRuns);
     const checksInProgress = (ci.queued_or_running ?? 0) > 0;
@@ -2425,7 +2494,6 @@ Environment:
     ci = stalledEmptyResult.ci;
     const gemini = await fetchUnresolvedGeminiThreads(owner, repo, prMerge.number, bots);
     const actionedLabel = getGeminiActionedLabel();
-    const hasActionedLabel = prHasGeminiActionedLabel(prMerge);
 
     const row = {
       number: prMerge.number,
@@ -2446,7 +2514,7 @@ Environment:
       ci_missing: ci.check_runs === 0 ? 1 : 0,
       ...gemini,
       gemini_feedback_actioned_label: actionedLabel,
-      gemini_feedback_actioned_label_set: hasActionedLabel,
+      gemini_feedback_actioned_label_set: geminiFeedbackActionedFromIssue,
     };
 
     const ping = triagePingRecommended(row);
@@ -2494,35 +2562,58 @@ Environment:
     const desiredTriage = triageLabelConfig
       ? computeDesiredTriageStateLabel(row, ping, triageLabelConfig)
       : { key: "none", name: null, stateKey: "none" };
-    const labelSync = triageLabelConfig
-      ? await syncTriageStateLabels(
-          owner,
-          repo,
-          prMerge.number,
-          prMerge.labels ?? [],
-          desiredTriage.name,
-          managedTriageLabelNames,
-          desiredTriage.stateKey,
-          args.dryRun,
-        )
-      : { key: "none", removed: [], added: null, dryRun: false, error: false };
+
+    /** @type {{ key: string, removed: string[], added: string | null, dryRun: boolean, error?: boolean }} */
+    let labelSync;
+    if (!triageLabelConfig) {
+      labelSync = { key: "none", removed: [], added: null, dryRun: false, error: false };
+    } else if (stripLabelsResult.error) {
+      labelSync = await syncTriageStateLabels(
+        owner,
+        repo,
+        prMerge.number,
+        prMerge.labels ?? [],
+        desiredTriage.name,
+        managedTriageLabelNames,
+        desiredTriage.stateKey,
+        args.dryRun,
+      );
+    } else {
+      labelSync = await syncTriageStateLabels(
+        owner,
+        repo,
+        prMerge.number,
+        labelsSansManaged,
+        desiredTriage.name,
+        managedTriageLabelNames,
+        desiredTriage.stateKey,
+        args.dryRun,
+      );
+    }
     row.triage_state_key = desiredTriage.key;
+    row.triage_state_key_human = triageStateKeyHumanSentence(desiredTriage.key);
     row.triage_state_label = desiredTriage.name;
+    row.triage_state_label_strip_start = triageLabelConfig ? stripLabelsResult : null;
     row.triage_state_label_sync = labelSync;
     if (triageLabelConfig) {
+      const stripRemoved = stripLabelsResult.error ? [] : stripLabelsResult.removed || [];
+      const syncRemoved = labelSync.removed || [];
+      const combinedRemoved = [...new Set([...stripRemoved, ...syncRemoved])];
       const hasWork =
-        (labelSync.removed && labelSync.removed.length > 0) ||
+        combinedRemoved.length > 0 ||
         labelSync.added != null ||
+        stripLabelsResult.error ||
         labelSync.error;
       if (hasWork) {
         summary.triageStateLabelSync.push({
           ...prBrief,
           to_key: desiredTriage.key,
+          to_key_human: triageStateKeyHumanSentence(desiredTriage.key),
           to_label: desiredTriage.name,
-          removed: labelSync.removed || [],
+          removed: combinedRemoved,
           added: labelSync.added,
-          dry_run: labelSync.dryRun,
-          error: labelSync.error === true,
+          dry_run: Boolean(labelSync.dryRun || stripLabelsResult.dryRun),
+          error: stripLabelsResult.error === true || labelSync.error === true,
         });
       }
     }
@@ -2676,20 +2767,26 @@ Environment:
         }
       }
       if (triageLabelConfig) {
-        if (labelSync.error) {
-          console.log(`  [action] Triage state label sync failed (state ${desiredTriage.key}).`);
-        } else if (
-          (labelSync.removed && labelSync.removed.length > 0) ||
-          labelSync.added != null
-        ) {
-          const dr = labelSync.dryRun ? " (dry-run)" : "";
-          const rm = labelSync.removed?.length ? ` −${labelSync.removed.join(", ")}` : "";
-          const ad = labelSync.added != null ? ` +${labelSync.added}` : "";
+        const stripRm = stripLabelsResult.error ? [] : stripLabelsResult.removed || [];
+        const syncRm = labelSync.removed || [];
+        const combinedRm = [...new Set([...stripRm, ...syncRm])];
+        const humanState = triageStateKeyHumanSentence(desiredTriage.key);
+        const dr =
+          labelSync.dryRun || stripLabelsResult.dryRun ? " [dry-run: no GitHub writes]" : "";
+        if (stripLabelsResult.error || labelSync.error) {
           console.log(
-            `  [action] Triage labels${dr}: ${desiredTriage.key}${
-              desiredTriage.name ? ` (\`${desiredTriage.name}\`)` : ""
-            }${rm}${ad}`,
+            `  [action] GitHub triage labels${dr}: ERROR while applying state "${humanState}"${
+              desiredTriage.name ? ` (GitHub label \`${desiredTriage.name}\`)` : ""
+            }.`,
           );
+        } else if (combinedRm.length > 0 || labelSync.added != null) {
+          const rmTxt =
+            combinedRm.length > 0
+              ? `Removed: ${combinedRm.map((n) => `\`${n}\``).join(", ")}. `
+              : "";
+          const adTxt =
+            labelSync.added != null ? `Added: \`${labelSync.added}\`.` : "Added: (none).";
+          console.log(`  [action] GitHub triage labels${dr}: ${humanState} — ${rmTxt}${adTxt}`);
         }
       }
       console.log("");

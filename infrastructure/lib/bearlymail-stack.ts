@@ -248,6 +248,50 @@ export class BearlyMailStack extends cdk.Stack {
       resources: [feedbackScreenshotsBucket.bucketArn],
     }));
 
+    // Enable S3 → EventBridge delivery (MalwareProtectionPlan rejects the role without this).
+    // https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection-s3-iam-policy-prerequisite.html
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:PutBucketNotification',
+        's3:GetBucketNotification',
+        's3:PutBucketNotificationConfiguration',
+        's3:GetBucketNotificationConfiguration',
+      ],
+      resources: [feedbackScreenshotsBucket.bucketArn],
+    }));
+
+    const guardDutyManagedRuleArn = `arn:aws:events:${this.region}:${this.account}:rule/DO-NOT-DELETE-AmazonGuardDutyMalwareProtectionS3*`;
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'events:PutRule',
+        'events:DeleteRule',
+        'events:PutTargets',
+        'events:RemoveTargets',
+      ],
+      resources: [guardDutyManagedRuleArn],
+      conditions: {
+        StringEquals: {
+          'events:ManagedBy': 'malware-protection-plan.guardduty.amazonaws.com',
+        },
+      },
+    }));
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['events:DescribeRule', 'events:ListTargetsByRule'],
+      resources: [guardDutyManagedRuleArn],
+    }));
+
+    // Optional but recommended: plan validation object (avoids INSUFFICIENT_TEST_OBJECT_PERMISSIONS).
+    guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject'],
+      resources: [
+        `${feedbackScreenshotsBucket.bucketArn}/malware-protection-resource-validation-object`,
+      ],
+    }));
+
     // Explicit bucket policy statements for GuardDuty role.
     // GuardDuty validates the role's permissions synchronously when creating
     // the MalwareProtectionPlan. Adding the permissions to the bucket policy
@@ -271,6 +315,25 @@ export class BearlyMailStack extends cdk.Stack {
       resources: [
         feedbackScreenshotsBucket.bucketArn,
         feedbackScreenshotsBucket.arnForObjects('*'),
+      ],
+    }));
+
+    feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [guardDutyMalwareRole],
+      actions: [
+        's3:PutBucketNotification',
+        's3:GetBucketNotification',
+        's3:PutBucketNotificationConfiguration',
+        's3:GetBucketNotificationConfiguration',
+      ],
+      resources: [feedbackScreenshotsBucket.bucketArn],
+    }));
+
+    feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [guardDutyMalwareRole],
+      actions: ['s3:PutObject'],
+      resources: [
+        `${feedbackScreenshotsBucket.bucketArn}/malware-protection-resource-validation-object`,
       ],
     }));
 

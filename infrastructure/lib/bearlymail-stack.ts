@@ -1145,12 +1145,10 @@ export class BearlyMailStack extends cdk.Stack {
       cloudWatchLogsRetention: logs.RetentionDays.THREE_MONTHS,
       managementEvents: cloudtrail.ReadWriteType.ALL,
     });
-    // The CDK bootstrap cfn-exec role's permissions boundary excludes
-    // cloudtrail:DeleteTrail, which causes DELETE_FAILED during rollbacks.
-    // RETAIN ensures CloudFormation never attempts to delete this trail.
-    (managementTrail.node.defaultChild as cdk.CfnResource).applyRemovalPolicy(
-      cdk.RemovalPolicy.RETAIN,
-    );
+    // Do not grant cloudtrail:DeleteTrail on the CDK CFN execution role boundary.
+    // Retain the trail on stack delete / replace so audit logs are not removed by deploy credentials.
+    const managementTrailResource = managementTrail.node.defaultChild as cloudtrail.CfnTrail;
+    managementTrailResource.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     new cdk.CfnOutput(this, 'CloudTrailArn', {
       value: managementTrail.trailArn,

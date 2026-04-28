@@ -416,7 +416,6 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
         actions: [
           "cloudtrail:CreateTrail",
           "cloudtrail:UpdateTrail",
-          "cloudtrail:DeleteTrail",
           "cloudtrail:StartLogging",
           "cloudtrail:StopLogging",
           "cloudtrail:GetTrail",
@@ -424,6 +423,8 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
           "cloudtrail:DescribeTrails",
           "cloudtrail:ListTrails",
           "cloudtrail:AddTags",
+          "cloudtrail:RemoveTags",
+          "cloudtrail:ListTags",
           "cloudtrail:PutEventSelectors",
           "cloudtrail:GetEventSelectors",
           "cloudtrail:CreateServiceLinkedChannel",

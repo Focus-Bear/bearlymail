@@ -267,9 +267,9 @@ jobs:
         working-directory: infrastructure
         run: npm ci
 
-      - name: Install AWS CDK CLI
-        run: npm install -g aws-cdk
-
+      # Use CDK from infrastructure/node_modules (package-lock) so CLI matches the app.
+      # If CDK fails with cloudformation:DescribeEvents on cdk-hnb659fds-deploy-role, upgrade
+      # the CDK bootstrap stack (v30+): cdk bootstrap aws://789877399450/ap-southeast-2
       - name: Build batch-analyzer Lambda
         working-directory: lambda/batch-analyzer
         run: |
@@ -285,7 +285,7 @@ jobs:
       - name: CDK Deploy Application Stack
         working-directory: infrastructure
         run: |
-          cdk deploy BearlyMailStack BearlyMailContextAnalysisStack \
+          npx cdk deploy BearlyMailStack BearlyMailContextAnalysisStack \
             --require-approval never \
             --outputs-file cdk-outputs.json
 

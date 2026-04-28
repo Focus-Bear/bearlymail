@@ -94,6 +94,7 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
           "cloudformation:UpdateStack",
           "cloudformation:DescribeStacks",
           "cloudformation:DescribeStackEvents",
+          "cloudformation:DescribeEvents",
           "cloudformation:DescribeStackResources",
           "cloudformation:GetTemplate",
           "cloudformation:GetTemplateSummary",

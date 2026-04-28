@@ -253,8 +253,6 @@ export class BearlyMailStack extends cdk.Stack {
     guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        's3:PutBucketNotification',
-        's3:GetBucketNotification',
         's3:PutBucketNotificationConfiguration',
         's3:GetBucketNotificationConfiguration',
       ],
@@ -321,8 +319,6 @@ export class BearlyMailStack extends cdk.Stack {
     feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
       principals: [guardDutyMalwareRole],
       actions: [
-        's3:PutBucketNotification',
-        's3:GetBucketNotification',
         's3:PutBucketNotificationConfiguration',
         's3:GetBucketNotificationConfiguration',
       ],

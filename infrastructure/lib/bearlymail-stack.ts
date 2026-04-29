@@ -22,6 +22,7 @@ import * as config from 'aws-cdk-lib/aws-config';
 import * as guardduty from 'aws-cdk-lib/aws-guardduty';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -253,8 +254,12 @@ export class BearlyMailStack extends cdk.Stack {
     guardDutyMalwareRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        's3:PutBucketNotificationConfiguration',
-        's3:GetBucketNotificationConfiguration',
+        // IAM action names — the canonical ones drop the "Configuration" suffix
+        // even though the underlying API ops are PutBucketNotificationConfiguration
+        // and GetBucketNotificationConfiguration. Bucket policies reject the
+        // suffixed forms with "Policy has invalid action".
+        's3:PutBucketNotification',
+        's3:GetBucketNotification',
       ],
       resources: [feedbackScreenshotsBucket.bucketArn],
     }));
@@ -319,8 +324,8 @@ export class BearlyMailStack extends cdk.Stack {
     feedbackScreenshotsBucket.addToResourcePolicy(new iam.PolicyStatement({
       principals: [guardDutyMalwareRole],
       actions: [
-        's3:PutBucketNotificationConfiguration',
-        's3:GetBucketNotificationConfiguration',
+        's3:PutBucketNotification',
+        's3:GetBucketNotification',
       ],
       resources: [feedbackScreenshotsBucket.bucketArn],
     }));
@@ -1194,11 +1199,31 @@ export class BearlyMailStack extends cdk.Stack {
       },
     }));
 
-    // Configuration Recorder: track resource types relevant to BearlyMail
-    const configRecorder = new config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
-      roleArn: configServiceRole.roleArn,
+    // ============================================
+    // Configuration Recorder + Delivery Channel (custom-resource bootstrap)
+    // ============================================
+    // CFN's native AWS::Config::ConfigurationRecorder handler atomically calls
+    // PutConfigurationRecorder + StartConfigurationRecorder. Start needs a
+    // delivery channel; PutDeliveryChannel needs a recorder. CFN cannot
+    // sequence the three required API calls (Put recorder → Put channel →
+    // Start) on a fresh account, so deploys deadlock.
+    //
+    // We orchestrate the three calls via three chained AwsCustomResource
+    // instances. Each one is independently idempotent (Put*/Start* are no-ops
+    // if state already matches), and ordering is enforced via addDependency.
+    //
+    // We deliberately omit onDelete handlers: stack-delete leaves the recorder
+    // and delivery channel running so we don't accidentally interrupt Config
+    // history (which would also fail if any ConfigRule still references them).
+    // To tear down, run `aws configservice stop-configuration-recorder` →
+    // `delete-delivery-channel` → `delete-configuration-recorder` manually.
+
+    const recorderConfig = {
+      name: 'default',
+      roleARN: configServiceRole.roleArn,
       recordingGroup: {
         allSupported: false,
+        includeGlobalResourceTypes: false,
         resourceTypes: [
           'AWS::S3::Bucket',
           'AWS::RDS::DBInstance',
@@ -1209,49 +1234,118 @@ export class BearlyMailStack extends cdk.Stack {
           'AWS::SecretsManager::Secret',
         ],
       },
-    });
+    };
 
-    // Delivery Channel: where Config persists snapshots (daily)
-    const configDeliveryChannel = new config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
-      s3BucketName: configBucket.bucketName,
-      configSnapshotDeliveryProperties: {
-        deliveryFrequency: 'TwentyFour_Hours',
+    const putRecorder = new cr.AwsCustomResource(this, 'PutConfigRecorder', {
+      onCreate: {
+        service: 'ConfigService',
+        action: 'putConfigurationRecorder',
+        parameters: { ConfigurationRecorder: recorderConfig },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-recorder'),
       },
+      onUpdate: {
+        service: 'ConfigService',
+        action: 'putConfigurationRecorder',
+        parameters: { ConfigurationRecorder: recorderConfig },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-recorder'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['config:PutConfigurationRecorder'],
+          resources: ['*'],
+        }),
+        // PutConfigurationRecorder requires PassRole on the service role
+        new iam.PolicyStatement({
+          actions: ['iam:PassRole'],
+          resources: [configServiceRole.roleArn],
+          conditions: {
+            StringEquals: { 'iam:PassedToService': 'config.amazonaws.com' },
+          },
+        }),
+      ]),
+      installLatestAwsSdk: false,
     });
-    configDeliveryChannel.addDependency(configRecorder);
 
-    // Helper: create a managed rule that depends on the recorder + delivery channel
+    const putDeliveryChannel = new cr.AwsCustomResource(this, 'PutConfigDeliveryChannel', {
+      onCreate: {
+        service: 'ConfigService',
+        action: 'putDeliveryChannel',
+        parameters: {
+          DeliveryChannel: {
+            name: 'default',
+            s3BucketName: configBucket.bucketName,
+            configSnapshotDeliveryProperties: { deliveryFrequency: 'TwentyFour_Hours' },
+          },
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-delivery-channel'),
+      },
+      onUpdate: {
+        service: 'ConfigService',
+        action: 'putDeliveryChannel',
+        parameters: {
+          DeliveryChannel: {
+            name: 'default',
+            s3BucketName: configBucket.bucketName,
+            configSnapshotDeliveryProperties: { deliveryFrequency: 'TwentyFour_Hours' },
+          },
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-delivery-channel'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+      }),
+      installLatestAwsSdk: false,
+    });
+    putDeliveryChannel.node.addDependency(putRecorder);
+    // Bucket policy must be applied before PutDeliveryChannel — Config validates
+    // it can write to the bucket as part of the API call.
+    if (configBucket.policy) {
+      putDeliveryChannel.node.addDependency(configBucket.policy);
+    }
+
+    const startRecorder = new cr.AwsCustomResource(this, 'StartConfigRecorder', {
+      onCreate: {
+        service: 'ConfigService',
+        action: 'startConfigurationRecorder',
+        parameters: { ConfigurationRecorderName: 'default' },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-recorder-started'),
+      },
+      onUpdate: {
+        service: 'ConfigService',
+        action: 'startConfigurationRecorder',
+        parameters: { ConfigurationRecorderName: 'default' },
+        physicalResourceId: cr.PhysicalResourceId.of('default-config-recorder-started'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+      }),
+      installLatestAwsSdk: false,
+    });
+    startRecorder.node.addDependency(putDeliveryChannel);
+
+    // Config rules require the recorder to be running before they can be
+    // created — depend on the start step.
     const addConfigRule = (id: string, identifier: string, configRuleName: string): config.ManagedRule => {
       const rule = new config.ManagedRule(this, id, { identifier, configRuleName });
-      // Rules require an active recorder — enforce creation order
-      (rule.node.defaultChild as cdk.CfnResource).addDependency(configDeliveryChannel);
+      rule.node.addDependency(startRecorder);
       return rule;
     };
 
-    // S3 compliance rules
     addConfigRule('S3BlockPublicReadRule',
       config.ManagedRuleIdentifiers.S3_BUCKET_PUBLIC_READ_PROHIBITED,
       'bearlymail-s3-block-public-read');
-
     addConfigRule('S3SslOnlyRule',
       config.ManagedRuleIdentifiers.S3_BUCKET_SSL_REQUESTS_ONLY,
       'bearlymail-s3-ssl-requests-only');
-
-    // RDS compliance rules
     addConfigRule('RdsPublicAccessRule',
       config.ManagedRuleIdentifiers.RDS_INSTANCE_PUBLIC_ACCESS_CHECK,
       'bearlymail-rds-no-public-access');
-
     addConfigRule('RdsEncryptionRule',
       config.ManagedRuleIdentifiers.RDS_STORAGE_ENCRYPTED,
       'bearlymail-rds-storage-encrypted');
-
-    // ECS compliance rule — ensures all task definitions emit logs
     addConfigRule('EcsLogConfigRule',
       config.ManagedRuleIdentifiers.ECS_TASK_DEFINITION_LOG_CONFIGURATION,
       'bearlymail-ecs-task-log-configuration');
-
-    // CloudTrail rule — verifies CloudTrail is enabled in this account/region
     addConfigRule('CloudTrailEnabledRule',
       config.ManagedRuleIdentifiers.CLOUD_TRAIL_ENABLED,
       'bearlymail-cloudtrail-enabled');

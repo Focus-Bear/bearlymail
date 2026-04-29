@@ -32,3 +32,6 @@ export const TOKEN_BYTES = 32;
 
 // Token validity window: 1 hour in milliseconds
 export const TOKEN_EXPIRY_MS = MILLISECONDS.HOUR;
+
+// Step-up token validity: 15 minutes (OWASP ASVS req 4.2.1)
+export const STEP_UP_TOKEN_EXPIRY_MINUTES = 15;

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
+import { StepUpModal } from 'components/auth/StepUpModal';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface Office365Account {
@@ -91,22 +93,14 @@ const Office365AccountRow: React.FC<Office365AccountRowProps> = ({ account, t, o
   </div>
 );
 
-interface UseOffice365AccountHandlersParams {
-  onFetchData: () => Promise<void>;
-  t: (k: string) => string;
-}
-
-function useOffice365AccountHandlers({ onFetchData, t }: UseOffice365AccountHandlersParams) {
-  const handleDisconnect = async (id: string) => {
-    if (window.confirm(t('settings.office365.confirmDisconnect'))) {
-      try {
-        await axios.delete(`${API_URL}/office365-accounts/${id}`);
-        await onFetchData();
-      } catch (error) {
-        console.error('Error disconnecting Office 365 account:', error);
-      }
-    }
-  };
+export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> = ({
+  office365Accounts,
+  onFetchData,
+}) => {
+  const { t } = useTranslation();
+  const [stepUpAccountId, setStepUpAccountId] = useState<string | null>(null);
+  const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [stepUpLoading, setStepUpLoading] = useState(false);
 
   const handleSetPrimary = async (id: string) => {
     try {
@@ -117,15 +111,65 @@ function useOffice365AccountHandlers({ onFetchData, t }: UseOffice365AccountHand
     }
   };
 
-  return { handleDisconnect, handleSetPrimary };
-}
+  const doDisconnect = async (id: string, stepUpToken?: string) => {
+    const headers: Record<string, string> = {};
+    if (stepUpToken) {
+      headers['X-Step-Up-Token'] = stepUpToken;
+    }
+    await axios.delete(`${API_URL}/office365-accounts/${id}`, { headers });
+    await onFetchData();
+  };
 
-export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> = ({
-  office365Accounts,
-  onFetchData,
-}) => {
-  const { t } = useTranslation();
-  const { handleDisconnect, handleSetPrimary } = useOffice365AccountHandlers({ onFetchData, t });
+  const handleDisconnect = async (id: string) => {
+    if (!window.confirm(t('settings.office365.confirmDisconnect'))) {
+      return;
+    }
+    try {
+      // Attempt to acquire a step-up token without a password.
+      // OAuth-only users succeed immediately; password users receive 401 {requiresPassword:true}.
+      const { data } = await axios.post(`${API_URL}/auth/step-up`, {});
+      await doDisconnect(id, data.step_up_token);
+    } catch (err) {
+      if (
+        axios.isAxiosError(err) &&
+        err.response?.status === HTTP_UNAUTHORIZED &&
+        (err.response.data as { requiresPassword?: boolean })?.requiresPassword
+      ) {
+        setStepUpError(null);
+        setStepUpAccountId(id);
+        return;
+      }
+      console.error('Error disconnecting Office 365 account:', err);
+    }
+  };
+
+  const handleStepUpConfirm = async (password: string) => {
+    if (!stepUpAccountId) {
+      return;
+    }
+    setStepUpLoading(true);
+    setStepUpError(null);
+    try {
+      const { data } = await axios.post(`${API_URL}/auth/step-up`, { password });
+      await doDisconnect(stepUpAccountId, data.step_up_token);
+      setStepUpAccountId(null);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === HTTP_UNAUTHORIZED) {
+        setStepUpError(t('stepUp.invalidPassword'));
+      } else {
+        setStepUpAccountId(null);
+        console.error('Error disconnecting Office 365 account:', err);
+      }
+    } finally {
+      setStepUpLoading(false);
+    }
+  };
+
+  const handleStepUpCancel = () => {
+    setStepUpAccountId(null);
+    setStepUpError(null);
+  };
+
   const connectUrl = `${API_URL}/office365-accounts/connect`;
   const handleConnectClick = () => {
     window.location.href = connectUrl;
@@ -201,6 +245,14 @@ export const Office365AccountsSection: React.FC<Office365AccountsSectionProps> =
           </button>
         </>
       )}
+
+      <StepUpModal
+        isOpen={!!stepUpAccountId}
+        onConfirm={handleStepUpConfirm}
+        onCancel={handleStepUpCancel}
+        error={stepUpError}
+        isLoading={stepUpLoading}
+      />
     </div>
   );
 };

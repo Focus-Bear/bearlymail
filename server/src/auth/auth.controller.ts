@@ -202,6 +202,26 @@ export class AuthController {
   }
 
   /**
+   * Issue a short-lived step-up token after password re-verification.
+   * The token must be included as X-Step-Up-Token on sensitive endpoints.
+   * Rate-limited to 5 attempts per minute to prevent brute-force attacks.
+   * (OWASP ASVS req 4.2.1)
+   */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Post("step-up")
+  async issueStepUpToken(
+    @Request() req,
+    @Body() body: { password?: string },
+  ): Promise<{ step_up_token: string }> {
+    const step_up_token = await this.authService.issueStepUpToken(
+      req.user.userId,
+      body.password,
+    );
+    return { step_up_token };
+  }
+
+  /**
    * Check if the authenticated user has a password set.
    */
   @UseGuards(JwtAuthGuard)

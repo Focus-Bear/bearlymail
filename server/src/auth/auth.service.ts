@@ -12,6 +12,7 @@ import PgBoss from "pg-boss";
 
 import {
   AUTH_CONSTANTS,
+  STEP_UP_TOKEN_EXPIRY_MINUTES,
   TOKEN_BYTES,
   TOKEN_EXPIRY_MS,
 } from "../constants/auth-constants";
@@ -745,6 +746,40 @@ export class AuthService {
     writeDebugLog(
       `[SET_PASSWORD] User ${userId} successfully set a password for their account`,
     );
+  }
+
+  /**
+   * Issues a short-lived step-up token (15 min) after verifying the user's password.
+   *
+   * OAuth-only users (no password set) receive a token without password verification —
+   * their valid JWT is sufficient proof of identity for this session.
+   *
+   * The resulting token must be sent in the X-Step-Up-Token header when calling
+   * sensitive endpoints protected by StepUpAuthGuard.
+   * (OWASP ASVS req 4.2.1)
+   */
+  async issueStepUpToken(userId: string, password?: string): Promise<string> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_FOUND);
+    }
+
+    const isPasswordUser = !!user.password && user.password.length > 0;
+
+    if (isPasswordUser) {
+      if (!password) {
+        throw new UnauthorizedException({ requiresPassword: true });
+      }
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        throw new UnauthorizedException("Invalid password");
+      }
+    }
+
+    const payload = { sub: userId, stepUp: true };
+    return this.jwtService.sign(payload, {
+      expiresIn: `${STEP_UP_TOKEN_EXPIRY_MINUTES}m`,
+    });
   }
 
   /**

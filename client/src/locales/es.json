@@ -749,6 +749,14 @@
       "no": "NO"
     }
   },
+  "stepUp": {
+    "title": "Confirma tu identidad",
+    "description": "Para continuar con esta acción sensible, introduce la contraseña de tu cuenta.",
+    "passwordLabel": "Contraseña",
+    "confirm": "Confirmar",
+    "verifying": "Verificando...",
+    "invalidPassword": "Contraseña incorrecta. Por favor, inténtalo de nuevo."
+  },
   "email": {
     "batched": "por lotes",
     "calculating": "Calculador...",
@@ -840,6 +848,7 @@
     "delete": "Borrar",
     "deleteActionItem": "Eliminar elemento de acción",
     "draftReply": "Borrador de respuesta",
+    "replySubjectLabel": "Asunto",
     "showFullMessage": "Mostrar mensaje completo",
     "hideQuotedContent": "Ocultar contenido citado",
     "emailNotFound": "Correo electrónico no encontrado",
@@ -868,7 +877,6 @@
     "replySentError": "No se pudo enviar la respuesta. Por favor inténtalo de nuevo.",
     "replySentSuccess": "¡Respuesta enviada exitosamente!",
     "replyScheduledSuccess": "¡Respuesta programada exitosamente!",
-    "replySubjectLabel": "Asunto",
     "schedule": "Programar",
     "saveNote": "Guardar nota",
     "scoreBreakdown": "Desglose de puntuación",

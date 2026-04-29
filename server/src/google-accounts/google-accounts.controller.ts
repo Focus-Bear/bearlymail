@@ -12,6 +12,7 @@ import { Response } from "express";
 
 import { AuthService } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { StepUpAuthGuard } from "../auth/step-up.guard";
 import { AuthenticatedRequest } from "../types/common";
 import { GoogleAccountsService } from "./google-accounts.service";
 
@@ -76,7 +77,7 @@ export class GoogleAccountsController {
   }
 
   @Delete(":id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StepUpAuthGuard)
   async disconnectAccount(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,

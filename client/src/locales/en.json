@@ -149,6 +149,14 @@
       "requestNewLink": "Request a new password reset link"
     }
   },
+  "stepUp": {
+    "title": "Confirm Your Identity",
+    "description": "To proceed with this sensitive action, please enter your account password.",
+    "passwordLabel": "Password",
+    "confirm": "Confirm",
+    "verifying": "Verifying...",
+    "invalidPassword": "Incorrect password. Please try again."
+  },
   "email": {
     "waitlistApproval": {
       "subject": "Welcome to BearlyMail - Set Up Your Account",
@@ -460,6 +468,7 @@
     "messages": "messages",
     "clickToExpand": "click to expand",
     "draftReply": "Draft Reply",
+    "replySubjectLabel": "Subject",
     "keepOriginal": "Keep original",
     "toneCheckIssues": "Tone Check: Issues Found",
     "suggestedRevision": "Suggested Revision:",
@@ -483,7 +492,6 @@
     "replySentSuccess": "Reply sent successfully!",
     "replyScheduledSuccess": "Reply scheduled successfully!",
     "replySentError": "Failed to send reply. Please try again.",
-    "replySubjectLabel": "Subject",
     "schedule": "Schedule",
     "backToInbox": "Back to Inbox",
     "clickToCopyEmail": "Click to copy email address",

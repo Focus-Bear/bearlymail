@@ -5,6 +5,7 @@ import { captureGlobalEvent } from "../error-tracking/error-tracking-setup";
 import { parseCategoryName } from "../utils/category-name.util";
 import { logError } from "../utils/logger";
 import { encryptionKeyProvider } from "./encryption-key-provider";
+import { getRequestDecryptContext } from "./user-encryption-context";
 
 const MAX_CONSECUTIVE_DECRYPT_FAILURES = 3;
 const DECRYPT_FAILURE_EVENT_THROTTLE_MS = 60_000;
@@ -13,15 +14,47 @@ const DECRYPT_FAILURE_EVENT_THROTTLE_MS = 60_000;
  * Static encryption helper for use in TypeORM column transformers.
  * Delegates key management to encryptionKeyProvider — throws if accessed before
  * encryptionKeyProvider.initialize() has been called in main.ts.
+ *
+ * When KMS envelope encryption is enabled (`KMS_KEY_ID` set), `getKey()` returns the
+ * per-user key from AsyncLocalStorage when available, otherwise falls back to the global key.
+ * `getGlobalKey()` always returns the global derived key (used for the User entity itself).
  */
 class EncryptionHelper {
   private static algorithm = "aes-256-gcm";
   private static ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
-  private static consecutiveFailures = 0;
+  /**
+   * Global fallback failure counter for worker/non-request contexts.
+   * Request contexts use a per-request counter via AsyncLocalStorage (see
+   * getRequestDecryptContext()) to prevent cross-tenant DoS.
+   */
+  static globalConsecutiveFailures = 0;
   private static lastDecryptFailureEventMs = 0;
 
   private static getKey(): Buffer {
     return encryptionKeyProvider.getKey();
+  }
+
+  private static getGlobalKey(): Buffer {
+    return encryptionKeyProvider.getGlobalKey();
+  }
+
+  private static decryptWithExplicitKey(
+    encryptedText: string,
+    key: Buffer,
+  ): string {
+    const parts = encryptedText.split(":");
+    const [ivHex, authTagHex, encrypted] = parts;
+    const iv = Buffer.from(ivHex, "hex");
+    const authTag = Buffer.from(authTagHex, "hex");
+    const decipher = crypto.createDecipheriv(
+      EncryptionHelper.algorithm,
+      key,
+      iv,
+    ) as crypto.DecipherGCM;
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
   }
 
   static encrypt(text: string | null | undefined): string | null {
@@ -186,10 +219,26 @@ class EncryptionHelper {
 
     try {
       const result = EncryptionHelper.decrypt(encryptedText);
-      EncryptionHelper.consecutiveFailures = 0;
+      EncryptionHelper.resetFailureCount();
       return result;
-    } catch (error) {
-      EncryptionHelper.consecutiveFailures++;
+    } catch (primaryError) {
+      // When KMS is enabled, data may have been written with the global key (by worker
+      // processes or before KMS was enabled). Try the global key as a fallback.
+      if (process.env.KMS_KEY_ID) {
+        try {
+          const globalKey = encryptionKeyProvider.getGlobalKey();
+          const result = EncryptionHelper.decryptWithExplicitKey(
+            encryptedText,
+            globalKey,
+          );
+          EncryptionHelper.resetFailureCount();
+          return result;
+        } catch {
+          // Global key also failed — fall through to error handling
+        }
+      }
+
+      const failures = EncryptionHelper.incrementFailureCount();
 
       const now = Date.now();
       if (
@@ -198,23 +247,24 @@ class EncryptionHelper {
       ) {
         EncryptionHelper.lastDecryptFailureEventMs = now;
         captureGlobalEvent("encryption-decrypt-failure", {
-          error: error instanceof Error ? error.message : String(error),
+          error:
+            primaryError instanceof Error
+              ? primaryError.message
+              : String(primaryError),
           ciphertextPrefix: encryptedText
             ? encryptedText.slice(
                 0,
                 ENCRYPTION_CONSTANTS.CIPHERTEXT_DEBUG_PREFIX_LENGTH,
               )
             : "(null)",
-          consecutiveFailures: EncryptionHelper.consecutiveFailures,
+          consecutiveFailures: failures,
           keyFingerprint: encryptionKeyProvider.getFingerprint(),
         });
       }
 
-      if (
-        EncryptionHelper.consecutiveFailures >= MAX_CONSECUTIVE_DECRYPT_FAILURES
-      ) {
+      if (failures >= MAX_CONSECUTIVE_DECRYPT_FAILURES) {
         throw new Error(
-          `FATAL: ${EncryptionHelper.consecutiveFailures} consecutive decryption failures. ` +
+          `FATAL: ${failures} consecutive decryption failures. ` +
             `ENCRYPTION_KEY is likely wrong or rotated mid-process. ` +
             `Key fingerprint: ${encryptionKeyProvider.getFingerprint()}. ` +
             `Crashing to prevent serving encrypted data to users.`,
@@ -222,10 +272,84 @@ class EncryptionHelper {
       }
 
       logError(
-        `tryDecrypt: decryption failed (failure ${EncryptionHelper.consecutiveFailures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext`,
-        error instanceof Error ? error : new Error(String(error)),
+        `tryDecrypt: decryption failed (failure ${failures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext`,
+        primaryError instanceof Error
+          ? primaryError
+          : new Error(String(primaryError)),
       );
       return encryptedText ?? null;
+    }
+  }
+
+  private static resetFailureCount(): void {
+    const ctx = getRequestDecryptContext();
+    if (ctx) {
+      ctx.decryptFailures = 0;
+    } else {
+      EncryptionHelper.globalConsecutiveFailures = 0;
+    }
+  }
+
+  private static incrementFailureCount(): number {
+    const ctx = getRequestDecryptContext();
+    if (ctx) {
+      ctx.decryptFailures++;
+      return ctx.decryptFailures;
+    }
+    EncryptionHelper.globalConsecutiveFailures++;
+    return EncryptionHelper.globalConsecutiveFailures;
+  }
+
+  /**
+   * Encrypt using the global derived key (ENCRYPTION_KEY), regardless of any per-user
+   * KMS key in AsyncLocalStorage. Used for User entity fields to avoid chicken-and-egg
+   * with JWT authentication (which loads the User before the interceptor sets the ALS key).
+   */
+  static encryptWithGlobalKey(text: string | null | undefined): string | null {
+    if (!text) return null;
+    const key = this.getGlobalKey();
+    try {
+      const iv = crypto.randomBytes(this.ivLength);
+      const cipher = crypto.createCipheriv(
+        this.algorithm,
+        key,
+        iv,
+      ) as crypto.CipherGCM;
+      let encrypted = cipher.update(text, "utf8", "hex");
+      encrypted += cipher.final("hex");
+      const authTag = cipher.getAuthTag();
+      return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
+    } catch (error) {
+      logError(
+        "Encryption error (global key)",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      throw new Error("Failed to encrypt data");
+    }
+  }
+
+  /** Decrypt using the global key, fail-open (same semantics as tryDecrypt). */
+  static tryDecryptWithGlobalKey(
+    encryptedText: string | null | undefined,
+  ): string | null {
+    if (!encryptedText) return null;
+    if (!encryptedText.includes(":")) return encryptedText;
+    const parts = encryptedText.split(":");
+    if (parts.length !== 3) return encryptedText;
+    const iv = Buffer.from(parts[0], "hex");
+    if (iv.length !== EncryptionHelper.ivLength) return encryptedText;
+
+    try {
+      return EncryptionHelper.decryptWithExplicitKey(
+        encryptedText,
+        encryptionKeyProvider.getGlobalKey(),
+      );
+    } catch (error) {
+      logError(
+        "tryDecryptWithGlobalKey: decryption failed — returning raw ciphertext",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      return encryptedText;
     }
   }
 
@@ -282,6 +406,47 @@ export const encryptedJsonTransformer = {
     } catch (err) {
       logError(
         "Failed to parse decrypted JSON",
+        err instanceof Error ? err : new Error(String(err)),
+      );
+      return null;
+    }
+  },
+};
+
+/**
+ * TypeORM transformers for User entity fields.
+ *
+ * Always use the global ENCRYPTION_KEY — never the per-user KMS key.
+ * Reason: the JWT guard loads the User entity before the UserEncryptionInterceptor
+ * sets the per-user key in AsyncLocalStorage, causing a chicken-and-egg failure.
+ */
+export const globalEncryptedColumnTransformer = {
+  to: (value: string | null | undefined): string | null =>
+    EncryptionHelper.encryptWithGlobalKey(value),
+  from: (value: string | null | undefined): string | null =>
+    EncryptionHelper.tryDecryptWithGlobalKey(value),
+};
+
+export const globalEmailTransformer = {
+  to: (value: string | null | undefined): string | null =>
+    EncryptionHelper.encryptWithGlobalKey(value),
+  from: (value: string | null | undefined): string | null =>
+    EncryptionHelper.tryDecryptWithGlobalKey(value),
+};
+
+export const globalEncryptedJsonTransformer = {
+  to: (value: unknown): string | null => {
+    if (value === null || value === undefined) return null;
+    return EncryptionHelper.encryptWithGlobalKey(JSON.stringify(value));
+  },
+  from: (value: string | null | undefined): unknown => {
+    const decrypted = EncryptionHelper.tryDecryptWithGlobalKey(value);
+    if (!decrypted) return null;
+    try {
+      return JSON.parse(decrypted);
+    } catch (err) {
+      logError(
+        "Failed to parse decrypted JSON (global key)",
         err instanceof Error ? err : new Error(String(err)),
       );
       return null;

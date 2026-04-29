@@ -15,7 +15,7 @@ describe("EncryptionHelper", () => {
     // Re-initialize the provider with the test key
     encryptionKeyProvider.initialize();
     // Reset the consecutive failure counter
-    EncryptionHelper.consecutiveFailures = 0;
+    EncryptionHelper.globalConsecutiveFailures = 0;
   });
 
   afterEach(() => {
@@ -208,27 +208,25 @@ describe("EncryptionHelper", () => {
     it("should reset consecutive failure counter on success", () => {
       const plaintext = "hello";
       const encrypted = EncryptionHelper.encrypt(plaintext);
-      EncryptionHelper.consecutiveFailures = 5;
+      EncryptionHelper.globalConsecutiveFailures = 5;
       EncryptionHelper.tryDecrypt(encrypted);
-      expect(EncryptionHelper.consecutiveFailures).toBe(0);
+      expect(EncryptionHelper.globalConsecutiveFailures).toBe(0);
     });
 
     it("should increment consecutive failure counter on each failure", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      EncryptionHelper.consecutiveFailures = 0;
+      EncryptionHelper.globalConsecutiveFailures = 0;
       EncryptionHelper.tryDecrypt(badCiphertext);
-      expect(EncryptionHelper.consecutiveFailures).toBe(1);
+      expect(EncryptionHelper.globalConsecutiveFailures).toBe(1);
       EncryptionHelper.tryDecrypt(badCiphertext);
-      expect(EncryptionHelper.consecutiveFailures).toBe(2);
+      expect(EncryptionHelper.globalConsecutiveFailures).toBe(2);
     });
 
     it("should throw FATAL after MAX_CONSECUTIVE_DECRYPT_FAILURES consecutive failures", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      (
-        EncryptionHelper as unknown as { consecutiveFailures: number }
-      ).consecutiveFailures = 0;
+      EncryptionHelper.globalConsecutiveFailures = 0;
       EncryptionHelper.tryDecrypt(badCiphertext);
       EncryptionHelper.tryDecrypt(badCiphertext);
       expect(() => EncryptionHelper.tryDecrypt(badCiphertext)).toThrow(
@@ -239,7 +237,7 @@ describe("EncryptionHelper", () => {
     it("should return raw ciphertext on failure below threshold", () => {
       const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
       const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
-      EncryptionHelper.consecutiveFailures = 0;
+      EncryptionHelper.globalConsecutiveFailures = 0;
       const result = EncryptionHelper.tryDecrypt(badCiphertext);
       expect(result).toBe(badCiphertext);
     });

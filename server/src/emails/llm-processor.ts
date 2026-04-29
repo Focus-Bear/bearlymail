@@ -19,6 +19,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { DebugService } from "../debug/debug.service";
 import { DEBUG_FEATURES } from "../debug/debug-feature-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
@@ -69,6 +70,7 @@ export class LLMProcessor implements OnModuleInit {
     private summaryProcessorService: LLMSummaryProcessorService,
     private debugService: DebugService,
     private categoryRulesService: CategoryRulesService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     const cpuCores = os.cpus().length;
     const defaultConcurrency = Math.max(4, cpuCores * 2);
@@ -451,55 +453,57 @@ export class LLMProcessor implements OnModuleInit {
       `[Worker ${workerId}] Starting LLM priority refinement for email ${emailId}`,
     );
 
-    try {
-      const fetchResult = await this.fetchEmailForPriority(
-        userId,
-        emailId,
-        forceRecalculate,
-        workerId,
-        tracker,
-      );
-      if (!fetchResult) return;
-      const { email, thread } = fetchResult;
-
-      const incrementalResult =
-        await this.summaryProcessorService.tryIncrementalAnalysis({
-          thread,
-          email,
-          forceRecalculate,
+    await this.userEncryptionService.withUserKey(userId, async () => {
+      try {
+        const fetchResult = await this.fetchEmailForPriority(
           userId,
+          emailId,
+          forceRecalculate,
+          workerId,
+          tracker,
+        );
+        if (!fetchResult) return;
+        const { email, thread } = fetchResult;
+
+        const incrementalResult =
+          await this.summaryProcessorService.tryIncrementalAnalysis({
+            thread,
+            email,
+            forceRecalculate,
+            userId,
+            workerId,
+            tracker,
+          });
+        if (incrementalResult.handled) return;
+
+        await this.runFullPriorityRefinement({
+          userId,
+          emailId,
+          email,
+          thread,
           workerId,
           tracker,
         });
-      if (incrementalResult.handled) return;
-
-      await this.runFullPriorityRefinement({
-        userId,
-        emailId,
-        email,
-        thread,
-        workerId,
-        tracker,
-      });
-      tracker.finish();
-    } catch (error) {
-      this.logger.error(
-        `[Worker ${workerId}] Failed to refine priority for email ${emailId}`,
-        error,
-      );
-      const emailForCleanup = await this.emailsService.getEmailById(
-        userId,
-        emailId,
-      );
-      if (emailForCleanup?.emailThreadId) {
-        await this.emailThreadRepository.update(
-          { id: emailForCleanup.emailThreadId },
-          { isProcessingPriority: false },
+        tracker.finish();
+      } catch (error) {
+        this.logger.error(
+          `[Worker ${workerId}] Failed to refine priority for email ${emailId}`,
+          error,
         );
+        const emailForCleanup = await this.emailsService.getEmailById(
+          userId,
+          emailId,
+        );
+        if (emailForCleanup?.emailThreadId) {
+          await this.emailThreadRepository.update(
+            { id: emailForCleanup.emailThreadId },
+            { isProcessingPriority: false },
+          );
+        }
+        tracker.finish(error as Error);
+        throw error;
       }
-      tracker.finish(error as Error);
-      throw error;
-    }
+    });
   }
 
   private async handleRefinePriorityBatchJob(job: PgBoss.Job): Promise<void> {
@@ -518,27 +522,29 @@ export class LLMProcessor implements OnModuleInit {
       `[Worker ${workerId}] Starting BATCH priority refinement for ${emailIds.length} emails`,
     );
 
-    let threadIdsToLock: string[] = [];
-    try {
-      threadIdsToLock = await this.priorityBatchService.runBatchRefinement(
-        userId,
-        emailIds,
-        workerId,
-        tracker,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[Worker ${workerId}] Failed batch priority refinement`,
-        error,
-      );
-      await this.priorityBatchService.cleanupBatchOnError(
-        userId,
-        emailIds,
-        threadIdsToLock,
-      );
-      tracker.finish(error as Error);
-      throw error;
-    }
+    await this.userEncryptionService.withUserKey(userId, async () => {
+      let threadIdsToLock: string[] = [];
+      try {
+        threadIdsToLock = await this.priorityBatchService.runBatchRefinement(
+          userId,
+          emailIds,
+          workerId,
+          tracker,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[Worker ${workerId}] Failed batch priority refinement`,
+          error,
+        );
+        await this.priorityBatchService.cleanupBatchOnError(
+          userId,
+          emailIds,
+          threadIdsToLock,
+        );
+        tracker.finish(error as Error);
+        throw error;
+      }
+    });
   }
 
   private determineThreadReplyStatus(

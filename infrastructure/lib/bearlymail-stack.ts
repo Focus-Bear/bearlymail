@@ -11,6 +11,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cloudfrontOrigins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -177,6 +178,24 @@ export class BearlyMailStack extends cdk.Stack {
 
     // Grant SQS send permissions for email prioritisation queue (optional for backward compat)
     props.emailPrioritisationQueue?.grantSendMessages(taskRole);
+
+    // ============================================
+    // KMS Customer Managed Key — per-user envelope encryption (GAP-3)
+    //
+    // Master key stays in FIPS 140-2 HSM. Application generates short-lived data keys
+    // via GenerateDataKey and stores only the KMS-encrypted ciphertext in the DB.
+    // Every key operation is logged in CloudTrail for audit purposes.
+    // ============================================
+    const dataEncryptionKey = new kms.Key(this, 'DataEncryptionKey', {
+      description: 'BearlyMail per-user data encryption master key (envelope encryption, GAP-3)',
+      enableKeyRotation: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      alias: 'bearlymail/data-encryption',
+    });
+
+    // Grant ECS task role permission to generate data keys and decrypt them
+    dataEncryptionKey.grantDecrypt(taskRole);
+    dataEncryptionKey.grant(taskRole, 'kms:GenerateDataKey');
 
     // ============================================
     // Feedback Screenshots Bucket (private, AV-scanned via GuardDuty)
@@ -465,6 +484,7 @@ export class BearlyMailStack extends cdk.Stack {
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
         FEEDBACK_SCREENSHOTS_BUCKET: feedbackScreenshotsBucket.bucketName,
+        KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
@@ -586,6 +606,7 @@ export class BearlyMailStack extends cdk.Stack {
         DB_SSL: 'true',
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
+        KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {
         DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
@@ -1419,6 +1440,12 @@ export class BearlyMailStack extends cdk.Stack {
       value: repository.repositoryUri,
       description: 'ECR repository URI for server images',
       exportName: 'BearlyMail-ECR-Repository-URI',
+    });
+
+    new cdk.CfnOutput(this, 'DataEncryptionKeyArn', {
+      value: dataEncryptionKey.keyArn,
+      description: 'KMS CMK ARN for per-user envelope encryption (GAP-3)',
+      exportName: 'BearlyMail-Data-Encryption-Key-ARN',
     });
   }
 }

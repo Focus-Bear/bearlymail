@@ -13,6 +13,7 @@ import {
   MINUTES,
   MS_PER_SECOND,
 } from "../constants/time-constants";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
@@ -32,6 +33,7 @@ export class EmailSyncProcessor implements OnModuleInit {
     private readonly gmailProvider: GmailProvider,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -195,45 +197,47 @@ export class EmailSyncProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] Starting email fetch${continuationLabel} for user ${userId}${threadIds ? ` (${threadIds.length} threads)` : ""}`,
         );
-        try {
-          // If this is a continuation job with specific thread IDs, pass them to the provider
-          if (threadIds && threadIds.length > 0) {
-            // For continuation jobs, call Gmail provider directly with thread IDs
-            await this.gmailProvider.syncEmails(userId, {
-              threadIds,
-              isContinuation: true,
-              syncWindowHours,
-            });
-          } else {
-            // Normal sync - use provider manager for all connected providers
-            await this.emailProviderManager.syncAllProviders(
-              userId,
-              syncWindowHours,
+        await this.userEncryptionService.withUserKey(userId, async () => {
+          try {
+            // If this is a continuation job with specific thread IDs, pass them to the provider
+            if (threadIds && threadIds.length > 0) {
+              // For continuation jobs, call Gmail provider directly with thread IDs
+              await this.gmailProvider.syncEmails(userId, {
+                threadIds,
+                isContinuation: true,
+                syncWindowHours,
+              });
+            } else {
+              // Normal sync - use provider manager for all connected providers
+              await this.emailProviderManager.syncAllProviders(
+                userId,
+                syncWindowHours,
+              );
+            }
+            this.logger.log(
+              `[Worker ${workerId}] Completed email fetch${continuationLabel} for user ${userId}`,
             );
-          }
-          this.logger.log(
-            `[Worker ${workerId}] Completed email fetch${continuationLabel} for user ${userId}`,
-          );
-          tracker.finish();
-        } catch (error) {
-          this.logger.error(
-            `[Worker ${workerId}] Failed to sync emails${continuationLabel} for user ${userId}`,
-            error,
-          );
-          // Check if it's a connection error - don't retry those, pg-boss will handle reconnection
-          if (
-            error &&
-            (error.message?.includes("Connection terminated") ||
-              error.message?.includes("connection"))
-          ) {
-            this.logger.warn(
-              `[Worker ${workerId}] Connection error detected, job will be retried after reconnection`,
+            tracker.finish();
+          } catch (error) {
+            this.logger.error(
+              `[Worker ${workerId}] Failed to sync emails${continuationLabel} for user ${userId}`,
+              error,
             );
+            // Check if it's a connection error - don't retry those, pg-boss will handle reconnection
+            if (
+              error &&
+              (error.message?.includes("Connection terminated") ||
+                error.message?.includes("connection"))
+            ) {
+              this.logger.warn(
+                `[Worker ${workerId}] Connection error detected, job will be retried after reconnection`,
+              );
+            }
+            tracker.finish(error as Error);
+            throw error;
+            // Re-throw to trigger pg-boss retry mechanism
           }
-          tracker.finish(error as Error);
-          throw error;
-          // Re-throw to trigger pg-boss retry mechanism
-        }
+        });
       },
     );
   }
@@ -333,30 +337,32 @@ export class EmailSyncProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] Starting extended email fetch (${noDateFilter ? "no date filter" : `${syncWindowHours ?? HOURS.TWO_DAYS}h`}) for user ${userId}`,
         );
-        try {
-          if (noDateFilter) {
-            await this.emailProviderManager.syncAllProviders(userId, {
-              noDateFilter: true,
-            });
-          } else {
-            // Backwards compat: old jobs may still carry syncWindowHours
-            await this.emailProviderManager.syncAllProviders(
-              userId,
-              syncWindowHours ?? HOURS.TWO_DAYS,
+        await this.userEncryptionService.withUserKey(userId, async () => {
+          try {
+            if (noDateFilter) {
+              await this.emailProviderManager.syncAllProviders(userId, {
+                noDateFilter: true,
+              });
+            } else {
+              // Backwards compat: old jobs may still carry syncWindowHours
+              await this.emailProviderManager.syncAllProviders(
+                userId,
+                syncWindowHours ?? HOURS.TWO_DAYS,
+              );
+            }
+            this.logger.log(
+              `[Worker ${workerId}] Completed extended email fetch for user ${userId}`,
             );
+            tracker.finish();
+          } catch (error) {
+            this.logger.error(
+              `[Worker ${workerId}] Failed to sync emails (extended) for user ${userId}`,
+              error,
+            );
+            tracker.finish(error as Error);
+            throw error;
           }
-          this.logger.log(
-            `[Worker ${workerId}] Completed extended email fetch for user ${userId}`,
-          );
-          tracker.finish();
-        } catch (error) {
-          this.logger.error(
-            `[Worker ${workerId}] Failed to sync emails (extended) for user ${userId}`,
-            error,
-          );
-          tracker.finish(error as Error);
-          throw error;
-        }
+        });
       },
     );
   }
@@ -445,20 +451,22 @@ export class EmailSyncProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] Starting inbox status verification for user ${userId}`,
         );
-        try {
-          await this.gmailProvider.verifyInboxStatus(userId);
-          this.logger.log(
-            `[Worker ${workerId}] Completed inbox status verification for user ${userId}`,
-          );
-          tracker.finish();
-        } catch (error) {
-          this.logger.error(
-            `[Worker ${workerId}] Failed inbox status verification for user ${userId}`,
-            error,
-          );
-          tracker.finish(error as Error);
-          throw error;
-        }
+        await this.userEncryptionService.withUserKey(userId, async () => {
+          try {
+            await this.gmailProvider.verifyInboxStatus(userId);
+            this.logger.log(
+              `[Worker ${workerId}] Completed inbox status verification for user ${userId}`,
+            );
+            tracker.finish();
+          } catch (error) {
+            this.logger.error(
+              `[Worker ${workerId}] Failed inbox status verification for user ${userId}`,
+              error,
+            );
+            tracker.finish(error as Error);
+            throw error;
+          }
+        });
       },
     );
   }

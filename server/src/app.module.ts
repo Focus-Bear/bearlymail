@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
@@ -27,6 +27,7 @@ import { DraftsModule } from "./drafts/drafts.module";
 import { EmailModule } from "./email/email.module";
 import { EmailsModule } from "./emails/emails.module";
 import { EncryptionModule } from "./encryption/encryption.module";
+import { UserEncryptionInterceptor } from "./encryption/user-encryption.interceptor";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
@@ -165,6 +166,10 @@ const DEFAULT_POLLING_LIMIT = 3000;
     MCPModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: UserThrottlerGuard }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: UserThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: UserEncryptionInterceptor },
+  ],
 })
 export class AppModule {}

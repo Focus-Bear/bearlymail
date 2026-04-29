@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "./context.service";
@@ -22,6 +23,7 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     private usersService: UsersService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -72,54 +74,56 @@ export class ContextAnalysisProcessor implements OnModuleInit {
           "log",
         );
 
-        try {
-          this.logger.log(
-            `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
-          );
-          writeAnalysisLog(
-            `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
-            "log",
-          );
-          await this.contextService.analyzeAndLearnFromEmails(
-            userId,
-            analysisId,
-          );
-          this.logger.log(
-            `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}. Analysis will complete when all batches finish.`,
-          );
-          writeAnalysisLog(
-            `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
-            "log",
-          );
-          tracker.finish();
-        } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          const errorStack = error instanceof Error ? error.stack : undefined;
-          this.logger.error(
-            `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
-            errorStack || error,
-          );
-          tracker.finish(error as Error);
-          writeAnalysisLog(
-            `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
-            "error",
-          );
-          writeAnalysisLog(
-            `[Worker ${workerId}] Error stack: ${errorStack || "No stack trace"}`,
-            "error",
-          );
-          this.logger.error(
-            `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
-          );
-          writeAnalysisLog(
-            `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
-            "error",
-          );
-          // Error state is already set by ContextService.analyzeAndLearnFromEmails
-          // Just re-throw to mark job as failed
-          throw error;
-        }
+        await this.userEncryptionService.withUserKey(userId, async () => {
+          try {
+            this.logger.log(
+              `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+              "log",
+            );
+            await this.contextService.analyzeAndLearnFromEmails(
+              userId,
+              analysisId,
+            );
+            this.logger.log(
+              `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}. Analysis will complete when all batches finish.`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
+              "log",
+            );
+            tracker.finish();
+          } catch (error: unknown) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(
+              `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
+              errorStack || error,
+            );
+            tracker.finish(error as Error);
+            writeAnalysisLog(
+              `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
+              "error",
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Error stack: ${errorStack || "No stack trace"}`,
+              "error",
+            );
+            this.logger.error(
+              `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+              "error",
+            );
+            // Error state is already set by ContextService.analyzeAndLearnFromEmails
+            // Just re-throw to mark job as failed
+            throw error;
+          }
+        });
       },
     );
 

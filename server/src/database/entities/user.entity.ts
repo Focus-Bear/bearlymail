@@ -10,9 +10,9 @@ import {
 
 import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
 import {
-  emailTransformer,
-  encryptedColumnTransformer,
-  encryptedJsonTransformer,
+  globalEmailTransformer,
+  globalEncryptedColumnTransformer,
+  globalEncryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
 import { ActionItem } from "./action-item.entity";
 import { Email } from "./email.entity";
@@ -36,7 +36,7 @@ export class User {
   emailHash: string;
 
   @Column({
-    transformer: emailTransformer,
+    transformer: globalEmailTransformer,
     comment: "Encrypted actual email",
   })
   email: string;
@@ -71,12 +71,12 @@ export class User {
   @Column({ nullable: true })
   googleId: string;
 
-  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  @Column({ nullable: true, transformer: globalEncryptedColumnTransformer })
   name: string;
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment:
       "User's preferred display name for email signatures (encrypted). Guessed from email during signup.",
   })
@@ -84,20 +84,20 @@ export class User {
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment: "User's job title for context in email replies (encrypted).",
   })
   jobTitle: string;
 
-  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  @Column({ nullable: true, transformer: globalEncryptedColumnTransformer })
   googleCalendarAccessToken: string;
 
-  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  @Column({ nullable: true, transformer: globalEncryptedColumnTransformer })
   googleCalendarRefreshToken: string;
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment: "User's calendar booking link for scheduling replies (encrypted)",
   })
   calendarBookingUrl: string;
@@ -176,14 +176,14 @@ export class User {
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment: "OpenAI API key (encrypted) - allows users to use their own key",
   })
   openAiApiKey: string;
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment:
       "Anthropic API key (encrypted) - allows users to use their own key (sk-ant-api03-* or sk-ant-oat-* OAuth token)",
   })
@@ -191,7 +191,7 @@ export class User {
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment: "GitHub fine-grained PAT (encrypted) - for GitHub integration",
   })
   githubToken: string;
@@ -229,7 +229,7 @@ export class User {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: globalEncryptedJsonTransformer,
     comment: "e.g., { rules: ['Be concise', 'Use non-violent communication'] }",
   })
   toneSettings: { rules: string[] };
@@ -237,7 +237,7 @@ export class User {
   @Column({
     type: "text",
     nullable: true,
-    transformer: encryptedJsonTransformer,
+    transformer: globalEncryptedJsonTransformer,
     comment: "Auto-responder configuration settings",
   })
   autoResponderSettings: AutoResponderConfig | null;
@@ -251,7 +251,7 @@ export class User {
 
   @Column({
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    transformer: globalEncryptedColumnTransformer,
     comment:
       "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
   })
@@ -272,8 +272,16 @@ export class User {
   passwordChangedAt: Date | null;
 
   @Column({
+    type: "text",
     nullable: true,
-    transformer: encryptedColumnTransformer,
+    comment:
+      "KMS-encrypted AES-256 data key (base64). Null when KMS envelope encryption is disabled.",
+  })
+  encryptedDataKey: string | null;
+
+  @Column({
+    nullable: true,
+    transformer: globalEncryptedColumnTransformer,
     comment:
       "TOTP secret for MFA (encrypted). Set during setup, null until MFA is configured.",
   })

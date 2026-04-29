@@ -4,6 +4,7 @@ import cluster from "cluster";
 import os from "os";
 
 import { NODE_ENV_VALUES } from "./constants/domain-types";
+import { encryptionKeyProvider } from "./encryption/encryption-key-provider";
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
 import { WorkerModule } from "./worker.module";
@@ -30,6 +31,10 @@ const WORKER_COUNT = parseInt(
 
 async function bootstrapWorker(workerId: number) {
   logger.log(`[Worker ${workerId}] Starting worker process...`);
+
+  // Must be called before NestJS bootstraps so TypeORM column transformers
+  // (which call encryptionKeyProvider.getKey()) have the global key ready.
+  encryptionKeyProvider.initialize();
 
   // Create the application context (no HTTP server)
   const app = await NestFactory.createApplicationContext(WorkerModule, {

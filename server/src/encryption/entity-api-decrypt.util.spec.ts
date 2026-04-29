@@ -26,9 +26,7 @@ describe("entity-api-decrypt.util", () => {
   beforeEach(() => {
     process.env.ENCRYPTION_KEY = "test-encryption-key-32-chars-long!!";
     encryptionKeyProvider.initialize();
-    (
-      EncryptionHelper as unknown as { consecutiveFailures: number }
-    ).consecutiveFailures = 0;
+    EncryptionHelper.globalConsecutiveFailures = 0;
   });
 
   afterEach(() => {

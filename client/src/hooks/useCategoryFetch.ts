@@ -46,8 +46,10 @@ export function useCategoryFetch({
   const dispatch = useDispatch<AppDispatch>();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
-  /** Keys queued for background (silent) preload — fetch without visual accordion expansion. */
-  const [preloadKeys, setPreloadKeys] = useState<Set<string>>(new Set());
+  /** Keys queued for background (silent) preload — stored in a Ref to avoid render cycles on clear. */
+  const preloadKeysRef = useRef<Set<string>>(new Set());
+  /** Incremented whenever a new preload key is added, triggering the fetch effect without state churn. */
+  const [preloadTrigger, setPreloadTrigger] = useState(0);
   const hasAutoExpandedRef = useRef(false);
   const expandedCategoriesRef = useRef(expandedCategories);
   expandedCategoriesRef.current = expandedCategories;
@@ -90,14 +92,10 @@ export function useCategoryFetch({
         !expanded.has(nextKey) &&
         !fetchSessionRef.current.has(nextKey)
       ) {
-        setPreloadKeys(prev => {
-          if (prev.has(nextKey)) {
-            return prev;
-          }
-          const next = new Set(prev);
-          next.add(nextKey);
-          return next;
-        });
+        if (!preloadKeysRef.current.has(nextKey)) {
+          preloadKeysRef.current.add(nextKey);
+          setPreloadTrigger(prev => prev + 1);
+        }
         break;
       }
     }
@@ -139,7 +137,7 @@ export function useCategoryFetch({
   const resetForModeChange = useCallback(() => {
     setStableCategoryOrder([]);
     setExpandedCategories(new Set());
-    setPreloadKeys(new Set());
+    preloadKeysRef.current.clear();
     hasAutoExpandedRef.current = false;
     fetchSessionRef.current = new Set();
     dispatch(categoryResetAll());
@@ -212,11 +210,11 @@ export function useCategoryFetch({
     };
 
     expandedCategories.forEach(dispatchFetch);
-    if (preloadKeys.size > 0) {
-      preloadKeys.forEach(dispatchFetch);
-      setPreloadKeys(new Set());
+    if (preloadKeysRef.current.size > 0) {
+      preloadKeysRef.current.forEach(dispatchFetch);
+      preloadKeysRef.current.clear();
     }
-  }, [categorySummary, expandedCategories, preloadKeys, fetchCategoryEmails, dispatch]);
+  }, [categorySummary, expandedCategories, preloadTrigger, fetchCategoryEmails, dispatch]);
 
   return {
     expandedCategories,

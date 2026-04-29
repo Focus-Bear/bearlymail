@@ -124,6 +124,21 @@ export class BearlyMailStack extends cdk.Stack {
       description: 'Allow ECS tasks to connect via RDS Proxy',
     });
 
+    const workerSecurityGroup = new ec2.SecurityGroup(this, 'WorkerSecurityGroup', {
+      vpc,
+      description: 'Security group for worker and cron ECS tasks — outbound only, no ALB ingress',
+      allowAllOutbound: true,
+    });
+
+    new ec2.CfnSecurityGroupIngress(this, 'WorkerToRdsProxyIngress', {
+      groupId: props.rdsProxySecurityGroup.securityGroupId,
+      sourceSecurityGroupId: workerSecurityGroup.securityGroupId,
+      ipProtocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      description: 'Allow worker/cron ECS tasks to connect via RDS Proxy',
+    });
+
     // ============================================
     // ECS Cluster
     // ============================================
@@ -635,7 +650,7 @@ export class BearlyMailStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
-      securityGroups: [ecsSecurityGroup],
+      securityGroups: [workerSecurityGroup],
     });
 
     // ============================================
@@ -834,7 +849,7 @@ export class BearlyMailStack extends cdk.Stack {
       subnetSelection: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
-      securityGroups: [ecsSecurityGroup],
+      securityGroups: [workerSecurityGroup],
       containerOverrides: [
         {
           containerName: 'CronContainer',
@@ -936,7 +951,7 @@ export class BearlyMailStack extends cdk.Stack {
         },
         contentSecurityPolicy: {
           contentSecurityPolicy:
-            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
           override: true,
         },
         xssProtection: {
@@ -980,7 +995,7 @@ export class BearlyMailStack extends cdk.Stack {
         },
         contentSecurityPolicy: {
           contentSecurityPolicy:
-            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
           override: true,
         },
         xssProtection: {

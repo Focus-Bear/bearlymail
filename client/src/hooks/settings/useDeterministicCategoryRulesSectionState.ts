@@ -41,6 +41,10 @@ export function useDeterministicCategoryRulesSectionState() {
     senderMatchesAny: string[];
     subjectContainsAny: string[];
     bodyContainsAny: string[];
+    /** Issue #1789: optional subject exclusion phrases. */
+    subjectNotContainsAny?: string[];
+    /** Issue #1789: optional body exclusion phrases. */
+    bodyNotContainsAny?: string[];
   } | null>(null);
 
   /** Opens the "Add rule — how?" choice dialog (issue #1714). */
@@ -118,6 +122,8 @@ export function useDeterministicCategoryRulesSectionState() {
       senderMatchesAny: suggestion.suggestedSenderPatterns,
       subjectContainsAny: suggestion.suggestedSubjectPhrases,
       bodyContainsAny: suggestion.suggestedBodyPhrases,
+      subjectNotContainsAny: suggestion.suggestedSubjectNotPhrases,
+      bodyNotContainsAny: suggestion.suggestedBodyNotPhrases,
     });
     setModalOpen(true);
   }, []);
@@ -146,21 +152,28 @@ export function useDeterministicCategoryRulesSectionState() {
     }
 
     const params = new URLSearchParams(window.location.search);
+    // Issue #1789: prefer rule ID — opens the SPECIFIC rule that fired, even
+    // when multiple rules share a category. Fall back to category name for
+    // older deep links.
+    const openEditRuleIdParam = params.get('openEditRuleId');
     const openEditRuleParam = params.get('openEditRule');
-    if (!openEditRuleParam) {
+    if (!openEditRuleIdParam && !openEditRuleParam) {
       return;
     }
 
     hasHandledOpenEditRule.current = true;
 
-    const matchingRule = rules.find(rule => rule.categoryName === openEditRuleParam);
+    const matchingRule = openEditRuleIdParam
+      ? rules.find(rule => rule.id === openEditRuleIdParam)
+      : rules.find(rule => rule.categoryName === openEditRuleParam);
     if (matchingRule) {
       openEdit(matchingRule);
     }
 
     params.delete('openEditRule');
+    params.delete('openEditRuleId');
     const newSearch = params.toString();
-    const newUrl = `${window.location.pathname}${newSearch ? '?' + newSearch : ''}${window.location.hash}`;
+    const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
     window.history.replaceState({}, '', newUrl);
   }, [loading, rules, openEdit]);
 

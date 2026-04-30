@@ -23,6 +23,8 @@ export interface CompositeCategoryRuleFormFieldErrors {
   senders?: string;
   subjects?: string;
   bodyPhrases?: string;
+  subjectNotPhrases?: string;
+  bodyNotPhrases?: string;
 }
 
 export interface CompositeCategoryRuleFormFieldsProps {
@@ -31,10 +33,16 @@ export interface CompositeCategoryRuleFormFieldsProps {
   senderLines: string;
   subjectLines: string;
   bodyLines: string;
+  /** Issue #1789: optional subject exclusion phrases (one per line). */
+  subjectNotLines: string;
+  /** Issue #1789: optional body exclusion phrases (one per line). */
+  bodyNotLines: string;
   onCategoryNameChange: (value: string) => void;
   onSenderLinesChange: (value: string) => void;
   onSubjectLinesChange: (value: string) => void;
   onBodyLinesChange: (value: string) => void;
+  onSubjectNotLinesChange: (value: string) => void;
+  onBodyNotLinesChange: (value: string) => void;
   errors?: CompositeCategoryRuleFormFieldErrors;
 }
 
@@ -44,10 +52,14 @@ export const CompositeCategoryRuleFormFields: React.FC<CompositeCategoryRuleForm
   senderLines,
   subjectLines,
   bodyLines,
+  subjectNotLines,
+  bodyNotLines,
   onCategoryNameChange,
   onSenderLinesChange,
   onSubjectLinesChange,
   onBodyLinesChange,
+  onSubjectNotLinesChange,
+  onBodyNotLinesChange,
   errors,
 }) => {
   const { t } = useTranslation();
@@ -162,6 +174,58 @@ export const CompositeCategoryRuleFormFields: React.FC<CompositeCategoryRuleForm
           }}
         >
           {t('settings.deterministicCategoryRules.bodyPhrasesHelp')}
+        </p>
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+          {t('settings.deterministicCategoryRules.subjectNotContainsField')}
+        </label>
+        <textarea
+          value={subjectNotLines}
+          onChange={event => onSubjectNotLinesChange(event.target.value)}
+          rows={2}
+          placeholder={t('settings.deterministicCategoryRules.subjectNotContainsPlaceholder')}
+          style={textareaStyle}
+        />
+        {errors?.subjectNotPhrases ? (
+          <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.error.main }}>
+            {errors.subjectNotPhrases}
+          </p>
+        ) : null}
+        <p
+          style={{
+            margin: `${theme.spacing.xs} 0 0`,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+          }}
+        >
+          {t('settings.deterministicCategoryRules.subjectNotContainsHelp')}
+        </p>
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
+          {t('settings.deterministicCategoryRules.bodyNotContainsField')}
+        </label>
+        <textarea
+          value={bodyNotLines}
+          onChange={event => onBodyNotLinesChange(event.target.value)}
+          rows={3}
+          placeholder={t('settings.deterministicCategoryRules.bodyNotContainsPlaceholder')}
+          style={textareaStyle}
+        />
+        {errors?.bodyNotPhrases ? (
+          <p style={{ margin: `${theme.spacing.xs} 0 0`, fontSize: theme.typography.fontSize.xs, color: theme.colors.error.main }}>
+            {errors.bodyNotPhrases}
+          </p>
+        ) : null}
+        <p
+          style={{
+            margin: `${theme.spacing.xs} 0 0`,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.text.tertiary,
+          }}
+        >
+          {t('settings.deterministicCategoryRules.bodyNotContainsHelp')}
         </p>
       </div>
     </div>

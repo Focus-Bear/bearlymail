@@ -31,12 +31,21 @@ export type CompositeCategoryRuleSpecV1 = {
   bodyContainsAny: string[];
 };
 
-/** v2: each condition supports multiple matching options (OR within, AND across). */
+/**
+ * v2: each positive condition supports multiple matching options (OR within,
+ * AND across). The optional `*NotContainsAny` arrays are EXCLUSIONS — a rule
+ * fails to match if ANY of the listed phrases is present in the corresponding
+ * field. Empty/missing exclusion arrays mean "no exclusions" (issue #1789).
+ */
 export type CompositeCategoryRuleSpecV2 = {
   v: 2;
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];
+  /** Phrases that, if any are present in the subject, disqualify the rule. */
+  subjectNotContainsAny?: string[];
+  /** Phrases that, if any are present in the body, disqualify the rule. */
+  bodyNotContainsAny?: string[];
 };
 
 /** Union of all supported composite rule spec versions. */

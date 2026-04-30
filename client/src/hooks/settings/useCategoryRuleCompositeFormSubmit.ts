@@ -10,6 +10,10 @@ export interface CategoryRuleFormPayload {
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];
+  /** Issue #1789: optional subject exclusion phrases. */
+  subjectNotContainsAny?: string[];
+  /** Issue #1789: optional body exclusion phrases. */
+  bodyNotContainsAny?: string[];
 }
 
 export interface UseCategoryRuleCompositeFormSubmitParams {
@@ -50,6 +54,8 @@ export function useCategoryRuleCompositeFormSubmit({
             senderMatchesAny: payload.senderMatchesAny,
             subjectContainsAny: payload.subjectContainsAny,
             bodyContainsAny: payload.bodyContainsAny,
+            subjectNotContainsAny: payload.subjectNotContainsAny,
+            bodyNotContainsAny: payload.bodyNotContainsAny,
           },
         };
         try {

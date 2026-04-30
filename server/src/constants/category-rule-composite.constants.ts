@@ -9,6 +9,10 @@ export const CATEGORY_RULE_COMPOSITE = {
   MAX_SENDERS: 10,
   /** Maximum subject phrases per composite rule (OR logic within). */
   MAX_SUBJECT_PHRASES: 10,
+  /** Maximum subject NOT-contains exclusion phrases per composite rule (issue #1789). */
+  MAX_SUBJECT_NOT_PHRASES: 10,
+  /** Maximum body NOT-contains exclusion phrases per composite rule (issue #1789). */
+  MAX_BODY_NOT_PHRASES: 20,
   /** Current spec version for newly created composite rules. */
   SPEC_VERSION: 2 as const,
   /** Legacy spec version — still supported for backward compatibility. */
@@ -34,4 +38,22 @@ export const CATEGORY_RULE_COMPOSITE = {
   SUGGEST_MAX_RESULTS: 10,
   /** Number of recent emails per sender sampled when building suggestions. */
   SUGGEST_SAMPLE_EMAILS_PER_SENDER: 5,
+  /**
+   * Number of recent threads to evaluate a draft auto-rule against before
+   * persisting it. The rule is rejected if it produces any false positives
+   * (i.e. matches a thread the LLM categorised differently); see issue #1789.
+   */
+  AUTO_VALIDATE_THREAD_COUNT: 200,
+  /**
+   * Minimum number of true-positive matches a draft auto-rule must produce
+   * across the validation window for it to be persisted (issue #1789).
+   */
+  AUTO_VALIDATE_MIN_MATCHES: 10,
+  /**
+   * Maximum number of TP and FP email samples passed to the LLM when
+   * deriving `subjectNotContainsAny` / `bodyNotContainsAny` exclusions
+   * (#1789 follow-up). Caps prompt size and avoids truncation. Each side
+   * is independently capped.
+   */
+  DERIVE_EXCLUSIONS_MAX_SAMPLES: 8,
 } as const;

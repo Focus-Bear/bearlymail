@@ -8,12 +8,20 @@ export interface CompositeSpecV1 {
   bodyContainsAny: string[];
 }
 
-/** v2 spec — multiple senders/subjects with OR logic within each condition. */
+/**
+ * v2 spec — multiple senders/subjects with OR logic within each condition.
+ * The optional `*NotContainsAny` arrays are EXCLUSIONS: a rule fails to match
+ * when any listed phrase appears in the corresponding field (issue #1789).
+ */
 export interface CompositeSpecV2 {
   v: 2;
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];
+  /** Phrases that, if any are present in the subject, disqualify the rule. */
+  subjectNotContainsAny?: string[];
+  /** Phrases that, if any are present in the body, disqualify the rule. */
+  bodyNotContainsAny?: string[];
 }
 
 /** Union of all supported composite rule spec versions. */
@@ -27,6 +35,16 @@ export function specSenders(spec: CompositeSpec): string[] {
 /** Helper to get subject phrases regardless of spec version. */
 export function specSubjects(spec: CompositeSpec): string[] {
   return spec.v === 2 ? spec.subjectContainsAny : [spec.subjectContains];
+}
+
+/** Helper to get subject NOT-contains phrases (v2 only; empty for v1). */
+export function specSubjectNotContains(spec: CompositeSpec): string[] {
+  return spec.v === 2 ? (spec.subjectNotContainsAny ?? []) : [];
+}
+
+/** Helper to get body NOT-contains phrases (v2 only; empty for v1). */
+export function specBodyNotContains(spec: CompositeSpec): string[] {
+  return spec.v === 2 ? (spec.bodyNotContainsAny ?? []) : [];
 }
 
 /**
@@ -46,6 +64,10 @@ export interface CategoryRuleSuggestion {
   categoryName: string;
   suggestedSubjectPhrases: string[];
   suggestedBodyPhrases: string[];
+  /** Issue #1789: optional subject exclusion phrases (may be empty). */
+  suggestedSubjectNotPhrases: string[];
+  /** Issue #1789: optional body exclusion phrases (may be empty). */
+  suggestedBodyNotPhrases: string[];
   threadCount: number;
 }
 

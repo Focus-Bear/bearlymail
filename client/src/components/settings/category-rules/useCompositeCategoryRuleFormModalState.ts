@@ -1,7 +1,12 @@
 import { type Dispatch, type SetStateAction,useEffect, useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { CompositeSpec } from 'types/category-rules.types';
-import { specSenders, specSubjects } from 'types/category-rules.types';
+import {
+  specBodyNotContains,
+  specSenders,
+  specSubjectNotContains,
+  specSubjects,
+} from 'types/category-rules.types';
 
 import type { CompositeCategoryRuleFormFieldErrors } from 'components/settings/category-rules/CompositeCategoryRuleFormFields';
 import { COMPOSITE_RULE_FORM_MODE_ADD, COMPOSITE_RULE_FORM_MODE_EDIT } from 'constants/category-rules';
@@ -18,6 +23,8 @@ interface SubmitCompositeModalParams {
   senderLines: string;
   subjectLines: string;
   bodyLines: string;
+  subjectNotLines: string;
+  bodyNotLines: string;
   t: TFunction;
   setFieldErrors: Dispatch<SetStateAction<CompositeCategoryRuleFormFieldErrors>>;
   setSaving: (value: boolean) => void;
@@ -26,6 +33,8 @@ interface SubmitCompositeModalParams {
     senderMatchesAny: string[];
     subjectContainsAny: string[];
     bodyContainsAny: string[];
+    subjectNotContainsAny: string[];
+    bodyNotContainsAny: string[];
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -38,6 +47,8 @@ async function submitCompositeCategoryRuleModalForm(
     senderLines,
     subjectLines,
     bodyLines,
+    subjectNotLines,
+    bodyNotLines,
     t,
     setFieldErrors,
     setSaving,
@@ -48,6 +59,8 @@ async function submitCompositeCategoryRuleModalForm(
   const senders = parseNonEmptyLines(senderLines);
   const subjects = parseNonEmptyLines(subjectLines);
   const bodyPhrases = parseNonEmptyLines(bodyLines);
+  const subjectNotPhrases = parseNonEmptyLines(subjectNotLines);
+  const bodyNotPhrases = parseNonEmptyLines(bodyNotLines);
   const errors: CompositeCategoryRuleFormFieldErrors = {};
   if (!categoryName.trim()) {
     errors.categoryName = t('settings.deterministicCategoryRules.fieldRequiredError');
@@ -73,6 +86,8 @@ async function submitCompositeCategoryRuleModalForm(
       senderMatchesAny: senders,
       subjectContainsAny: subjects,
       bodyContainsAny: bodyPhrases,
+      subjectNotContainsAny: subjectNotPhrases,
+      bodyNotContainsAny: bodyNotPhrases,
     });
     onClose();
   } catch {
@@ -95,6 +110,10 @@ export function useCompositeCategoryRuleFormModalState(options: {
     senderMatchesAny: string[];
     subjectContainsAny: string[];
     bodyContainsAny: string[];
+    /** Issue #1789: optional pre-filled subject exclusion phrases. */
+    subjectNotContainsAny?: string[];
+    /** Issue #1789: optional pre-filled body exclusion phrases. */
+    bodyNotContainsAny?: string[];
   } | null;
   onSubmit: SubmitCompositeModalParams['onSubmit'];
   onClose: () => void;
@@ -107,6 +126,8 @@ export function useCompositeCategoryRuleFormModalState(options: {
   const [senderLines, setSenderLines] = useState('');
   const [subjectLines, setSubjectLines] = useState('');
   const [bodyLines, setBodyLines] = useState('');
+  const [subjectNotLines, setSubjectNotLines] = useState('');
+  const [bodyNotLines, setBodyNotLines] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<CompositeCategoryRuleFormFieldErrors>(
     {},
@@ -124,10 +145,14 @@ export function useCompositeCategoryRuleFormModalState(options: {
       setSenderLines(initialSuggestedSpec.senderMatchesAny.join('\n'));
       setSubjectLines(initialSuggestedSpec.subjectContainsAny.join('\n'));
       setBodyLines(initialSuggestedSpec.bodyContainsAny.join('\n'));
+      setSubjectNotLines((initialSuggestedSpec.subjectNotContainsAny ?? []).join('\n'));
+      setBodyNotLines((initialSuggestedSpec.bodyNotContainsAny ?? []).join('\n'));
     } else {
       setSenderLines(initialSpec ? specSenders(initialSpec).join('\n') : '');
       setSubjectLines(initialSpec ? specSubjects(initialSpec).join('\n') : '');
       setBodyLines((initialSpec?.bodyContainsAny ?? []).join('\n'));
+      setSubjectNotLines(initialSpec ? specSubjectNotContains(initialSpec).join('\n') : '');
+      setBodyNotLines(initialSpec ? specBodyNotContains(initialSpec).join('\n') : '');
     }
   }, [open, initialCategoryName, initialSpec, initialSuggestedSpec]);
 
@@ -137,6 +162,8 @@ export function useCompositeCategoryRuleFormModalState(options: {
       senderLines,
       subjectLines,
       bodyLines,
+      subjectNotLines,
+      bodyNotLines,
       t,
       setFieldErrors,
       setSaving,
@@ -159,6 +186,10 @@ export function useCompositeCategoryRuleFormModalState(options: {
     setSubjectLines,
     bodyLines,
     setBodyLines,
+    subjectNotLines,
+    setSubjectNotLines,
+    bodyNotLines,
+    setBodyNotLines,
     saving,
     fieldErrors,
     setFieldErrors,

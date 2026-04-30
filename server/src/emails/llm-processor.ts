@@ -331,7 +331,10 @@ export class LLMProcessor implements OnModuleInit {
       llmResult.category = categoryRuleMatch.categoryName;
       const kindOrType =
         categoryRuleMatch.ruleType ?? categoryRuleMatch.ruleKind;
-      llmResult.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${categoryRuleMatch.categoryName}"`;
+      // Issue #1789: include the rule ID as a structured marker so the UI can
+      // navigate to the SPECIFIC matched rule (multiple rules can share a
+      // category, so navigating by category name alone opens the wrong one).
+      llmResult.categoryExplanation = `Matched deterministic rule (${kindOrType}): category="${categoryRuleMatch.categoryName}" (rule:${categoryRuleMatch.ruleId})`;
     }
     tracker.endPhase("llmCall");
     tracker.startPhase("dbUpdate");

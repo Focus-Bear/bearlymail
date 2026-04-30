@@ -89,6 +89,7 @@ export const UTILITY_PROMPT_IDS = {
   GENERATE_CATEGORIES_FROM_OTHER: "generate_categories_from_other",
   DETECT_OPT_OUT: "detect_opt_out",
   SUGGEST_CATEGORY_RULES: "suggest_category_rules",
+  DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
 } as const;
 
 /**
@@ -207,6 +208,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "suggest-category-rules.md",
     key: UTILITY_PROMPT_IDS.SUGGEST_CATEGORY_RULES,
+  },
+  {
+    file: "derive-rule-exclusions.md",
+    key: UTILITY_PROMPT_IDS.DERIVE_RULE_EXCLUSIONS,
   },
   {
     file: "batch-priority-triage.md",

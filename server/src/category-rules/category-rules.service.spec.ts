@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { CategoryRulesService } from "./category-rules.service";
@@ -39,6 +40,15 @@ const mockEmailRepo = () => ({
   createQueryBuilder: jest.fn(),
 });
 
+const mockEmailThreadRepo = () => ({
+  // Default: validation query (raw SQL via manager.query) returns no threads,
+  // so generated rules fall through to the new-user pass path. Tests that
+  // exercise the validate-against-history path override this.
+  manager: {
+    query: jest.fn().mockResolvedValue([]),
+  },
+});
+
 const mockUserContextRepo = () => ({
   find: jest.fn().mockResolvedValue([]),
 });
@@ -66,6 +76,10 @@ describe("CategoryRulesService", () => {
           useFactory: mockEmailRepo,
         },
         {
+          provide: getRepositoryToken(EmailThread),
+          useFactory: mockEmailThreadRepo,
+        },
+        {
           provide: getRepositoryToken(UserContext),
           useFactory: mockUserContextRepo,
         },
@@ -85,11 +99,14 @@ describe("CategoryRulesService", () => {
     emailRepo.createQueryBuilder.mockReturnValue(makeQbStub({ cnt: "15" }));
     // Default: no sample emails found for the sender
     emailRepo.find.mockResolvedValue([]);
-    // Default: LLM returns generic phrases (with sender pattern)
+    // Default: LLM returns generic phrases (with sender pattern). Issue #1789:
+    // empty exclusion arrays — tests that need exclusions override per-test.
     llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
       fromMatchesAny: ["alerts@acmecorp.com"],
       subjectContainsAny: ["Build failed"],
       bodyContainsAny: ["Pipeline step compile failed"],
+      subjectNotContainsAny: [],
+      bodyNotContainsAny: [],
     });
   });
 
@@ -266,11 +283,9 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
-      expect(llmCategoriesService.suggestRulesFromEmailSamples).toHaveBeenCalledWith(
-        "CI",
-        ["alerts@acmecorp.com"],
-        expect.any(Array),
-      );
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).toHaveBeenCalledWith("CI", ["alerts@acmecorp.com"], expect.any(Array));
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ruleKind: "composite",
@@ -301,7 +316,9 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
-      expect(llmCategoriesService.suggestRulesFromEmailSamples).not.toHaveBeenCalled();
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).not.toHaveBeenCalled();
       expect(repo.create).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
@@ -329,7 +346,9 @@ describe("CategoryRulesService", () => {
         "CI",
       );
 
-      expect(llmCategoriesService.suggestRulesFromEmailSamples).toHaveBeenCalled();
+      expect(
+        llmCategoriesService.suggestRulesFromEmailSamples,
+      ).toHaveBeenCalled();
       expect(repo.create).toHaveBeenCalled();
       expect(result).toEqual(created);
     });
@@ -356,6 +375,8 @@ describe("CategoryRulesService", () => {
         fromMatchesAny: ["a@b.co"],
         subjectContainsAny: [],
         bodyContainsAny: ["some phrase"],
+        subjectNotContainsAny: [],
+        bodyNotContainsAny: [],
       });
 
       const result = await service.generateCompositeRuleFromEmail(
@@ -378,6 +399,8 @@ describe("CategoryRulesService", () => {
         fromMatchesAny: ["*@acmecorp.com"],
         subjectContainsAny: ["Build failed"],
         bodyContainsAny: ["Pipeline step compile failed"],
+        subjectNotContainsAny: [],
+        bodyNotContainsAny: [],
       });
       repo.find.mockResolvedValue([]);
       const created = {

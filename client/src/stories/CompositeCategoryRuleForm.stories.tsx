@@ -60,6 +60,10 @@ export const AddMode: Story = {
         onSenderLinesChange={noop}
         onSubjectLinesChange={noop}
         onBodyLinesChange={noop}
+        subjectNotLines=""
+        bodyNotLines=""
+        onSubjectNotLinesChange={noop}
+        onBodyNotLinesChange={noop}
       />
       <div style={{ marginTop: 16 }}>
         <CompositeCategoryRuleFormFooter saving={false} onClose={noop} onSave={noop} />
@@ -86,10 +90,14 @@ export const EditModeV1: Story = {
           senderLines={specSenders(v1Spec).join('\n')}
           subjectLines={specSubjects(v1Spec).join('\n')}
           bodyLines={v1Spec.bodyContainsAny.join('\n')}
+          subjectNotLines=""
+          bodyNotLines=""
           onCategoryNameChange={noop}
           onSenderLinesChange={noop}
           onSubjectLinesChange={noop}
           onBodyLinesChange={noop}
+          onSubjectNotLinesChange={noop}
+          onBodyNotLinesChange={noop}
         />
         <div style={{ marginTop: 16 }}>
           <CompositeCategoryRuleFormFooter saving={false} onClose={noop} onSave={noop} />
@@ -117,10 +125,14 @@ export const EditModeV2: Story = {
           senderLines={v2Spec.senderMatchesAny.join('\n')}
           subjectLines={v2Spec.subjectContainsAny.join('\n')}
           bodyLines={v2Spec.bodyContainsAny.join('\n')}
+          subjectNotLines=""
+          bodyNotLines=""
           onCategoryNameChange={noop}
           onSenderLinesChange={noop}
           onSubjectLinesChange={noop}
           onBodyLinesChange={noop}
+          onSubjectNotLinesChange={noop}
+          onBodyNotLinesChange={noop}
         />
         <div style={{ marginTop: 16 }}>
           <CompositeCategoryRuleFormFooter saving={false} onClose={noop} onSave={noop} />
@@ -145,6 +157,10 @@ export const SavingState: Story = {
         onSenderLinesChange={noop}
         onSubjectLinesChange={noop}
         onBodyLinesChange={noop}
+        subjectNotLines=""
+        bodyNotLines=""
+        onSubjectNotLinesChange={noop}
+        onBodyNotLinesChange={noop}
       />
       <div style={{ marginTop: 16 }}>
         <CompositeCategoryRuleFormFooter saving onClose={noop} onSave={noop} />

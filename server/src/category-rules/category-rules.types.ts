@@ -31,6 +31,13 @@ export interface CategoryRuleSuggestion {
   suggestedSubjectPhrases: string[];
   /** Distinct body phrases sampled from recent emails for this sender. */
   suggestedBodyPhrases: string[];
+  /**
+   * Issue #1789: optional subject exclusions suggested by the LLM. May be
+   * empty when no clear disambiguator exists.
+   */
+  suggestedSubjectNotPhrases: string[];
+  /** Issue #1789: optional body exclusions suggested by the LLM. */
+  suggestedBodyNotPhrases: string[];
   /** Number of distinct threads seen from this sender (used to rank suggestions). */
   threadCount: number;
 }
@@ -65,6 +72,13 @@ export interface CompositeRuleEvaluationDetail {
   senderMatchedValue: string | null;
   /** Which subject phrase matched (v2 rules with multiple subject phrases). */
   subjectMatchedValue: string | null;
+  /**
+   * Issue #1789: subject exclusion phrase that disqualified the rule, or null
+   * when no exclusion fired.
+   */
+  subjectExcludedMatch: string | null;
+  /** Issue #1789: body exclusion phrase that disqualified the rule. */
+  bodyExcludedMatch: string | null;
 }
 
 export interface CategoryRuleEvaluationDebug {

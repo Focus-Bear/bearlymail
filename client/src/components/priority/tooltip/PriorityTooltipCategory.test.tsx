@@ -114,6 +114,24 @@ describe('PriorityTooltipCategory', () => {
     );
   });
 
+  it('navigates by rule ID when categoryExplanation includes a rule marker (#1789)', () => {
+    render(
+      <PriorityTooltipCategory
+        {...defaultProps}
+        category="GitHub PR Updates"
+        categoryExplanation='Matched deterministic rule (composite): category="GitHub PR Updates" (rule:abc123-def-456)'
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
+
+    // Should navigate by ruleId, not category name — even when the displayed
+    // category has multiple rules, this opens the SPECIFIC matching rule.
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/settings?openEditRuleId=abc123-def-456#guide-our-ai'
+    );
+  });
+
   it('edit rule button has correct accessible title and aria-label', () => {
     render(
       <PriorityTooltipCategory

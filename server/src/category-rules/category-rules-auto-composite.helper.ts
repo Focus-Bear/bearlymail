@@ -40,8 +40,8 @@ export function compositeAutoSpecsMatch(
   first: CompositeCategoryRuleSpecV2,
   second: CompositeCategoryRuleSpecV2,
 ): boolean {
-  const packStrings = (values: string[]) =>
-    [...values]
+  const packStrings = (values: string[] | undefined) =>
+    [...(values ?? [])]
       .map((item) => item.trim())
       .sort()
       .join("\u0001");
@@ -50,7 +50,12 @@ export function compositeAutoSpecsMatch(
       packStrings(second.senderMatchesAny) &&
     packStrings(first.subjectContainsAny) ===
       packStrings(second.subjectContainsAny) &&
-    packStrings(first.bodyContainsAny) === packStrings(second.bodyContainsAny)
+    packStrings(first.bodyContainsAny) ===
+      packStrings(second.bodyContainsAny) &&
+    packStrings(first.subjectNotContainsAny) ===
+      packStrings(second.subjectNotContainsAny) &&
+    packStrings(first.bodyNotContainsAny) ===
+      packStrings(second.bodyNotContainsAny)
   );
 }
 
@@ -80,9 +85,31 @@ export function senderMatchesPattern(
 ): boolean {
   if (normPattern.startsWith("*@")) {
     const domain = normPattern.slice(2).toLowerCase();
-    return normFrom.endsWith("@" + domain);
+    return normFrom.endsWith(`@${domain}`);
   }
   return normPattern === normFrom;
+}
+
+/**
+ * Returns the first exclusion phrase found in `haystack`, or null when the
+ * exclusion list is empty/undefined or no phrase matches. Empty strings in
+ * the exclusion list are ignored so they cannot accidentally disqualify
+ * every email.
+ */
+function findExcludedPhrase(
+  excluded: string[] | undefined,
+  haystackLower: string,
+): string | null {
+  if (!excluded || excluded.length === 0) {
+    return null;
+  }
+  for (const phrase of excluded) {
+    const needle = phrase.trim().toLowerCase();
+    if (needle.length > 0 && haystackLower.includes(needle)) {
+      return phrase;
+    }
+  }
+  return null;
 }
 
 /**
@@ -133,8 +160,18 @@ export function evaluateComposite(
     return false;
   });
 
+  // Issue #1789: NOT-contains exclusions disqualify the rule even when the
+  // positive conditions match.
+  const subjectExcludedMatch = findExcludedPhrase(
+    v2.subjectNotContainsAny,
+    subj,
+  );
+  const bodyExcludedMatch = findExcludedPhrase(v2.bodyNotContainsAny, body);
+  const exclusionOk =
+    subjectExcludedMatch === null && bodyExcludedMatch === null;
+
   return {
-    matches: senderOk && subjectOk && bodyOk,
+    matches: senderOk && subjectOk && bodyOk && exclusionOk,
     detail: {
       senderMatch: senderOk,
       subjectMatch: subjectOk,
@@ -142,6 +179,8 @@ export function evaluateComposite(
       bodyMatchedPhrase,
       senderMatchedValue,
       subjectMatchedValue,
+      subjectExcludedMatch,
+      bodyExcludedMatch,
     },
   };
 }

@@ -11,6 +11,21 @@ import { useAuth } from 'contexts/AuthContext';
 
 const DETERMINISTIC_RULE_PREFIX = 'Matched deterministic rule';
 
+/**
+ * Issue #1789: the backend appends `(rule:<uuid>)` to `categoryExplanation`
+ * for deterministic-rule matches so the tooltip can navigate to the SPECIFIC
+ * matched rule (multiple rules can share a category).
+ */
+const RULE_ID_MARKER_RE = /\(rule:([0-9a-f-]+)\)\s*$/i;
+
+function extractMatchedRuleId(explanation: string | null | undefined): string | null {
+  if (!explanation) {
+    return null;
+  }
+  const match = RULE_ID_MARKER_RE.exec(explanation);
+  return match ? match[1] : null;
+}
+
 interface PriorityTooltipCategoryProps {
   category: string;
   categoryExplanation?: string | null;
@@ -56,8 +71,16 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isDeterministicRuleMatch = categoryExplanation?.startsWith(DETERMINISTIC_RULE_PREFIX) ?? false;
+  const matchedRuleId = extractMatchedRuleId(categoryExplanation);
 
   const handleEditRule = () => {
+    // Issue #1789: prefer the matched rule's ID so we open the SPECIFIC rule
+    // that fired (multiple rules can share a category). Fall back to the
+    // category name for older `categoryExplanation` values without the marker.
+    if (matchedRuleId) {
+      navigate(`/settings?openEditRuleId=${matchedRuleId}#guide-our-ai`);
+      return;
+    }
     navigate(`/settings?openEditRule=${encodeURIComponent(category)}#guide-our-ai`);
   };
 

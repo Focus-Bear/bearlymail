@@ -29,6 +29,10 @@ export interface CompositeCategoryRuleFormModalProps {
     senderMatchesAny: string[];
     subjectContainsAny: string[];
     bodyContainsAny: string[];
+    /** Issue #1789: optional pre-filled subject exclusions. */
+    subjectNotContainsAny?: string[];
+    /** Issue #1789: optional pre-filled body exclusions. */
+    bodyNotContainsAny?: string[];
   } | null;
   onClose: () => void;
   onSubmit: (payload: {
@@ -36,6 +40,8 @@ export interface CompositeCategoryRuleFormModalProps {
     senderMatchesAny: string[];
     subjectContainsAny: string[];
     bodyContainsAny: string[];
+    subjectNotContainsAny: string[];
+    bodyNotContainsAny: string[];
   }) => Promise<void>;
 }
 
@@ -59,6 +65,10 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
     setSubjectLines,
     bodyLines,
     setBodyLines,
+    subjectNotLines,
+    setSubjectNotLines,
+    bodyNotLines,
+    setBodyNotLines,
     saving,
     fieldErrors,
     setFieldErrors,
@@ -93,6 +103,8 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
           senderLines={senderLines}
           subjectLines={subjectLines}
           bodyLines={bodyLines}
+          subjectNotLines={subjectNotLines}
+          bodyNotLines={bodyNotLines}
           onCategoryNameChange={(value) => {
             setCategoryName(value);
             clearFieldError('categoryName');
@@ -108,6 +120,14 @@ export const CompositeCategoryRuleFormModal: React.FC<CompositeCategoryRuleFormM
           onBodyLinesChange={(value) => {
             setBodyLines(value);
             clearFieldError('bodyPhrases');
+          }}
+          onSubjectNotLinesChange={(value) => {
+            setSubjectNotLines(value);
+            clearFieldError('subjectNotPhrases');
+          }}
+          onBodyNotLinesChange={(value) => {
+            setBodyNotLines(value);
+            clearFieldError('bodyNotPhrases');
           }}
           errors={fieldErrors}
         />

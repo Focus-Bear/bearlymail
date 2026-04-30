@@ -9,6 +9,10 @@ export interface CreateCompositePayload {
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];
+  /** Issue #1789: optional subject exclusion phrases. */
+  subjectNotContainsAny?: string[];
+  /** Issue #1789: optional body exclusion phrases. */
+  bodyNotContainsAny?: string[];
 }
 
 /** PATCH body: composite criteria without version (server assigns v). */
@@ -16,6 +20,10 @@ export interface PatchCompositeSpecPayload {
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];
+  /** Issue #1789: optional subject exclusion phrases. */
+  subjectNotContainsAny?: string[];
+  /** Issue #1789: optional body exclusion phrases. */
+  bodyNotContainsAny?: string[];
 }
 
 export interface PatchCategoryRulePayload {

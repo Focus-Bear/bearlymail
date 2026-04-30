@@ -24,6 +24,7 @@ Rules:
 - Only include phrases that genuinely repeat or would naturally recur in similar emails
 - Aim for 1–3 phrases per field; fewer is better if they are precise
 - Return empty arrays if no reliable pattern exists for a field
+- Exclusion phrases (`subjectNotContainsAny`, `bodyNotContainsAny`) are derived later from real false positives in the user's email history, NOT here — do not invent them
 
 Return ONLY valid JSON with no markdown formatting or extra text:
 {

@@ -10,11 +10,14 @@ import { Repository } from "typeorm";
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
-import { ContextKey, UserContext } from "../database/entities/user-context.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
-import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
 import type { CategoryRuleSuggestion } from "./category-rules.types";
+import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
 
 /** Raw row returned by the thread-count aggregation query. */
 interface ThreadCountRow {
@@ -209,7 +212,13 @@ export async function buildSuggestionFromSamplesWithLLM(
     return null;
   }
 
-  const { fromMatchesAny, subjectContainsAny, bodyContainsAny } = result;
+  const {
+    fromMatchesAny,
+    subjectContainsAny,
+    bodyContainsAny,
+    subjectNotContainsAny,
+    bodyNotContainsAny,
+  } = result;
 
   if (
     fromMatchesAny.length === 0 ||
@@ -230,6 +239,14 @@ export async function buildSuggestionFromSamplesWithLLM(
     suggestedBodyPhrases: bodyContainsAny.slice(
       0,
       CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES,
+    ),
+    suggestedSubjectNotPhrases: subjectNotContainsAny.slice(
+      0,
+      CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
+    ),
+    suggestedBodyNotPhrases: bodyNotContainsAny.slice(
+      0,
+      CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
     ),
     threadCount,
   };
@@ -334,7 +351,9 @@ export async function buildSuggestions(
       break;
     }
 
-    const senderEmails = [...new Set(group.map((candidate) => candidate.normSender))];
+    const senderEmails = [
+      ...new Set(group.map((candidate) => candidate.normSender)),
+    ];
     const totalThreadCount = group.reduce(
       (sum, candidate) => sum + candidate.threadCount,
       0,

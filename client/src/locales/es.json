@@ -403,6 +403,7 @@
     "dismiss": "Descartar",
     "edit": "Editar",
     "error": "Error",
+    "gotIt": "Entendido",
     "loading": "Cargando...",
     "null": "nulo",
     "remove": "Eliminar",
@@ -1482,7 +1483,8 @@
       "recategorizeError": "No se pudo iniciar la recategorización. Por favor, inténtalo de nuevo.",
       "loadingContent": "Cargando correos...",
       "dangerousPhishing": "PELIGROSO: posible intento de phishing",
-      "newsletterBlockTip": "💡 Bloquea remitentes rápidamente - ahorra tiempo en comparación con tener que encontrar la forma de darse de baja"
+      "newsletterBlockTip": "Bloquea remitentes rápidamente: ahorra tiempo en comparación con tener que encontrar la forma de darse de baja.",
+      "newsletterBlockTipTitle": "💡 Consejo: Bloquear remitente"
     },
     "protoCategory": {
       "convertToCategory": "Convertir a categoría",

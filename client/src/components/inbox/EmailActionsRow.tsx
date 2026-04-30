@@ -55,7 +55,12 @@ const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlo
     );
   }
   return (
-    <button onClick={event => onBlockSender(email.id, event)} title={t('inbox.blockSender')} style={btnStyle}>
+    <button
+      onClick={event => onBlockSender(email.id, event)}
+      title={t('inbox.blockSender')}
+      style={btnStyle}
+      data-tour="block-sender"
+    >
       <span>{EMOJI_BLOCK}</span>
       <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
         {t('inbox.blockSender')}

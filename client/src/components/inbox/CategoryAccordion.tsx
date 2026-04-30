@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type EventData, EVENTS, Joyride, STATUS, type Step } from 'react-joyride';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore, InboxMode } from 'types/email';
 
@@ -54,56 +55,93 @@ const ARCHIVE_ALL_ICON = '🗄️';
 
 const NEWSLETTER_BLOCK_TIP_DISMISSED_KEY = 'bearlymail_newsletter_block_tip_dismissed';
 const NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE = 'true';
+const BLOCK_SENDER_TOUR_TARGET = '[data-tour="block-sender"]';
+const BLOCK_SENDER_TOUR_POLL_MS = 200;
+const BLOCK_SENDER_TOUR_TIMEOUT_MS = 5000;
 
-const NewsletterBlockTip: React.FC = () => {
+const NewsletterBlockTip: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => {
   const { t } = useTranslation();
   const [isDismissed, setIsDismissed] = useState(
     () => localStorage.getItem(NEWSLETTER_BLOCK_TIP_DISMISSED_KEY) === NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE
   );
+  // The block button only renders for newsletters that have no unsubscribe link, and the
+  // accordion's email rows mount a beat after this tip. Wait for the target to exist so
+  // Joyride can anchor the spotlight; bail out after 5s if no email exposes the button.
+  const [hasTarget, setHasTarget] = useState(false);
 
-  const handleDismiss = useCallback(() => {
+  const dismiss = useCallback(() => {
     localStorage.setItem(NEWSLETTER_BLOCK_TIP_DISMISSED_KEY, NEWSLETTER_BLOCK_TIP_DISMISSED_VALUE);
     setIsDismissed(true);
   }, []);
 
-  if (isDismissed) {
+  useEffect(() => {
+    if (isDismissed || !isExpanded) {
+      return;
+    }
+    if (document.querySelector(BLOCK_SENDER_TOUR_TARGET)) {
+      setHasTarget(true);
+      return;
+    }
+    const interval = window.setInterval(() => {
+      if (document.querySelector(BLOCK_SENDER_TOUR_TARGET)) {
+        setHasTarget(true);
+        window.clearInterval(interval);
+      }
+    }, BLOCK_SENDER_TOUR_POLL_MS);
+    // If no email in this category exposes the block button within the budget, dismiss
+    // permanently so we don't keep polling on every future expand.
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+      dismiss();
+    }, BLOCK_SENDER_TOUR_TIMEOUT_MS);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [isDismissed, isExpanded, dismiss]);
+
+  const handleEvent = useCallback(
+    (data: EventData) => {
+      const tourEnded = data.type === EVENTS.TOUR_END;
+      const resolved = data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED;
+      const targetMissing = data.type === EVENTS.TARGET_NOT_FOUND;
+      if (tourEnded || resolved || targetMissing) {
+        dismiss();
+      }
+    },
+    [dismiss]
+  );
+
+  const steps: Step[] = useMemo(
+    () => [
+      {
+        target: BLOCK_SENDER_TOUR_TARGET,
+        title: t('inbox.category.newsletterBlockTipTitle'),
+        content: t('inbox.category.newsletterBlockTip'),
+        placement: 'top',
+        skipBeacon: true,
+        buttons: ['close'],
+        closeButtonAction: 'skip',
+        locale: { close: t('common.gotIt') },
+      },
+    ],
+    [t]
+  );
+
+  if (isDismissed || !hasTarget) {
     return null;
   }
 
   return (
-    <div
-      style={{
-        backgroundColor: theme.colors.warning.light,
-        border: `1px solid ${theme.colors.accent.warning}`,
-        borderRadius: theme.borderRadius.md,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        marginBottom: theme.spacing.sm,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.sm,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
+    <Joyride
+      steps={steps}
+      run={isExpanded}
+      onEvent={handleEvent}
+      options={{
+        primaryColor: theme.colors.accent.warning,
+        zIndex: 1000,
       }}
-    >
-      <span style={{ flex: 1 }}>{t('inbox.category.newsletterBlockTip')}</span>
-      <button
-        onClick={handleDismiss}
-        style={{
-          background: 'transparent',
-          border: STRING_NONE,
-          cursor: 'pointer',
-          fontSize: theme.typography.fontSize.xl,
-          color: theme.colors.text.tertiary,
-          padding: '0',
-          lineHeight: 1,
-          flexShrink: 0,
-        }}
-        title={t('common.dismiss')}
-        aria-label={t('common.dismiss')}
-      >
-        ×
-      </button>
-    </div>
+    />
   );
 };
 
@@ -500,7 +538,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
       >
         <div style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
           <CategoryAccordionContent isLoadingContent={isLoadingContent} loadingLabel={t('inbox.category.loadingContent')} isNearBudget={isNearBudget}>
-            {isNewsletterCategory && <NewsletterBlockTip />}
+            {isNewsletterCategory && <NewsletterBlockTip isExpanded={isExpanded} />}
             {children}
           </CategoryAccordionContent>
         </div>

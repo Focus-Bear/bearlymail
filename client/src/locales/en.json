@@ -4,6 +4,7 @@
     "loading": "Loading...",
     "error": "Error",
     "dismiss": "Dismiss",
+    "gotIt": "Got it",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -355,7 +356,8 @@
       "recategorizeError": "Failed to start recategorisation. Please try again.",
       "loadingContent": "Loading emails...",
       "dangerousPhishing": "DANGEROUS: potential phishing attempt",
-      "newsletterBlockTip": "💡 Quickly block senders - saves time compared to having to figure out how to unsubscribe"
+      "newsletterBlockTip": "Quickly block senders — saves time compared to figuring out how to unsubscribe.",
+      "newsletterBlockTipTitle": "💡 Tip: Block sender"
     },
     "protoCategory": {
       "convertToCategory": "Convert to category",

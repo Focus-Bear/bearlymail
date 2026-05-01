@@ -186,6 +186,14 @@
         "completed": "Completados",
         "pending": "Pendientes"
       }
+    },
+    "mfa": {
+      "required": "Se requiere verificación MFA de administrador",
+      "setupRequired": "Esta función requiere MFA de administrador. Configure la autenticación de dos factores en Ajustes primero.",
+      "prompt": "Introduzca su código de autenticación de 6 dígitos para acceder a esta función de administrador:",
+      "tokenLabel": "Código de autenticador de 6 dígitos",
+      "verify": "Verificar",
+      "error": "Código no válido. Revise su aplicación de autenticación e inténtelo de nuevo."
     }
   },
   "auth": {
@@ -2053,7 +2061,13 @@
       "traceSmartModel": "3. Modelo inteligente (prompt completo de prioridad)",
       "traceConfidence": "Confianza",
       "traceEmpty": "(vacío)",
-      "traceFootnote": "Coincide con el refinamiento de prioridad en producción: pista de regla en el cuerpo si gana una regla y luego la categoría se fuerza desde la regla; si no, la lista corta (si está activa) más el modelo analyze-priority eligen la categoría. La categorización al resumir es aparte — véase «Paso que la fijó» arriba."
+      "traceFootnote": "Coincide con el refinamiento de prioridad en producción: pista de regla en el cuerpo si gana una regla y luego la categoría se fuerza desde la regla; si no, la lista corta (si está activa) más el modelo analyze-priority eligen la categoría. La categorización al resumir es aparte — véase «Paso que la fijó» arriba.",
+      "mfaRequired": "Se requiere verificación MFA de administrador",
+      "mfaSetupRequired": "Esta función requiere MFA de administrador. Configure la autenticación de dos factores en Ajustes primero.",
+      "mfaPrompt": "Introduzca su código de autenticación de 6 dígitos para acceder a esta función de administrador:",
+      "mfaTokenLabel": "Código de autenticador de 6 dígitos",
+      "mfaVerify": "Verificar",
+      "mfaError": "Código no válido. Revise su aplicación de autenticación e inténtelo de nuevo."
     },
     "tooltip": {
       "adjustContext": "Ajustar el contexto",

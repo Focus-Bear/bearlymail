@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 import { SORT_ASC, SORT_DESC } from 'constants/strings';
 
+import { useAdminMfa } from './AdminMfaGate';
 import { DateRange, JobStat, JobStatsResponse, SortColumn, SortDirection } from './JobsSection.types';
 import { JobsSectionHeader } from './JobsSectionHeader';
 import { JobsTableBody } from './JobsTableBody';
@@ -19,6 +21,7 @@ const REFRESH_INTERVAL_MS = 10000;
  */
 export const JobsSection: React.FC = () => {
   const { t } = useTranslation();
+  const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [jobStats, setJobStats] = useState<JobStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -35,10 +38,14 @@ export const JobsSection: React.FC = () => {
       setLastUpdated(new Date(response.data.timestamp));
       setLoading(false);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching job stats:', error);
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, onMfaRequired]);
 
   useEffect(() => {
     fetchJobStats();
@@ -46,7 +53,7 @@ export const JobsSection: React.FC = () => {
       fetchJobStats();
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [fetchJobStats]);
+  }, [fetchJobStats, mfaVerifiedAt]);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {

@@ -2,8 +2,11 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { getAxiosErrorMessage } from 'utils/errors';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
+
+import { useAdminMfa } from './AdminMfaGate';
 
 export interface DecryptFieldRow {
   field: string;
@@ -19,6 +22,7 @@ export interface DecryptResponsePayload {
 
 export function useAdminEmailDecrypt() {
   const { t } = useTranslation();
+  const { onMfaRequired } = useAdminMfa();
   const [emailId, setEmailId] = useState('');
   const [encryptionKey, setEncryptionKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,12 +47,16 @@ export function useAdminEmailDecrypt() {
         });
         setResult(response.data);
       } catch (requestError) {
+        const mfaType = getMfaErrorType(requestError);
+        if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
         setError(getAxiosErrorMessage(requestError, t('admin.emailDecrypt.requestFailed')));
       } finally {
         setLoading(false);
       }
     },
-    [emailId, encryptionKey, t]
+    [emailId, encryptionKey, t, onMfaRequired]
   );
 
   return {

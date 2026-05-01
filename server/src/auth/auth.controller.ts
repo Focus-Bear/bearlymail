@@ -49,7 +49,10 @@ interface ZohoAuthUser {
  * `secure` is enabled only in production to allow local HTTP development.
  * `sameSite: 'strict'` prevents cross-site request forgery (OWASP ASVS req 3.4.3).
  */
-function jwtCookieOptions(isProduction: boolean): {
+function jwtCookieOptions(
+  isProduction: boolean,
+  maxAgeMs?: number,
+): {
   httpOnly: boolean;
   secure: boolean;
   sameSite: "strict";
@@ -59,7 +62,7 @@ function jwtCookieOptions(isProduction: boolean): {
     httpOnly: true,
     secure: isProduction,
     sameSite: "strict",
-    maxAge: AUTH_CONSTANTS.COOKIE_MAX_AGE_MS,
+    maxAge: maxAgeMs ?? AUTH_CONSTANTS.COOKIE_MAX_AGE_MS,
   };
 }
 
@@ -263,12 +266,18 @@ export class AuthController {
   /**
    * Verify a TOTP code and receive an MFA-elevated JWT (8-hour expiry).
    * This elevated token satisfies the AdminGuard MFA check (SAQ Q35 / GAP-2).
+   * The elevated token is set as an HttpOnly cookie (replacing the regular session
+   * cookie) so that subsequent admin requests are automatically authenticated.
    * Rate-limited to 10 attempts per minute to prevent brute-force.
    */
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60 } })
   @Post("mfa/verify")
-  async mfaVerify(@Request() req, @Body() body: { token: string }) {
+  async mfaVerify(
+    @Request() req,
+    @Body() body: { token: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     if (!body.token) throw new BadRequestException("Token is required");
     const result = await this.authService.verifyMfaAndElevate(
       req.user.userId,
@@ -276,6 +285,13 @@ export class AuthController {
       body.token,
     );
     if (!result) throw new UnauthorizedException("Invalid TOTP code");
+    const isProduction =
+      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    res.cookie(
+      AUTH_CONSTANTS.COOKIE_NAME,
+      result.access_token,
+      jwtCookieOptions(isProduction, AUTH_CONSTANTS.MFA_COOKIE_MAX_AGE_MS),
+    );
     return result;
   }
 

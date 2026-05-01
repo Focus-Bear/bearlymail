@@ -3,7 +3,7 @@
  * Use these instead of magic numbers for auth operations
  */
 
-import { MILLISECONDS } from "./time-constants";
+import { HOURS, MILLISECONDS } from "./time-constants";
 
 const DAYS_PER_WEEK = 7;
 const HOURS_PER_DAY = 24;
@@ -25,6 +25,8 @@ export const AUTH_CONSTANTS = {
     MS_PER_SECOND,
   // Name of the HttpOnly cookie used to store the JWT (OWASP ASVS req 3.4.2)
   COOKIE_NAME: "access_token",
+  // Cookie max-age for MFA-elevated tokens — matches the 8h JWT expiry in auth.service.ts
+  MFA_COOKIE_MAX_AGE_MS: HOURS.EIGHT * MILLISECONDS.HOUR,
 } as const;
 
 // Number of random bytes for password reset token generation

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { AdminDashboardHeader } from 'components/admin/AdminDashboardHeader';
+import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { AdminTabs } from 'components/admin/AdminTabs';
 import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection';
 import { EmailDecryptSection } from 'components/admin/EmailDecryptSection';
@@ -110,6 +111,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
+    <AdminMfaProvider>
     <div
       style={{
         display: 'flex',
@@ -173,6 +175,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
     </div>
+    </AdminMfaProvider>
   );
 };
 

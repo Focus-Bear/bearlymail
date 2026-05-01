@@ -116,11 +116,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? "An internal server error occurred. Please try again later."
         : clientMessage;
 
+    const errorCode =
+      typeof message === "object" &&
+      message !== null &&
+      "error" in message &&
+      typeof (message as { error?: unknown }).error === "string"
+        ? (message as { error: string }).error
+        : undefined;
+
     response.status(status).json({
       statusCode: status,
       timestamp: errorDetails.timestamp,
       path: request.url,
       message: sanitizedMessage,
+      ...(errorCode ? { error: errorCode } : {}),
     });
   }
 }

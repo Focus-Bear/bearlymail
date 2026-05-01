@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { FeedbackItem } from 'types/feedback';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 
+import { useAdminMfa } from './AdminMfaGate';
 import { FeedbackCard } from './FeedbackCard';
 
 interface FeedbackResponse {
@@ -17,6 +19,7 @@ const PAGE_SIZE = 50;
 
 export const FeedbackSection: React.FC = () => {
   const { t } = useTranslation();
+  const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -35,18 +38,22 @@ export const FeedbackSection: React.FC = () => {
         setItems(response.data.items);
         setTotal(response.data.total);
       } catch (err) {
+        const mfaType = getMfaErrorType(err);
+        if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
         setError(t('contactFeedback.adminError'));
         console.error(err);
       } finally {
         setLoading(false);
       }
     },
-    [t]
+    [t, onMfaRequired]
   );
 
   useEffect(() => {
     void load(page);
-  }, [load, page]);
+  }, [load, page, mfaVerifiedAt]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);

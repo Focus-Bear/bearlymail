@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getAxiosErrorMessage } from 'utils/errors';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
+import { useAdminMfa } from 'components/admin/AdminMfaGate';
 import { API_URL } from 'config/api';
 import { ADMIN_TAB_WAITLIST, AdminTab } from 'constants/adminTabs';
 import { useAuth } from 'contexts/AuthContext';
@@ -33,6 +35,7 @@ export interface UserWithSubscription {
 export function useAdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [activeTab, setActiveTab] = useState<AdminTab>(ADMIN_TAB_WAITLIST);
@@ -45,20 +48,28 @@ export function useAdminDashboard() {
       const response = await axios.get(`${API_URL}/waitlist`);
       setWaitlist(response.data);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching waitlist:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onMfaRequired]);
 
   const fetchUsers = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/subscriptions/all-users`);
       setUsers(response.data);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching users:', error);
     }
-  }, []);
+  }, [onMfaRequired]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -67,7 +78,7 @@ export function useAdminDashboard() {
     }
     fetchWaitlist();
     fetchUsers();
-  }, [user, navigate, fetchWaitlist, fetchUsers]);
+  }, [user, navigate, fetchWaitlist, fetchUsers, mfaVerifiedAt]);
 
   const handleExtendTrial = useCallback(
     async (userId: string) => {

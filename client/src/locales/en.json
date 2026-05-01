@@ -820,7 +820,7 @@
       "suggestLoading": "Analysing your email history…",
       "suggestEmpty": "No suggestions found. You may not have enough email history yet (at least 5 threads per sender required).",
       "suggestError": "Could not load suggestions. Please try again.",
-      "suggestIntro": "These rules are drafted from your email history. Click “Review” to open the form and edit before saving.",
+      "suggestIntro": "These rules are drafted from your email history. Click \"Review\" to open the form and edit before saving.",
       "suggestSenderLabel": "Sender",
       "suggestThreadCount": "({{count}} threads)",
       "suggestSubjectLabel": "Subject phrases",
@@ -1479,6 +1479,14 @@
         "completed": "Completed",
         "pending": "Pending"
       }
+    },
+    "mfa": {
+      "required": "Admin MFA verification required",
+      "setupRequired": "This feature requires admin MFA. Please set up two-factor authentication in Settings first.",
+      "prompt": "Enter your 6-digit authenticator code to access this admin feature:",
+      "tokenLabel": "6-digit authenticator code",
+      "verify": "Verify",
+      "error": "Invalid code. Please check your authenticator app and try again."
     }
   },
   "compose": {
@@ -2531,7 +2539,13 @@
       "traceSmartModel": "3. Smart model (full priority prompt)",
       "traceConfidence": "Confidence",
       "traceEmpty": "(empty)",
-      "traceFootnote": "Matches production priority refinement: rule hint in the body when a rule wins, then category forced from the rule; otherwise shortlist (when enabled) plus the analyse-priority model choose the category. Summary-time categorisation is separate — see “Set by step” above."
+      "traceFootnote": "Matches production priority refinement: rule hint in the body when a rule wins, then category forced from the rule; otherwise shortlist (when enabled) plus the analyse-priority model choose the category. Summary-time categorisation is separate — see \"Set by step\" above.",
+      "mfaRequired": "Admin MFA verification required",
+      "mfaSetupRequired": "This feature requires admin MFA. Please set up two-factor authentication in Settings first.",
+      "mfaPrompt": "Enter your 6-digit authenticator code to access this admin feature:",
+      "mfaTokenLabel": "6-digit authenticator code",
+      "mfaVerify": "Verify",
+      "mfaError": "Invalid code. Please check your authenticator app and try again."
     }
   },
   "quickActions": {

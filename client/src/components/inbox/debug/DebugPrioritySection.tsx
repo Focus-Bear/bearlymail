@@ -9,13 +9,26 @@
  * - Priority score histogram (10-point bands)
  * - Refresh button to re-fetch
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { CACHE_VERSION } from 'utils/emailCache';
+import { getMfaErrorType, MFA_SETUP_REQUIRED, MFA_VERIFICATION_REQUIRED } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 import type { InboxFilter } from 'hooks/useInboxFilters';
+
+const MFA_TOKEN_LENGTH = 6;
+const ENTER_KEY = 'Enter';
+const COLOR_WHITE = '#fff';
+const FOCUS_DELAY_MS = 50;
+const MFA_STATES = {
+  NONE: 'none',
+  VERIFICATION_REQUIRED: 'verification-required',
+  SETUP_REQUIRED: 'setup-required',
+} as const;
+type MfaState = typeof MFA_STATES[keyof typeof MFA_STATES];
 
 interface PriorityBuckets {
   veryHigh: number;
@@ -117,9 +130,15 @@ function getCacheDebugInfo(): Array<{ key: string; ageMs: number | null }> {
 }
 
 export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({ filters, priorityTotalCount }) => {
+  const { t } = useTranslation();
   const [data, setData] = useState<PriorityDebugInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mfaState, setMfaState] = useState<MfaState>(MFA_STATES.NONE);
+  const [mfaToken, setMfaToken] = useState('');
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const mfaInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -127,12 +146,40 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({ filt
     try {
       const resp = await axios.get<PriorityDebugInfo>(`${API_URL}/emails/debug/priority-info`);
       setData(resp.data);
+      setMfaState(MFA_STATES.NONE);
     } catch (err) {
+      const mfaType = getMfaErrorType(err);
+      if (mfaType === MFA_SETUP_REQUIRED) {
+ setMfaState(MFA_STATES.SETUP_REQUIRED); return; 
+}
+      if (mfaType === MFA_VERIFICATION_REQUIRED) {
+        setMfaState(MFA_STATES.VERIFICATION_REQUIRED);
+        setTimeout(() => mfaInputRef.current?.focus(), FOCUS_DELAY_MS);
+        return;
+      }
       setError(String(err));
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleMfaVerify = useCallback(async () => {
+    if (mfaToken.length !== MFA_TOKEN_LENGTH) {
+return;
+}
+    setMfaLoading(true);
+    setMfaError(null);
+    try {
+      await axios.post(`${API_URL}/auth/mfa/verify`, { token: mfaToken });
+      setMfaToken('');
+      setMfaState(MFA_STATES.NONE);
+      await fetchData();
+    } catch {
+      setMfaError(t('admin.mfa.error'));
+    } finally {
+      setMfaLoading(false);
+    }
+  }, [mfaToken, fetchData, t]);
 
   useEffect(() => {
     fetchData();
@@ -185,6 +232,73 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({ filt
         </button>
       </div>
 
+      {mfaState === MFA_STATES.SETUP_REQUIRED && (
+        <div style={{ color: theme.colors.text.secondary, padding: theme.spacing.sm }}>
+          {t('admin.mfa.setupRequired')}
+        </div>
+      )}
+
+      {mfaState === MFA_STATES.VERIFICATION_REQUIRED && (
+        <div style={{ padding: theme.spacing.sm }}>
+          <p style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.xs, fontWeight: theme.typography.fontWeight.medium }}>
+            {t('admin.mfa.required')}
+          </p>
+          <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs, marginBottom: theme.spacing.sm }}>
+            {t('admin.mfa.prompt')}
+          </p>
+          <input
+            ref={mfaInputRef}
+            type="text"
+            inputMode="numeric"
+            maxLength={MFA_TOKEN_LENGTH}
+            value={mfaToken}
+            onChange={ev => setMfaToken(ev.target.value.replace(/\D/g, '').slice(0, MFA_TOKEN_LENGTH))}
+            onKeyDown={ev => {
+ if (ev.key === ENTER_KEY) {
+void handleMfaVerify();
+} 
+}}
+            placeholder="000000"
+            disabled={mfaLoading}
+            aria-label={t('admin.mfa.tokenLabel')}
+            style={{
+              width: '140px',
+              padding: '4px 8px',
+              borderRadius: theme.borderRadius.sm,
+              border: `1px solid ${mfaError ? (theme.colors.feedback?.error ?? '#d32f2f') : (theme.colors.border?.default ?? '#e0e0e0')}`,
+              fontSize: theme.typography.fontSize.lg,
+              letterSpacing: '0.3em',
+              textAlign: 'center',
+              display: 'block',
+              marginBottom: theme.spacing.xs,
+            }}
+          />
+          {mfaError && (
+            <p role="alert" style={{ color: theme.colors.feedback?.error ?? '#d32f2f', fontSize: theme.typography.fontSize.xs, marginBottom: theme.spacing.xs }}>
+              {mfaError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleMfaVerify()}
+            disabled={mfaLoading || mfaToken.length !== MFA_TOKEN_LENGTH}
+            style={{
+              backgroundColor: mfaLoading || mfaToken.length !== MFA_TOKEN_LENGTH ? theme.colors.text.tertiary : theme.colors.primary.main,
+              color: COLOR_WHITE,
+              border: 'none',
+              borderRadius: theme.borderRadius.sm,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              cursor: mfaLoading || mfaToken.length !== MFA_TOKEN_LENGTH ? 'not-allowed' : 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+            }}
+          >
+            {mfaLoading ? t('common.loading') : t('admin.mfa.verify')}
+          </button>
+        </div>
+      )}
+
+      {mfaState === MFA_STATES.NONE && (
+      <>
       {/* Current filter state */}
       <div style={{ marginBottom: theme.spacing.sm }}>
         <strong>Current filter:</strong>{' '}
@@ -297,6 +411,8 @@ export const DebugPrioritySection: React.FC<DebugPrioritySectionProps> = ({ filt
             Fetched at: {new Date(data.fetchedAt).toLocaleTimeString()}
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

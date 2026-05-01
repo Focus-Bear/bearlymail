@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 import { DAYS_IN_MONTH_30, MS_PER_DAY, REFRESH_INTERVAL_30_SEC_MS } from 'constants/numbers';
 
+import { useAdminMfa } from './AdminMfaGate';
 import { DateRange, PromptExample, UsageByOperation, UsageSummary } from './TokenUsageSection.types';
 
 const DATE_RANGE_24H: DateRange = '24h';
@@ -31,6 +33,7 @@ export interface TokenUsageData {
 
 export const useTokenUsageData = (): TokenUsageData => {
   const { t } = useTranslation();
+  const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [usage, setUsage] = useState<UsageByOperation[]>([]);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [examples, setExamples] = useState<PromptExample[]>([]);
@@ -62,11 +65,15 @@ export const useTokenUsageData = (): TokenUsageData => {
       const response = await axios.get(`${API_URL}/admin/token-usage/examples`);
       setExamples(response.data.examples || []);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching prompt examples:', error);
     } finally {
       setExamplesLoading(false);
     }
-  }, []);
+  }, [onMfaRequired]);
 
   const fetchUsageData = useCallback(async () => {
     try {
@@ -80,10 +87,14 @@ export const useTokenUsageData = (): TokenUsageData => {
       setLastUpdated(new Date());
       setLoading(false);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching token usage:', error);
       setLoading(false);
     }
-  }, [getDateRangeParams]);
+  }, [getDateRangeParams, onMfaRequired]);
 
   const resetExamples = async () => {
     if (!window.confirm(t('admin.tokenUsage.examples.confirmReset'))) {
@@ -109,7 +120,7 @@ export const useTokenUsageData = (): TokenUsageData => {
       fetchExamples();
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [dateRange, fetchUsageData, fetchExamples]);
+  }, [dateRange, fetchUsageData, fetchExamples, mfaVerifiedAt]);
 
   return {
     usage,

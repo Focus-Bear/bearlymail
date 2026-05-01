@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 
+import { useAdminMfa } from './AdminMfaGate';
 import { GitHubDebugInfo, TokenTestResult } from './GitHubDebugSection.types';
 
 export interface GitHubDebugData {
@@ -23,6 +25,7 @@ export interface GitHubDebugData {
 
 export const useGitHubDebugData = (): GitHubDebugData => {
   const { t } = useTranslation();
+  const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [debugInfo, setDebugInfo] = useState<GitHubDebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -38,15 +41,19 @@ export const useGitHubDebugData = (): GitHubDebugData => {
       setDebugInfo(response.data);
       setLastUpdated(new Date());
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error fetching GitHub debug info:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onMfaRequired]);
 
   useEffect(() => {
     fetchDebugInfo();
-  }, [fetchDebugInfo]);
+  }, [fetchDebugInfo, mfaVerifiedAt]);
 
   const handleTestToken = useCallback(async () => {
     if (!testUserId.trim()) {
@@ -65,12 +72,16 @@ export const useGitHubDebugData = (): GitHubDebugData => {
       const response = await axios.post<TokenTestResult>(`${API_URL}/github/admin/test-token`, body);
       setTokenTestResult(response.data);
     } catch (error) {
+      const mfaType = getMfaErrorType(error);
+      if (mfaType) {
+ onMfaRequired(mfaType); return; 
+}
       console.error('Error testing GitHub token:', error);
       setTokenTestResult({ hasToken: false, valid: false, error: 'Request failed' });
     } finally {
       setTestingToken(false);
     }
-  }, [testUserId, testOwnerRepo]);
+  }, [testUserId, testOwnerRepo, onMfaRequired]);
 
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) {

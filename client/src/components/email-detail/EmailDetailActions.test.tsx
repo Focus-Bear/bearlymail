@@ -191,7 +191,7 @@ describe('EmailDetailActions — scheduling partition (fixes #807)', () => {
       <EmailDetailActions
         {...baseProps}
         schedulingActions={[]}
-        loadingSchedulingActions={true}
+        loadingSchedulingActions
         onRespondToInvitation={jest.fn()}
       />
     );

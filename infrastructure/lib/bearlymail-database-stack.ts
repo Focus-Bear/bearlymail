@@ -5,8 +5,8 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
 export interface BearlyMailDatabaseStackProps extends cdk.StackProps {
-  vpc: ec2.IVpc;
-  databaseInstanceType?: ec2.InstanceType;
+  readonly vpc: ec2.IVpc;
+  readonly databaseInstanceType?: ec2.InstanceType;
 }
 
 export class BearlyMailDatabaseStack extends cdk.Stack {

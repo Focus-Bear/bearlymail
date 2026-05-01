@@ -143,6 +143,29 @@ jobs:
         working-directory: client
         run: npm run lint
 
+  infrastructure-lint:
+    name: Infrastructure Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infrastructure/package-lock.json
+
+      - name: Install dependencies
+        working-directory: infrastructure
+        run: npm ci
+
+      - name: Run lint
+        working-directory: infrastructure
+        run: npm run lint
+
   client-build:
     name: Client Build
     runs-on: ubuntu-latest

@@ -3,9 +3,9 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 export interface BearlyMailGitHubActionsStackProps extends cdk.StackProps {
-  githubOrg: string;
-  githubRepo: string;
-  permissionsBoundaryArn?: string;
+  readonly githubOrg: string;
+  readonly githubRepo: string;
+  readonly permissionsBoundaryArn?: string;
 }
 
 /**

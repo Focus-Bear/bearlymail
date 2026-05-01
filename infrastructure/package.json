@@ -9,14 +9,19 @@
     "deploy": "cdk deploy --all",
     "deploy:stack": "cdk deploy BearlyMailStack",
     "diff": "cdk diff",
-    "synth": "cdk synth"
+    "synth": "cdk synth",
+    "lint": "node scripts/check-ascii-strings.js && eslint 'lib/**/*.ts' 'bin/**/*.ts'",
+    "lint:fix": "eslint 'lib/**/*.ts' 'bin/**/*.ts' --fix"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "aws-cdk": "^2.1119.0",
     "aws-cdk-lib": "^2.251.0",
     "constructs": "^10.3.0",
-    "typescript": "^5.3.3"
+    "eslint": "9.39.4",
+    "eslint-plugin-awscdk": "4.3.2",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "8.59.1"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.251.0",

@@ -26,23 +26,23 @@ import { Construct } from "constructs";
 import * as path from "path";
 
 export interface BearlyMailContextAnalysisStackProps extends cdk.StackProps {
-  vpc: ec2.IVpc;
-  database: rds.IDatabaseInstance;
-  dbSecret: secretsmanager.ISecret;
-  appSecrets: secretsmanager.ISecret;
+  readonly vpc: ec2.IVpc;
+  readonly database: rds.IDatabaseInstance;
+  readonly dbSecret: secretsmanager.ISecret;
+  readonly appSecrets: secretsmanager.ISecret;
   /** RDS Proxy created in DatabaseStack */
-  rdsProxy: rds.DatabaseProxy;
+  readonly rdsProxy: rds.DatabaseProxy;
   /** RDS Proxy endpoint from DatabaseStack */
-  rdsProxyEndpoint: string;
+  readonly rdsProxyEndpoint: string;
   /** RDS Proxy security group from DatabaseStack — Lambda SG adds ingress to this */
-  rdsProxySecurityGroup: ec2.SecurityGroup;
+  readonly rdsProxySecurityGroup: ec2.SecurityGroup;
   /**
    * Lambda security group created in DatabaseStack (alongside rdsProxySecurityGroup)
    * to avoid a cyclic cross-stack reference.
    */
-  lambdaSecurityGroup: ec2.ISecurityGroup;
+  readonly lambdaSecurityGroup: ec2.ISecurityGroup;
   /** SNS topic ARN for DLQ depth alarms (optional) */
-  alarmSnsTopicArn?: string;
+  readonly alarmSnsTopicArn?: string;
 }
 
 export class BearlyMailContextAnalysisStack extends cdk.Stack {

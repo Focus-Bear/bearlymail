@@ -29,37 +29,37 @@ import { Construct } from 'constructs';
 
 export interface BearlyMailStackProps extends cdk.StackProps {
   // Optional: allow overriding defaults
-  webTaskCpu?: number;
-  webTaskMemory?: number;
-  workerTaskCpu?: number;
-  workerTaskMemory?: number;
+  readonly webTaskCpu?: number;
+  readonly webTaskMemory?: number;
+  readonly workerTaskCpu?: number;
+  readonly workerTaskMemory?: number;
   // Networking resources (from BearlyMailNetworkingStack)
-  vpc: ec2.IVpc;
-  certificateArn?: string; // ACM certificate ARN from us-east-1 for CloudFront
-  hostedZone?: route53.IHostedZone;
-  domainName?: string; // Domain name for CloudFront
-  apiDomainName?: string; // API domain (e.g. api.app.bearlymail.com) for ALB HTTPS + Route53
-  apiCertificateArn?: string; // ACM certificate ARN for API domain (from networking stack, same region as ALB)
-  queueDashboardDomainName?: string; // Queue dashboard domain (e.g. queue.api.app.bearlymail.com)
-  queueDashboardCertificateArn?: string; // ACM certificate ARN for queue dashboard domain
+  readonly vpc: ec2.IVpc;
+  readonly certificateArn?: string; // ACM certificate ARN from us-east-1 for CloudFront
+  readonly hostedZone?: route53.IHostedZone;
+  readonly domainName?: string; // Domain name for CloudFront
+  readonly apiDomainName?: string; // API domain (e.g. api.app.bearlymail.com) for ALB HTTPS + Route53
+  readonly apiCertificateArn?: string; // ACM certificate ARN for API domain (from networking stack, same region as ALB)
+  readonly queueDashboardDomainName?: string; // Queue dashboard domain (e.g. queue.api.app.bearlymail.com)
+  readonly queueDashboardCertificateArn?: string; // ACM certificate ARN for queue dashboard domain
   // Database and Secrets (from other stacks)
-  database: rds.IDatabaseInstance;
-  dbSecret: secretsmanager.ISecret;
-  appSecrets: secretsmanager.ISecret;
+  readonly database: rds.IDatabaseInstance;
+  readonly dbSecret: secretsmanager.ISecret;
+  readonly appSecrets: secretsmanager.ISecret;
   /**
    * Context analysis SQS queue (from BearlyMailContextAnalysisStack).
    * AppStack calls grantSendMessages(taskRole) and injects queueUrl into container environments.
    */
-  contextAnalysisQueue: sqs.Queue;
+  readonly contextAnalysisQueue: sqs.Queue;
   /**
    * Email prioritisation SQS queue (from BearlyMailEmailPrioritisationStack).
    * AppStack calls grantSendMessages(taskRole) and injects queueUrl into container environments.
    */
-  emailPrioritisationQueue?: sqs.Queue;
+  readonly emailPrioritisationQueue?: sqs.Queue;
   /** RDS Proxy endpoint — used as DB_HOST for all ECS containers */
-  rdsProxyEndpoint: string;
+  readonly rdsProxyEndpoint: string;
   /** RDS Proxy security group (from BearlyMailDatabaseStack) — ecsSecurityGroup ingress rule added here */
-  rdsProxySecurityGroup: ec2.ISecurityGroup;
+  readonly rdsProxySecurityGroup: ec2.ISecurityGroup;
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -126,7 +126,7 @@ export class BearlyMailStack extends cdk.Stack {
 
     const workerSecurityGroup = new ec2.SecurityGroup(this, 'WorkerSecurityGroup', {
       vpc,
-      description: 'Security group for worker and cron ECS tasks — outbound only, no ALB ingress',
+      description: 'Security group for worker and cron ECS tasks - outbound only, no ALB ingress',
       allowAllOutbound: true,
     });
 
@@ -538,6 +538,9 @@ export class BearlyMailStack extends cdk.Stack {
       cluster,
       taskDefinition: webTaskDefinition,
       desiredCount: 1,
+      // Zero-capacity-drop rolling deploys: spin up the new task before draining the old.
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
       publicLoadBalancer: true,
       listenerPort: 80,
       healthCheckGracePeriod: cdk.Duration.seconds(60),
@@ -647,6 +650,9 @@ export class BearlyMailStack extends cdk.Stack {
       cluster,
       taskDefinition: workerTaskDefinition,
       desiredCount: 1,
+      // PgBoss workers are stateless; brief capacity dip during deploys is fine since jobs queue.
+      minHealthyPercent: 50,
+      maxHealthyPercent: 200,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
@@ -719,6 +725,9 @@ export class BearlyMailStack extends cdk.Stack {
       cluster,
       taskDefinition: dashboardTaskDefinition,
       desiredCount: 1,
+      // Internal admin tool; brief unavailability during deploys is acceptable.
+      minHealthyPercent: 50,
+      maxHealthyPercent: 200,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },

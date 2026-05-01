@@ -8,8 +8,8 @@ import { getCertificateProviderFunction } from "./certificate-provider";
 
 export interface BearlyMailNetworkingStackProps extends cdk.StackProps {
   // Domain configuration
-  domainName?: string; // e.g., 'app.bearlymail.com'
-  hostedZoneId?: string; // Route53 hosted zone ID
+  readonly domainName?: string; // e.g., 'app.bearlymail.com'
+  readonly hostedZoneId?: string; // Route53 hosted zone ID
 }
 
 export class BearlyMailNetworkingStack extends cdk.Stack {

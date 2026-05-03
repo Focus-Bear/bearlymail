@@ -16,8 +16,12 @@ import {
 } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { UserContext } from "../database/entities/user-context.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
+import { parseCategoryName } from "../utils/category-name.util";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type {
   CategoryRuleDto,
@@ -598,21 +602,39 @@ export class CategoryRulesService {
     userId: string,
     email: EmailMetadata,
   ): Promise<CategoryRuleMatch | null> {
-    const rules = await this.categoryRuleRepository.find({
-      where: { userId, isEnabled: true },
-      order: { createdAt: "ASC" },
-    });
+    const [rules, validCategoryNames] = await Promise.all([
+      this.categoryRuleRepository.find({
+        where: { userId, isEnabled: true },
+        order: { createdAt: "ASC" },
+      }),
+      this.getUserCategoryNames(userId),
+    ]);
 
     if (rules.length === 0) {
       return null;
     }
 
-    const compositeHit = this.findFirstCompositeRuleMatch(rules, email);
+    // When the user has categories defined, skip rules pointing to deleted categories
+    // so that a valid lower-priority rule can still win (rather than returning null).
+    const eligibleRules =
+      validCategoryNames.size > 0
+        ? rules.filter((rule) => {
+            if (!validCategoryNames.has(rule.categoryName)) {
+              this.logger.warn(
+                `[CategoryRules] Skipping rule ${rule.id} (category "${rule.categoryName}" no longer exists) for user ${userId}`,
+              );
+              return false;
+            }
+            return true;
+          })
+        : rules;
+
+    const compositeHit = this.findFirstCompositeRuleMatch(eligibleRules, email);
     if (compositeHit) {
       return compositeHit;
     }
 
-    return this.findLegacyRuleMatch(rules, email);
+    return this.findLegacyRuleMatch(eligibleRules, email);
   }
 
   private findFirstCompositeRuleMatch(
@@ -719,10 +741,20 @@ export class CategoryRulesService {
     email: EmailMetadata,
   ): Promise<CategoryRuleMatch | null> {
     const match = await this.peekMatchingRule(userId, email);
-    if (match) {
-      await this.incrementHitCount(match.ruleId);
+    if (!match) {
+      return null;
     }
+
+    await this.incrementHitCount(match.ruleId);
     return match;
+  }
+
+  private async getUserCategoryNames(userId: string): Promise<Set<string>> {
+    const contexts = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+      select: ["contextValue"],
+    });
+    return new Set(contexts.map((ctx) => parseCategoryName(ctx.contextValue)));
   }
 
   async getDeterministicRulesDebug(

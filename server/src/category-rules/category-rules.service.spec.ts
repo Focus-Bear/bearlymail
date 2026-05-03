@@ -5,7 +5,10 @@ import crypto from "crypto";
 import { CategoryRule } from "../database/entities/category-rule.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { UserContext } from "../database/entities/user-context.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { CategoryRulesService } from "./category-rules.service";
 
@@ -61,6 +64,7 @@ describe("CategoryRulesService", () => {
   let service: CategoryRulesService;
   let repo: ReturnType<typeof mockRuleRepo>;
   let emailRepo: ReturnType<typeof mockEmailRepo>;
+  let userContextRepo: ReturnType<typeof mockUserContextRepo>;
   let llmCategoriesService: ReturnType<typeof mockLLMCategoriesService>;
 
   beforeEach(async () => {
@@ -93,6 +97,7 @@ describe("CategoryRulesService", () => {
     service = module.get<CategoryRulesService>(CategoryRulesService);
     repo = module.get(getRepositoryToken(CategoryRule));
     emailRepo = module.get(getRepositoryToken(Email));
+    userContextRepo = module.get(getRepositoryToken(UserContext));
     llmCategoriesService = module.get(LLMCategoriesService);
 
     // Default: sender has 15 threads — above both thresholds.
@@ -982,6 +987,167 @@ describe("CategoryRulesService", () => {
 
       expect(match?.categoryName).toBe("Legacy QA");
       expect(match?.ruleKind).toBe("composite");
+    });
+
+    it("ignores a matching rule when its category no longer exists in the user's category list", async () => {
+      const hash = crypto
+        .createHash("sha256")
+        .update("noreply@stripe.com")
+        .digest("hex");
+
+      repo.find.mockResolvedValue([
+        {
+          id: "r1",
+          ruleKind: "legacy",
+          ruleType: "exact_sender",
+          pattern: "noreply@stripe.com",
+          patternHash: hash,
+          categoryName: "Meeting Cancellations / No-shows",
+          subjectPrefix: null,
+          isEnabled: true,
+        },
+      ]);
+      // User has categories, but not the one the rule references
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextValue: "Billing - Payment receipts",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+        {
+          contextValue: "GitHub Notifications - PR and issue updates",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+
+      const match = await service.findMatchingRule(userId, {
+        from: "noreply@stripe.com",
+        subject: "Cannot attend today",
+      });
+
+      expect(match).toBeNull();
+      expect(repo.increment).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a second matching rule when the first match's category has been deleted", async () => {
+      const exactHash = crypto
+        .createHash("sha256")
+        .update("noreply@stripe.com")
+        .digest("hex");
+      const domainHash = crypto
+        .createHash("sha256")
+        .update("@stripe.com")
+        .digest("hex");
+
+      repo.find.mockResolvedValue([
+        {
+          id: "r-stale",
+          ruleKind: "legacy",
+          ruleType: "exact_sender",
+          pattern: "noreply@stripe.com",
+          patternHash: exactHash,
+          categoryName: "Deleted Category",
+          subjectPrefix: null,
+          isEnabled: true,
+        },
+        {
+          id: "r-valid",
+          ruleKind: "legacy",
+          ruleType: "sender_domain",
+          pattern: "@stripe.com",
+          patternHash: domainHash,
+          categoryName: "Billing",
+          subjectPrefix: null,
+          isEnabled: true,
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextValue: "Billing - Payment receipts",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+
+      const match = await service.findMatchingRule(userId, {
+        from: "noreply@stripe.com",
+        subject: "Your receipt",
+      });
+
+      expect(match).not.toBeNull();
+      expect(match?.categoryName).toBe("Billing");
+      expect(match?.ruleId).toBe("r-valid");
+      expect(repo.increment).toHaveBeenCalledWith(
+        { id: "r-valid" },
+        "hitCount",
+        1,
+      );
+    });
+
+    it("uses a matching rule when its category exists in the user's category list", async () => {
+      const hash = crypto
+        .createHash("sha256")
+        .update("noreply@stripe.com")
+        .digest("hex");
+
+      repo.find.mockResolvedValue([
+        {
+          id: "r1",
+          ruleKind: "legacy",
+          ruleType: "exact_sender",
+          pattern: "noreply@stripe.com",
+          patternHash: hash,
+          categoryName: "Billing",
+          subjectPrefix: null,
+          isEnabled: true,
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+      userContextRepo.find.mockResolvedValue([
+        {
+          contextValue: "Billing - Payment receipts",
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+      ]);
+
+      const match = await service.findMatchingRule(userId, {
+        from: "noreply@stripe.com",
+        subject: "Your receipt",
+      });
+
+      expect(match).not.toBeNull();
+      expect(match?.categoryName).toBe("Billing");
+      expect(repo.increment).toHaveBeenCalledWith({ id: "r1" }, "hitCount", 1);
+    });
+
+    it("uses a matching rule when user has no categories at all (no EMAIL_CATEGORY contexts)", async () => {
+      const hash = crypto
+        .createHash("sha256")
+        .update("noreply@stripe.com")
+        .digest("hex");
+
+      repo.find.mockResolvedValue([
+        {
+          id: "r1",
+          ruleKind: "legacy",
+          ruleType: "exact_sender",
+          pattern: "noreply@stripe.com",
+          patternHash: hash,
+          categoryName: "Billing",
+          subjectPrefix: null,
+          isEnabled: true,
+        },
+      ]);
+      repo.increment.mockResolvedValue({});
+      // No EMAIL_CATEGORY contexts at all
+      userContextRepo.find.mockResolvedValue([]);
+
+      const match = await service.findMatchingRule(userId, {
+        from: "noreply@stripe.com",
+        subject: "Your receipt",
+      });
+
+      expect(match).not.toBeNull();
+      expect(match?.categoryName).toBe("Billing");
     });
   });
 

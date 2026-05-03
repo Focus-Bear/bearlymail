@@ -280,6 +280,14 @@ export class User {
   encryptedDataKey: string | null;
 
   @Column({
+    type: "timestamptz",
+    nullable: true,
+    comment:
+      "Timestamp when this user's encrypted data was fully re-encrypted under the per-user KMS data key. Null until a re-encryption job has completed for the user.",
+  })
+  dataReencryptedAt: Date | null;
+
+  @Column({
     nullable: true,
     transformer: globalEncryptedColumnTransformer,
     comment:

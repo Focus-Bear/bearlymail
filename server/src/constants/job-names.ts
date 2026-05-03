@@ -78,6 +78,9 @@ export const JOB_NAMES = {
 
   // Data retention
   CLEANUP_INACTIVE_ACCOUNTS: "cleanup-inactive-accounts",
+
+  // Encryption migration (admin-triggered, idempotent)
+  REENCRYPT_USER_DATA: "reencrypt-user-data",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

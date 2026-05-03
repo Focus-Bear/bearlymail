@@ -1324,7 +1324,33 @@
       "emailSystem": "Email System",
       "decline": "Decline",
       "feedback": "Feedback",
-      "emailDecrypt": "Email decrypt"
+      "emailDecrypt": "Email decrypt",
+      "reencryption": "Re-encryption"
+    },
+    "reencryption": {
+      "title": "KMS data re-encryption",
+      "description": "Re-encrypts user data from the legacy global ENCRYPTION_KEY to the per-user KMS-derived data key. Idempotent — already-migrated rows are skipped. Use Dry-run self first to verify decryption works on your own data; then Start dry-run all to preview impact across all users; then Start real run when ready.",
+      "migratedUsers": "Migrated users",
+      "pendingUsers": "Pending users",
+      "totalUsers": "Total users",
+      "tablesInScope": "Tables in scope",
+      "dryRunComplete": "Dry-run complete. See per-table breakdown below.",
+      "dryRunResultsTitle": "Dry-run results (your account)",
+      "enqueued": "Enqueued {{count}} job(s).",
+      "startAllConfirm": "This will re-encrypt every pending user's data. Continue?",
+      "cancelled": "Cancelled.",
+      "actions": {
+        "dryRunSelf": "Dry-run self",
+        "startDryRunAll": "Start dry-run all",
+        "startAll": "Start real run (all users)"
+      },
+      "columns": {
+        "table": "Table",
+        "scanned": "Scanned",
+        "rewritten": "Rewritten",
+        "alreadyMigrated": "Already migrated",
+        "failed": "Failed"
+      }
     },
     "emailDecrypt": {
       "title": "Decrypt email (admin)",

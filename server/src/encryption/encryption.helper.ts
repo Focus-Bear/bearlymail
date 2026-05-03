@@ -57,6 +57,32 @@ class EncryptionHelper {
     return decrypted;
   }
 
+  /**
+   * Try to decrypt with an explicit key. Returns null on any failure (wrong key,
+   * malformed shape, IV length mismatch). Does NOT log — use this in code that
+   * expects many decrypt failures (e.g. the re-encryption job, where every legacy
+   * row fails its first decrypt attempt before falling back to the global key).
+   *
+   * Returns the original input only when it does not look like ciphertext at all
+   * (no separator / wrong IV length) — same convention as `tryDecrypt`.
+   */
+  static silentDecryptWithKey(
+    encryptedText: string | null | undefined,
+    key: Buffer,
+  ): string | null {
+    if (!encryptedText) return null;
+    if (!encryptedText.includes(":")) return encryptedText;
+    const parts = encryptedText.split(":");
+    if (parts.length !== 3) return encryptedText;
+    const iv = Buffer.from(parts[0], "hex");
+    if (iv.length !== EncryptionHelper.ivLength) return encryptedText;
+    try {
+      return EncryptionHelper.decryptWithExplicitKey(encryptedText, key);
+    } catch {
+      return null;
+    }
+  }
+
   static encrypt(text: string | null | undefined): string | null {
     if (!text) return null;
 

@@ -9,6 +9,7 @@ import {
   ADMIN_TAB_GITHUB_DEBUG,
   ADMIN_TAB_JOBS,
   ADMIN_TAB_QUEUE_DASHBOARD,
+  ADMIN_TAB_REENCRYPTION,
   ADMIN_TAB_SUBSCRIPTIONS,
   ADMIN_TAB_TOKEN_USAGE,
   ADMIN_TAB_WAITLIST,
@@ -65,6 +66,7 @@ export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) 
     { id: ADMIN_TAB_CONTEXT_ANALYSIS, label: t('admin.dashboard.contextAnalysis') },
     { id: ADMIN_TAB_FEEDBACK, label: t('admin.dashboard.feedback') },
     { id: ADMIN_TAB_EMAIL_DECRYPT, label: t('admin.dashboard.emailDecrypt') },
+    { id: ADMIN_TAB_REENCRYPTION, label: t('admin.dashboard.reencryption') },
   ];
 
   return (

@@ -30,7 +30,33 @@
       "emailSystem": "Sistema de correo",
       "decline": "Rechazar",
       "feedback": "Comentarios",
-      "emailDecrypt": "Descifrado de correo"
+      "emailDecrypt": "Descifrado de correo",
+      "reencryption": "Recifrado"
+    },
+    "reencryption": {
+      "title": "Recifrado de datos KMS",
+      "description": "Recifra los datos del usuario desde la ENCRYPTION_KEY global heredada hasta la clave de datos derivada de KMS por usuario. Idempotente — las filas ya migradas se omiten. Usa Dry-run self primero para verificar que el descifrado funciona en tus propios datos; luego Start dry-run all para previsualizar el impacto; luego Start real run cuando estés listo.",
+      "migratedUsers": "Usuarios migrados",
+      "pendingUsers": "Usuarios pendientes",
+      "totalUsers": "Usuarios totales",
+      "tablesInScope": "Tablas en alcance",
+      "dryRunComplete": "Dry-run completo. Ver desglose por tabla abajo.",
+      "dryRunResultsTitle": "Resultados de dry-run (tu cuenta)",
+      "enqueued": "Encolados {{count}} trabajo(s).",
+      "startAllConfirm": "Esto recifrará los datos de cada usuario pendiente. ¿Continuar?",
+      "cancelled": "Cancelado.",
+      "actions": {
+        "dryRunSelf": "Dry-run propio",
+        "startDryRunAll": "Iniciar dry-run para todos",
+        "startAll": "Iniciar ejecución real (todos los usuarios)"
+      },
+      "columns": {
+        "table": "Tabla",
+        "scanned": "Escaneados",
+        "rewritten": "Reescritos",
+        "alreadyMigrated": "Ya migrados",
+        "failed": "Fallidos"
+      }
     },
     "emailDecrypt": {
       "title": "Descifrar correo (admin)",

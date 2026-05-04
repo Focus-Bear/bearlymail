@@ -83,7 +83,7 @@
     "@types/node": "^25.0.3",
     "@vitejs/plugin-react": "^6.0.1",
     "esbuild": "^0.28.0",
-    "eslint": "^8.57.1",
+    "eslint": "^10.3.0",
     "eslint-plugin-i18next": "^6.1.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",

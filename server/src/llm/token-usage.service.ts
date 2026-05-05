@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
+import { User } from "../database/entities/user.entity";
 import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 import { SUMMARY_PROMPT_IDS } from "./prompts";
 
@@ -66,6 +67,15 @@ export interface DailyUsage {
   totalTokens: number;
 }
 
+export interface UsageByUser {
+  userId: string;
+  userEmail: string | null;
+  callCount: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+}
+
 export interface UsageQueryOptions {
   startDate?: Date;
   endDate?: Date;
@@ -86,6 +96,8 @@ export class TokenUsageService implements OnModuleInit {
     private tokenUsageRepository: Repository<TokenUsage>,
     @InjectRepository(PromptExampleEntity)
     private promptExampleRepository: Repository<PromptExampleEntity>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -508,5 +520,76 @@ export class TokenUsageService implements OnModuleInit {
         },
       };
     }
+  }
+
+  /**
+   * Get top 10 users by total token consumption.
+   * Fetches aggregated usage by userId then resolves emails from the users table.
+   */
+  async getUsageByUser(
+    options: UsageQueryOptions = {},
+  ): Promise<UsageByUser[]> {
+    const TOP_USER_LIMIT = 10;
+
+    const queryBuilder = this.tokenUsageRepository
+      .createQueryBuilder("tu")
+      .select("tu.userId", "userId")
+      .addSelect("COUNT(*)::int", "callCount")
+      .addSelect("SUM(tu.promptTokens)::int", "totalPromptTokens")
+      .addSelect("SUM(tu.completionTokens)::int", "totalCompletionTokens")
+      .addSelect("SUM(tu.totalTokens)::int", "totalTokens")
+      .where("tu.userId IS NOT NULL")
+      .groupBy("tu.userId")
+      .orderBy("SUM(tu.totalTokens)", "DESC")
+      .limit(TOP_USER_LIMIT);
+
+    if (options.startDate) {
+      queryBuilder.andWhere("tu.createdAt >= :startDate", {
+        startDate: options.startDate,
+      });
+    }
+
+    if (options.endDate) {
+      queryBuilder.andWhere("tu.createdAt <= :endDate", {
+        endDate: options.endDate,
+      });
+    }
+
+    if (options.provider) {
+      queryBuilder.andWhere("tu.provider = :provider", {
+        provider: options.provider,
+      });
+    }
+
+    const rows: Array<{
+      userId: string;
+      callCount: number;
+      totalPromptTokens: number;
+      totalCompletionTokens: number;
+      totalTokens: number;
+    }> = await queryBuilder.getRawMany();
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    // Fetch user records so we get decrypted emails via TypeORM transformers
+    const userIds = rows.map((row) => row.userId);
+    const users = await this.userRepository
+      .createQueryBuilder("u")
+      .select(["u.id", "u.email"])
+      .whereInIds(userIds)
+      .getMany();
+
+    const emailById = new Map(users.map((user) => [user.id, user.email]));
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      userEmail: emailById.get(row.userId) ?? null,
+      callCount: row.callCount,
+      totalPromptTokens: row.totalPromptTokens,
+      totalCompletionTokens: row.totalCompletionTokens,
+      totalTokens: row.totalTokens,
+    }));
   }
 }

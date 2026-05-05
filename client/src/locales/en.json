@@ -1407,6 +1407,11 @@
         "30d": "Last 30 Days",
         "all": "All Time"
       },
+      "byUser": {
+        "title": "Top 10 Users by Token Usage",
+        "rank": "#",
+        "user": "User"
+      },
       "examples": {
         "title": "Longest Prompt Examples by Operation",
         "resetButton": "Reset Examples",

@@ -7,7 +7,7 @@ import { API_URL } from 'config/api';
 import { DAYS_IN_MONTH_30, MS_PER_DAY, REFRESH_INTERVAL_30_SEC_MS } from 'constants/numbers';
 
 import { useAdminMfa } from './AdminMfaGate';
-import { DateRange, PromptExample, UsageByOperation, UsageSummary } from './TokenUsageSection.types';
+import { DateRange, PromptExample, UsageByOperation, UsageByUser, UsageSummary } from './TokenUsageSection.types';
 
 const DATE_RANGE_24H: DateRange = '24h';
 const DATE_RANGE_7D: DateRange = '7d';
@@ -18,6 +18,7 @@ const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_30_SEC_MS;
 
 export interface TokenUsageData {
   usage: UsageByOperation[];
+  usageByUser: UsageByUser[];
   summary: UsageSummary | null;
   examples: PromptExample[];
   loading: boolean;
@@ -35,6 +36,7 @@ export const useTokenUsageData = (): TokenUsageData => {
   const { t } = useTranslation();
   const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [usage, setUsage] = useState<UsageByOperation[]>([]);
+  const [usageByUser, setUsageByUser] = useState<UsageByUser[]>([]);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [examples, setExamples] = useState<PromptExample[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,12 +80,14 @@ export const useTokenUsageData = (): TokenUsageData => {
   const fetchUsageData = useCallback(async () => {
     try {
       const params = getDateRangeParams();
-      const [usageResponse, summaryResponse] = await Promise.all([
+      const [usageResponse, summaryResponse, byUserResponse] = await Promise.all([
         axios.get(`${API_URL}/admin/token-usage`, { params }),
         axios.get(`${API_URL}/admin/token-usage/summary`, { params }),
+        axios.get(`${API_URL}/admin/token-usage/by-user`, { params }),
       ]);
       setUsage(usageResponse.data.usage);
       setSummary(summaryResponse.data.summary);
+      setUsageByUser(byUserResponse.data.users);
       setLastUpdated(new Date());
       setLoading(false);
     } catch (error) {
@@ -124,6 +128,7 @@ export const useTokenUsageData = (): TokenUsageData => {
 
   return {
     usage,
+    usageByUser,
     summary,
     examples,
     loading,

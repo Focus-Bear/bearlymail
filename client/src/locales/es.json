@@ -114,6 +114,11 @@
       "title": "Estadísticas de uso de tokens",
       "totalCalls": "Llamadas totales",
       "totalTokens": "Fichas totales",
+      "byUser": {
+        "title": "Top 10 usuarios por uso de tokens",
+        "rank": "#",
+        "user": "Usuario"
+      },
       "examples": {
         "title": "Ejemplos de los prompts más largos por operación",
         "resetButton": "Reiniciar ejemplos",

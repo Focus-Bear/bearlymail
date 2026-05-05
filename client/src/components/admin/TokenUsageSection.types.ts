@@ -27,4 +27,13 @@ export interface PromptExample {
   model: string;
 }
 
+export interface UsageByUser {
+  userId: string;
+  userEmail: string | null;
+  callCount: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+}
+
 export type DateRange = '24h' | '7d' | '30d' | 'all';

@@ -5,7 +5,7 @@ import { theme } from 'theme/theme';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
-import { DateRange, PromptExample, UsageByOperation, UsageSummary } from './TokenUsageSection.types';
+import { DateRange, PromptExample, UsageByOperation, UsageByUser, UsageSummary } from './TokenUsageSection.types';
 import { formatDuration, formatNumber, getOperationLabel } from './tokenUsageUtils';
 
 interface SummaryCardsProps {
@@ -240,6 +240,157 @@ export const TokenUsageTable: React.FC<UsageTableProps> = ({ usage, noDataLabel 
           )}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+interface UserUsageTableProps {
+  users: UsageByUser[];
+}
+
+const RANK_COLUMN_WIDTH = '48px';
+
+export const TokenUserUsageTable: React.FC<UserUsageTableProps> = ({ users }) => {
+  const { t } = useTranslation();
+  const thStyle = {
+    padding: theme.spacing.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    borderRight: `1px solid ${theme.colors.border.light}`,
+  };
+
+  return (
+    <div style={{ marginTop: theme.spacing.xl }}>
+      <h3
+        style={{
+          margin: `0 0 ${theme.spacing.md} 0`,
+          fontSize: theme.typography.fontSize.xl,
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.primary,
+        }}
+      >
+        {t('admin.tokenUsage.byUser.title')}
+      </h3>
+      <div
+        style={{
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.md,
+          overflow: 'hidden',
+          border: `1px solid ${theme.colors.border.light}`,
+        }}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr
+              style={{
+                backgroundColor: theme.colors.background.default,
+                borderBottom: `2px solid ${theme.colors.border.medium}`,
+              }}
+            >
+              <th style={{ ...thStyle, textAlign: 'left' }}>{t('admin.tokenUsage.byUser.rank')}</th>
+              <th style={{ ...thStyle, textAlign: 'left' }}>{t('admin.tokenUsage.byUser.user')}</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>{t('admin.tokenUsage.calls')}</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>{t('admin.tokenUsage.promptTokens')}</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>{t('admin.tokenUsage.completionTokens')}</th>
+              <th
+                style={{
+                  ...thStyle,
+                  textAlign: 'center',
+                  borderRight: 'none',
+                }}
+              >
+                {t('admin.tokenUsage.totalTokens')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  style={{ padding: theme.spacing.xl, textAlign: 'center', color: theme.colors.text.secondary }}
+                >
+                  {t('admin.tokenUsage.noUsage')}
+                </td>
+              </tr>
+            ) : (
+              users.map((user, index) => (
+                <tr
+                  key={user.userId}
+                  style={{
+                    backgroundColor: index % 2 === 0 ? theme.colors.background.paper : theme.colors.background.default,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}
+                >
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      textAlign: 'center',
+                      fontWeight: theme.typography.fontWeight.bold,
+                      color: theme.colors.text.secondary,
+                      borderRight: TD_BORDER_RIGHT,
+                      width: RANK_COLUMN_WIDTH,
+                    }}
+                  >
+                    #{index + 1}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      color: theme.colors.text.primary,
+                      borderRight: TD_BORDER_RIGHT,
+                      fontFamily: 'monospace',
+                      fontSize: theme.typography.fontSize.sm,
+                    }}
+                  >
+                    {user.userEmail ?? user.userId}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      textAlign: 'center',
+                      color: theme.colors.text.primary,
+                      borderRight: TD_BORDER_RIGHT,
+                    }}
+                  >
+                    {formatNumber(user.callCount)}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      textAlign: 'center',
+                      color: theme.colors.text.secondary,
+                      borderRight: TD_BORDER_RIGHT,
+                    }}
+                  >
+                    {formatNumber(user.totalPromptTokens)}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      textAlign: 'center',
+                      color: theme.colors.text.secondary,
+                      borderRight: TD_BORDER_RIGHT,
+                    }}
+                  >
+                    {formatNumber(user.totalCompletionTokens)}
+                  </td>
+                  <td
+                    style={{
+                      padding: theme.spacing.md,
+                      textAlign: 'center',
+                      fontWeight: theme.typography.fontWeight.semibold,
+                      color: theme.colors.text.primary,
+                    }}
+                  >
+                    {formatNumber(user.totalTokens)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

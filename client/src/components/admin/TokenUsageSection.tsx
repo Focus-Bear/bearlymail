@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { TokenDateFilter, TokenExamplesSection, TokenSummaryCards, TokenUsageTable } from './TokenUsagePanels';
+import { TokenDateFilter, TokenExamplesSection, TokenSummaryCards, TokenUsageTable, TokenUserUsageTable } from './TokenUsagePanels';
 import { useTokenUsageData } from './useTokenUsageData';
 
 export const TokenUsageSection: React.FC = () => {
@@ -42,6 +42,7 @@ export const TokenUsageSection: React.FC = () => {
       <TokenDateFilter dateRange={tokenData.dateRange} onDateRangeChange={tokenData.setDateRange} />
       {tokenData.summary && <TokenSummaryCards summary={tokenData.summary} />}
       <TokenUsageTable usage={tokenData.usage} noDataLabel={t('admin.tokenUsage.noData')} />
+      <TokenUserUsageTable users={tokenData.usageByUser} />
       <TokenExamplesSection
         examples={tokenData.examples}
         examplesLoading={tokenData.examplesLoading}

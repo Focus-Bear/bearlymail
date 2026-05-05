@@ -95,6 +95,25 @@ export class TokenUsageController {
   }
 
   /**
+   * Get top 10 users by total token consumption
+   */
+  @Get("by-user")
+  async getUsageByUser(
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Query("provider") provider?: string,
+  ) {
+    const options = {
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      provider,
+    };
+
+    const users = await this.tokenUsageService.getUsageByUser(options);
+    return { users, timestamp: new Date().toISOString() };
+  }
+
+  /**
    * Get duplicate summarization report.
    * Identifies emails that have been summarized multiple times.
    */

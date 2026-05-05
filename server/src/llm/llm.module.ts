@@ -6,6 +6,7 @@ import { AuthModule } from "../auth/auth.module";
 import { Email } from "../database/entities/email.entity";
 import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { TokenUsage } from "../database/entities/token-usage.entity";
+import { User } from "../database/entities/user.entity";
 import { UsersModule } from "../users/users.module";
 import { CategoryShortlistService } from "./category-shortlist.service";
 import { IncrementalAnalysisService } from "./incremental-analysis.service";
@@ -27,7 +28,7 @@ import { TokenUsageService } from "./token-usage.service";
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity, Email]),
+    TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity, Email, User]),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],

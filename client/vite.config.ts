@@ -113,7 +113,7 @@ export default defineConfig({
   plugins: [react(), tsconfigPaths(), sriPlugin()],
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 3000,
     allowedHosts: true,
     open: false,
   },

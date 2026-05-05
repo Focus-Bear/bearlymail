@@ -36,6 +36,7 @@ import { DebugService } from "../debug/debug.service";
 import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
+import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")
@@ -48,6 +49,7 @@ export class EmailDebugAdminController {
     private readonly emailAdminService: EmailAdminService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly debugService: DebugService,
+    private readonly rawColumnsService: EmailDebugRawColumnsService,
   ) {}
 
   // ─── Recategorization ────────────────────────────────────────────────────────
@@ -167,6 +169,12 @@ export class EmailDebugAdminController {
 
     // Fall back to thread ID lookup
     return this.emailsService.lookupThread(req.user.userId, threadId);
+  }
+
+  @Get(":id/debug/raw-columns")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getRawColumns(@Param("id") id: string) {
+    return this.rawColumnsService.getRawColumns(id);
   }
 
   @Get(":id/debug/category")

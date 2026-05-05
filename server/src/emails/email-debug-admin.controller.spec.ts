@@ -12,6 +12,7 @@ import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
+import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailsService } from "./emails.service";
 
 function makeDebugService(): jest.Mocked<DebugService> {
@@ -43,6 +44,7 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         { provide: DebugService, useValue: debugService },
         { provide: EmailsService, useValue: {} },
         { provide: EmailAdminService, useValue: {} },
+        { provide: EmailDebugRawColumnsService, useValue: { getRawColumns: jest.fn() } },
         { provide: "PG_BOSS", useValue: {} },
         {
           provide: GoogleAccountsService,

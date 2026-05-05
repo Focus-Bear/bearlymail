@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import { gmail_v1 } from "googleapis";
 
 import { HTTP_STATUS } from "../../../constants/http-status";
-import { isApiError, isError } from "../../../types/common";
+import { formatGaxiosError, isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
 
 const logger = new Logger("GmailOperations");
@@ -190,8 +190,7 @@ export async function syncReadStatusToGmail(
       );
     } else {
       logger.error(
-        `Error syncing read status to Gmail for message ${messageId}:`,
-        error,
+        `Error syncing read status to Gmail for message ${messageId}: ${formatGaxiosError(error)}`,
       );
     }
     // Don't throw - allow operation to continue
@@ -317,7 +316,7 @@ export async function ensureLabelExists(
       }
     }
 
-    logger.error(`Failed to ensure ${labelName} label exists:`, error);
+    logger.error(`Failed to ensure ${labelName} label exists: ${formatGaxiosError(error)}`);
     logErrorToFile(
       `Failed to ensure ${labelName} label exists (userId: ${userId})`,
       error,

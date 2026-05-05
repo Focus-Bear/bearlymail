@@ -17,6 +17,7 @@ import { CategoryOverride } from "../database/entities/category-override.entity"
 import { Contact } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { PriorityAnalysisRun } from "../database/entities/priority-analysis-run.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -49,6 +50,7 @@ import { EmailDebugController } from "./email-debug.controller";
 import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
+import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailInboxService } from "./email-inbox.service";
@@ -99,6 +101,7 @@ import { SyncHistoryService } from "./sync-history.service";
     TypeOrmModule.forFeature([
       Email,
       EmailThread,
+      Organization,
       OrganizationMember,
       ScanEmail,
       UserContext,
@@ -269,6 +272,7 @@ import { SyncHistoryService } from "./sync-history.service";
     ArchiveEmailProcessor,
     EmailAdminService,
     EmailDebugCategoryService,
+    EmailDebugRawColumnsService,
     EmailSearchRankingService,
     SearchEnrichmentService,
     StuckPriorityDetectionService,

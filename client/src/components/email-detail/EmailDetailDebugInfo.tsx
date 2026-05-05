@@ -79,6 +79,37 @@ interface RefreshResult {
   }>;
 }
 
+type RawColumnClassification =
+  | 'null'
+  | 'encrypted'
+  | 'pg-array-literal'
+  | 'json-array'
+  | 'json-object'
+  | 'plain-string';
+
+interface RawColumnInfo {
+  preview: string | null;
+  classification: RawColumnClassification;
+  length: number | null;
+}
+
+interface RawColumnsResult {
+  id: string;
+  userId: string;
+  messageId: string;
+  threadId: string;
+  columns: Record<string, RawColumnInfo>;
+}
+
+const CLASSIFICATION_COLOR: Record<RawColumnClassification, string> = {
+  'null': 'gray',
+  'encrypted': 'green',
+  'pg-array-literal': 'red',
+  'json-array': 'orange',
+  'json-object': 'orange',
+  'plain-string': 'orange',
+};
+
 /** Admin-only debug information panel shown in email detail view. */
 export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced, githubLinks, loadingGithub, hasGithubToken }: Props) {
   const { t } = useTranslation();
@@ -87,6 +118,30 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
   const [refreshingAttachments, setRefreshingAttachments] = useState(false);
   const [lastRefreshResult, setLastRefreshResult] = useState<RefreshResult | null>(null);
   const [lastRefreshError, setLastRefreshError] = useState<string | null>(null);
+  const [loadingRawColumns, setLoadingRawColumns] = useState(false);
+  const [rawColumns, setRawColumns] = useState<RawColumnsResult | null>(null);
+  const [rawColumnsError, setRawColumnsError] = useState<string | null>(null);
+
+  const handleShowRawColumns = async () => {
+    if (!emailData?.id || loadingRawColumns) {
+      return;
+    }
+    setLoadingRawColumns(true);
+    setRawColumns(null);
+    setRawColumnsError(null);
+    try {
+      const response = await axios.get<RawColumnsResult>(
+        `${API_URL}/emails/${emailData.id}/debug/raw-columns`,
+      );
+      setRawColumns(response.data);
+    } catch (err) {
+      console.error('rawColumns:', err);
+      const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.rawColumnsFailed');
+      setRawColumnsError(msg);
+    } finally {
+      setLoadingRawColumns(false);
+    }
+  };
 
   const handleRefreshAttachmentsFromGmail = async () => {
     if (!emailData?.id || refreshingAttachments) {
@@ -256,6 +311,55 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
           </div>
         )}
         {threadEmails && threadEmails.length > 0 && <ThreadEmailsList threadEmails={threadEmails} />}
+        <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+          <button
+            type="button"
+            disabled={loadingRawColumns}
+            onClick={() => void handleShowRawColumns()}
+            style={{
+              padding: '2px 8px',
+              fontSize: '11px',
+              backgroundColor: theme.colors.background.paper,
+              color: theme.colors.text.primary,
+              border: `1px solid ${theme.colors.border.light}`,
+              borderRadius: '4px',
+              cursor: loadingRawColumns ? 'not-allowed' : 'pointer',
+              opacity: loadingRawColumns ? DISABLED_CONTROL_OPACITY : 1,
+            }}
+          >
+            {loadingRawColumns
+              ? t('debug.emailDetail.loadingRawColumns')
+              : t('debug.emailDetail.showRawColumns')}
+          </button>
+          {rawColumnsError && (
+            <div style={{ marginTop: theme.spacing.sm, color: 'red', fontWeight: 600 }}>
+              {rawColumnsError}
+            </div>
+          )}
+          {rawColumns && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <strong>{t('debug.emailDetail.rawColumnsTitle')}</strong>
+              {Object.entries(rawColumns.columns).map(([colName, info]) => (
+                <div key={colName} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
+                  <div>
+                    <strong>{colName}</strong>{' '}
+                    <span style={{ color: CLASSIFICATION_COLOR[info.classification], fontWeight: 600 }}>
+                      [{info.classification}]
+                    </span>
+                    {info.length != null && (
+                      <span style={{ color: theme.colors.text.secondary }}> ({info.length} chars)</span>
+                    )}
+                  </div>
+                  {info.preview != null && (
+                    <pre style={{ margin: 0, fontSize: '10px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {info.preview}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
           <strong>{t('debug.emailDetail.githubTitle')}</strong>
           <div>

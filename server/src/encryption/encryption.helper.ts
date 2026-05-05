@@ -297,11 +297,18 @@ class EncryptionHelper {
         );
       }
 
-      logError(
-        `tryDecrypt: decryption failed (failure ${failures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext`,
-        primaryError instanceof Error
-          ? primaryError
-          : new Error(String(primaryError)),
+      // Use a plain console.warn rather than logError() — logError forwards every
+      // call to PostHog, and a single corrupted column can fire this branch many
+      // times per request (one per row × one per encrypted column), which has
+      // exhausted the error-tracking quota in the past. The throttled
+      // captureGlobalEvent above is the canonical telemetry signal; this line is
+      // for human log readers only.
+      console.warn(
+        `tryDecrypt: decryption failed (failure ${failures}/${MAX_CONSECUTIVE_DECRYPT_FAILURES}) — returning raw ciphertext: ${
+          primaryError instanceof Error
+            ? primaryError.message
+            : String(primaryError)
+        }`,
       );
       return encryptedText ?? null;
     }

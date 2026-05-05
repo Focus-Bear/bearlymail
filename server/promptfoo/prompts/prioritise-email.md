@@ -79,9 +79,20 @@ Do NOT include sentimentScore — it is pre-computed.
 
 **GitHub-specific rules:**
 - **Devin PRs:** READ THE FULL THREAD before categorising. If ANY message (including early messages) shows the PR was created or initiated by Devin.AI (e.g., `devin-ai-integration[bot]` opened it), category = "Devin PRs" — regardless of who merged or commented last. A human merging a Devin-created PR does NOT change the category.
-- **QA pass vs fail:** Read carefully. Pass signals: "QA passed", "✅", "verified", "working correctly", "ready for production". Fail signals: "QA failed", "❌", "still not working", "issue persists", "regression". **CRITICAL: NEVER use "QA failed issues" when the body says "QA passed" or "The fix has been verified" — that is a QA PASS, not a fail.** Using "QA failed issues" for a pass comment is strictly forbidden.
-  - QA comment = PASS → use "✅ QA passed issues" if available; if that category is NOT in the list, use "Other" + protoCategorySuggestion `{ "name": "✅ QA passed issues", "description": "..." }`. NEVER use "QA failed issues" for a QA pass.
-  - QA comment = FAIL → use "QA failed issues"
+- **QA pass vs fail:** A QA result requires **explicit completion language with a clear outcome** — not just the word "QA" or testing-related phrases. First, determine which of these three testing states the comment represents:
+  1. **Testing requested / pre-test (NOT a QA result):** "proceed with testing", "please test this", "ready for QA", "design updated — please proceed with testing", "send to QA". The testing has **not yet happened**. This is a testing request, not a result. Use a general GitHub issue comment category, NOT QA pass/fail.
+  2. **Testing in progress (NOT a QA result):** "running tests", "checking now". No outcome yet.
+  3. **Test completed with outcome (IS a QA result):** Explicit past-tense or declarative completion + success/failure signal.
+  
+  **Pass signals (completed + success):** "QA passed", "passed QA", "verified", "confirmed working", "working correctly", "tests passing", "ready for production" (only when accompanied by an explicit QA completion statement), "✅" (only alongside completion language like "QA passed" or "verified").
+  
+  **Fail signals (completed + failure):** "QA failed", "still not working after fix", "issue persists", "regression", "❌" (alongside failure language).
+  
+  **Comment label ≠ test result:** A comment that begins with "QA —" or "QA:" as a section label (e.g., "QA — The design has been updated. Proceed with testing.") is labelling the comment type, not reporting a test outcome. Note: "QA passed" or "QA failed" at the start of a comment IS an explicit outcome, not a section label — do not apply the section-label rule to these. Apply pass/fail rules only to comments with explicit completed-outcome language.
+  
+  - QA result = PASS → use "✅ QA passed issues" if available; otherwise "Other" + protoCategorySuggestion `{ "name": "✅ QA passed issues", "description": "..." }`. NEVER use "QA failed issues" for a QA pass.
+  - QA result = FAIL → use "QA failed issues"
+  - Testing request / pre-test comment → do NOT use QA pass/fail categories; use a general GitHub issue/notification category
   - "New Github issues raised by QAs" = newly CREATED issues only, NOT comments on existing issues. A QA comment on an existing issue is NOT a new issue.
 - **Bot sender + "from humans" category:** A sender identified as a bot (Step 1) can NEVER be placed in any category qualified as "from humans", "by human developers", or similar — even if the email topic seems to match. Dependabot, Renovate, github-actions[bot], and similar bots are automated senders and belong in bot/automated categories only.
 - **Dependabot/automated GitHub notifications:** A Dependabot PR notification is an automated GitHub bot notification — category MUST be "GitHub bot notifications" (or equivalent bot/automated category), NOT "Security & Compliance", even if the PR fixes a security vulnerability. The sending platform identity (GitHub bot) overrides the content topic (security). Dependabot bumping a library version is a bot notification, not a security alert.

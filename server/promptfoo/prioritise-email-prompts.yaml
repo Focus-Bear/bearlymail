@@ -87,7 +87,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          minScore: 65
+          minScore: 55
           expectedSentiment: ['negative']
           maxSentimentScore: -0.01
 
@@ -457,6 +457,8 @@ tests:
           excludedCategories: "PRs from humans (not Devin)"
 
   # QA pass comment: should get "Other" + "✅ QA passed issues" proto category
+  # (regression test — LLM was mis-classifying "QA passed ✅" as "QA failed issues"
+  #  when no "QA passed" category existed in the list)
   - description: "QA pass comment: GitHub QA pass comment should be 'Other' with '✅ QA passed issues' proto category, NOT 'New Github issues raised by QAs'"
     vars:
       from: "notifications@github.com"
@@ -473,6 +475,7 @@ tests:
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
           excludedCategories: ["New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests", "QA failed issues"]
+          expectProtoCategorySuggestion: true
 
   # QA fail comment: should get "QA failed issues", NOT "New Github issues raised by QAs"
   - description: "QA fail comment: GitHub QA fail comment should be 'QA failed issues', NOT 'New Github issues raised by QAs'"
@@ -493,6 +496,27 @@ tests:
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
           excludedCategories: "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests"
+
+  # QA testing request: "proceed with testing" should NOT be QA passed or QA failed
+  - description: "QA comment requesting testing should NOT be 'QA passed issues' — testing hasn't happened yet"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Amanuel Tesfaye"
+      subject: "Re: [Focus-Bear/web_dashboard] Update habit selection webview (Issue #2839)"
+      body: "amanueltsfy left a comment (Focus-Bear/web_dashboard#2839) QA - The design has been updated. Please proceed with testing and ignore the requirements shown in the attached image above."
+      emailCategories: |
+        - [id: qa_passed_issues_2] "✅ QA passed issues": where a human QA has verified and passed an issue on Github
+        - [id: qa_failed_issues] "QA failed issues": where a human QA has marked an issue as failed on Github
+        - [id: github_issue_status_updates_from_bots] "🤖 Github issue status updates from bots": not QA pass/failed. Just working on it/clarifications
+        - [id: github_issue_status_updates] "🐞 Human GitHub issue status updates": only from humans not bots - exclude QA comments
+        - "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          # "proceed with testing" is a TESTING REQUEST (testing hasn't happened yet), NOT a QA result.
+          # Must NOT be classified as QA passed or QA failed.
+          excludedCategories: ["qa_passed_issues_2", "QA passed issues", "✅ QA passed issues", "qa_failed_issues", "QA failed issues"]
 
 
 

@@ -8,7 +8,7 @@ import { UserEncryptionService } from "./user-encryption.service";
 function makeContext(userId?: string): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => (userId ? { user: { id: userId } } : {}),
+      getRequest: () => (userId ? { user: { userId } } : {}),
     }),
   } as unknown as ExecutionContext;
 }
@@ -68,10 +68,10 @@ describe("UserEncryptionInterceptor", () => {
 
     const obs = await interceptor.intercept(ctx, handler);
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       obs.subscribe({
         complete: () => resolve(),
-        error: (err: unknown) => { throw err; },
+        error: (err: unknown) => reject(err as Error),
       });
     });
 

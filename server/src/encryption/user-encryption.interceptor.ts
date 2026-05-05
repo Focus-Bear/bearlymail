@@ -7,11 +7,11 @@ import {
 import { Observable } from "rxjs";
 
 import { KmsEncryptionService } from "./kms-encryption.service";
-import { runWithUserKey } from "./user-encryption-context";
 import { UserEncryptionService } from "./user-encryption.service";
+import { runWithUserKey } from "./user-encryption-context";
 
 interface RequestWithUser {
-  user?: { id?: string };
+  user?: { userId?: string };
 }
 
 /**
@@ -35,10 +35,8 @@ export class UserEncryptionInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<RequestWithUser>();
-    const userId = request?.user?.id;
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const userId = request?.user?.userId;
 
     if (!userId) {
       return next.handle();
@@ -46,14 +44,14 @@ export class UserEncryptionInterceptor implements NestInterceptor {
 
     const key = await this.userEncryptionService.getUserKey(userId);
 
-    return new Observable((subscriber) => {
-      return runWithUserKey(key, () => {
-        return next.handle().subscribe({
+    return new Observable((subscriber) =>
+      runWithUserKey(key, () =>
+        next.handle().subscribe({
           next: (value) => subscriber.next(value),
           error: (err: unknown) => subscriber.error(err),
           complete: () => subscriber.complete(),
-        });
-      });
-    });
+        }),
+      ),
+    );
   }
 }

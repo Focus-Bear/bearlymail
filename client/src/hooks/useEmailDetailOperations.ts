@@ -700,6 +700,23 @@ export function useEmailDetailOperations(
         // flushSync ensures the toast is painted before the async API call starts,
         // preventing React 18 batching from deferring the visible=true render.
         flushSync(() => setCheckingTone(true));
+        // Double rAF guarantees the browser completes at least one paint frame
+        // before the API call starts. flushSync commits the React DOM update but
+        // browsers may still defer the actual pixel paint to the next frame; the
+        // inner rAF fires *during* that paint, the outer one fires *after* it,
+        // so by the time we reach axios.post the toast is guaranteed to be visible.
+        await new Promise<void>(resolve => {
+          const timeoutId = setTimeout(resolve, 100);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              clearTimeout(timeoutId);
+              resolve();
+            });
+          });
+        });
+        if (controller.signal.aborted) {
+          return;
+        }
         try {
           const toneResponse = await axios.post(
             `${API_URL}/llm/check-tone`,

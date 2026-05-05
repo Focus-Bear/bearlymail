@@ -62,6 +62,23 @@ export function useEmailDetailToneCheck() {
       setCheckingTone(true);
       setDisputeResult(null);
     });
+    // Double rAF guarantees the browser completes at least one paint frame
+    // before the API call starts. flushSync commits the React DOM update but
+    // browsers may still defer the actual pixel paint to the next frame; the
+    // inner rAF fires *during* that paint, the outer one fires *after* it,
+    // so by the time we reach axios.post the toast is guaranteed to be visible.
+    await new Promise<void>(resolve => {
+      const timeoutId = setTimeout(resolve, 100);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          clearTimeout(timeoutId);
+          resolve();
+        });
+      });
+    });
+    if (controller.signal.aborted) {
+      return false;
+    }
     try {
       const currentTime = getCurrentTimeInTimezone(timezoneRef.current);
       const toneResponse = await axios.post(

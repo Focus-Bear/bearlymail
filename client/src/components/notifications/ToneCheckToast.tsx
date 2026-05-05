@@ -34,7 +34,6 @@ export const ToneCheckToast: React.FC<ToneCheckToastProps> = ({ visible, onCance
         top: theme.spacing.xl,
         left: '50%',
         transform: 'translateX(-50%)',
-        animation: 'toast-fade-in 0.2s ease-out',
         zIndex: 10001,
         backgroundColor: theme.colors.background.paper,
         border: `1px solid ${theme.colors.border.medium}`,

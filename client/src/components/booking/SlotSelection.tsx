@@ -213,7 +213,10 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
       )}
 
       {slots.length === 0 ? (
-        <p style={{ color: theme.colors.text.secondary }}>{t('booking.noSlotsAvailable')}</p>
+        <div>
+          <p style={{ color: theme.colors.text.secondary }}>{t('booking.noSlotsAvailable')}</p>
+          {onLoadMore && hasMore && <LoadMoreButton onLoadMore={onLoadMore} loadingMore={loadingMore} t={t} />}
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
           {Array.from(slotsByDay.entries()).map(([dayKey, daySlots]) => (

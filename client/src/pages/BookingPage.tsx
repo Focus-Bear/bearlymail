@@ -52,6 +52,7 @@ const BookingPage: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [slotOffset, setSlotOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [hasLoadedMore, setHasLoadedMore] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<
     typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR
   >(BOOKING_IDLE);
@@ -111,8 +112,9 @@ const BookingPage: React.FC = () => {
     }
   }, [userId, fetchSlots]);
 
-  const handleLoadMore = () => {
-    fetchSlots(slotOffset, true);
+  const handleLoadMore = async () => {
+    await fetchSlots(slots.length, true);
+    setHasLoadedMore(true);
   };
 
   const handleAddGuest = (email: string) => {
@@ -225,7 +227,7 @@ const BookingPage: React.FC = () => {
               timezone={timezone}
               onLoadMore={handleLoadMore}
               loadingMore={loadingMore}
-              hasMore={hasMore}
+              hasMore={!hasLoadedMore || hasMore}
             />
             <BookingForm
               selectedSlot={selectedSlot}

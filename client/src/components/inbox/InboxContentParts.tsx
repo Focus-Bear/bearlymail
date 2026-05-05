@@ -452,62 +452,49 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
   renderItem,
 }) => {
   /**
-   * Build a callback that scrolls the email list to the next (or previous) category
-   * after the category at `catIdx` collapses. Delayed by COLLAPSE_ANIMATION_MS to
-   * allow the CSS grid animation to complete before we measure element positions.
+   * Build a callback that scrolls the email list back up to the collapsed category's
+   * header after it collapses. Delayed by COLLAPSE_ANIMATION_MS to allow the CSS grid
+   * animation to complete before measuring element positions.
+   *
+   * Only scrolls UP — if the user has not scrolled past the category header there is
+   * nothing to correct, and scrolling down would be disorienting. This fixes the case
+   * where the category is near the top of the screen and a downward scroll was
+   * incorrectly triggered (issue #1157).
    *
    * Uses `data-category-key` attributes on `CategoryAccordion` root divs (consistent
    * with the existing `data-email-index` pattern used by keyboard shortcuts).
    */
   const makeAfterCollapseHandler = useCallback(
-    (collapsedKey: string, catIdx: number) => () => {
+    (collapsedKey: string) => () => {
+      const scrollContainer = emailListRef.current;
+      if (!scrollContainer) {
+        return;
+      }
+
+      const escapedKey = CSS.escape(collapsedKey);
+      const collapsedEl = scrollContainer.querySelector<HTMLElement>(`[data-category-key="${escapedKey}"]`);
+      if (!collapsedEl) {
+        return;
+      }
+
+      // Capture the target position immediately to avoid race conditions with DOM removal.
+      // The category element may be removed before the timeout fires (e.g. all emails archived),
+      // so we measure here while it's still in the DOM.
+      const containerTop = scrollContainer.getBoundingClientRect().top;
+      const collapsedTop = collapsedEl.getBoundingClientRect().top;
+      const targetScrollTop = scrollContainer.scrollTop + (collapsedTop - containerTop);
+
       setTimeout(() => {
-        const scrollContainer = emailListRef.current;
-        if (!scrollContainer) {
-          return;
+        const container = emailListRef.current;
+        // Only scroll when the user has scrolled PAST the category header (i.e. the
+        // header is above the visible area). Scrolling down would be wrong and
+        // disorienting when the category is already at or near the top of the screen.
+        if (container && container.scrollTop > targetScrollTop) {
+          container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
         }
-
-        // Find the next visible category (after the collapsed one), falling back
-        // to the previous if the collapsed category was the last in the list.
-        const visibleCategories = displayCategories.filter((cat, idx) => {
-          const key = getCategoryKey(cat.id, cat.name);
-          if (key === collapsedKey) {
-            return false;
-          }
-          const grp = emailCategoryMap.get(key);
-          const loaded = (loadedCategoryNames ?? []).includes(key);
-          // Mirror the hide logic in the render loop: only exclude when loaded+empty
-          return !(loaded && (grp?.emails ?? []).length === 0 && cat.count === 0);
-        });
-
-        // Determine the sibling to scroll to
-        const collapsedVisibleIdx = displayCategories.slice(0, catIdx).filter(cat => {
-          const key = getCategoryKey(cat.id, cat.name);
-          const grp = emailCategoryMap.get(key);
-          const loaded = (loadedCategoryNames ?? []).includes(key);
-          return !(loaded && (grp?.emails ?? []).length === 0 && cat.count === 0);
-        }).length;
-
-        const nextCategory = visibleCategories[collapsedVisibleIdx] ?? visibleCategories[collapsedVisibleIdx - 1];
-        if (!nextCategory) {
-          return;
-        }
-
-        const targetKey = getCategoryKey(nextCategory.id, nextCategory.name);
-        const escapedKey = CSS.escape(targetKey);
-        const targetEl = scrollContainer.querySelector<HTMLElement>(`[data-category-key="${escapedKey}"]`);
-        if (!targetEl) {
-          return;
-        }
-
-        const containerTop = scrollContainer.getBoundingClientRect().top;
-        const targetTop = targetEl.getBoundingClientRect().top;
-        const scrollDelta = targetTop - containerTop;
-
-        scrollContainer.scrollBy({ top: scrollDelta, behavior: 'smooth' });
       }, COLLAPSE_ANIMATION_MS);
     },
-    [displayCategories, emailCategoryMap, loadedCategoryNames, emailListRef]
+    [emailListRef]
   );
 
   return (
@@ -556,7 +543,7 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
             onDeleteProtoCategoryFromInbox={onDeleteProtoCategoryFromInbox}
             onReanalyseOther={onReanalyseOther}
             renderItem={renderItem}
-            onAfterCollapse={makeAfterCollapseHandler(categoryKey, catIdx)}
+            onAfterCollapse={makeAfterCollapseHandler(categoryKey)}
           />
         );
       })}

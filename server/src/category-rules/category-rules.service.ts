@@ -500,13 +500,9 @@ export class CategoryRulesService {
       senderMatchesAny,
       subjectContainsAny,
       bodyContainsAny,
+      ...(subjectNotContainsAny.length > 0 && { subjectNotContainsAny }),
+      ...(bodyNotContainsAny.length > 0 && { bodyNotContainsAny }),
     };
-    if (subjectNotContainsAny.length > 0) {
-      spec.subjectNotContainsAny = subjectNotContainsAny;
-    }
-    if (bodyNotContainsAny.length > 0) {
-      spec.bodyNotContainsAny = bodyNotContainsAny;
-    }
     return spec;
   }
 

@@ -68,25 +68,21 @@ function applyExclusionsToSpec(
   subjectNotContainsAny: string[],
   bodyNotContainsAny: string[],
 ): CompositeCategoryRuleSpecV2 {
-  const next: CompositeCategoryRuleSpecV2 = {
-    v: spec.v,
-    senderMatchesAny: spec.senderMatchesAny,
-    subjectContainsAny: spec.subjectContainsAny,
-    bodyContainsAny: spec.bodyContainsAny,
+  return {
+    ...spec,
+    ...(subjectNotContainsAny.length > 0 && {
+      subjectNotContainsAny: subjectNotContainsAny.slice(
+        0,
+        CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
+      ),
+    }),
+    ...(bodyNotContainsAny.length > 0 && {
+      bodyNotContainsAny: bodyNotContainsAny.slice(
+        0,
+        CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
+      ),
+    }),
   };
-  if (subjectNotContainsAny.length > 0) {
-    next.subjectNotContainsAny = subjectNotContainsAny.slice(
-      0,
-      CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
-    );
-  }
-  if (bodyNotContainsAny.length > 0) {
-    next.bodyNotContainsAny = bodyNotContainsAny.slice(
-      0,
-      CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
-    );
-  }
-  return next;
 }
 
 export interface ApplyDerivedExclusionsParams {

@@ -1,10 +1,11 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { MFA_SETUP_REQUIRED, MFA_VERIFICATION_REQUIRED, MfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
+import { useAuth } from 'contexts/AuthContext';
 
 const MFA_TOKEN_LENGTH = 6;
 const ENTER_KEY = 'Enter';
@@ -40,6 +41,7 @@ interface AdminMfaProviderProps {
 
 export const AdminMfaProvider: React.FC<AdminMfaProviderProps> = ({ children }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [mfaState, setMfaState] = useState<MfaGateState>(MFA_STATES.NONE);
   const [mfaToken, setMfaToken] = useState('');
   const [mfaError, setMfaError] = useState<string | null>(null);
@@ -77,6 +79,36 @@ return;
       setMfaLoading(false);
     }
   }, [mfaToken, t]);
+
+  // Proactively prompt for MFA when an admin enters the dashboard, so tab
+  // actions don't fail with 403 mid-flight. Skipped for non-admins (the
+  // admin route redirects them anyway).
+  useEffect(() => {
+    if (user?.isAdmin !== true) {
+return;
+}
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await axios.get<{ enabled: boolean; verified: boolean }>(
+          `${API_URL}/auth/mfa/status`,
+        );
+        if (cancelled) {
+return;
+}
+        if (data.enabled === false) {
+          onMfaRequired(MFA_SETUP_REQUIRED);
+        } else if (data.verified === false) {
+          onMfaRequired(MFA_VERIFICATION_REQUIRED);
+        }
+      } catch {
+        // Best-effort probe — fall back to per-request 403 handling.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.isAdmin, onMfaRequired]);
 
   return (
     <AdminMfaContext.Provider value={{ onMfaRequired, mfaVerifiedAt }}>

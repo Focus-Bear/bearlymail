@@ -310,11 +310,15 @@ export class AuthController {
 
   /**
    * Return the MFA status for the currently authenticated user.
+   * `verified` reflects whether the current session JWT is MFA-elevated, so
+   * the admin UI can prompt for MFA on entry rather than waiting for an
+   * admin endpoint to 403.
    */
   @UseGuards(JwtAuthGuard)
   @Get("mfa/status")
   async mfaStatus(@Request() req) {
-    return this.authService.getMfaStatus(req.user.userId);
+    const status = await this.authService.getMfaStatus(req.user.userId);
+    return { ...status, verified: req.user.mfaVerified === true };
   }
 
   @UseGuards(LocalAuthGuard)

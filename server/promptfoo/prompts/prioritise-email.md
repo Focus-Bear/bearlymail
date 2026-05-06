@@ -62,10 +62,10 @@ Do NOT include sentimentScore — it is pre-computed.
 
 **Step 3:** Select best fitting category from remaining eligible categories. Evaluate ALL before choosing, using this strict priority order:
 
-**Priority 1 — Platform identity:** If the sender is from a recognisable platform (GitHub, Jira, Slack, etc.) AND a platform-specific category exists for that platform, prefer the platform category over a non-platform topic-based category (e.g. "Security & Compliance", "Newsletters").
-- **CONCRETE EXAMPLE:** Dependabot PR bumping lodash to fix a vulnerability, with "GitHub bot notifications" and "Security & Compliance" in the list → pick "GitHub bot notifications". The notification mechanism (GitHub bot) takes priority over the security topic.
+**Priority 1 — Platform identity:** If the sender is from a recognisable platform (GitHub, Jira, Slack, etc.) AND a platform-specific category exists for that platform, prefer the platform category over a non-platform topic-based category (e.g. a security/compliance category, a newsletter category).
+- **CONCRETE EXAMPLE:** Dependabot PR bumping a library to fix a vulnerability — if the list has both a category for GitHub bot/automated activity AND a category for security or compliance topics, pick the GitHub bot category. The notification mechanism (bot sender) takes priority over the content topic.
 - This rule applies when choosing BETWEEN a platform-specific category and a non-platform topic category. It does NOT force a platform category when "Other" is the correct answer.
-- When choosing BETWEEN multiple GitHub-related categories (e.g., "GitHub bot notifications", "Devin PRs", "PRs from humans"), use the GitHub-specific rules below.
+- When choosing BETWEEN multiple GitHub-related categories, use the GitHub-specific rules below.
 - Gmail/personal email addresses are NOT a recognisable platform for categorisation purposes.
 
 **Priority 2 — Purpose match:** If no platform-specific category exists, match by email purpose (e.g., QA fail report, code review request, etc.)
@@ -78,25 +78,27 @@ Do NOT include sentimentScore — it is pre-computed.
 - If category not in the provided list, use "Other" + protoCategorySuggestion
 
 **GitHub-specific rules:**
-- **Devin PRs:** READ THE FULL THREAD before categorising. If ANY message (including early messages) shows the PR was created or initiated by Devin.AI (e.g., `devin-ai-integration[bot]` opened it), category = "Devin PRs" — regardless of who merged or commented last. A human merging a Devin-created PR does NOT change the category.
+- **AI/bot-created PRs (e.g. Devin):** READ THE FULL THREAD before categorising. If ANY message (including early messages) shows the PR was created or initiated by an AI assistant (e.g., `devin-ai-integration[bot]` opened it), look for the category in the provided list designated for AI-originated or bot-created PRs (any category whose name/description indicates it covers PRs from AI assistants, Devin, or automated sources). Use that category regardless of who merged or commented last. A human merging an AI-created PR does NOT change the category. If no AI-PR-specific category exists, use the most appropriate bot/automated activity category or "Other" + protoCategorySuggestion.
+
 - **QA pass vs fail:** A QA result requires **explicit completion language with a clear outcome** — not just the word "QA" or testing-related phrases. First, determine which of these three testing states the comment represents:
-  1. **Testing requested / pre-test (NOT a QA result):** "proceed with testing", "please test this", "ready for QA", "design updated — please proceed with testing", "send to QA". The testing has **not yet happened**. This is a testing request, not a result. Use a general GitHub issue comment category, NOT QA pass/fail.
+  1. **Testing requested / pre-test (NOT a QA result):** "proceed with testing", "please test this", "ready for QA", "design updated — please proceed with testing", "send to QA". The testing has **not yet happened**. This is a testing request, not a result. Use a general GitHub issue/notification category, NOT a QA pass/fail category.
   2. **Testing in progress (NOT a QA result):** "running tests", "checking now". No outcome yet.
   3. **Test completed with outcome (IS a QA result):** Explicit past-tense or declarative completion + success/failure signal.
-  
+
   **Pass signals (completed + success):** "QA passed", "passed QA", "verified", "confirmed working", "working correctly", "tests passing", "ready for production" (only when accompanied by an explicit QA completion statement), "✅" (only alongside completion language like "QA passed" or "verified").
-  
+
   **Fail signals (completed + failure):** "QA failed", "still not working after fix", "issue persists", "regression", "❌" (alongside failure language).
-  
+
   **Comment label ≠ test result:** A comment that begins with "QA —" or "QA:" as a section label (e.g., "QA — The design has been updated. Proceed with testing.") is labelling the comment type, not reporting a test outcome. Note: "QA passed" or "QA failed" at the start of a comment IS an explicit outcome, not a section label — do not apply the section-label rule to these. Apply pass/fail rules only to comments with explicit completed-outcome language.
-  
-  - QA result = PASS → use "✅ QA passed issues" if available; otherwise "Other" + protoCategorySuggestion `{ "name": "✅ QA passed issues", "description": "..." }`. NEVER use "QA failed issues" for a QA pass.
-  - QA result = FAIL → use "QA failed issues"
-  - Testing request / pre-test comment → do NOT use QA pass/fail categories; use a general GitHub issue/notification category
-  - "New Github issues raised by QAs" = newly CREATED issues only, NOT comments on existing issues. A QA comment on an existing issue is NOT a new issue.
+
+  - QA result = PASS → look for the category in the list designated for QA-passed/verified items (a category whose name/description indicates it covers issues verified by QA or ready for deployment). If no such category exists, use "Other" + protoCategorySuggestion `{ "name": "✅ QA passed issues", "description": "..." }`. NEVER assign a QA-fail category to a QA pass.
+  - QA result = FAIL → look for the category in the list designated for QA-failed/rejected items (a category whose name/description indicates it covers issues that failed QA or need rework). If no such category exists, use "Other" + protoCategorySuggestion.
+  - Testing request / pre-test comment → do NOT use QA pass/fail categories; use a general GitHub issue/notification category.
+  - Categories whose description limits scope to "newly created issues" do NOT apply to QA comments on existing issues. A QA comment on an existing issue is a comment, not a new issue.
+
 - **Bot sender + "from humans" category:** A sender identified as a bot (Step 1) can NEVER be placed in any category qualified as "from humans", "by human developers", or similar — even if the email topic seems to match. Dependabot, Renovate, github-actions[bot], and similar bots are automated senders and belong in bot/automated categories only.
-- **Dependabot/automated GitHub notifications:** A Dependabot PR notification is an automated GitHub bot notification — category MUST be "GitHub bot notifications" (or equivalent bot/automated category), NOT "Security & Compliance", even if the PR fixes a security vulnerability. The sending platform identity (GitHub bot) overrides the content topic (security). Dependabot bumping a library version is a bot notification, not a security alert.
-- **GitHub bot sender + Security/Compliance category:** When an email arrives from a GitHub bot (e.g., Dependabot, github-actions[bot], notifications@github.com) and both a "GitHub bot notifications"-type category AND a "Security & Compliance"-type category exist, ALWAYS prefer the GitHub bot category. A Dependabot dependency update is an automated bot PR, not a compliance alert directed at you.
+
+- **Bot GitHub notifications vs. topic categories:** When an email arrives from a GitHub bot (e.g., Dependabot, github-actions[bot], notifications@github.com), prefer the category designated for bot/automated GitHub activity over any topic-based category (e.g., security, compliance). A Dependabot dependency update is an automated bot notification, not a security alert directed at you. The platform identity (GitHub bot sender) overrides the content topic. A bot opening a PR to bump a library version is a bot notification, not a security alert.
 
 ## Additional rules
 

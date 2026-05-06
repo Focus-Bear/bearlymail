@@ -37,7 +37,18 @@ import { UpdateDebugConfigDto } from "./dto/update-debug-config.dto";
 import { EmailAdminService } from "./email-admin.service";
 import { PgBossWithInternals } from "./email-controller.helpers";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import {
+  CategoryFetchTrace,
+  CategoryFetchTraceMode,
+  EmailInboxTraceService,
+} from "./email-inbox-trace.service";
 import { EmailsService } from "./emails.service";
+
+const VALID_TRACE_MODES: readonly CategoryFetchTraceMode[] = [
+  "triage",
+  "action",
+  "follow-up",
+];
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
@@ -49,6 +60,7 @@ export class EmailDebugAdminController {
     private readonly emailAdminService: EmailAdminService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly debugService: DebugService,
+    private readonly emailInboxTraceService: EmailInboxTraceService,
     private readonly rawColumnsService: EmailDebugRawColumnsService,
   ) {}
 
@@ -188,6 +200,40 @@ export class EmailDebugAdminController {
     return this.emailsService.getCategoryDebugData(req.user.userId, id, {
       deep: wantDeep,
     });
+  }
+
+  /**
+   * Per-stage trace of the inbox category fetch pipeline (issue #1954).
+   *
+   * Replays runInboxQuery → blocked-sender filter → category filter → mode
+   * filter for a single (categoryId, mode) pair and returns the thread IDs
+   * present at each stage plus the reason every dropped thread was excluded.
+   * Use this to diagnose accordions that show count > 0 but render no emails.
+   *
+   * categoryId of "uncategorized" or "Other" traces the null-category bucket.
+   */
+  @Get("debug/category-fetch-trace")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async traceCategoryFetch(
+    @Request() req,
+    @Query("categoryId") categoryId?: string,
+    @Query("mode") mode?: string,
+  ): Promise<CategoryFetchTrace> {
+    if (!categoryId) {
+      throw new BadRequestException(
+        "Missing required query parameter: categoryId",
+      );
+    }
+    const resolvedMode = (
+      VALID_TRACE_MODES.includes(mode as CategoryFetchTraceMode)
+        ? mode
+        : "triage"
+    ) as CategoryFetchTraceMode;
+    return this.emailInboxTraceService.traceCategoryFetch(
+      req.user.userId,
+      categoryId,
+      resolvedMode,
+    );
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────────

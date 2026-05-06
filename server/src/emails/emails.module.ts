@@ -56,6 +56,7 @@ import { EmailGmailService } from "./email-gmail.service";
 import { EmailInboxService } from "./email-inbox.service";
 import { EmailInboxCategoryService } from "./email-inbox-category.service";
 import { EmailInboxDecryptService } from "./email-inbox-decrypt.service";
+import { EmailInboxTraceService } from "./email-inbox-trace.service";
 import { EmailLifecycleService } from "./email-lifecycle.service";
 import { EmailMigrationService } from "./email-migration.service";
 import { EmailPriorityExplanationService } from "./email-priority-explanation.service";
@@ -82,10 +83,10 @@ import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { LLMPriorityBatchService } from "./llm-priority-batch.service";
 import { LLMPriorityResultService } from "./llm-priority-result.service";
-import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
-import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { LLMProcessor } from "./llm-processor";
 import { LLMSummaryProcessorService } from "./llm-summary-processor.service";
+import { PriorityAnalysisFinalizerService } from "./priority-analysis-finalizer.service";
+import { PrioritySqsDispatchService } from "./priority-sqs-dispatch.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GmailSyncService } from "./providers/gmail-sync.service";
 import { Office365Provider } from "./providers/office365.provider";
@@ -164,6 +165,7 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailInboxCategoryService,
     EmailInboxDecryptService,
     EmailInboxService,
+    EmailInboxTraceService,
     EmailPriorityExplanationService,
     EmailLifecycleService,
     EmailArchiveService,

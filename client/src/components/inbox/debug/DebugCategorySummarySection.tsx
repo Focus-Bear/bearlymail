@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 
 import {
   COLOR_BG_ERROR,
@@ -21,6 +21,10 @@ import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
+import { CategoryFetchTracePanel } from './CategoryFetchTracePanel';
+
+const TRACE_SUPPORTED_MODES: InboxMode[] = ['triage', 'action', 'follow-up'];
+
 interface DebugCategorySummaryProps {
   categorySummary: CategorySummaryItem[] | null;
   loadedCategoryNames: string[];
@@ -28,6 +32,8 @@ interface DebugCategorySummaryProps {
   expandedCategories: Set<string>;
   emails: Email[];
   categoryStates?: Record<string, { status: string }>;
+  /** Current inbox mode — passed through to the per-category fetch trace panel (#1954). */
+  mode?: InboxMode;
 }
 
 const getLoadedEmailsForCategory = (categoryKey: string, emails: Email[]): Email[] => {
@@ -74,6 +80,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
   loadingCategoryNames,
   expandedCategories,
   emails,
+  mode,
   expandedDetails,
   toggleDetails,
   categoryStates,
@@ -143,12 +150,17 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
           </tr>
         </thead>
         <tbody>
+          {/* eslint-disable-next-line complexity -- debug-only row template; many conditional badges */}
           {categorySummary.map(category => {
             // Use UUID key for all lookups to match what useEmailFetching stores
             const categoryKey = getCategoryKey(category.id, category.name);
             const loadedEmails = getLoadedEmailsForCategory(categoryKey, emails);
             const hasMismatch = loadedCategoryNames.includes(categoryKey) && loadedEmails.length !== category.count;
             const showDetails = expandedDetails.has(categoryKey);
+            const traceMode: 'triage' | 'action' | 'follow-up' | null =
+              mode && TRACE_SUPPORTED_MODES.includes(mode)
+                ? (mode as 'triage' | 'action' | 'follow-up')
+                : null;
             return (
               <React.Fragment key={categoryKey}>
                 <tr style={{ backgroundColor: hasMismatch ? '#FFEBEE' : 'transparent' }}>
@@ -360,6 +372,13 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                             {t('debug.categorySummary.emailsButLoaded')} {loadedEmails.length}
                           </div>
                         )}
+                        {traceMode !== null && (
+                          <CategoryFetchTracePanel
+                            categoryKey={categoryKey}
+                            categoryName={category.name}
+                            mode={traceMode}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -380,6 +399,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
   expandedCategories,
   emails,
   categoryStates,
+  mode,
 }) => {
   const { t } = useTranslation();
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
@@ -415,6 +435,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
         expandedCategories={expandedCategories}
         emails={emails}
         categoryStates={categoryStates}
+        mode={mode}
         expandedDetails={expandedDetails}
         toggleDetails={toggleDetails}
         t={t}

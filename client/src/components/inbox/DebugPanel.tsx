@@ -200,6 +200,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             loadingCategoryNames={loadingCategoryNames ?? []}
             expandedCategories={expandedCategories ?? new Set()}
             emails={emails}
+            mode={mode}
           />
 
           {/* Fix #1571 Item 3: Priority debug section */}

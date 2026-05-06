@@ -13,6 +13,7 @@ import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailInboxTraceService } from "./email-inbox-trace.service";
 import { EmailsService } from "./emails.service";
 
 function makeDebugService(): jest.Mocked<DebugService> {
@@ -52,7 +53,9 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         },
         {
           provide: Office365AccountsService,
-          useValue: { hasConnectedOffice365: jest.fn().mockResolvedValue(false) },
+          useValue: {
+            hasConnectedOffice365: jest.fn().mockResolvedValue(false),
+          },
         },
         {
           provide: ZohoAccountsService,
@@ -61,6 +64,10 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         {
           provide: UsersService,
           useValue: { findOneWithTokens: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: EmailInboxTraceService,
+          useValue: { traceCategoryFetch: jest.fn() },
         },
       ],
     })

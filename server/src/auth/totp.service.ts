@@ -89,6 +89,11 @@ const SIX_DIGIT_PATTERN = /^\d{6}$/;
 /**
  * Verify a TOTP token allowing for clock drift of ±TOTP_DRIFT_STEPS steps.
  * Uses constant-time comparison to prevent timing attacks.
+ *
+ * Returns false (rather than throwing) if the stored secret can't be base32-decoded,
+ * which can happen if the encrypted column failed to decrypt (e.g. ENCRYPTION_KEY
+ * rotated) and the fail-open transformer handed back raw ciphertext. The caller
+ * surfaces this as a normal "invalid token" response instead of a 500.
  */
 function verifyTotpToken(secret: string, token: string): boolean {
   if (!SIX_DIGIT_PATTERN.test(token)) return false;
@@ -98,7 +103,12 @@ function verifyTotpToken(secret: string, token: string): boolean {
   const tokenBuf = Buffer.from(token, "utf8");
 
   for (let i = -TOTP_DRIFT_STEPS; i <= TOTP_DRIFT_STEPS; i++) {
-    const candidate = generateTotpCode(secret, currentStep + i);
+    let candidate: string;
+    try {
+      candidate = generateTotpCode(secret, currentStep + i);
+    } catch {
+      return false;
+    }
     const candidateBuf = Buffer.from(candidate, "utf8");
     if (
       candidateBuf.length === tokenBuf.length &&

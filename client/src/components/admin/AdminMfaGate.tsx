@@ -1,11 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { MFA_SETUP_REQUIRED, MFA_VERIFICATION_REQUIRED, MfaErrorType } from 'utils/mfaErrors';
 
 import { API_URL } from 'config/api';
 import { useAuth } from 'contexts/AuthContext';
+
+const ADMIN_ROUTE_PREFIX = '/admin';
 
 const MFA_TOKEN_LENGTH = 6;
 const ENTER_KEY = 'Enter';
@@ -42,6 +45,8 @@ interface AdminMfaProviderProps {
 export const AdminMfaProvider: React.FC<AdminMfaProviderProps> = ({ children }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const location = useLocation();
+  const isOnAdminRoute = location.pathname.startsWith(ADMIN_ROUTE_PREFIX);
   const [mfaState, setMfaState] = useState<MfaGateState>(MFA_STATES.NONE);
   const [mfaToken, setMfaToken] = useState('');
   const [mfaError, setMfaError] = useState<string | null>(null);
@@ -81,10 +86,11 @@ return;
   }, [mfaToken, t]);
 
   // Proactively prompt for MFA when an admin enters the dashboard, so tab
-  // actions don't fail with 403 mid-flight. Skipped for non-admins (the
-  // admin route redirects them anyway).
+  // actions don't fail with 403 mid-flight. Scoped to /admin* routes — other
+  // pages (inbox, email detail) only prompt reactively when an admin action
+  // returns 403 via onMfaRequired.
   useEffect(() => {
-    if (user?.isAdmin !== true) {
+    if (user?.isAdmin !== true || !isOnAdminRoute) {
 return;
 }
     let cancelled = false;
@@ -108,7 +114,7 @@ return;
     return () => {
       cancelled = true;
     };
-  }, [user?.isAdmin, onMfaRequired]);
+  }, [user?.isAdmin, isOnAdminRoute, onMfaRequired]);
 
   return (
     <AdminMfaContext.Provider value={{ onMfaRequired, mfaVerifiedAt }}>

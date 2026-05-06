@@ -8,6 +8,7 @@ import axios from 'axios';
 import { QueryProvider } from 'providers/QueryProvider';
 import { theme } from 'theme/theme';
 
+import { AdminMfaProvider } from 'components/admin/AdminMfaGate';
 import { ConsentModal } from 'components/ConsentModal';
 import { SetupWizard } from 'components/setup-wizard';
 import { API_URL } from 'config/api';
@@ -328,16 +329,18 @@ function App() {
         <AuthProvider>
           <NotificationProvider>
             <Router>
-              <div
-                className="App"
-                style={{
-                  backgroundColor: theme.colors.background.default,
-                  minHeight: '100vh',
-                  fontFamily: theme.typography.fontFamily,
-                }}
-              >
-                <AppRoutes />
-              </div>
+              <AdminMfaProvider>
+                <div
+                  className="App"
+                  style={{
+                    backgroundColor: theme.colors.background.default,
+                    minHeight: '100vh',
+                    fontFamily: theme.typography.fontFamily,
+                  }}
+                >
+                  <AppRoutes />
+                </div>
+              </AdminMfaProvider>
             </Router>
           </NotificationProvider>
         </AuthProvider>

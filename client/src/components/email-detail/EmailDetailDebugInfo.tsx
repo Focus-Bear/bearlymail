@@ -5,7 +5,9 @@ import { theme } from 'theme/theme';
 import { Email, GitHubLink } from 'types/email';
 import { getAxiosResponseErrorMessage } from 'utils/axios-error-message';
 import { emailMentionsGitHub } from 'utils/githubUtils';
+import { getMfaErrorType } from 'utils/mfaErrors';
 
+import { useAdminMfa } from 'components/admin/AdminMfaGate';
 import { API_URL } from 'config/api';
 
 /** Opacity for controls in a non-interactive (loading) state */
@@ -113,6 +115,7 @@ const CLASSIFICATION_COLOR: Record<RawColumnClassification, string> = {
 /** Admin-only debug information panel shown in email detail view. */
 export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced, githubLinks, loadingGithub, hasGithubToken }: Props) {
   const { t } = useTranslation();
+  const { onMfaRequired } = useAdminMfa();
   const emailData = email as any;
   const attachmentsNone = t('debug.emailDetail.attachmentsNone');
   const [refreshingAttachments, setRefreshingAttachments] = useState(false);
@@ -157,6 +160,11 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
       setLastRefreshResult(response.data);
       await onAttachmentsSynced?.();
     } catch (err) {
+      const mfaType = getMfaErrorType(err);
+      if (mfaType) {
+        onMfaRequired(mfaType);
+        return;
+      }
       console.error('refreshAttachmentsFromGmail:', err);
       const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.refreshAttachmentsFailed');
       setLastRefreshError(msg);

@@ -373,6 +373,46 @@ export class ContextEmailDataService {
   }
 
   /**
+   * Get thread IDs for any connected provider (Gmail, Office365, or Zoho).
+   * For Gmail: uses the direct thread-list API (fast pagination).
+   * For Office365/Zoho: uses searchEmails with a date range query.
+   */
+  async getThreadIds(
+    userId: string,
+    after: Date,
+    before: Date,
+    limit: number = EMAIL_FETCH_LIMIT,
+  ): Promise<string[]> {
+    const provider = await this.getProviderForUser(userId);
+    const providerType = this.getProviderTypeName(provider);
+
+    if (providerType === "Gmail") {
+      return this.getThreadIdsFromGmail(userId, after, before, limit);
+    }
+
+    // Office365 / Zoho: use searchEmails with a date range query
+    const dateQuery = buildDateRangeQuery(provider, after, before);
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] ${providerType} search query for thread IDs: "${dateQuery}"`,
+    );
+    try {
+      const messages = await provider.searchEmails(userId, dateQuery, limit * 2);
+      const threadIds = Array.from(
+        new Set(messages.filter((msg) => msg.threadId).map((msg) => msg.threadId)),
+      ).slice(0, limit);
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] ${providerType} returned ${threadIds.length} thread IDs from ${messages.length} messages`,
+      );
+      return threadIds;
+    } catch (error) {
+      this.logger.error(
+        `[CONTEXT-ANALYSIS] Error fetching thread IDs from ${providerType}: ${getErrorMessage(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Fetch sent thread IDs from Gmail using direct API pagination.
    */
   private async fetchGmailSentThreadIds(

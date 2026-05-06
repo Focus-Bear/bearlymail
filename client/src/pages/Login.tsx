@@ -62,31 +62,27 @@ const Login: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    // Check if user has seen the permissions explanation before
     const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
-
     if (!hasSeenPermissions) {
-      // Show permissions explanation modal
       setPendingProvider('google');
       setShowPermissionsModal(true);
     } else {
-      // Proceed directly to Google OAuth
       proceedToGoogleOAuth();
     }
   };
-  
-  const handleZohoLogin = () => {
-    // Check if user has seen the permissions explanation before
-    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
 
+  const handleZohoLogin = () => {
+    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
     if (!hasSeenPermissions) {
-      // Show permissions explanation modal
       setPendingProvider('zoho');
       setShowPermissionsModal(true);
     } else {
-      // Proceed directly to Zoho OAuth
       proceedToZohoOAuth();
     }
+  };
+
+  const handleMicrosoftLogin = () => {
+    window.location.href = `${API_URL}/auth/microsoft`;
   };
 
   const proceedToGoogleOAuth = () => {
@@ -102,13 +98,13 @@ const Login: React.FC = () => {
   };
 
   const handlePermissionsContinue = () => {
-  setShowPermissionsModal(false);
-  if (pendingProvider === PROVIDER_ZOHO) {
-    proceedToZohoOAuth();
-  } else {
-    proceedToGoogleOAuth();
-  }
-};
+    setShowPermissionsModal(false);
+    if (pendingProvider === PROVIDER_ZOHO) {
+      proceedToZohoOAuth();
+    } else {
+      proceedToGoogleOAuth();
+    }
+  };
 
   const handlePermissionsCancel = () => {
     setShowPermissionsModal(false);
@@ -139,6 +135,7 @@ const Login: React.FC = () => {
           onPasswordChange={setPassword}
           onSubmit={handleSubmit}
           onGoogleLogin={handleGoogleLogin}
+          onMicrosoftLogin={handleMicrosoftLogin}
           onZohoLogin={handleZohoLogin}
         />
       </div>

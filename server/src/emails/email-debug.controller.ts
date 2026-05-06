@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 
 import { AdminGuard } from "../auth/admin.guard";
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { EmailAccountRequiredGuard } from "../auth/gmail-required.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { EmailsService } from "./emails.service";
 import { GmailSyncService } from "./providers/gmail-sync.service";
@@ -27,7 +27,7 @@ import { GmailSyncService } from "./providers/gmail-sync.service";
  * See issue #1699 for context.
  */
 @Controller("emails")
-@UseGuards(JwtAuthGuard, GmailRequiredGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, EmailAccountRequiredGuard, AdminGuard)
 export class EmailDebugController {
   constructor(
     private readonly emailsService: EmailsService,

@@ -21,60 +21,52 @@ interface LoginFormSectionProps {
   onPasswordChange: (password: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   onGoogleLogin: () => void;
+  onMicrosoftLogin: () => void;
   onZohoLogin: () => void;
 }
 
 interface OAuthSectionProps {
   onGoogleLogin: () => void;
+  onMicrosoftLogin: () => void;
   onZohoLogin: () => void;
   t: (key: string) => string;
 }
 
-const OAuthSection: React.FC<OAuthSectionProps> = ({ onGoogleLogin, onZohoLogin, t }) => (
+const oauthButtonStyle: React.CSSProperties = {
+  width: '100%',
+  padding: theme.spacing.md,
+  backgroundColor: theme.colors.background.paper,
+  color: theme.colors.text.primary,
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  fontSize: theme.typography.fontSize.base,
+  fontWeight: theme.typography.fontWeight.medium,
+  cursor: 'pointer',
+  marginBottom: theme.spacing.md,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: theme.spacing.sm,
+};
+
+const OAuthSection: React.FC<OAuthSectionProps> = ({ onGoogleLogin, onMicrosoftLogin, onZohoLogin, t }) => (
   <>
-    <button
-      type="button"
-      onClick={onGoogleLogin}
-      style={{
-        width: '100%',
-        padding: theme.spacing.md,
-        backgroundColor: theme.colors.background.paper,
-        color: theme.colors.text.primary,
-        border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        fontSize: theme.typography.fontSize.base,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-        marginBottom: theme.spacing.lg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.sm,
-      }}
-    >
+    <button type="button" onClick={onGoogleLogin} style={oauthButtonStyle}>
       <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: '18px', height: '18px' }} />
       {t('auth.continueWithGoogle')}
     </button>
-    <button
-      type="button"
-      onClick={onZohoLogin}
-      style={{
-        width: '100%',
-        padding: theme.spacing.md,
-        backgroundColor: theme.colors.background.paper,
-        color: theme.colors.text.primary,
-        border: `1px solid ${theme.colors.border.medium}`,
-        borderRadius: theme.borderRadius.md,
-        fontSize: theme.typography.fontSize.base,
-        fontWeight: theme.typography.fontWeight.medium,
-        cursor: 'pointer',
-        marginBottom: theme.spacing.lg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.sm,
-      }}
-    >
+
+    <button type="button" onClick={onMicrosoftLogin} style={oauthButtonStyle}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 21 21">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+        <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+      </svg>
+      {t('auth.continueWithMicrosoft')}
+    </button>
+
+    <button type="button" onClick={onZohoLogin} style={{ ...oauthButtonStyle, marginBottom: theme.spacing.lg }}>
       <img src="https://www.zoho.com/favicon.ico" alt="Zoho" style={{ width: '18px', height: '18px' }} />
       {t('auth.continueWithZoho')}
     </button>
@@ -218,6 +210,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
   onPasswordChange,
   onSubmit,
   onGoogleLogin,
+  onMicrosoftLogin,
   onZohoLogin,
 }) => {
   const { t } = useTranslation();
@@ -314,7 +307,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
         </div>
       )}
 
-      <OAuthSection onGoogleLogin={onGoogleLogin} onZohoLogin={onZohoLogin} t={t} />
+      <OAuthSection onGoogleLogin={onGoogleLogin} onMicrosoftLogin={onMicrosoftLogin} onZohoLogin={onZohoLogin} t={t} />
 
       <EmailPasswordForm
         email={email}

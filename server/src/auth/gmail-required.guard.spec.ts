@@ -2,17 +2,27 @@ import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
-import { GmailRequiredGuard } from "./gmail-required.guard";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
+import { EmailAccountRequiredGuard } from "./gmail-required.guard";
 
-describe("GmailRequiredGuard", () => {
-  let guard: GmailRequiredGuard;
+describe("EmailAccountRequiredGuard", () => {
+  let guard: EmailAccountRequiredGuard;
   let googleAccountsService: GoogleAccountsService;
   let usersService: UsersService;
   let mockExecutionContext: ExecutionContext;
 
   const mockGoogleAccountsService = {
     hasConnectedGmail: jest.fn(),
+  };
+
+  const mockOffice365AccountsService = {
+    hasConnectedOffice365: jest.fn(),
+  };
+
+  const mockZohoAccountsService = {
+    hasConnectedZoho: jest.fn(),
   };
 
   const mockUsersService = {
@@ -23,10 +33,18 @@ describe("GmailRequiredGuard", () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        GmailRequiredGuard,
+        EmailAccountRequiredGuard,
         {
           provide: GoogleAccountsService,
           useValue: mockGoogleAccountsService,
+        },
+        {
+          provide: Office365AccountsService,
+          useValue: mockOffice365AccountsService,
+        },
+        {
+          provide: ZohoAccountsService,
+          useValue: mockZohoAccountsService,
         },
         {
           provide: UsersService,
@@ -35,7 +53,11 @@ describe("GmailRequiredGuard", () => {
       ],
     }).compile();
 
-    guard = module.get<GmailRequiredGuard>(GmailRequiredGuard);
+    guard = module.get<EmailAccountRequiredGuard>(EmailAccountRequiredGuard);
+
+    // Default: no provider connected (overridden per test as needed)
+    mockOffice365AccountsService.hasConnectedOffice365.mockResolvedValue(false);
+    mockZohoAccountsService.hasConnectedZoho.mockResolvedValue(false);
     googleAccountsService = module.get<GoogleAccountsService>(
       GoogleAccountsService,
     );
@@ -261,7 +283,7 @@ describe("GmailRequiredGuard", () => {
         UnauthorizedException,
       );
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
-        "Gmail account connection required",
+        "Email account connection required",
       );
       expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
         userId,
@@ -286,7 +308,7 @@ describe("GmailRequiredGuard", () => {
         UnauthorizedException,
       );
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
-        "Gmail account connection required",
+        "Email account connection required",
       );
     });
 

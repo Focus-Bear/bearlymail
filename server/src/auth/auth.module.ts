@@ -13,7 +13,7 @@ import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { AdminGuard } from "./admin.guard";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { GmailRequiredGuard } from "./gmail-required.guard";
+import { EmailAccountRequiredGuard } from "./gmail-required.guard";
 import { GoogleStrategy } from "./google.strategy";
 import { JwtStrategy } from "./jwt.strategy";
 import { LocalStrategy } from "./local.strategy";
@@ -52,7 +52,7 @@ import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
     MicrosoftStrategy,
     ZohoStrategy,
     AdminGuard,
-    GmailRequiredGuard,
+    EmailAccountRequiredGuard,
     OptionalJwtAuthGuard,
     StepUpAuthGuard,
     EmailProviderRequiredGuard
@@ -62,7 +62,7 @@ import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
     AuthService,
     TotpService,
     AdminGuard,
-    GmailRequiredGuard,
+    EmailAccountRequiredGuard,
     EmailProviderRequiredGuard,
     PassportModule,
     JwtModule,

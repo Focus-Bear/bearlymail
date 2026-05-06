@@ -250,6 +250,7 @@ export class Office365Provider implements EmailProvider {
           $select:
             "id,conversationId,subject,from,receivedDateTime,isRead,importance",
         },
+        headers: { ConsistencyLevel: "eventual" },
       }),
     ]);
 
@@ -653,14 +654,15 @@ export class Office365Provider implements EmailProvider {
             $top: 200,
             $select: "id",
           },
+          headers: { ConsistencyLevel: "eventual" },
         }),
         graphClient.get("/me/mailFolders/deleteditems/messages", {
           params: {
             $filter: `receivedDateTime ge ${sevenDaysAgo.toISOString()}`,
-            $orderby: "receivedDateTime desc",
             $top: 100,
             $select: "id",
           },
+          headers: { ConsistencyLevel: "eventual" },
         }),
       ]);
 

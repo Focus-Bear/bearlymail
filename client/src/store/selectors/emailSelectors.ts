@@ -14,22 +14,13 @@ export const selectCategorySummary = (state: RootState): CategorySummaryItem[] |
   state.inboxData.categorySummary;
 export const selectLoadedCategoryNames = (state: RootState): string[] => state.inboxData.loadedCategoryNames;
 export const selectLoadingCategoryNames = (state: RootState): string[] => state.inboxData.loadingCategoryNames;
-// Memoized: `?? []` without createSelector returns a new array reference every call.
-export const selectExhaustedCategoryNames = createSelector(
-  (state: RootState) => state.inboxData.exhaustedCategoryNames,
-  (names): string[] => names ?? []
-);
+export const selectExhaustedCategoryNames = (state: RootState): string[] => state.inboxData.exhaustedCategoryNames ?? [];
 export const selectLastFetchedAt = (state: RootState): number | null => state.inboxData.lastFetchedAt;
 
 // Basic selectors — UI state (inboxUI slice)
 export const selectOptimisticallyArchived = (state: RootState): string[] => state.inboxUI.optimisticallyArchived;
 export const selectOptimisticallySnoozed = (state: RootState): string[] => state.inboxUI.optimisticallySnoozed;
-// Memoized: `?? []` would create a new array reference every call without createSelector,
-// causing downstream selectors/components to see a "changed" value on every render.
-export const selectAnimatingOut = createSelector(
-  (state: RootState) => state.inboxUI.animatingOut,
-  (animatingOut): AnimatingOutItem[] => animatingOut ?? []
-);
+export const selectAnimatingOut = (state: RootState): AnimatingOutItem[] => state.inboxUI.animatingOut ?? [];
 export const selectLoading = (state: RootState): boolean => state.inboxUI.loading;
 export const selectDecrypting = (state: RootState): boolean => state.inboxUI.decrypting;
 export const selectRefreshing = (state: RootState): boolean => state.inboxUI.refreshing;

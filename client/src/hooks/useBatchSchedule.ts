@@ -110,6 +110,9 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
       };
       localStorage.setItem(BATCH_STATUS_CACHE_KEY, JSON.stringify(cacheEntry));
     } catch (error) {
+      if (axios.isCancel(error)) {
+        return;
+      }
       console.error('Error fetching batch status:', error);
     }
   }, []);

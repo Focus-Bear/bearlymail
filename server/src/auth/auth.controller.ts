@@ -406,6 +406,8 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
+    // Save Office365Account for direct Microsoft login (no connect state)
+    await this.saveMicrosoftAccountForUser(req.user);
     const isProduction =
       process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
@@ -698,6 +700,60 @@ export class AuthController {
         err instanceof Error ? err : new Error(String(err)),
       );
       return false;
+    }
+  }
+
+  private async saveMicrosoftAccountForUser(user: {
+    id: string;
+    microsoftId?: string;
+    microsoftAccessToken?: string;
+    microsoftRefreshToken?: string;
+    microsoftProfile?: {
+      id?: string;
+      mail?: string;
+      userPrincipalName?: string;
+      displayName?: string;
+    };
+  }): Promise<void> {
+    const microsoftId =
+      user.microsoftId || user.microsoftProfile?.id || "";
+    const accessToken = user.microsoftAccessToken || "";
+    const refreshToken = user.microsoftRefreshToken || "";
+    const email =
+      user.microsoftProfile?.mail ||
+      user.microsoftProfile?.userPrincipalName ||
+      "";
+    const name = user.microsoftProfile?.displayName || "";
+    if (!microsoftId || !accessToken || !email) return;
+    try {
+      const existingAccounts = await this.office365AccountsService.findAllByUser(user.id);
+      const accountExists = existingAccounts.find(
+        (acc) => acc.microsoftId === microsoftId,
+      );
+      if (accountExists) {
+        await this.office365AccountsService.updateTokens(
+          accountExists.id,
+          user.id,
+          accessToken,
+          refreshToken || undefined,
+        );
+      } else {
+        if (!refreshToken) return;
+        const isPrimary = existingAccounts.length === 0;
+        await this.office365AccountsService.create({
+          userId: user.id,
+          microsoftId,
+          email,
+          name,
+          accessToken,
+          refreshToken,
+          isPrimary,
+        });
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed to save Office365Account for user ${user.id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

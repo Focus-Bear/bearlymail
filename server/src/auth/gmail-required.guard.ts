@@ -10,27 +10,27 @@ import {
   NODE_ENV_VALUES,
 } from "../constants/domain-types";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 
 @Injectable()
-export class GmailRequiredGuard implements CanActivate {
+export class EmailAccountRequiredGuard implements CanActivate {
   constructor(
     private googleAccountsService: GoogleAccountsService,
     private usersService: UsersService,
+    private office365AccountsService: Office365AccountsService,
+    private zohoAccountsService: ZohoAccountsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // CI search fallback mode: skip the Gmail requirement so that E2E search
-    // tests can run against the seeded local-DB data without a real Gmail
-    // account.
+    // CI search fallback mode: skip the email provider requirement so that
+    // E2E search tests can run against the seeded local-DB data without a
+    // real email account.
     //
     // Two ways to activate:
     //  1. CI_SEARCH_FALLBACK=true  (explicit opt-in, e.g. per-step override)
     //  2. CI=true + NODE_ENV=test  (GitHub Actions job-level env — automatic)
-    //
-    // The second form allows the job-level env block to activate the fallback
-    // without needing a per-step override, so both the server startup and the
-    // E2E test step run with the Gmail guard bypassed.
     const isCiTestEnv =
       process.env.CI === BOOLEAN_STRING_VALUES.TRUE &&
       process.env.NODE_ENV === NODE_ENV_VALUES.TEST;
@@ -57,17 +57,20 @@ export class GmailRequiredGuard implements CanActivate {
       throw new UnauthorizedException("User ID not found");
     }
 
-    // Check if user has Google accounts connected (new system)
-    const hasGmailAccounts =
-      await this.googleAccountsService.hasConnectedGmail(userId);
+    // Check all supported email providers
+    const [hasGmailAccounts, hasOffice365, hasZoho] = await Promise.all([
+      this.googleAccountsService.hasConnectedGmail(userId),
+      this.office365AccountsService.hasConnectedOffice365(userId),
+      this.zohoAccountsService.hasConnectedZoho(userId),
+    ]);
 
     // Also check legacy: if user has tokens directly on User entity
     const fullUser = await this.usersService.findOneWithTokens(userId);
     const hasLegacyGmail = !!fullUser?.googleCalendarAccessToken;
 
-    if (!hasGmailAccounts && !hasLegacyGmail) {
+    if (!hasGmailAccounts && !hasLegacyGmail && !hasOffice365 && !hasZoho) {
       throw new UnauthorizedException(
-        "Gmail account connection required. Please connect a Gmail account to continue.",
+        "Email account connection required. Please connect Gmail, Outlook, or Zoho to continue.",
       );
     }
 

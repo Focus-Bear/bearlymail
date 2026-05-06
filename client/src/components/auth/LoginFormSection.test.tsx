@@ -40,6 +40,7 @@ const defaultProps = {
   onPasswordChange: jest.fn(),
   onSubmit: jest.fn(),
   onGoogleLogin: jest.fn(),
+  onMicrosoftLogin: jest.fn(),
   onZohoLogin: jest.fn(),
 };
 

@@ -15,7 +15,6 @@ import { RecipientFields } from 'components/compose/RecipientFields';
 import { TimePicker } from 'components/compose/TimePicker';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
-import { ToneCheckToast } from 'components/notifications/ToneCheckToast';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { DELAY_1_5_SECONDS_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -38,7 +37,6 @@ const Compose: React.FC = () => {
     toneCheckResult,
     setToneCheckResult,
     checkTone,
-    cancelToneCheck,
     disputing,
     disputeResult,
     disputeToneCheck,
@@ -393,7 +391,6 @@ const Compose: React.FC = () => {
           lastSelectedTime={lastSelectedTime}
         />
       )}
-      <ToneCheckToast visible={checkingTone} onCancel={cancelToneCheck} />
     </div>
   );
 };

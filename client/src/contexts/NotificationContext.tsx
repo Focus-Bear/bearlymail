@@ -27,6 +27,8 @@ interface NotificationContextType {
   showWarning: (message: string, duration?: number) => void;
   /** Shows a success toast with an Undo button. Returns a cancel function that aborts the deferred commit. */
   showSuccessWithUndo: (message: string, onCommit: () => void, onUndo: () => void, duration?: number) => () => void;
+  /** Shows a persistent info toast with no auto-dismiss. Returns a function to dismiss it manually. */
+  showLoading: (message: string, action?: NotificationAction) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -88,6 +90,16 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     [showNotification]
   );
 
+  const showLoading = useCallback(
+    (message: string, action?: NotificationAction): (() => void) => {
+      const id = `notification-${Date.now()}-${Math.random()}`;
+      const notification: Notification = { id, message, type: 'info', duration: 0, action };
+      setNotifications(prev => [...prev, notification]);
+      return () => removeNotification(id);
+    },
+    [removeNotification]
+  );
+
   const showSuccessWithUndo = useCallback(
     (message: string, onCommit: () => void, onUndo: () => void, duration: number = UNDO_TOAST_DURATION_MS): (() => void) => {
       const id = `notification-${Date.now()}-${Math.random()}`;
@@ -135,7 +147,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   );
 
   return (
-    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning, showSuccessWithUndo }}>
+    <NotificationContext.Provider value={{ showNotification, showSuccess, showError, showInfo, showWarning, showSuccessWithUndo, showLoading }}>
       {children}
       <div
         style={{

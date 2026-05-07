@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 
 import { API_URL } from 'config/api';
+import { useNotifications } from 'contexts/NotificationContext';
 
 interface ToneCheckResult {
   isOk: boolean;
@@ -22,12 +23,15 @@ interface DisputeResult {
 }
 
 export function useEmailDetailToneCheck() {
+  const { t } = useTranslation();
+  const { showLoading } = useNotifications();
   const [checkingTone, setCheckingTone] = useState(false);
   const [toneCheckResult, setToneCheckResult] = useState<ToneCheckResult | null>(null);
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<DisputeResult | null>(null);
   const timezoneRef = useRef<string | undefined>(undefined);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const dismissLoadingRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     axios
@@ -45,6 +49,8 @@ export function useEmailDetailToneCheck() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    dismissLoadingRef.current?.();
+    dismissLoadingRef.current = null;
     setCheckingTone(false);
   }, []);
 
@@ -56,27 +62,17 @@ export function useEmailDetailToneCheck() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    // flushSync guarantees the loading state is painted before the async API call
-    // starts, preventing React 18 batching from skipping the visible=true render.
-    flushSync(() => {
-      setCheckingTone(true);
-      setDisputeResult(null);
-    });
-    // Double rAF guarantees the browser completes at least one paint frame
-    // before the API call starts. flushSync commits the React DOM update but
-    // browsers may still defer the actual pixel paint to the next frame; the
-    // inner rAF fires *during* that paint, the outer one fires *after* it,
-    // so by the time we reach axios.post the toast is guaranteed to be visible.
-    await new Promise<void>(resolve => {
-      const timeoutId = setTimeout(resolve, 100);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          clearTimeout(timeoutId);
-          resolve();
-        });
-      });
-    });
+    setCheckingTone(true);
+    setDisputeResult(null);
+    // Use the same notification system as "Email sent" — it's already proven to appear.
+    const dismiss = showLoading(t('toneCheck.toastChecking'));
+    dismissLoadingRef.current = dismiss;
+
     if (controller.signal.aborted) {
+      dismiss();
+      if (dismissLoadingRef.current === dismiss) {
+        dismissLoadingRef.current = null;
+      }
       return false;
     }
     try {
@@ -106,12 +102,16 @@ export function useEmailDetailToneCheck() {
       console.error('Error checking tone:', error);
       return false;
     } finally {
+      dismiss();
+      if (dismissLoadingRef.current === dismiss) {
+        dismissLoadingRef.current = null;
+      }
       setCheckingTone(false);
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
     }
-  }, []);
+  }, [showLoading, t]);
 
   const disputeToneCheck = useCallback(
     async (emailText: string, suggestions: string[], userArgument: string): Promise<DisputeResult | null> => {

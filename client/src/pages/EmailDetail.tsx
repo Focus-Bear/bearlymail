@@ -25,7 +25,6 @@ import { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
-import { ToneCheckToast } from 'components/notifications/ToneCheckToast';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import {
@@ -730,7 +729,6 @@ const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           hasGithubToken={st.hasGithubToken}
         />
       )}
-      <ToneCheckToast visible={st.checkingTone} onCancel={ops.cancelToneCheck} />
     </>
   );
 };

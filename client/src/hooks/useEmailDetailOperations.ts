@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -51,7 +50,7 @@ export function useEmailDetailOperations(
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { showSuccess, showError } = useNotifications();
+  const { showSuccess, showError, showLoading } = useNotifications();
   const { user } = useAuth();
   const {
     email,
@@ -129,6 +128,7 @@ export function useEmailDetailOperations(
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
   const toneCheckAbortRef = useRef<AbortController | null>(null);
+  const dismissLoadingRef = useRef<(() => void) | null>(null);
   const previousIdRef = useRef<string | null>(null);
   const summaryRef = useRef<string | null>(summary);
   const emailRef = useRef<Email | null>(email);
@@ -697,24 +697,15 @@ export function useEmailDetailOperations(
         const controller = new AbortController();
         toneCheckAbortRef.current = controller;
 
-        // flushSync ensures the toast is painted before the async API call starts,
-        // preventing React 18 batching from deferring the visible=true render.
-        flushSync(() => setCheckingTone(true));
-        // Double rAF guarantees the browser completes at least one paint frame
-        // before the API call starts. flushSync commits the React DOM update but
-        // browsers may still defer the actual pixel paint to the next frame; the
-        // inner rAF fires *during* that paint, the outer one fires *after* it,
-        // so by the time we reach axios.post the toast is guaranteed to be visible.
-        await new Promise<void>(resolve => {
-          const timeoutId = setTimeout(resolve, 100);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              clearTimeout(timeoutId);
-              resolve();
-            });
-          });
-        });
+        setCheckingTone(true);
+        // Use the same notification system as "Email sent" — it's already proven to appear.
+        const dismiss = showLoading(t('toneCheck.toastChecking'));
+        dismissLoadingRef.current = dismiss;
         if (controller.signal.aborted) {
+          dismiss();
+          if (dismissLoadingRef.current === dismiss) {
+            dismissLoadingRef.current = null;
+          }
           return;
         }
         try {
@@ -742,6 +733,10 @@ export function useEmailDetailOperations(
           }
           console.error('Error checking tone:', error);
         } finally {
+          dismiss();
+          if (dismissLoadingRef.current === dismiss) {
+            dismissLoadingRef.current = null;
+          }
           setCheckingTone(false);
           if (toneCheckAbortRef.current === controller) {
             toneCheckAbortRef.current = null;
@@ -840,6 +835,7 @@ export function useEmailDetailOperations(
       setReplyBcc,
       showSuccess,
       showError,
+      showLoading,
       deleteDraft,
       performArchiveAfterReply,
       performSnoozeAfterReply,
@@ -857,6 +853,8 @@ export function useEmailDetailOperations(
       toneCheckAbortRef.current.abort();
       toneCheckAbortRef.current = null;
     }
+    dismissLoadingRef.current?.();
+    dismissLoadingRef.current = null;
     setCheckingTone(false);
   }, [setCheckingTone]);
 

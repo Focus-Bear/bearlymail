@@ -11,6 +11,15 @@ import { UserEncryptionService } from "./user-encryption.service";
 import { runWithUserKey } from "./user-encryption-context";
 
 interface RequestWithUser {
+  /**
+   * The JWT strategy puts the user ID under `userId` (not `id`) — see
+   * jwt.strategy.ts. Reading the wrong field caused HTTP requests to silently
+   * skip the per-user KMS key and encrypt/decrypt with the global key, while
+   * worker jobs (which call userEncryptionService.withUserKey explicitly) used
+   * the per-user key. The mismatch meant tokens written by the worker became
+   * unreadable from HTTP and vice versa, manifesting as a never-ending Gmail
+   * `invalid_grant` re-login loop.
+   */
   user?: { userId?: string };
 }
 

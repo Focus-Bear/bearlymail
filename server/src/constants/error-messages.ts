@@ -19,6 +19,8 @@ export const ERROR_MESSAGES = {
   CUSTOM_FIELD_NOT_FOUND: "Custom field not found",
   FAILED_TO_SEND_REPLY: "Failed to send reply",
   FAILED_TO_SEND_EMAIL: "Failed to send email",
+  GMAIL_RECONNECT_REQUIRED:
+    "Gmail authorisation has expired. Please reconnect your account.",
 } as const;
 
 export type ErrorMessage = (typeof ERROR_MESSAGES)[keyof typeof ERROR_MESSAGES];

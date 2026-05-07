@@ -229,8 +229,8 @@ export class GmailSyncService {
     }
 
     this.logger.error(
-      `[GmailSync] Failed to fetch threads.list after ${MAX_RETRIES} attempts`,
-      lastError,
+      `[GmailSync] Failed to fetch threads.list after ${MAX_RETRIES} attempts: ${formatGaxiosError(lastError)}`,
+      lastError instanceof Error ? lastError.stack : undefined,
     );
     throw lastError;
   }
@@ -628,7 +628,9 @@ export class GmailSyncService {
       if (updates.length > 0)
         await this.emailsService.batchUpdateThreadStatus(userId, updates, []);
     } catch (error) {
-      this.logger.error("Error syncing thread archived/starred status:", error);
+      this.logger.error(
+        `Error syncing thread archived/starred status: ${formatGaxiosError(error)}`,
+      );
     }
   }
 

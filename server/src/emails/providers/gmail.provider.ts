@@ -1,8 +1,15 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { gmail_v1, google } from "googleapis";
 
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
+import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
 import { GmailSearchResult } from "../email-search.types";
@@ -108,7 +115,9 @@ export class GmailProvider implements EmailProvider {
       this.labelCacheExpiry.set(userId, Date.now() + this.LABEL_CACHE_TTL);
       return labelMap;
     } catch (error) {
-      this.logger.error("Failed to fetch Gmail labels:", error);
+      this.logger.error(
+        `Failed to fetch Gmail labels: ${formatGaxiosError(error)}`,
+      );
       return cached || new Map();
     }
   }
@@ -427,7 +436,9 @@ export class GmailProvider implements EmailProvider {
       }
       return results;
     } catch (error) {
-      this.logger.error(`Failed to search emails for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to search emails for user ${userId}: ${formatGaxiosError(error)}`,
+      );
       return [];
     }
   }
@@ -513,7 +524,9 @@ export class GmailProvider implements EmailProvider {
         (result): result is GmailSearchResult => result !== null,
       );
     } catch (error) {
-      this.logger.error(`Failed metadata search for user ${userId}:`, error);
+      this.logger.error(
+        `Failed metadata search for user ${userId}: ${formatGaxiosError(error)}`,
+      );
       return [];
     }
   }
@@ -655,19 +668,35 @@ export class GmailProvider implements EmailProvider {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error(ERROR_MESSAGES.NOT_CONNECTED_TO_GMAIL);
 
-    const response = await gmail.users.messages.attachments.get({
-      userId: "me",
-      messageId,
-      id: attachmentId,
-    });
-    const attachmentBuffer = Buffer.from(response.data.data || "", "base64");
+    try {
+      const response = await gmail.users.messages.attachments.get({
+        userId: "me",
+        messageId,
+        id: attachmentId,
+      });
+      const attachmentBuffer = Buffer.from(response.data.data || "", "base64");
 
-    return {
-      attachmentBuffer,
-      filename: attachmentMetadata?.filename || "attachment",
-      mimeType: attachmentMetadata?.mimeType || "application/octet-stream",
-      size: attachmentMetadata?.size || attachmentBuffer.length,
-    };
+      return {
+        attachmentBuffer,
+        filename: attachmentMetadata?.filename || "attachment",
+        mimeType: attachmentMetadata?.mimeType || "application/octet-stream",
+        size: attachmentMetadata?.size || attachmentBuffer.length,
+      };
+    } catch (error) {
+      if (isGmailAuthError(error)) {
+        await this.usersService.update(userId, { needsRelogin: true });
+        this.logger.warn(
+          `getAttachment auth failure — flagged user ${userId} as needsRelogin: ${formatGaxiosError(error)}`,
+        );
+        throw new UnauthorizedException(
+          ERROR_MESSAGES.GMAIL_RECONNECT_REQUIRED,
+        );
+      }
+      this.logger.error(
+        `getAttachment failed for user ${userId} message ${messageId}: ${formatGaxiosError(error)}`,
+      );
+      throw error;
+    }
   }
 
   async lookupByGmailUrlId(

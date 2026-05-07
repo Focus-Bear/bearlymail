@@ -33,7 +33,9 @@
     "pageNotFound": "Page not found",
     "goHome": "Go home",
     "checkmark": "✓",
-    "confirmDelete": "Confirm Delete"
+    "confirmDelete": "Confirm Delete",
+    "previous": "Previous",
+    "next": "Next"
   },
   "auth": {
     "loginTitle": "Welcome Back",
@@ -1311,6 +1313,7 @@
       "extend": "Extend",
       "allUsers": "All Users",
       "noUsersFound": "No users found",
+      "pageOf": "Page {{page}} of {{totalPages}}",
       "noName": "No name",
       "status": "Status",
       "none": "None",

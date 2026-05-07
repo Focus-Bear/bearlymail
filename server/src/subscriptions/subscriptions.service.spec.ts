@@ -76,6 +76,7 @@ describe("SubscriptionsService", () => {
             findOne: jest.fn(),
             update: jest.fn(),
             find: jest.fn(),
+            findAndCount: jest.fn(),
             increment: jest.fn(),
           },
         },
@@ -1147,20 +1148,23 @@ describe("SubscriptionsService", () => {
           trialStartedAt: new Date("2024-01-25"),
         },
       ];
-      repository.find.mockResolvedValue(users as User[]);
+      repository.findAndCount.mockResolvedValue([users as User[], 2]);
 
       const result = await service.getAllUsersWithSubscriptions();
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({
+      expect(result.users).toHaveLength(2);
+      expect(result.users[0]).toMatchObject({
         id: "user-1",
         subscriptionStatus: "active",
       });
-      expect(result[1]).toMatchObject({
+      expect(result.users[1]).toMatchObject({
         id: "user-2",
         subscriptionStatus: "trial",
       });
-      expect(repository.find).toHaveBeenCalledWith({
+      expect(result.total).toBe(2);
+      expect(result.page).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(repository.findAndCount).toHaveBeenCalledWith({
         select: [
           "id",
           "email",
@@ -1171,15 +1175,19 @@ describe("SubscriptionsService", () => {
           "createdAt",
         ],
         order: { createdAt: "DESC" },
+        skip: 0,
+        take: 50,
       });
     });
 
     it("should return empty array when no users", async () => {
-      repository.find.mockResolvedValue([]);
+      repository.findAndCount.mockResolvedValue([[], 0]);
 
       const result = await service.getAllUsersWithSubscriptions();
 
-      expect(result).toEqual([]);
+      expect(result.users).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(result.totalPages).toBe(0);
     });
   });
 });

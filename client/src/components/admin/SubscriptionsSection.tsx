@@ -7,22 +7,30 @@ import { UserWithSubscription } from 'hooks/useAdminDashboard';
 
 interface SubscriptionsSectionProps {
   users: UserWithSubscription[];
+  usersTotal: number;
+  usersPage: number;
+  usersTotalPages: number;
   extendingUserId: string | null;
   extendDays: number;
   onExtendClick: (userId: string) => void;
   onExtendCancel: () => void;
   onExtendTrial: (userId: string) => void;
   onExtendDaysChange: (days: number) => void;
+  onPageChange: (page: number) => void;
 }
 
 export const SubscriptionsSection: React.FC<SubscriptionsSectionProps> = ({
   users,
+  usersTotal,
+  usersPage,
+  usersTotalPages,
   extendingUserId,
   extendDays,
   onExtendClick,
   onExtendCancel,
   onExtendTrial,
   onExtendDaysChange,
+  onPageChange,
 }) => {
   const { t } = useTranslation();
 
@@ -36,7 +44,7 @@ export const SubscriptionsSection: React.FC<SubscriptionsSectionProps> = ({
           marginBottom: theme.spacing.lg,
         }}
       >
-        {t('admin.dashboard.allUsers')} ({users.length})
+        {t('admin.dashboard.allUsers')} ({usersTotal})
       </h2>
       {users.length === 0 ? (
         <div
@@ -51,20 +59,51 @@ export const SubscriptionsSection: React.FC<SubscriptionsSectionProps> = ({
           {t('admin.dashboard.noUsersFound')}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-          {users.map(userData => (
-            <UserSubscriptionCard
-              key={userData.id}
-              userData={userData}
-              extendingUserId={extendingUserId}
-              extendDays={extendDays}
-              onExtendClick={onExtendClick}
-              onExtendCancel={onExtendCancel}
-              onExtendTrial={onExtendTrial}
-              onExtendDaysChange={onExtendDaysChange}
-            />
-          ))}
-        </div>
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+            {users.map(userData => (
+              <UserSubscriptionCard
+                key={userData.id}
+                userData={userData}
+                extendingUserId={extendingUserId}
+                extendDays={extendDays}
+                onExtendClick={onExtendClick}
+                onExtendCancel={onExtendCancel}
+                onExtendTrial={onExtendTrial}
+                onExtendDaysChange={onExtendDaysChange}
+              />
+            ))}
+          </div>
+          {usersTotalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: theme.spacing.md,
+                marginTop: theme.spacing.lg,
+              }}
+            >
+              <button
+                onClick={() => onPageChange(usersPage - 1)}
+                disabled={usersPage <= 1}
+                style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}` }}
+              >
+                {t('common.previous')}
+              </button>
+              <span style={{ color: theme.colors.text.secondary }}>
+                {t('admin.dashboard.pageOf', { page: usersPage, totalPages: usersTotalPages })}
+              </span>
+              <button
+                onClick={() => onPageChange(usersPage + 1)}
+                disabled={usersPage >= usersTotalPages}
+                style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}` }}
+              >
+                {t('common.next')}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

@@ -5,6 +5,7 @@ import {
   Get,
   Headers,
   Post,
+  Query,
   Request,
   UnauthorizedException,
   UseGuards,
@@ -23,6 +24,8 @@ import {
   RevenueCatWebhookPayload,
   SubscriptionsService,
 } from "./subscriptions.service";
+
+const ADMIN_USERS_DEFAULT_PAGE_LIMIT = 50;
 
 @Controller("subscriptions")
 export class SubscriptionsController {
@@ -81,8 +84,15 @@ export class SubscriptionsController {
 
   @Get("all-users")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async getAllUsers(@Request() _req) {
-    return this.subscriptionsService.getAllUsersWithSubscriptions();
+  async getAllUsers(
+    @Request() _req,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.subscriptionsService.getAllUsersWithSubscriptions(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : ADMIN_USERS_DEFAULT_PAGE_LIMIT,
+    );
   }
 
   /**

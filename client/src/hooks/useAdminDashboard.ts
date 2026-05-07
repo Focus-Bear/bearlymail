@@ -10,6 +10,7 @@ import { ADMIN_TAB_WAITLIST, AdminTab } from 'constants/adminTabs';
 import { useAuth } from 'contexts/AuthContext';
 
 const DEFAULT_EXTEND_DAYS = 7;
+const DEFAULT_USERS_PAGE_LIMIT = 50;
 
 export interface WaitlistEntry {
   id: string;
@@ -38,6 +39,9 @@ export function useAdminDashboard() {
   const { onMfaRequired, mfaVerifiedAt } = useAdminMfa();
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersTotalPages, setUsersTotalPages] = useState(1);
+  const [usersTotal, setUsersTotal] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminTab>(ADMIN_TAB_WAITLIST);
   const [loading, setLoading] = useState(true);
   const [extendingUserId, setExtendingUserId] = useState<string | null>(null);
@@ -50,7 +54,7 @@ export function useAdminDashboard() {
     } catch (error) {
       const mfaType = getMfaErrorType(error);
       if (mfaType) {
- onMfaRequired(mfaType); return; 
+ onMfaRequired(mfaType); return;
 }
       console.error('Error fetching waitlist:', error);
     } finally {
@@ -58,14 +62,20 @@ export function useAdminDashboard() {
     }
   }, [onMfaRequired]);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page: number = 1) => {
     try {
-      const response = await axios.get(`${API_URL}/subscriptions/all-users`);
-      setUsers(response.data);
+      const response = await axios.get(`${API_URL}/subscriptions/all-users`, {
+        params: { page, limit: DEFAULT_USERS_PAGE_LIMIT },
+      });
+      const { users: fetchedUsers, total, totalPages } = response.data;
+      setUsers(fetchedUsers);
+      setUsersTotal(total);
+      setUsersTotalPages(totalPages);
+      setUsersPage(page);
     } catch (error) {
       const mfaType = getMfaErrorType(error);
       if (mfaType) {
- onMfaRequired(mfaType); return; 
+ onMfaRequired(mfaType); return;
 }
       console.error('Error fetching users:', error);
     }
@@ -77,7 +87,7 @@ export function useAdminDashboard() {
       return;
     }
     fetchWaitlist();
-    fetchUsers();
+    fetchUsers(1);
   }, [user, navigate, fetchWaitlist, fetchUsers, mfaVerifiedAt]);
 
   const handleExtendTrial = useCallback(
@@ -90,13 +100,13 @@ export function useAdminDashboard() {
         alert(`Trial extended by ${extendDays} days successfully!`);
         setExtendingUserId(null);
         setExtendDays(DEFAULT_EXTEND_DAYS);
-        await fetchUsers();
+        await fetchUsers(usersPage);
       } catch (error: unknown) {
         console.error('Error extending trial:', error);
         alert(getAxiosErrorMessage(error, 'Failed to extend trial'));
       }
     },
-    [extendDays, fetchUsers]
+    [extendDays, fetchUsers, usersPage]
   );
 
   const handleApprove = useCallback(
@@ -126,9 +136,19 @@ export function useAdminDashboard() {
   const pending = waitlist.filter(waitlistItem => !waitlistItem.approved);
   const approved = waitlist.filter(waitlistItem => waitlistItem.approved);
 
+  const handleUsersPageChange = useCallback(
+    (page: number) => {
+      fetchUsers(page);
+    },
+    [fetchUsers]
+  );
+
   return {
     waitlist,
     users,
+    usersPage,
+    usersTotalPages,
+    usersTotal,
     activeTab,
     setActiveTab,
     loading,
@@ -137,6 +157,7 @@ export function useAdminDashboard() {
     extendDays,
     setExtendDays,
     handleExtendTrial,
+    handleUsersPageChange,
     handleApprove,
     handleDecline,
     pending,

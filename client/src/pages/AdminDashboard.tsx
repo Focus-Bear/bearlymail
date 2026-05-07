@@ -49,11 +49,15 @@ const AdminDashboard: React.FC = () => {
     extendDays,
     setExtendDays,
     handleExtendTrial,
+    handleUsersPageChange,
     handleApprove,
     handleDecline,
     pending,
     approved,
     users,
+    usersPage,
+    usersTotalPages,
+    usersTotal,
   } = useAdminDashboard();
 
   const renderContent = () => {
@@ -102,6 +106,9 @@ const AdminDashboard: React.FC = () => {
     return (
       <SubscriptionsSection
         users={users}
+        usersTotal={usersTotal}
+        usersPage={usersPage}
+        usersTotalPages={usersTotalPages}
         extendingUserId={extendingUserId}
         extendDays={extendDays}
         onExtendClick={setExtendingUserId}
@@ -111,6 +118,7 @@ const AdminDashboard: React.FC = () => {
         }}
         onExtendTrial={handleExtendTrial}
         onExtendDaysChange={setExtendDays}
+        onPageChange={handleUsersPageChange}
       />
     );
   };

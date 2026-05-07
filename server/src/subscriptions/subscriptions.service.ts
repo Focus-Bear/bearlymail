@@ -12,6 +12,7 @@ import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { Organization } from "../database/entities/organization.entity";
 import { OrganizationMember } from "../database/entities/organization-member.entity";
 import { User } from "../database/entities/user.entity";
+import { decryptUserEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { ApiError } from "../types/common";
 import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { VOLUME_TIER_NONE, VOLUME_TIERS } from "./volume-tiers.constants";
@@ -411,10 +412,13 @@ export class SubscriptionsService {
   }
 
   /**
-   * Get all users with subscription info (admin only)
+   * Get all users with subscription info (admin only), paginated.
    */
-  async getAllUsersWithSubscriptions(): Promise<
-    Array<{
+  async getAllUsersWithSubscriptions(
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<{
+    users: Array<{
       id: string;
       email: string;
       name: string;
@@ -422,9 +426,13 @@ export class SubscriptionsService {
       subscriptionExpiresAt: Date | null;
       trialStartedAt: Date | null;
       createdAt: Date;
-    }>
-  > {
-    const users = await this.userRepository.find({
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const [rawUsers, total] = await this.userRepository.findAndCount({
       select: [
         "id",
         "email",
@@ -435,17 +443,24 @@ export class SubscriptionsService {
         "createdAt",
       ],
       order: { createdAt: "DESC" },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return users.map((user) => ({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      subscriptionStatus: user.subscriptionStatus || "none",
-      subscriptionExpiresAt: user.subscriptionExpiresAt,
-      trialStartedAt: user.trialStartedAt,
-      createdAt: user.createdAt,
-    }));
+    const mappedUsers = rawUsers.map((user) => {
+      decryptUserEntityForApi(user);
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        subscriptionStatus: user.subscriptionStatus || "none",
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
+        trialStartedAt: user.trialStartedAt,
+        createdAt: user.createdAt,
+      };
+    });
+
+    return { users: mappedUsers, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   // ─── Team seat management ─────────────────────────────────────────────────────

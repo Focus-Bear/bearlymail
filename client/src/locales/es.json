@@ -17,6 +17,7 @@
       "noName": "Sin nombre",
       "noPendingRequests": "No hay solicitudes pendientes",
       "noUsersFound": "No se encontraron usuarios",
+      "pageOf": "Página {{page}} de {{totalPages}}",
       "none": "Ninguno",
       "pendingApproval": "Pendiente de aprobación",
       "status": "Estado",
@@ -462,7 +463,9 @@
     "pageNotFound": "Página no encontrada",
     "goHome": "Ir al inicio",
     "checkmark": "✓",
-    "confirmDelete": "Confirmar eliminación"
+    "confirmDelete": "Confirmar eliminación",
+    "previous": "Anterior",
+    "next": "Siguiente"
   },
   "compose": {
     "addBcc": "Agregar CCO",

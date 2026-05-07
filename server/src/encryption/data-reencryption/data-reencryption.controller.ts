@@ -108,8 +108,11 @@ export class DataReencryptionController {
    * per-table breakdown.
    */
   @Post("dry-run-self")
-  async dryRunSelf(@Req() request: { user: { userId: string } }) {
-    const userId = request.user.userId;
+  async dryRunSelf(@Req() request: { user?: { userId?: string } }) {
+    const userId = request?.user?.userId;
+    if (!userId) {
+      throw new Error("Could not resolve current user from request");
+    }
     return this.service.reencryptUser(userId, { dryRun: true });
   }
 

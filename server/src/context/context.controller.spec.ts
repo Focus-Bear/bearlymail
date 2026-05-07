@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { AuditService } from "../audit/audit.service";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { User } from "../database/entities/user.entity";
 import { UsersService } from "../users/users.service";
@@ -76,6 +77,10 @@ describe("ContextController", () => {
         {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

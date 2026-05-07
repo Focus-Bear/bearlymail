@@ -1,31 +1,35 @@
 import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { AuditService } from "../audit/audit.service";
 import { UsersService } from "../users/users.service";
 import { AdminGuard } from "./admin.guard";
 
 describe("AdminGuard", () => {
   let guard: AdminGuard;
   let usersService: UsersService;
+  let auditService: AuditService;
   let mockExecutionContext: ExecutionContext;
 
   const mockUsersService = {
     findOne: jest.fn(),
+  };
+  const mockAuditService = {
+    log: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminGuard,
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
     guard = module.get<AdminGuard>(AdminGuard);
     usersService = module.get<UsersService>(UsersService);
+    auditService = module.get<AuditService>(AuditService);
 
     mockExecutionContext = {
       switchToHttp: jest.fn().mockReturnValue({
@@ -38,8 +42,22 @@ describe("AdminGuard", () => {
     jest.clearAllMocks();
   });
 
-  const makeRequest = (userId: string | undefined, mfaVerified = false) => ({
+  const makeRequest = (
+    userId: string | undefined,
+    mfaVerified = false,
+    extras: Record<string, unknown> = {},
+  ) => ({
     user: userId ? { userId, mfaVerified } : {},
+    method: "GET",
+    path: "/admin/test",
+    url: "/admin/test",
+    originalUrl: "/admin/test",
+    ip: "127.0.0.1",
+    headers: { "user-agent": "jest" },
+    params: {},
+    query: {},
+    body: {},
+    ...extras,
   });
 
   describe("canActivate", () => {
@@ -58,6 +76,77 @@ describe("AdminGuard", () => {
       const result = await guard.canActivate(mockExecutionContext);
       expect(result).toBe(true);
       expect(usersService.findOne).toHaveBeenCalledWith(userId);
+    });
+
+    it("should write an audit log entry on successful authorization (GAP-12)", async () => {
+      const userId = "user-123";
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(
+        makeRequest(userId, true, {
+          method: "DELETE",
+          path: "/feedback/admin/abc-1",
+          originalUrl: "/feedback/admin/abc-1?debug=1",
+          ip: "10.0.0.5",
+          headers: { "user-agent": "Test-UA/1.0" },
+          params: { id: "abc-1" },
+          query: { page: "0" },
+          body: { reason: "spam" },
+        }),
+      );
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        isAdmin: true,
+        totpEnabled: true,
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+      expect(result).toBe(true);
+      expect(auditService.log).toHaveBeenCalledTimes(1);
+      expect(auditService.log).toHaveBeenCalledWith({
+        userId,
+        action: "DELETE /feedback/admin/abc-1",
+        ipAddress: "10.0.0.5",
+        userAgent: "Test-UA/1.0",
+        metadata: {
+          params: { id: "abc-1" },
+          query: { page: "0" },
+          body: { reason: "spam" },
+        },
+      });
+    });
+
+    it("should not write an audit log entry when authorization fails (non-admin user)", async () => {
+      const userId = "user-123";
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(makeRequest(userId, true));
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        isAdmin: false,
+        totpEnabled: true,
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+      expect(result).toBe(false);
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it("should not write an audit log entry when MFA is missing", async () => {
+      const userId = "user-123";
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(makeRequest(userId, true));
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        isAdmin: true,
+        totpEnabled: false,
+      });
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(auditService.log).not.toHaveBeenCalled();
     });
 
     it("should return false for non-admin user", async () => {

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { AuditService } from "../audit/audit.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { UsersService } from "../users/users.service";
@@ -87,6 +88,10 @@ describe("EmailDebugController", () => {
         {
           provide: GmailSyncService,
           useValue: mockGmailSyncService,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

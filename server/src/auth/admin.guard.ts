@@ -5,6 +5,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 
+import { AuditService } from "../audit/audit.service";
 import { UsersService } from "../users/users.service";
 
 const MFA_REQUIRED_MESSAGE =
@@ -14,7 +15,10 @@ const MFA_NOT_VERIFIED_MESSAGE =
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private auditService: AuditService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -40,6 +44,21 @@ export class AdminGuard implements CanActivate {
         message: MFA_NOT_VERIFIED_MESSAGE,
       });
     }
+
+    // SAQ Q52 / GAP-12: record every successful admin authorization.
+    // Fire-and-forget — AuditService swallows its own errors so a logging failure
+    // never blocks the admin request.
+    void this.auditService.log({
+      userId,
+      action: `${request.method} ${request.path}`,
+      ipAddress: request.ip ?? null,
+      userAgent: request.headers?.["user-agent"] ?? null,
+      metadata: {
+        params: request.params,
+        query: request.query,
+        body: request.body,
+      },
+    });
 
     return true;
   }

@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 
+import { AuditService } from "../audit/audit.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "../emails/emails.service";
@@ -114,6 +115,10 @@ describe("GitHubController - getAdminDebugInfo", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
@@ -396,6 +401,10 @@ describe("GitHubController - testUserToken", () => {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
         },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -568,6 +577,10 @@ describe("GitHubController - getMyConnectionStatus", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
@@ -794,6 +807,10 @@ describe("GitHubController - createConnectToken", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

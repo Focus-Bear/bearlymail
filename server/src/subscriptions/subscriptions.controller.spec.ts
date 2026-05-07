@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { AuditService } from "../audit/audit.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsController } from "./subscriptions.controller";
@@ -42,6 +43,10 @@ describe("SubscriptionsController", () => {
         {
           provide: OrganizationsService,
           useValue: mockOrganizationsService,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

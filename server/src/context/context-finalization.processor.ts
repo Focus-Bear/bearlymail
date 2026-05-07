@@ -6,6 +6,7 @@ import PgBoss from "pg-boss";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import {
   MAX_FINALIZATION_RETRIES,
   RETRY_CONSTANTS,
@@ -50,6 +51,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     private contextService: ContextService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -338,32 +340,36 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     }
 
     try {
-      // Check if all batches are complete using actual totalBatches from stats
-      // CRITICAL: Use actualTotalBatches from stats, not from job data
-      const allBatchesComplete = await this.contextService.checkBatchesComplete(
-        analysisRecordId,
-        // Use actual value from stats, not job data
-        actualTotalBatches,
-      );
+      // runPostProcessing reads encrypted ContextAnalysis batch payloads
+      // and writes encrypted UserContext rows. Wrap with the user's KMS
+      // key so transformers operate under the per-user envelope.
+      await this.userEncryptionService.withUserKey(userId, async () => {
+        // Check if all batches are complete using actual totalBatches from stats
+        // CRITICAL: Use actualTotalBatches from stats, not from job data
+        const allBatchesComplete =
+          await this.contextService.checkBatchesComplete(
+            analysisRecordId,
+            // Use actual value from stats, not job data
+            actualTotalBatches,
+          );
 
-      if (!allBatchesComplete) {
-        // Not all batches are done yet - re-queue this job with a delay
-        const completedBatches =
-          await this.contextService.getCompletedBatchCount(analysisRecordId);
-        await this.requeueFinalizationJob(
-          workerId,
-          jobData,
-          analysisRecordId,
-          actualTotalBatches,
-          completedBatches,
-        );
-        // Log even when re-queuing
-        tracker.finish();
-        return;
-      }
+        if (!allBatchesComplete) {
+          // Not all batches are done yet - re-queue this job with a delay
+          const completedBatches =
+            await this.contextService.getCompletedBatchCount(analysisRecordId);
+          await this.requeueFinalizationJob(
+            workerId,
+            jobData,
+            analysisRecordId,
+            actualTotalBatches,
+            completedBatches,
+          );
+          return;
+        }
 
-      // All batches are complete - do the post-processing
-      await this.runPostProcessing(workerId, jobData, actualTotalBatches);
+        // All batches are complete - do the post-processing
+        await this.runPostProcessing(workerId, jobData, actualTotalBatches);
+      });
       tracker.finish();
     } catch (error: unknown) {
       const errorMessage =

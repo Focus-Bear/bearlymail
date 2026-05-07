@@ -12,6 +12,7 @@ import { PERCENTAGES } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { MS_PER_SECOND } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { LLMService } from "../llm/llm.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getErrorMessage } from "../types/common";
@@ -80,6 +81,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     private gmailDataService: ContextGmailDataService,
     private usersService: UsersService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {
     const cpuCores = os.cpus().length;
     const defaultConcurrency = Math.max(3, Math.min(cpuCores * 2, 10));
@@ -797,32 +799,37 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     let attemptNumber = 0;
     const maxRetries = 5;
 
-    while (attemptNumber <= maxRetries) {
-      try {
-        await this.runBatchAttempt({
-          workerId,
-          userId,
-          batchIndex,
-          totalBatches,
-          attemptNumber,
-          jobData,
-          tracker,
-        });
-        return;
-      } catch (error: unknown) {
-        attemptNumber++;
-        const isTerminal = await this.handleBatchError({
-          workerId,
-          batchIndex,
-          totalBatches,
-          attemptNumber,
-          maxRetries,
-          analysisRecordId,
-          error,
-          tracker,
-        });
-        if (isTerminal) throw error;
+    // Wrap the whole retry loop with the user's KMS key so every attempt
+    // (and any reads/writes of encrypted Email / EmailThread / UserContext
+    // columns inside) sees the per-user envelope key in ALS.
+    await this.userEncryptionService.withUserKey(userId, async () => {
+      while (attemptNumber <= maxRetries) {
+        try {
+          await this.runBatchAttempt({
+            workerId,
+            userId,
+            batchIndex,
+            totalBatches,
+            attemptNumber,
+            jobData,
+            tracker,
+          });
+          return;
+        } catch (error: unknown) {
+          attemptNumber++;
+          const isTerminal = await this.handleBatchError({
+            workerId,
+            batchIndex,
+            totalBatches,
+            attemptNumber,
+            maxRetries,
+            analysisRecordId,
+            error,
+            tracker,
+          });
+          if (isTerminal) throw error;
+        }
       }
-    }
+    });
   }
 }

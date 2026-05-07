@@ -8,6 +8,7 @@ import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { WorkflowContext } from "./types/workflow.types";
 import { WorkflowExecutionService } from "./workflow-execution.service";
@@ -46,6 +47,7 @@ export class WorkflowProcessor implements OnModuleInit {
     private readonly threadRepo: Repository<EmailThread>,
     private readonly workflowsService: WorkflowsService,
     private readonly executionService: WorkflowExecutionService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -59,7 +61,14 @@ export class WorkflowProcessor implements OnModuleInit {
         );
 
         try {
-          return await this.processWorkflows(userId, emailThreadId);
+          // processWorkflows reads encrypted Email + EmailThread columns
+          // (from, subject, body, summary, categoryId etc.) and the
+          // execution service may write encrypted draft replies. Wrap
+          // with the user's KMS key so decrypts/encrypts use the same
+          // envelope the HTTP path uses.
+          return await this.userEncryptionService.withUserKey(userId, () =>
+            this.processWorkflows(userId, emailThreadId),
+          );
         } catch (error) {
           if (StructuralError.isStructuralError(error)) {
             this.logger.error(

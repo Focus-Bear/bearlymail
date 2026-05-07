@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { PusherService } from "../pusher/pusher.service";
 import { UsersService } from "../users/users.service";
@@ -18,6 +19,7 @@ export class ContactSyncProcessor implements OnModuleInit {
     private readonly usersService: UsersService,
     private readonly pusherService: PusherService,
     private readonly googleAccountsService: GoogleAccountsService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -89,7 +91,13 @@ export class ContactSyncProcessor implements OnModuleInit {
         try {
           await this.pusherService.triggerContactSyncStarted(userId);
 
-          const results = await this.contactsService.syncContacts(userId);
+          // syncContacts reads/writes encrypted Contact rows; needs the
+          // per-user KMS key in ALS so transformers operate under the
+          // same envelope as the HTTP read path.
+          const results = await this.userEncryptionService.withUserKey(
+            userId,
+            () => this.contactsService.syncContacts(userId),
+          );
 
           this.logger.log(
             `[Worker ${workerId}] Completed contact sync for user ${userId}: ${JSON.stringify(results)}`,

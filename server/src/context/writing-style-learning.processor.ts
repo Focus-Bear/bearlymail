@@ -8,6 +8,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
 import { ContextEmailDataService } from "./context-gmail-data.service";
@@ -28,6 +29,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
     private contextEmailDataService: ContextEmailDataService,
     private configService: ConfigService,
     private cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -64,10 +66,14 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
 
       for (const user of users) {
         try {
-          const { processed, skipped } = await this.processUserWritingStyle(
-            user.id,
-            user.email || "",
-          );
+          // processUserWritingStyle reads encrypted OAuth tokens (provider
+          // lookup), encrypted Email bodies from sent-thread fetch, and
+          // writes encrypted toneSettings/UserContext examples. Wrap with
+          // the user's KMS key so all of those use the per-user envelope.
+          const { processed, skipped } =
+            await this.userEncryptionService.withUserKey(user.id, () =>
+              this.processUserWritingStyle(user.id, user.email || ""),
+            );
           usersProcessed += processed;
           usersSkipped += skipped;
         } catch (userError) {

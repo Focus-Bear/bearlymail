@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { logErrorToFile } from "../utils/error-logger";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailsService } from "./emails.service";
@@ -27,6 +28,7 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -50,14 +52,19 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     );
 
     try {
-      await this.emailsService.archiveEmail(userId, emailId);
-      this.logger.log(
-        `[Archive Job] Successfully archived email: userId=${userId}, emailId=${emailId}`,
-      );
+      // archiveEmail and addBlockedLabel touch encrypted Email columns; they
+      // need the per-user KMS key in AsyncLocalStorage so transformers
+      // encrypt/decrypt under the same key the HTTP path uses.
+      await this.userEncryptionService.withUserKey(userId, async () => {
+        await this.emailsService.archiveEmail(userId, emailId);
+        this.logger.log(
+          `[Archive Job] Successfully archived email: userId=${userId}, emailId=${emailId}`,
+        );
 
-      if (isBlocked) {
-        await this.addBlockedLabel(userId, emailId);
-      }
+        if (isBlocked) {
+          await this.addBlockedLabel(userId, emailId);
+        }
+      });
     } catch (error: unknown) {
       this.logger.error(
         `[Archive Job] Failed to archive email: userId=${userId}, emailId=${emailId}`,
@@ -109,31 +116,36 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     );
 
     try {
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider && "archiveThread" in provider) {
-        await provider.archiveThread(userId, threadId);
-        this.logger.log(
-          `[Archive Provider Sync] Archived thread: userId=${userId}, threadId=${threadId}`,
-        );
+      // getPrimaryProvider reads encrypted OAuth tokens (Google/Office365/Zoho
+      // account entities use encryptedColumnTransformer). Wrap with the user's
+      // KMS key so those decrypts succeed.
+      await this.userEncryptionService.withUserKey(userId, async () => {
+        const provider =
+          await this.emailProviderManager.getPrimaryProvider(userId);
+        if (provider && "archiveThread" in provider) {
+          await provider.archiveThread(userId, threadId);
+          this.logger.log(
+            `[Archive Provider Sync] Archived thread: userId=${userId}, threadId=${threadId}`,
+          );
 
-        if (wasStarred && "syncStarStatusToGmail" in provider) {
-          await this.removeStarFromThread(provider, userId, threadId);
+          if (wasStarred && "syncStarStatusToGmail" in provider) {
+            await this.removeStarFromThread(provider, userId, threadId);
+          }
+
+          this.logger.log(
+            `[Archive Provider Sync] Completed: userId=${userId}, threadId=${threadId}`,
+          );
+          await this.emailsService.markThreadSyncStatus(
+            userId,
+            threadId,
+            "synced",
+          );
+        } else {
+          this.logger.warn(
+            `[Archive Provider Sync] No provider available: userId=${userId}`,
+          );
         }
-
-        this.logger.log(
-          `[Archive Provider Sync] Completed: userId=${userId}, threadId=${threadId}`,
-        );
-        await this.emailsService.markThreadSyncStatus(
-          userId,
-          threadId,
-          "synced",
-        );
-      } else {
-        this.logger.warn(
-          `[Archive Provider Sync] No provider available: userId=${userId}`,
-        );
-      }
+      });
     } catch (error: unknown) {
       this.logger.error(
         `[Archive Provider Sync] Failed: userId=${userId}, threadId=${threadId}`,

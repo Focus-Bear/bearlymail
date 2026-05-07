@@ -14,6 +14,7 @@ import {
 } from "../database/entities/scheduled-email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { UsersService } from "../users/users.service";
 
 // Time constants for scheduling
@@ -53,6 +54,7 @@ export class ScheduledEmailsService {
     private emailsService: EmailsService,
     private contactsService: ContactsService,
     private usersService: UsersService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   /**
@@ -147,44 +149,63 @@ export class ScheduledEmailsService {
     errors: Array<{ id: string; error: string }>;
   }> {
     const now = new Date();
-    const dueEmails = await this.scheduledEmailRepository.find({
+    // Project only the unencrypted columns we need to enumerate due emails.
+    // The encrypted columns (subject, body, etc.) must be hydrated inside
+    // each row's per-user KMS context — see loop below.
+    const dueEmailRefs = await this.scheduledEmailRepository.find({
       where: {
         status: "pending",
         scheduledSendAt: LessThanOrEqual(now),
       },
       order: { scheduledSendAt: "ASC" },
+      select: ["id", "userId"],
     });
 
-    this.logger.log(`Found ${dueEmails.length} emails due to be sent`);
+    this.logger.log(`Found ${dueEmailRefs.length} emails due to be sent`);
 
     let sent = 0;
     let failed = 0;
     const errors: Array<{ id: string; error: string }> = [];
 
-    for (const scheduledEmail of dueEmails) {
+    for (const ref of dueEmailRefs) {
       try {
-        await this.sendScheduledEmail(scheduledEmail);
-        sent++;
+        // Hydrate the full row (including encrypted columns) and send it
+        // inside the user's KMS-derived encryption context, so transformers
+        // decrypt under the same key the row was written with.
+        await this.userEncryptionService.withUserKey(ref.userId, async () => {
+          const scheduledEmail = await this.scheduledEmailRepository.findOne({
+            where: { id: ref.id },
+          });
+          if (!scheduledEmail) {
+            this.logger.warn(
+              `Scheduled email ${ref.id} disappeared between projection and send — skipping`,
+            );
+            return;
+          }
+          await this.sendScheduledEmail(scheduledEmail);
+          sent++;
+        });
       } catch (error) {
         failed++;
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        errors.push({ id: scheduledEmail.id, error: errorMessage });
+        errors.push({ id: ref.id, error: errorMessage });
 
-        // Mark as failed
-        scheduledEmail.status = "failed";
-        scheduledEmail.errorMessage = errorMessage;
-        await this.scheduledEmailRepository.save(scheduledEmail);
+        // Mark as failed (status is unencrypted, no per-user context required).
+        await this.scheduledEmailRepository.update(
+          { id: ref.id },
+          { status: "failed", errorMessage },
+        );
 
         this.logger.error(
-          `Failed to send scheduled email ${scheduledEmail.id}:`,
+          `Failed to send scheduled email ${ref.id}:`,
           error,
         );
       }
     }
 
     this.logger.log(
-      `Processed ${dueEmails.length} scheduled emails: ${sent} sent, ${failed} failed`,
+      `Processed ${dueEmailRefs.length} scheduled emails: ${sent} sent, ${failed} failed`,
     );
 
     return { sent, failed, errors };

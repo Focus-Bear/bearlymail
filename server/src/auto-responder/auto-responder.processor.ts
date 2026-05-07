@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss = require("pg-boss");
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { StructuralError } from "../errors/structural-error";
 import { getJobPriority } from "../queue/job-priorities";
 import { AutoResponderService } from "./auto-responder.service";
@@ -22,6 +23,7 @@ export class AutoResponderProcessor implements OnModuleInit {
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private autoResponderService: AutoResponderService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async onModuleInit() {
@@ -41,12 +43,18 @@ export class AutoResponderProcessor implements OnModuleInit {
         );
 
         try {
-          const result =
-            await this.autoResponderService.processEmailForAutoResponse(
-              userId,
-              emailThreadId,
-              headers,
-            );
+          // processEmailForAutoResponse reads encrypted Email + EmailThread
+          // columns and writes encrypted reply drafts. Wrap with the user's
+          // KMS key so transformers operate under per-user envelope encryption.
+          const result = await this.userEncryptionService.withUserKey(
+            userId,
+            () =>
+              this.autoResponderService.processEmailForAutoResponse(
+                userId,
+                emailThreadId,
+                headers,
+              ),
+          );
 
           this.logger.log(
             `Auto-responder result for thread ${emailThreadId}: ${result.reason}`,

@@ -11,6 +11,7 @@ import {
 // Mock DOMPurify
 jest.mock('dompurify', () => ({
   sanitize: jest.fn((html: string) => html), // Return as-is for testing
+  addHook: jest.fn(),
 }));
 
 describe('emailBodyUtils', () => {

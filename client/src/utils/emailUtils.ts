@@ -1,3 +1,5 @@
+import './sanitizeHooks';
+
 import DOMPurify from 'dompurify';
 
 import { NODE_NAME_ANCHOR } from 'constants/strings';
@@ -267,8 +269,8 @@ export const sanitizeAndProcessHtml = (html: string): string => {
     ],
     ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped', 'target', 'rel'],
     ALLOW_DATA_ATTR: false,
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'use'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'xlink:href'],
   });
 
   // Step 2: Auto-linkify plain URLs in text nodes that aren't already inside <a> tags

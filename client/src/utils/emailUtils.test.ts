@@ -219,6 +219,32 @@ describe('emailUtils', () => {
       expect(result).not.toContain('javascript:');
     });
 
+    describe('SVG sanitization (GAP-11)', () => {
+      it('should strip <use> tags that reference external SVG resources', () => {
+        const html =
+          '<p>before</p><svg><use href="https://evil.example.com/payload.svg#x"/></svg><p>after</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).not.toMatch(/<use\b/i);
+        expect(result).not.toContain('evil.example.com');
+        expect(result).toContain('before');
+        expect(result).toContain('after');
+      });
+
+      it('should strip xlink:href on SVG-embedded elements', () => {
+        const html = '<svg><a xlink:href="https://evil.example.com/x">click</a></svg>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).not.toContain('xlink:href');
+        expect(result).not.toContain('evil.example.com');
+      });
+
+      it('should strip external href on the <svg> element itself via afterSanitizeAttributes hook', () => {
+        const html = '<svg href="https://evil.example.com/x" xlink:href="https://evil.example.com/y"></svg>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).not.toContain('evil.example.com');
+        expect(result).not.toContain('xlink:href');
+      });
+    });
+
     describe('auto-linkify plain URLs', () => {
       it('should convert a plain https URL into a clickable link', () => {
         const html = '<p>Check this: https://www.example.com/page</p>';

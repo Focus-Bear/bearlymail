@@ -1,3 +1,5 @@
+import './sanitizeHooks';
+
 import DOMPurify from 'dompurify';
 
 import {
@@ -388,8 +390,18 @@ export function sanitizeAndProcessHtml(html: string): string {
     ALLOWED_ATTR: EMAIL_ALLOWED_ATTR,
     ALLOW_DATA_ATTR: false,
     // Prevent javascript: and data: URLs in href/src
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea', 'use'],
+    FORBID_ATTR: [
+      'onerror',
+      'onload',
+      'onclick',
+      'onmouseover',
+      'onfocus',
+      'onblur',
+      'onsubmit',
+      'onchange',
+      'xlink:href',
+    ],
   });
 
   // Step 2: Remove problematic images

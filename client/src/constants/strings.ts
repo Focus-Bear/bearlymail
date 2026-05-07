@@ -222,6 +222,8 @@ export const LINK_TYPE_PR = 'pr' as const;
 
 // DOM node names
 export const NODE_NAME_ANCHOR = 'A' as const;
+export const NODE_NAME_SVG = 'SVG' as const;
+export const NODE_NAME_USE = 'USE' as const;
 
 // Email categories
 export const CATEGORY_OTHER = 'Other' as const;

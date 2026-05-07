@@ -1,6 +1,5 @@
 // Export all entities to ensure they're loaded in the correct order
 export { ActionItem } from "./action-item.entity";
-export { DeletedAccount } from "./deleted-account.entity";
 export { AutoResponseLog } from "./auto-response-log.entity";
 export { AutoResponseSuppression } from "./auto-response-suppression.entity";
 export { BatchSchedule } from "./batch-schedule.entity";
@@ -9,6 +8,7 @@ export { BlockedSender } from "./blocked-sender.entity";
 export { CategoryOverride } from "./category-override.entity";
 export { Contact } from "./contact.entity";
 export { ContextAnalysis } from "./context-analysis.entity";
+export { DeletedAccount } from "./deleted-account.entity";
 export { Email } from "./email.entity";
 export { EmailThread } from "./email-thread.entity";
 export { Feedback } from "./feedback.entity";

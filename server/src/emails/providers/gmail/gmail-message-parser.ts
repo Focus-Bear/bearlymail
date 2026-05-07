@@ -236,7 +236,11 @@ export function extractAttachmentsFromPayload(
         mimeType: part.mimeType || "application/octet-stream",
         size: body?.size ?? 0,
       });
-    } else if (!attachmentId && body?.data && CALENDAR_MIME_TYPES.has(mimeType)) {
+    } else if (
+      !attachmentId &&
+      body?.data &&
+      CALENDAR_MIME_TYPES.has(mimeType)
+    ) {
       // Inline calendar part: Gmail embeds small ICS files directly in body.data
       // rather than giving them a separate attachmentId. Capture them with a
       // synthetic ID so the IcsInviteCard can detect and serve them.

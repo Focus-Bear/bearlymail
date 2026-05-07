@@ -2,7 +2,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { DeletedAccount, DeletionReason } from "../database/entities/deleted-account.entity";
+import {
+  DeletedAccount,
+  DeletionReason,
+} from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { mockPartial } from "../test/helpers/mock-utils";
@@ -487,17 +490,16 @@ describe("UsersService", () => {
   describe("hashEmail", () => {
     it("should delegate to EncryptionHelper.hashEmail", () => {
       const result = service.hashEmail("test@example.com");
-      expect(EncryptionHelper.hashEmail).toHaveBeenCalledWith("test@example.com");
+      expect(EncryptionHelper.hashEmail).toHaveBeenCalledWith(
+        "test@example.com",
+      );
       expect(result).toBe("hash_test@example.com");
     });
   });
 
   describe("findUsersForDeletion", () => {
     it("returns user IDs from the raw query result", async () => {
-      repository.query.mockResolvedValue([
-        { id: "user-1" },
-        { id: "user-2" },
-      ]);
+      repository.query.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
 
       const result = await service.findUsersForDeletion(30);
 
@@ -559,7 +561,8 @@ describe("UsersService", () => {
     it("should return null when no deleted account found", async () => {
       deletedAccountRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findDeletedAccountByEmailHash("unknown-hash");
+      const result =
+        await service.findDeletedAccountByEmailHash("unknown-hash");
 
       expect(result).toBeNull();
     });

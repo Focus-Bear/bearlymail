@@ -175,13 +175,15 @@ export async function sendEmailViaZoho(
 
   const message: Record<string, string> = {
     fromAddress,
-    toAddress: to.map((recipient) => recipient.email).join(','),
+    toAddress: to.map((recipient) => recipient.email).join(","),
     subject,
     content: htmlBody,
   };
 
-  if (cc?.length) message.ccAddress = cc.map((recipient) => recipient.email).join(',');
-  if (bcc?.length) message.bccAddress = bcc.map((recipient) => recipient.email).join(',');
+  if (cc?.length)
+    message.ccAddress = cc.map((recipient) => recipient.email).join(",");
+  if (bcc?.length)
+    message.bccAddress = bcc.map((recipient) => recipient.email).join(",");
 
   const response = await zohoClient.post(
     `/accounts/${zohoAccountId}/messages`,
@@ -222,12 +224,9 @@ export async function fetchThreadMessagesViaZoho(
   threadId: string,
   limit: number,
 ): Promise<ZohoMailMessage[]> {
-  const response = await zohoClient.get(
-    `/accounts/${zohoAccountId}/messages`,
-    {
-      params: { threadId, limit },
-    },
-  );
+  const response = await zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
+    params: { threadId, limit },
+  });
   return response.data.data || [];
 }
 

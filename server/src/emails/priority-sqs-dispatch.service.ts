@@ -12,7 +12,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import { SqsBatchMessage, SqsService } from "../aws/sqs.service";
-import { BYTE_CONVERSIONS, SQS_CONSTANTS } from "../constants/service-constants";
+import {
+  BYTE_CONVERSIONS,
+  SQS_CONSTANTS,
+} from "../constants/service-constants";
 
 /**
  * User context item for priority analysis.
@@ -103,7 +106,9 @@ const SQS_MAX_BODY_BYTES = SQS_CONSTANTS.MAX_BODY_KB * BYTE_CONVERSIONS.KB;
  * Email bodies are progressively trimmed, then stripped. If the user context
  * alone exceeds the limit, it is cleared as a last resort.
  */
-export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBatchPayload {
+export function trimPayloadToSqsLimit(
+  payload: PriorityBatchPayload,
+): PriorityBatchPayload {
   const serialized = JSON.stringify(payload);
   if (Buffer.byteLength(serialized, "utf-8") <= SQS_MAX_BODY_BYTES) {
     return payload;
@@ -114,10 +119,15 @@ export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBa
       ...payload,
       emails: payload.emails.map((email) => ({
         ...email,
-        body: email.body.length > trimLen ? email.body.substring(0, trimLen) + "…" : email.body,
+        body:
+          email.body.length > trimLen
+            ? `${email.body.substring(0, trimLen)}…`
+            : email.body,
       })),
     };
-    if (Buffer.byteLength(JSON.stringify(trimmed), "utf-8") <= SQS_MAX_BODY_BYTES) {
+    if (
+      Buffer.byteLength(JSON.stringify(trimmed), "utf-8") <= SQS_MAX_BODY_BYTES
+    ) {
       return trimmed;
     }
   }
@@ -127,7 +137,10 @@ export function trimPayloadToSqsLimit(payload: PriorityBatchPayload): PriorityBa
     ...payload,
     emails: payload.emails.map((email) => ({ ...email, body: "" })),
   };
-  if (Buffer.byteLength(JSON.stringify(strippedBodies), "utf-8") <= SQS_MAX_BODY_BYTES) {
+  if (
+    Buffer.byteLength(JSON.stringify(strippedBodies), "utf-8") <=
+    SQS_MAX_BODY_BYTES
+  ) {
     return strippedBodies;
   }
 

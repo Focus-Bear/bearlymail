@@ -61,7 +61,10 @@ export class AccountDeletionProcessor implements OnModuleInit {
 
     for (const userId of userIds) {
       try {
-        await this.usersService.deleteAccount(userId, DeletionReason.INACTIVITY);
+        await this.usersService.deleteAccount(
+          userId,
+          DeletionReason.INACTIVITY,
+        );
         deleted++;
         this.logger.log(
           `[AccountDeletion] Deleted inactive account userId=${userId}`,

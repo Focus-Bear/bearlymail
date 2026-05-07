@@ -10,10 +10,7 @@ import { JOB_NAMES } from "../constants/job-names";
 import { ContextCrudService } from "../context/context-crud.service";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  ContextKey,
-  Source,
-} from "../database/entities/user-context.entity";
+import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
 

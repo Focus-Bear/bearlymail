@@ -5,10 +5,7 @@ import PgBoss from "pg-boss";
 import { ContextCrudService } from "../context/context-crud.service";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  ContextKey,
-  Source,
-} from "../database/entities/user-context.entity";
+import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { mockPartial } from "../test/helpers/mock-utils";
 import { UsersService } from "../users/users.service";
 import { OnboardingService } from "./onboarding.service";

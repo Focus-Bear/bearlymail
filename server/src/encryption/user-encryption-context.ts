@@ -29,6 +29,8 @@ export function getCurrentUserKey(): Buffer | undefined {
  * Returns the per-request decryption failure counter, or undefined when running
  * outside a request context (global static counter is used in that case).
  */
-export function getRequestDecryptContext(): RequestEncryptionContext | undefined {
+export function getRequestDecryptContext():
+  | RequestEncryptionContext
+  | undefined {
   return storage.getStore();
 }

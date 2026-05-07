@@ -1,7 +1,6 @@
-import { randomUUID } from "crypto";
-
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { randomUUID } from "crypto";
 import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
 

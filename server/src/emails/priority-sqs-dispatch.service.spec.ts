@@ -3,14 +3,16 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { SqsService } from "../aws/sqs.service";
 import {
   buildPriorityBatchDeduplicationId,
+  type PriorityBatchPayload,
+  type PriorityEmailPayload,
   PrioritySqsDispatchService,
   PrioritySqsEnqueueJobContext,
   trimPayloadToSqsLimit,
-  type PriorityBatchPayload,
-  type PriorityEmailPayload,
 } from "./priority-sqs-dispatch.service";
 
-function makeEmail(overrides: Partial<PriorityEmailPayload> = {}): PriorityEmailPayload {
+function makeEmail(
+  overrides: Partial<PriorityEmailPayload> = {},
+): PriorityEmailPayload {
   return {
     emailKey: "email-1",
     from: "sender@example.com",
@@ -21,7 +23,9 @@ function makeEmail(overrides: Partial<PriorityEmailPayload> = {}): PriorityEmail
   };
 }
 
-function makeContext(overrides: Partial<PrioritySqsEnqueueJobContext> = {}): PrioritySqsEnqueueJobContext {
+function makeContext(
+  overrides: Partial<PrioritySqsEnqueueJobContext> = {},
+): PrioritySqsEnqueueJobContext {
   return {
     userId: "user-1",
     analysisId: "analysis-abc",
@@ -42,8 +46,12 @@ function makeContext(overrides: Partial<PrioritySqsEnqueueJobContext> = {}): Pri
 
 describe("buildPriorityBatchDeduplicationId", () => {
   it("should build a stable deduplication ID from analysisId and batchIndex", () => {
-    expect(buildPriorityBatchDeduplicationId("abc123", 0)).toBe("priority-abc123-batch-0");
-    expect(buildPriorityBatchDeduplicationId("xyz", 5)).toBe("priority-xyz-batch-5");
+    expect(buildPriorityBatchDeduplicationId("abc123", 0)).toBe(
+      "priority-abc123-batch-0",
+    );
+    expect(buildPriorityBatchDeduplicationId("xyz", 5)).toBe(
+      "priority-xyz-batch-5",
+    );
   });
 
   it("should produce distinct IDs for different batch indices", () => {
@@ -95,7 +103,9 @@ describe("trimPayloadToSqsLimit", () => {
     };
     const trimmed = trimPayloadToSqsLimit(payload);
     expect(trimmed).not.toBe(payload);
-    expect(Buffer.byteLength(JSON.stringify(trimmed), "utf-8")).toBeLessThanOrEqual(230 * 1024);
+    expect(
+      Buffer.byteLength(JSON.stringify(trimmed), "utf-8"),
+    ).toBeLessThanOrEqual(230 * 1024);
     expect(trimmed.emails[0].body.length).toBeLessThan(longBody.length);
   });
 
@@ -121,7 +131,9 @@ describe("trimPayloadToSqsLimit", () => {
       },
     };
     const trimmed = trimPayloadToSqsLimit(payload);
-    expect(Buffer.byteLength(JSON.stringify(trimmed), "utf-8")).toBeLessThanOrEqual(230 * 1024);
+    expect(
+      Buffer.byteLength(JSON.stringify(trimmed), "utf-8"),
+    ).toBeLessThanOrEqual(230 * 1024);
   });
 });
 
@@ -145,7 +157,9 @@ describe("PrioritySqsDispatchService", () => {
       ],
     }).compile();
 
-    service = module.get<PrioritySqsDispatchService>(PrioritySqsDispatchService);
+    service = module.get<PrioritySqsDispatchService>(
+      PrioritySqsDispatchService,
+    );
     sqsService = module.get(SqsService);
   });
 
@@ -167,9 +181,15 @@ describe("PrioritySqsDispatchService", () => {
         { batchNum: 1, batchPayload: [makeEmail({ emailKey: "e2" })] },
       ];
 
-      const results = await service.enqueueAllBatchesViaSqs(batches, ctx, enqueueErrors);
+      const results = await service.enqueueAllBatchesViaSqs(
+        batches,
+        ctx,
+        enqueueErrors,
+      );
 
-      expect(sqsService.sendPrioritisationMessageBatch).toHaveBeenCalledTimes(1);
+      expect(sqsService.sendPrioritisationMessageBatch).toHaveBeenCalledTimes(
+        1,
+      );
       expect(results).toHaveLength(2);
       expect(results[0]).toEqual({ jobId: "msg-1", batchNum: 0 });
       expect(results[1]).toEqual({ jobId: "msg-2", batchNum: 1 });
@@ -189,7 +209,11 @@ describe("PrioritySqsDispatchService", () => {
         { batchNum: 1, batchPayload: [makeEmail({ emailKey: "e2" })] },
       ];
 
-      const results = await service.enqueueAllBatchesViaSqs(batches, ctx, enqueueErrors);
+      const results = await service.enqueueAllBatchesViaSqs(
+        batches,
+        ctx,
+        enqueueErrors,
+      );
 
       expect(results[0]).toEqual({ jobId: null, batchNum: 0 });
       expect(results[1]).toEqual({ jobId: "msg-2", batchNum: 1 });
@@ -213,8 +237,11 @@ describe("PrioritySqsDispatchService", () => {
         enqueueErrors,
       );
 
-      const calledMessages = sqsService.sendPrioritisationMessageBatch.mock.calls[0][0];
-      expect(calledMessages[0].deduplicationId).toBe("priority-test-analysis-batch-3");
+      const calledMessages =
+        sqsService.sendPrioritisationMessageBatch.mock.calls[0][0];
+      expect(calledMessages[0].deduplicationId).toBe(
+        "priority-test-analysis-batch-3",
+      );
     });
 
     it("should assign unique MessageGroupIds per batch for parallel processing", async () => {
@@ -235,7 +262,8 @@ describe("PrioritySqsDispatchService", () => {
         enqueueErrors,
       );
 
-      const calledMessages = sqsService.sendPrioritisationMessageBatch.mock.calls[0][0];
+      const calledMessages =
+        sqsService.sendPrioritisationMessageBatch.mock.calls[0][0];
       const groupIds = calledMessages.map((msg) => msg.messageGroupId);
       expect(groupIds[0]).toBe("analysis-xyz-batch-0");
       expect(groupIds[1]).toBe("analysis-xyz-batch-1");
@@ -262,7 +290,9 @@ describe("PrioritySqsDispatchService", () => {
     });
 
     it("should record an enqueue error when SQS throws", async () => {
-      sqsService.sendPrioritisationMessage.mockRejectedValue(new Error("SQS unavailable"));
+      sqsService.sendPrioritisationMessage.mockRejectedValue(
+        new Error("SQS unavailable"),
+      );
 
       const ctx = makeContext();
       const enqueueErrors: Array<{ batchNum: number; error: string }> = [];

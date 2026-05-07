@@ -102,10 +102,14 @@ async function verifyDbAttachments(
     } else if (verifiedAttachments === null) {
       dbCount = 0;
     }
-    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${emailId} save_verified: gmail=${gmailCount} db=${dbCount !== null ? dbCount : "non-array/null"}`);
+    logger.log(
+      `refreshAttachmentsFromGmailForThread: emailId=${emailId} save_verified: gmail=${gmailCount} db=${dbCount !== null ? dbCount : "non-array/null"}`,
+    );
     return { dbCount };
   } catch (verifyError) {
-    logger.warn(`refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${emailId}: ${verifyError}`);
+    logger.warn(
+      `refreshAttachmentsFromGmailForThread: DB verification read failed for emailId=${emailId}: ${verifyError}`,
+    );
     return { dbCount: null, dbError: String(verifyError) };
   }
 }
@@ -121,34 +125,88 @@ async function processEmailRefresh(
     logger.warn(
       `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} has no Gmail messageId — skipping`,
     );
-    return { emailId: threadEmail.id, gmailMessageId: "", attachments: null, gmailCount: null, dbCount: null, error: "No Gmail message ID" };
+    return {
+      emailId: threadEmail.id,
+      gmailMessageId: "",
+      attachments: null,
+      gmailCount: null,
+      dbCount: null,
+      error: "No Gmail message ID",
+    };
   }
 
   let attachments: EmailAttachment[] | null = null;
   try {
-    const apiResponse = await gmail.users.messages.get({ userId: "me", id: threadEmail.messageId, format: "full" });
+    const apiResponse = await gmail.users.messages.get({
+      userId: "me",
+      id: threadEmail.messageId,
+      format: "full",
+    });
     const rawEmail = parseGmailMessage(apiResponse.data);
     if (!rawEmail) {
-      logger.warn(`refreshAttachmentsFromGmailForThread: Could not parse Gmail message for emailId=${threadEmail.id}`);
-      return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments: null, gmailCount: null, dbCount: null, error: "Could not parse Gmail message payload" };
+      logger.warn(
+        `refreshAttachmentsFromGmailForThread: Could not parse Gmail message for emailId=${threadEmail.id}`,
+      );
+      return {
+        emailId: threadEmail.id,
+        gmailMessageId: threadEmail.messageId,
+        attachments: null,
+        gmailCount: null,
+        dbCount: null,
+        error: "Could not parse Gmail message payload",
+      };
     }
     attachments = rawEmail.attachments ?? null;
-    logger.log(`refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} messageId=${threadEmail.messageId} gmail_attachments=${attachments?.length ?? 0}`);
+    logger.log(
+      `refreshAttachmentsFromGmailForThread: emailId=${threadEmail.id} messageId=${threadEmail.messageId} gmail_attachments=${attachments?.length ?? 0}`,
+    );
   } catch (error) {
-    logger.warn(`refreshAttachmentsFromGmailForThread: Gmail API failed for messageId=${threadEmail.messageId}: ${formatGaxiosError(error)}`);
-    return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments: null, gmailCount: null, dbCount: null, error: "Could not load from Gmail. It may have been deleted or the ID may be invalid." };
+    logger.warn(
+      `refreshAttachmentsFromGmailForThread: Gmail API failed for messageId=${threadEmail.messageId}: ${formatGaxiosError(error)}`,
+    );
+    return {
+      emailId: threadEmail.id,
+      gmailMessageId: threadEmail.messageId,
+      attachments: null,
+      gmailCount: null,
+      dbCount: null,
+      error:
+        "Could not load from Gmail. It may have been deleted or the ID may be invalid.",
+    };
   }
 
   try {
     await emailsService.updateEmail(userId, threadEmail.id, { attachments });
   } catch (error) {
-    logger.warn(`refreshAttachmentsFromGmailForThread: updateEmail failed for emailId=${threadEmail.id}: ${error}`);
-    return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount: null, error: "Failed to update email in database." };
+    logger.warn(
+      `refreshAttachmentsFromGmailForThread: updateEmail failed for emailId=${threadEmail.id}: ${error}`,
+    );
+    return {
+      emailId: threadEmail.id,
+      gmailMessageId: threadEmail.messageId,
+      attachments,
+      gmailCount: attachments?.length ?? 0,
+      dbCount: null,
+      error: "Failed to update email in database.",
+    };
   }
 
-  const { dbCount, dbError } = await verifyDbAttachments(emailsService, logger, userId, threadEmail.id, attachments?.length ?? 0);
+  const { dbCount, dbError } = await verifyDbAttachments(
+    emailsService,
+    logger,
+    userId,
+    threadEmail.id,
+    attachments?.length ?? 0,
+  );
 
-  return { emailId: threadEmail.id, gmailMessageId: threadEmail.messageId, attachments, gmailCount: attachments?.length ?? 0, dbCount, dbError };
+  return {
+    emailId: threadEmail.id,
+    gmailMessageId: threadEmail.messageId,
+    attachments,
+    gmailCount: attachments?.length ?? 0,
+    dbCount,
+    dbError,
+  };
 }
 
 /**
@@ -179,18 +237,37 @@ export async function refreshAttachmentsFromGmailForThread(
     throw new BadRequestException("Email is not linked to a thread");
   }
 
-  const threadEmails = await emailsService.getThreadEmails(userId, triggerEmail.threadId);
-  logger.log(`refreshAttachmentsFromGmailForThread: userId=${userId} threadId=${triggerEmail.threadId} found ${threadEmails.length} emails in thread`);
+  const threadEmails = await emailsService.getThreadEmails(
+    userId,
+    triggerEmail.threadId,
+  );
+  logger.log(
+    `refreshAttachmentsFromGmailForThread: userId=${userId} threadId=${triggerEmail.threadId} found ${threadEmails.length} emails in thread`,
+  );
 
   const gmail = await gmailProvider.createGmailClientPublic(userId);
   if (!gmail) {
-    throw new ServiceUnavailableException("Gmail is not connected for this account");
+    throw new ServiceUnavailableException(
+      "Gmail is not connected for this account",
+    );
   }
 
   const results: EmailRefreshResult[] = [];
   for (const threadEmail of threadEmails) {
-    results.push(await processEmailRefresh(emailsService, logger, gmail, userId, threadEmail));
+    results.push(
+      await processEmailRefresh(
+        emailsService,
+        logger,
+        gmail,
+        userId,
+        threadEmail,
+      ),
+    );
   }
 
-  return { threadId: triggerEmail.threadId, threadEmailCount: threadEmails.length, results };
+  return {
+    threadId: triggerEmail.threadId,
+    threadEmailCount: threadEmails.length,
+    results,
+  };
 }

@@ -462,7 +462,11 @@ export class EmailsService {
     emailId: string,
     updates: Partial<Email>,
   ): Promise<Email | null> {
-    return this.emailServiceDeps.emailCrudService.updateEmail(userId, emailId, updates);
+    return this.emailServiceDeps.emailCrudService.updateEmail(
+      userId,
+      emailId,
+      updates,
+    );
   }
 
   // ── Read / unread ──────────────────────────────────────────────────────────

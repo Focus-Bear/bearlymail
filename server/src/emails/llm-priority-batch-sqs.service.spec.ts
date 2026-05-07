@@ -77,13 +77,11 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
     } as unknown as jest.Mocked<PriorityAnalysisService>;
 
     mockEmailsService = {
-      getEmailById: jest
-        .fn()
-        .mockImplementation((_, emailId: string) => {
-          if (emailId === "email-1") return Promise.resolve(EMAIL_1);
-          if (emailId === "email-2") return Promise.resolve(EMAIL_2);
-          return Promise.resolve(null);
-        }),
+      getEmailById: jest.fn().mockImplementation((_, emailId: string) => {
+        if (emailId === "email-1") return Promise.resolve(EMAIL_1);
+        if (emailId === "email-2") return Promise.resolve(EMAIL_2);
+        return Promise.resolve(null);
+      }),
       getThreadEmails: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<EmailsService>;
 
@@ -93,8 +91,18 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
 
     mockThreadRepository = {
       find: jest.fn().mockResolvedValue([
-        { id: EMAIL_THREAD_ID_1, priorityRetryCount: 0, priorityExplanation: null, urgencyScore: null },
-        { id: EMAIL_THREAD_ID_2, priorityRetryCount: 0, priorityExplanation: null, urgencyScore: null },
+        {
+          id: EMAIL_THREAD_ID_1,
+          priorityRetryCount: 0,
+          priorityExplanation: null,
+          urgencyScore: null,
+        },
+        {
+          id: EMAIL_THREAD_ID_2,
+          priorityRetryCount: 0,
+          priorityExplanation: null,
+          urgencyScore: null,
+        },
       ]),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       increment: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -116,9 +124,7 @@ describe("LLMPriorityBatchService — SQS dispatch path", () => {
     } as unknown as jest.Mocked<DebugService>;
 
     const mockSummaryProcessor = {
-      tryIncrementalAnalysis: jest
-        .fn()
-        .mockResolvedValue({ handled: false }),
+      tryIncrementalAnalysis: jest.fn().mockResolvedValue({ handled: false }),
     } as unknown as jest.Mocked<LLMSummaryProcessorService>;
 
     const mockPriorityCache = {

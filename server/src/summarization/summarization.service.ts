@@ -19,8 +19,8 @@ import {
 } from "../encryption/entity-api-decrypt.util";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { LLMProvider, LLMService } from "../llm/llm.service";
+import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { getPrompt, SUMMARY_PROMPT_IDS, SUMMARY_TYPES } from "../llm/prompts";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -359,7 +359,7 @@ export class SummarizationService {
 
     const cacheKey = buildPhishingCacheKey(email.from, email.subject);
     const cached = this.phishingCache.get(cacheKey);
-    const threadId = email.threadId;
+    const { threadId } = email;
     const emailThreadId = email.emailThreadId ?? null;
 
     if (cached && cached.expiresAt > Date.now()) {
@@ -395,23 +395,26 @@ export class SummarizationService {
         : cleanEmailContent(emailWithHtml.body, emailWithHtml.htmlBody);
     const emailCategories = await this.buildEmailCategoriesPromptText(userId);
 
-    const result = await this.summarizeEmailWithCombinedPhishing(emailWithHtml, {
-      subject,
-      threadText,
-      bodyForLLM,
-      messagesToSummarize,
-      allThreadEmails,
-      phishingSignals,
-      cacheKey,
-      rule,
-      llmProvider,
-      userId,
-      emailId,
-      isUserSender,
-      from: email.from || "",
-      fromName: email.fromName || "",
-      emailCategories,
-    });
+    const result = await this.summarizeEmailWithCombinedPhishing(
+      emailWithHtml,
+      {
+        subject,
+        threadText,
+        bodyForLLM,
+        messagesToSummarize,
+        allThreadEmails,
+        phishingSignals,
+        cacheKey,
+        rule,
+        llmProvider,
+        userId,
+        emailId,
+        isUserSender,
+        from: email.from || "",
+        fromName: email.fromName || "",
+        emailCategories,
+      },
+    );
     return { ...result, threadId, emailThreadId };
   }
 

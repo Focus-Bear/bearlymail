@@ -145,7 +145,9 @@ describe("FeedbackScreenshotsService", () => {
   describe("getPresignedGetUrl", () => {
     it("should return a presigned GET URL when scan status is NO_THREATS_FOUND", async () => {
       mockS3Send.mockResolvedValueOnce({
-        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" }],
+        TagSet: [
+          { Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" },
+        ],
       });
       const url = await service.getPresignedGetUrl("feedback/user/file.jpg");
       expect(typeof url).toBe("string");
@@ -165,7 +167,9 @@ describe("FeedbackScreenshotsService", () => {
   describe("getPresignedGetUrl — GuardDuty scan status gate", () => {
     it("should serve a presigned URL when scan status is NO_THREATS_FOUND", async () => {
       mockS3Send.mockResolvedValueOnce({
-        TagSet: [{ Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" }],
+        TagSet: [
+          { Key: "GuardDutyMalwareScanStatus", Value: "NO_THREATS_FOUND" },
+        ],
       });
 
       const url = await service.getPresignedGetUrl("feedback/user/file.jpg");

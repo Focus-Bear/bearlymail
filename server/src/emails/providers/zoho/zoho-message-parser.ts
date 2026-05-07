@@ -2,7 +2,8 @@ import { EMAIL_IMPORTANCE } from "../../../constants/domain-types";
 import { MS_PER_SECOND } from "../../../constants/time-constants";
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 
-const ZOHO_SECONDS_EPOCH_THRESHOLD = 10 * MS_PER_SECOND * MS_PER_SECOND * MS_PER_SECOND;
+const ZOHO_SECONDS_EPOCH_THRESHOLD =
+  10 * MS_PER_SECOND * MS_PER_SECOND * MS_PER_SECOND;
 
 /**
  * Zoho Mail API message interface
@@ -41,10 +42,12 @@ export interface ZohoMailMessage {
   isRead?: boolean;
 
   // Zoho AU returns content as a plain HTML string, not an object
-  content?: string | {
-    html?: string;
-    text?: string;
-  };
+  content?:
+    | string
+    | {
+        html?: string;
+        text?: string;
+      };
 
   body?: string;
   summary?: string;
@@ -76,24 +79,29 @@ function importanceToStarCount(
 function parseReceivedTimeMs(raw: number | string | undefined): number {
   if (!raw) return Date.now();
   const parsed = typeof raw === "string" ? parseInt(raw, 10) : raw;
-  return parsed < ZOHO_SECONDS_EPOCH_THRESHOLD ? parsed * MS_PER_SECOND : parsed;
+  return parsed < ZOHO_SECONDS_EPOCH_THRESHOLD
+    ? parsed * MS_PER_SECOND
+    : parsed;
 }
 
-function resolveFromAddress(
-  messageData: ZohoMailMessage,
-): { from: string; fromName: string } {
+function resolveFromAddress(messageData: ZohoMailMessage): {
+  from: string;
+  fromName: string;
+} {
   const from =
     messageData.fromAddress ||
     messageData.sender ||
     messageData.from?.address ||
     "";
-  const fromName = messageData.displayName || messageData.from?.personal || from;
+  const fromName =
+    messageData.displayName || messageData.from?.personal || from;
   return { from, fromName };
 }
 
-function resolveBodyContent(
-  messageData: ZohoMailMessage,
-): { body: string; htmlBody: string } {
+function resolveBodyContent(messageData: ZohoMailMessage): {
+  body: string;
+  htmlBody: string;
+} {
   const htmlBody =
     typeof messageData.content === "string"
       ? messageData.content
@@ -120,7 +128,7 @@ export function parseZohoMessage(
   messageData: ZohoMailMessage,
 ): RawEmailMessage | null {
   const uid = messageData.uid || messageData.messageId;
-  const threadId = messageData.threadId;
+  const { threadId } = messageData;
 
   if (!uid || !threadId) {
     return null;
@@ -141,7 +149,10 @@ export function parseZohoMessage(
     fromName,
     replyTo,
     to: messageData.toAddress || undefined,
-    cc: (messageData.ccAddress && messageData.ccAddress !== "Not Provided") ? messageData.ccAddress : undefined,
+    cc:
+      messageData.ccAddress && messageData.ccAddress !== "Not Provided"
+        ? messageData.ccAddress
+        : undefined,
     body,
     htmlBody: htmlBody || undefined,
     starCount,

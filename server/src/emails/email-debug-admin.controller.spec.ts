@@ -45,7 +45,10 @@ describe("EmailDebugAdminController — debug config/data endpoints", () => {
         { provide: DebugService, useValue: debugService },
         { provide: EmailsService, useValue: {} },
         { provide: EmailAdminService, useValue: {} },
-        { provide: EmailDebugRawColumnsService, useValue: { getRawColumns: jest.fn() } },
+        {
+          provide: EmailDebugRawColumnsService,
+          useValue: { getRawColumns: jest.fn() },
+        },
         { provide: "PG_BOSS", useValue: {} },
         {
           provide: GoogleAccountsService,

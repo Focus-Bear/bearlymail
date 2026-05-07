@@ -114,12 +114,17 @@ describe("SummarizationService", () => {
 
       mockEmailsService.getThreadEmails.mockResolvedValue(mockThreadEmails);
 
-      await service.persistSummaryForThread(userId, "thread-123", "et-123", summary);
+      await service.persistSummaryForThread(
+        userId,
+        "thread-123",
+        "et-123",
+        summary,
+      );
 
       // update() receives a TypeORM In() operator for the id — check the update data
       expect(mockEmailRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: expect.anything() }),
-        { summary: summary },
+        { summary },
       );
       // lastSummarizedAt should be the most recent email's receivedAt, not new Date()
       expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
@@ -131,7 +136,12 @@ describe("SummarizationService", () => {
     it("should do nothing when thread has no emails", async () => {
       mockEmailsService.getThreadEmails.mockResolvedValue([]);
 
-      await service.persistSummaryForThread("user-123", "thread-123", "et-123", "summary");
+      await service.persistSummaryForThread(
+        "user-123",
+        "thread-123",
+        "et-123",
+        "summary",
+      );
 
       expect(mockEmailRepository.update).not.toHaveBeenCalled();
       expect(mockEmailThreadRepository.update).not.toHaveBeenCalled();
@@ -144,7 +154,12 @@ describe("SummarizationService", () => {
 
       mockEmailsService.getThreadEmails.mockResolvedValue(mockThreadEmails);
 
-      await service.persistSummaryForThread("user-123", "thread-123", null, "summary");
+      await service.persistSummaryForThread(
+        "user-123",
+        "thread-123",
+        null,
+        "summary",
+      );
 
       expect(mockEmailRepository.update).toHaveBeenCalled();
       expect(mockEmailThreadRepository.update).not.toHaveBeenCalled();

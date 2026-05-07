@@ -83,7 +83,8 @@ export async function sendEmail(
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
-    const { zohoAccountId, mailboxAddress } = await provider.client.getAccountId(userId, accessToken);
+    const { zohoAccountId, mailboxAddress } =
+      await provider.client.getAccountId(userId, accessToken);
     return await sendEmailViaZoho(zohoClient, zohoAccountId, mailboxAddress, {
       to,
       subject,
@@ -233,7 +234,7 @@ export async function fetchThreadMessagesZoho(
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) return [];
 
-  let { accessToken } = primaryAccount;
+  const { accessToken } = primaryAccount;
   const zohoClient = provider.client.createZohoClient(accessToken);
 
   try {
@@ -252,10 +253,7 @@ export async function fetchThreadMessagesZoho(
       .filter((msg): msg is RawEmailMessage => msg !== null);
   } catch (error: unknown) {
     if (isAuthError(error)) {
-      await provider.client.refreshTokenIfNeeded(
-        userId,
-        primaryAccount.id,
-      );
+      await provider.client.refreshTokenIfNeeded(userId, primaryAccount.id);
       return fetchThreadMessagesZoho(provider, userId, threadId, limit);
     }
     provider.logger.warn(

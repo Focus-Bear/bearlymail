@@ -20,6 +20,7 @@ import { Office365AccountsService } from "../../office365-accounts/office365-acc
 import { getJobPriority } from "../../queue/job-priorities";
 import { isApiError, isError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
+import { sanitizeAxiosError } from "../../utils/axios-error.utils";
 import { EmailsService } from "../emails.service";
 import {
   EmailAttachmentData,
@@ -31,11 +32,11 @@ import {
 import { ScanEmailService } from "../scan-email.service";
 import {
   archiveThread,
+  fetchThreadMessagesOffice365,
   searchEmails,
   sendEmail,
   sendReply,
   trashThread,
-  fetchThreadMessagesOffice365,
   unarchiveThread,
 } from "./office365/office365-actions.service";
 import {
@@ -193,8 +194,7 @@ export class Office365Provider implements EmailProvider {
       currentAccount = await this.office365AccountsService.findPrimary(userId);
     } catch (accountError) {
       this.logger.error(
-        `Could not re-fetch account for grace period check:`,
-        accountError,
+        `Could not re-fetch account for grace period check: ${sanitizeAxiosError(accountError)}`,
       );
     }
 

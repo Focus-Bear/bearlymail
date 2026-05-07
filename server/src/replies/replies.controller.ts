@@ -219,7 +219,9 @@ export class RepliesController {
     if (!email) throw new Error(ERROR_MESSAGES.EMAIL_NOT_FOUND);
     decryptEmailEntityForApi(email);
 
-    const subject = body.subject?.trim() || buildReplySubject(email.subject, parsed.isForward);
+    const subject =
+      body.subject?.trim() ||
+      buildReplySubject(email.subject, parsed.isForward);
     const replyToAddress = body.recipients?.trim()
       ? body.recipients
       : email.replyTo || email.from;

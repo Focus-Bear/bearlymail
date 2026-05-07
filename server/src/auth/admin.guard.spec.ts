@@ -38,10 +38,7 @@ describe("AdminGuard", () => {
     jest.clearAllMocks();
   });
 
-  const makeRequest = (
-    userId: string | undefined,
-    mfaVerified = false,
-  ) => ({
+  const makeRequest = (userId: string | undefined, mfaVerified = false) => ({
     user: userId ? { userId, mfaVerified } : {},
   });
 

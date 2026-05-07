@@ -13,6 +13,7 @@ import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { AdminGuard } from "./admin.guard";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
 import { EmailAccountRequiredGuard } from "./gmail-required.guard";
 import { GoogleStrategy } from "./google.strategy";
 import { JwtStrategy } from "./jwt.strategy";
@@ -22,7 +23,6 @@ import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 import { StepUpAuthGuard } from "./step-up.guard";
 import { TotpService } from "./totp.service";
 import { ZohoStrategy } from "./zoho.strategy";
-import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
 
 @Module({
   imports: [
@@ -55,7 +55,7 @@ import { EmailProviderRequiredGuard } from "./email-provider-required.guard";
     EmailAccountRequiredGuard,
     OptionalJwtAuthGuard,
     StepUpAuthGuard,
-    EmailProviderRequiredGuard
+    EmailProviderRequiredGuard,
   ],
   controllers: [AuthController],
   exports: [

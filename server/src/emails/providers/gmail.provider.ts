@@ -464,7 +464,7 @@ export class GmailProvider implements EmailProvider {
         .filter((msg): msg is RawEmailMessage => msg !== null);
     } catch (error) {
       this.logger.error(
-        `Failed to fetch thread messages for user ${userId}: ${error}`,
+        `Failed to fetch thread messages for user ${userId}: ${formatGaxiosError(error)}`,
       );
       return [];
     }

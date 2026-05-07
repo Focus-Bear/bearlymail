@@ -108,8 +108,7 @@ export class AuthController {
       body.token,
       body.password,
     );
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       loginData.access_token,
@@ -154,8 +153,7 @@ export class AuthController {
         body.token,
         body.password,
       );
-      const isProduction =
-        process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+      const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
       res.cookie(
         AUTH_CONSTANTS.COOKIE_NAME,
         loginData.access_token,
@@ -246,7 +244,9 @@ export class AuthController {
     try {
       return await this.authService.setupMfa(req.user.userId);
     } catch (error) {
-      throw new BadRequestException(error.message || "Failed to initiate MFA setup");
+      throw new BadRequestException(
+        error.message || "Failed to initiate MFA setup",
+      );
     }
   }
 
@@ -259,7 +259,8 @@ export class AuthController {
   async mfaEnable(@Request() req, @Body() body: { token: string }) {
     if (!body.token) throw new BadRequestException("Token is required");
     const ok = await this.authService.enableMfa(req.user.userId, body.token);
-    if (!ok) throw new BadRequestException("Invalid TOTP code. Please try again.");
+    if (!ok)
+      throw new BadRequestException("Invalid TOTP code. Please try again.");
     return { success: true, message: "MFA enabled successfully" };
   }
 
@@ -285,8 +286,7 @@ export class AuthController {
       body.token,
     );
     if (!result) throw new UnauthorizedException("Invalid TOTP code");
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       result.access_token,
@@ -304,7 +304,8 @@ export class AuthController {
   async mfaDisable(@Request() req, @Body() body: { token: string }) {
     if (!body.token) throw new BadRequestException("Token is required");
     const ok = await this.authService.disableMfa(req.user.userId, body.token);
-    if (!ok) throw new BadRequestException("Invalid TOTP code. Please try again.");
+    if (!ok)
+      throw new BadRequestException("Invalid TOTP code. Please try again.");
     return { success: true, message: "MFA disabled successfully" };
   }
 
@@ -325,8 +326,7 @@ export class AuthController {
   @Post("login")
   async login(@Request() req, @Res({ passthrough: true }) res: Response) {
     const loginData = await this.authService.login(req.user);
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       loginData.access_token,
@@ -365,8 +365,7 @@ export class AuthController {
       if (handled) return;
     }
     const loginData = await this.authService.login(req.user);
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     // Set HttpOnly cookie — token is never exposed to JavaScript (OWASP ASVS GAP-4)
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
@@ -408,8 +407,7 @@ export class AuthController {
     const loginData = await this.authService.login(req.user);
     // Save Office365Account for direct Microsoft login (no connect state)
     await this.saveMicrosoftAccountForUser(req.user);
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       loginData.access_token,
@@ -470,7 +468,9 @@ export class AuthController {
         `[Zoho] Incomplete account data — missing fields: ${missingFields.join(", ")}`,
       );
       return this.redirectWithAuthError(
-        new Error(`Incomplete Zoho profile received. Missing: ${missingFields.join(", ")}`),
+        new Error(
+          `Incomplete Zoho profile received. Missing: ${missingFields.join(", ")}`,
+        ),
         frontendUrl,
         res,
         "Zoho",
@@ -478,7 +478,9 @@ export class AuthController {
     }
 
     // All required fields present — proceed with upsert
-    const existingAccounts = await this.zohoAccountsService.findAllByUser(zohoUser.id);
+    const existingAccounts = await this.zohoAccountsService.findAllByUser(
+      zohoUser.id,
+    );
     const accountExists = existingAccounts.find((acc) => acc.zohoId === zohoId);
 
     if (accountExists) {
@@ -500,8 +502,7 @@ export class AuthController {
       });
     }
     const loginData = await this.authService.login(req.user);
-    const isProduction =
-      process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
+    const isProduction = process.env.NODE_ENV === NODE_ENV_VALUES.PRODUCTION;
     res.cookie(
       AUTH_CONSTANTS.COOKIE_NAME,
       loginData.access_token,
@@ -715,8 +716,7 @@ export class AuthController {
       displayName?: string;
     };
   }): Promise<void> {
-    const microsoftId =
-      user.microsoftId || user.microsoftProfile?.id || "";
+    const microsoftId = user.microsoftId || user.microsoftProfile?.id || "";
     const accessToken = user.microsoftAccessToken || "";
     const refreshToken = user.microsoftRefreshToken || "";
     const email =
@@ -726,7 +726,8 @@ export class AuthController {
     const name = user.microsoftProfile?.displayName || "";
     if (!microsoftId || !accessToken || !email) return;
     try {
-      const existingAccounts = await this.office365AccountsService.findAllByUser(user.id);
+      const existingAccounts =
+        await this.office365AccountsService.findAllByUser(user.id);
       const accountExists = existingAccounts.find(
         (acc) => acc.microsoftId === microsoftId,
       );

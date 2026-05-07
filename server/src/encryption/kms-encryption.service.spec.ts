@@ -39,9 +39,9 @@ describe("KmsEncryptionService", () => {
     it("throws when KMS is not configured", async () => {
       delete process.env.KMS_KEY_ID;
       const service = new KmsEncryptionService();
-      await expect(
-        service.decryptDataKey(Buffer.from("fake")),
-      ).rejects.toThrow("KMS is not configured");
+      await expect(service.decryptDataKey(Buffer.from("fake"))).rejects.toThrow(
+        "KMS is not configured",
+      );
     });
   });
 });

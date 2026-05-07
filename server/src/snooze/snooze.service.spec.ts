@@ -321,11 +321,7 @@ describe("SnoozeService", () => {
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
-      const result = await service.snoozeEmail(
-        "user-1",
-        "email-1",
-        "Wed 3pm",
-      );
+      const result = await service.snoozeEmail("user-1", "email-1", "Wed 3pm");
 
       expect(result.snoozeUntil?.getTime()).toBe(expectedWed3pm.getTime());
 
@@ -487,9 +483,8 @@ describe("SnoozeService", () => {
   });
 
   describe("chrono-node natural language parsing (real library)", () => {
-    const realChrono = jest.requireActual<typeof import("chrono-node")>(
-      "chrono-node",
-    );
+    const realChrono =
+      jest.requireActual<typeof import("chrono-node")>("chrono-node");
 
     it("should parse '5pm' to today at 17:00", () => {
       const now = new Date("2024-01-15T10:00:00");

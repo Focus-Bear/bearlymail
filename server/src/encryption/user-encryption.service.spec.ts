@@ -75,7 +75,10 @@ describe("UserEncryptionService", () => {
         )
         .mockReturnValueOnce(makeUpdateQb(1) as never);
 
-      kmsService.generateDataKey.mockResolvedValue({ plaintextKey, encryptedKey });
+      kmsService.generateDataKey.mockResolvedValue({
+        plaintextKey,
+        encryptedKey,
+      });
 
       const result = await service.getUserKey(userId);
 
@@ -95,7 +98,10 @@ describe("UserEncryptionService", () => {
           makeSelectQb({ id: userId, encryptedDataKey: storedBase64 }) as never,
         );
 
-      kmsService.generateDataKey.mockResolvedValue({ plaintextKey, encryptedKey });
+      kmsService.generateDataKey.mockResolvedValue({
+        plaintextKey,
+        encryptedKey,
+      });
       kmsService.decryptDataKey.mockResolvedValue(plaintextKey);
 
       const result = await service.getUserKey(userId);

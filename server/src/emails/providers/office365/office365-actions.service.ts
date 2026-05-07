@@ -213,12 +213,11 @@ export async function fetchThreadMessagesOffice365(
   threadId: string,
   limit = 50,
 ): Promise<RawEmailMessage[]> {
-  const primaryAccount = await provider.office365AccountsService.findPrimary(
-    userId,
-  );
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
   if (!primaryAccount) return [];
 
-  let { accessToken } = primaryAccount;
+  const { accessToken } = primaryAccount;
   const graphClient = provider.client.createGraphClient(accessToken);
 
   try {
@@ -232,10 +231,7 @@ export async function fetchThreadMessagesOffice365(
       .filter((msg): msg is RawEmailMessage => msg !== null);
   } catch (error: unknown) {
     if (isAuthError(error)) {
-      await provider.client.refreshTokenIfNeeded(
-        userId,
-        primaryAccount.id,
-      );
+      await provider.client.refreshTokenIfNeeded(userId, primaryAccount.id);
       return fetchThreadMessagesOffice365(provider, userId, threadId, limit);
     }
     return [];

@@ -206,7 +206,10 @@ describe("TotpService", () => {
     });
 
     it("should return false when user has no totpSecret", async () => {
-      mockUsersService.findOne.mockResolvedValue({ ...mockUser, totpSecret: null });
+      mockUsersService.findOne.mockResolvedValue({
+        ...mockUser,
+        totpSecret: null,
+      });
 
       const result = await service.enableMfa("user-1", "123456");
       expect(result).toBe(false);
@@ -316,7 +319,10 @@ describe("TotpService", () => {
     });
 
     it("should return enabled=false when MFA is disabled", async () => {
-      mockUsersService.findOne.mockResolvedValue({ ...mockUser, totpEnabled: false });
+      mockUsersService.findOne.mockResolvedValue({
+        ...mockUser,
+        totpEnabled: false,
+      });
       const status = await service.getMfaStatus("user-1");
       expect(status).toEqual({ enabled: false });
     });

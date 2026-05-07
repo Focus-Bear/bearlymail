@@ -11,6 +11,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { UsersService } from "../users/users.service";
+import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { ContextEmailDataService } from "./context-gmail-data.service";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
 
@@ -78,8 +79,8 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
           usersSkipped += skipped;
         } catch (userError) {
           this.logger.error(
-            `Error processing writing style learning for user ${user.id}:`,
-            userError,
+            `Error processing writing style learning for user ${user.id}: ${sanitizeAxiosError(userError)}`,
+            userError instanceof Error ? userError.stack : undefined,
           );
         }
       }
@@ -90,8 +91,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
       );
     } catch (error) {
       this.logger.error(
-        `[Worker ${workerId}] Writing style learning check failed:`,
-        error,
+        `[Worker ${workerId}] Writing style learning check failed: ${sanitizeAxiosError(error)}`,
       );
       tracker.finish(error as Error);
       throw error;
@@ -132,8 +132,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
       return { processed: 0, skipped: 1 };
     } catch (fetchError) {
       this.logger.warn(
-        `Failed to fetch sent emails for user ${userId}:`,
-        fetchError,
+        `Failed to fetch sent emails for user ${userId}: ${sanitizeAxiosError(fetchError)}`,
       );
       return { processed: 0, skipped: 1 };
     }

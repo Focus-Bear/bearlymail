@@ -200,22 +200,69 @@ describe("getPriorityCounts batch/snooze visibility — fix #1742", () => {
     function isVisibleInboxSummary(row: ThreadRow, now: Date = NOW): boolean {
       // Exact mirror of querySummaryRows conditions
       const batchOk =
-        !row.isBatched || row.batchReleaseAt === null || row.batchReleaseAt <= now;
+        !row.isBatched ||
+        row.batchReleaseAt === null ||
+        row.batchReleaseAt <= now;
       const snoozeOk =
         !row.isSnoozed || row.snoozeUntil === null || row.snoozeUntil <= now;
       return batchOk && snoozeOk;
     }
 
     const testCases: ThreadRow[] = [
-      { isBatched: false, batchReleaseAt: null, isSnoozed: false, snoozeUntil: null },
-      { isBatched: true, batchReleaseAt: PAST, isSnoozed: false, snoozeUntil: null },
-      { isBatched: true, batchReleaseAt: FUTURE, isSnoozed: false, snoozeUntil: null },
-      { isBatched: true, batchReleaseAt: null, isSnoozed: false, snoozeUntil: null },
-      { isBatched: false, batchReleaseAt: null, isSnoozed: true, snoozeUntil: PAST },
-      { isBatched: false, batchReleaseAt: null, isSnoozed: true, snoozeUntil: FUTURE },
-      { isBatched: false, batchReleaseAt: null, isSnoozed: true, snoozeUntil: null },
-      { isBatched: true, batchReleaseAt: PAST, isSnoozed: true, snoozeUntil: PAST },
-      { isBatched: true, batchReleaseAt: FUTURE, isSnoozed: true, snoozeUntil: FUTURE },
+      {
+        isBatched: false,
+        batchReleaseAt: null,
+        isSnoozed: false,
+        snoozeUntil: null,
+      },
+      {
+        isBatched: true,
+        batchReleaseAt: PAST,
+        isSnoozed: false,
+        snoozeUntil: null,
+      },
+      {
+        isBatched: true,
+        batchReleaseAt: FUTURE,
+        isSnoozed: false,
+        snoozeUntil: null,
+      },
+      {
+        isBatched: true,
+        batchReleaseAt: null,
+        isSnoozed: false,
+        snoozeUntil: null,
+      },
+      {
+        isBatched: false,
+        batchReleaseAt: null,
+        isSnoozed: true,
+        snoozeUntil: PAST,
+      },
+      {
+        isBatched: false,
+        batchReleaseAt: null,
+        isSnoozed: true,
+        snoozeUntil: FUTURE,
+      },
+      {
+        isBatched: false,
+        batchReleaseAt: null,
+        isSnoozed: true,
+        snoozeUntil: null,
+      },
+      {
+        isBatched: true,
+        batchReleaseAt: PAST,
+        isSnoozed: true,
+        snoozeUntil: PAST,
+      },
+      {
+        isBatched: true,
+        batchReleaseAt: FUTURE,
+        isSnoozed: true,
+        snoozeUntil: FUTURE,
+      },
     ];
 
     it.each(testCases)(

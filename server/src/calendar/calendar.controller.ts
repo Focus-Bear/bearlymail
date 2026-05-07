@@ -69,10 +69,7 @@ export class CalendarController {
    * POST /calendar/check-proposed-time/:emailId
    */
   @Post("check-proposed-time/:emailId")
-  async checkProposedTime(
-    @Request() req,
-    @Param("emailId") emailId: string,
-  ) {
+  async checkProposedTime(@Request() req, @Param("emailId") emailId: string) {
     try {
       return await this.calendarService.checkMeetingProposal(
         req.user.userId,

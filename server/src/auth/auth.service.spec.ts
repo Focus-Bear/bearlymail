@@ -4,7 +4,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
 import PgBoss from "pg-boss";
 
-import { DeletedAccount, DeletionReason } from "../database/entities/deleted-account.entity";
+import {
+  DeletedAccount,
+  DeletionReason,
+} from "../database/entities/deleted-account.entity";
 import { User } from "../database/entities/user.entity";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { EmailBacklogService } from "../emails/email-backlog.service";
@@ -195,7 +198,10 @@ describe("AuthService", () => {
       await expect(
         service.validateUser("test@example.com", "password"),
       ).rejects.toMatchObject({
-        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "inactivity" }),
+        response: expect.objectContaining({
+          error: "ACCOUNT_DELETED",
+          deletionReason: "inactivity",
+        }),
       });
     });
 
@@ -213,7 +219,10 @@ describe("AuthService", () => {
       await expect(
         service.validateUser("test@example.com", "password"),
       ).rejects.toMatchObject({
-        response: expect.objectContaining({ error: "ACCOUNT_DELETED", deletionReason: "manual" }),
+        response: expect.objectContaining({
+          error: "ACCOUNT_DELETED",
+          deletionReason: "manual",
+        }),
       });
     });
 
@@ -228,7 +237,10 @@ describe("AuthService", () => {
       } as DeletedAccount);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      const result = await service.validateUser("test@example.com", "wrong-password");
+      const result = await service.validateUser(
+        "test@example.com",
+        "wrong-password",
+      );
 
       expect(result).toBeNull();
     });

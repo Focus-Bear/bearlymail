@@ -1792,7 +1792,10 @@ describe("CalendarService", () => {
           id: "gcal-event-new",
           conferenceData: {
             entryPoints: [
-              { entryPointType: "video", uri: "https://meet.google.com/abc-def" },
+              {
+                entryPointType: "video",
+                uri: "https://meet.google.com/abc-def",
+              },
             ],
           },
         },

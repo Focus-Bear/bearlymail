@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { RATIOS } from "../constants/percentages";
 import { Email } from "../database/entities/email.entity";
 import { LLMService } from "../llm/llm.service";
+import { formatGaxiosError } from "../types/common";
 import { UsersService } from "../users/users.service";
 
 // Target number of email examples to collect
@@ -196,8 +197,7 @@ export class WritingStyleLearningService {
       );
     } catch (error) {
       this.logger.error(
-        `Error learning from sent emails for user ${userId}:`,
-        error,
+        `Error learning from sent emails for user ${userId}: ${formatGaxiosError(error)}`,
       );
     }
   }
@@ -344,8 +344,7 @@ export class WritingStyleLearningService {
       );
     } catch (error) {
       this.logger.error(
-        `Error learning from sent email bodies for user ${userId}:`,
-        error,
+        `Error learning from sent email bodies for user ${userId}: ${formatGaxiosError(error)}`,
       );
     }
   }

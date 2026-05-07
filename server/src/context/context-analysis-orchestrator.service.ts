@@ -288,12 +288,13 @@ export class ContextAnalysisOrchestratorService {
     analysisRecord.fetchedSentCount = 0;
     await this.contextAnalysisRepository.save(analysisRecord);
 
-    const generalThreadIds = await this.gmailDataService.getThreadIdsFromProvider(
-      userId,
-      twelveDaysAgo,
-      fiveDaysAgo,
-      QUERY_LIMITS.CONTEXT_RECENT_EMAILS,
-    );
+    const generalThreadIds =
+      await this.gmailDataService.getThreadIdsFromProvider(
+        userId,
+        twelveDaysAgo,
+        fiveDaysAgo,
+        QUERY_LIMITS.CONTEXT_RECENT_EMAILS,
+      );
     this.logger.log(
       `[CONTEXT-ANALYSIS] Found ${generalThreadIds.length} general threads from 5-12 days ago`,
     );

@@ -49,12 +49,9 @@ export class PriorityAnalysisFinalizerService implements OnModuleInit {
       PriorityAnalysisFinalizerService.SCAN_CRON,
     );
 
-    await this.boss.work(
-      JOB_NAMES.FINALIZE_STALLED_PRIORITY_RUNS,
-      async () => {
-        await this.detectAndFinalizeStalledRuns();
-      },
-    );
+    await this.boss.work(JOB_NAMES.FINALIZE_STALLED_PRIORITY_RUNS, async () => {
+      await this.detectAndFinalizeStalledRuns();
+    });
 
     this.logger.log("Priority analysis finalizer job registered successfully");
   }

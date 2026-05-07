@@ -17,6 +17,7 @@ import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { UsersService } from "../users/users.service";
+import { sanitizeAxiosError } from "../utils/axios-error.utils";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 
@@ -157,7 +158,10 @@ export class EmailSyncProcessor implements OnModuleInit {
           `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
         );
       } catch (error) {
-        this.logger.error(`Error in schedule-email-fetch-jobs:`, error);
+        this.logger.error(
+          `Error in schedule-email-fetch-jobs: ${sanitizeAxiosError(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
         tracker.finish(error as Error);
         throw error;
       }
@@ -412,8 +416,7 @@ export class EmailSyncProcessor implements OnModuleInit {
               }
             } catch (userError) {
               this.logger.error(
-                `Error scheduling inbox status check for user ${user.id}:`,
-                userError,
+                `Error scheduling inbox status check for user ${user.id}: ${sanitizeAxiosError(userError)}`,
               );
             }
           }
@@ -424,7 +427,9 @@ export class EmailSyncProcessor implements OnModuleInit {
             `Scheduled ${jobsQueued} inbox status verification jobs`,
           );
         } catch (error) {
-          this.logger.error(`Error in schedule-verify-inbox-status:`, error);
+          this.logger.error(
+            `Error in schedule-verify-inbox-status: ${sanitizeAxiosError(error)}`,
+          );
           tracker.finish(error as Error);
           throw error;
         }
@@ -483,7 +488,9 @@ export class EmailSyncProcessor implements OnModuleInit {
         await this.emailProviderManager.syncAllProviders(userId);
         this.logger.debug(`Completed background email sync for user ${userId}`);
       } catch (error) {
-        this.logger.error(`Failed to sync emails for user ${userId}`, error);
+        this.logger.error(
+          `Failed to sync emails for user ${userId}: ${sanitizeAxiosError(error)}`,
+        );
         throw error;
       }
     });

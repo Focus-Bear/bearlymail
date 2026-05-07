@@ -40,7 +40,10 @@ export class ZohoClient {
     });
   }
 
-  async refreshTokenIfNeeded(userId: string, accountId: string): Promise<string> {
+  async refreshTokenIfNeeded(
+    userId: string,
+    accountId: string,
+  ): Promise<string> {
     // If a refresh is already in progress for this user, reuse it
     const lockKey = `${userId}:${accountId}`;
     if (this.refreshLocks.has(lockKey)) {
@@ -78,7 +81,8 @@ export class ZohoClient {
         `${apiDomain}/oauth/v2/token`,
         new URLSearchParams({
           client_id: this.configService.get<string>("ZOHO_CLIENT_ID") || "",
-          client_secret: this.configService.get<string>("ZOHO_CLIENT_SECRET") || "",
+          client_secret:
+            this.configService.get<string>("ZOHO_CLIENT_SECRET") || "",
           refresh_token: account.refreshToken,
           grant_type: "refresh_token",
         }),
@@ -91,8 +95,12 @@ export class ZohoClient {
       const { access_token, refresh_token } = response.data;
 
       if (!access_token) {
-        this.logger.error(`No access_token in refresh response: ${JSON.stringify(response.data)}`);
-        throw new Error(`Token refresh returned no access_token: ${JSON.stringify(response.data)}`);
+        this.logger.error(
+          `No access_token in refresh response: ${JSON.stringify(response.data)}`,
+        );
+        throw new Error(
+          `Token refresh returned no access_token: ${JSON.stringify(response.data)}`,
+        );
       }
 
       await this.zohoAccountsService.updateTokens(
@@ -104,15 +112,19 @@ export class ZohoClient {
 
       this.logger.log(`Token refreshed successfully for user ${userId}`);
       return access_token;
-
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         const body = error.response?.data;
-        this.logger.error(`Token refresh failed — status: ${status}, body: ${JSON.stringify(body)}`);
+        this.logger.error(
+          `Token refresh failed — status: ${status}, body: ${JSON.stringify(body)}`,
+        );
 
         // Rate limited — throw specific error so caller can back off
-        if (status === HTTP_STATUS.BAD_REQUEST && body?.error_description?.includes("too many requests")) {
+        if (
+          status === HTTP_STATUS.BAD_REQUEST &&
+          body?.error_description?.includes("too many requests")
+        ) {
           throw new Error("Token refresh rate limited - try again later");
         }
       }
@@ -120,33 +132,33 @@ export class ZohoClient {
     }
   }
 
-  async getAccountId(userId: string, accessToken: string): Promise<{ zohoAccountId: string; mailboxAddress: string }> {
-  try {
-    const client = this.createZohoClient(accessToken);
-    const response = await client.get("/accounts");
+  async getAccountId(
+    userId: string,
+    accessToken: string,
+  ): Promise<{ zohoAccountId: string; mailboxAddress: string }> {
+    try {
+      const client = this.createZohoClient(accessToken);
+      const response = await client.get("/accounts");
 
-    this.logger.log(`[getAccountId] raw: ${JSON.stringify(response.data)}`);
+      this.logger.log(`[getAccountId] raw: ${JSON.stringify(response.data)}`);
 
-    const accounts =
-      response.data.data?.accounts ||
-      response.data.data ||
-      [];
+      const accounts = response.data.data?.accounts || response.data.data || [];
 
-    const accountList = Array.isArray(accounts) ? accounts : [];
-    if (accountList.length === 0) {
-      throw new Error("No Zoho Mail accounts found");
+      const accountList = Array.isArray(accounts) ? accounts : [];
+      if (accountList.length === 0) {
+        throw new Error("No Zoho Mail accounts found");
+      }
+
+      const account = accountList[0];
+      return {
+        zohoAccountId: account.accountId,
+        mailboxAddress: account.mailboxAddress,
+      };
+    } catch (error) {
+      this.logger.error("Failed to get Zoho account ID:", error);
+      throw error;
     }
-
-    const account = accountList[0];
-    return {
-      zohoAccountId: account.accountId,
-      mailboxAddress: account.mailboxAddress,
-    };
-  } catch (error) {
-    this.logger.error("Failed to get Zoho account ID:", error);
-    throw error;
   }
-}
 
   async getFolderMap(
     zohoClient: AxiosInstance,
@@ -154,11 +166,15 @@ export class ZohoClient {
   ): Promise<Record<string, string>> {
     const cached = this.folderMapCache.get(zohoAccountId);
     if (cached && Date.now() - cached.fetchedAt < FOLDER_CACHE_TTL_MS) {
-      this.logger.debug(`[getFolderMap] cache hit for account ${zohoAccountId}`);
+      this.logger.debug(
+        `[getFolderMap] cache hit for account ${zohoAccountId}`,
+      );
       return cached.folderMap;
     }
 
-    const foldersResponse = await zohoClient.get(`accounts/${zohoAccountId}/folders`);
+    const foldersResponse = await zohoClient.get(
+      `accounts/${zohoAccountId}/folders`,
+    );
     const folders: { folderName: string; folderId: string }[] =
       foldersResponse.data.data || [];
     const folderMap = folders.reduce<Record<string, string>>((acc, folder) => {
@@ -166,8 +182,13 @@ export class ZohoClient {
       return acc;
     }, {});
 
-    this.folderMapCache.set(zohoAccountId, { folderMap, fetchedAt: Date.now() });
-    this.logger.debug(`[getFolderMap] cached ${folders.length} folders for account ${zohoAccountId}`);
+    this.folderMapCache.set(zohoAccountId, {
+      folderMap,
+      fetchedAt: Date.now(),
+    });
+    this.logger.debug(
+      `[getFolderMap] cached ${folders.length} folders for account ${zohoAccountId}`,
+    );
     return folderMap;
   }
 }

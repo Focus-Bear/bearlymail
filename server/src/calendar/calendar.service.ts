@@ -652,7 +652,11 @@ Manage this booking:
     proposedTime: string,
     topic: string,
     durationMinutes: number,
-  ): Promise<{ meetLink: string | null; eventId: string | null; htmlLink: string | null }> {
+  ): Promise<{
+    meetLink: string | null;
+    eventId: string | null;
+    htmlLink: string | null;
+  }> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
       throw new Error("Email not found");

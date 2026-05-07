@@ -102,7 +102,10 @@ describe("refreshAttachmentsFromGmailForThread", () => {
             {
               filename: attachment.filename,
               mimeType: attachment.mimeType,
-              body: { attachmentId: attachment.attachmentId, size: attachment.size },
+              body: {
+                attachmentId: attachment.attachmentId,
+                size: attachment.size,
+              },
             },
           ],
         },
@@ -169,7 +172,10 @@ describe("refreshAttachmentsFromGmailForThread", () => {
             {
               filename: attachment.filename,
               mimeType: attachment.mimeType,
-              body: { attachmentId: attachment.attachmentId, size: attachment.size },
+              body: {
+                attachmentId: attachment.attachmentId,
+                size: attachment.size,
+              },
             },
           ],
         },
@@ -220,7 +226,10 @@ describe("refreshAttachmentsFromGmailForThread", () => {
             {
               filename: attachment.filename,
               mimeType: attachment.mimeType,
-              body: { attachmentId: attachment.attachmentId, size: attachment.size },
+              body: {
+                attachmentId: attachment.attachmentId,
+                size: attachment.size,
+              },
             },
           ],
         },
@@ -239,10 +248,14 @@ describe("refreshAttachmentsFromGmailForThread", () => {
 
     expect(result.threadEmailCount).toBe(2);
     // Both emails use the same Gmail mock which always returns 1 attachment
-    const email1Result = result.results.find((item) => item.emailId === "email-1");
+    const email1Result = result.results.find(
+      (item) => item.emailId === "email-1",
+    );
     expect(email1Result?.gmailCount).toBe(1);
     expect(email1Result?.dbCount).toBe(1);
-    const email2Result = result.results.find((item) => item.emailId === "email-2");
+    const email2Result = result.results.find(
+      (item) => item.emailId === "email-2",
+    );
     expect(email2Result?.gmailCount).toBe(1);
     expect(email2Result?.dbCount).toBe(1);
   });

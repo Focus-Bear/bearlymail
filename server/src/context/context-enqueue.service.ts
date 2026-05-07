@@ -64,10 +64,11 @@ export class ContextEnqueueService {
       batchPayload: BatchPayloadItem[];
     }> = [];
 
-    const allFetchedThreads = await this.gmailDataService.fetchThreadsByIdsFromProvider(
-      userId,
-      threadIds,
-    );
+    const allFetchedThreads =
+      await this.gmailDataService.fetchThreadsByIdsFromProvider(
+        userId,
+        threadIds,
+      );
     this.logger.log(
       `[CONTEXT-ANALYSIS] Fetched ${allFetchedThreads.length}/${threadIds.length} threads in single pass`,
     );

@@ -59,7 +59,11 @@ export class EmailCrudService {
       userId: _userId,
       receivedAt: _receivedAt,
       ...safeUpdates
-    } = updates as Partial<Email> & { id?: string; userId?: string; receivedAt?: Date };
+    } = updates as Partial<Email> & {
+      id?: string;
+      userId?: string;
+      receivedAt?: Date;
+    };
 
     Object.assign(existing, safeUpdates);
     return this.emailRepository.save(existing);

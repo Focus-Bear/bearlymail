@@ -316,7 +316,9 @@ export async function ensureLabelExists(
       }
     }
 
-    logger.error(`Failed to ensure ${labelName} label exists: ${formatGaxiosError(error)}`);
+    logger.error(
+      `Failed to ensure ${labelName} label exists: ${formatGaxiosError(error)}`,
+    );
     logErrorToFile(
       `Failed to ensure ${labelName} label exists (userId: ${userId})`,
       error,

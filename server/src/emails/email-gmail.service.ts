@@ -7,7 +7,7 @@ import { ERROR_MESSAGES } from "../constants/error-messages";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { isError } from "../types/common";
+import { formatGaxiosError, isError } from "../types/common";
 import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 
@@ -283,7 +283,10 @@ export class EmailGmailService {
           ? error.message
           : "Unknown error fetching from Gmail",
       };
-      this.logger.error("Error fetching Gmail star status:", error);
+      this.logger.error(
+        `Error fetching Gmail star status: ${formatGaxiosError(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
 
     return {
@@ -341,7 +344,9 @@ export class EmailGmailService {
       gmailError = isError(error)
         ? error.message
         : "Unknown error fetching from Gmail";
-      this.logger.error("Error fetching Gmail labels:", error);
+      this.logger.error(
+        `Error fetching Gmail labels: ${formatGaxiosError(error)}`,
+      );
     }
 
     return {

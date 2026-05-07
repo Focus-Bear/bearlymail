@@ -81,7 +81,8 @@ export class UsersService {
   async findOneForAuth(
     id: string,
   ): Promise<
-    (User & { lastActivityAt: Date | null; passwordChangedAt: Date | null }) | null
+    | (User & { lastActivityAt: Date | null; passwordChangedAt: Date | null })
+    | null
   > {
     return this.userRepository
       .createQueryBuilder("user")

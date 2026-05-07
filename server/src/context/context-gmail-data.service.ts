@@ -302,7 +302,7 @@ export class ContextEmailDataService {
     return allThreadIds;
   }
 
-   /**
+  /**
    * Provider-agnostic version of getThreadIdsFromGmail.
    * For Gmail users: delegates to the existing fast Gmail thread-ID-only path.
    * For Zoho/Office365 users: fetches via searchEmails and extracts unique thread IDs.
@@ -337,7 +337,7 @@ export class ContextEmailDataService {
     return threadIds;
   }
 
-   /**
+  /**
    * Provider-agnostic version of fetchThreadsByIds.
    * For Gmail users: delegates to the existing fetchThreadsByIds (direct Gmail API).
    * For Zoho/Office365 users: fetches via searchEmails and groups by threadId.
@@ -357,7 +357,9 @@ export class ContextEmailDataService {
     // Zoho/Office365: use the direct thread-messages endpoint in parallel (not searchEmails,
     // which uses Gmail-style query syntax that Zoho's search API doesn't support)
     const results = await Promise.allSettled(
-      threadIds.map((threadId) => provider.fetchThreadMessages(userId, threadId)),
+      threadIds.map((threadId) =>
+        provider.fetchThreadMessages(userId, threadId),
+      ),
     );
     const allMessages: RawEmailMessage[] = [];
     for (const [i, result] of results.entries()) {
@@ -396,9 +398,15 @@ export class ContextEmailDataService {
       `[CONTEXT-ANALYSIS] ${providerType} search query for thread IDs: "${dateQuery}"`,
     );
     try {
-      const messages = await provider.searchEmails(userId, dateQuery, limit * 2);
+      const messages = await provider.searchEmails(
+        userId,
+        dateQuery,
+        limit * 2,
+      );
       const threadIds = Array.from(
-        new Set(messages.filter((msg) => msg.threadId).map((msg) => msg.threadId)),
+        new Set(
+          messages.filter((msg) => msg.threadId).map((msg) => msg.threadId),
+        ),
       ).slice(0, limit);
       this.logger.log(
         `[CONTEXT-ANALYSIS] ${providerType} returned ${threadIds.length} thread IDs from ${messages.length} messages`,

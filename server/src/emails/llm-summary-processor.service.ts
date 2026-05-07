@@ -222,7 +222,10 @@ export class LLMSummaryProcessorService {
         email.summary.trim() !== "" &&
         !email.isProcessingSummary
       ) {
-        const isStale = this.checkThreadStaleness(email, threadLastSummarizedMap);
+        const isStale = this.checkThreadStaleness(
+          email,
+          threadLastSummarizedMap,
+        );
         if (!isStale) {
           skipCount.alreadyHasSummary++;
           continue;
@@ -250,7 +253,9 @@ export class LLMSummaryProcessorService {
   ): Promise<Map<string, Date | null>> {
     const entriesWithSummary = fetchedEntries.filter(
       ({ email }) =>
-        email.summary && email.summary.trim() !== "" && !email.isProcessingSummary,
+        email.summary &&
+        email.summary.trim() !== "" &&
+        !email.isProcessingSummary,
     );
     const threadIds = [
       ...new Set(

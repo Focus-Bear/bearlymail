@@ -345,12 +345,10 @@ export function formatGaxiosError(error: unknown): string {
   }
 
   if (parts.length === 0) {
-    // Fallback: stringify the whole error
-    try {
-      return JSON.stringify(error, Object.getOwnPropertyNames(error));
-    } catch {
-      return "Unknown error (could not stringify)";
+    if (error instanceof Error) {
+      return error.message;
     }
+    return String(error);
   }
 
   return parts.join(" ");

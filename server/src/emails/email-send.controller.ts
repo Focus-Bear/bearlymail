@@ -33,7 +33,7 @@ import { SendEmailBody } from "./emails.controller.types";
 import { EmailsService } from "./emails.service";
 
 @Controller("emails")
-@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard )
+@UseGuards(JwtAuthGuard, EmailProviderRequiredGuard)
 export class EmailSendController {
   constructor(
     private readonly emailsService: EmailsService,

@@ -15,9 +15,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { StuckPriorityDetectionService } from "./stuck-priority-detection.service";
 
-function makeThread(
-  overrides: Partial<EmailThread> = {},
-): EmailThread {
+function makeThread(overrides: Partial<EmailThread> = {}): EmailThread {
   const thread = new EmailThread();
   thread.id = "thread-1";
   thread.userId = "user-1";

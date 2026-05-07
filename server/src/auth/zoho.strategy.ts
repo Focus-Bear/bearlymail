@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import axios from "axios";
 import { Strategy } from "passport-oauth2";
+
 import { User } from "../database/entities/user.entity";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
@@ -75,7 +76,9 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
   ): Promise<UserWithZohoData> {
     this.logger.debug(`[ZohoStrategy] OAuth callback received:`);
     this.logger.debug(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
-    this.logger.debug(`  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`);
+    this.logger.debug(
+      `  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`,
+    );
     this.logger.debug(`  - raw _profile: ${JSON.stringify(_profile)}`);
 
     writeDebugLog(
@@ -130,12 +133,16 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
       try {
         const response = await axios.get(url, { headers });
         this.logger.debug(`[ZohoStrategy] Profile fetch succeeded at ${url}`);
-        this.logger.debug(`[ZohoStrategy] Profile data: ${JSON.stringify(response.data)}`);
+        this.logger.debug(
+          `[ZohoStrategy] Profile data: ${JSON.stringify(response.data)}`,
+        );
         return response.data as ZohoProfile;
       } catch (error) {
-        const status = axios.isAxiosError(error) ? error.response?.status : "unknown";
+        const status = axios.isAxiosError(error)
+          ? error.response?.status
+          : "unknown";
         this.logger.warn(
-          `[ZohoStrategy] Profile fetch failed at ${url} — status: ${status}, body: ${JSON.stringify(axios.isAxiosError(error) ? error.response?.data : null)}`
+          `[ZohoStrategy] Profile fetch failed at ${url} — status: ${status}, body: ${JSON.stringify(axios.isAxiosError(error) ? error.response?.data : null)}`,
         );
       }
     }
@@ -149,7 +156,9 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
     for (const url of mailEndpoints) {
       try {
         const response = await axios.get(url, { headers });
-        this.logger.debug(`[ZohoStrategy] Mail API response: ${JSON.stringify(response.data)}`);
+        this.logger.debug(
+          `[ZohoStrategy] Mail API response: ${JSON.stringify(response.data)}`,
+        );
 
         let accounts: unknown[] | null = null;
         if (Array.isArray(response.data?.data)) {
@@ -168,8 +177,7 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
 
           // Some Zoho AU accounts return emailAddress array instead of primaryEmailAddress
           const email =
-            account.primaryEmailAddress ||
-            account.emailAddress?.[0]?.mailId;
+            account.primaryEmailAddress || account.emailAddress?.[0]?.mailId;
 
           if (account.accountId && email) {
             this.logger.debug(
@@ -183,7 +191,9 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
           }
         }
       } catch (error) {
-        const status = axios.isAxiosError(error) ? error.response?.status : "unknown";
+        const status = axios.isAxiosError(error)
+          ? error.response?.status
+          : "unknown";
         this.logger.warn(
           `[ZohoStrategy] Mail fallback failed at ${url} — status: ${status}`,
         );

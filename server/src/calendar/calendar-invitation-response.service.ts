@@ -472,8 +472,7 @@ export async function checkMeetingProposal(
       },
     });
 
-    const busyPeriods =
-      freebusyResponse.data.calendars?.primary?.busy ?? [];
+    const busyPeriods = freebusyResponse.data.calendars?.primary?.busy ?? [];
     const isAvailable = busyPeriods.length === 0;
 
     return {

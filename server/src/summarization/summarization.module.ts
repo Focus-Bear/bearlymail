@@ -13,7 +13,12 @@ import { SummarizationService } from "./summarization.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SummarizationRule, UserContext, Email, EmailThread]),
+    TypeOrmModule.forFeature([
+      SummarizationRule,
+      UserContext,
+      Email,
+      EmailThread,
+    ]),
     forwardRef(() => EmailsModule),
     LLMModule,
     UsersModule,

@@ -1,5 +1,5 @@
-import { getRepositoryToken } from "@nestjs/typeorm";
 import { Test } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
@@ -7,7 +7,9 @@ import { EmailCrudService } from "./email-crud.service";
 
 describe("EmailCrudService", () => {
   let service: EmailCrudService;
-  let mockRepo: jest.Mocked<Pick<Repository<Email>, "findOne" | "save" | "update">>;
+  let mockRepo: jest.Mocked<
+    Pick<Repository<Email>, "findOne" | "save" | "update">
+  >;
 
   beforeEach(async () => {
     mockRepo = {
@@ -36,7 +38,9 @@ describe("EmailCrudService", () => {
     it("returns null when the email is not found", async () => {
       mockRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.updateEmail(userId, emailId, { isRead: true });
+      const result = await service.updateEmail(userId, emailId, {
+        isRead: true,
+      });
 
       expect(result).toBeNull();
       expect(mockRepo.save).not.toHaveBeenCalled();
@@ -53,9 +57,13 @@ describe("EmailCrudService", () => {
       mockRepo.findOne.mockResolvedValue(existing);
       mockRepo.save.mockResolvedValue(savedEntity);
 
-      const result = await service.updateEmail(userId, emailId, { isRead: true });
+      const result = await service.updateEmail(userId, emailId, {
+        isRead: true,
+      });
 
-      expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { id: emailId, userId } });
+      expect(mockRepo.findOne).toHaveBeenCalledWith({
+        where: { id: emailId, userId },
+      });
       expect(mockRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ id: emailId, isRead: true }),
       );
@@ -81,7 +89,10 @@ describe("EmailCrudService", () => {
         attachments: null,
       } as Email;
       mockRepo.findOne.mockResolvedValue(existing);
-      mockRepo.save.mockResolvedValue({ ...existing, attachments: [attachment] } as Email);
+      mockRepo.save.mockResolvedValue({
+        ...existing,
+        attachments: [attachment],
+      } as Email);
 
       await service.updateEmail(userId, emailId, { attachments: [attachment] });
 
@@ -129,7 +140,9 @@ describe("EmailCrudService", () => {
     it("only fetches the email belonging to the given userId (prevents IDOR)", async () => {
       mockRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.updateEmail("other-user-id", emailId, { isRead: true });
+      const result = await service.updateEmail("other-user-id", emailId, {
+        isRead: true,
+      });
 
       expect(mockRepo.findOne).toHaveBeenCalledWith({
         where: { id: emailId, userId: "other-user-id" },

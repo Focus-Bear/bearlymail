@@ -53,7 +53,8 @@ export class EmailProviderRequiredGuard implements CanActivate {
 
     // Check if user has any accounts connected
     const hasGmail = await this.googleAccountsService.hasConnectedGmail(userId);
-    const hasO365 = await this.office365AccountsService.hasConnectedOffice365(userId);
+    const hasO365 =
+      await this.office365AccountsService.hasConnectedOffice365(userId);
     const hasZoho = await this.zohoAccountsService.hasConnectedZoho(userId);
 
     // Also check legacy: if user has tokens directly on User entity

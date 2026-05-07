@@ -594,7 +594,8 @@ ${closing}`;
       user.emailSignature,
     );
 
-    const replySubject = customSubject?.trim() || buildReplySubject(email.subject, isForward);
+    const replySubject =
+      customSubject?.trim() || buildReplySubject(email.subject, isForward);
 
     const replyToAddress =
       recipients && recipients.trim()

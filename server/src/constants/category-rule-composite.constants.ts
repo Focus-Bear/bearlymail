@@ -14,7 +14,9 @@ export const CATEGORY_RULE_COMPOSITE = {
   /** Maximum body NOT-contains exclusion phrases per composite rule (issue #1789). */
   MAX_BODY_NOT_PHRASES: 20,
   /** Current spec version for newly created composite rules. */
-  SPEC_VERSION: 2 as const,
+  SPEC_VERSION: 3 as const,
+  /** v2 spec — still supported for backward compatibility. */
+  SPEC_VERSION_V2: 2 as const,
   /** Legacy spec version — still supported for backward compatibility. */
   SPEC_VERSION_V1: 1 as const,
   /** Composite rules require sender, subject, and body conditions. */

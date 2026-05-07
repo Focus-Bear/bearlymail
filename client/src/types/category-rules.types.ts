@@ -24,27 +24,60 @@ export interface CompositeSpecV2 {
   bodyNotContainsAny?: string[];
 }
 
+/**
+ * v3 spec — renamed `senderMatchesAny` → `fromMatchesAny` to align with the
+ * priority classification model input format (issue #1975). Adds optional
+ * fields for read status, attachment, and received/read time conditions.
+ */
+export interface CompositeSpecV3 {
+  v: 3;
+  fromMatchesAny: string[];
+  subjectContainsAny: string[];
+  bodyContainsAny: string[];
+  subjectNotContainsAny?: string[];
+  bodyNotContainsAny?: string[];
+  emailIsRead?: boolean;
+  emailAttachment?: Record<string, string>;
+  emailReceived?: string;
+  emailRead?: string;
+}
+
 /** Union of all supported composite rule spec versions. */
-export type CompositeSpec = CompositeSpecV1 | CompositeSpecV2;
+export type CompositeSpec = CompositeSpecV1 | CompositeSpecV2 | CompositeSpecV3;
 
 /** Helper to get sender list regardless of spec version. */
 export function specSenders(spec: CompositeSpec): string[] {
-  return spec.v === 2 ? spec.senderMatchesAny : [spec.sender];
+  if (spec.v === 3) {
+    return spec.fromMatchesAny;
+  }
+  if (spec.v === 2) {
+    return spec.senderMatchesAny;
+  }
+  return [spec.sender];
 }
 
 /** Helper to get subject phrases regardless of spec version. */
 export function specSubjects(spec: CompositeSpec): string[] {
-  return spec.v === 2 ? spec.subjectContainsAny : [spec.subjectContains];
+  if (spec.v === 1) {
+    return [spec.subjectContains];
+  }
+  return spec.subjectContainsAny;
 }
 
-/** Helper to get subject NOT-contains phrases (v2 only; empty for v1). */
+/** Helper to get subject NOT-contains phrases (v2/v3 only; empty for v1). */
 export function specSubjectNotContains(spec: CompositeSpec): string[] {
-  return spec.v === 2 ? (spec.subjectNotContainsAny ?? []) : [];
+  if (spec.v === 1) {
+    return [];
+  }
+  return spec.subjectNotContainsAny ?? [];
 }
 
-/** Helper to get body NOT-contains phrases (v2 only; empty for v1). */
+/** Helper to get body NOT-contains phrases (v2/v3 only; empty for v1). */
 export function specBodyNotContains(spec: CompositeSpec): string[] {
-  return spec.v === 2 ? (spec.bodyNotContainsAny ?? []) : [];
+  if (spec.v === 1) {
+    return [];
+  }
+  return spec.bodyNotContainsAny ?? [];
 }
 
 /**

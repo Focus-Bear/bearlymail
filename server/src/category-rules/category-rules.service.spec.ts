@@ -296,8 +296,8 @@ describe("CategoryRulesService", () => {
           ruleKind: "composite",
           categoryName: "CI",
           compositeSpec: expect.objectContaining({
-            v: 2,
-            senderMatchesAny: ["alerts@acmecorp.com"],
+            v: 3,
+            fromMatchesAny: ["alerts@acmecorp.com"],
             subjectContainsAny: ["Build failed"],
             bodyContainsAny: ["Pipeline step compile failed"],
           }),
@@ -429,7 +429,7 @@ describe("CategoryRulesService", () => {
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           compositeSpec: expect.objectContaining({
-            senderMatchesAny: ["*@acmecorp.com"],
+            fromMatchesAny: ["*@acmecorp.com"],
           }),
         }),
       );
@@ -481,10 +481,10 @@ describe("CategoryRulesService", () => {
       bodyContainsAny: ["amount due"],
     };
 
-    it("returns a v2 spec when all three fields are populated", () => {
+    it("returns a v3 spec when all three fields are populated", () => {
       const spec = service.normalizeCompositeSpecDto(validDto);
-      expect(spec.v).toBe(2);
-      expect(spec.senderMatchesAny).toEqual(["billing@acme.com"]);
+      expect(spec.v).toBe(3);
+      expect(spec.fromMatchesAny).toEqual(["billing@acme.com"]);
       expect(spec.subjectContainsAny).toEqual(["Invoice"]);
       expect(spec.bodyContainsAny).toEqual(["amount due"]);
     });
@@ -541,7 +541,7 @@ describe("CategoryRulesService", () => {
         ...validDto,
         senderMatchesAny: ["  Billing@ACME.COM  "],
       });
-      expect(spec.senderMatchesAny).toEqual(["billing@acme.com"]);
+      expect(spec.fromMatchesAny).toEqual(["billing@acme.com"]);
     });
 
     it("filters out blank subject phrases", () => {
@@ -1166,7 +1166,7 @@ describe("CategoryRulesService", () => {
     it("accepts a valid DTO with all 3 condition types populated", () => {
       expect(() => service.normalizeCompositeSpecDto(validDto)).not.toThrow();
       const spec = service.normalizeCompositeSpecDto(validDto);
-      expect(spec.senderMatchesAny).toHaveLength(1);
+      expect(spec.fromMatchesAny).toHaveLength(1);
       expect(spec.subjectContainsAny).toHaveLength(1);
       expect(spec.bodyContainsAny).toHaveLength(1);
     });
@@ -1214,7 +1214,7 @@ describe("CategoryRulesService", () => {
         ...validDto,
         senderMatchesAny: ["  Billing@ACME.COM  ", "Invoices@Acme.com"],
       });
-      expect(spec.senderMatchesAny).toEqual([
+      expect(spec.fromMatchesAny).toEqual([
         "billing@acme.com",
         "invoices@acme.com",
       ]);

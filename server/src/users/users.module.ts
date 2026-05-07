@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
 import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { CategoryRule } from "../database/entities/category-rule.entity";
 import { DeletedAccount } from "../database/entities/deleted-account.entity";
 import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
@@ -24,6 +25,7 @@ import { UsersService } from "./users.service";
       BlockedKeyword,
       SummarizationRule,
       DeletedAccount,
+      CategoryRule,
     ]),
   ],
   providers: [

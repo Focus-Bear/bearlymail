@@ -17,7 +17,10 @@ import {
 import { LLMCategoriesService } from "../llm/llm-categories.service";
 import { computeEmailHmac } from "../utils/hmac-email";
 import type { CategoryRuleSuggestion } from "./category-rules.types";
-import { senderMatchesPattern } from "./category-rules-auto-composite.helper";
+import {
+  senderMatchesPattern,
+  specToV2,
+} from "./category-rules-auto-composite.helper";
 
 /** Raw row returned by the thread-count aggregation query. */
 interface ThreadCountRow {
@@ -164,7 +167,7 @@ export function isSenderAlreadyCovered(
       return false;
     }
     const spec = rule.compositeSpec;
-    const senders = spec.v === 2 ? spec.senderMatchesAny : [spec.sender];
+    const senders = specToV2(spec).senderMatchesAny;
     return senders.some((sender) =>
       senderMatchesPattern(normalisedSender, normaliseSender(sender)),
     );

@@ -19,7 +19,7 @@
 import { Repository } from "typeorm";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
-import { CompositeCategoryRuleSpecV2 } from "../database/entities/category-rule.entity";
+import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import {
@@ -43,7 +43,7 @@ export interface DeriveExclusionsOutcome {
   passes: boolean;
   truePositives: number;
   falsePositives: number;
-  finalSpec: CompositeCategoryRuleSpecV2 | null;
+  finalSpec: CompositeCategoryRuleSpec | null;
 }
 
 export interface DeriveExclusionsParams {
@@ -52,7 +52,7 @@ export interface DeriveExclusionsParams {
   llmCategoriesService: LLMCategoriesService;
   normaliseSender: (raw: string) => string;
   userId: string;
-  positiveSpec: CompositeCategoryRuleSpecV2;
+  positiveSpec: CompositeCategoryRuleSpec;
   categoryName: string;
 }
 
@@ -64,29 +64,40 @@ function rowToSample(row: DecryptedValidationRow): ExclusionDerivationSample {
 }
 
 function applyExclusionsToSpec(
-  spec: CompositeCategoryRuleSpecV2,
+  spec: CompositeCategoryRuleSpec,
   subjectNotContainsAny: string[],
   bodyNotContainsAny: string[],
-): CompositeCategoryRuleSpecV2 {
+): CompositeCategoryRuleSpec {
+  const slicedSubjectNot =
+    subjectNotContainsAny.length > 0
+      ? subjectNotContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES)
+      : undefined;
+  const slicedBodyNot =
+    bodyNotContainsAny.length > 0
+      ? bodyNotContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES)
+      : undefined;
+  const exclusions = {
+    ...(slicedSubjectNot && { subjectNotContainsAny: slicedSubjectNot }),
+    ...(slicedBodyNot && { bodyNotContainsAny: slicedBodyNot }),
+  };
+  if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
+    return { ...spec, ...exclusions };
+  }
+  if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2) {
+    return { ...spec, ...exclusions };
+  }
+  // V1 has no exclusion fields: upgrade to V2
   return {
-    ...spec,
-    ...(subjectNotContainsAny.length > 0 && {
-      subjectNotContainsAny: subjectNotContainsAny.slice(
-        0,
-        CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
-      ),
-    }),
-    ...(bodyNotContainsAny.length > 0 && {
-      bodyNotContainsAny: bodyNotContainsAny.slice(
-        0,
-        CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
-      ),
-    }),
+    v: CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2,
+    senderMatchesAny: [spec.sender],
+    subjectContainsAny: [spec.subjectContains],
+    bodyContainsAny: spec.bodyContainsAny,
+    ...exclusions,
   };
 }
 
 export interface ApplyDerivedExclusionsParams {
-  positiveSpec: CompositeCategoryRuleSpecV2;
+  positiveSpec: CompositeCategoryRuleSpec;
   truePositiveRows: DecryptedValidationRow[];
   falsePositiveRows: DecryptedValidationRow[];
   derived: { subjectNotContainsAny: string[]; bodyNotContainsAny: string[] };

@@ -1,5 +1,13 @@
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import {
+  CATEGORY_RULE_KINDS,
+  CATEGORY_RULE_MATCH_MODES,
+  CATEGORY_RULE_TYPES,
+} from "../constants/domain-types";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
+import {
+  CategoryRule,
+  CompositeCategoryRuleSpec,
   CompositeCategoryRuleSpecV1,
   CompositeCategoryRuleSpecV2,
 } from "../database/entities/category-rule.entity";
@@ -7,6 +15,47 @@ import type {
   CompositeRuleEvaluationDetail,
   EmailMetadata,
 } from "./category-rules.types";
+
+export interface EmailHashes {
+  senderHash: string;
+  domainPattern: string | null;
+  domainHash: string | null;
+  subjectPrefix: string | null;
+  prefixHash: string | null;
+}
+
+export function rulePatternMatches(
+  rule: Pick<CategoryRule, "ruleType" | "patternHash" | "ruleKind">,
+  hashes: EmailHashes,
+): boolean {
+  if (
+    rule.ruleKind !== CATEGORY_RULE_KINDS.LEGACY ||
+    !rule.ruleType ||
+    !rule.patternHash
+  ) {
+    return false;
+  }
+  const { senderHash, domainPattern, domainHash, subjectPrefix, prefixHash } =
+    hashes;
+  if (rule.ruleType === CATEGORY_RULE_TYPES.EXACT_SENDER) {
+    return rule.patternHash === senderHash;
+  }
+  if (rule.ruleType === CATEGORY_RULE_TYPES.SENDER_DOMAIN) {
+    return domainHash !== null && rule.patternHash === domainHash;
+  }
+  if (rule.ruleType === CATEGORY_RULE_TYPES.SUBJECT_PREFIX) {
+    return prefixHash !== null && rule.patternHash === prefixHash;
+  }
+  if (rule.ruleType === CATEGORY_RULE_MATCH_MODES.SENDER_DOMAIN_AND_SUBJECT_PREFIX) {
+    if (!domainPattern || !subjectPrefix) {
+      return false;
+    }
+    const combinedHashInput = `${domainPattern.toLowerCase()}|${subjectPrefix.toLowerCase()}`;
+    const combinedHash = SearchIndexHelper.hashExact(combinedHashInput);
+    return rule.patternHash === combinedHash;
+  }
+  return false;
+}
 
 export function pickAutoCompositeSubjectPhrase(subject: string): string | null {
   const trimmed = subject.trim();
@@ -36,42 +85,60 @@ export function pickAutoCompositeBodyPhrase(
   return candidate.slice(0, CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASE_LENGTH);
 }
 
+/** Normalise a v1/v2/v3 spec into the v2 array shape for unified evaluation. */
+export function specToV2(spec: CompositeCategoryRuleSpec): CompositeCategoryRuleSpecV2 {
+  if (spec.v === 3) {
+    return {
+      v: 2,
+      senderMatchesAny: spec.fromMatchesAny,
+      subjectContainsAny: spec.subjectContainsAny,
+      bodyContainsAny: spec.bodyContainsAny,
+      ...(spec.subjectNotContainsAny && {
+        subjectNotContainsAny: spec.subjectNotContainsAny,
+      }),
+      ...(spec.bodyNotContainsAny && {
+        bodyNotContainsAny: spec.bodyNotContainsAny,
+      }),
+    };
+  }
+  if (spec.v === 2) {
+    return spec;
+  }
+  // v1
+  const v1 = spec as CompositeCategoryRuleSpecV1;
+  return {
+    v: 2,
+    senderMatchesAny: [v1.sender],
+    subjectContainsAny: [v1.subjectContains],
+    bodyContainsAny: v1.bodyContainsAny,
+  };
+}
+
 export function compositeAutoSpecsMatch(
-  first: CompositeCategoryRuleSpecV2,
-  second: CompositeCategoryRuleSpecV2,
+  first: CompositeCategoryRuleSpec,
+  second: CompositeCategoryRuleSpec,
 ): boolean {
+  const v2First = specToV2(first);
+  const v2Second = specToV2(second);
+  // Unit separator avoids false positives when joining multi-element arrays.
+  const UNIT_SEP = "";
   const packStrings = (values: string[] | undefined) =>
     [...(values ?? [])]
       .map((item) => item.trim())
       .sort()
-      .join("\u0001");
+      .join(UNIT_SEP);
   return (
-    packStrings(first.senderMatchesAny) ===
-      packStrings(second.senderMatchesAny) &&
-    packStrings(first.subjectContainsAny) ===
-      packStrings(second.subjectContainsAny) &&
-    packStrings(first.bodyContainsAny) ===
-      packStrings(second.bodyContainsAny) &&
-    packStrings(first.subjectNotContainsAny) ===
-      packStrings(second.subjectNotContainsAny) &&
-    packStrings(first.bodyNotContainsAny) ===
-      packStrings(second.bodyNotContainsAny)
+    packStrings(v2First.senderMatchesAny) ===
+      packStrings(v2Second.senderMatchesAny) &&
+    packStrings(v2First.subjectContainsAny) ===
+      packStrings(v2Second.subjectContainsAny) &&
+    packStrings(v2First.bodyContainsAny) ===
+      packStrings(v2Second.bodyContainsAny) &&
+    packStrings(v2First.subjectNotContainsAny) ===
+      packStrings(v2Second.subjectNotContainsAny) &&
+    packStrings(v2First.bodyNotContainsAny) ===
+      packStrings(v2Second.bodyNotContainsAny)
   );
-}
-
-/** Normalise a v1 spec into the v2 array shape for unified evaluation. */
-export function specToV2(
-  spec: CompositeCategoryRuleSpecV1 | CompositeCategoryRuleSpecV2,
-): CompositeCategoryRuleSpecV2 {
-  if (spec.v === 2) {
-    return spec;
-  }
-  return {
-    v: 2,
-    senderMatchesAny: [spec.sender],
-    subjectContainsAny: [spec.subjectContains],
-    bodyContainsAny: spec.bodyContainsAny,
-  };
 }
 
 /**
@@ -112,21 +179,64 @@ function findExcludedPhrase(
   return null;
 }
 
+interface ResolvedSpecFields {
+  senderPatterns: string[];
+  subjectPhrases: string[];
+  bodyPhrases: string[];
+  subjectNotPhrases: string[] | undefined;
+  bodyNotPhrases: string[] | undefined;
+}
+
+function resolveSpecFields(spec: CompositeCategoryRuleSpec): ResolvedSpecFields {
+  if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
+    return {
+      senderPatterns: spec.fromMatchesAny,
+      subjectPhrases: spec.subjectContainsAny,
+      bodyPhrases: spec.bodyContainsAny,
+      subjectNotPhrases: spec.subjectNotContainsAny,
+      bodyNotPhrases: spec.bodyNotContainsAny,
+    };
+  }
+  if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V2) {
+    return {
+      senderPatterns: spec.senderMatchesAny,
+      subjectPhrases: spec.subjectContainsAny,
+      bodyPhrases: spec.bodyContainsAny,
+      subjectNotPhrases: spec.subjectNotContainsAny,
+      bodyNotPhrases: spec.bodyNotContainsAny,
+    };
+  }
+  return {
+    senderPatterns: [spec.sender],
+    subjectPhrases: [spec.subjectContains],
+    bodyPhrases: spec.bodyContainsAny,
+    subjectNotPhrases: undefined,
+    bodyNotPhrases: undefined,
+  };
+}
+
 /**
  * Evaluates a composite rule spec against an email, returning whether it
  * matches and per-condition detail for debug output.
+ *
+ * Handles each spec version natively so that V3-specific fields
+ * (emailIsRead, emailAttachment, etc.) are not silently discarded via
+ * specToV2. V3-only conditions not yet reflected in EmailMetadata pass
+ * by default until the interface is extended.
  */
 export function evaluateComposite(
-  spec: CompositeCategoryRuleSpecV1 | CompositeCategoryRuleSpecV2,
+  spec: CompositeCategoryRuleSpec,
   email: EmailMetadata,
   normaliseSender: (raw: string) => string,
 ): { matches: boolean; detail: CompositeRuleEvaluationDetail } {
-  const v2 = specToV2(spec);
+  const { senderPatterns, subjectPhrases, bodyPhrases, subjectNotPhrases, bodyNotPhrases } =
+    resolveSpecFields(spec);
+
   const normFrom = normaliseSender(email.from);
 
   let senderOk = false;
   let senderMatchedValue: string | null = null;
-  for (const sender of v2.senderMatchesAny) {
+  for (const sender of senderPatterns) {
     if (senderMatchesPattern(normFrom, normaliseSender(sender))) {
       senderOk = true;
       senderMatchedValue = sender;
@@ -137,7 +247,7 @@ export function evaluateComposite(
   const subj = (email.subject || "").toLowerCase();
   let subjectOk = false;
   let subjectMatchedValue: string | null = null;
-  for (const phrase of v2.subjectContainsAny) {
+  for (const phrase of subjectPhrases) {
     const needle = phrase.trim().toLowerCase();
     if (needle.length > 0 && subj.includes(needle)) {
       subjectOk = true;
@@ -147,9 +257,7 @@ export function evaluateComposite(
   }
 
   const body = (email.bodyTextForMatch || "").toLowerCase();
-  const phrases = v2.bodyContainsAny
-    .map((phrase) => phrase.trim())
-    .filter(Boolean);
+  const phrases = bodyPhrases.map((phrase) => phrase.trim()).filter(Boolean);
   let bodyMatchedPhrase: string | null = null;
   const bodyOk = phrases.some((phrase) => {
     const lowerPhrase = phrase.toLowerCase();
@@ -162,11 +270,8 @@ export function evaluateComposite(
 
   // Issue #1789: NOT-contains exclusions disqualify the rule even when the
   // positive conditions match.
-  const subjectExcludedMatch = findExcludedPhrase(
-    v2.subjectNotContainsAny,
-    subj,
-  );
-  const bodyExcludedMatch = findExcludedPhrase(v2.bodyNotContainsAny, body);
+  const subjectExcludedMatch = findExcludedPhrase(subjectNotPhrases, subj);
+  const bodyExcludedMatch = findExcludedPhrase(bodyNotPhrases, body);
   const exclusionOk =
     subjectExcludedMatch === null && bodyExcludedMatch === null;
 

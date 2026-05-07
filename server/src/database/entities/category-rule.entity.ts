@@ -48,10 +48,29 @@ export type CompositeCategoryRuleSpecV2 = {
   bodyNotContainsAny?: string[];
 };
 
+/**
+ * v3: renamed `senderMatchesAny` → `fromMatchesAny` to match the priority
+ * classification model input format (issue #1975). Adds optional fields for
+ * read status, attachment, and received/read time conditions.
+ */
+export type CompositeCategoryRuleSpecV3 = {
+  v: 3;
+  fromMatchesAny: string[];
+  subjectContainsAny: string[];
+  bodyContainsAny: string[];
+  subjectNotContainsAny?: string[];
+  bodyNotContainsAny?: string[];
+  emailIsRead?: boolean;
+  emailAttachment?: Record<string, string>;
+  emailReceived?: string;
+  emailRead?: string;
+};
+
 /** Union of all supported composite rule spec versions. */
 export type CompositeCategoryRuleSpec =
   | CompositeCategoryRuleSpecV1
-  | CompositeCategoryRuleSpecV2;
+  | CompositeCategoryRuleSpecV2
+  | CompositeCategoryRuleSpecV3;
 
 /**
  * Deterministic category rules: legacy hash-based (auto-generated) or composite

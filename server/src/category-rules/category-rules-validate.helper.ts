@@ -6,7 +6,7 @@
 import { Repository } from "typeorm";
 
 import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
-import { CompositeCategoryRuleSpecV2 } from "../database/entities/category-rule.entity";
+import { CompositeCategoryRuleSpec } from "../database/entities/category-rule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ContextKey,
@@ -111,7 +111,7 @@ export interface ValidateCompositeRuleParams {
   userContextRepository: Repository<UserContext>;
   normaliseSender: (raw: string) => string;
   userId: string;
-  spec: CompositeCategoryRuleSpecV2;
+  spec: CompositeCategoryRuleSpec;
   categoryName: string;
 }
 
@@ -141,7 +141,7 @@ export interface EvaluateSpecAgainstRowsResult {
  */
 export function partitionMatchesByCategory(
   rows: DecryptedValidationRow[],
-  spec: CompositeCategoryRuleSpecV2,
+  spec: CompositeCategoryRuleSpec,
   normaliseSender: (raw: string) => string,
   targetCategoryId: string | null,
 ): EvaluateSpecAgainstRowsResult {

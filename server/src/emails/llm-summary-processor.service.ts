@@ -12,6 +12,7 @@ import {
 } from "../database/entities/contact.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { PriorityCacheService } from "../priority/priority-cache.service";
@@ -77,6 +78,7 @@ export class LLMSummaryProcessorService {
     private readonly contactTypeClassifierService: ContactTypeClassifierService,
     private readonly protoCategoriesService: ProtoCategoriesService,
     private readonly cloudWatchService: CloudWatchService,
+    private readonly userEncryptionService: UserEncryptionService,
   ) {}
 
   async processSummaryJobBatch(
@@ -180,7 +182,11 @@ export class LLMSummaryProcessorService {
 
     const skipCount = { alreadyHasSummary: 0, notFound: 0 };
 
-    // Phase 1: fetch all emails (N+1 — pre-existing pattern)
+    // Phase 1: fetch all emails (N+1 — pre-existing pattern).
+    // Each fetch runs inside withUserKey so encrypted column transformers
+    // see the per-user KMS data key in AsyncLocalStorage. Without this the
+    // worker reads back garbage (fail-open ciphertext) for emails written
+    // by paths that DID have the per-user key set (e.g. email-sync) — see #1980/#1981.
     const fetchedEntries: SummaryJobEntry[] = [];
     for (const job of jobArray) {
       const { userId, emailId } = job.data as {
@@ -188,7 +194,9 @@ export class LLMSummaryProcessorService {
         emailId: string;
       };
 
-      const email = await this.emailsService.getEmailById(userId, emailId);
+      const email = await this.userEncryptionService.withUserKey(userId, () =>
+        this.emailsService.getEmailById(userId, emailId),
+      );
 
       if (!email) {
         this.logger.warn(`Email ${emailId} not found for summary generation`);
@@ -298,8 +306,9 @@ export class LLMSummaryProcessorService {
     >();
     await Promise.all(
       uniqueUserIds.map(async (uid) => {
-        const rules =
-          await this.summarizationService.getSummarizationRules(uid);
+        const rules = await this.userEncryptionService.withUserKey(uid, () =>
+          this.summarizationService.getSummarizationRules(uid),
+        );
         rulesMap.set(uid, rules);
       }),
     );
@@ -321,13 +330,19 @@ export class LLMSummaryProcessorService {
       async ({ userId, emailId, email }) => {
         try {
           const userRules = rulesMap.get(userId) || [];
-          const result =
-            await this.summarizationService.summarizeEmailWithAutoRule(
-              userId,
-              emailId,
-              email,
-              userRules,
-            );
+          // summarizeEmailWithAutoRule re-fetches the thread's other emails,
+          // which are encrypted columns. Wrap with the user's KMS key so
+          // those reads decrypt correctly under per-user envelope encryption.
+          const result = await this.userEncryptionService.withUserKey(
+            userId,
+            () =>
+              this.summarizationService.summarizeEmailWithAutoRule(
+                userId,
+                emailId,
+                email,
+                userRules,
+              ),
+          );
           return {
             emailId,
             email,
@@ -569,7 +584,13 @@ export class LLMSummaryProcessorService {
         try {
           const jobEntry = jobsToProcess.find((j) => j.emailId === emailId);
           if (!jobEntry) continue;
-          await this.persistSingleSummaryResult(batchId, result, jobEntry);
+          // Persist writes encrypted columns (summary, actionItemsJson,
+          // categoryExplanation, meetingProposal). Wrap with the user's
+          // KMS key so writes go out under per-user envelope encryption,
+          // matching what the HTTP read path expects.
+          await this.userEncryptionService.withUserKey(jobEntry.userId, () =>
+            this.persistSingleSummaryResult(batchId, result, jobEntry),
+          );
           successCount++;
         } catch (dbError) {
           this.logger.error(

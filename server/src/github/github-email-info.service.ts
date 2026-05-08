@@ -77,10 +77,12 @@ export class GitHubEmailInfoService {
 
     const allLinks = new Map<string, ParsedGitHubLink>();
     for (const threadEmail of threadEmails) {
-      const links = this.githubService.parseGitHubLinks(
-        threadEmail.body || "",
-        threadEmail.htmlBody || undefined,
-      );
+      // Defensive decrypt: TypeORM hydration can leak ciphertext (partial selects,
+      // missing per-user KMS context, etc.). Mirrors parseEmailGitHubLinks below
+      // so the regex never scans `iv:tag:hex` and silently returns no links.
+      const body = EncryptionHelper.tryDecrypt(threadEmail.body) ?? "";
+      const htmlBody = EncryptionHelper.tryDecrypt(threadEmail.htmlBody) ?? undefined;
+      const links = this.githubService.parseGitHubLinks(body, htmlBody);
       for (const link of links) {
         allLinks.set(link.url, link);
       }

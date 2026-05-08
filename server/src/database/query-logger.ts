@@ -41,12 +41,13 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   logQueryError(
     error: string | Error,
     query: string,
-    parameters?: unknown[],
+    _parameters?: unknown[],
     _queryRunner?: QueryRunner,
   ) {
     const errorMsg = error instanceof Error ? error.message : error;
     const querySnippet = query.substring(0, QUERY_SNIPPET_LENGTH);
-    const logMessage = `❌ Query Error: ${errorMsg}\nQuery: ${querySnippet}${parameters && parameters.length > 0 ? `\nParameters: ${JSON.stringify(parameters)}` : ""}`;
+    // Parameters are intentionally omitted — they contain encrypted ciphertext and must not appear in logs.
+    const logMessage = `❌ Query Error: ${errorMsg}\nQuery: ${querySnippet}`;
 
     this.logger.error(logMessage);
     writeToLogFile(`ERROR - ${logMessage}`);
@@ -55,15 +56,12 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   logQuerySlow(
     time: number,
     query: string,
-    parameters?: unknown[],
+    _parameters?: unknown[],
     _queryRunner?: QueryRunner,
   ) {
     const querySnippet = query.substring(0, QUERY_SNIPPET_LENGTH);
-    const paramsStr =
-      parameters && parameters.length > 0
-        ? `\nParameters: ${JSON.stringify(parameters)}`
-        : "";
-    const logMessage = `SLOW QUERY (${time}ms):\n${querySnippet}${paramsStr}`;
+    // Parameters are intentionally omitted — they contain encrypted ciphertext and must not appear in logs.
+    const logMessage = `SLOW QUERY (${time}ms):\n${querySnippet}`;
 
     // Log to console
     this.logger.warn(`⚠️  ${logMessage}`);

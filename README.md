@@ -260,6 +260,8 @@ npm run build
 - CORS configured for frontend
 - Environment variables for sensitive data
 - TLS 1.3 for data in transit (production)
+- AES-256-GCM encryption at rest for all sensitive data (email content, OAuth tokens, user PII)
+- See [docs/threat-model.md](docs/threat-model.md) for the formal STRIDE threat model
 
 ## License
 

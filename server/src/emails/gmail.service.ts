@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
 
+import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import { HTTP_STATUS } from "../constants/http-status";
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
@@ -108,15 +109,12 @@ export class GmailService {
     this.logger.log(`Starting historical email scan for user ${userId}`);
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) return;
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
+    const oauth2Client = createUserGoogleOAuthClient(
+      this.usersService,
+      userId,
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
     );
-    oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
     try {
       const response = await gmail.users.messages.list({

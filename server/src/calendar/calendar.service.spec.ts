@@ -26,6 +26,7 @@ jest.mock("googleapis", () => ({
     auth: {
       OAuth2: jest.fn().mockImplementation(() => ({
         setCredentials: jest.fn(),
+        on: jest.fn(),
       })),
     },
     calendar: jest.fn(),
@@ -64,6 +65,7 @@ describe("CalendarService", () => {
   beforeEach(async () => {
     mockOAuth2Client = {
       setCredentials: jest.fn(),
+      on: jest.fn(),
     };
 
     mockCalendar = {
@@ -107,6 +109,7 @@ describe("CalendarService", () => {
           useValue: {
             findOne: jest.fn(),
             hasUser: jest.fn(),
+            update: jest.fn().mockResolvedValue(undefined),
           },
         },
         {

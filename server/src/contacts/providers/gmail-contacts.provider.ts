@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
 
+import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError } from "../../types/common";
@@ -287,16 +288,12 @@ export class GmailContactsProvider implements ContactProvider {
       return [];
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
+    const oauth2Client = createUserGoogleOAuthClient(
+      this.usersService,
+      userId,
+      creds.accessToken,
+      creds.refreshToken,
     );
-
-    oauth2Client.setCredentials({
-      access_token: creds.accessToken,
-      refresh_token: creds.refreshToken,
-    });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
     const resultsMap = new Map<string, RawContact>();
@@ -356,16 +353,12 @@ export class GmailContactsProvider implements ContactProvider {
       return null;
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
+    const oauth2Client = createUserGoogleOAuthClient(
+      this.usersService,
+      userId,
+      creds.accessToken,
+      creds.refreshToken,
     );
-
-    oauth2Client.setCredentials({
-      access_token: creds.accessToken,
-      refresh_token: creds.refreshToken,
-    });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
     try {

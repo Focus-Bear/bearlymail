@@ -1,8 +1,9 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import { gmail_v1, google } from "googleapis";
+import { gmail_v1 } from "googleapis";
 import PgBoss from "pg-boss";
 
 import { authLogger } from "../../auth/auth-logger";
+import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
 import { SYNC_STATUS } from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
@@ -121,15 +122,12 @@ export class GmailSyncService {
   }
 
   async validateToken(userId: string, user: User): Promise<void> {
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
+    const oauth2Client = createUserGoogleOAuthClient(
+      this.usersService,
+      userId,
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
     );
-    oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
     try {
       await oauth2Client.getAccessToken();
     } catch (error) {

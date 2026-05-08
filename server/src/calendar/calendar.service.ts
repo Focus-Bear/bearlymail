@@ -9,6 +9,7 @@ import {
   BOOKING_STATUS,
   CALENDAR_ENTRY_POINT_TYPES,
 } from "../constants/domain-statuses";
+import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
@@ -78,20 +79,21 @@ export class CalendarService {
    * each other's tokens on a single shared client.
    */
   createOAuth2Client(user: {
+    id: string;
     googleCalendarAccessToken: string;
     googleCalendarRefreshToken?: string | null;
   }): OAuth2Client {
-    const client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI ||
-        "http://localhost:3001/auth/google/callback",
+    return createUserGoogleOAuthClient(
+      this.usersService,
+      user.id,
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
+      {
+        redirectUri:
+          process.env.GOOGLE_REDIRECT_URI ||
+          "http://localhost:3001/auth/google/callback",
+      },
     );
-    client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-    return client;
   }
 
   /**

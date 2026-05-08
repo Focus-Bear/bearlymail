@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { gmail_v1, google } from "googleapis";
 
+import { createUserGoogleOAuthClient } from "../../auth/google-oauth-client";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MILLISECONDS, MINUTES } from "../../constants/time-constants";
 import { formatGaxiosError } from "../../types/common";
@@ -196,26 +197,12 @@ export class GmailProvider implements EmailProvider {
       return null;
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
+    const oauth2Client = createUserGoogleOAuthClient(
+      this.usersService,
+      userId,
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
     );
-    oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
-    oauth2Client.on("tokens", async (tokens) => {
-      if (tokens.access_token) {
-        await this.usersService.update(userId, {
-          googleCalendarAccessToken: tokens.access_token,
-          ...(tokens.refresh_token && {
-            googleCalendarRefreshToken: tokens.refresh_token,
-          }),
-        });
-      }
-    });
 
     return google.gmail({ version: "v1", auth: oauth2Client });
   }

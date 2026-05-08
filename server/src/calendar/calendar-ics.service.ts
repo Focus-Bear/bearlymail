@@ -7,6 +7,7 @@ import {
 import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 
+import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS, MINUTES } from "../constants/time-constants";
 import { EmailsService } from "../emails/emails.service";
@@ -45,20 +46,21 @@ export class CalendarIcsService {
    * Create a fresh per-request OAuth2Client for a given user's credentials.
    */
   createOAuth2Client(user: {
+    id: string;
     googleCalendarAccessToken: string;
     googleCalendarRefreshToken?: string | null;
   }): OAuth2Client {
-    const client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI ||
-        "http://localhost:3001/auth/google/callback",
+    return createUserGoogleOAuthClient(
+      this.usersService,
+      user.id,
+      user.googleCalendarAccessToken,
+      user.googleCalendarRefreshToken,
+      {
+        redirectUri:
+          process.env.GOOGLE_REDIRECT_URI ||
+          "http://localhost:3001/auth/google/callback",
+      },
     );
-    client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-    return client;
   }
 
   /**

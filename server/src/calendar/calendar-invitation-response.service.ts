@@ -244,6 +244,7 @@ export async function respondToInvitation(
   }
 
   const oauth2Client = service.createOAuth2Client({
+    id: user.id,
     googleCalendarAccessToken: user.googleCalendarAccessToken,
     googleCalendarRefreshToken: user.googleCalendarRefreshToken,
   });

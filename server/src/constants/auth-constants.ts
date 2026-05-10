@@ -32,8 +32,8 @@ export const AUTH_CONSTANTS = {
 // Number of random bytes for password reset token generation
 export const TOKEN_BYTES = 32;
 
-// Token validity window: 1 hour in milliseconds
-export const TOKEN_EXPIRY_MS = MILLISECONDS.HOUR;
+// Token validity window: 10 minutes in milliseconds (ASVS 2.10.3 requires ≤10 min for password reset tokens)
+export const TOKEN_EXPIRY_MS = 10 * MILLISECONDS.MINUTE;
 
 // Step-up token validity: 15 minutes (OWASP ASVS req 4.2.1)
 export const STEP_UP_TOKEN_EXPIRY_MINUTES = 15;

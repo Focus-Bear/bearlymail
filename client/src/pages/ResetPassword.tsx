@@ -129,12 +129,26 @@ const ResetPassword: React.FC = () => {
             <p
               style={{
                 color: theme.colors.text.secondary,
-                marginBottom: theme.spacing.lg,
+                marginBottom: theme.spacing.md,
                 fontSize: theme.typography.fontSize.base,
               }}
             >
               {t('auth.resetPasswordDescription')}
             </p>
+
+            <div
+              role="note"
+              style={{
+                backgroundColor: `${theme.colors.accent.warning ?? theme.colors.primary.main}20`,
+                color: theme.colors.text.primary,
+                padding: theme.spacing.md,
+                borderRadius: theme.borderRadius.md,
+                marginBottom: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('auth.resetPassword.tokenExpiry')}
+            </div>
 
             {error && (
               <div

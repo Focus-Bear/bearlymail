@@ -145,6 +145,7 @@
     "resetPassword": {
       "title": "Reset Password",
       "description": "Enter your new password below.",
+      "tokenExpiry": "This link expires in 10 minutes — please set your new password promptly.",
       "submit": "Set New Password",
       "resetting": "Setting password...",
       "success": "Password set successfully! Redirecting...",

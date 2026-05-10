@@ -18,7 +18,7 @@ export const emailTranslations = {
       greeting: "Hi {{firstName}},",
       message:
         "We received a request to reset the password for your BearlyMail account. Click the button below to choose a new password.",
-      cta: "This link will expire in 1 hour.",
+      cta: "This link will expire in 10 minutes.",
       button: "Reset Password",
       linkText: "Or copy and paste this link into your browser:",
       expiry:
@@ -44,7 +44,7 @@ export const emailTranslations = {
       greeting: "Hola {{firstName}},",
       message:
         "Recibimos una solicitud para restablecer la contraseña de tu cuenta de BearlyMail. Haz clic en el botón de abajo para elegir una nueva contraseña.",
-      cta: "Este enlace expirará en 1 hora.",
+      cta: "Este enlace expirará en 10 minutos.",
       button: "Restablecer contraseña",
       linkText: "O copia y pega este enlace en tu navegador:",
       expiry:

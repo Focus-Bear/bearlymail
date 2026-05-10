@@ -336,6 +336,7 @@
     "resetPassword": {
       "title": "Restablecer contraseña",
       "description": "Ingresa tu nueva contraseña a continuación.",
+      "tokenExpiry": "Este enlace expira en 10 minutos — por favor establece tu nueva contraseña a la brevedad.",
       "submit": "Establecer nueva contraseña",
       "resetting": "Estableciendo contraseña...",
       "success": "¡Contraseña establecida con éxito! Redirigiendo...",

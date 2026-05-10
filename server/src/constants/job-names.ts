@@ -81,6 +81,9 @@ export const JOB_NAMES = {
 
   // Encryption migration (admin-triggered, idempotent)
   REENCRYPT_USER_DATA: "reencrypt-user-data",
+
+  // Audit log archival (SAQ Q52: nightly export of rows older than 90 days to S3 Glacier)
+  AUDIT_LOG_ARCHIVE: "audit-log-archive",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

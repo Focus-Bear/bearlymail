@@ -435,6 +435,48 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     // ============================================
+    // Audit Log Archive Bucket (SAQ Q52)
+    // ============================================
+    // Receives audit_logs exports from the scheduled archival job.
+    // Objects are stored in Standard for 90 days (hot storage window),
+    // then transitioned to Glacier Flexible Retrieval for long-term retention.
+    // Only the ECS task role can write to this bucket.
+    //
+    // Archival job: a scheduled ECS task (or cron worker in the NestJS worker
+    // process) queries audit_logs WHERE createdAt < NOW() - INTERVAL '90 days',
+    // serialises rows to newline-delimited JSON, PUTs the file to this bucket
+    // under a date-partitioned prefix (e.g. audit-logs/2025/01/15/batch.ndjson),
+    // then deletes the exported rows from PostgreSQL to bound hot-storage size.
+    const auditLogArchiveBucket = new s3.Bucket(this, 'AuditLogArchiveBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      versioned: true,
+      lifecycleRules: [
+        {
+          // Transition to Glacier Flexible Retrieval after 90-day hot-storage window.
+          transitions: [
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Grant the ECS task role PUT access so the archival job can upload exports.
+    auditLogArchiveBucket.grantPut(taskRole);
+
+    new cdk.CfnOutput(this, 'AuditLogArchiveBucketName', {
+      value: auditLogArchiveBucket.bucketName,
+      description: 'Audit log archive bucket (SAQ Q52 - set AUDIT_LOG_ARCHIVE_BUCKET to this value)',
+      exportName: 'BearlyMail-AuditLog-Archive-Bucket',
+    });
+
+    // ============================================
     // Log Groups
     // ============================================
     // 90-day retention satisfies GDPR audit requirements while keeping
@@ -624,6 +666,7 @@ export class BearlyMailStack extends cdk.Stack {
         DB_SSL: 'true',
         CONTEXT_ANALYSIS_SQS_QUEUE_URL: props.contextAnalysisQueue.queueUrl,
         EMAIL_PRIORITISATION_SQS_QUEUE_URL: props.emailPrioritisationQueue?.queueUrl ?? '',
+        AUDIT_LOG_ARCHIVE_BUCKET: auditLogArchiveBucket.bucketName,
         KMS_KEY_ID: dataEncryptionKey.keyArn,
       },
       secrets: {

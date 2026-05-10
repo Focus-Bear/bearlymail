@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { AuditModule } from "./audit/audit.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
@@ -50,6 +51,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
     QueueModule,
     EncryptionModule,
     ErrorTrackingModule,
+    AuditModule,
 
     // Feature modules — processors inside these modules register themselves
     // with pg-boss on init, so the worker picks up jobs automatically.

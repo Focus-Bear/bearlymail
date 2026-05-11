@@ -66,7 +66,6 @@ export class EmailExportService {
     let isFirst = true;
     let lastId: string | undefined;
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const batch = await this.emailRepository.find({
         where: {

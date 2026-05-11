@@ -197,10 +197,7 @@ export class ScheduledEmailsService {
           { status: "failed", errorMessage },
         );
 
-        this.logger.error(
-          `Failed to send scheduled email ${ref.id}:`,
-          error,
-        );
+        this.logger.error(`Failed to send scheduled email ${ref.id}:`, error);
       }
     }
 

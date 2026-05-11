@@ -1579,7 +1579,6 @@ describe("CalendarService", () => {
 
   describe("rsvpByEventId", () => {
     it("updates RSVP and returns new status", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {
@@ -1620,7 +1619,6 @@ describe("CalendarService", () => {
         mockPartial({
           ...mockUser,
           googleCalendarAccessToken: null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }),
       );
 
@@ -1630,7 +1628,6 @@ describe("CalendarService", () => {
     });
 
     it("throws BadRequestException when user is not an attendee", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {
@@ -1647,7 +1644,6 @@ describe("CalendarService", () => {
     });
 
     it("throws BadRequestException when event has no attendees", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       usersService.findOne.mockResolvedValue(mockUser);
       mockCalendar.events.get.mockResolvedValue({
         data: {

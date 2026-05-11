@@ -58,12 +58,17 @@ export function normalizeCompositeSpec(
       `At most ${CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES} body phrases allowed`,
     );
   }
-  if (subjectNotContainsAny.length > CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES) {
+  if (
+    subjectNotContainsAny.length >
+    CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES
+  ) {
     throw new BadRequestException(
       `At most ${CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES} subject not-contains phrases allowed`,
     );
   }
-  if (bodyNotContainsAny.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES) {
+  if (
+    bodyNotContainsAny.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES
+  ) {
     throw new BadRequestException(
       `At most ${CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES} body not-contains phrases allowed`,
     );
@@ -73,7 +78,9 @@ export function normalizeCompositeSpec(
     subjectContainsAny.length > 0,
     bodyContainsAny.length > 0,
   ].filter(Boolean).length;
-  if (populatedFieldCount < CATEGORY_RULE_COMPOSITE.MIN_DISTINCT_CONDITION_TYPES) {
+  if (
+    populatedFieldCount < CATEGORY_RULE_COMPOSITE.MIN_DISTINCT_CONDITION_TYPES
+  ) {
     throw new BadRequestException(
       `Composite rules must include conditions for all ${CATEGORY_RULE_COMPOSITE.MIN_DISTINCT_CONDITION_TYPES} distinct fields: sender, subject, and body`,
     );

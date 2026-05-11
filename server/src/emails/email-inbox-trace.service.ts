@@ -299,7 +299,6 @@ export class EmailInboxTraceService {
     };
   }
 
-  // eslint-disable-next-line max-params -- pure assembly of trace fields; refactoring would just shuffle params into a wider object
   private buildTrace(args: {
     categoryId: string;
     categoryName: string;

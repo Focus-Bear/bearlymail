@@ -70,11 +70,17 @@ function applyExclusionsToSpec(
 ): CompositeCategoryRuleSpec {
   const slicedSubjectNot =
     subjectNotContainsAny.length > 0
-      ? subjectNotContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES)
+      ? subjectNotContainsAny.slice(
+          0,
+          CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES,
+        )
       : undefined;
   const slicedBodyNot =
     bodyNotContainsAny.length > 0
-      ? bodyNotContainsAny.slice(0, CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES)
+      ? bodyNotContainsAny.slice(
+          0,
+          CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES,
+        )
       : undefined;
   const exclusions = {
     ...(slicedSubjectNot && { subjectNotContainsAny: slicedSubjectNot }),

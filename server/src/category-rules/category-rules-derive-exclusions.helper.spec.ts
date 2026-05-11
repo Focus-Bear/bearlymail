@@ -199,7 +199,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
 
   it("treats an empty validation window as a pass (new account)", async () => {
     const deps = buildDeps({ rows: [], targetCategoryId: TARGET_CATEGORY_ID });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const outcome = await deriveExclusionsForCompositeRule({
       ...(deps as any),
       normaliseSender: normalise,
@@ -220,7 +220,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
       buildTargetRow("Build failed", "the pipeline broke"),
     );
     const deps = buildDeps({ rows, targetCategoryId: TARGET_CATEGORY_ID });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const outcome = await deriveExclusionsForCompositeRule({
       ...(deps as any),
       normaliseSender: normalise,
@@ -251,7 +251,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
         bodyNotContainsAny: [],
       },
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const outcome = await deriveExclusionsForCompositeRule({
       ...(deps as any),
       normaliseSender: normalise,
@@ -280,7 +280,7 @@ describe("deriveExclusionsForCompositeRule (orchestrator)", () => {
       // LLM returned empty arrays — no usable separator.
       derived: { subjectNotContainsAny: [], bodyNotContainsAny: [] },
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const outcome = await deriveExclusionsForCompositeRule({
       ...(deps as any),
       normaliseSender: normalise,

@@ -5,11 +5,11 @@ import { OAuth2Client } from "google-auth-library";
 import { calendar_v3, google } from "googleapis";
 import { Repository } from "typeorm";
 
+import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import {
   BOOKING_STATUS,
   CALENDAR_ENTRY_POINT_TYPES,
 } from "../constants/domain-statuses";
-import { createUserGoogleOAuthClient } from "../auth/google-oauth-client";
 import { ERROR_MESSAGES } from "../constants/error-messages";
 import { MILLISECONDS } from "../constants/time-constants";
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";

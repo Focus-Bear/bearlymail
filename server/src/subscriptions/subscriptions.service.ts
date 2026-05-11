@@ -460,7 +460,13 @@ export class SubscriptionsService {
       };
     });
 
-    return { users: mappedUsers, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      users: mappedUsers,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // ─── Team seat management ─────────────────────────────────────────────────────

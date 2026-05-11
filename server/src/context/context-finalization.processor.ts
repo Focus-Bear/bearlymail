@@ -6,12 +6,12 @@ import PgBoss from "pg-boss";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
-import { UserEncryptionService } from "../encryption/user-encryption.service";
 import {
   MAX_FINALIZATION_RETRIES,
   RETRY_CONSTANTS,
 } from "../constants/service-constants";
 import { MILLISECONDS } from "../constants/time-constants";
+import { UserEncryptionService } from "../encryption/user-encryption.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
 import { ContextService } from "./context.service";

@@ -33,8 +33,8 @@ import type {
   EmailMetadata,
 } from "./category-rules.types";
 import {
-  EmailHashes,
   compositeAutoSpecsMatch,
+  EmailHashes,
   evaluateComposite,
   rulePatternMatches,
   specToV2,
@@ -424,7 +424,9 @@ export class CategoryRulesService {
   normalizeCompositeSpecDto(
     dto: CreateCompositeCategoryRuleDto,
   ): CompositeCategoryRuleSpecV3 {
-    return normalizeCompositeSpec(dto, (sender) => this.normaliseSender(sender));
+    return normalizeCompositeSpec(dto, (sender) =>
+      this.normaliseSender(sender),
+    );
   }
 
   async createCompositeRule(

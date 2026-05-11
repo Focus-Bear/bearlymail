@@ -81,7 +81,8 @@ export class GitHubEmailInfoService {
       // missing per-user KMS context, etc.). Mirrors parseEmailGitHubLinks below
       // so the regex never scans `iv:tag:hex` and silently returns no links.
       const body = EncryptionHelper.tryDecrypt(threadEmail.body) ?? "";
-      const htmlBody = EncryptionHelper.tryDecrypt(threadEmail.htmlBody) ?? undefined;
+      const htmlBody =
+        EncryptionHelper.tryDecrypt(threadEmail.htmlBody) ?? undefined;
       const links = this.githubService.parseGitHubLinks(body, htmlBody);
       for (const link of links) {
         allLinks.set(link.url, link);

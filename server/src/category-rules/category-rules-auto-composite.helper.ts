@@ -46,7 +46,9 @@ export function rulePatternMatches(
   if (rule.ruleType === CATEGORY_RULE_TYPES.SUBJECT_PREFIX) {
     return prefixHash !== null && rule.patternHash === prefixHash;
   }
-  if (rule.ruleType === CATEGORY_RULE_MATCH_MODES.SENDER_DOMAIN_AND_SUBJECT_PREFIX) {
+  if (
+    rule.ruleType === CATEGORY_RULE_MATCH_MODES.SENDER_DOMAIN_AND_SUBJECT_PREFIX
+  ) {
     if (!domainPattern || !subjectPrefix) {
       return false;
     }
@@ -86,7 +88,9 @@ export function pickAutoCompositeBodyPhrase(
 }
 
 /** Normalise a v1/v2/v3 spec into the v2 array shape for unified evaluation. */
-export function specToV2(spec: CompositeCategoryRuleSpec): CompositeCategoryRuleSpecV2 {
+export function specToV2(
+  spec: CompositeCategoryRuleSpec,
+): CompositeCategoryRuleSpecV2 {
   if (spec.v === 3) {
     return {
       v: 2,
@@ -187,7 +191,9 @@ interface ResolvedSpecFields {
   bodyNotPhrases: string[] | undefined;
 }
 
-function resolveSpecFields(spec: CompositeCategoryRuleSpec): ResolvedSpecFields {
+function resolveSpecFields(
+  spec: CompositeCategoryRuleSpec,
+): ResolvedSpecFields {
   if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION) {
     return {
       senderPatterns: spec.fromMatchesAny,
@@ -229,8 +235,13 @@ export function evaluateComposite(
   email: EmailMetadata,
   normaliseSender: (raw: string) => string,
 ): { matches: boolean; detail: CompositeRuleEvaluationDetail } {
-  const { senderPatterns, subjectPhrases, bodyPhrases, subjectNotPhrases, bodyNotPhrases } =
-    resolveSpecFields(spec);
+  const {
+    senderPatterns,
+    subjectPhrases,
+    bodyPhrases,
+    subjectNotPhrases,
+    bodyNotPhrases,
+  } = resolveSpecFields(spec);
 
   const normFrom = normaliseSender(email.from);
 

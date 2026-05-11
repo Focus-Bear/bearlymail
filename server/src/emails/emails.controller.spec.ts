@@ -8,6 +8,7 @@ import { Office365AccountsService } from "../office365-accounts/office365-accoun
 import { UsersService } from "../users/users.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { EmailAdminService } from "./email-admin.service";
+import { EmailExportService } from "./email-export.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
@@ -120,6 +121,12 @@ describe("EmailsController", () => {
           useValue: {
             startEnrichmentJob: jest.fn().mockResolvedValue("mock-job-id"),
             getStatus: jest.fn().mockReturnValue(null),
+          },
+        },
+        {
+          provide: EmailExportService,
+          useValue: {
+            exportEmails: jest.fn().mockResolvedValue("encrypted-export"),
           },
         },
       ],

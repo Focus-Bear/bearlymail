@@ -50,7 +50,15 @@ import {
   EMAIL_CONTROLLER_DEFAULTS,
 } from "./email-controller.helpers";
 import {
+  EmailExportService,
+  EXPORT_ALGORITHM,
+  EXPORT_KEY_DERIVATION,
+  ExportAlgorithm,
+  ExportKeyDerivation,
+} from "./email-export.service";
+import {
   CategoryOverrideBody,
+  ExportEmailBody,
   InboxQuery,
   InboxSummaryQuery,
 } from "./emails.controller.types";
@@ -69,6 +77,7 @@ export class EmailsController {
     private readonly emailAdminService: EmailAdminService,
     private readonly gmailProvider: GmailProvider,
     private readonly searchEnrichmentService: SearchEnrichmentService,
+    private readonly emailExportService: EmailExportService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
@@ -437,6 +446,43 @@ export class EmailsController {
     return {
       days,
       ...stats,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Export
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Exports all emails for the authenticated user as an AES-256-GCM encrypted
+   * JSON payload.  The caller must supply a password; the encrypted data can
+   * only be read by someone who knows that password.
+   *
+   * Response body:
+   *   encryptedData  – colon-delimited hex string: salt:iv:authTag:ciphertext
+   *   algorithm      – "aes-256-gcm"
+   *   keyDerivation  – "scrypt"
+   *
+   * Each decrypted record contains:
+   *   senderDomain (regex), subject, body, isRead, isReceived
+   */
+  @Post("export")
+  async exportEmails(
+    @Request() req,
+    @Body() body: ExportEmailBody,
+  ): Promise<{
+    encryptedData: string;
+    algorithm: ExportAlgorithm;
+    keyDerivation: ExportKeyDerivation;
+  }> {
+    const encryptedData = await this.emailExportService.exportEmails(
+      req.user.userId,
+      body.password,
+    );
+    return {
+      encryptedData,
+      algorithm: EXPORT_ALGORITHM,
+      keyDerivation: EXPORT_KEY_DERIVATION,
     };
   }
 

@@ -28,6 +28,10 @@ export type InboxSummaryQuery = {
   accounts?: string;
 };
 
+export type ExportEmailBody = {
+  password: string;
+};
+
 export type SendEmailBody = {
   to: import("./interfaces/email-provider.interface").EmailRecipient[];
   subject: string;

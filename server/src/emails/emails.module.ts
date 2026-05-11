@@ -51,6 +51,7 @@ import { EmailDebugService } from "./email-debug.service";
 import { EmailDebugAdminController } from "./email-debug-admin.controller";
 import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailDebugRawColumnsService } from "./email-debug-raw-columns.service";
+import { EmailExportService } from "./email-export.service";
 import { EmailFollowUpService } from "./email-follow-up.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailInboxService } from "./email-inbox.service";
@@ -273,6 +274,7 @@ import { SyncHistoryService } from "./sync-history.service";
     LLMSummaryProcessorService,
     ArchiveEmailProcessor,
     EmailAdminService,
+    EmailExportService,
     EmailDebugCategoryService,
     EmailDebugRawColumnsService,
     EmailSearchRankingService,

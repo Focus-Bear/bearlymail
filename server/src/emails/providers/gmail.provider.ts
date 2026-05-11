@@ -697,7 +697,11 @@ export class GmailProvider implements EmailProvider {
     receivedAt: Date | null;
   } | null> {
     const gmail = await this.createGmailClient(userId);
-    if (!gmail) return null;
+    if (!gmail) {
+      throw new Error(
+        `Gmail not connected for user ${userId} — ensure Gmail OAuth is authorised before using the debug URL lookup`,
+      );
+    }
 
     const idsToTry = buildGmailUrlIdsToTry(urlId);
 

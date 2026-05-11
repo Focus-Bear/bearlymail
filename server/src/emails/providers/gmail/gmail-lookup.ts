@@ -1,5 +1,9 @@
 import { gmail_v1 } from "googleapis";
 
+const GMAIL_ID_BYTES = 8;
+const GMAIL_COMPOUND_ID_THREAD_END = GMAIL_ID_BYTES;
+const GMAIL_COMPOUND_ID_MESSAGE_END = GMAIL_ID_BYTES * 2;
+
 /**
  * Returns true if the given ID is a Gmail API hex thread/message ID.
  * Hex thread IDs are exactly 16 lowercase hexadecimal characters.
@@ -20,8 +24,26 @@ export function buildGmailUrlIdsToTry(urlId: string): string[] {
   try {
     const base64 = urlId.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const hexId = Buffer.from(padded, "base64").toString("hex");
+    const decoded = Buffer.from(padded, "base64");
+    const hexId = decoded.toString("hex");
     if (hexId && hexId !== urlId) idsToTry.push(hexId);
+
+    // Gmail search/label URL IDs (e.g. #search/{query}/{id}) use a compound
+    // 24-byte encoding where the first 8 bytes are the thread ID and bytes
+    // 8-15 are the message ID. The full 48-char hex above is not a valid
+    // Gmail API ID, so we also try the individual 8-byte slices.
+    if (decoded.length > GMAIL_COMPOUND_ID_THREAD_END) {
+      const threadId = decoded
+        .subarray(0, GMAIL_COMPOUND_ID_THREAD_END)
+        .toString("hex");
+      if (!idsToTry.includes(threadId)) idsToTry.push(threadId);
+    }
+    if (decoded.length > GMAIL_COMPOUND_ID_MESSAGE_END) {
+      const messageId = decoded
+        .subarray(GMAIL_COMPOUND_ID_THREAD_END, GMAIL_COMPOUND_ID_MESSAGE_END)
+        .toString("hex");
+      if (!idsToTry.includes(messageId)) idsToTry.push(messageId);
+    }
   } catch {
     // ignore decode errors
   }

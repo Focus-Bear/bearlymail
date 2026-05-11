@@ -268,6 +268,20 @@ describe("EmailDebugService", () => {
       expect(result.found).toBe(false);
       expect(result.gmailApiResult?.foundInGmailApi).toBe(false);
     });
+
+    it("should surface a descriptive error when Gmail auth is unavailable", async () => {
+      mockEmailRepository.findOne.mockResolvedValue(null);
+      mockEmailThreadRepository.findOne.mockResolvedValue(null);
+      (mockGmailProvider.lookupByGmailUrlId as jest.Mock).mockRejectedValue(
+        new Error("Gmail not connected for user user-123"),
+      );
+
+      const result = await service.lookupByGmailUrl(userId, gmailUrl);
+
+      expect(result.found).toBe(false);
+      expect(result.gmailApiResult?.foundInGmailApi).toBe(false);
+      expect(result.gmailApiResult?.error).toContain("Gmail not connected");
+    });
   });
 
   describe("getCategoryDebugData", () => {

@@ -62,6 +62,7 @@ interface GmailApiResult {
   subject?: string | null;
   from?: string | null;
   receivedAt?: string | null;
+  error?: string | null;
 }
 
 const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gmailApiResult }) => {
@@ -112,7 +113,7 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
         </ul>
       ) : (
         <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
-          {t('debug.threadLookup.gmailApiNotFound')}
+          {gmailApiResult.error ?? t('debug.threadLookup.gmailApiNotFound')}
         </span>
       )}
     </div>

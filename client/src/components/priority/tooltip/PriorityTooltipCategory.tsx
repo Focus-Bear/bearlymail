@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiRefreshCw } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useHref } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
@@ -69,19 +69,21 @@ const CategoryActionButtons: React.FC<CategoryActionButtonsProps> = ({
   isAdmin,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const isDeterministicRuleMatch = categoryExplanation?.startsWith(DETERMINISTIC_RULE_PREFIX) ?? false;
   const matchedRuleId = extractMatchedRuleId(categoryExplanation);
+  // Issue #1789: prefer the matched rule's ID so we open the SPECIFIC rule
+  // that fired (multiple rules can share a category). Fall back to the
+  // category name for older `categoryExplanation` values without the marker.
+  const editRuleQuery = matchedRuleId
+    ? `openEditRuleId=${matchedRuleId}`
+    : `openEditRule=${encodeURIComponent(category)}`;
+  // useHref applies the router's basename so the URL is correct if the app
+  // is ever mounted under a subpath (e.g. `/app/`).
+  const editRuleHref = useHref(`/settings?${editRuleQuery}#guide-our-ai`);
 
   const handleEditRule = () => {
-    // Issue #1789: prefer the matched rule's ID so we open the SPECIFIC rule
-    // that fired (multiple rules can share a category). Fall back to the
-    // category name for older `categoryExplanation` values without the marker.
-    if (matchedRuleId) {
-      navigate(`/settings?openEditRuleId=${matchedRuleId}#guide-our-ai`);
-      return;
-    }
-    navigate(`/settings?openEditRule=${encodeURIComponent(category)}#guide-our-ai`);
+    // Issue #2057: open in a new tab so the user doesn't lose their place.
+    window.open(editRuleHref, '_blank', 'noopener,noreferrer');
   };
 
   return (

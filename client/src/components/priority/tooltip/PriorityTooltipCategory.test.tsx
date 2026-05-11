@@ -1,13 +1,12 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { PriorityTooltipCategory } from './PriorityTooltipCategory';
 
-const mockNavigate = jest.fn();
+const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
-jest.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
+const mockWindowOpen = jest.fn();
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -54,16 +53,21 @@ const defaultProps = {
 
 describe('PriorityTooltipCategory', () => {
   beforeEach(() => {
-    mockNavigate.mockClear();
+    mockWindowOpen.mockClear();
+    jest.spyOn(window, 'open').mockImplementation(mockWindowOpen);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('does not show edit rule button when categoryExplanation is absent', () => {
-    render(<PriorityTooltipCategory {...defaultProps} />);
+    renderWithRouter(<PriorityTooltipCategory {...defaultProps} />);
     expect(screen.queryByTestId('edit-category-rule-btn')).not.toBeInTheDocument();
   });
 
   it('does not show edit rule button when categoryExplanation does not indicate a deterministic rule', () => {
-    render(
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         categoryExplanation="LLM assigned this category with high confidence"
@@ -73,7 +77,7 @@ describe('PriorityTooltipCategory', () => {
   });
 
   it('shows edit rule button when categoryExplanation indicates a deterministic rule match', () => {
-    render(
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         categoryExplanation='Matched deterministic rule (composite): category="Human GitHub issue status updates"'
@@ -82,8 +86,8 @@ describe('PriorityTooltipCategory', () => {
     expect(screen.getByTestId('edit-category-rule-btn')).toBeInTheDocument();
   });
 
-  it('navigates to settings with encoded category name when edit rule button is clicked', () => {
-    render(
+  it('opens settings in a new tab with encoded category name when edit rule button is clicked', () => {
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         category="Human GitHub issue status updates"
@@ -93,13 +97,15 @@ describe('PriorityTooltipCategory', () => {
 
     fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai'
+    expect(mockWindowOpen).toHaveBeenCalledWith(
+      '/settings?openEditRule=Human%20GitHub%20issue%20status%20updates#guide-our-ai',
+      '_blank',
+      'noopener,noreferrer'
     );
   });
 
-  it('navigates with correct encoding for category names with special characters', () => {
-    render(
+  it('opens settings in new tab with correct encoding for category names with special characters', () => {
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         category="Bills & Invoices"
@@ -109,13 +115,15 @@ describe('PriorityTooltipCategory', () => {
 
     fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      '/settings?openEditRule=Bills%20%26%20Invoices#guide-our-ai'
+    expect(mockWindowOpen).toHaveBeenCalledWith(
+      '/settings?openEditRule=Bills%20%26%20Invoices#guide-our-ai',
+      '_blank',
+      'noopener,noreferrer'
     );
   });
 
-  it('navigates by rule ID when categoryExplanation includes a rule marker (#1789)', () => {
-    render(
+  it('opens settings in new tab by rule ID when categoryExplanation includes a rule marker (#1789)', () => {
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         category="GitHub PR Updates"
@@ -125,15 +133,17 @@ describe('PriorityTooltipCategory', () => {
 
     fireEvent.click(screen.getByTestId('edit-category-rule-btn'));
 
-    // Should navigate by ruleId, not category name — even when the displayed
+    // Should open by ruleId, not category name — even when the displayed
     // category has multiple rules, this opens the SPECIFIC matching rule.
-    expect(mockNavigate).toHaveBeenCalledWith(
-      '/settings?openEditRuleId=abc123-def-456#guide-our-ai'
+    expect(mockWindowOpen).toHaveBeenCalledWith(
+      '/settings?openEditRuleId=abc123-def-456#guide-our-ai',
+      '_blank',
+      'noopener,noreferrer'
     );
   });
 
   it('edit rule button has correct accessible title and aria-label', () => {
-    render(
+    renderWithRouter(
       <PriorityTooltipCategory
         {...defaultProps}
         categoryExplanation='Matched deterministic rule (composite): category="Test"'

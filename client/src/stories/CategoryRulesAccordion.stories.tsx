@@ -94,7 +94,7 @@ const CategoryRulesAccordionDemo: React.FC<{
   const contextValue: CategoryRuleFromCategoryContextValue = {
     rules,
     openAddRuleForCategoryDisplayName: (displayName: string) => {
-      // eslint-disable-next-line no-console
+       
       console.info('[Storybook] openAddRuleForCategoryDisplayName', displayName);
     },
     onToggleEnabled: (id: string, nextEnabled: boolean) => {
@@ -104,7 +104,7 @@ const CategoryRulesAccordionDemo: React.FC<{
       setRules(prev => prev.filter(rule => rule.id !== id));
     },
     onEditRule: (rule: CategoryRuleDto) => {
-      // eslint-disable-next-line no-console
+       
       console.info('[Storybook] onEditRule', rule);
     },
   };

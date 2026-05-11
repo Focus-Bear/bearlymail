@@ -2,13 +2,13 @@ import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
 
 import { AnalysingPriorityCategory } from 'components/inbox/AnalysingPriorityCategory';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { DebugPanel } from 'components/inbox/DebugPanel';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
+import { navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxFilters } from 'components/inbox/InboxFilters';
 import { InboxHeader } from 'components/inbox/InboxHeader';
@@ -20,7 +20,7 @@ import { Sidebar } from 'components/inbox/Sidebar';
 import { PrioritisationInterstitial } from 'components/inbox/states';
 import { API_URL } from 'config/api';
 import { BUCKET_LABEL_ALL, PRIORITY_BUCKET_DEFS, PRIORITY_LABEL_TO_KEY } from 'constants/priorityBuckets';
-import { CATEGORY_OTHER, ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
+import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxActions, useInboxData, useInboxFiltersCtx, useInboxUI } from 'contexts/InboxContext';
 import { InboxProvider } from 'contexts/InboxProvider';
 import { useDebugMode } from 'hooks/useDebugMode';
@@ -30,36 +30,6 @@ import { usePriorityCounts } from 'hooks/usePriorityCounts';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 
-function navigateToNextEmailAfterAction(
-  removedEmailId: string,
-  emails: Email[],
-  splitView: { openEmail: (id: string) => void; closeEmail: () => void },
-  setSelectedEmailIndex: (index: number) => void
-): void {
-  const removedEmail = emails.find(event => event.id === removedEmailId);
-  // Prefer category_id (UUID) as stable group key (fixes #1293 — display name is fallback).
-  const removedCategory = removedEmail?.category_id ?? removedEmail?.category ?? CATEGORY_OTHER;
-  const visibleEmails = emails.filter(event => !event.isArchived && event.id !== removedEmailId);
-
-  if (visibleEmails.length === 0) {
-    splitView.closeEmail();
-    return;
-  }
-
-  const sameCategoryEmails = visibleEmails.filter(
-    event => (event.category_id ?? event.category ?? CATEGORY_OTHER) === removedCategory
-  );
-
-  if (sameCategoryEmails.length > 0) {
-    const nextEmail = sameCategoryEmails[0];
-    const nextIndex = visibleEmails.findIndex(event => event.id === nextEmail.id);
-    splitView.openEmail(nextEmail.id);
-    setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
-  } else {
-    splitView.openEmail(visibleEmails[0].id);
-    setSelectedEmailIndex(0);
-  }
-}
 
 const InboxView: React.FC = () => {
   const {
@@ -457,12 +427,12 @@ const InboxView: React.FC = () => {
                 clearFilters();
                 fetchEmails();
               }}
-              onSplitViewArchive={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
-              onSplitViewSnooze={id => navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex)}
+              onSplitViewArchive={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex)}
+              onSplitViewSnooze={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex)}
               onSplitViewPrioritySet={(id, count) => {
                 const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
                 emailActions.handleSetStarCount(id, count, fakeEvent);
-                navigateToNextEmailAfterAction(id, emails, splitView, setSelectedEmailIndex);
+                navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex);
               }}
             />
           </>

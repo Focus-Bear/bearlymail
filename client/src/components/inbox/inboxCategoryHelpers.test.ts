@@ -5,7 +5,13 @@ import { CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
-import { buildDisplayCategories, buildEmailCategoryMap, buildOtherProtoGroups } from './inboxCategoryHelpers';
+import {
+  buildDisplayCategories,
+  buildEmailCategoryMap,
+  buildOtherProtoGroups,
+  getDisplayOrderedEmails,
+  navigateAfterSplitViewAction,
+} from './inboxCategoryHelpers';
 
 jest.mock('components/inbox/CategoryAccordion', () => ({
   groupEmailsByCategory: jest.fn(),
@@ -274,5 +280,165 @@ describe('buildDisplayCategories', () => {
     const result = buildDisplayCategories(summary, [], [], MODE);
     expect(result).toHaveLength(1);
     expect(result[0].count).toBe(5);
+  });
+});
+
+describe('getDisplayOrderedEmails', () => {
+  beforeEach(() => {
+    mockGroupEmailsByCategory.mockReset();
+  });
+
+  it('returns an empty array when there are no emails', () => {
+    mockGroupEmailsByCategory.mockReturnValue([]);
+    expect(getDisplayOrderedEmails([], MODE)).toEqual([]);
+  });
+
+  it('returns emails in group order (groups then within-group)', () => {
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+    // Simulate two groups: first group has [A, B], second group has [C]
+    mockGroupEmailsByCategory.mockReturnValue([
+      makeGroup('cat-1', [emailA, emailB]),
+      makeGroup('cat-2', [emailC]),
+    ]);
+
+    const result = getDisplayOrderedEmails([emailA, emailB, emailC], MODE);
+    expect(result.map(email => email.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('flattens multiple groups into a single ordered array', () => {
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+    // Groups in reverse order compared to flat list
+    mockGroupEmailsByCategory.mockReturnValue([
+      makeGroup('cat-x', [emailC]),
+      makeGroup('cat-y', [emailA, emailB]),
+    ]);
+
+    const result = getDisplayOrderedEmails([emailA, emailB, emailC], MODE);
+    expect(result.map(email => email.id)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('navigateAfterSplitViewAction', () => {
+  beforeEach(() => {
+    mockGroupEmailsByCategory.mockReset();
+  });
+
+  function makeSplitView() {
+    return {
+      openEmail: jest.fn(),
+      closeEmail: jest.fn(),
+    };
+  }
+
+  it('closes the split view when no remaining emails', () => {
+    const email = makeEmail({ id: 'only' });
+    // groupEmailsByCategory is called once with [email]; remaining = [] after filtering
+    mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [email])]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('only', [email], MODE, splitView, setIndex);
+
+    expect(splitView.closeEmail).toHaveBeenCalled();
+    expect(splitView.openEmail).not.toHaveBeenCalled();
+    expect(setIndex).not.toHaveBeenCalled();
+  });
+
+  it('navigates to the email at the same display position as the removed email', () => {
+    // Display order: A(0), B(1), C(2) — user archives B
+    // After removal: remaining = [A, C]; nextDisplayIndex = min(1, 1) = 1 → C
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+
+    // One call with all three emails (including the removed one, to find its position)
+    mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('b', [emailA, emailB, emailC], MODE, splitView, setIndex);
+
+    // B was at display index 1; remaining = [A, C]; index 1 = C
+    expect(splitView.openEmail).toHaveBeenCalledWith('c');
+    expect(setIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('navigates to the last email when the removed email was at the end', () => {
+    // Display order: A(0), B(1), C(2) — user archives C
+    // After removal: remaining = [A, B]; nextDisplayIndex = min(2, 1) = 1 → B
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+
+    mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('c', [emailA, emailB, emailC], MODE, splitView, setIndex);
+
+    // C was at display index 2; remaining = [A, B]; clamped to index 1 → B
+    expect(splitView.openEmail).toHaveBeenCalledWith('b');
+    expect(setIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('navigates to index 0 when the first email is removed', () => {
+    // Display order: A(0), B(1) — user archives A
+    // After removal: remaining = [B]; nextDisplayIndex = min(0, 0) = 0 → B
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+
+    mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB])]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('a', [emailA, emailB], MODE, splitView, setIndex);
+
+    expect(splitView.openEmail).toHaveBeenCalledWith('b');
+    expect(setIndex).toHaveBeenCalledWith(0);
+  });
+
+  it('includes an already-archived removed email to correctly determine its position', () => {
+    // Simulate the removed email already having isArchived=true (optimistic update)
+    // navigateAfterSplitViewAction re-includes it via `|| email.id === removedEmailId`
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b', isArchived: true }); // already archived
+    const emailC = makeEmail({ id: 'c' });
+
+    // groupEmailsByCategory is called with [A, B, C] (B re-included despite isArchived)
+    mockGroupEmailsByCategory.mockReturnValue([makeGroup('cat', [emailA, emailB, emailC])]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('b', [emailA, emailB, emailC], MODE, splitView, setIndex);
+
+    // B is at index 1; remaining = [A, C]; index 1 = C
+    expect(splitView.openEmail).toHaveBeenCalledWith('c');
+    expect(setIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('navigates across category boundaries when the removed email is the last in its category', () => {
+    // Two categories: cat1=[A, B], cat2=[C, D] — display order: A(0), B(1), C(2), D(3)
+    // User archives B; remaining = [A, C, D]; nextDisplayIndex = min(1, 2) = 1 → C
+    const emailA = makeEmail({ id: 'a' });
+    const emailB = makeEmail({ id: 'b' });
+    const emailC = makeEmail({ id: 'c' });
+    const emailD = makeEmail({ id: 'd' });
+
+    mockGroupEmailsByCategory.mockReturnValue([
+      makeGroup('cat-1', [emailA, emailB]),
+      makeGroup('cat-2', [emailC, emailD]),
+    ]);
+
+    const splitView = makeSplitView();
+    const setIndex = jest.fn();
+    navigateAfterSplitViewAction('b', [emailA, emailB, emailC, emailD], MODE, splitView, setIndex);
+
+    // B was at display index 1; after removal remaining = [A, C, D]; index 1 = C
+    expect(splitView.openEmail).toHaveBeenCalledWith('c');
+    expect(setIndex).toHaveBeenCalledWith(1);
   });
 });

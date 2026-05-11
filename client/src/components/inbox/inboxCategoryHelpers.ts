@@ -11,6 +11,58 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { CATEGORY_KEY_UNCATEGORIZED } from 'store/slices/inboxDataSlice';
 
 /**
+ * Returns emails in the same display order as the UI renders them:
+ * groups are sorted by max priority descending, and emails within each group
+ * are sorted by priority descending (matching `groupEmailsByCategory`).
+ *
+ * Use this instead of the flat server list whenever you need to know which
+ * email appears "below" another in the visible inbox.
+ */
+export function getDisplayOrderedEmails(emails: Email[], mode: InboxMode): Email[] {
+  return groupEmailsByCategory(emails, mode).flatMap(group => group.emails);
+}
+
+type SplitViewHandle = { openEmail: (id: string) => void; closeEmail: () => void };
+
+/**
+ * After an email is removed from the split-view panel (archive, snooze, priority change),
+ * navigate to the email that visually replaces it and update the left-panel highlight.
+ *
+ * Uses display order (category-grouped) so the "next" email matches what the user
+ * sees on screen, not the flat server-sort order. Fixes: wrong email opened + wrong
+ * highlight after split-view actions.
+ */
+export function navigateAfterSplitViewAction(
+  removedEmailId: string,
+  emails: Email[],
+  mode: InboxMode,
+  splitView: SplitViewHandle,
+  setSelectedEmailIndex: (index: number) => void
+): void {
+  // Include the removed email even if it is already marked archived so we can
+  // determine its visual position before it disappears from the list.
+  const activeWithRemoved = emails.filter(email => !email.isArchived || email.id === removedEmailId);
+  const displayOrdered = getDisplayOrderedEmails(activeWithRemoved, mode);
+  const removedDisplayIndex = displayOrdered.findIndex(email => email.id === removedEmailId);
+
+  // Remaining visible emails after the action, in display order
+  const remaining = displayOrdered.filter(email => email.id !== removedEmailId);
+
+  if (remaining.length === 0) {
+    splitView.closeEmail();
+    return;
+  }
+
+  // The email that slides up to fill the removed email's visual slot
+  const nextDisplayIndex = Math.min(
+    removedDisplayIndex >= 0 ? removedDisplayIndex : 0,
+    remaining.length - 1
+  );
+  splitView.openEmail(remaining[nextDisplayIndex].id);
+  setSelectedEmailIndex(nextDisplayIndex);
+}
+
+/**
  * Groups filtered emails by category and returns them as a keyed map.
  * Emails are stamped with `category_id` by the reducer before reaching here,
  * so no name→UUID rekeying is needed — the category field is already a UUID.

@@ -3,6 +3,7 @@ import { theme } from 'theme/theme';
 
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
+import { navigateAfterSplitViewAction } from 'components/inbox/inboxCategoryHelpers';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
@@ -134,48 +135,13 @@ const FocusedInboxView: React.FC = () => {
           categorySummary={categorySummary}
           loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames}
-          onSplitViewArchive={archivedEmailId => {
-            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
-
-            if (visibleEmails.length === 0) {
-              splitView.closeEmail();
-              return;
-            }
-
-            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex =
-              currentIndex < visibleEmails.length ? currentIndex : Math.max(0, visibleEmails.length - 1);
-
-            const nextEmail = visibleEmails[nextIndex];
-            if (nextEmail) {
-              splitView.openEmail(nextEmail.id);
-              setSelectedEmailIndex(nextIndex);
-            } else {
-              splitView.closeEmail();
-            }
-          }}
+          onSplitViewArchive={archivedEmailId =>
+            navigateAfterSplitViewAction(archivedEmailId, emails, mode, splitView, setSelectedEmailIndex)
+          }
           onSplitViewPrioritySet={(prioritizedEmailId, starCount) => {
             const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
             emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
-
-            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== prioritizedEmailId);
-
-            if (visibleEmails.length === 0) {
-              splitView.closeEmail();
-              return;
-            }
-
-            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex =
-              currentIndex < visibleEmails.length ? currentIndex : Math.max(0, visibleEmails.length - 1);
-
-            const nextEmail = visibleEmails[nextIndex];
-            if (nextEmail) {
-              splitView.openEmail(nextEmail.id);
-              setSelectedEmailIndex(nextIndex);
-            } else {
-              splitView.closeEmail();
-            }
+            navigateAfterSplitViewAction(prioritizedEmailId, emails, mode, splitView, setSelectedEmailIndex);
           }}
         />
       </div>

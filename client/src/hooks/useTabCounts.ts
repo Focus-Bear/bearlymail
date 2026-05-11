@@ -27,9 +27,9 @@ interface UseTabCountsReturn {
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3'; // Bumped to invalidate old cache shape
 const TAB_COUNTS_CACHE_TTL = 30000; // 30 seconds
-// Background poll interval — long enough to avoid hammering the server but short enough
-// to catch batch deliveries and sync events while the user stays on one tab.
-const TAB_COUNTS_POLL_INTERVAL_MS = 60_000; // 60 seconds
+// Background poll interval — short enough to catch batch deliveries and background syncs
+// promptly while the user stays on one tab, but not so short that it hammers the server.
+const TAB_COUNTS_POLL_INTERVAL_MS = 30_000; // 30 seconds
 
 interface CacheEntry {
   counts: TabCounts;

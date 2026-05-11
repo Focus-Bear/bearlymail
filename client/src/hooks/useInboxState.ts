@@ -272,6 +272,36 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     }
   }, [inboxFilters.filters, fetchTabCounts]);
 
+  // Stable ref for the batch-delivery callback — updated on every render so the
+  // setTimeout always calls with the latest fetchTabCounts + filters values even if
+  // the delivery timer was scheduled many minutes earlier.
+  // (useEffectEvent does not exist in React 19.2 stable; this is the stable equivalent.)
+  const onBatchDeliveryRef = useRef<() => void>(() => {});
+  onBatchDeliveryRef.current = () => {
+    fetchTabCounts(true, inboxFilters.filters, undefined, true).catch(err => {
+      console.error('Error refreshing tab counts after batch delivery:', err);
+    });
+  };
+
+  // When the next scheduled batch delivery arrives, immediately refresh tab counts so the
+  // triage badge reflects the newly-delivered emails without the user having to switch tabs.
+  // The 30-second background poll in useTabCounts is a general fallback; this timer fires
+  // at the exact delivery moment for zero-delay updates on the primary use case.
+  useEffect(() => {
+    if (!nextDelivery) {
+      return;
+    }
+    const msUntilDelivery = nextDelivery.getTime() - Date.now();
+    if (msUntilDelivery <= 0) {
+      onBatchDeliveryRef.current();
+      return;
+    }
+    const timer = setTimeout(() => {
+      onBatchDeliveryRef.current();
+    }, msUntilDelivery);
+    return () => clearTimeout(timer);
+  }, [nextDelivery]); // onBatchDeliveryRef is a stable ref object — always current
+
   // Email action handlers
   const emailActions = useEmailActions({
     mode,

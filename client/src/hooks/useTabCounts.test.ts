@@ -7,7 +7,7 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV3';
-const TAB_COUNTS_POLL_INTERVAL_MS = 60_000;
+const TAB_COUNTS_POLL_INTERVAL_MS = 30_000;
 
 describe('useTabCounts', () => {
   beforeEach(() => {

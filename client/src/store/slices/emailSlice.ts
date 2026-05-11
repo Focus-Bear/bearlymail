@@ -25,6 +25,7 @@ export type { AnimatingOutItem, InboxUIState } from './inboxUISlice';
 export {
   appendEmails,
   clearCategoryState,
+  clearCategorySummaryCount,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
   invalidateInboxCache,

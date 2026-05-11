@@ -44,6 +44,7 @@ import {
 import {
   CategorySummaryItem,
   clearCategoryState,
+  clearCategorySummaryCount,
   markCategoryFetchExhausted,
   markCategoryLoaded,
   markCategoryLoadFailed,
@@ -295,6 +296,25 @@ export function useEmailFetching({ mode, filters }: UseEmailFetchingProps) {
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }
 
+/**
+ * Fix #2062: When the server confirms a category is empty (returned 0 emails) but the cached
+ * summary still shows count > 0, immediately set the summary count to 0 so buildDisplayCategories
+ * filters out the empty category without waiting for the background summary refresh. Closes the
+ * timing window where the accordion would briefly show badge 0 but stay visible.
+ *
+ * Uses clearCategorySummaryCount (explicit set-to-zero) rather than subtracting the cached count,
+ * so a concurrent optimistic update on the same category cannot push the count negative.
+ */
+function clearStaleEmptyCategorySummary(
+  catKey: string,
+  staleSummaryItem: CategorySummaryItem | undefined,
+  dispatch: AppDispatch
+): void {
+  if (staleSummaryItem && staleSummaryItem.count > 0) {
+    dispatch(clearCategorySummaryCount({ categoryKey: catKey }));
+  }
+}
+
 /** Populate Redux from the localStorage cache and kick off a silent background refresh. */
 function serveCategoryFromCacheAndRefresh({
   cachedEmails,
@@ -362,14 +382,18 @@ function serveCategoryFromCacheAndRefresh({
       const freshEmails: Email[] = response.data.emails;
       dispatch(updateCategoryEmails({ categoryKey: catKey, emails: freshEmails }));
       setCachedCategoryEmails(mode, catKey, freshEmails);
+      if (freshEmails.length === 0) {
+        const staleSummaryItem = categorySummaryRef.current?.find(
+          item => getCategoryKey(item.id, item.name) === catKey
+        );
+        clearStaleEmptyCategorySummary(catKey, staleSummaryItem, dispatch);
+        devLog('[Accordion] Background refresh returned 0 emails — marking loaded (summary corrected by background refresh):', categoryName, '(key:', catKey, ')');
+      }
       // Fix #1769: always mark loaded when the background refresh completes, regardless of
       // whether the summary agrees. If the summary is stale (shows count > 0 but API returned 0),
       // the background summary refresh will correct the count. Previously dispatching
       // markCategoryLoadFailed left isLoaded=false, causing an infinite spinner.
       dispatch(markCategoryLoaded(catKey));
-      if (freshEmails.length === 0) {
-        devLog('[Accordion] Background refresh returned 0 emails — marking loaded (summary corrected by background refresh):', categoryName, '(key:', catKey, ')');
-      }
     })
     .catch(err => console.warn('[Accordion] Background refresh failed for category:', categoryName, err));
 }
@@ -492,15 +516,21 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
       return;
     }
 
+    // Look up the cached summary entry once for both stale-UUID detection (Fix #1114) and
+    // empty-category clearing (Fix #2062). The id-OR-name predicate also catches stale-UUID
+    // entries where the summary still has the old id but the name matches.
+    const summaryItem = emails.length === 0
+      ? categorySummaryRef.current?.find(
+          item => item.id === categoryId || item.name === categoryName
+        )
+      : undefined;
+
     // Fix #1114 — stale UUID self-healing:
     // Only bust the cache when the category summary said count > 0 but the fetch returned 0,
     // which suggests a stale UUID (category re-created server-side after a schema change).
     // Skip the bust for legitimately empty categories (summary count === 0) to avoid
     // unnecessary cache invalidation on every expand of an empty category.
     if (emails.length === 0 && categoryId) {
-      const summaryItem = categorySummaryRef.current?.find(
-        item => item.id === categoryId || item.name === categoryName
-      );
       const summaryCount = summaryItem?.count ?? 0;
       if (summaryCount > 0) {
         console.warn(
@@ -533,6 +563,10 @@ serveCategoryFromCacheAndRefresh({ cachedEmails, catKey, categoryName, mode, dis
     categoryBackoff.onSuccess(catKey);
     dispatch(updateCategoryEmails({ categoryKey: catKey, emails }));
     setCachedCategoryEmails(mode, catKey, emails);
+
+    if (emails.length === 0) {
+      clearStaleEmptyCategorySummary(catKey, summaryItem, dispatch);
+    }
 
     // Fix #1769: Always mark loaded after a successful API call, regardless of what the
     // summary says. When the API returns 0 emails but the summary shows > 0, the summary

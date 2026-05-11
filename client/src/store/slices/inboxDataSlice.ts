@@ -258,6 +258,31 @@ const inboxDataSlice = createSlice({
       }
     },
     /**
+     * Explicitly set a category's summary count to 0 (and remove the entry if no remaining
+     * emails reference it). Use this when the server has confirmed the category is empty,
+     * rather than subtracting the cached count via decrementCategorySummaryCount — subtraction
+     * is fragile if another action mutates the count between the read and the dispatch.
+     */
+    clearCategorySummaryCount: (state, action: PayloadAction<{ categoryKey: string }>) => {
+      const { categoryKey } = action.payload;
+      if (state.categorySummary) {
+        const category = state.categorySummary.find(cat =>
+          categoryKey === CATEGORY_KEY_UNCATEGORIZED ? cat.id === null : cat.id === categoryKey
+        );
+        if (category) {
+          category.count = 0;
+          const hasRemainingEmails = state.emails.some(email =>
+            categoryKey === CATEGORY_KEY_UNCATEGORIZED
+              ? !email.category_id || email.category_id === null
+              : email.category_id === categoryKey
+          );
+          if (!hasRemainingEmails) {
+            state.categorySummary = state.categorySummary.filter(cat => cat !== category);
+          }
+        }
+      }
+    },
+    /**
      * Record the timestamp of the last successful inbox fetch.
      * Used by stale-while-revalidate logic to skip full re-fetches on navigation.
      */
@@ -288,6 +313,7 @@ export const {
   markCategoryFetchExhausted,
   resetCategoryExhausted,
   clearCategoryState,
+  clearCategorySummaryCount,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,
   setLastFetchedAt,

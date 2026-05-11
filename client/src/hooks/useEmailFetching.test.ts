@@ -864,3 +864,137 @@ describe('fix #1689 – summaryItem null-guard in fetchCategoryEmailsImpl', () =
     expect(appErrorCalls).toHaveLength(0);
   });
 });
+
+// ─── Fix #2062: stale empty categories from cache ─────────────────────────────
+
+describe('fix #2062 – stale empty categories hidden immediately', () => {
+  // When the API returns 0 emails for a category but the Redux summary still shows
+  // a stale count > 0 (from cached data), the summary should be updated immediately
+  // so buildDisplayCategories filters out the empty category without waiting for the
+  // background summary refresh.
+
+  let store: ReturnType<typeof configureStore>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (emailCache.getCachedSummary as jest.Mock).mockReturnValue(null);
+    (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue(null);
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+  });
+
+  const createStoreWithSummary = (summary: Array<{ id: string | null; name: string; count: number }>) =>
+    configureStore({
+      reducer: { inboxData: inboxDataReducer, inboxUI: inboxUIReducer },
+      preloadedState: {
+        inboxData: {
+          ...inboxDataReducer(undefined, { type: '@@INIT' }),
+          categorySummary: summary,
+        },
+      },
+    });
+
+  const makeWrapper = (testStore: ReturnType<typeof configureStore>) =>
+    ({ children }: { children: React.ReactNode }) =>
+      React.createElement(Provider, { store: testStore, children });
+
+  describe('fetchCategoryEmails (direct API path)', () => {
+    it('removes category from summary when API returns 0 emails and summary shows stale count > 0', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-empty-2062', name: 'Work', count: 5 }]);
+      mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      await result.current.fetchCategoryEmails('Work', 'uuid-empty-2062');
+
+      await waitFor(() => {
+        const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+        const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-empty-2062');
+        // Category removed from summary (count went to 0, no remaining emails)
+        expect(category).toBeUndefined();
+      });
+    });
+
+    it('does NOT update summary when API returns emails', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-has-emails-2062', name: 'Work', count: 3 }]);
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          emails: [
+            { id: 'e1', threadId: 't1', subject: 'Email', from: 'a@b.com', to: 'me@b.com', body: '', isRead: false, isArchived: false, starCount: 0, receivedAt: new Date().toISOString(), category: 'Work', category_id: 'uuid-has-emails-2062' },
+          ],
+        },
+      });
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      await result.current.fetchCategoryEmails('Work', 'uuid-has-emails-2062');
+
+      await waitFor(() => {
+        expect(emailCache.setCachedCategoryEmails).toHaveBeenCalled();
+      });
+
+      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-has-emails-2062');
+      // Category still in summary with original count
+      expect(category).toBeDefined();
+      expect(category?.count).toBe(3);
+    });
+
+    it('does NOT update summary when API returns 0 emails but summary already shows count 0', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-already-zero-2062', name: 'Work', count: 0 }]);
+      mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      await result.current.fetchCategoryEmails('Work', 'uuid-already-zero-2062');
+
+      await waitFor(() => {
+        expect(emailCache.setCachedCategoryEmails).toHaveBeenCalled();
+      });
+
+      // Summary should remain unchanged (count was already 0)
+      const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+      const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-already-zero-2062');
+      expect(category?.count).toBe(0);
+    });
+  });
+
+  describe('serveCategoryFromCacheAndRefresh (background refresh path)', () => {
+    it('removes category from summary when background refresh returns 0 emails and summary shows stale count', async () => {
+      store = createStoreWithSummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }]);
+
+      // Serve from cache (empty) then background refresh returns 0
+      (emailCache.getCachedCategoryEmails as jest.Mock).mockReturnValue([]);
+      // Summary in ref shows count 7 (stale), background refresh returns 0
+      store.dispatch(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-var-requires
+        require('store/slices/inboxDataSlice').setCategorySummary([{ id: 'uuid-bg-empty-2062', name: 'Finance', count: 7 }])
+      );
+      mockedAxios.get.mockResolvedValueOnce({ data: { emails: [] } });
+
+      const { result } = renderHook(
+        () => useEmailFetching({ mode: 'triage' }),
+        { wrapper: makeWrapper(store) }
+      );
+
+      await result.current.fetchCategoryEmails('Finance', 'uuid-bg-empty-2062');
+
+      await waitFor(() => {
+        const state = store.getState() as { inboxData: { categorySummary: Array<{ id: string | null; name: string; count: number }> | null } };
+        const category = state.inboxData.categorySummary?.find(cat => cat.id === 'uuid-bg-empty-2062');
+        // Category removed from summary once background refresh confirms 0 emails
+        expect(category).toBeUndefined();
+      });
+    });
+  });
+});

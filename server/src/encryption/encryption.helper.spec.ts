@@ -186,6 +186,34 @@ describe("EncryptionHelper", () => {
       expect(() => EncryptionHelper.decrypt(fakeValue)).toThrow();
     });
 
+    // Regression for #1700 follow-up: when KMS rollout left cross-key
+    // ciphertext in hot columns, every row hydrated by TypeORM hit
+    // tryDecrypt → decrypt → catch → logError → PostHog. PostHog's
+    // error-tracking quota was exhausted by one bad row firing on
+    // every read. The decrypt() catch must throw silently — let the
+    // fail-open caller (tryDecrypt) own telemetry on its throttled path.
+    it("should not write to logError on auth-tag failure (PostHog spam guard)", () => {
+      // jest.mock at file scope can't reach into the inner ../utils/logger
+      // module after the helper has captured the import binding, so we
+      // assert indirectly: a forced auth-tag failure throws, and the test
+      // process produces no captured-error side effect we can detect via
+      // the global ErrorTracking client. Instead, we assert the catch
+      // block contains no logError invocation by spying on console.error.
+      const consoleErrorSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const badCiphertext = `${fakeIvHex}:fakeauth:fakedata`;
+      expect(() => EncryptionHelper.decrypt(badCiphertext)).toThrow();
+
+      // logError uses Logger.error under the hood, which writes to
+      // console.error in the test environment. The catch must NOT touch it.
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleErrorSpy.mockRestore();
+    });
+
     it("should handle decrypting text encrypted with different IV", () => {
       const plaintext = "test message";
       const encrypted1 = EncryptionHelper.encrypt(plaintext);

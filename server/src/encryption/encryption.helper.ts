@@ -152,10 +152,15 @@ class EncryptionHelper {
 
       return decrypted;
     } catch (error) {
-      logError(
-        "Decryption error",
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      // Do NOT call logError() here. The hot caller is tryDecrypt(), which
+      // catches this throw and is invoked once per encrypted column per row
+      // hydrated by TypeORM. logError forwards to PostHog, which previously
+      // captured 250k+ events from a single user with bad ciphertext (see
+      // PR #2036, where the same pattern was removed from tryDecrypt's own
+      // catch). tryDecrypt has its own throttled `captureGlobalEvent` for
+      // telemetry and a `console.warn` for human log readers; the other
+      // direct callers of decrypt() (boot checks, admin diagnostics) propagate
+      // the error and can decide their own logging.
       throw error instanceof Error ? error : new Error(String(error));
     }
   }
@@ -380,9 +385,17 @@ class EncryptionHelper {
         encryptionKeyProvider.getGlobalKey(),
       );
     } catch (error) {
-      logError(
+      // Plain console.warn instead of logError() — this is the fail-open path
+      // for the User entity's per-column transformer, so it runs on every
+      // authenticated request and a single bad ciphertext can fire it many
+      // times per second. logError forwards to PostHog and exhausts the
+      // error-tracking quota; the warn line is for human log readers only.
+      // Mirrors the analogous decision in tryDecrypt() above. Pass the Error
+      // as a second arg so the stack trace is preserved in CloudWatch (vs.
+      // stringifying just the message).
+      console.warn(
         "tryDecryptWithGlobalKey: decryption failed — returning raw ciphertext",
-        error instanceof Error ? error : new Error(String(error)),
+        error,
       );
       return encryptedText;
     }

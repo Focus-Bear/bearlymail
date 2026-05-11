@@ -1,125 +1,59 @@
-import React, { useState } from 'react';
-import { theme } from 'theme/theme';
+import React, { useEffect } from 'react';
 
 import {
-  ClosingStatement,
-  ComparisonSection,
-  FounderStory,
+  CompareSection,
+  FaqSection,
+  FinalCta,
+  FounderSection,
   HeroSection,
-  HowItWorksSection,
-  IntroSection,
-  LandingFooter,
-  LandingHeader,
-  WaitlistForm,
-  WaitlistSuccess,
-} from 'components/landing';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+  HowItWorks,
+  ProblemSection,
+  SiteFooter,
+  SiteHeader,
+  WaitlistModal,
+} from 'components/landing-v2';
 
-/**
- * Landing page component
- *
- * This is the main entry point for the landing page. It orchestrates
- * all sub-components following clean code principles:
- *
- * - Single Responsibility: Main component only handles state and layout
- * - Composition: Uses smaller, focused components
- * - Separation of Concerns: Business logic in hooks, UI in components
- *
- * Component Structure:
- * - LandingHeader: Navigation and branding
- * - HeroSection: Main headline and value proposition
- * - IntroSection: Origin story
- * - HowItWorksSection: Feature explanations
- * - ComparisonSection: Competitive differentiation
- * - ClosingStatement: Final CTA
- * - WaitlistForm: User signup form
- */
-const Landing: React.FC = () => {
-  const [submitted, setSubmitted] = useState(false);
-  const { isMobile, isTablet } = useResponsiveBreakpoints();
+import { LANDING_STYLES } from './Landing.styles';
 
-  // Show success screen after form submission
-  if (submitted) {
-    return <WaitlistSuccess />;
+const FONTS_HREF =
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap';
+
+function injectLink(rel: string, href: string, crossOrigin = false): HTMLLinkElement {
+  const link = document.createElement('link');
+  link.rel = rel;
+  link.href = href;
+  if (crossOrigin) {
+    link.crossOrigin = '';
   }
+  document.head.appendChild(link);
+  return link;
+}
+
+const Landing: React.FC = () => {
+  useEffect(() => {
+    const links = [
+      injectLink('preconnect', 'https://fonts.googleapis.com'),
+      injectLink('preconnect', 'https://fonts.gstatic.com', true),
+      injectLink('stylesheet', FONTS_HREF),
+    ];
+    return () => {
+      links.forEach(link => document.head.removeChild(link));
+    };
+  }, []);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: theme.colors.background.default,
-        display: 'flex',
-        flexDirection: 'column',
-        overflowX: 'hidden',
-        width: '100%',
-      }}
-    >
-      <LandingHeader />
-
-      {/* Main Content - Two Columns */}
-      <main
-        style={{
-          flex: 1,
-          maxWidth: '1400px',
-          margin: '0 auto',
-          width: '100%',
-          padding: (() => {
-            if (isMobile) {
-              return theme.spacing.md;
-            }
-            if (isTablet) {
-              return theme.spacing.lg;
-            }
-            return theme.spacing.xl;
-          })(),
-          boxSizing: 'border-box',
-          overflowX: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: (() => {
-              if (isMobile) {
-                return '1fr';
-              }
-              if (isTablet) {
-                return '1fr minmax(400px, 500px)';
-              }
-              return '1fr minmax(400px, 450px)';
-            })(),
-            gap: (() => {
-              if (isMobile) {
-                return theme.spacing.lg;
-              }
-              return theme.spacing.xl;
-            })(),
-            alignItems: 'flex-start',
-            minWidth: 0,
-          }}
-        >
-          {/* Left Column: Content */}
-          <div
-            style={{
-              minWidth: 0,
-              maxWidth: '100%',
-              wordWrap: 'break-word',
-              overflowWrap: 'break-word',
-            }}
-          >
-            <HeroSection />
-            <IntroSection />
-            <HowItWorksSection />
-            <ComparisonSection />
-            <ClosingStatement />
-            <FounderStory />
-          </div>
-
-          {/* Right Column: Waitlist Form */}
-          <WaitlistForm onSuccess={() => setSubmitted(true)} />
-        </div>
-      </main>
-      <LandingFooter />
+    <div className="bearlymail-landing">
+      <style>{LANDING_STYLES}</style>
+      <SiteHeader />
+      <HeroSection />
+      <ProblemSection />
+      <HowItWorks />
+      <CompareSection />
+      <FounderSection />
+      <FaqSection />
+      <FinalCta />
+      <SiteFooter />
+      <WaitlistModal />
     </div>
   );
 };

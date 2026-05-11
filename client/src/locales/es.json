@@ -1891,6 +1891,374 @@
     },
     "sidebar": {
       "expand": "Expandir barra lateral"
+    },
+    "v2": {
+      "header": {
+        "brand": "BearlyMail",
+        "nav": {
+          "howItWorks": "How it works",
+          "compare": "Compare",
+          "story": "Story",
+          "faq": "FAQ"
+        },
+        "signIn": "Sign in",
+        "joinWaitlist": "Join waitlist"
+      },
+      "hero": {
+        "eyebrow": "Private beta · Now accepting waitlist",
+        "titlePre": "Email that",
+        "titleEm": "respects",
+        "titlePostEm": " your",
+        "titleAfter": "focus time.",
+        "lead": "BearlyMail batches non-urgent email and delivers it on your schedule. Truly urgent messages still break through. Your inbox becomes a planned task, not a constant distraction.",
+        "emailLabel": "Email address",
+        "emailPlaceholder": "you@work.com",
+        "submit": "Join waitlist →",
+        "benefits": {
+          "noSpam": "No spam",
+          "followUp": "One quick follow-up",
+          "unsubscribe": "Unsubscribe anytime"
+        },
+        "builtFor": "Built for ADHD & deep-work brains"
+      },
+      "demo": {
+        "title": "BearlyMail · Tuesday, 10:42 AM",
+        "live": "Live",
+        "tabs": {
+          "triage": "Triage",
+          "action": "Action",
+          "followUp": "Follow Up"
+        },
+        "banner": {
+          "prefix": "Next batch in",
+          "time": "20h 8m",
+          "suffix": "· last checked for urgent emails: just now"
+        },
+        "topic": {
+          "prefix": "UX:",
+          "body": " Design communications, UX/UI feedback, creative project planning, design jams, external collaboration",
+          "archiveAll": "Archive All"
+        },
+        "email": {
+          "from": "Aria Patel",
+          "customerChip": "👤 Team Member",
+          "priorityChip": "High (74)",
+          "receivedAt": "9 May, 19:00",
+          "subject": "Onboarding flow: sharp drop-off on step 3, can we ship a fix today?",
+          "body": "Onboarding step 3 has a 41% drop-off at the password screen. Aria wants to jump on a quick call today to ship a fix."
+        },
+        "prioritise": {
+          "label": "Prioritise:",
+          "canWait": "Can wait",
+          "getOnIt": "Get on it",
+          "ohShit": "Oh sh$t"
+        },
+        "actions": {
+          "archive": "🗄 Archive",
+          "snooze": "⏰ Snooze",
+          "block": "🚫 Block sender"
+        },
+        "foot": {
+          "nextBatch": "Next batch in",
+          "summary": "{{triage}} in Triage · {{action}} in Action · {{followup}} in Follow Up"
+        },
+        "empty": {
+          "triage": {
+            "title": "Inbox zero in Triage",
+            "sub": "Nothing to decide on. Next batch arrives in 20h 8m."
+          },
+          "action": {
+            "title": "No new emails in Action",
+            "sub": "Triaged \"Oh sh$t\" or \"Get on it\" emails land here."
+          },
+          "followup": {
+            "title": "Nothing waiting in Follow Up",
+            "sub": "Batched, lower-priority emails live here until the next batch."
+          }
+        },
+        "routed": {
+          "canWait": "Sent to Follow Up · batched",
+          "getOnIt": "Moved to Action",
+          "ohShit": "Bumped to top of Action — tap the tab to view"
+        },
+        "floats": {
+          "urgent": "Urgent customer reply — broke through",
+          "quiet": "0 emails before 9:00 AM"
+        }
+      },
+      "problem": {
+        "kicker": "Why BearlyMail",
+        "titlePre": "Email is built to ",
+        "titleEm": "distract",
+        "titleAfter": " you.",
+        "sub": "Most clients are designed to keep you checking. They interrupt your thinking. They treat your attention as something to capture, not protect.",
+        "cards": {
+          "buried": {
+            "title": "Important email gets buried.",
+            "body": "Inboxes sort by time, not importance. The investor follow-up sinks under three lunch replies. The co-founder offer is two pages down by morning. You only see what's loud, not what matters."
+          },
+          "equallyUrgent": {
+            "title": "Everything looks equally urgent.",
+            "body": "Black Friday sales, weekly digests, receipts: your inbox shows them the moment they arrive, with the same visual weight as a customer about to churn. You can't tell what's important without reading every single one."
+          },
+          "engine": {
+            "title": "You become the prioritisation engine.",
+            "body": "You're forced to decide, again and again, what actually matters. Every glance becomes a triage exercise. Most of it isn't even decision work; it's noise. And it's running on the most expensive CPU you have: yours."
+          }
+        },
+        "minis": {
+          "decide": "› decide",
+          "messagesToday": "× 217 messages today",
+          "wasted": "≈ 15m wasted",
+          "urgentQuestion": "— urgent? —",
+          "open": "› open"
+        }
+      },
+      "steps": {
+        "kicker": "How it works",
+        "titlePre": "Four ideas. ",
+        "titleEm": "One calmer",
+        "titleAfter": " inbox.",
+        "sub": "Click any step on the left to see what it looks like in practice.",
+        "list": {
+          "urgent": {
+            "title": "Truly urgent emails break through immediately.",
+            "body": "Production incident at 2pm? You see it instantly. The AI learns what's urgent to <i>you</i> by watching how quickly you reply, who you prioritise, what you archive without reading."
+          },
+          "schedule": {
+            "title": "Everything else arrives on your schedule.",
+            "body": "Choose 2×, 3×, or 4× daily. Set quiet hours: no email before 11 AM, none after 6 PM. Block off entire weekends. Your inbox stops being someone else's interrupt."
+          },
+          "ranked": {
+            "title": "What matters first, one action at a time.",
+            "body": "Every batch is ranked 0–100 by importance based on your behaviour. Deal with the CEO's question before the Zoom recording notification — without thinking about it."
+          },
+          "snooze": {
+            "title": "Snoozing that takes one second.",
+            "body": "Type \"2h\" or \"tomorrow\" or \"Mon 9am\". No calendar navigation. No complex scheduling. Snooze and move on, the email comes back at exactly the right moment."
+          }
+        },
+        "visuals": {
+          "urgency": {
+            "heading": "Urgency model",
+            "tag": "Live for your inbox",
+            "row1": "\"Production is down — calling in 5\"",
+            "row1Out": "→ break through",
+            "row2": "From your CEO · last 12 emails: replied < 4m",
+            "row2Out": "→ break through",
+            "row3": "\"Newsletter — 5 ideas for Tuesday\"",
+            "row3Out": "→ batch",
+            "row4": "\"Your Stripe weekly summary\"",
+            "row4Out": "→ batch",
+            "footerBold": "High bar by default.",
+            "footerRest": " Only what genuinely interrupts your flow gets to."
+          },
+          "schedule": {
+            "heading": "Today · 3× delivery",
+            "tag": "Quiet hours: 6 PM → 11 AM",
+            "row1Lane": "Quiet, nothing delivered",
+            "row2Bold": "Morning batch",
+            "row2Body": " · 14 emails",
+            "row2Pill": "delivered",
+            "row3Bold": "Midday batch",
+            "row3Body": " · 9 emails",
+            "row3Pill": "delivered",
+            "row4Body": "Afternoon batch · ~6 expected",
+            "row4Pill": "in 3h 18m",
+            "row5Lane": "Quiet, evening protected"
+          },
+          "ranked": {
+            "heading": "Midday batch · ranked",
+            "tag": "9 messages",
+            "row1Label": "CEO · \"thoughts on the Q3 plan?\"",
+            "row1Small": "From Daniel · usually replied within 6m",
+            "row2Label": "Acme · \"contract redline ready\"",
+            "row2Small": "Active deal · last touched yesterday",
+            "row3Label": "Notion · \"3 new comments on roadmap\"",
+            "row3Small": "You usually skim these",
+            "row4Label": "Figma · \"Sara invited you\"",
+            "row4Small": "Passive notification",
+            "row5Label": "Stripe · \"weekly digest\"",
+            "row5Small": "You archived the last 8"
+          },
+          "snooze": {
+            "heading": "Snooze with words",
+            "tag": "No calendar needed",
+            "inputLabel": "snooze ›",
+            "inputValue": "next tuesday 9am",
+            "tryAny": "Try any of these:",
+            "suggestions": {
+              "twoHours": "2h",
+              "tomorrow": "tomorrow",
+              "thisFri": "this fri 3pm",
+              "afterStandup": "after standup",
+              "mondayMorning": "monday morning",
+              "inThreeWeeks": "in 3 weeks",
+              "nextQuiet": "next quiet hours"
+            },
+            "footer": "Comes back exactly when you said. No calendar dance."
+          }
+        }
+      },
+      "compare": {
+        "kicker": "How we compare",
+        "titlePre": "Most email tools ask the ",
+        "titleEm": "wrong question.",
+        "sub1": "Superhuman asks ",
+        "sub1Em": "\"what do you want to do with this?\"",
+        "sub2": " — assuming you should deal with it now. We ask ",
+        "sub2Em": "\"when do you want to see this?\"",
+        "recommended": "Recommended",
+        "rowLabels": {
+          "delivery": "Delivery",
+          "urgency": "Urgency",
+          "priority": "Priority",
+          "quietHours": "Quiet hours",
+          "philosophy": "Philosophy"
+        },
+        "gmail": {
+          "name": "Gmail",
+          "ask": "\"Here's everything, the moment it arrived.\"",
+          "delivery": "Immediate",
+          "urgency": "Manual filters",
+          "priority": "Manual sorting",
+          "quietHours": "No",
+          "philosophy": "Universal access",
+          "priceBold": "Free",
+          "priceRest": " · no batching or prioritisation"
+        },
+        "bearlymail": {
+          "name": "BearlyMail",
+          "ask": "\"Only the most important emails.\"",
+          "delivery": "Batched on your schedule",
+          "urgency": "AI learns what's urgent to you",
+          "priority": "0–100 score per message",
+          "quietHours": "Default on, fully tunable",
+          "philosophy": "Respect focus time",
+          "priceBold": "From $15 / mo USD",
+          "priceRest": " · waitlist members get a lifetime discount"
+        },
+        "superhuman": {
+          "name": "Superhuman",
+          "ask": "\"Keyboard shortcuts are the solution to everything!\"",
+          "delivery": "Immediate",
+          "urgency": "Manual filters",
+          "priority": "Manual sorting",
+          "quietHours": "No",
+          "philosophy": "Speed & efficiency",
+          "priceBold": "$30 / mo",
+          "priceRest": " · fast, but still shows everything"
+        }
+      },
+      "founder": {
+        "kicker": "Why I built it",
+        "quotePre": "“I have ADHD, and email was ",
+        "quoteEm": "quietly destroying",
+        "quoteAfter": " my ability to focus. Every new message gave me a dopamine hit. My inbox was a slot machine.”",
+        "name": "Jeremy Nagel",
+        "role": "Founder & CEO, BearlyMail",
+        "previously": "Previously built Focus Bear",
+        "readStory": "Read the full story",
+        "paragraphs": {
+          "p1": "Every new email gave me a dopamine hit. It could be a new customer, an investor, something exciting — and that possibility kept pulling me back to my inbox.",
+          "p2": "Most of the time, it wasn't exciting at all. It was emails that needed effort. Thoughtful replies. Decisions. Follow-ups. Those were harder to start, so they stacked up. Meanwhile, my inbox showed me the newest messages first, even though the important ones were buried somewhere in the middle.",
+          "p3": "My brain couldn't tell what mattered at a glance. Everything felt urgent. Or overwhelming. Or both. So I checked again. And again.",
+          "p4": "I tried all the usual advice. Inbox zero. Filters. Fancy email clients. They helped a bit, but they missed the real problem. Email arrives when other people want my attention, not when I'm ready to deal with it.",
+          "p5": "So I built BearlyMail. Now, non-urgent emails arrive in scheduled batches, at times I've already decided to deal with email. Truly urgent messages still break through immediately. My inbox is no longer a slot machine. It's a planned task.",
+          "p6": "The AI learns what's actually important to me by watching what I do. Who I reply to quickly. Which emails I act on. What I archive without thinking. There's a deliberately high bar for \"urgent\", so only things that genuinely matter interrupt my focus.",
+          "p7": "BearlyMail helps anyone who wants fewer distractions and more clarity. And if you have ADHD, it can be especially powerful 🐻"
+        }
+      },
+      "faq": {
+        "kicker": "Common questions",
+        "title": "A few things you might be wondering.",
+        "items": {
+          "timeSensitive": {
+            "q": "What if I miss something genuinely time-sensitive?",
+            "a": "Truly urgent emails break through immediately. The model learns what \"urgent\" means for you by watching how quickly you reply, who you prioritise, and what you archive without reading. The bar for breaking through is high by design, so only things that genuinely interrupt your flow get through."
+          },
+          "colleagues": {
+            "q": "Will my colleagues notice I’m slower to reply?",
+            "a": "Probably not. Most replies that feel \"instant\" are really under an hour, which still happens with 3× daily delivery. For people you always want to hear from immediately, mark them as VIPs and their email skips the batch."
+          },
+          "providers": {
+            "q": "Will it work with Gmail, Outlook, or iCloud?",
+            "a": "Yes. BearlyMail sits on top of your existing account. No migration, no new email address. Gmail and Microsoft 365 are supported at launch; iCloud and Fastmail follow shortly after."
+          },
+          "peek": {
+            "q": "Can I peek at what’s being held?",
+            "a": "Technically yes, by opening Gmail or Outlook directly. We recommend blocking those sites and apps during focus time using <focusBear>Focus Bear</focusBear> so the temptation doesn't pull you back in."
+          },
+          "ai": {
+            "q": "Is my email content sent to an AI?",
+            "a": "Yes, that's how summaries and prioritisation work. We use OpenAI and Gemini under contracts that block training on your data. Nothing is used to improve their models, and we never sell data. Full export and full delete, any time."
+          },
+          "gmailImportant": {
+            "q": "How is this different from Gmail’s \"Important\" or Snooze?",
+            "a": "Gmail's Important label still shows you everything immediately, just sorted differently. Snooze still relies on you to triage every email first. BearlyMail flips the default: nothing arrives unless you've decided to be interrupted, or unless it's actually urgent."
+          },
+          "price": {
+            "q": "What does it cost?",
+            "a": "From $15 USD / month at launch. Waitlist members get a lifetime discount and the first month free."
+          },
+          "cancel": {
+            "q": "What happens if I cancel?",
+            "a": "Nothing is lost. BearlyMail sits on top of Gmail or Outlook, so every email is still there in your normal account. Cancel any time and your inbox goes back to standard delivery."
+          }
+        }
+      },
+      "ctaFinal": {
+        "titlePre": "Take back your ",
+        "titleEm": "focus.",
+        "body": "BearlyMail is in private beta. Join the waitlist to get early access — and help shape the future of email for people who need to think.",
+        "emailLabel": "Email address",
+        "emailPlaceholder": "you@work.com",
+        "submit": "Reserve my spot →",
+        "metaPre": "No spam, no commitment · ",
+        "metaBold": "8",
+        "metaRest": " on the waitlist · lifetime discount for early members"
+      },
+      "footer": {
+        "copyright": "© 2026 BearlyMail",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "contact": "Contact"
+      },
+      "modal": {
+        "titlePre": "You're nearly in. ",
+        "titleEm": "Tell us",
+        "titleAfter": " a bit more.",
+        "sub": "We'll use this to invite the right people to the beta first. Takes 30 seconds.",
+        "firstName": "First name",
+        "firstNamePlaceholder": "Jeremy",
+        "email": "Email",
+        "emailPlaceholder": "you@work.com",
+        "systemLabel": "Which email system do you use?",
+        "systemPlaceholder": "Select your email system",
+        "systems": {
+          "gmail": "Gmail / Google Workspace",
+          "outlook": "Outlook / Microsoft 365",
+          "icloud": "iCloud Mail",
+          "protonmail": "ProtonMail",
+          "fastmail": "Fastmail",
+          "zoho": "Zoho Mail",
+          "other": "Other"
+        },
+        "why": "Why do you want to use BearlyMail?",
+        "whyPlaceholder": "e.g. Email destroys my focus, I have ADHD, I want fewer interruptions…",
+        "whyHint": "Optional but helps us prioritise invites.",
+        "cancel": "Cancel",
+        "submit": "Reserve my spot →",
+        "submitting": "Submitting…",
+        "error": "Failed to submit. Please try again.",
+        "success": {
+          "title": "You're on the list.",
+          "body": "We'll be in touch when your spot opens. In the meantime, read the founder story, or close this and let your inbox stop interrupting you.",
+          "close": "Close",
+          "readStory": "Read the story"
+        },
+        "closeLabel": "Close"
+      }
     }
   },
   "onboarding": {

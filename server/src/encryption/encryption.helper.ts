@@ -2,7 +2,9 @@ import * as crypto from "crypto";
 
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { captureGlobalEvent } from "../error-tracking/error-tracking-setup";
-import { parseCategoryName } from "../utils/category-name.util";
+// `category-format.util` is intentionally entity-free so we can import it here
+// without re-creating the cycle that issue #1700 fixed (see file header).
+import { parseCategoryName } from "../utils/category-format.util";
 import { logError } from "../utils/logger";
 import { encryptionKeyProvider } from "./encryption-key-provider";
 import { getRequestDecryptContext } from "./user-encryption-context";

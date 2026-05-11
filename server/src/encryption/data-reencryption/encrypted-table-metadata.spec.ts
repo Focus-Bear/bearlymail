@@ -1,10 +1,25 @@
+import { getMetadataArgsStorage } from "typeorm";
+
+import { ActionItem } from "../../database/entities/action-item.entity";
+import { Email } from "../../database/entities/email.entity";
+import { EmailThread } from "../../database/entities/email-thread.entity";
+import { GoogleAccount } from "../../database/entities/google-account.entity";
+import { Office365Account } from "../../database/entities/office365-account.entity";
+import { PrivateNote } from "../../database/entities/private-note.entity";
+import { ProtoCategory } from "../../database/entities/proto-category.entity";
+import { SummarizationRule } from "../../database/entities/summarization-rule.entity";
+import { UserContext } from "../../database/entities/user-context.entity";
+import { ZohoAccount } from "../../database/entities/zoho-account.entity";
 import {
   emailTransformer,
   encryptedColumnTransformer,
   encryptedJsonTransformer,
   globalEncryptedColumnTransformer,
 } from "../encryption.helper";
-import { discoverEncryptedTables } from "./encrypted-table-metadata";
+import {
+  discoverEncryptedTables,
+  USER_KEY_TRANSFORMERS,
+} from "./encrypted-table-metadata";
 
 function fakeDataSource(entityMetadatas: unknown[]) {
   return { entityMetadatas } as never;
@@ -117,4 +132,42 @@ describe("discoverEncryptedTables", () => {
 
     expect(discoverEncryptedTables(fakeDataSource([meta]))).toEqual([]);
   });
+});
+
+/**
+ * Regression for #1700: a circular import (encryption.helper → category-name.util →
+ * user-context.entity → encryption.helper) caused @Column decorators on entities
+ * loaded mid-cycle to receive `transformer: undefined`, silently excluding their
+ * tables from re-encryption discovery. This asserts the raw decorator arguments
+ * captured by TypeORM's MetadataArgsStorage retain the real transformer reference
+ * for every hot user-scoped entity.
+ */
+describe("entity @Column transformer captures (issue #1700)", () => {
+  const cases: Array<{ entity: unknown; name: string }> = [
+    { name: "Email", entity: Email },
+    { name: "EmailThread", entity: EmailThread },
+    { name: "UserContext", entity: UserContext },
+    { name: "ActionItem", entity: ActionItem },
+    { name: "PrivateNote", entity: PrivateNote },
+    { name: "SummarizationRule", entity: SummarizationRule },
+    { name: "ProtoCategory", entity: ProtoCategory },
+    { name: "GoogleAccount", entity: GoogleAccount },
+    { name: "Office365Account", entity: Office365Account },
+    { name: "ZohoAccount", entity: ZohoAccount },
+  ];
+
+  it.each(cases)(
+    "$name has at least one column whose @Column captured a real per-user transformer",
+    ({ entity }) => {
+      const cols = getMetadataArgsStorage().columns.filter(
+        (col) => col.target === entity,
+      );
+      const withRealTransformer = cols.filter((col) =>
+        USER_KEY_TRANSFORMERS.has(
+          (col.options as { transformer?: unknown })?.transformer,
+        ),
+      );
+      expect(withRealTransformer.length).toBeGreaterThan(0);
+    },
+  );
 });

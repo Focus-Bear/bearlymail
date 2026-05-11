@@ -6,7 +6,7 @@ import {
   encryptedJsonTransformer,
 } from "../encryption.helper";
 
-const USER_KEY_TRANSFORMERS: ReadonlySet<unknown> = new Set<unknown>([
+export const USER_KEY_TRANSFORMERS: ReadonlySet<unknown> = new Set<unknown>([
   encryptedColumnTransformer,
   encryptedJsonTransformer,
   emailTransformer,

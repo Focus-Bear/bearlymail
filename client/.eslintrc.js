@@ -226,6 +226,11 @@ module.exports = {
         message:
           'Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.',
       },
+      {
+        selector: "JSXAttribute[name.name='href'][value.value='#']",
+        message:
+          "Avoid href=\"#\" fake links. Use a real URL path or React Router's <Link to=\"...\"> component instead.",
+      },
       // Catch user-facing string literals inside JSX TEXT expression containers.
       // Targets only JSXExpressionContainers that appear as element children (text content),
       // NOT as JSX attribute values (e.g. type={x ? 'text' : 'password'}).

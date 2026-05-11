@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
@@ -32,7 +32,6 @@ interface SidebarItemProps {
   path: string;
   icon?: string;
   active?: boolean;
-  onClick?: () => void;
   isCollapsed?: boolean;
   onNavigationClick?: (path: string) => void;
   badge?: number;
@@ -79,22 +78,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   path,
   icon,
   active,
-  onClick,
   isCollapsed,
   onNavigationClick,
   badge,
 }) => {
-  const navigate = useNavigate();
-
   const handleClick = () => {
     const eventName = SIDEBAR_ROUTE_EVENTS[path];
     if (eventName) {
       captureEvent(eventName);
-    }
-    if (onClick) {
-      onClick();
-    } else {
-      navigate(path);
     }
     if (onNavigationClick) {
       onNavigationClick(path);
@@ -102,7 +93,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   };
 
   return (
-    <button
+    <Link
+      to={path}
       onClick={handleClick}
       title={isCollapsed ? label : undefined}
       style={{
@@ -111,18 +103,17 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
         marginBottom: theme.spacing.xs,
         backgroundColor: active ? theme.colors.primary.main : 'transparent',
         color: active ? 'white' : theme.colors.text.secondary,
-        border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         cursor: 'pointer',
         fontSize: theme.typography.fontSize.base,
         fontWeight: active ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium,
-        textAlign: 'left',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'flex-start',
         gap: theme.spacing.sm,
         transition: theme.transitions.fast,
         position: 'relative',
+        textDecoration: STRING_NONE,
       }}
       onMouseEnter={event => {
         if (!active) {
@@ -152,7 +143,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       )}
       {!isCollapsed && <span style={{ flex: 1 }}>{label}</span>}
       {badge !== undefined && badge > 0 && <SidebarBadge count={badge} isCollapsed={isCollapsed} />}
-    </button>
+    </Link>
   );
 };
 

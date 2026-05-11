@@ -200,6 +200,11 @@ module.exports = tseslint.config(
             'Avoid magic strings in captureEvent(). Use a constant from ANALYTICS_EVENTS (constants/analytics-events.ts) instead.',
         },
         {
+          selector: "JSXAttribute[name.name='href'][value.value='#']",
+          message:
+            "Avoid href=\"#\" fake links. Use a real URL path or React Router's <Link to=\"...\"> component instead.",
+        },
+        {
           selector:
             'JSXExpressionContainer:not(JSXAttribute > JSXExpressionContainer) > ConditionalExpression > Literal[value=/^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$/]',
           message: 'String literals in JSX ternary expressions must use t() for i18n.',

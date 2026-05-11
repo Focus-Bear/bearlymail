@@ -189,6 +189,12 @@ export class EmailDebugAdminController {
     return this.rawColumnsService.getRawColumns(id);
   }
 
+  @Get(":id/debug/github-scan")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async scanGitHubLinks(@Param("id") id: string) {
+    return this.rawColumnsService.scanGitHubLinks(id);
+  }
+
   @Get(":id/debug/category")
   @UseGuards(JwtAuthGuard, AdminGuard)
   async getCategoryDebugData(

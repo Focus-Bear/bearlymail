@@ -2280,7 +2280,16 @@
       "githubHasToken": "Has Token",
       "githubMentionsGitHub": "Email Mentions GitHub",
       "githubLinkItem": "{{idx}}: {{url}} ({{type}})",
-      "githubNoLinks": "No links"
+      "githubNoLinks": "No links",
+      "githubScanBody": "Scan body for GitHub links (server)",
+      "githubScanning": "Scanning…",
+      "githubScanFailed": "Scan failed.",
+      "githubScanResultTitle": "Server scan result",
+      "githubScanBodyStatus": "body",
+      "githubScanHtmlStatus": "htmlBody",
+      "githubScanIsNotification": "Is GitHub notification",
+      "githubScanLinksFound": "Links found",
+      "githubScanNoLinks": "No links found in body"
     },
     "adminPanel": {
       "title": "Debug Information (Admin Only)",

@@ -103,6 +103,24 @@ interface RawColumnsResult {
   columns: Record<string, RawColumnInfo>;
 }
 
+interface ParsedGitHubLink {
+  type: 'issue' | 'pr';
+  owner: string;
+  repo: string;
+  number: number;
+  url: string;
+}
+
+interface GitHubScanResult {
+  bodyClassification: RawColumnClassification;
+  bodyDecrypted: boolean;
+  htmlBodyClassification: RawColumnClassification;
+  htmlBodyDecrypted: boolean;
+  fromClassification: RawColumnClassification;
+  isGitHubNotification: boolean;
+  linksFound: ParsedGitHubLink[];
+}
+
 const CLASSIFICATION_COLOR: Record<RawColumnClassification, string> = {
   'null': 'gray',
   'encrypted': 'green',
@@ -124,6 +142,9 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
   const [loadingRawColumns, setLoadingRawColumns] = useState(false);
   const [rawColumns, setRawColumns] = useState<RawColumnsResult | null>(null);
   const [rawColumnsError, setRawColumnsError] = useState<string | null>(null);
+  const [loadingGithubScan, setLoadingGithubScan] = useState(false);
+  const [githubScanResult, setGithubScanResult] = useState<GitHubScanResult | null>(null);
+  const [githubScanError, setGithubScanError] = useState<string | null>(null);
 
   const handleShowRawColumns = async () => {
     if (!emailData?.id || loadingRawColumns) {
@@ -143,6 +164,27 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
       setRawColumnsError(msg);
     } finally {
       setLoadingRawColumns(false);
+    }
+  };
+
+  const handleScanGitHubLinks = async () => {
+    if (!emailData?.id || loadingGithubScan) {
+      return;
+    }
+    setLoadingGithubScan(true);
+    setGithubScanResult(null);
+    setGithubScanError(null);
+    try {
+      const response = await axios.get<GitHubScanResult>(
+        `${API_URL}/emails/${emailData.id}/debug/github-scan`,
+      );
+      setGithubScanResult(response.data);
+    } catch (err) {
+      console.error('githubScan:', err);
+      const msg = getAxiosResponseErrorMessage(err) ?? t('debug.emailDetail.githubScanFailed');
+      setGithubScanError(msg);
+    } finally {
+      setLoadingGithubScan(false);
     }
   };
 
@@ -400,6 +442,73 @@ export function EmailDetailDebugInfo({ email, threadEmails, onAttachmentsSynced,
           ) : (
             <div style={{ marginLeft: theme.spacing.md, color: theme.colors.text.secondary }}>
               {t('debug.emailDetail.githubNoLinks')}
+            </div>
+          )}
+          <div style={{ marginTop: theme.spacing.sm }}>
+            <button
+              type="button"
+              disabled={loadingGithubScan}
+              onClick={() => void handleScanGitHubLinks()}
+              style={{
+                padding: '2px 8px',
+                fontSize: '11px',
+                backgroundColor: theme.colors.background.paper,
+                color: theme.colors.text.primary,
+                border: `1px solid ${theme.colors.border.light}`,
+                borderRadius: '4px',
+                cursor: loadingGithubScan ? 'not-allowed' : 'pointer',
+                opacity: loadingGithubScan ? DISABLED_CONTROL_OPACITY : 1,
+              }}
+            >
+              {loadingGithubScan
+                ? t('debug.emailDetail.githubScanning')
+                : t('debug.emailDetail.githubScanBody')}
+            </button>
+          </div>
+          {githubScanError && (
+            <div style={{ marginTop: theme.spacing.sm, color: 'red', fontWeight: 600 }}>
+              {githubScanError}
+            </div>
+          )}
+          {githubScanResult && (
+            <div style={{ marginTop: theme.spacing.sm, borderTop: `1px dashed ${theme.colors.border.light}`, paddingTop: theme.spacing.sm }}>
+              <strong>{t('debug.emailDetail.githubScanResultTitle')}</strong>
+              <div>
+                <strong>{t('debug.emailDetail.githubScanBodyStatus')}:</strong>{' '}
+                <span style={{ color: CLASSIFICATION_COLOR[githubScanResult.bodyClassification], fontWeight: 600 }}>
+                  [{githubScanResult.bodyClassification}]
+                </span>
+                {' '}{githubScanResult.bodyDecrypted ? '✓ decrypted' : '✗ decrypt failed'}
+              </div>
+              <div>
+                <strong>{t('debug.emailDetail.githubScanHtmlStatus')}:</strong>{' '}
+                <span style={{ color: CLASSIFICATION_COLOR[githubScanResult.htmlBodyClassification], fontWeight: 600 }}>
+                  [{githubScanResult.htmlBodyClassification}]
+                </span>
+                {' '}{githubScanResult.htmlBodyDecrypted ? '✓ decrypted' : '✗ decrypt failed'}
+              </div>
+              <div>
+                <strong>{t('debug.emailDetail.githubScanIsNotification')}:</strong>{' '}
+                {githubScanResult.isGitHubNotification ? t('debug.emailDetail.true') : t('debug.emailDetail.false')}
+              </div>
+              <div>
+                <strong>{t('debug.emailDetail.githubScanLinksFound')}:</strong> {githubScanResult.linksFound.length}
+              </div>
+              {githubScanResult.linksFound.length > 0 ? (
+                githubScanResult.linksFound.map((link, idx) => (
+                  <div key={link.url ?? idx} style={{ ...threadEntryBoxStyle, marginTop: theme.spacing.xs }}>
+                    {t('debug.emailDetail.githubLinkItem', {
+                      idx,
+                      url: link.url ?? `${link.owner}/${link.repo}#${link.number}`,
+                      type: link.type,
+                    })}
+                  </div>
+                ))
+              ) : (
+                <div style={{ marginLeft: theme.spacing.md, color: 'red' }}>
+                  {t('debug.emailDetail.githubScanNoLinks')}
+                </div>
+              )}
             </div>
           )}
         </div>

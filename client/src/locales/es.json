@@ -691,7 +691,16 @@
       "githubHasToken": "Tiene token",
       "githubMentionsGitHub": "El correo menciona GitHub",
       "githubLinkItem": "{{idx}}: {{url}} ({{type}})",
-      "githubNoLinks": "Sin vínculos"
+      "githubNoLinks": "Sin vínculos",
+      "githubScanBody": "Escanear cuerpo para vínculos GitHub (servidor)",
+      "githubScanning": "Escaneando…",
+      "githubScanFailed": "Error al escanear.",
+      "githubScanResultTitle": "Resultado del escaneo en servidor",
+      "githubScanBodyStatus": "cuerpo",
+      "githubScanHtmlStatus": "htmlBody",
+      "githubScanIsNotification": "Es notificación de GitHub",
+      "githubScanLinksFound": "Vínculos encontrados",
+      "githubScanNoLinks": "No se encontraron vínculos en el cuerpo"
     },
     "adminPanel": {
       "title": "Información de depuración (solo administrador)",

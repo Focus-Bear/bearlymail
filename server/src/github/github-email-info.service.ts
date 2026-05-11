@@ -15,7 +15,11 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { decryptUserContextEntityForApi } from "../encryption/entity-api-decrypt.util";
 import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
-import { GitHubService, ParsedGitHubLink } from "./github.service";
+import {
+  GitHubService,
+  isGitHubNotificationEmail,
+  ParsedGitHubLink,
+} from "./github.service";
 import {
   GitHubApiService,
   GitHubIssueStatus,
@@ -86,6 +90,25 @@ export class GitHubEmailInfoService {
       const links = this.githubService.parseGitHubLinks(body, htmlBody);
       for (const link of links) {
         allLinks.set(link.url, link);
+      }
+
+      // Fallback: when body/HTML parsing found nothing, try the subject line.
+      // GitHub notification emails have a reliable subject format:
+      //   [owner/repo] title (#number)
+      // This covers cases where the URL is only in an href attribute and
+      // htmlBody is null, or where the plain-text body omits the raw URL.
+      if (allLinks.size === 0) {
+        const from = EncryptionHelper.tryDecrypt(threadEmail.from) ?? "";
+        const subject = EncryptionHelper.tryDecrypt(threadEmail.subject) ?? "";
+        if (isGitHubNotificationEmail(from)) {
+          const subjectLinks = this.githubService.parseGitHubLinksFromSubject(
+            subject,
+            body,
+          );
+          for (const link of subjectLinks) {
+            allLinks.set(link.url, link);
+          }
+        }
       }
     }
     return Array.from(allLinks.values());
@@ -351,7 +374,21 @@ export class GitHubEmailInfoService {
     const htmlBody = email.htmlBody
       ? EncryptionHelper.tryDecrypt(email.htmlBody)
       : undefined;
-    return this.githubService.parseGitHubLinks(body || "", htmlBody);
+    const links = this.githubService.parseGitHubLinks(body || "", htmlBody);
+    if (links.length > 0) return links;
+
+    // Fallback: parse from subject for GitHub notification emails
+    const from = email.from ? EncryptionHelper.tryDecrypt(email.from) : "";
+    const subject = email.subject
+      ? EncryptionHelper.tryDecrypt(email.subject)
+      : "";
+    if (isGitHubNotificationEmail(from ?? "")) {
+      return this.githubService.parseGitHubLinksFromSubject(
+        subject ?? "",
+        body ?? "",
+      );
+    }
+    return [];
   }
 
   /**

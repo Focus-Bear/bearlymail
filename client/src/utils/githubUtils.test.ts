@@ -49,6 +49,16 @@ describe('emailMentionsGitHub', () => {
     expect(emailMentionsGitHub('Issue update', '', '', 'NOTIFICATIONS@GITHUB.COM')).toBe(true);
   });
 
+  it('returns true when from is a repo-specific noreply address (e.g. windows-app-v2@noreply.github.com)', () => {
+    expect(
+      emailMentionsGitHub('Meeting notes', 'See you tomorrow', '<p>Thanks!</p>', 'windows-app-v2@noreply.github.com')
+    ).toBe(true);
+  });
+
+  it('returns true when from is noreply@github.com', () => {
+    expect(emailMentionsGitHub('Update', 'body', '', 'noreply@github.com')).toBe(true);
+  });
+
   it('returns false when from is a different sender with no github in content', () => {
     expect(emailMentionsGitHub('Meeting notes', 'See you tomorrow', '<p>Thanks!</p>', 'someone@example.com')).toBe(
       false

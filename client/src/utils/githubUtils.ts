@@ -5,8 +5,9 @@
  * (see serverFoundLinks check), so false-negatives here are non-fatal.
  */
 export function emailMentionsGitHub(subject?: string, body?: string, htmlBody?: string, from?: string): boolean {
-  // GitHub notification emails always come from this address
-  if (from?.toLowerCase().includes('notifications@github.com')) {
+  // GitHub notification emails come from @github.com addresses, including:
+  //   notifications@github.com, noreply@github.com, {repo}@noreply.github.com
+  if (from && /@(?:.*\.)?github\.com>?\s*$/i.test(from)) {
     return true;
   }
   const searchText = `${subject || ''} ${body || ''} ${htmlBody || ''}`.toLowerCase();

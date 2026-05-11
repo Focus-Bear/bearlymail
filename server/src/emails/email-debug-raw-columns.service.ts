@@ -3,6 +3,12 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { Email } from "../database/entities/email.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  GitHubService,
+  isGitHubNotificationEmail,
+  ParsedGitHubLink,
+} from "../github/github.service";
 
 export type Classification =
   | "null"
@@ -42,6 +48,16 @@ function describe(value: string | null): ColumnInfo {
   };
 }
 
+export interface GitHubScanResult {
+  bodyClassification: Classification;
+  bodyDecrypted: boolean;
+  htmlBodyClassification: Classification;
+  htmlBodyDecrypted: boolean;
+  fromClassification: Classification;
+  isGitHubNotification: boolean;
+  linksFound: ParsedGitHubLink[];
+}
+
 /**
  * Admin-only debug helper: returns the raw stored bytes for an email's encrypted
  * columns so we can diagnose corruption without needing direct DB access.
@@ -59,12 +75,14 @@ export class EmailDebugRawColumnsService {
   constructor(
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    private readonly githubService: GitHubService,
   ) {}
 
   async getRawColumns(emailId: string) {
     const rows = await this.emailRepository.query(
       `SELECT id, "userId", "messageId", "threadId",
-              "from", subject, labels, attachments, "actionItemsJson", summary
+              "from", subject, labels, attachments, "actionItemsJson", summary,
+              body, "htmlBody"
        FROM emails
        WHERE id = $1`,
       [emailId],
@@ -87,7 +105,55 @@ export class EmailDebugRawColumnsService {
         attachments: describe(row.attachments),
         actionItemsJson: describe(row.actionItemsJson),
         summary: describe(row.summary),
+        body: describe(row.body),
+        htmlBody: describe(row.htmlBody),
       },
+    };
+  }
+
+  async scanGitHubLinks(emailId: string): Promise<GitHubScanResult> {
+    const rows = await this.emailRepository.query(
+      `SELECT body, "htmlBody", "from" FROM emails WHERE id = $1`,
+      [emailId],
+    );
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`Email ${emailId} not found`);
+    }
+
+    const row = rows[0];
+
+    const bodyClassification = classify(row.body);
+    const decryptedBody = EncryptionHelper.tryDecrypt(row.body) ?? "";
+    const bodyDecrypted = ENCRYPTED_RE.test(row.body ?? "")
+      ? decryptedBody !== ""
+      : true;
+
+    const htmlBodyClassification = classify(row.htmlBody);
+    const decryptedHtml = row.htmlBody
+      ? (EncryptionHelper.tryDecrypt(row.htmlBody) ?? undefined)
+      : undefined;
+    const htmlBodyDecrypted = ENCRYPTED_RE.test(row.htmlBody ?? "")
+      ? decryptedHtml !== undefined && decryptedHtml !== ""
+      : true;
+
+    const fromClassification = classify(row.from);
+    const decryptedFrom = EncryptionHelper.tryDecrypt(row.from) ?? "";
+    const isGitHubNotification = isGitHubNotificationEmail(decryptedFrom);
+
+    const linksFound = this.githubService.parseGitHubLinks(
+      decryptedBody,
+      decryptedHtml,
+    );
+
+    return {
+      bodyClassification,
+      bodyDecrypted,
+      htmlBodyClassification,
+      htmlBodyDecrypted,
+      fromClassification,
+      isGitHubNotification,
+      linksFound,
     };
   }
 }

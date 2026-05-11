@@ -10,6 +10,11 @@ export interface ParsedGitHubLink {
   url: string;
 }
 
+/** Return true when the from address belongs to any GitHub notification service. */
+export function isGitHubNotificationEmail(from: string): boolean {
+  return !!from && /@(?:.*\.)?github\.com>?\s*$/i.test(from);
+}
+
 @Injectable()
 export class GitHubService {
   /**
@@ -103,5 +108,42 @@ export class GitHubService {
     }
 
     return links;
+  }
+
+  /**
+   * Fallback: parse GitHub issue/PR info from a GitHub notification email subject.
+   * GitHub notification subjects follow the pattern: [owner/repo] title (#number)
+   *
+   * Used when body/HTML parsing finds no links (e.g. htmlBody is null or the URL
+   * appears only as link text rather than a raw URL in the email body).
+   */
+  parseGitHubLinksFromSubject(
+    subject: string,
+    emailBody?: string,
+  ): ParsedGitHubLink[] {
+    if (!subject) return [];
+
+    // Strip common reply/forward prefixes so "Re: [owner/repo]..." still matches
+    const cleanSubject = subject
+      .replace(/^(Re|Fwd|FW|RE|FWD)\s*:\s*/gi, "")
+      .trim();
+
+    // Pattern: [owner/repo] any title (#number)
+    const subjectPattern = /\[([^/\]]+)\/([^\]]+)\].*\(#(\d+)\)/i;
+    const match = cleanSubject.match(subjectPattern);
+    if (!match) return [];
+
+    const owner = match[1].trim();
+    const repo = match[2].trim();
+    const number = parseInt(match[3], 10);
+    if (!owner || !repo || isNaN(number)) return [];
+
+    // Detect PR from body text ("pull request" indicator); default to issue
+    const isPR = !!emailBody && /\bpull request\b/i.test(emailBody);
+    const type = isPR ? GITHUB_LINK_TYPES.PR : GITHUB_LINK_TYPES.ISSUE;
+    const path = isPR ? "pull" : "issues";
+    const url = `https://github.com/${owner}/${repo}/${path}/${number}`;
+
+    return [{ type, owner, repo, number, url }];
   }
 }

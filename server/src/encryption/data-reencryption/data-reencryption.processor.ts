@@ -1,8 +1,12 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
+import { Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
+import { User } from "../../database/entities/user.entity";
+import { JobPriority } from "../../queue/job-priorities";
 import {
   DataReencryptionService,
   UserReencryptionResult,
@@ -13,6 +17,15 @@ export interface ReencryptUserDataJobData {
   dryRun?: boolean;
 }
 
+export interface ReencryptFanoutJobData {
+  dryRun?: boolean;
+}
+
+export interface ReencryptFanoutResult {
+  enqueued: number;
+  dryRun: boolean;
+}
+
 @Injectable()
 export class DataReencryptionProcessor implements OnModuleInit {
   private readonly logger = new Logger(DataReencryptionProcessor.name);
@@ -20,6 +33,7 @@ export class DataReencryptionProcessor implements OnModuleInit {
   constructor(
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly service: DataReencryptionService,
+    @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -30,15 +44,51 @@ export class DataReencryptionProcessor implements OnModuleInit {
       );
       const result: UserReencryptionResult = await this.service.reencryptUser(
         userId,
-        {
-          dryRun,
-        },
+        { dryRun },
       );
       this.logger.log(
         `Re-encryption complete for user ${userId}: ${JSON.stringify(summarise(result))}`,
       );
+      // Returning the result persists it as `output` on the PgBoss job record,
+      // so the admin UI can poll GET /admin/reencryption/job/:jobId to see the
+      // per-table breakdown after a dry-run-self.
+      return result;
     });
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_USER_DATA}`);
+
+    await this.boss.work(JOB_NAMES.REENCRYPT_FANOUT_ALL, async (job) => {
+      const { dryRun = false } = job.data as ReencryptFanoutJobData;
+      const users = await this.userRepository
+        .createQueryBuilder("u")
+        .select(["u.id"])
+        .where(dryRun ? "1=1" : "u.dataReencryptedAt IS NULL")
+        .getMany();
+
+      if (users.length === 0) {
+        this.logger.log(
+          `Fan-out: no eligible users${dryRun ? " (dry run)" : ""}`,
+        );
+        return { enqueued: 0, dryRun } satisfies ReencryptFanoutResult;
+      }
+
+      // Single bulk insert beats N round-trips to pg — the whole point of
+      // moving fan-out off the HTTP path. `data` is fixed by PgBoss's
+      // JobInsert shape.
+      await this.boss.insert(
+        users.map((user) => ({
+          name: JOB_NAMES.REENCRYPT_USER_DATA,
+          // eslint-disable-next-line id-denylist
+          data: { userId: user.id, dryRun } as ReencryptUserDataJobData,
+          priority: JobPriority.VERY_LOW,
+        })),
+      );
+
+      this.logger.log(
+        `Fan-out: enqueued ${users.length} re-encryption jobs${dryRun ? " (dry run)" : ""}`,
+      );
+      return { enqueued: users.length, dryRun } satisfies ReencryptFanoutResult;
+    });
+    this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_FANOUT_ALL}`);
   }
 }
 

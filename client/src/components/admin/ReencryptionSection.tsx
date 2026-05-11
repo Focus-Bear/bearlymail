@@ -26,7 +26,59 @@ interface DryRunResult {
   tables: DryRunTableResult[];
 }
 
+type JobState =
+  | 'created'
+  | 'retry'
+  | 'active'
+  | 'completed'
+  | 'expired'
+  | 'cancelled'
+  | 'failed'
+  | 'not_found';
+
+interface FanoutResult {
+  enqueued: number;
+  dryRun: boolean;
+}
+
+interface JobStatusResponse<TOutput> {
+  state: JobState;
+  output: TOutput | null;
+}
+
 const REENCRYPTION_BASE = `${API_URL}/admin/reencryption`;
+const JOB_POLL_INTERVAL_MS = 2000;
+const SECONDS_PER_MINUTE = 60;
+const MS_PER_SECOND = 1000;
+const JOB_POLL_TIMEOUT_MINUTES = 10;
+const JOB_POLL_TIMEOUT_MS =
+  JOB_POLL_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND;
+const JOB_STATE_COMPLETED: JobState = 'completed';
+const JOB_STATE_FAILED: JobState = 'failed';
+const TERMINAL_JOB_STATES: ReadonlySet<JobState> = new Set([
+  JOB_STATE_COMPLETED,
+  JOB_STATE_FAILED,
+  'expired',
+  'cancelled',
+  'not_found',
+]);
+
+async function pollJobUntilTerminal<TOutput>(
+  jobId: string,
+): Promise<JobStatusResponse<TOutput>> {
+  const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const { data } = await axios.get<JobStatusResponse<TOutput>>(
+      `${REENCRYPTION_BASE}/job/${jobId}`,
+      { withCredentials: true },
+    );
+    if (TERMINAL_JOB_STATES.has(data.state)) {
+      return data;
+    }
+    await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
+  }
+  throw new Error('Re-encryption job did not complete within 10 minutes');
+}
 
 export const ReencryptionSection: React.FC = () => {
   const { t } = useTranslation();
@@ -81,37 +133,60 @@ export const ReencryptionSection: React.FC = () => {
 
   const handleDryRunSelf = () =>
     runAction(t('admin.reencryption.actions.dryRunSelf'), async () => {
-      const { data } = await axios.post<DryRunResult>(
+      const { data: enqueueResp } = await axios.post<{ jobId: string }>(
         `${REENCRYPTION_BASE}/dry-run-self`,
         {},
         { withCredentials: true },
       );
-      setDryRunResult(data);
+      const finalStatus = await pollJobUntilTerminal<DryRunResult>(
+        enqueueResp.jobId,
+      );
+      if (finalStatus.state === JOB_STATE_FAILED) {
+        throw new Error(t('admin.reencryption.dryRunFailed'));
+      }
+      if (finalStatus.state !== JOB_STATE_COMPLETED || !finalStatus.output) {
+        throw new Error(
+          t('admin.reencryption.dryRunNoResult', { state: finalStatus.state }),
+        );
+      }
+      setDryRunResult(finalStatus.output);
       return t('admin.reencryption.dryRunComplete');
     });
 
   const handleStartDryRunAll = () =>
-    runAction(t('admin.reencryption.actions.startDryRunAll'), async () => {
-      const { data } = await axios.post<{ enqueued: number }>(
-        `${REENCRYPTION_BASE}/start`,
-        { dryRun: true },
-        { withCredentials: true },
-      );
-      return t('admin.reencryption.enqueued', { count: data.enqueued });
-    });
+    runAction(t('admin.reencryption.actions.startDryRunAll'), () =>
+      runFanout(true),
+    );
 
   const handleStartAll = () =>
     runAction(t('admin.reencryption.actions.startAll'), async () => {
       if (!window.confirm(t('admin.reencryption.startAllConfirm'))) {
         throw new Error(t('admin.reencryption.cancelled'));
       }
-      const { data } = await axios.post<{ enqueued: number }>(
-        `${REENCRYPTION_BASE}/start`,
-        { dryRun: false },
-        { withCredentials: true },
-      );
-      return t('admin.reencryption.enqueued', { count: data.enqueued });
+      return runFanout(false);
     });
+
+  async function runFanout(dryRun: boolean): Promise<string> {
+    const { data: enqueueResp } = await axios.post<{ jobId: string }>(
+      `${REENCRYPTION_BASE}/start`,
+      { dryRun },
+      { withCredentials: true },
+    );
+    const finalStatus = await pollJobUntilTerminal<FanoutResult>(
+      enqueueResp.jobId,
+    );
+    if (finalStatus.state === JOB_STATE_FAILED) {
+      throw new Error(t('admin.reencryption.fanoutFailed'));
+    }
+    if (finalStatus.state !== JOB_STATE_COMPLETED || !finalStatus.output) {
+      throw new Error(
+        t('admin.reencryption.fanoutNoResult', { state: finalStatus.state }),
+      );
+    }
+    return t('admin.reencryption.enqueued', {
+      count: finalStatus.output.enqueued,
+    });
+  }
 
   if (loading) {
     return (

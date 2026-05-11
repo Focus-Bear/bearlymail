@@ -81,6 +81,10 @@ export const JOB_NAMES = {
 
   // Encryption migration (admin-triggered, idempotent)
   REENCRYPT_USER_DATA: "reencrypt-user-data",
+  // Fan-out job that, in the worker, queries users and bulk-inserts per-user
+  // REENCRYPT_USER_DATA jobs. Keeps `/start` off the HTTP request path so
+  // enqueueing for thousands of users never 504s.
+  REENCRYPT_FANOUT_ALL: "reencrypt-fanout-all",
 
   // Audit log archival (SAQ Q52: nightly export of rows older than 90 days to S3 Glacier)
   AUDIT_LOG_ARCHIVE: "audit-log-archive",

@@ -16,7 +16,20 @@ import {
   Source,
   UserContext,
 } from "../database/entities/user-context.entity";
-import { parseCategoryName } from "../utils/category-name.util";
+import { LLMCoreService } from "../llm/llm-core.service";
+import { LLM_OP_CHECK_CATEGORY_DUPLICATE } from "../llm/llm-operations";
+import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "../llm/prompts";
+import { parseCategoryName } from "../utils/category-format.util";
+import {
+  isSimilarCategoryName,
+  levenshteinDistance,
+} from "../utils/levenshtein.util";
+
+// Cap on how many Levenshtein-flagged candidates we hand off to the LLM in one
+// matching pass. Without this, a user with many similar category names would
+// trigger one sequential LLM call per candidate — slow and expensive. Sorting
+// by distance and keeping the closest two preserves the best-match ordering.
+const MAX_LLM_DEDUP_CANDIDATES = 2;
 
 @Injectable()
 export class ProtoCategoriesService {
@@ -32,6 +45,7 @@ export class ProtoCategoriesService {
     @InjectDataSource()
     private dataSource: DataSource,
     private categoryKeyAssignmentService: CategoryKeyAssignmentService,
+    private llmCoreService: LLMCoreService,
   ) {}
 
   /**
@@ -67,15 +81,12 @@ export class ProtoCategoriesService {
     description: string | null,
     threadId: string,
   ): Promise<ProtoCategory> {
-    // Check if proto category already exists
     let protoCategory = await this.findByName(userId, name);
 
     if (protoCategory) {
-      // If it exists, just assign the thread to it
       return this.assignThreadToProtoCategory(protoCategory.id, threadId);
     }
 
-    // Create new proto category
     protoCategory = this.protoCategoryRepository.create({
       userId,
       name,
@@ -86,7 +97,6 @@ export class ProtoCategoriesService {
 
     protoCategory = await this.protoCategoryRepository.save(protoCategory);
 
-    // Assign thread to proto category
     await this.emailThreadRepository.update(
       { id: threadId },
       { protoCategoryId: protoCategory.id },
@@ -107,20 +117,17 @@ export class ProtoCategoriesService {
     protoCategoryId: string,
     threadId: string,
   ): Promise<ProtoCategory> {
-    // Assign thread to proto category
     await this.emailThreadRepository.update(
       { id: threadId },
       { protoCategoryId },
     );
 
-    // Increment email count
     await this.protoCategoryRepository.increment(
       { id: protoCategoryId },
       "emailCount",
       1,
     );
 
-    // Fetch updated proto category
     const protoCategory = await this.protoCategoryRepository.findOne({
       where: { id: protoCategoryId },
     });
@@ -135,7 +142,6 @@ export class ProtoCategoriesService {
       `Assigned thread ${threadId} to proto category "${protoCategory.name}" (count: ${protoCategory.emailCount})`,
     );
 
-    // Check if we should promote
     if (protoCategory.emailCount >= ProtoCategory.PROMOTION_THRESHOLD) {
       return this.promoteToCategory(protoCategory);
     }
@@ -160,7 +166,6 @@ export class ProtoCategoriesService {
       `Promoting proto category "${protoCategory.name}" to real category (count: ${protoCategory.emailCount})`,
     );
 
-    // Create UserContext for the new category
     const categoryValue = protoCategory.description
       ? `${protoCategory.name} - ${protoCategory.description}`
       : protoCategory.name;
@@ -182,7 +187,6 @@ export class ProtoCategoriesService {
 
     const savedContext = await this.userContextRepository.save(userContext);
 
-    // Mark proto category as promoted
     await this.protoCategoryRepository.update(
       { id: protoCategory.id },
       {
@@ -191,7 +195,6 @@ export class ProtoCategoriesService {
       },
     );
 
-    // Update all threads with this proto category to use the promoted category UUID.
     await this.emailThreadRepository.update(
       { protoCategoryId: protoCategory.id },
       {
@@ -205,7 +208,6 @@ export class ProtoCategoriesService {
       `Successfully promoted proto category "${protoCategory.name}" to real category (contextId: ${savedContext.contextId})`,
     );
 
-    // Return updated proto category
     const updated = await this.protoCategoryRepository.findOne({
       where: { id: protoCategory.id },
     });
@@ -215,6 +217,16 @@ export class ProtoCategoriesService {
 
   /**
    * Check if a suggested proto-category name matches an existing full category.
+   *
+   * Matching is done in three phases (cheapest first):
+   *  1. Exact / emoji-stripped / parenthetical-suffix match
+   *  2. Alternate-names lookup (previously confirmed near-duplicates)
+   *  3. Levenshtein fuzzy match → LLM confirmation (issue #2065)
+   *
+   * When a near-duplicate is confirmed by the LLM, the suggested name is
+   * persisted as an alternate name on the matching category so future calls
+   * skip the LLM.
+   *
    * Returns `{ name, contextId }` if a match is found, or `null` otherwise.
    * The `contextId` is the UUID of the matching UserContext row — callers can
    * store it directly as `thread.categoryId` (fix #1146).
@@ -223,7 +235,6 @@ export class ProtoCategoriesService {
     userId: string,
     suggestedName: string,
   ): Promise<{ name: string; contextId: string } | null> {
-    // Get all existing categories from UserContext
     const categories = await this.userContextRepository.find({
       where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
     });
@@ -232,29 +243,84 @@ export class ProtoCategoriesService {
     const suggestionWithoutEmoji = normalizedSuggestion
       .replace(/[\p{Emoji}]/gu, "")
       .trim();
-    // Strip parenthetical suffix from suggestion: "Name (description)" → "Name"
     const suggestionWithoutParens = suggestionWithoutEmoji
       .replace(/\s*\(.*\)\s*$/, "")
       .trim();
 
     for (const category of categories) {
-      // contextValue can be "Category Name" or "Category Name - Description"
       const categoryName = parseCategoryName(category.contextValue);
       const normalizedName = categoryName.toLowerCase().trim();
       const nameWithoutEmoji = normalizedName
         .replace(/[\p{Emoji}]/gu, "")
         .trim();
 
-      // Check if names match (ignoring emoji and case) — also match
-      // parenthetical LLM variants e.g. "Customer feedback (github issues…)"
-      // against stored name "Customer feedback" (fix #1120).
       if (
         suggestionWithoutEmoji === nameWithoutEmoji ||
         normalizedSuggestion === normalizedName ||
         suggestionWithoutParens === nameWithoutEmoji
       ) {
-        // Return both the canonical name (with emoji) and its UUID
         return { name: categoryName, contextId: category.contextId };
+      }
+
+      if (category.alternateNames?.length) {
+        const altMatch = category.alternateNames.some((alt) => {
+          const normAlt = alt.toLowerCase().trim();
+          const altWithoutEmoji = normAlt.replace(/[\p{Emoji}]/gu, "").trim();
+          return (
+            normAlt === normalizedSuggestion ||
+            altWithoutEmoji === suggestionWithoutEmoji
+          );
+        });
+        if (altMatch) {
+          this.logger.debug(
+            `Alternate-name match: "${suggestedName}" → "${categoryName}"`,
+          );
+          return { name: categoryName, contextId: category.contextId };
+        }
+      }
+    }
+
+    const nearDuplicates = categories
+      .map((category) => {
+        const nameWithoutEmoji = parseCategoryName(category.contextValue)
+          .toLowerCase()
+          .trim()
+          .replace(/[\p{Emoji}]/gu, "")
+          .trim();
+        return {
+          category,
+          nameWithoutEmoji,
+          distance: levenshteinDistance(
+            suggestionWithoutEmoji,
+            nameWithoutEmoji,
+          ),
+        };
+      })
+      .filter(({ nameWithoutEmoji }) =>
+        isSimilarCategoryName(suggestionWithoutEmoji, nameWithoutEmoji),
+      )
+      .sort((left, right) => left.distance - right.distance)
+      .slice(0, MAX_LLM_DEDUP_CANDIDATES);
+
+    for (const { category: candidate } of nearDuplicates) {
+      const categoryName = parseCategoryName(candidate.contextValue);
+      try {
+        const isDuplicate = await this.checkCategoryDuplicate(
+          suggestedName,
+          categoryName,
+          userId,
+        );
+        if (isDuplicate) {
+          await this.saveAlternateName(candidate, suggestedName);
+          this.logger.log(
+            `Levenshtein+LLM duplicate: "${suggestedName}" → "${categoryName}"`,
+          );
+          return { name: categoryName, contextId: candidate.contextId };
+        }
+      } catch (err) {
+        this.logger.warn(
+          `LLM duplicate check failed for "${suggestedName}" vs "${categoryName}": ${err}`,
+        );
       }
     }
 
@@ -262,30 +328,31 @@ export class ProtoCategoriesService {
   }
 
   /**
-   * Find the best matching proto category for an email based on LLM suggestion
-   * Returns null if no good match is found
+   * Find the best matching proto category for an email based on LLM suggestion.
+   * Uses exact match, emoji-stripped match, containment, and Levenshtein fuzzy
+   * match with LLM confirmation (issue #2065). Levenshtein alone would merge
+   * distinct names that happen to be 1–2 chars apart (e.g. "Project A" vs
+   * "Project B"), so flagged candidates are confirmed by an LLM duplicate check
+   * before merging. Returns null if no good match is found.
    */
   async findMatchingProtoCategory(
     userId: string,
     suggestedName: string,
   ): Promise<ProtoCategory | null> {
-    // First try exact match
     const exactMatch = await this.findByName(userId, suggestedName);
     if (exactMatch) {
       return exactMatch;
     }
 
-    // Get all active proto categories for fuzzy matching
     const activeCategories = await this.findActiveByUser(userId);
 
-    // Try to find a similar category (case-insensitive, trimmed)
     const normalizedSuggestion = suggestedName.toLowerCase().trim();
+    const suggestionWithoutEmoji = normalizedSuggestion
+      .replace(/[\p{Emoji}]/gu, "")
+      .trim();
+
     for (const category of activeCategories) {
       const normalizedName = category.name.toLowerCase().trim();
-      // Check if names are similar (either contains the other, or same base name ignoring emoji)
-      const suggestionWithoutEmoji = normalizedSuggestion
-        .replace(/[\p{Emoji}]/gu, "")
-        .trim();
       const nameWithoutEmoji = normalizedName
         .replace(/[\p{Emoji}]/gu, "")
         .trim();
@@ -296,6 +363,48 @@ export class ProtoCategoriesService {
         normalizedName.includes(suggestionWithoutEmoji)
       ) {
         return category;
+      }
+    }
+
+    const nearDuplicates = activeCategories
+      .map((category) => {
+        const nameWithoutEmoji = category.name
+          .toLowerCase()
+          .trim()
+          .replace(/[\p{Emoji}]/gu, "")
+          .trim();
+        return {
+          category,
+          nameWithoutEmoji,
+          distance: levenshteinDistance(
+            suggestionWithoutEmoji,
+            nameWithoutEmoji,
+          ),
+        };
+      })
+      .filter(({ nameWithoutEmoji }) =>
+        isSimilarCategoryName(suggestionWithoutEmoji, nameWithoutEmoji),
+      )
+      .sort((left, right) => left.distance - right.distance)
+      .slice(0, MAX_LLM_DEDUP_CANDIDATES);
+
+    for (const { category } of nearDuplicates) {
+      try {
+        const isDuplicate = await this.checkCategoryDuplicate(
+          suggestedName,
+          category.name,
+          userId,
+        );
+        if (isDuplicate) {
+          this.logger.log(
+            `Levenshtein+LLM duplicate (proto): "${suggestedName}" → "${category.name}"`,
+          );
+          return category;
+        }
+      } catch (err) {
+        this.logger.warn(
+          `LLM duplicate check failed (proto) for "${suggestedName}" vs "${category.name}": ${err}`,
+        );
       }
     }
 
@@ -382,7 +491,6 @@ export class ProtoCategoriesService {
     }
 
     await this.dataSource.transaction(async (manager) => {
-      // Clear proto category reference from all threads first
       await manager.update(
         EmailThread,
         { protoCategoryId: protoCategory.id },
@@ -425,5 +533,105 @@ export class ProtoCategoriesService {
         isPromoted: item.isPromoted,
       })),
     };
+  }
+
+  /**
+   * Asks the LLM whether two category names refer to the same email category.
+   * Called after Levenshtein distance flags them as near-duplicates to avoid
+   * false positives from the fuzzy match alone.
+   *
+   * Returns false on any LLM/parse error so the caller falls through to
+   * creating a new proto-category rather than misclassifying an email.
+   */
+  private async checkCategoryDuplicate(
+    categoryA: string,
+    categoryB: string,
+    userId: string,
+  ): Promise<boolean> {
+    const promptConfig = getPrompt(UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE);
+    if (!promptConfig) {
+      this.logger.error(
+        "[CHECK-CATEGORY-DUPLICATE] check_category_duplicate prompt not found",
+      );
+      return false;
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      categoryA,
+      categoryB,
+    });
+
+    const response = await this.llmCoreService.generateText(
+      {
+        prompt,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: 0,
+        maxTokens: 128,
+        jsonMode: true,
+        operation: LLM_OP_CHECK_CATEGORY_DUPLICATE,
+      },
+      undefined,
+      userId,
+    );
+
+    const jsonMatch = response
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim()
+      .match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      this.logger.warn(
+        `[CHECK-CATEGORY-DUPLICATE] No JSON in response for "${categoryA}" vs "${categoryB}"`,
+      );
+      return false;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      isDuplicate?: boolean;
+      reasoning?: string;
+    };
+
+    const isDuplicate = parsed.isDuplicate === true;
+    this.logger.log(
+      `[CHECK-CATEGORY-DUPLICATE] "${categoryA}" vs "${categoryB}": isDuplicate=${isDuplicate} reason="${parsed.reasoning ?? ""}"`,
+    );
+    return isDuplicate;
+  }
+
+  /**
+   * Persists `alternateName` onto the given category's `alternateNames` array
+   * so future near-duplicate lookups can skip the LLM call.
+   *
+   * Wrapped in a transaction with a pessimistic row lock so concurrent dedup
+   * confirmations for the same category serialize their reads and writes — a
+   * plain spread+update would let two parallel callers each read the same
+   * `existing` array and overwrite each other, losing one of the names.
+   */
+  private async saveAlternateName(
+    category: UserContext,
+    alternateName: string,
+  ): Promise<void> {
+    const trimmed = alternateName.trim();
+
+    await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(UserContext);
+      const current = await repo.findOne({
+        where: { contextId: category.contextId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!current) return;
+      const existing = current.alternateNames ?? [];
+      if (existing.includes(trimmed)) return;
+      await repo.update(
+        { contextId: category.contextId },
+        { alternateNames: [...existing, trimmed] },
+      );
+    });
+
+    this.logger.log(
+      `Saved alternate name "${trimmed}" for category "${parseCategoryName(category.contextValue)}"`,
+    );
   }
 }

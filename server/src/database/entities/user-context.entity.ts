@@ -9,7 +9,10 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import {
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 import { User } from "./user.entity";
 
 export enum ContextKey {
@@ -126,6 +129,22 @@ export class UserContext {
       "needs dedup processing (decrypt, merge duplicates, keep oldest UUID).",
   })
   needsCategoryDedup: boolean;
+
+  /**
+   * Alternate spellings / LLM-generated variants of this EMAIL_CATEGORY name.
+   * When the LLM suggests a near-duplicate that Levenshtein + AI confirm as the
+   * same category, the misspelling is stored here so future lookups skip the LLM.
+   * Only meaningful on EMAIL_CATEGORY rows.
+   */
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment:
+      "Alternate names/misspellings for EMAIL_CATEGORY rows — enables fuzzy " +
+      "dedup without repeated LLM calls (issue #2065). Stored as encrypted " +
+      "JSON so names with commas survive round-trip and stay encrypted at rest.",
+  })
+  alternateNames: string[] | null;
 
   @ManyToOne(() => User, (user) => user.contexts, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })

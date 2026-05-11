@@ -90,6 +90,7 @@ export const UTILITY_PROMPT_IDS = {
   DETECT_OPT_OUT: "detect_opt_out",
   SUGGEST_CATEGORY_RULES: "suggest_category_rules",
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
+  CHECK_CATEGORY_DUPLICATE: "check_category_duplicate",
 } as const;
 
 /**
@@ -220,6 +221,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "detect-meeting-proposal.md",
     key: CALENDAR_PROMPT_IDS.DETECT_MEETING_PROPOSAL,
+  },
+  {
+    file: "check-category-duplicate.md",
+    key: UTILITY_PROMPT_IDS.CHECK_CATEGORY_DUPLICATE,
   },
 ];
 

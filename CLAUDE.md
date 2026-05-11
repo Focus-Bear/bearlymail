@@ -676,6 +676,7 @@ Token usage is tracked per operation type via `LLM_OP_*` constants in `server/sr
 | `search-ranking.md`                 | N/A (promptfoo test only)        | Rank search results                                           |
 | `consolidate-email-categories.md`   | `consolidate_categories`         | Merge duplicate/overlapping categories                        |
 | `generate-categories-from-other.md` | `generate_categories_from_other` | Suggest new categories from "Other" emails                    |
+| `check-category-duplicate.md`       | `check_category_duplicate`       | Determine if two category names are duplicates                |
 
 ### 8. `lastUserOperationAt` Pattern
 
@@ -1098,12 +1099,13 @@ This table shows what breaks if a required environment variable is missing:
 
 1. **All user-facing text must use `t()` from `useTranslation()`** - add keys to both `en.json` and `es.json`
 2. **Never hardcode LLM prompts** - use markdown files in `server/promptfoo/prompts/`
-3. **Always create migrations for schema changes** - never modify entities without a migration
-4. **Sensitive data must be encrypted** - use `encryptedColumnTransformer` or `encryptedJsonTransformer`
-5. **Verify TypeScript compilation** after changes: `cd server && npm run build` and `cd client && npm run build`
-6. **Business logic in services, not controllers** - controllers only handle HTTP
-7. **Use raw SQL for list views** (inbox, search) to avoid TypeORM entity hydration overhead
-8. **Performance budgets** - monitor `server/logs/performance.log`
+3. **Every new LLM prompt file MUST have a corresponding promptfoo test YAML** - add `<prompt-name>.yaml` in `server/promptfoo/` alongside the prompt. Tests must validate JSON structure, field types, and key behavioral cases (positive + negative). CI will run these on every PR.
+4. **Always create migrations for schema changes** - never modify entities without a migration
+5. **Sensitive data must be encrypted** - use `encryptedColumnTransformer` or `encryptedJsonTransformer`
+6. **Verify TypeScript compilation** after changes: `cd server && npm run build` and `cd client && npm run build`
+7. **Business logic in services, not controllers** - controllers only handle HTTP
+8. **Use raw SQL for list views** (inbox, search) to avoid TypeORM entity hydration overhead
+9. **Performance budgets** - monitor `server/logs/performance.log`
 
 ### Frontend Rules
 

@@ -42,22 +42,27 @@ export interface UserReencryptionResult {
 @Injectable()
 export class DataReencryptionService {
   private readonly logger = new Logger(DataReencryptionService.name);
-  private readonly tables: EncryptedTable[];
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly userEncryptionService: UserEncryptionService,
     private readonly kmsService: KmsEncryptionService,
-  ) {
-    this.tables = discoverEncryptedTables(dataSource);
-    this.logger.log(
-      `Discovered ${this.tables.length} user-scoped encrypted tables for re-encryption`,
-    );
-  }
+  ) {}
 
+  /**
+   * Discover tables on every call rather than caching at constructor time.
+   *
+   * `EncryptionModule` is `@Global()` and constructs early. Modules that use
+   * `forwardRef()` (EmailsModule etc.) finish wiring `forFeature` entities
+   * later — caching at constructor time produces an incomplete metadata
+   * snapshot and silently drops tables like `emails`, `email_threads`, and
+   * `user_contexts`. Walking `dataSource.entityMetadatas` is O(N entities)
+   * and cheap; the dry-run/real-run is the only caller and runs minutes per
+   * user, so the overhead is invisible.
+   */
   getTables(): readonly EncryptedTable[] {
-    return this.tables;
+    return discoverEncryptedTables(this.dataSource);
   }
 
   /**
@@ -82,9 +87,15 @@ export class DataReencryptionService {
     const userKey = await this.userEncryptionService.getUserKey(userId);
     const globalKey = encryptionKeyProvider.getGlobalKey();
     const result: UserReencryptionResult = { userId, dryRun, tables: [] };
+    const tables = this.getTables();
+    this.logger.log(
+      `Re-encrypting ${tables.length} tables for user ${userId}: ${tables
+        .map((tbl) => tbl.tableName)
+        .join(", ")}`,
+    );
 
     await runWithUserKey(userKey, async () => {
-      for (const table of this.tables) {
+      for (const table of tables) {
         const tableResult = await this.reencryptTable(
           userId,
           table,

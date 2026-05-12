@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
 
@@ -14,6 +14,8 @@ interface EmailDetailBodyProps {
  * Displays sanitized email body content inside an isolated iframe
  */
 export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody }) => {
+  const effectiveHtmlBody = htmlBody || (looksLikeHtml(body || '') ? body : undefined);
+
   return (
     <div
       style={{
@@ -23,8 +25,8 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody
         border: `1px solid ${theme.colors.border.light}`,
       }}
     >
-      {htmlBody ? (
-        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody, true)))} />
+      {effectiveHtmlBody ? (
+        <EmailBodyIframe html={sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)))} />
       ) : (
         <div
           style={{

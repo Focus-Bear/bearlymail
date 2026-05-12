@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import {
   extractCleanBody,
   extractCleanHtmlBody,
+  looksLikeHtml,
   removeSignature,
   sanitizeAndProcessHtml,
   stripHtmlTags,
@@ -465,6 +466,49 @@ describe('emailBodyUtils', () => {
       const result = extractCleanBody(htmlEmailBody, htmlBody);
       expect(result).not.toContain('<p>');
       expect(result).toContain('Reply sent from BearlyMail');
+    });
+  });
+
+  describe('looksLikeHtml', () => {
+    it('returns true for content with <p> tags', () => {
+      expect(looksLikeHtml('<p>Hello world</p>')).toBe(true);
+    });
+
+    it('returns true for content with <br> tags', () => {
+      expect(looksLikeHtml('Line one<br>Line two')).toBe(true);
+    });
+
+    it('returns true for content with <div> tags', () => {
+      expect(looksLikeHtml('<div class="foo">content</div>')).toBe(true);
+    });
+
+    it('returns true for content with <strong> tags', () => {
+      expect(looksLikeHtml('This is <strong>bold</strong> text')).toBe(true);
+    });
+
+    it('returns true for content with <a> tags', () => {
+      expect(looksLikeHtml('Click <a href="https://example.com">here</a>')).toBe(true);
+    });
+
+    it('returns true for content with heading tags', () => {
+      expect(looksLikeHtml('<h1>Title</h1>')).toBe(true);
+      expect(looksLikeHtml('<h3>Section</h3>')).toBe(true);
+    });
+
+    it('returns true for content with style tags', () => {
+      expect(looksLikeHtml('<style>.body { color: red; }</style>')).toBe(true);
+    });
+
+    it('returns false for plain text', () => {
+      expect(looksLikeHtml('Hello, this is a plain text email.')).toBe(false);
+    });
+
+    it('returns false for empty string', () => {
+      expect(looksLikeHtml('')).toBe(false);
+    });
+
+    it('returns false for text with only angle brackets that are not tags', () => {
+      expect(looksLikeHtml('value < 10 and value > 5')).toBe(false);
     });
   });
 });

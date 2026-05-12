@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody, looksLikeHtml, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 import { EmailBodyIframe } from './EmailBodyIframe';
 
@@ -32,9 +32,10 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({ body, htmlBody }
     );
   }
 
-  const isHtml = Boolean(htmlBody);
-  const processedContent = htmlBody
-    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))
+  const effectiveHtmlBody = htmlBody || (looksLikeHtml(body || '') ? body : undefined);
+  const isHtml = Boolean(effectiveHtmlBody);
+  const processedContent = effectiveHtmlBody
+    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(effectiveHtmlBody, true)))
     : removeSignature(body || '');
 
   // Plain-text path: use whiteSpace: pre-wrap to preserve \n newlines

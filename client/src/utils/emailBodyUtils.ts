@@ -202,6 +202,15 @@ export function extractCleanHtmlBody(htmlBody: string): string {
   return extractCleanHtmlBodyWithMeta(htmlBody).html;
 }
 
+/**
+ * Returns true when text appears to be HTML content (contains common HTML tags).
+ * Used to detect when the plain-text `body` field actually contains HTML markup
+ * so it can be routed to the HTML rendering path instead of displaying raw tags.
+ */
+export function looksLikeHtml(text: string): boolean {
+  return /<(p|br|div|span|style|html|body|table|ul|ol|li|h[1-6]|a|img|strong|em)\b[^>]*>/i.test(text);
+}
+
 const URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g;
 
 function isInsideAnchor(node: Node): boolean {

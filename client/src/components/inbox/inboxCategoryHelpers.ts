@@ -29,20 +29,33 @@ type SplitViewHandle = { openEmail: (id: string) => void; closeEmail: () => void
  * navigate to the email that visually replaces it and update the left-panel highlight.
  *
  * Uses display order (category-grouped) so the "next" email matches what the user
- * sees on screen, not the flat server-sort order. Fixes: wrong email opened + wrong
- * highlight after split-view actions.
+ * sees on screen, not the flat server-sort order. Only considers emails in expanded
+ * (visible) categories — emails inside collapsed drawers are invisible to the user
+ * and should never be navigated to. Fixes: wrong email opened + wrong highlight after
+ * split-view actions.
  */
 export function navigateAfterSplitViewAction(
   removedEmailId: string,
   emails: Email[],
   mode: InboxMode,
   splitView: SplitViewHandle,
-  setSelectedEmailIndex: (index: number) => void
+  setSelectedEmailIndex: (index: number) => void,
+  expandedCategories?: Set<string>
 ): void {
   // Include the removed email even if it is already marked archived so we can
   // determine its visual position before it disappears from the list.
   const activeWithRemoved = emails.filter(email => !email.isArchived || email.id === removedEmailId);
-  const displayOrdered = getDisplayOrderedEmails(activeWithRemoved, mode);
+
+  // Only consider emails in expanded (visible) categories. Filter the grouped
+  // output directly so the visibility check uses the same category key the UI
+  // renders (including the phishing override inside groupEmailsByCategory).
+  // If expandedCategories is not provided, fall back to all emails (safe default).
+  const groupedEmails = groupEmailsByCategory(activeWithRemoved, mode);
+  const displayOrdered = (
+    expandedCategories
+      ? groupedEmails.filter(group => expandedCategories.has(group.category))
+      : groupedEmails
+  ).flatMap(group => group.emails);
   const removedDisplayIndex = displayOrdered.findIndex(email => email.id === removedEmailId);
 
   // Remaining visible emails after the action, in display order

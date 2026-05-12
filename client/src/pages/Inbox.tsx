@@ -427,12 +427,12 @@ const InboxView: React.FC = () => {
                 clearFilters();
                 fetchEmails();
               }}
-              onSplitViewArchive={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex)}
-              onSplitViewSnooze={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex)}
+              onSplitViewArchive={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}
+              onSplitViewSnooze={id => navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories)}
               onSplitViewPrioritySet={(id, count) => {
                 const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
                 emailActions.handleSetStarCount(id, count, fakeEvent);
-                navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex);
+                navigateAfterSplitViewAction(id, emails, mode, splitView, setSelectedEmailIndex, expandedCategories);
               }}
             />
           </>

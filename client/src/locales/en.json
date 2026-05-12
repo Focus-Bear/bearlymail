@@ -307,7 +307,7 @@
     "urgentBadge": "🚨 Urgent ({{score}})",
     "urgent": "Urgent",
     "highUrgencyEmail": "High urgency email",
-    "emergencyDelivery": "Emergency – delivered early",
+    "emergencyDelivery": "Urgent – delivered early",
     "emergencyDeliveryTooltip": "This email was delivered outside the regular batch window because it was identified as high priority",
     "debugTitle": "Delivery Debug Info",
     "debugPriorityScore": "Priority Score",
@@ -2911,7 +2911,7 @@
         },
         "banner": {
           "prefix": "Next batch in",
-          "time": "20h 8m",
+          "time": "3h 48m",
           "suffix": "· last checked for urgent emails: just now"
         },
         "topic": {
@@ -2923,7 +2923,7 @@
           "from": "Aria Patel",
           "customerChip": "👤 Team Member",
           "priorityChip": "High (74)",
-          "receivedAt": "9 May, 19:00",
+          "receivedAt": "10:32am",
           "subject": "Onboarding flow: sharp drop-off on step 3, can we ship a fix today?",
           "body": "Onboarding step 3 has a 41% drop-off at the password screen. Aria wants to jump on a quick call today to ship a fix."
         },
@@ -2945,7 +2945,7 @@
         "empty": {
           "triage": {
             "title": "Inbox zero in Triage",
-            "sub": "Nothing to decide on. Next batch arrives in 20h 8m."
+            "sub": "Nothing to decide on. Next batch arrives in 3h 48m."
           },
           "action": {
             "title": "No new emails in Action",
@@ -2962,8 +2962,7 @@
           "ohShit": "Bumped to top of Action — tap the tab to view"
         },
         "floats": {
-          "urgent": "Urgent customer reply — broke through",
-          "quiet": "0 emails before 9:00 AM"
+          "urgent": "Urgent team reply — broke through"
         }
       },
       "problem": {
@@ -3238,6 +3237,44 @@
           "readStory": "Read the story"
         },
         "closeLabel": "Close"
+      },
+      "github": {
+        "kicker": "Bonus for engineers",
+        "titlePre": "GitHub emails, ",
+        "titleEm": "summarised",
+        "titleAfter": " at a glance.",
+        "sub": "Stop opening every notification just to learn the build failed. BearlyMail groups GitHub email by intent — new issues, QA failures, QA passes, PR reviews — and surfaces the real state on each card. Scan the categories, act only on what matters.",
+        "perks": {
+          "qa": "QA passed / failed shown inline, no clicking through",
+          "review": "PR review state + linked project at a glance",
+          "issues": "New issues grouped separately from chatter",
+          "grouped": "Bot noise auto-batched, never interrupts"
+        },
+        "categories": {
+          "issues": {
+            "prefix": "New issues:",
+            "body": " Bug reports and feature requests opened in your repos"
+          },
+          "qaFailed": {
+            "prefix": "QA failed:",
+            "body": " Pipeline runs that need your attention"
+          },
+          "qaPassed": {
+            "prefix": "QA passed:",
+            "body": " Green builds, safe to deprioritise"
+          },
+          "prs": {
+            "prefix": "Code:",
+            "body": " Pull requests awaiting your review or response"
+          }
+        },
+        "qa": {
+          "passLabel": "QA passed",
+          "failLabel": "QA failed",
+          "workflow": "Workflow",
+          "trigger": "Trigger:"
+        },
+        "collapsedHint": "Read later in your next batch"
       }
     }
   },

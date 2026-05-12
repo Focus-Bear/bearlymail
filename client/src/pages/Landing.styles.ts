@@ -302,7 +302,10 @@ export const LANDING_STYLES = `
   border-radius: 12px;
   background: #fff;
   transition: box-shadow .2s ease;
+  position: relative;
+  overflow: hidden;
 }
+.bearlymail-landing .email-card-with-ribbon { padding-top: 38px; }
 .bearlymail-landing .email-card.flying { animation: blm-fly-to-tab 720ms cubic-bezier(.55,0,.4,1) forwards; pointer-events: none; }
 @keyframes blm-fly-to-tab {
   0%   { transform: translate(0, 0) scale(1); opacity: 1; }
@@ -834,6 +837,44 @@ export const LANDING_STYLES = `
 
 @media (max-width: 980px) { .bearlymail-landing .demo { transform: none; } }
 
+.bearlymail-landing .github-section { background: var(--cream-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.bearlymail-landing .gh-perks {
+  list-style: none; padding: 0; margin: 0 auto 40px;
+  max-width: 880px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+.bearlymail-landing .gh-perks li {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; color: var(--ink-2); line-height: 1.35;
+}
+.bearlymail-landing .gh-perk-ic {
+  width: 22px; height: 22px; border-radius: 999px;
+  background: var(--sun-pale); color: var(--sun-dark);
+  display: inline-grid; place-items: center;
+  font-size: 11px; font-weight: 700; flex: none;
+}
+@media (max-width: 880px) {
+  .bearlymail-landing .gh-perks { grid-template-columns: 1fr 1fr; }
+}
+
+.bearlymail-landing .gh-demo-card { max-width: 880px; margin: 0 auto; }
+.bearlymail-landing .gh-email-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 4px; flex-wrap: wrap;
+}
+.bearlymail-landing .gh-email-from { font-size: 13px; color: var(--ink); display: inline-flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.bearlymail-landing .gh-from-name { font-weight: 600; }
+.bearlymail-landing .gh-from-handle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px; color: var(--ink-4); font-weight: 400;
+}
+.bearlymail-landing .gh-email-time { font-size: 11.5px; color: var(--ink-4); white-space: nowrap; }
+.bearlymail-landing .gh-email-subject {
+  font-size: 14px; font-weight: 500; color: var(--ink-2);
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 640px) {
   .bearlymail-landing header.site .row { height: 60px; }
   .bearlymail-landing header.site .nav { display: none; }
@@ -918,6 +959,8 @@ export const LANDING_STYLES = `
 
   .bearlymail-landing footer.site .row { gap: 16px; }
   .bearlymail-landing footer.site .links { gap: 16px; }
+
+  .bearlymail-landing .gh-perks { grid-template-columns: 1fr; gap: 10px; margin-bottom: 28px; }
 
   .bearlymail-landing .modal { padding: 24px 20px; }
   .bearlymail-landing .modal h3 { font-size: 22px; }

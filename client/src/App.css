@@ -308,3 +308,41 @@ textarea {
   animation: tabPulse 700ms ease-out forwards;
   transform-origin: center;
 }
+
+/* Subtle pulsing affordance around the AI-recommended action (star count or
+ * archive). Apply the .animate-recommended-pulse class to every email's
+ * recommended button; CSS picks one to actually animate at any given time:
+ *  - by default, the first email in the list (data-email-index="0")
+ *  - if the user is hovering a different email in the same list, that one
+ *  - cursor directly on the button: pause so the user can read it. */
+@keyframes recommendedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(233, 144, 44, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(233, 144, 44, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(233, 144, 44, 0);
+  }
+}
+
+.animate-recommended-pulse {
+  border-radius: 8px;
+}
+
+[data-email-index='0'] .animate-recommended-pulse {
+  animation: recommendedPulse 1.9s ease-out infinite;
+}
+
+[data-email-index]:hover .animate-recommended-pulse {
+  animation: recommendedPulse 1.9s ease-out infinite;
+}
+
+[data-email-index='0']:has(~ [data-email-index]:hover) .animate-recommended-pulse {
+  animation: none;
+}
+
+.animate-recommended-pulse:hover {
+  animation-play-state: paused;
+}

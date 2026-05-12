@@ -15,9 +15,6 @@ import { MODE_TRIAGE } from 'constants/strings';
 
 const EVENT_TYPE_CLICK = 'click';
 
-const SUGGESTED_EMOJI_MAP: Record<number, string> = { 1: '😌', 2: '😅', 3: '🙀' };
-const getSuggestedEmoji = (count: number): string => SUGGESTED_EMOJI_MAP[count] || '';
-
 interface UnsubscribeOrBlockProps {
   email: Email;
   t: (tKey: string) => string;
@@ -69,84 +66,6 @@ const UnsubscribeOrBlock: React.FC<UnsubscribeOrBlockProps> = ({ email, t, onBlo
   );
 };
 
-const HOVER_OPACITY = '1';
-const DEFAULT_OPACITY = '0.7';
-
-interface SuggestionSectionProps {
-  suggestion: TriageSuggestion;
-  email: Email;
-  onSetStarCount: (emailId: string, starCount: number) => Promise<void>;
-  onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
-  t: (tKey: string, opts?: Record<string, unknown>) => string;
-}
-
-const SuggestionSection: React.FC<SuggestionSectionProps> = ({ suggestion, email, onSetStarCount, onArchive, t }) => {
-  const labelMap: Record<number, string> = { 1: t('inbox.canWait'), 2: t('inbox.getOnIt'), 3: t('inbox.ohShit') };
-  const getSuggestedLabel = (count: number) => labelMap[count] || '';
-  const hoverStyle = { opacity: HOVER_OPACITY };
-  const defaultStyle = { opacity: DEFAULT_OPACITY };
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-      {suggestion.suggestedStarCount > 0 ? (
-        <div
-          onClick={async event => {
-            event.stopPropagation();
-            captureEvent(ANALYTICS_EVENTS.TRIAGE_SUGGESTION_ACCEPTED, {
-              email_id: email.id,
-              suggested_star_count: suggestion.suggestedStarCount,
-            });
-            await onSetStarCount(email.id, suggestion.suggestedStarCount);
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            cursor: 'pointer',
-            opacity: 0.7,
-            transition: 'opacity 0.2s',
-            fontSize: theme.typography.fontSize.sm,
-            color: theme.colors.text.secondary,
-          }}
-          onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
-          onMouseLeave={event => Object.assign(event.currentTarget.style, defaultStyle)}
-          title={t('inbox.clickToSetPriority', { priority: getSuggestedLabel(suggestion.suggestedStarCount) })}
-        >
-          <span style={{ fontSize: '1.2rem' }}>{getSuggestedEmoji(suggestion.suggestedStarCount)}</span>
-          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
-            {t('inbox.suggested')}: {getSuggestedLabel(suggestion.suggestedStarCount)}
-          </span>
-        </div>
-      ) : (
-        <div
-          onClick={async event => {
-            event.stopPropagation();
-            captureEvent(ANALYTICS_EVENTS.TRIAGE_SUGGESTION_ARCHIVE_ACCEPTED, { email_id: email.id });
-            await onArchive(email.id, event);
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            cursor: 'pointer',
-            opacity: 0.7,
-            transition: 'opacity 0.2s',
-            fontSize: theme.typography.fontSize.sm,
-            color: theme.colors.text.secondary,
-          }}
-          onMouseEnter={event => Object.assign(event.currentTarget.style, hoverStyle)}
-          onMouseLeave={event => Object.assign(event.currentTarget.style, defaultStyle)}
-          title={t('inbox.clickToArchive')}
-        >
-          <span>{EMOJI_INBOX}</span>
-          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
-            {t('inbox.suggested')}: {t('inbox.archive')}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-};
-
 interface EmailOtherActionsGroupProps {
   email: Email;
   mode: InboxMode;
@@ -163,6 +82,9 @@ interface EmailOtherActionsGroupProps {
   onBlockSender: (emailId: string, event: React.MouseEvent) => void;
   onSnooze: (emailId: string) => Promise<void>;
   t: (tKey: string, opts?: Record<string, unknown>) => string;
+  /** When true and the suggestion is to archive, pulses the archive button
+   * to draw the eye to the recommended action. */
+  pulseArchive?: boolean;
 }
 
 const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
@@ -178,6 +100,7 @@ const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
   onBlockSender,
   onSnooze,
   t,
+  pulseArchive,
 }) => (
   <>
     <div
@@ -190,6 +113,7 @@ const EmailOtherActionsGroup: React.FC<EmailOtherActionsGroupProps> = ({
       }}
     >
       <button
+        className={pulseArchive ? 'animate-recommended-pulse' : undefined}
         onClick={event => {
           event.stopPropagation();
           onArchive(email.id, event);
@@ -270,6 +194,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   const { t } = useTranslation();
   const isSnoozeInputVisible = snoozeInput.showSnoozeInput === email.id;
   const snoozeValue = snoozeInput.getSnoozeValue(email.id);
+  const activeSuggestion = mode === MODE_TRIAGE ? suggestion : null;
 
   return (
     <div onClick={event => event.stopPropagation()}>
@@ -306,19 +231,13 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
             >
               {t('inbox.prioritise')}:
             </div>
-            <PrioritySlider email={email} keyboardHint={keyboardHint} onSetStarCount={onSetStarCount} />
-          </div>
-
-          {/* Suggested section */}
-          {suggestion && mode === MODE_TRIAGE && (
-            <SuggestionSection
-              suggestion={suggestion}
+            <PrioritySlider
               email={email}
+              keyboardHint={keyboardHint}
               onSetStarCount={onSetStarCount}
-              onArchive={onArchive}
-              t={t}
+              suggestion={activeSuggestion}
             />
-          )}
+          </div>
 
           <EmailOtherActionsGroup
             email={email}
@@ -333,6 +252,7 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
             onBlockSender={onBlockSender}
             onSnooze={onSnooze}
             t={t}
+            pulseArchive={activeSuggestion?.suggestedArchive === true}
           />
         </div>
       </div>

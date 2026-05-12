@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, TriageSuggestion } from 'types/email';
 
 interface PrioritySliderProps {
   email: Email;
@@ -10,6 +10,11 @@ interface PrioritySliderProps {
     hideHint: () => void;
   };
   onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
+  /** If present, the button matching suggestion.suggestedStarCount gets the
+   * .animate-recommended-pulse class. CSS in App.css picks one of the
+   * marked buttons to actually animate (first email by default, or whichever
+   * email the user is hovering). */
+  suggestion?: TriageSuggestion | null;
 }
 
 const PRIORITY_LEVELS = [
@@ -20,9 +25,10 @@ const PRIORITY_LEVELS = [
 
 const INACTIVE_OPACITY = 0.4;
 
-export const PrioritySlider: React.FC<PrioritySliderProps> = ({ email, keyboardHint, onSetStarCount }) => {
+export const PrioritySlider: React.FC<PrioritySliderProps> = ({ email, keyboardHint, onSetStarCount, suggestion }) => {
   const { t } = useTranslation();
   const currentStarCount = email.starCount || 0;
+  const recommendedStarCount = suggestion && suggestion.suggestedStarCount > 0 ? suggestion.suggestedStarCount : null;
 
   return (
     <div
@@ -39,6 +45,7 @@ export const PrioritySlider: React.FC<PrioritySliderProps> = ({ email, keyboardH
       {PRIORITY_LEVELS.map(level => (
         <button
           key={level.value}
+          className={level.value === recommendedStarCount ? 'animate-recommended-pulse' : undefined}
           onClick={event => {
             event.stopPropagation();
             const newCount = currentStarCount === level.value ? 0 : level.value;

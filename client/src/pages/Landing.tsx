@@ -5,6 +5,7 @@ import {
   FaqSection,
   FinalCta,
   FounderSection,
+  GithubIntegrationSection,
   HeroSection,
   HowItWorks,
   ProblemSection,
@@ -51,6 +52,7 @@ const Landing: React.FC = () => {
       <CompareSection />
       <FounderSection />
       <FaqSection />
+      <GithubIntegrationSection />
       <FinalCta />
       <SiteFooter />
       <WaitlistModal />

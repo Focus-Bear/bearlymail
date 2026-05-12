@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { EmergencyDeliveryRibbon } from 'components/inbox/EmergencyDeliveryRibbon';
+
 import {
   BUMP_HIGHLIGHT_MS,
   type DemoTab,
@@ -159,9 +161,6 @@ export const LiveDemo: React.FC = () => {
       <div className="chip-float chip-1">
         <span className="ic">⚡</span> {t('landing.v2.demo.floats.urgent')}
       </div>
-      <div className="chip-float chip-2">
-        <span className="ic">🌙</span> {t('landing.v2.demo.floats.quiet')}
-      </div>
       <div className="demo" role="img" aria-label={t('landing.v2.demo.title')}>
         <div className="demo-bar">
           <div className="demo-dots">
@@ -231,7 +230,12 @@ export const LiveDemo: React.FC = () => {
             </span>
           </div>
 
-          <div ref={cardRef} className={`email-card${flying ? ' flying' : ''}`} hidden={!cardVisible}>
+          <div
+            ref={cardRef}
+            className={`email-card email-card-with-ribbon${flying ? ' flying' : ''}`}
+            hidden={!cardVisible}
+          >
+            <EmergencyDeliveryRibbon />
             <div className="email-head">
               <div className="email-from">
                 <b>{t('landing.v2.demo.email.from')}</b>

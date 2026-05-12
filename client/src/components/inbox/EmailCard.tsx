@@ -1,9 +1,8 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode } from 'types/email';
 
-import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
+import { EmergencyDeliveryRibbon } from 'components/inbox/EmergencyDeliveryRibbon';
 import { MODE_TRIAGE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
@@ -29,7 +28,6 @@ const getBorderColor = (isSelected: boolean, isRead: boolean, wasDeliveredEarly:
 };
 
 export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardClick, children, mode }) => {
-  const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
   const showEmergencyRibbon = wasDeliveredEarly && mode === MODE_TRIAGE;
@@ -66,29 +64,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, isSelected, onCardC
         event.currentTarget.style.boxShadow = theme.shadows.sm;
       }}
     >
-      {/* Emergency delivery label */}
-      {showEmergencyRibbon && (
-        <div
-          title={t('inbox.emergencyDeliveryTooltip')}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            background: `linear-gradient(90deg, ${theme.colors.warning.main} 0%, ${theme.colors.warning.light} 100%)`,
-            color: theme.colors.warning.main,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: FONT_WEIGHT_SEMIBOLD,
-            textAlign: 'center',
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            borderBottom: `1px solid ${theme.colors.warning.main}`,
-          }}
-        >
-          {t('inbox.emergencyDelivery')}
-        </div>
-      )}
+      {showEmergencyRibbon && <EmergencyDeliveryRibbon />}
       {children}
     </div>
   );

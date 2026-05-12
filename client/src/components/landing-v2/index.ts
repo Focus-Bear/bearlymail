@@ -2,6 +2,7 @@ export { CompareSection } from './CompareSection';
 export { FaqSection } from './FaqSection';
 export { FinalCta } from './FinalCta';
 export { FounderSection } from './FounderSection';
+export { GithubIntegrationSection } from './GithubIntegrationSection';
 export { HeroSection } from './HeroSection';
 export { HowItWorks } from './HowItWorks';
 export { ProblemSection } from './ProblemSection';

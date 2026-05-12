@@ -182,10 +182,28 @@ export class GitHubAppService {
   }
 
   /**
+   * Store the connected GitHub login on the user record. Best-effort —
+   * the GitHub connection is still useful without it, so callers should
+   * not abort the OAuth flow if this fails.
+   */
+  async storeGithubUsernameForUser(
+    userId: string,
+    githubUsername: string,
+  ): Promise<void> {
+    await this.usersService.update(userId, { githubUsername });
+    this.logger.log(
+      `Stored GitHub username "${githubUsername}" for user ${userId}`,
+    );
+  }
+
+  /**
    * Remove GitHub token for user
    */
   async removeTokenForUser(userId: string): Promise<void> {
-    await this.usersService.update(userId, { githubToken: null });
+    await this.usersService.update(userId, {
+      githubToken: null,
+      githubUsername: null,
+    });
     this.logger.log(`Removed GitHub token for user ${userId}`);
   }
 

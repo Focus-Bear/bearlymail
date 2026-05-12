@@ -139,8 +139,11 @@ export const GitHubLinkCard: React.FC<GitHubLinkCardProps> = ({ link, suggestedA
         {!isIssue && (
           <GitHubPRStatusBadges
             reviewStatus={status.reviewStatus}
+            reviewerDetail={status.reviewerDetail}
+            checks={status.checks}
             commentsCount={status.commentsCount}
             mergeable={status.mergeable}
+            author={status.author}
           />
         )}
         <GitHubLabels labels={status.labels || []} />

@@ -1200,6 +1200,24 @@
     "pr": "PR",
     "project": "Proyecto",
     "readyToMerge": "Listo para fusionar",
+    "approvalsCount": "{{count}} aprobación",
+    "approvalsCount_plural": "{{count}} aprobaciones",
+    "changesRequestedCount": "{{count}} cambio solicitado",
+    "changesRequestedCount_plural": "{{count}} cambios solicitados",
+    "awaitingReviewFrom": "Esperando a {{reviewers}}",
+    "bot": {
+      "ariaLabel": "Creado por el bot {{name}}"
+    },
+    "ci": {
+      "passing": "CI correcto",
+      "pending": "CI en ejecución",
+      "failing": "CI fallando",
+      "failingWithNames": "CI fallando: {{names}}",
+      "passingTitle": "{{count}} verificación correcta",
+      "passingTitle_plural": "{{count}} verificaciones correctas",
+      "connectPrompt": "Conectar para ver estado CI",
+      "connecting": "Conectando…"
+    },
     "refresh": "Actualizar",
     "refreshing": "Actualizando...",
     "removeToken": "Eliminar token",

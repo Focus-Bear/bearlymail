@@ -197,6 +197,17 @@ export class User {
   githubToken: string;
 
   @Column({
+    type: "text",
+    nullable: true,
+    comment:
+      "Connected GitHub account's login (e.g. 'jeremynagel'). Used to match " +
+      "the user against PR authors / requested reviewers when surfacing " +
+      "GitHub signals on the inbox card. Not encrypted because it isn't PII " +
+      "in the usual sense — a public GitHub handle, populated on OAuth callback.",
+  })
+  githubUsername: string | null;
+
+  @Column({
     nullable: true,
     comment: "RevenueCat customer ID",
   })

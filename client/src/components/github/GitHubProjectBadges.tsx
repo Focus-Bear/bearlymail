@@ -13,13 +13,19 @@ import {
   COLOR_GITHUB_OPEN_BG,
   COLOR_GITHUB_OPEN_FG,
 } from 'constants/colors';
+import { EMOJI_CHECK, EMOJI_CLOCK, EMOJI_ROBOT, EMOJI_WARNING } from 'constants/emojis';
 import {
+  GITHUB_CHECKS_STATE_FAILING,
+  GITHUB_CHECKS_STATE_PASSING,
   GITHUB_REVIEW_STATUS_APPROVED,
   GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
   GITHUB_STATUS_CLOSED,
   GITHUB_STATUS_MERGED,
   GITHUB_STATUS_OPEN,
 } from 'constants/strings';
+
+import { getBotLabel } from './githubBot';
+import { type InboxCIResolved, resolveInboxCI } from './githubChecks';
 
 interface GitHubProjectBadgesProps {
   emailId: string;
@@ -54,6 +60,9 @@ interface GitHubLinkBadgeProps {
   link: GitHubLink;
   stateText: string;
   reviewStatus: string | null;
+  botLabel: string | null;
+  approvalCount: number;
+  ciSignal: InboxCIResolved | null;
   isPR: boolean;
   stateColor: { bg: string; text: string; border: string };
 }
@@ -94,7 +103,38 @@ const GitHubProjectItem: React.FC<{ project: { name: string; status?: string } }
   </div>
 );
 
-const GitHubLinkBadge: React.FC<GitHubLinkBadgeProps> = ({ link, stateText, reviewStatus, isPR, stateColor }) => (
+const ciSignalColor = (state: InboxCIResolved['state']): string => {
+  if (state === GITHUB_CHECKS_STATE_PASSING) {
+    return theme.colors.accent.success;
+  }
+  if (state === GITHUB_CHECKS_STATE_FAILING) {
+    return theme.colors.accent.warning;
+  }
+  return theme.colors.text.secondary;
+};
+
+const ciSignalEmoji = (state: InboxCIResolved['state']): string => {
+  if (state === GITHUB_CHECKS_STATE_PASSING) {
+    return EMOJI_CHECK;
+  }
+  if (state === GITHUB_CHECKS_STATE_FAILING) {
+    return EMOJI_WARNING;
+  }
+  return EMOJI_CLOCK;
+};
+
+const GitHubLinkBadge: React.FC<GitHubLinkBadgeProps> = ({
+  link,
+  stateText,
+  reviewStatus,
+  botLabel,
+  approvalCount,
+  ciSignal,
+  isPR,
+  stateColor,
+}) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
     <a
       href={link.url}
@@ -141,10 +181,37 @@ const GitHubLinkBadge: React.FC<GitHubLinkBadgeProps> = ({ link, stateText, revi
         }}
       >
         {reviewStatus}
+        {approvalCount > 1 ? ` (${approvalCount})` : ''}
+      </span>
+    )}
+    {ciSignal && (
+      <span
+        title={ciSignal.titleText || undefined}
+        style={{
+          fontSize: '10px',
+          color: ciSignalColor(ciSignal.state),
+          fontWeight: theme.typography.fontWeight.medium,
+          paddingLeft: theme.spacing.sm,
+        }}
+      >
+        {ciSignalEmoji(ciSignal.state)} {t(ciSignal.labelKey, ciSignal.labelValues)}
+      </span>
+    )}
+    {botLabel && (
+      <span
+        style={{
+          fontSize: '10px',
+          color: theme.colors.text.secondary,
+          fontWeight: theme.typography.fontWeight.medium,
+          paddingLeft: theme.spacing.sm,
+        }}
+      >
+        {EMOJI_ROBOT} {botLabel}
       </span>
     )}
   </div>
-);
+  );
+};
 
 function useGitHubLinks(emailId: string, initialLinks: GitHubLink[] | undefined, skipFetch: boolean) {
   const [links, setLinks] = useState<GitHubLink[]>(initialLinks || []);
@@ -275,6 +342,9 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
               stateColor={stateColor}
               stateText={getStateText(link)}
               reviewStatus={getReviewStatusText(link)}
+              botLabel={getBotLabel(link.status?.author)}
+              approvalCount={link.status?.reviewerDetail?.approvalCount ?? 0}
+              ciSignal={resolveInboxCI(link.status?.checks)}
               isPR={link.type === GITHUB_TYPE_PR}
             />
           );

@@ -110,6 +110,13 @@ export const CALENDAR_ACTION_PREFIX = 'calendar_' as const;
 // GitHub review status
 export const GITHUB_REVIEW_STATUS_APPROVED = 'approved' as const;
 export const GITHUB_REVIEW_STATUS_CHANGES_REQUESTED = 'changes_requested' as const;
+export const GITHUB_REVIEW_STATUS_PENDING = 'pending' as const;
+
+// GitHub CI checks rollup states
+export const GITHUB_CHECKS_STATE_PASSING = 'passing' as const;
+export const GITHUB_CHECKS_STATE_FAILING = 'failing' as const;
+export const GITHUB_CHECKS_STATE_PENDING = 'pending' as const;
+export const GITHUB_CHECKS_STATE_NONE = 'none' as const;
 
 // Follow-up send status
 export const FOLLOW_UP_SEND_STATUS_SENT = 'sent' as const;

@@ -15,12 +15,36 @@ import {
   ProjectStatusOptionsGraphQLResponse,
   SearchResultItem,
 } from "./github-api.types";
+import { GitHubPrEnrichmentService } from "./github-pr-enrichment.service";
 
-export type { GitHubIssueStatus, GitHubPRStatus } from "./github-api.types";
+export type {
+  GitHubChecksSummary,
+  GitHubIssueStatus,
+  GitHubPRStatus,
+  GitHubReviewerDetail,
+} from "./github-api.types";
+
+/**
+ * Overall review-status values exposed on a PR card. Lifted to module-level
+ * constants so the derivation in fetchPRStatus uses named values instead of
+ * raw string literals (and keeps the union type below in sync with them).
+ */
+const REVIEW_STATUS_APPROVED = "approved";
+const REVIEW_STATUS_CHANGES_REQUESTED = "changes_requested";
+const REVIEW_STATUS_PENDING = "pending";
+type PrReviewStatus =
+  | typeof REVIEW_STATUS_APPROVED
+  | typeof REVIEW_STATUS_CHANGES_REQUESTED
+  | typeof REVIEW_STATUS_PENDING
+  | null;
 
 @Injectable()
 export class GitHubApiService {
   private readonly logger = new Logger(GitHubApiService.name);
+
+  constructor(
+    private readonly prEnrichmentService: GitHubPrEnrichmentService,
+  ) {}
 
   /**
    * Create an authenticated Octokit client
@@ -323,6 +347,12 @@ export class GitHubApiService {
           login: assignee.login,
           avatar_url: assignee.avatar_url,
         })),
+        author: issue.user
+          ? {
+              login: issue.user.login,
+              type: issue.user.type as "User" | "Bot" | "Organization",
+            }
+          : undefined,
         projects: projects.length > 0 ? projects : undefined,
       };
     } catch (error: unknown) {
@@ -392,8 +422,9 @@ export class GitHubApiService {
   }
 
   /**
-   * Fetch PR details, reviews and comments in parallel, defaulting reviews/comments to
-   * empty arrays on error so a single failing sub-request does not abort the whole fetch.
+   * Fetch PR details, reviews, comments and requested reviewers in parallel, defaulting
+   * sub-fetches to empty arrays on error so a single failing call does not abort the whole
+   * fetch (a 403 on requested-reviewers must not lose us the PR data, etc.).
    */
   private async fetchPRApiData(
     octokit: Octokit,
@@ -401,57 +432,50 @@ export class GitHubApiService {
     repo: string,
     prNumber: number,
   ) {
-    const [prResponse, reviews, comments] = await Promise.all([
-      octokit.rest.pulls.get({ owner, repo, pull_number: prNumber }),
-      octokit.rest.pulls
-        .listReviews({ owner, repo, pull_number: prNumber })
-        .then((resp) => resp.data)
-        .catch(() => [] as never[]),
-      octokit.rest.issues
-        .listComments({ owner, repo, issue_number: prNumber })
-        .then((resp) => resp.data)
-        .catch(() => [] as never[]),
-    ]);
+    const [prResponse, reviews, comments, requestedReviewersResp] =
+      await Promise.all([
+        octokit.rest.pulls.get({ owner, repo, pull_number: prNumber }),
+        octokit.rest.pulls
+          .listReviews({ owner, repo, pull_number: prNumber })
+          .then((resp) => resp.data)
+          .catch(() => [] as never[]),
+        octokit.rest.issues
+          .listComments({ owner, repo, issue_number: prNumber })
+          .then((resp) => resp.data)
+          .catch(() => [] as never[]),
+        octokit.rest.pulls
+          .listRequestedReviewers({ owner, repo, pull_number: prNumber })
+          .then((resp) => resp.data)
+          .catch(() => ({ users: [], teams: [] }) as never),
+      ]);
     return {
       pr: prResponse.data,
       reviews,
       comments,
+      requestedReviewersResp,
     };
   }
 
   /**
-   * Determine the overall review status for a PR from its list of individual reviews.
-   * Rules: changes_requested beats approved; pending if there are reviews but none approved/rejected.
+   * Roll up reviewerDetail counts into a single summary review status.
+   *
+   * Rules: changes_requested beats approved (one CHANGES_REQUESTED is enough
+   * to block a PR); pending if there are reviews but none currently counted;
+   * null if there are no reviews at all.
    */
-  private determineReviewStatus(
-    reviews: Array<{
-      state: string;
-      user: { login: string };
-      submitted_at?: string | null;
-    }>,
-  ): "approved" | "changes_requested" | "pending" | null {
-    const latestReviews = new Map<string, string>();
-    for (const review of reviews) {
-      if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED") {
-        const existing = latestReviews.get(review.user.login);
-        if (
-          !existing ||
-          new Date(review.submitted_at || "") > new Date(existing)
-        ) {
-          latestReviews.set(review.user.login, review.state);
-        }
-      }
+  private deriveReviewStatus(
+    reviewerDetail: { approvalCount: number; changesRequestedCount: number },
+    reviewsCount: number,
+  ): PrReviewStatus {
+    if (reviewerDetail.changesRequestedCount > 0) {
+      return REVIEW_STATUS_CHANGES_REQUESTED;
     }
-
-    const states = Array.from(latestReviews.values());
-    const hasApproval = states.some((state) => state === "APPROVED");
-    const hasChangesRequested = states.some(
-      (state) => state === "CHANGES_REQUESTED",
-    );
-
-    if (hasApproval && !hasChangesRequested) return "approved";
-    if (hasChangesRequested) return "changes_requested";
-    if (reviews.length > 0) return "pending";
+    if (reviewerDetail.approvalCount > 0) {
+      return REVIEW_STATUS_APPROVED;
+    }
+    if (reviewsCount > 0) {
+      return REVIEW_STATUS_PENDING;
+    }
     return null;
   }
 
@@ -498,21 +522,32 @@ export class GitHubApiService {
   ): Promise<GitHubPRStatus | null> {
     try {
       const octokit = this.createClient(token);
-      const { pr, reviews, comments } = await this.fetchPRApiData(
-        octokit,
-        owner,
-        repo,
-        prNumber,
+      const { pr, reviews, comments, requestedReviewersResp } =
+        await this.fetchPRApiData(octokit, owner, repo, prNumber);
+
+      // Derive the summary reviewStatus from reviewerDetail's counts so it
+      // stays consistent with the per-reviewer numbers shown in the UI.
+      // (The earlier determineReviewStatus had a bug where it compared a Date
+      // against new Date("APPROVED") = Invalid Date, locking in the first
+      // review per user instead of the latest one.)
+      const reviewerDetail = this.prEnrichmentService.buildReviewerDetail(
+        reviews,
+        requestedReviewersResp,
+      );
+      const reviewStatus = this.deriveReviewStatus(
+        reviewerDetail,
+        reviews.length,
       );
 
-      const reviewStatus = this.determineReviewStatus(reviews);
-
-      const projects = await this.fetchIssueProjects(
-        token,
-        owner,
-        repo,
-        prNumber,
-      );
+      // Fetch projects + checks in parallel. Both can degrade independently:
+      // projects to [], checks to null. Don't block one on the other.
+      const headSha = pr.head?.sha;
+      const [projects, checks] = await Promise.all([
+        this.fetchIssueProjects(token, owner, repo, prNumber),
+        headSha
+          ? this.prEnrichmentService.fetchPRChecks(token, owner, repo, headSha)
+          : Promise.resolve(null),
+      ]);
 
       return {
         state: pr.merged ? "merged" : (pr.state as "open" | "closed"),
@@ -528,7 +563,15 @@ export class GitHubApiService {
           login: assignee.login,
           avatar_url: assignee.avatar_url,
         })),
+        author: pr.user
+          ? {
+              login: pr.user.login,
+              type: pr.user.type as "User" | "Bot" | "Organization",
+            }
+          : undefined,
         reviewStatus,
+        reviewerDetail,
+        checks: checks ?? undefined,
         commentsCount: comments.length,
         mergeable: pr.mergeable,
         merged: pr.merged || false,

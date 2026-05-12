@@ -39,11 +39,42 @@ export interface SearchResultItem {
   updated_at: string;
 }
 
+export interface GitHubAuthor {
+  login: string;
+  type: "User" | "Bot" | "Organization";
+}
+
+export interface GitHubReviewerDetail {
+  approvalCount: number;
+  changesRequestedCount: number;
+  /** Reviewers who were requested but have not yet submitted a review. */
+  requestedReviewers: string[];
+}
+
+/**
+ * Aggregate CI signal for a PR, derived from the GitHub check-runs API.
+ *
+ * `state` semantics:
+ *  - `passing` — at least one check run completed successfully and none failed
+ *  - `failing` — at least one check run concluded with failure / cancelled /
+ *                timed_out / action_required
+ *  - `pending` — at least one check run is still queued or in_progress (and
+ *                no failure has been observed yet)
+ *  - `none`    — no check runs reported for the head commit
+ */
+export interface GitHubChecksSummary {
+  state: "passing" | "failing" | "pending" | "none";
+  total: number;
+  /** Names of the check runs in a non-passing terminal state. */
+  failingChecks: string[];
+}
+
 export interface GitHubIssueStatus {
   state: "open" | "closed";
   title: string;
   labels: Array<{ name: string; color: string }>;
   assignees: Array<{ login: string; avatar_url: string }>;
+  author?: GitHubAuthor;
   projects?: Array<{
     name: string;
     status?: string;
@@ -55,7 +86,10 @@ export interface GitHubPRStatus {
   title: string;
   labels: Array<{ name: string; color: string }>;
   assignees: Array<{ login: string; avatar_url: string }>;
+  author?: GitHubAuthor;
   reviewStatus: "approved" | "changes_requested" | "pending" | null;
+  reviewerDetail?: GitHubReviewerDetail;
+  checks?: GitHubChecksSummary;
   commentsCount: number;
   mergeable: boolean | null;
   merged: boolean;

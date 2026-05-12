@@ -131,8 +131,19 @@ export class EmailThread {
         title?: string;
         labels?: Array<{ name: string; color: string }>;
         assignees?: Array<{ login: string; avatar_url: string }>;
+        author?: { login: string; type: "User" | "Bot" | "Organization" };
         projects?: Array<{ name: string; status?: string }>;
         reviewStatus?: "approved" | "changes_requested" | "pending" | null;
+        reviewerDetail?: {
+          approvalCount: number;
+          changesRequestedCount: number;
+          requestedReviewers: string[];
+        };
+        checks?: {
+          state: "passing" | "failing" | "pending" | "none";
+          total: number;
+          failingChecks: string[];
+        };
         commentsCount?: number;
         mergeable?: boolean;
         merged?: boolean;

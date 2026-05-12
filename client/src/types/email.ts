@@ -69,16 +69,37 @@ export interface EnrichmentStatusResponse {
 
 // ---------------------------------------------------------------------------
 
+export interface GitHubLinkAuthor {
+  login: string;
+  type: 'User' | 'Bot' | 'Organization';
+}
+
+export interface GitHubReviewerDetail {
+  approvalCount: number;
+  changesRequestedCount: number;
+  /** Reviewers requested but not yet reviewed; team slugs are prefixed with "@". */
+  requestedReviewers: string[];
+}
+
+export interface GitHubChecksSummary {
+  state: 'passing' | 'failing' | 'pending' | 'none';
+  total: number;
+  failingChecks: string[];
+}
+
 export interface GitHubLinkStatus {
   state: 'open' | 'closed' | 'merged';
   title?: string;
   labels?: Array<{ name: string; color: string }>;
   assignees?: Array<{ login: string; avatar_url: string }>;
+  author?: GitHubLinkAuthor;
   projects?: Array<{
     name: string;
     status?: string;
   }>;
   reviewStatus?: 'approved' | 'changes_requested' | 'pending' | null;
+  reviewerDetail?: GitHubReviewerDetail;
+  checks?: GitHubChecksSummary;
   commentsCount?: number;
   mergeable?: boolean | null;
   merged?: boolean;

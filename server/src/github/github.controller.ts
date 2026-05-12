@@ -30,6 +30,7 @@ import { isError } from "../types/common";
 import { UsersService } from "../users/users.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
+import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import {
   GitHubEmailInfoService,
   GitHubMetadataLink,
@@ -53,6 +54,7 @@ export class GitHubController {
     private readonly githubAppService: GitHubAppService,
     private readonly githubApiService: GitHubApiService,
     private readonly githubProjectStatusService: GitHubProjectStatusService,
+    private readonly githubCategoryOverrideService: GitHubCategoryOverrideService,
     private readonly usersService: UsersService,
     @Inject(INJECT_TOKENS.PG_BOSS) private readonly boss: PgBoss,
     private readonly repoMappingService: GitHubRepoMappingService,
@@ -283,6 +285,10 @@ export class GitHubController {
       login: tokenResult.login,
       name: tokenResult.name,
       scopes: tokenResult.scopes,
+      // Convenience flag for the inbox-card "Connect for CI status" prompt —
+      // CI check-runs need full `repo` scope on OAuth Apps (there's no
+      // narrower `checks:read` for OAuth Apps).
+      hasRepoScope: tokenResult.scopes?.includes("repo") ?? false,
       repos: repoStatuses,
     };
   }
@@ -655,6 +661,39 @@ export class GitHubController {
         statePayload.userId,
         accessToken,
       );
+
+      // Persist the connected GitHub login so we can match the user against PR
+      // authors / requested reviewers later. Best-effort: token storage above is
+      // what makes the connection usable; the login is only a quality-of-signal
+      // boost for inbox grouping + priority.
+      try {
+        const userInfo = await this.githubAppService.getUserInfo(accessToken);
+        if (userInfo?.login) {
+          await this.githubAppService.storeGithubUsernameForUser(
+            statePayload.userId,
+            userInfo.login,
+          );
+        }
+      } catch (error) {
+        const errorMessage = isError(error) ? error.message : "Unknown error";
+        this.logger.warn(
+          `Connected GitHub for user ${statePayload.userId} but failed to fetch login: ${errorMessage}`,
+        );
+      }
+
+      // Idempotently seed the two reserved GitHub categories (PRs awaiting
+      // your review / Bot updates) so the metadata processor can route
+      // threads into them without a race.
+      try {
+        await this.githubCategoryOverrideService.bootstrapReservedCategoriesForUser(
+          statePayload.userId,
+        );
+      } catch (error) {
+        const errorMessage = isError(error) ? error.message : "Unknown error";
+        this.logger.warn(
+          `Failed to bootstrap reserved GitHub categories for user ${statePayload.userId}: ${errorMessage}`,
+        );
+      }
 
       this.logger.log(
         `GitHub OAuth successful for user ${statePayload.userId}`,

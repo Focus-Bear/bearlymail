@@ -12,6 +12,7 @@ import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
+import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import { GitHubProjectStatusService } from "./github-project-status.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
@@ -84,6 +85,13 @@ describe("GitHubController - getAdminDebugInfo", () => {
     updateProjectItemStatus: jest.fn(),
   };
 
+  const mockGitHubCategoryOverrideService = {
+    bootstrapReservedCategoriesForUser: jest.fn().mockResolvedValue(undefined),
+    findReservedCategoryId: jest.fn().mockResolvedValue(null),
+    resolveCategoryKey: jest.fn().mockReturnValue(null),
+    resolveOverrideCategoryId: jest.fn().mockResolvedValue(null),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -115,6 +123,10 @@ describe("GitHubController - getAdminDebugInfo", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: mockGitHubCategoryOverrideService,
         },
         {
           provide: AuditService,
@@ -375,6 +387,13 @@ describe("GitHubController - testUserToken", () => {
     updateProjectItemStatus: jest.fn(),
   };
 
+  const mockGitHubCategoryOverrideService = {
+    bootstrapReservedCategoriesForUser: jest.fn().mockResolvedValue(undefined),
+    findReservedCategoryId: jest.fn().mockResolvedValue(null),
+    resolveCategoryKey: jest.fn().mockReturnValue(null),
+    resolveOverrideCategoryId: jest.fn().mockResolvedValue(null),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -400,6 +419,10 @@ describe("GitHubController - testUserToken", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: mockGitHubCategoryOverrideService,
         },
         {
           provide: AuditService,
@@ -550,6 +573,13 @@ describe("GitHubController - getMyConnectionStatus", () => {
     updateProjectItemStatus: jest.fn(),
   };
 
+  const mockGitHubCategoryOverrideService = {
+    bootstrapReservedCategoriesForUser: jest.fn().mockResolvedValue(undefined),
+    findReservedCategoryId: jest.fn().mockResolvedValue(null),
+    resolveCategoryKey: jest.fn().mockReturnValue(null),
+    resolveOverrideCategoryId: jest.fn().mockResolvedValue(null),
+  };
+
   const mockReq = { user: { userId: "user-1" } };
 
   beforeEach(async () => {
@@ -577,6 +607,10 @@ describe("GitHubController - getMyConnectionStatus", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: mockGitHubCategoryOverrideService,
         },
         {
           provide: AuditService,
@@ -779,6 +813,13 @@ describe("GitHubController - createConnectToken", () => {
     updateProjectItemStatus: jest.fn(),
   };
 
+  const mockGitHubCategoryOverrideService = {
+    bootstrapReservedCategoriesForUser: jest.fn().mockResolvedValue(undefined),
+    findReservedCategoryId: jest.fn().mockResolvedValue(null),
+    resolveCategoryKey: jest.fn().mockReturnValue(null),
+    resolveOverrideCategoryId: jest.fn().mockResolvedValue(null),
+  };
+
   const mockReq = { user: { userId: "user-1" } };
 
   beforeEach(async () => {
@@ -807,6 +848,10 @@ describe("GitHubController - createConnectToken", () => {
         {
           provide: GitHubProjectStatusService,
           useValue: mockGitHubProjectStatusService,
+        },
+        {
+          provide: GitHubCategoryOverrideService,
+          useValue: mockGitHubCategoryOverrideService,
         },
         {
           provide: AuditService,

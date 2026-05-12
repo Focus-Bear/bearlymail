@@ -13,8 +13,10 @@ import { GitHubController } from "./github.controller";
 import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
+import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubMetadataProcessor } from "./github-metadata.processor";
+import { GitHubPrEnrichmentService } from "./github-pr-enrichment.service";
 import { GitHubProjectStatusService } from "./github-project-status.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
@@ -43,7 +45,9 @@ import { GitHubRepoMappingService } from "./github-repo-mapping.service";
     GitHubService,
     GitHubApiService,
     GitHubProjectStatusService,
+    GitHubPrEnrichmentService,
     GitHubAppService,
+    GitHubCategoryOverrideService,
     GitHubMetadataProcessor,
     GitHubEmailInfoService,
     GitHubRepoMappingService,
@@ -52,7 +56,9 @@ import { GitHubRepoMappingService } from "./github-repo-mapping.service";
     GitHubService,
     GitHubApiService,
     GitHubProjectStatusService,
+    GitHubPrEnrichmentService,
     GitHubAppService,
+    GitHubCategoryOverrideService,
     GitHubEmailInfoService,
     GitHubRepoMappingService,
   ],

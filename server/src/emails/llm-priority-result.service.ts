@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -17,7 +17,9 @@ import {
   ContextKey,
   UserContext,
 } from "../database/entities/user-context.entity";
+import { GitHubCategoryOverrideService } from "../github/github-category-override.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
+import { UsersService } from "../users/users.service";
 import { parseCategoryName } from "../utils/category-name.util";
 
 type PriorityLlmResult = {
@@ -58,6 +60,11 @@ const PRIORITY_RESULT_CONSTANTS = {
   MAX_SCORE: 100,
 } as const;
 
+const CHECKS_STATE_FAILING = "failing";
+const GITHUB_AUTHOR_TYPE_BOT = "Bot";
+const FAILING_CHECKS_PREVIEW_COUNT = 2;
+const FAILING_CI_PRIORITY_BUMP = 20;
+
 /**
  * Domain service for applying and computing LLM priority results.
  * Handles priority breakdown, dimensions, category resolution, and proto-categories.
@@ -73,6 +80,10 @@ export class LLMPriorityResultService {
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
     private readonly protoCategoriesService: ProtoCategoriesService,
+    @Inject(forwardRef(() => GitHubCategoryOverrideService))
+    private readonly githubCategoryOverrideService: GitHubCategoryOverrideService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {}
 
   async applyPriorityResult(
@@ -89,8 +100,20 @@ export class LLMPriorityResultService {
       });
     }
 
+    // Resolve the connected GitHub login once so calculatePriorityBreakdown
+    // can bump priority on failing CI for the user's own PRs and so the
+    // category override below can match against requested-reviewer lists.
+    const user = await this.usersService.findOne(userId);
+    const githubUsername = user?.githubUsername ?? null;
+
     const { breakdown, dimensions, finalScore } =
-      this.calculatePriorityBreakdown(email, llmResult, contexts, thread);
+      this.calculatePriorityBreakdown(
+        email,
+        llmResult,
+        contexts,
+        thread,
+        githubUsername,
+      );
 
     const priorityExplanation = {
       score: finalScore,
@@ -107,75 +130,132 @@ export class LLMPriorityResultService {
     }
 
     if (email.emailThreadId && thread) {
-      const newUrgencyScore = Math.max(
-        thread.urgencyScore || 0,
-        llmResult.urgencyScore || 0,
-      );
-      const newUrgencyExplanation =
-        (llmResult.urgencyScore || 0) > (thread.urgencyScore || 0)
-          ? llmResult.urgencyExplanation
-          : thread.urgencyExplanation;
-
-      const knownCategoryNames = contexts
-        .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
-        .map((ctx) => parseCategoryName(ctx.contextValue));
-
-      const { finalCategory, protoCategoryId, categoryId } =
-        await this.resolveCategoryAndProtoCategory({
-          email,
-          thread,
-          llmResult,
-          userId,
-          workerId,
-          knownCategoryNames,
-          contexts: contexts as UserContext[],
-        });
-
-      if (categoryId === null && finalCategory && finalCategory !== "Other") {
-        this.logger.warn(
-          `[Worker ${workerId}] Thread ${email.emailThreadId}: resolved category "${finalCategory}" but no matching UUID found — categoryId will be null`,
-        );
-      }
-
-      const resolvedCategoryExplanation = this.buildHonestCategoryExplanation(
-        llmResult.categoryExplanation || thread.categoryExplanation || null,
-        finalCategory,
-        categoryId,
-      );
-
-      await this.emailThreadRepository.update(
-        { id: email.emailThreadId },
-        {
-          urgencyScore: newUrgencyScore,
-          urgencyExplanation:
-            newUrgencyExplanation || thread.urgencyExplanation,
-          priorityExplanation,
-          priorityScore: finalScore,
-          ...(categoryId !== null && categoryId !== undefined
-            ? { categoryId }
-            : {}),
-          categoryExplanation: resolvedCategoryExplanation,
-          // Track which step last set the category (debug field for issue #1509)
-          ...(finalCategory && finalCategory !== "Other"
-            ? { categorySource: "priority" as const }
-            : {}),
-          protoCategoryId,
-          isProcessingPriority: false,
-          aiProcessingDeferred: false,
-        },
-      );
-
-      await this.maybeApplyEmergencyDelivery(
-        email.emailThreadId,
+      await this.persistPriorityToThread({
+        email,
+        thread,
+        llmResult,
+        contexts,
         userId,
-        finalScore,
         workerId,
-      );
+        githubUsername,
+        finalScore,
+        priorityExplanation,
+      });
+    }
+  }
 
-      this.logger.log(
-        `[Worker ${workerId}] Updated thread ${email.emailThreadId.substring(0, PRIORITY_RESULT_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... priorityScore: ${finalScore}`,
+  private async persistPriorityToThread(args: {
+    email: Email;
+    thread: EmailThread;
+    llmResult: PriorityLlmResult;
+    contexts: Array<{ contextKey: string; contextValue: string }>;
+    userId: string;
+    workerId: string;
+    githubUsername: string | null;
+    finalScore: number;
+    priorityExplanation: {
+      score: number;
+      breakdown: PriorityBreakdownItem[];
+      dimensions: PriorityDimensions;
+      calculatedAt: string;
+    };
+  }): Promise<void> {
+    const {
+      email,
+      thread,
+      llmResult,
+      contexts,
+      userId,
+      workerId,
+      githubUsername,
+      finalScore,
+      priorityExplanation,
+    } = args;
+
+    const emailThreadId = email.emailThreadId as string;
+
+    const newUrgencyScore = Math.max(
+      thread.urgencyScore || 0,
+      llmResult.urgencyScore || 0,
+    );
+    const newUrgencyExplanation =
+      (llmResult.urgencyScore || 0) > (thread.urgencyScore || 0)
+        ? llmResult.urgencyExplanation
+        : thread.urgencyExplanation;
+
+    const knownCategoryNames = contexts
+      .filter((ctx) => ctx.contextKey === ContextKey.EMAIL_CATEGORY)
+      .map((ctx) => parseCategoryName(ctx.contextValue));
+
+    const {
+      finalCategory,
+      protoCategoryId,
+      categoryId: llmCategoryId,
+    } = await this.resolveCategoryAndProtoCategory({
+      email,
+      thread,
+      llmResult,
+      userId,
+      workerId,
+      knownCategoryNames,
+      contexts: contexts as UserContext[],
+    });
+
+    if (llmCategoryId === null && finalCategory && finalCategory !== "Other") {
+      this.logger.warn(
+        `[Worker ${workerId}] Thread ${emailThreadId}: resolved category "${finalCategory}" but no matching UUID found — categoryId will be null`,
       );
     }
+
+    // GitHub-derived overrides win over LLM-picked categories. The metadata
+    // processor applies the same override after its fetch — this branch
+    // covers the race where LLM priority lands after metadata so we don't
+    // clobber the reserved-category assignment.
+    const githubOverrideCategoryId =
+      await this.githubCategoryOverrideService.resolveOverrideCategoryId(
+        userId,
+        thread.githubMetadata?.links,
+        githubUsername,
+      );
+    const categoryId = githubOverrideCategoryId ?? llmCategoryId;
+
+    const resolvedCategoryExplanation = this.buildHonestCategoryExplanation(
+      llmResult.categoryExplanation || thread.categoryExplanation || null,
+      finalCategory,
+      categoryId,
+    );
+
+    await this.emailThreadRepository.update(
+      { id: emailThreadId },
+      {
+        urgencyScore: newUrgencyScore,
+        urgencyExplanation: newUrgencyExplanation || thread.urgencyExplanation,
+        priorityExplanation,
+        priorityScore: finalScore,
+        ...(categoryId !== null && categoryId !== undefined
+          ? { categoryId }
+          : {}),
+        categoryExplanation: resolvedCategoryExplanation,
+        // Track which step last set the category (debug field for issue #1509)
+        ...(finalCategory && finalCategory !== "Other"
+          ? { categorySource: "priority" as const }
+          : {}),
+        protoCategoryId,
+        isProcessingPriority: false,
+        aiProcessingDeferred: false,
+      },
+    );
+
+    await this.maybeApplyEmergencyDelivery(
+      emailThreadId,
+      userId,
+      finalScore,
+      workerId,
+    );
+
+    this.logger.log(
+      `[Worker ${workerId}] Updated thread ${emailThreadId.substring(0, PRIORITY_RESULT_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... priorityScore: ${finalScore}`,
+    );
   }
 
   private async maybeApplyEmergencyDelivery(
@@ -205,6 +285,7 @@ export class LLMPriorityResultService {
     llmResult: PriorityLlmResult,
     contexts: Array<{ contextKey: string; contextValue: string }>,
     thread: EmailThread | null,
+    githubUsername: string | null = null,
   ): {
     breakdown: PriorityBreakdownItem[];
     dimensions: PriorityDimensions;
@@ -275,6 +356,18 @@ export class LLMPriorityResultService {
       });
     }
 
+    const failingCiOnOwnPr = this.detectFailingCiOnOwnPr(
+      thread,
+      githubUsername,
+    );
+    if (failingCiOnOwnPr) {
+      breakdown.push({
+        factor: "💥 CI failing on your PR",
+        value: FAILING_CI_PRIORITY_BUMP,
+        description: failingCiOnOwnPr,
+      });
+    }
+
     const finalScore = breakdown.reduce(
       (sum, item) => sum + (item.value || 0),
       0,
@@ -289,6 +382,44 @@ export class LLMPriorityResultService {
     );
 
     return { breakdown, dimensions, finalScore };
+  }
+
+  /**
+   * Detect failing CI on a PR authored by the connected user. Returns a
+   * human-readable description for the priority breakdown, or null when the
+   * condition doesn't apply (thread isn't a PR, CI isn't failing, the user
+   * isn't the author, etc.).
+   *
+   * Bot-authored PRs are deliberately excluded — failing CI on Renovate is
+   * noise, not a signal to escalate priority.
+   */
+  private detectFailingCiOnOwnPr(
+    thread: EmailThread | null,
+    githubUsername: string | null,
+  ): string | null {
+    if (!thread?.githubMetadata?.links?.length || !githubUsername) {
+      return null;
+    }
+    const lowerLogin = githubUsername.toLowerCase();
+    for (const link of thread.githubMetadata.links) {
+      const { status } = link;
+      if (!status || status.checks?.state !== CHECKS_STATE_FAILING) {
+        continue;
+      }
+      const { author } = status;
+      if (!author || author.type === GITHUB_AUTHOR_TYPE_BOT) {
+        continue;
+      }
+      if (author.login.toLowerCase() !== lowerLogin) {
+        continue;
+      }
+
+      const failing = status.checks.failingChecks ?? [];
+      const preview =
+        failing.slice(0, FAILING_CHECKS_PREVIEW_COUNT).join(", ") || "CI";
+      return `${preview} failing on ${link.owner}/${link.repo}#${link.number}`;
+    }
+    return null;
   }
 
   calculateScoreContributions(llmResult: PriorityLlmResult): {

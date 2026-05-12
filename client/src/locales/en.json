@@ -1737,6 +1737,24 @@
     "comments": "{{count}} comment",
     "comments_plural": "{{count}} comments",
     "readyToMerge": "Ready to Merge",
+    "approvalsCount": "{{count}} approval",
+    "approvalsCount_plural": "{{count}} approvals",
+    "changesRequestedCount": "{{count}} change requested",
+    "changesRequestedCount_plural": "{{count}} changes requested",
+    "awaitingReviewFrom": "Awaiting {{reviewers}}",
+    "bot": {
+      "ariaLabel": "Authored by {{name}} bot"
+    },
+    "ci": {
+      "passing": "CI passing",
+      "pending": "CI running",
+      "failing": "CI failing",
+      "failingWithNames": "CI failing: {{names}}",
+      "passingTitle": "{{count}} check passing",
+      "passingTitle_plural": "{{count}} checks passing",
+      "connectPrompt": "Connect for CI status",
+      "connecting": "Connecting…"
+    },
     "saveToken": "Save Token",
     "removeToken": "Remove Token",
     "howToCreateToken": "How to create a GitHub token",

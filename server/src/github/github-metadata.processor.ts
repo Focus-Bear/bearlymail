@@ -1,8 +1,13 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
+import { Repository } from "typeorm";
 
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { UsersService } from "../users/users.service";
+import { GitHubCategoryOverrideService } from "./github-category-override.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
@@ -20,6 +25,10 @@ export class GitHubMetadataProcessor implements OnModuleInit {
     @Inject(INJECT_TOKENS.PG_BOSS) private boss: PgBoss,
     private readonly githubEmailInfoService: GitHubEmailInfoService,
     private readonly repoMappingService: GitHubRepoMappingService,
+    private readonly categoryOverrideService: GitHubCategoryOverrideService,
+    private readonly usersService: UsersService,
+    @InjectRepository(EmailThread)
+    private readonly emailThreadRepository: Repository<EmailThread>,
   ) {}
 
   async onModuleInit() {
@@ -66,6 +75,48 @@ export class GitHubMetadataProcessor implements OnModuleInit {
       userId,
       result.links,
       result.category,
+    );
+
+    await this.applyCategoryOverrideForThread(userId, threadId);
+  }
+
+  /**
+   * After metadata is written, route the thread into one of the reserved
+   * GitHub categories ("PRs awaiting your review" / "Bot updates") when its
+   * signals match. Runs after LLM categorisation so the GitHub-derived choice
+   * wins last-write-wins; the LLM priority-result service applies the same
+   * override so the answer is consistent regardless of processor ordering.
+   */
+  private async applyCategoryOverrideForThread(
+    userId: string,
+    threadId: string,
+  ): Promise<void> {
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: threadId, userId },
+      select: ["id", "categoryId", "githubMetadata"],
+    });
+    if (!thread?.githubMetadata?.links?.length) {
+      return;
+    }
+
+    const user = await this.usersService.findOne(userId);
+    const overrideCategoryId =
+      await this.categoryOverrideService.resolveOverrideCategoryId(
+        userId,
+        thread.githubMetadata.links,
+        user?.githubUsername ?? null,
+      );
+
+    if (!overrideCategoryId || overrideCategoryId === thread.categoryId) {
+      return;
+    }
+
+    await this.emailThreadRepository.update(
+      { id: threadId, userId },
+      { categoryId: overrideCategoryId },
+    );
+    this.logger.debug(
+      `Routed thread ${threadId} to reserved GitHub category ${overrideCategoryId}`,
     );
   }
 

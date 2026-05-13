@@ -30,8 +30,8 @@ export const INITIAL_COUNTS: Record<DemoTab, number> = {
   [TAB_FOLLOWUP]: INITIAL_FOLLOWUP,
 };
 
-export const PRIO_ROUTES: Record<PrioChoice, { dest: Exclude<DemoTab, 'triage'>; toastKey: string }> = {
-  [PRIO_CAN_WAIT]: { dest: TAB_FOLLOWUP, toastKey: 'landing.v2.demo.routed.canWait' },
-  [PRIO_GET_ON_IT]: { dest: TAB_ACTION, toastKey: 'landing.v2.demo.routed.getOnIt' },
-  [PRIO_OH_SHIT]: { dest: TAB_ACTION, toastKey: 'landing.v2.demo.routed.ohShit' },
+export const PRIO_ROUTES: Record<PrioChoice, { dest: Exclude<DemoTab, 'triage'>; toastKeySuffix: string }> = {
+  [PRIO_CAN_WAIT]: { dest: TAB_FOLLOWUP, toastKeySuffix: 'routed.canWait' },
+  [PRIO_GET_ON_IT]: { dest: TAB_ACTION, toastKeySuffix: 'routed.getOnIt' },
+  [PRIO_OH_SHIT]: { dest: TAB_ACTION, toastKeySuffix: 'routed.ohShit' },
 };

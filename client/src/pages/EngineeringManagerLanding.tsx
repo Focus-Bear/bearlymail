@@ -17,20 +17,27 @@ import {
 import { LANDING_STYLES } from './Landing.styles';
 import { useLandingFonts } from './useLandingFonts';
 
-const Landing: React.FC = () => {
+/**
+ * Role-specific landing page for engineering managers. Reuses every shared
+ * landing-v2 component; the hero copy + the inbox-demo content come from the
+ * landing.em.* i18n namespace, and the GitHub integration section is moved up
+ * (before the comparison) to emphasise the bit engineering leaders care about
+ * most.
+ */
+const EngineeringManagerLanding: React.FC = () => {
   useLandingFonts();
 
   return (
     <div className="bearlymail-landing">
       <style>{LANDING_STYLES}</style>
       <SiteHeader />
-      <HeroSection />
+      <HeroSection heroPrefix="landing.em.hero" demoPrefix="landing.em.demo" />
+      <GithubIntegrationSection />
       <ProblemSection />
       <HowItWorks />
       <CompareSection />
       <FounderSection />
       <FaqSection />
-      <GithubIntegrationSection />
       <FinalCta />
       <SiteFooter />
       <WaitlistModal />
@@ -38,4 +45,4 @@ const Landing: React.FC = () => {
   );
 };
 
-export default Landing;
+export default EngineeringManagerLanding;

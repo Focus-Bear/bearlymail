@@ -3276,6 +3276,172 @@
         },
         "collapsedHint": "Read later in your next batch"
       }
+    },
+    "em": {
+      "hero": {
+        "eyebrow": "For engineering managers · Now accepting waitlist",
+        "titlePre": "Spot the prod incident,",
+        "titleEm": "not the standup",
+        "titlePostEm": "",
+        "titleAfter": " ping.",
+        "lead": "BearlyMail surfaces the PR awaiting your review, the CI failure on main, and the production alert. Everything else waits for your focus block. Built for engineering leaders who don't want to triage their inbox at 2am.",
+        "emailLabel": "Work email",
+        "emailPlaceholder": "you@company.com",
+        "submit": "Join the waitlist →",
+        "benefits": {
+          "noSpam": "No spam",
+          "followUp": "One quick follow-up",
+          "unsubscribe": "Unsubscribe anytime"
+        },
+        "builtFor": "Built for engineering managers & tech leads"
+      },
+      "demo": {
+        "title": "BearlyMail · Tuesday, 14:23",
+        "live": "Live",
+        "tabs": {
+          "triage": "Triage",
+          "action": "Action",
+          "followUp": "Follow Up"
+        },
+        "banner": {
+          "prefix": "Next batch in",
+          "time": "2h 7m",
+          "suffix": "· last checked for urgent emails: just now"
+        },
+        "topic": {
+          "prefix": "Incidents:",
+          "body": " Production alerts, postmortems, on-call escalations",
+          "archiveAll": "Archive All"
+        },
+        "email": {
+          "from": "Datadog",
+          "customerChip": "🚨 On-call",
+          "priorityChip": "Very High (87)",
+          "receivedAt": "14:23",
+          "subject": "auth-service: error rate 12% (was 0.4%) — likely #1247",
+          "body": "Spike started 14:18 UTC. /auth/login P95 latency 4.2s, error rate 12%. Aria's PR #1247 (refresh-token refactor) shipped at 14:12 — looks like the regression. Datadog runbook attached."
+        },
+        "prioritise": {
+          "label": "Prioritise:",
+          "canWait": "Can wait",
+          "getOnIt": "Get on it",
+          "ohShit": "Oh sh$t"
+        },
+        "actions": {
+          "archive": "🗄 Archive",
+          "snooze": "⏰ Snooze",
+          "block": "🚫 Block sender"
+        },
+        "foot": {
+          "nextBatch": "Next batch in",
+          "summary": "{{triage}} in Triage · {{action}} in Action · {{followup}} in Follow Up"
+        },
+        "empty": {
+          "triage": {
+            "title": "Inbox zero in Triage",
+            "sub": "Nothing left to decide on. Next batch arrives in 2h 7m."
+          },
+          "action": {
+            "title": "No new emails in Action",
+            "sub": "Triaged \"Oh sh$t\" or \"Get on it\" emails land here."
+          },
+          "followup": {
+            "title": "Nothing waiting in Follow Up",
+            "sub": "Batched, lower-priority emails live here until the next batch."
+          }
+        },
+        "routed": {
+          "canWait": "Sent to Follow Up · batched",
+          "getOnIt": "Moved to Action",
+          "ohShit": "Bumped to top of Action — tap the tab to view"
+        },
+        "floats": {
+          "urgent": "Production incident — broke through"
+        }
+      }
+    },
+    "pm": {
+      "hero": {
+        "eyebrow": "For product managers · Now accepting waitlist",
+        "titlePre": "Find the customer escalation,",
+        "titleEm": "not the standup",
+        "titlePostEm": "",
+        "titleAfter": " summary.",
+        "lead": "BearlyMail surfaces the customer who's churning, the exec who needs a same-day answer, and the engineering blocker that's holding up the release. Status digests, calendar invites and FYI threads wait until your next batch. Built for product managers who'd rather ship than triage.",
+        "emailLabel": "Work email",
+        "emailPlaceholder": "you@company.com",
+        "submit": "Join the waitlist →",
+        "benefits": {
+          "noSpam": "No spam",
+          "followUp": "One quick follow-up",
+          "unsubscribe": "Unsubscribe anytime"
+        },
+        "builtFor": "Built for product managers & product leads"
+      },
+      "demo": {
+        "title": "BearlyMail · Wednesday, 09:18",
+        "live": "Live",
+        "tabs": {
+          "triage": "Triage",
+          "action": "Action",
+          "followUp": "Follow Up"
+        },
+        "banner": {
+          "prefix": "Next batch in",
+          "time": "1h 42m",
+          "suffix": "· last checked for urgent emails: just now"
+        },
+        "topic": {
+          "prefix": "Customer & deals:",
+          "body": " Renewals, churn risk, contract escalations, NPS responses",
+          "archiveAll": "Archive All"
+        },
+        "email": {
+          "from": "Daniel Rivera",
+          "customerChip": "👤 Customer · Acme Corp",
+          "priorityChip": "Very High (88)",
+          "receivedAt": "08:54",
+          "subject": "Acme Corp — SSO timeline & Q4 renewal",
+          "body": "Hi Jeremy — following up on the SSO integration we discussed in Q3. Our security team needs a shipping date before we sign the renewal. We're at 320 seats, contract expires in 11 days. Can we grab 15 minutes this week?"
+        },
+        "prioritise": {
+          "label": "Prioritise:",
+          "canWait": "Can wait",
+          "getOnIt": "Get on it",
+          "ohShit": "Oh sh$t"
+        },
+        "actions": {
+          "archive": "🗄 Archive",
+          "snooze": "⏰ Snooze",
+          "block": "🚫 Block sender"
+        },
+        "foot": {
+          "nextBatch": "Next batch in",
+          "summary": "{{triage}} in Triage · {{action}} in Action · {{followup}} in Follow Up"
+        },
+        "empty": {
+          "triage": {
+            "title": "Inbox zero in Triage",
+            "sub": "Nothing left to decide on. Next batch arrives in 1h 42m."
+          },
+          "action": {
+            "title": "No new emails in Action",
+            "sub": "Triaged \"Oh sh$t\" or \"Get on it\" emails land here."
+          },
+          "followup": {
+            "title": "Nothing waiting in Follow Up",
+            "sub": "Batched, lower-priority emails live here until the next batch."
+          }
+        },
+        "routed": {
+          "canWait": "Sent to Follow Up · batched",
+          "getOnIt": "Moved to Action",
+          "ohShit": "Bumped to top of Action — tap the tab to view"
+        },
+        "floats": {
+          "urgent": "Customer escalation — broke through"
+        }
+      }
     }
   },
   "keyboard": {

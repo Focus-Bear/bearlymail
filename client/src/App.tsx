@@ -26,6 +26,7 @@ import ContactGroups from 'pages/ContactGroups';
 import Contacts from 'pages/Contacts';
 import Deals from 'pages/Deals';
 import EmailDetail from 'pages/EmailDetail';
+import EngineeringManagerLanding from 'pages/EngineeringManagerLanding';
 import FocusedInbox from 'pages/FocusedInbox';
 import ForgotPassword from 'pages/ForgotPassword';
 import Help from 'pages/Help';
@@ -35,6 +36,7 @@ import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import NotFound from 'pages/NotFound';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import ProductManagerLanding from 'pages/ProductManagerLanding';
 import ResetPassword from 'pages/ResetPassword';
 import Search from 'pages/Search';
 import Settings from 'pages/Settings';
@@ -169,6 +171,8 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppRoutes: React.FC = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
+    <Route path="/for/engineering-managers" element={<EngineeringManagerLanding />} />
+    <Route path="/for/product-managers" element={<ProductManagerLanding />} />
     <Route path="/login" element={<Login />} />
     <Route path="/auth-error" element={<AuthError />} />
     <Route path="/setup-password" element={<SetupPassword />} />

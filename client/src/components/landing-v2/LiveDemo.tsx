@@ -1,26 +1,21 @@
 /* eslint-disable i18next/no-literal-string, max-lines-per-function */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { EmergencyDeliveryRibbon } from 'components/inbox/EmergencyDeliveryRibbon';
 
 import {
-  BUMP_HIGHLIGHT_MS,
   type DemoTab,
-  FLY_ANIMATION_MS,
-  INITIAL_COUNTS,
   INITIAL_TRIAGE,
   PRIO_CAN_WAIT,
   PRIO_GET_ON_IT,
   PRIO_OH_SHIT,
-  PRIO_ROUTES,
   type PrioChoice,
-  RESET_AFTER_MS,
   TAB_ACTION,
   TAB_FOLLOWUP,
   TAB_TRIAGE,
-  TOAST_VISIBLE_MS,
 } from './constants';
+import { useDemoAnimation } from './useDemoAnimation';
 
 const EMPTY_ICONS: Record<DemoTab, string> = {
   triage: '✨',
@@ -28,156 +23,64 @@ const EMPTY_ICONS: Record<DemoTab, string> = {
   followup: '⏳',
 };
 
-export const LiveDemo: React.FC = () => {
+const DEFAULT_DEMO_PREFIX = 'landing.v2.demo';
+
+interface LiveDemoProps {
+  /** Root i18n key for the demo strings (without trailing dot). Defaults to
+   * landing.v2.demo so the original landing keeps working unchanged. */
+  i18nPrefix?: string;
+}
+
+export const LiveDemo: React.FC<LiveDemoProps> = ({ i18nPrefix = DEFAULT_DEMO_PREFIX }) => {
   const { t } = useTranslation();
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const triageTabRef = useRef<HTMLButtonElement | null>(null);
-  const actionTabRef = useRef<HTMLButtonElement | null>(null);
-  const followupTabRef = useRef<HTMLButtonElement | null>(null);
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localT = (suffix: string, options?: Record<string, unknown>): string =>
+    options ? t(`${i18nPrefix}.${suffix}`, options) : t(`${i18nPrefix}.${suffix}`);
 
-  const [counts, setCounts] = useState(INITIAL_COUNTS);
-  const [ownerTab, setOwnerTab] = useState<DemoTab>(TAB_TRIAGE);
-  const [activeTab, setActiveTab] = useState<DemoTab>(TAB_TRIAGE);
-  const [busy, setBusy] = useState(false);
-  const [selectedPrio, setSelectedPrio] = useState<PrioChoice | null>(null);
-  const [pulseOn, setPulseOn] = useState(true);
-  const [flying, setFlying] = useState(false);
-  const [bumpedTab, setBumpedTab] = useState<DemoTab | null>(null);
-  const [toastKey, setToastKey] = useState<string | null>(null);
-
-  const tabRefs: Record<DemoTab, React.RefObject<HTMLButtonElement | null>> = {
-    triage: triageTabRef,
-    action: actionTabRef,
-    followup: followupTabRef,
-  };
-
-  const reset = useCallback(() => {
-    setCounts(INITIAL_COUNTS);
-    setOwnerTab(TAB_TRIAGE);
-    setActiveTab(TAB_TRIAGE);
-    setBusy(false);
-    setSelectedPrio(null);
-    setPulseOn(true);
-    setFlying(false);
-    setBumpedTab(null);
-    setToastKey(null);
-    if (cardRef.current) {
-      cardRef.current.style.removeProperty('--tx');
-      cardRef.current.style.removeProperty('--ty');
-    }
-  }, []);
-
-  const scheduleReset = useCallback(() => {
-    if (resetTimerRef.current) {
-      clearTimeout(resetTimerRef.current);
-    }
-    resetTimerRef.current = setTimeout(reset, RESET_AFTER_MS);
-  }, [reset]);
-
-  useEffect(
-    () => () => {
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current);
-      }
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-      if (flyTimerRef.current) {
-        clearTimeout(flyTimerRef.current);
-      }
-      if (bumpTimerRef.current) {
-        clearTimeout(bumpTimerRef.current);
-      }
-    },
-    []
-  );
-
-  const handleTabClick = (name: DemoTab) => {
-    setActiveTab(name);
-    if (ownerTab !== TAB_TRIAGE) {
-      scheduleReset();
-    }
-  };
-
-  const handlePrioClick = (prio: PrioChoice) => {
-    if (busy || ownerTab !== TAB_TRIAGE) {
-      return;
-    }
-    const cfg = PRIO_ROUTES[prio];
-    const cardEl = cardRef.current;
-    const tabEl = tabRefs[cfg.dest].current;
-    if (!cardEl || !tabEl) {
-      return;
-    }
-
-    setBusy(true);
-    setPulseOn(false);
-    setSelectedPrio(prio);
-
-    const tabRect = tabEl.getBoundingClientRect();
-    const cardRect = cardEl.getBoundingClientRect();
-    const tx = tabRect.left + tabRect.width / 2 - (cardRect.left + cardRect.width / 2);
-    const ty = tabRect.top + tabRect.height / 2 - (cardRect.top + cardRect.height / 4);
-    cardEl.style.setProperty('--tx', `${tx}px`);
-    cardEl.style.setProperty('--ty', `${ty}px`);
-    setFlying(true);
-
-    if (flyTimerRef.current) {
-      clearTimeout(flyTimerRef.current);
-    }
-    flyTimerRef.current = setTimeout(() => {
-      setCounts(prev => ({ ...prev, [TAB_TRIAGE]: 0, [cfg.dest]: prev[cfg.dest] + 1 }));
-      setBumpedTab(cfg.dest);
-      setOwnerTab(cfg.dest);
-      setFlying(false);
-      cardEl.style.removeProperty('--tx');
-      cardEl.style.removeProperty('--ty');
-      setToastKey(cfg.toastKey);
-      setBusy(false);
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-      toastTimerRef.current = setTimeout(() => setToastKey(null), TOAST_VISIBLE_MS);
-      if (bumpTimerRef.current) {
-        clearTimeout(bumpTimerRef.current);
-      }
-      bumpTimerRef.current = setTimeout(() => setBumpedTab(null), BUMP_HIGHLIGHT_MS);
-      scheduleReset();
-    }, FLY_ANIMATION_MS);
-  };
+  const {
+    counts,
+    ownerTab,
+    activeTab,
+    selectedPrio,
+    pulseOn,
+    flying,
+    bumpedTab,
+    toastKey,
+    cardRef,
+    triageTabRef,
+    actionTabRef,
+    followupTabRef,
+    handleTabClick,
+    handlePrioClick,
+  } = useDemoAnimation();
 
   const cardVisible = ownerTab === activeTab;
-  const emptyTitle = t(`landing.v2.demo.empty.${activeTab}.title`);
-  const emptySub = t(`landing.v2.demo.empty.${activeTab}.sub`);
+  const emptyTitle = localT(`empty.${activeTab}.title`);
+  const emptySub = localT(`empty.${activeTab}.sub`);
   const emptyIcon = EMPTY_ICONS[activeTab];
   const topicPill = ownerTab === TAB_TRIAGE && activeTab === TAB_TRIAGE ? INITIAL_TRIAGE : 0;
 
   return (
     <div className="demo-wrap">
       <div className="chip-float chip-1">
-        <span className="ic">⚡</span> {t('landing.v2.demo.floats.urgent')}
+        <span className="ic">⚡</span> {localT('floats.urgent')}
       </div>
-      <div className="demo" role="img" aria-label={t('landing.v2.demo.title')}>
+      <div className="demo" role="img" aria-label={localT('title')}>
         <div className="demo-bar">
           <div className="demo-dots">
             <span />
             <span />
             <span />
           </div>
-          <div className="demo-title">{t('landing.v2.demo.title')}</div>
+          <div className="demo-title">{localT('title')}</div>
           <div className="demo-clock">
-            <span className="live" /> {t('landing.v2.demo.live')}
+            <span className="live" /> {localT('live')}
           </div>
         </div>
 
         <div className="demo-tabs">
           <DemoTabButton
             name={TAB_TRIAGE}
-            label={t('landing.v2.demo.tabs.triage')}
+            label={localT('tabs.triage')}
             tabRef={triageTabRef}
             isActive={activeTab === TAB_TRIAGE}
             isBumped={bumpedTab === TAB_TRIAGE}
@@ -186,7 +89,7 @@ export const LiveDemo: React.FC = () => {
           />
           <DemoTabButton
             name={TAB_ACTION}
-            label={t('landing.v2.demo.tabs.action')}
+            label={localT('tabs.action')}
             tabRef={actionTabRef}
             isActive={activeTab === TAB_ACTION}
             isBumped={bumpedTab === TAB_ACTION}
@@ -195,7 +98,7 @@ export const LiveDemo: React.FC = () => {
           />
           <DemoTabButton
             name={TAB_FOLLOWUP}
-            label={t('landing.v2.demo.tabs.followUp')}
+            label={localT('tabs.followUp')}
             tabRef={followupTabRef}
             isActive={activeTab === TAB_FOLLOWUP}
             isBumped={bumpedTab === TAB_FOLLOWUP}
@@ -210,8 +113,8 @@ export const LiveDemo: React.FC = () => {
         <div className="demo-batch-banner">
           <span className="banner-emoji">📥</span>
           <span>
-            {t('landing.v2.demo.banner.prefix')} <b>{t('landing.v2.demo.banner.time')}</b>{' '}
-            {t('landing.v2.demo.banner.suffix')}
+            {localT('banner.prefix')} <b>{localT('banner.time')}</b>{' '}
+            {localT('banner.suffix')}
           </span>
         </div>
 
@@ -220,13 +123,13 @@ export const LiveDemo: React.FC = () => {
             <span className="chev">▾</span>
             <span className="topic-ic">👋</span>
             <div className="topic-title">
-              <b>{t('landing.v2.demo.topic.prefix')}</b>
-              {t('landing.v2.demo.topic.body')}
+              <b>{localT('topic.prefix')}</b>
+              {localT('topic.body')}
             </div>
             <span className="topic-pill">{topicPill}</span>
             <span className="topic-action">⚙</span>
             <span className="topic-action">
-              🗄 <span className="hide-sm">{t('landing.v2.demo.topic.archiveAll')}</span>
+              🗄 <span className="hide-sm">{localT('topic.archiveAll')}</span>
             </span>
           </div>
 
@@ -238,22 +141,22 @@ export const LiveDemo: React.FC = () => {
             <EmergencyDeliveryRibbon />
             <div className="email-head">
               <div className="email-from">
-                <b>{t('landing.v2.demo.email.from')}</b>
-                <span className="chip chip-team">{t('landing.v2.demo.email.customerChip')}</span>
-                <span className="chip chip-prio">{t('landing.v2.demo.email.priorityChip')}</span>
+                <b>{localT('email.from')}</b>
+                <span className="chip chip-team">{localT('email.customerChip')}</span>
+                <span className="chip chip-prio">{localT('email.priorityChip')}</span>
               </div>
-              <div className="email-time">{t('landing.v2.demo.email.receivedAt')}</div>
+              <div className="email-time">{localT('email.receivedAt')}</div>
             </div>
-            <div className="email-subj">{t('landing.v2.demo.email.subject')}</div>
-            <div className="email-body">{t('landing.v2.demo.email.body')}</div>
+            <div className="email-subj">{localT('email.subject')}</div>
+            <div className="email-body">{localT('email.body')}</div>
 
             <div className="email-foot">
               <div className="prio-block">
-                <div className="prio-label">{t('landing.v2.demo.prioritise.label')}</div>
+                <div className="prio-label">{localT('prioritise.label')}</div>
                 <div className="prio-row">
                   <PrioButton
                     prio={PRIO_CAN_WAIT}
-                    label={t('landing.v2.demo.prioritise.canWait')}
+                    label={localT('prioritise.canWait')}
                     emoji="😪"
                     selected={selectedPrio === PRIO_CAN_WAIT}
                     pulse={false}
@@ -261,7 +164,7 @@ export const LiveDemo: React.FC = () => {
                   />
                   <PrioButton
                     prio={PRIO_GET_ON_IT}
-                    label={t('landing.v2.demo.prioritise.getOnIt')}
+                    label={localT('prioritise.getOnIt')}
                     emoji="😊"
                     selected={selectedPrio === PRIO_GET_ON_IT}
                     pulse={false}
@@ -269,7 +172,7 @@ export const LiveDemo: React.FC = () => {
                   />
                   <PrioButton
                     prio={PRIO_OH_SHIT}
-                    label={t('landing.v2.demo.prioritise.ohShit')}
+                    label={localT('prioritise.ohShit')}
                     emoji="🐻"
                     selected={selectedPrio === PRIO_OH_SHIT}
                     pulse={pulseOn}
@@ -278,9 +181,9 @@ export const LiveDemo: React.FC = () => {
                 </div>
               </div>
               <div className="row-actions">
-                <span className="row-act">{t('landing.v2.demo.actions.archive')}</span>
-                <span className="row-act">{t('landing.v2.demo.actions.snooze')}</span>
-                <span className="row-act">{t('landing.v2.demo.actions.block')}</span>
+                <span className="row-act">{localT('actions.archive')}</span>
+                <span className="row-act">{localT('actions.snooze')}</span>
+                <span className="row-act">{localT('actions.block')}</span>
               </div>
             </div>
           </div>
@@ -298,17 +201,17 @@ export const LiveDemo: React.FC = () => {
           {toastKey && (
             <>
               <span className="dot" />
-              {t(toastKey)}
+              {localT(toastKey)}
             </>
           )}
         </div>
 
         <div className="demo-foot">
           <div className="nextbatch">
-            ⏱ {t('landing.v2.demo.foot.nextBatch')} <b className="batch-time">{t('landing.v2.demo.banner.time')}</b>
+            ⏱ {localT('foot.nextBatch')} <b className="batch-time">{localT('banner.time')}</b>
           </div>
           <div>
-            {t('landing.v2.demo.foot.summary', {
+            {localT('foot.summary', {
               triage: counts[TAB_TRIAGE],
               action: counts[TAB_ACTION],
               followup: counts[TAB_FOLLOWUP],

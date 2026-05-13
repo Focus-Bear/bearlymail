@@ -8,9 +8,23 @@ import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { LiveDemo } from './LiveDemo';
 import { openWaitlist } from './waitlistStore';
 
-export const HeroSection: React.FC = () => {
+const DEFAULT_HERO_PREFIX = 'landing.v2.hero';
+const DEFAULT_DEMO_PREFIX = 'landing.v2.demo';
+
+interface HeroSectionProps {
+  /** Root i18n key for hero copy (without trailing dot). Defaults to landing.v2.hero. */
+  heroPrefix?: string;
+  /** Root i18n key for the LiveDemo's strings. Defaults to landing.v2.demo. */
+  demoPrefix?: string;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  heroPrefix = DEFAULT_HERO_PREFIX,
+  demoPrefix = DEFAULT_DEMO_PREFIX,
+}) => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
+  const localT = (suffix: string): string => t(`${heroPrefix}.${suffix}`);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -24,17 +38,17 @@ export const HeroSection: React.FC = () => {
         <div className="hero-grid">
           <div>
             <span className="eyebrow">
-              <span className="dot" /> {t('landing.v2.hero.eyebrow')}
+              <span className="dot" /> {localT('eyebrow')}
             </span>
             <h1 className="display">
-              {t('landing.v2.hero.titlePre')}
+              {localT('titlePre')}
               <br />
-              <em>{t('landing.v2.hero.titleEm')}</em>
-              {t('landing.v2.hero.titlePostEm')}
+              <em>{localT('titleEm')}</em>
+              {localT('titlePostEm')}
               <br />
-              {t('landing.v2.hero.titleAfter')}
+              {localT('titleAfter')}
             </h1>
-            <p className="lead">{t('landing.v2.hero.lead')}</p>
+            <p className="lead">{localT('lead')}</p>
 
             <form className="hero-form" onSubmit={handleSubmit}>
               <div className="float-field">
@@ -52,22 +66,22 @@ export const HeroSection: React.FC = () => {
                   }}
                 />
                 <label className="float-label" htmlFor="hero-email">
-                  {t('landing.v2.hero.emailLabel')}
+                  {localT('emailLabel')}
                 </label>
               </div>
               <button className="btn btn-sun" type="submit">
-                {t('landing.v2.hero.submit')}
+                {localT('submit')}
               </button>
             </form>
             <div className="hero-meta">
               <span className="pill">
-                <span className="check">✓</span> {t('landing.v2.hero.benefits.noSpam')}
+                <span className="check">✓</span> {localT('benefits.noSpam')}
               </span>
               <span className="pill">
-                <span className="check">✓</span> {t('landing.v2.hero.benefits.followUp')}
+                <span className="check">✓</span> {localT('benefits.followUp')}
               </span>
               <span className="pill">
-                <span className="check">✓</span> {t('landing.v2.hero.benefits.unsubscribe')}
+                <span className="check">✓</span> {localT('benefits.unsubscribe')}
               </span>
             </div>
             <div className="hero-meta hero-built-for">
@@ -77,11 +91,11 @@ export const HeroSection: React.FC = () => {
                 <span>KL</span>
                 <span>AT</span>
               </div>
-              <span className="built-for-text">{t('landing.v2.hero.builtFor')}</span>
+              <span className="built-for-text">{localT('builtFor')}</span>
             </div>
           </div>
 
-          <LiveDemo />
+          <LiveDemo i18nPrefix={demoPrefix} />
         </div>
       </div>
     </section>

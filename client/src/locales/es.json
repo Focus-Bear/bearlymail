@@ -2327,6 +2327,172 @@
         },
         "collapsedHint": "Leer luego en tu próximo lote"
       }
+    },
+    "em": {
+      "hero": {
+        "eyebrow": "Para managers de ingeniería · Lista de espera abierta",
+        "titlePre": "Detecta el incidente,",
+        "titleEm": "no el ping",
+        "titlePostEm": "",
+        "titleAfter": " del stand-up.",
+        "lead": "BearlyMail muestra el PR esperando tu review, el fallo de CI en main y la alerta de producción. Lo demás espera a tu bloque de foco. Para líderes de ingeniería que no quieren clasificar su bandeja de entrada a las 2am.",
+        "emailLabel": "Email de trabajo",
+        "emailPlaceholder": "tu@empresa.com",
+        "submit": "Unirme a la lista →",
+        "benefits": {
+          "noSpam": "Sin spam",
+          "followUp": "Una breve pregunta de seguimiento",
+          "unsubscribe": "Cancelar suscripción cuando quieras"
+        },
+        "builtFor": "Para managers de ingeniería y tech leads"
+      },
+      "demo": {
+        "title": "BearlyMail · martes, 14:23",
+        "live": "En vivo",
+        "tabs": {
+          "triage": "Clasificación",
+          "action": "Acción",
+          "followUp": "Seguimiento"
+        },
+        "banner": {
+          "prefix": "Próximo lote en",
+          "time": "2h 7m",
+          "suffix": "· última revisión de urgentes: justo ahora"
+        },
+        "topic": {
+          "prefix": "Incidentes:",
+          "body": " Alertas de producción, postmortems, escalaciones on-call",
+          "archiveAll": "Archivar todo"
+        },
+        "email": {
+          "from": "Datadog",
+          "customerChip": "🚨 On-call",
+          "priorityChip": "Muy alta (87)",
+          "receivedAt": "14:23",
+          "subject": "auth-service: tasa de error 12% (era 0.4%) — probablemente #1247",
+          "body": "Pico iniciado 14:18 UTC. /auth/login P95 latencia 4.2s, tasa de error 12%. El PR #1247 de Aria (refactor refresh-token) se desplegó a las 14:12 — parece la regresión. Runbook de Datadog adjunto."
+        },
+        "prioritise": {
+          "label": "Prioriza:",
+          "canWait": "Puede esperar",
+          "getOnIt": "Ponte con ello",
+          "ohShit": "Oh sh$t"
+        },
+        "actions": {
+          "archive": "🗄 Archivar",
+          "snooze": "⏰ Posponer",
+          "block": "🚫 Bloquear remitente"
+        },
+        "foot": {
+          "nextBatch": "Próximo lote en",
+          "summary": "{{triage}} en Clasificación · {{action}} en Acción · {{followup}} en Seguimiento"
+        },
+        "empty": {
+          "triage": {
+            "title": "Bandeja de entrada vacía en Clasificación",
+            "sub": "Nada que decidir. Próximo lote en 2h 7m."
+          },
+          "action": {
+            "title": "Nada nuevo en Acción",
+            "sub": "Aquí aterrizan los emails con prioridad alta."
+          },
+          "followup": {
+            "title": "Nada esperando en Seguimiento",
+            "sub": "Los emails de baja prioridad viven aquí hasta el próximo lote."
+          }
+        },
+        "routed": {
+          "canWait": "Enviado a Seguimiento · agrupado",
+          "getOnIt": "Movido a Acción",
+          "ohShit": "Subido al tope de Acción — toca la pestaña para ver"
+        },
+        "floats": {
+          "urgent": "Incidente de producción — pasó el filtro"
+        }
+      }
+    },
+    "pm": {
+      "hero": {
+        "eyebrow": "Para product managers · Lista de espera abierta",
+        "titlePre": "Encuentra la escalación del cliente,",
+        "titleEm": "no el resumen",
+        "titlePostEm": "",
+        "titleAfter": " del stand-up.",
+        "lead": "BearlyMail muestra al cliente que se va, al ejecutivo que necesita respuesta hoy, y el bloqueante de ingeniería que retrasa el release. Digests de estado, invitaciones de calendario e hilos FYI esperan al próximo lote. Para product managers que prefieren enviar a clasificar.",
+        "emailLabel": "Email de trabajo",
+        "emailPlaceholder": "tu@empresa.com",
+        "submit": "Unirme a la lista →",
+        "benefits": {
+          "noSpam": "Sin spam",
+          "followUp": "Una breve pregunta de seguimiento",
+          "unsubscribe": "Cancelar suscripción cuando quieras"
+        },
+        "builtFor": "Para product managers y líderes de producto"
+      },
+      "demo": {
+        "title": "BearlyMail · miércoles, 09:18",
+        "live": "En vivo",
+        "tabs": {
+          "triage": "Clasificación",
+          "action": "Acción",
+          "followUp": "Seguimiento"
+        },
+        "banner": {
+          "prefix": "Próximo lote en",
+          "time": "1h 42m",
+          "suffix": "· última revisión de urgentes: justo ahora"
+        },
+        "topic": {
+          "prefix": "Clientes y deals:",
+          "body": " Renovaciones, riesgo de churn, escalaciones de contrato, respuestas de NPS",
+          "archiveAll": "Archivar todo"
+        },
+        "email": {
+          "from": "Daniel Rivera",
+          "customerChip": "👤 Cliente · Acme Corp",
+          "priorityChip": "Muy alta (88)",
+          "receivedAt": "08:54",
+          "subject": "Acme Corp — timeline de SSO y renovación Q4",
+          "body": "Hola Jeremy — siguiendo con la integración de SSO que hablamos en Q3. Nuestro equipo de seguridad necesita una fecha de entrega antes de firmar la renovación. Estamos en 320 asientos, el contrato expira en 11 días. ¿Podemos hacer 15 minutos esta semana?"
+        },
+        "prioritise": {
+          "label": "Prioriza:",
+          "canWait": "Puede esperar",
+          "getOnIt": "Ponte con ello",
+          "ohShit": "Oh sh$t"
+        },
+        "actions": {
+          "archive": "🗄 Archivar",
+          "snooze": "⏰ Posponer",
+          "block": "🚫 Bloquear remitente"
+        },
+        "foot": {
+          "nextBatch": "Próximo lote en",
+          "summary": "{{triage}} en Clasificación · {{action}} en Acción · {{followup}} en Seguimiento"
+        },
+        "empty": {
+          "triage": {
+            "title": "Bandeja de entrada vacía en Clasificación",
+            "sub": "Nada que decidir. Próximo lote en 1h 42m."
+          },
+          "action": {
+            "title": "Nada nuevo en Acción",
+            "sub": "Aquí aterrizan los emails con prioridad alta."
+          },
+          "followup": {
+            "title": "Nada esperando en Seguimiento",
+            "sub": "Los emails de baja prioridad viven aquí hasta el próximo lote."
+          }
+        },
+        "routed": {
+          "canWait": "Enviado a Seguimiento · agrupado",
+          "getOnIt": "Movido a Acción",
+          "ohShit": "Subido al tope de Acción — toca la pestaña para ver"
+        },
+        "floats": {
+          "urgent": "Escalación de cliente — pasó el filtro"
+        }
+      }
     }
   },
   "onboarding": {

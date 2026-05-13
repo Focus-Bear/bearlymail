@@ -7,7 +7,7 @@ interface ModalContentProps {
   maxHeight?: string;
 }
 
-export const ModalContent: React.FC<ModalContentProps> = ({ children, maxWidth = '500px', maxHeight }) => {
+export const ModalContent: React.FC<ModalContentProps> = ({ children, maxWidth = '500px', maxHeight = '90vh' }) => {
   return (
     <div
       style={{
@@ -17,7 +17,7 @@ export const ModalContent: React.FC<ModalContentProps> = ({ children, maxWidth =
         maxWidth,
         maxHeight,
         width: '90%',
-        overflowY: maxHeight ? 'auto' : undefined,
+        overflowY: 'auto',
         boxShadow: theme.shadows.xl,
       }}
       onMouseDown={event => event.stopPropagation()}

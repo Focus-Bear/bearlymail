@@ -878,8 +878,8 @@ export const LANDING_STYLES = `
 @media (max-width: 640px) {
   .bearlymail-landing header.site .row { height: 60px; }
   .bearlymail-landing header.site .nav { display: none; }
-  .bearlymail-landing .nav-cta .btn-ghost { display: none; }
-  .bearlymail-landing .nav-cta .btn { height: 36px; padding: 0 12px; font-size: 13px; }
+  .bearlymail-landing .nav-cta { gap: 8px; }
+  .bearlymail-landing .nav-cta .btn { height: 44px; padding: 0 12px; font-size: 13px; white-space: nowrap; }
   .bearlymail-landing .brand { font-size: 16px; }
 
   .bearlymail-landing .hero { padding: 36px 0 8px; }

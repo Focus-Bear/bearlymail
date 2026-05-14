@@ -636,26 +636,38 @@ export class AutoResponderService {
       classification,
     } = prepared;
 
-    // Save an Email entity for the sent reply with sentByAutoResponder=true.
-    // sentResult may be undefined for providers that don't return message metadata;
-    // we skip saving the Email entity in that case (Gmail sync creates it on next sync).
+    // Persist the sent reply as an Email entity with sentByAutoResponder=true so
+    // checkThreadFollowUpStatus can identify it as an automated reply.
+    // Upsert: if Gmail/O365/Zoho sync already created an entity for this messageId
+    // (a race condition when sync runs between sendReply and this point), update
+    // the flag on the existing row rather than inserting a duplicate.
     if (sentResult?.messageId) {
-      await this.emailRepository.save({
-        userId,
-        messageId: sentResult.messageId,
-        threadId: thread.threadId,
-        emailThreadId,
-        from: user.email,
-        to: replyToAddress,
-        subject: responseSubject,
-        body: responseBody,
-        htmlBody: responseHtmlBody,
-        isRead: true,
-        isSnoozed: false,
-        isBatched: false,
-        wasDeliveredEarly: false,
-        sentByAutoResponder: true,
+      const existingEmail = await this.emailRepository.findOne({
+        where: { messageId: sentResult.messageId, userId },
+        select: ["id"],
       });
+      if (existingEmail) {
+        await this.emailRepository.update(existingEmail.id, {
+          sentByAutoResponder: true,
+        });
+      } else {
+        await this.emailRepository.save({
+          userId,
+          messageId: sentResult.messageId,
+          threadId: thread.threadId,
+          emailThreadId,
+          from: EncryptionHelper.tryDecrypt(user.email),
+          to: replyToAddress,
+          subject: responseSubject,
+          body: responseBody,
+          htmlBody: responseHtmlBody,
+          isRead: true,
+          isSnoozed: false,
+          isBatched: false,
+          wasDeliveredEarly: false,
+          sentByAutoResponder: true,
+        });
+      }
     }
 
     await this.analyticsService.logAutoResponse({

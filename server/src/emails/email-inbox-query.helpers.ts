@@ -96,6 +96,7 @@ export async function runInboxQuery(
       e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
       e."phishingConfidence", e."phishingReason",
       e."receivedAt", e.labels, e."to", e."cc", e."senderContactId",
+      e."sentByAutoResponder",
       correspondent."from" as "correspondentEmail",
       correspondent."fromName" as "correspondentName",
       thread_labels."allThreadLabels"
@@ -106,7 +107,8 @@ export async function runInboxQuery(
         em."googleAccountId", em."office365AccountId", em."zohoAccountId",
         em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
         em."phishingConfidence", em."phishingReason",
-        em."receivedAt", em.labels, em."to", em."cc", em."senderContactId"
+        em."receivedAt", em.labels, em."to", em."cc", em."senderContactId",
+        em."sentByAutoResponder"
       FROM emails em
       WHERE em."emailThreadId" = thread.id AND em."userId" = $1
       ORDER BY em."receivedAt" DESC, em.id DESC LIMIT 1

@@ -65,6 +65,7 @@ export interface RawEmailRow {
   to: string | null;
   cc: string | null;
   latestFrom?: string | null;
+  sentByAutoResponder?: boolean;
   /** Aggregated encrypted labels from all emails in the thread (used for blocked-mode app-level filter). */
   allThreadLabels?: string[] | null;
 }

@@ -92,8 +92,12 @@ describe("AutoResponderService", () => {
           provide: getRepositoryToken(Email),
           useValue: {
             // save() is called when the autoresponder persists the sent email
-            // with sentByAutoResponder=true (fixes #884)
+            // with sentByAutoResponder=true (fixes #884).
+            // findOne() is called to check for a sync-created duplicate before saving.
+            // update() is called when a duplicate already exists.
+            findOne: jest.fn().mockResolvedValue(null),
             save: jest.fn().mockResolvedValue({}),
+            update: jest.fn().mockResolvedValue({}),
           },
         },
         {
@@ -493,6 +497,67 @@ describe("AutoResponderService", () => {
       expect(result.sent).toBe(true);
       expect(mockProvider.sendReply).toHaveBeenCalled();
       expect(analyticsService.logAutoResponse).toHaveBeenCalled();
+    });
+
+    it("should update sentByAutoResponder=true on existing email entity when sync created it first (issue #884)", async () => {
+      // Race condition: Gmail/O365 sync creates the email entity before
+      // persistAutoResponseRecord runs. The autoresponder must UPSERT rather
+      // than inserting a duplicate so the flag is reliably set.
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({
+          messageId: "mock-msg-id",
+          threadId: "thread-1",
+        }),
+      };
+      const emailRepository = module.get(getRepositoryToken(Email));
+      emailRepository.findOne.mockResolvedValue({ id: "existing-email-id" });
+
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
+      });
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      await service.processEmailForAutoResponse("user-1", "thread-1");
+
+      expect(emailRepository.findOne).toHaveBeenCalledWith({
+        where: { messageId: "mock-msg-id", userId: "user-1" },
+        select: ["id"],
+      });
+      expect(emailRepository.update).toHaveBeenCalledWith("existing-email-id", {
+        sentByAutoResponder: true,
+      });
+      expect(emailRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("should insert new email entity with sentByAutoResponder=true when no existing entity", async () => {
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({
+          messageId: "mock-msg-id",
+          threadId: "thread-1",
+        }),
+      };
+      const emailRepository = module.get(getRepositoryToken(Email));
+      emailRepository.findOne.mockResolvedValue(null);
+
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
+      });
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider);
+
+      await service.processEmailForAutoResponse("user-1", "thread-1");
+
+      expect(emailRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ sentByAutoResponder: true }),
+      );
+      expect(emailRepository.update).not.toHaveBeenCalled();
     });
 
     it("should set lastAutoRespondedAt on thread after sending auto-response (issue #857 guard)", async () => {

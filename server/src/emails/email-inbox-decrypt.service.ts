@@ -103,6 +103,7 @@ export class EmailInboxDecryptService {
       categoryId: row.categoryName ? row.categoryId : null,
       to: row.to ? EncryptionHelper.tryDecrypt(row.to) : null,
       cc: row.cc ? EncryptionHelper.tryDecrypt(row.cc) : null,
+      sentByAutoResponder: row.sentByAutoResponder ?? false,
     } as InboxEmail;
   }
 

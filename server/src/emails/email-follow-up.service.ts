@@ -39,7 +39,9 @@ export class EmailFollowUpService {
         if (userEmail) {
           const before = emails.length;
           const result = emails.filter(
-            (emailItem) => (emailItem.from?.toLowerCase() || "") !== userEmail,
+            (emailItem) =>
+              (emailItem.from?.toLowerCase() || "") !== userEmail ||
+              emailItem.sentByAutoResponder === true,
           );
           if (result.length < before)
             this.logger.debug(
@@ -133,6 +135,10 @@ export class EmailFollowUpService {
       const lastEmail = threadEmails[threadEmails.length - 1];
       const userSentLast =
         (lastEmail.from?.toLowerCase() || "") === userEmail.toLowerCase();
+
+      // BearlyMail controls all auto-responder sends and always sets sentByAutoResponder=true
+      // on the Email entity (either at creation time or via upsert if sync raced ahead).
+      // No fuzzy/grace-period fallback is needed.
       const effectiveUserSentLast =
         userSentLast && !lastEmail.sentByAutoResponder;
       const replyReceived = Boolean(

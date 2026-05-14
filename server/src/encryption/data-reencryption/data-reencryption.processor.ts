@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import * as crypto from "crypto";
 import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
 
@@ -24,6 +25,13 @@ export interface ReencryptFanoutJobData {
 export interface ReencryptFanoutResult {
   enqueued: number;
   dryRun: boolean;
+  /**
+   * Job IDs of the per-user re-encryption jobs this fan-out enqueued. Stored
+   * in the fan-out job's output so the admin UI can fetch each child job and
+   * aggregate results across all users (pg-boss v9 `insert` returns void, so
+   * we pre-generate UUIDs and pass them in via `JobInsert.id`).
+   */
+  childJobIds: string[];
 }
 
 @Injectable()
@@ -68,25 +76,36 @@ export class DataReencryptionProcessor implements OnModuleInit {
         this.logger.log(
           `Fan-out: no eligible users${dryRun ? " (dry run)" : ""}`,
         );
-        return { enqueued: 0, dryRun } satisfies ReencryptFanoutResult;
+        return {
+          enqueued: 0,
+          dryRun,
+          childJobIds: [],
+        } satisfies ReencryptFanoutResult;
       }
 
+      // Pre-generate UUIDs so we can return them as the fan-out's output —
+      // pg-boss v9's `insert()` returns void, so this is the only way to
+      // surface child job IDs to the aggregation endpoint.
+      const inserts = users.map((user) => ({
+        id: crypto.randomUUID(),
+        name: JOB_NAMES.REENCRYPT_USER_DATA,
+        // eslint-disable-next-line id-denylist
+        data: { userId: user.id, dryRun } as ReencryptUserDataJobData,
+        priority: JobPriority.VERY_LOW,
+      }));
+
       // Single bulk insert beats N round-trips to pg — the whole point of
-      // moving fan-out off the HTTP path. `data` is fixed by PgBoss's
-      // JobInsert shape.
-      await this.boss.insert(
-        users.map((user) => ({
-          name: JOB_NAMES.REENCRYPT_USER_DATA,
-          // eslint-disable-next-line id-denylist
-          data: { userId: user.id, dryRun } as ReencryptUserDataJobData,
-          priority: JobPriority.VERY_LOW,
-        })),
-      );
+      // moving fan-out off the HTTP path.
+      await this.boss.insert(inserts);
 
       this.logger.log(
         `Fan-out: enqueued ${users.length} re-encryption jobs${dryRun ? " (dry run)" : ""}`,
       );
-      return { enqueued: users.length, dryRun } satisfies ReencryptFanoutResult;
+      return {
+        enqueued: users.length,
+        dryRun,
+        childJobIds: inserts.map((insert) => insert.id),
+      } satisfies ReencryptFanoutResult;
     });
     this.logger.log(`Worker registered: ${JOB_NAMES.REENCRYPT_FANOUT_ALL}`);
   }

@@ -1359,6 +1359,27 @@
         "rewritten": "Rewritten",
         "alreadyMigrated": "Already migrated",
         "failed": "Failed"
+      },
+      "fanout": {
+        "aggregateTitle": "Aggregated dry-run results (all users)",
+        "polling": "Waiting for per-user jobs to complete ({{terminal}}/{{total}})…",
+        "complete": "All {{total}} per-user jobs complete.",
+        "refresh": "Refresh",
+        "usersWithRowFailures": "Users with row failures",
+        "childrenCompleted": "Children completed",
+        "childrenFailed": "Children failed",
+        "failuresTitle": "Failure details (first {{shown}} of {{total}})",
+        "noFailures": "No row-level failures across any user. ✅",
+        "failureColumns": {
+          "user": "User",
+          "table": "Table",
+          "rowId": "Row ID",
+          "column": "Column",
+          "reason": "Reason",
+          "shape": "iv/tag/body hex len",
+          "preview": "Prefix … Suffix",
+          "error": "Error"
+        }
       }
     },
     "emailDecrypt": {

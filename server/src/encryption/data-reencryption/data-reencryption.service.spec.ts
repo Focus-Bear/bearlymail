@@ -202,4 +202,63 @@ describe("DataReencryptionService", () => {
     expect(result.tables[0].rowsFailed).toBe(1);
     expect(userRepo.update).not.toHaveBeenCalled();
   });
+
+  it("captures structured failure diagnostics for unrecoverable rows", async () => {
+    const orphanedKey = Buffer.alloc(32, 0xcd);
+    const orphanedCiphertext = encryptWithKey("unrecoverable", orphanedKey);
+
+    txQueryMock.mockImplementation((sql: string) => {
+      if (sql.includes("SELECT")) {
+        return Promise.resolve([
+          { id: "row-1", content: orphanedCiphertext },
+          { id: "row-2", content: orphanedCiphertext },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const result = await service.reencryptUser(userId, { dryRun: true });
+
+    expect(result.tables[0].rowsFailed).toBe(2);
+    expect(result.tables[0].failures).toHaveLength(2);
+
+    const [first] = result.tables[0].failures;
+    expect(first.table).toBe("private_notes");
+    expect(first.rowId).toBe("row-1");
+    expect(first.column).toBe("content");
+    expect(first.reason).toBe("neither_key");
+    // The encryptWithKey helper above uses a 16-byte IV (32 hex chars) and
+    // GCM auth tag (16 bytes = 32 hex chars). Body hex length depends on
+    // plaintext but must be even and non-zero.
+    expect(first.ivHexLen).toBe(32);
+    expect(first.tagHexLen).toBe(32);
+    expect(first.bodyHexLen).toBeGreaterThan(0);
+    expect(first.bodyHexLen % 2).toBe(0);
+    expect(first.totalLen).toBe(orphanedCiphertext.length);
+    expect(first.prefix.length).toBe(12);
+    expect(first.suffix.length).toBe(12);
+    expect(first.errorMessage).toContain("neither");
+  });
+
+  it("caps retained failure details to MAX_FAILURES_RETAINED_PER_TABLE", async () => {
+    // Verify failures array is bounded even if every row fails. Simulate
+    // 25 failed rows; cap is 20 (see MAX_FAILURES_RETAINED_PER_TABLE).
+    const orphanedKey = Buffer.alloc(32, 0xcd);
+    const rows = Array.from({ length: 25 }, (_, i) => ({
+      id: `row-${i}`,
+      content: encryptWithKey(`payload-${i}`, orphanedKey),
+    }));
+
+    txQueryMock.mockImplementation((sql: string) => {
+      if (sql.includes("SELECT")) {
+        return Promise.resolve(rows);
+      }
+      return Promise.resolve([]);
+    });
+
+    const result = await service.reencryptUser(userId, { dryRun: true });
+
+    expect(result.tables[0].rowsFailed).toBe(25);
+    expect(result.tables[0].failures.length).toBeLessThanOrEqual(20);
+  });
 });

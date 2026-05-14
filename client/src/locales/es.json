@@ -61,6 +61,27 @@
         "rewritten": "Reescritos",
         "alreadyMigrated": "Ya migrados",
         "failed": "Fallidos"
+      },
+      "fanout": {
+        "aggregateTitle": "Resultados agregados de dry-run (todos los usuarios)",
+        "polling": "Esperando que terminen los jobs por usuario ({{terminal}}/{{total}})…",
+        "complete": "Los {{total}} jobs por usuario han terminado.",
+        "refresh": "Refrescar",
+        "usersWithRowFailures": "Usuarios con filas fallidas",
+        "childrenCompleted": "Jobs completos",
+        "childrenFailed": "Jobs fallidos",
+        "failuresTitle": "Detalles de fallos (primeros {{shown}} de {{total}})",
+        "noFailures": "Sin fallos a nivel de fila en ningún usuario. ✅",
+        "failureColumns": {
+          "user": "Usuario",
+          "table": "Tabla",
+          "rowId": "ID de fila",
+          "column": "Columna",
+          "reason": "Razón",
+          "shape": "iv/tag/body hex len",
+          "preview": "Prefijo … Sufijo",
+          "error": "Error"
+        }
       }
     },
     "emailDecrypt": {

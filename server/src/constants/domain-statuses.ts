@@ -58,6 +58,8 @@ export const QUEUE_JOB_STATE = {
   RETRY: "retry",
   FAILED: "failed",
   COMPLETED: "completed",
+  EXPIRED: "expired",
+  CANCELLED: "cancelled",
 } as const;
 
 export type QueueJobState =

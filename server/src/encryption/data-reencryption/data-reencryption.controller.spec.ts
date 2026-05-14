@@ -192,4 +192,154 @@ describe("DataReencryptionController", () => {
       expect(response.completedOn).toBeNull();
     });
   });
+
+  describe("getFanoutResults", () => {
+    it("returns not_found when the fan-out job has been pruned", async () => {
+      bossGetJobById.mockResolvedValue(null);
+
+      const response = await controller.getFanoutResults("missing");
+
+      expect(response.state).toBe("not_found");
+      expect(response.childrenTotal).toBe(0);
+      expect(response.children).toEqual([]);
+      expect(response.failures).toEqual([]);
+    });
+
+    it("aggregates per-table totals + attaches userId to each failure", async () => {
+      // Fan-out enqueued two children. One completed cleanly, one completed
+      // with row-level failures.
+      bossGetJobById.mockImplementation((id: string) => {
+        if (id === "fanout-1") {
+          return Promise.resolve({
+            state: "completed",
+            output: {
+              enqueued: 2,
+              dryRun: true,
+              childJobIds: ["child-clean", "child-with-failures"],
+            },
+          });
+        }
+        if (id === "child-clean") {
+          return Promise.resolve({
+            state: "completed",
+            data: { userId: "user-a", dryRun: true },
+            output: {
+              userId: "user-a",
+              dryRun: true,
+              tables: [
+                {
+                  table: "emails",
+                  rowsScanned: 100,
+                  rowsRewritten: 80,
+                  rowsAlreadyMigrated: 20,
+                  rowsFailed: 0,
+                  failures: [],
+                },
+              ],
+            },
+          });
+        }
+        if (id === "child-with-failures") {
+          return Promise.resolve({
+            state: "completed",
+            data: { userId: "user-b", dryRun: true },
+            output: {
+              userId: "user-b",
+              dryRun: true,
+              tables: [
+                {
+                  table: "emails",
+                  rowsScanned: 50,
+                  rowsRewritten: 47,
+                  rowsAlreadyMigrated: 0,
+                  rowsFailed: 3,
+                  failures: [
+                    {
+                      table: "emails",
+                      rowId: "email-1",
+                      column: "subject",
+                      reason: "neither_key",
+                      ivHexLen: 32,
+                      tagHexLen: 32,
+                      bodyHexLen: 40,
+                      totalLen: 106,
+                      prefix: "deadbeef0011",
+                      suffix: "aabbccddeeff",
+                      errorMessage:
+                        "decrypts under neither user nor global key",
+                    },
+                  ],
+                },
+              ],
+            },
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const response = await controller.getFanoutResults("fanout-1");
+
+      expect(response.state).toBe("completed");
+      expect(response.childrenTotal).toBe(2);
+      expect(response.childrenTerminal).toBe(2);
+      expect(response.childrenCompleted).toBe(2);
+      expect(response.childrenFailed).toBe(0);
+      expect(response.usersWithRowFailures).toBe(1);
+      expect(response.tables).toEqual([
+        {
+          table: "emails",
+          rowsScanned: 150,
+          rowsRewritten: 127,
+          rowsAlreadyMigrated: 20,
+          rowsFailed: 3,
+        },
+      ]);
+      expect(response.failures).toHaveLength(1);
+      // Owning user is attached server-side so the admin UI doesn't have to
+      // cross-reference children and failures itself.
+      expect(response.failures[0].userId).toBe("user-b");
+      expect(response.failures[0].column).toBe("subject");
+      expect(response.failures[0].reason).toBe("neither_key");
+    });
+
+    it("counts in-progress children but reports them as not-yet-terminal", async () => {
+      bossGetJobById.mockImplementation((id: string) => {
+        if (id === "fanout-running") {
+          return Promise.resolve({
+            state: "completed",
+            output: {
+              enqueued: 2,
+              dryRun: true,
+              childJobIds: ["child-active", "child-done"],
+            },
+          });
+        }
+        if (id === "child-active") {
+          return Promise.resolve({
+            state: "active",
+            data: { userId: "user-a", dryRun: true },
+            output: null,
+          });
+        }
+        if (id === "child-done") {
+          return Promise.resolve({
+            state: "completed",
+            data: { userId: "user-b", dryRun: true },
+            output: {
+              userId: "user-b",
+              dryRun: true,
+              tables: [],
+            },
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const response = await controller.getFanoutResults("fanout-running");
+
+      expect(response.childrenTotal).toBe(2);
+      expect(response.childrenTerminal).toBe(1);
+      expect(response.childrenCompleted).toBe(1);
+    });
+  });
 });

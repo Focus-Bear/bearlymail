@@ -18,6 +18,9 @@ interface DryRunTableResult {
   rowsRewritten: number;
   rowsAlreadyMigrated: number;
   rowsFailed: number;
+  // Optional for backwards compat with older server versions that don't
+  // populate it yet (avoids client errors on first deploy).
+  failures?: FailureDetail[];
 }
 
 interface DryRunResult {
@@ -39,11 +42,56 @@ type JobState =
 interface FanoutResult {
   enqueued: number;
   dryRun: boolean;
+  childJobIds: string[];
 }
 
 interface JobStatusResponse<TOutput> {
   state: JobState;
   output: TOutput | null;
+}
+
+interface FailureDetail {
+  table: string;
+  rowId: string;
+  column: string;
+  reason: 'neither_key' | 'encrypt_failed' | 'unknown';
+  ivHexLen: number;
+  tagHexLen: number;
+  bodyHexLen: number;
+  totalLen: number;
+  prefix: string;
+  suffix: string;
+  errorMessage: string;
+}
+
+interface AggregatedTableSummary {
+  table: string;
+  rowsScanned: number;
+  rowsRewritten: number;
+  rowsAlreadyMigrated: number;
+  rowsFailed: number;
+}
+
+interface ChildJobSummary {
+  jobId: string;
+  userId: string | null;
+  state: JobState;
+}
+
+interface AggregatedFailureDetail extends FailureDetail {
+  userId: string | null;
+}
+
+interface FanoutResultsResponse {
+  state: JobState;
+  childrenTotal: number;
+  childrenTerminal: number;
+  childrenCompleted: number;
+  childrenFailed: number;
+  usersWithRowFailures: number;
+  tables: AggregatedTableSummary[];
+  failures: AggregatedFailureDetail[];
+  children: ChildJobSummary[];
 }
 
 const REENCRYPTION_BASE = `${API_URL}/admin/reencryption`;
@@ -88,6 +136,9 @@ export const ReencryptionSection: React.FC = () => {
   const [actionInFlight, setActionInFlight] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
+  const [fanoutJobId, setFanoutJobId] = useState<string | null>(null);
+  const [fanoutResults, setFanoutResults] =
+    useState<FanoutResultsResponse | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -116,6 +167,8 @@ export const ReencryptionSection: React.FC = () => {
       setActionInFlight(label);
       setActionResult(null);
       setDryRunResult(null);
+      setFanoutJobId(null);
+      setFanoutResults(null);
       try {
         const message = await operation();
         setActionResult(message);
@@ -130,6 +183,54 @@ export const ReencryptionSection: React.FC = () => {
     },
     [refreshStatus],
   );
+
+  const fetchFanoutResults = useCallback(
+    async (jobId: string): Promise<FanoutResultsResponse> => {
+      const { data } = await axios.get<FanoutResultsResponse>(
+        `${REENCRYPTION_BASE}/fanout/${jobId}/results`,
+        { withCredentials: true },
+      );
+      setFanoutResults(data);
+      return data;
+    },
+    [],
+  );
+
+  // Once a fan-out completes we have its child job IDs, but those per-user
+  // jobs are still running. Poll the aggregation endpoint until every child
+  // is terminal so the admin sees results trickle in rather than nothing.
+  useEffect(() => {
+    if (!fanoutJobId) {
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const results = await fetchFanoutResults(fanoutJobId);
+        if (cancelled) {
+          return;
+        }
+        // Clear any error from a previous transient failure now that polling
+        // has recovered, so the UI doesn't stay stuck in an error state.
+        setError(null);
+        if (results.childrenTerminal < results.childrenTotal) {
+          window.setTimeout(poll, JOB_POLL_INTERVAL_MS);
+        }
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
+        // Keep polling on transient failures (e.g. brief network blips) so
+        // the UI recovers automatically once the endpoint responds again.
+        window.setTimeout(poll, JOB_POLL_INTERVAL_MS);
+      }
+    };
+    poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [fanoutJobId, fetchFanoutResults]);
 
   const handleDryRunSelf = () =>
     runAction(t('admin.reencryption.actions.dryRunSelf'), async () => {
@@ -183,6 +284,9 @@ export const ReencryptionSection: React.FC = () => {
         t('admin.reencryption.fanoutNoResult', { state: finalStatus.state }),
       );
     }
+    // Trigger the aggregation-polling useEffect so the per-user jobs'
+    // results stream into the UI as they complete.
+    setFanoutJobId(enqueueResp.jobId);
     return t('admin.reencryption.enqueued', {
       count: finalStatus.output.enqueued,
     });
@@ -325,6 +429,20 @@ export const ReencryptionSection: React.FC = () => {
             alreadyMigrated: t('admin.reencryption.columns.alreadyMigrated'),
             failed: t('admin.reencryption.columns.failed'),
           }}
+        />
+      )}
+
+      {dryRunResult?.tables && (
+        <FailureDetailsSection
+          failures={collectSelfDryRunFailures(dryRunResult)}
+          showUserColumn={false}
+        />
+      )}
+
+      {fanoutJobId && fanoutResults && (
+        <FanoutAggregateSection
+          results={fanoutResults}
+          onRefresh={() => fetchFanoutResults(fanoutJobId)}
         />
       )}
 
@@ -529,3 +647,287 @@ const DryRunResultTable: React.FC<DryRunResultTableProps> = ({
     </table>
   </div>
 );
+
+function collectSelfDryRunFailures(
+  result: DryRunResult,
+): Array<FailureDetail & { userId?: string }> {
+  const out: Array<FailureDetail & { userId?: string }> = [];
+  for (const tableResult of result.tables) {
+    for (const failure of tableResult.failures ?? []) {
+      out.push({ ...failure, userId: result.userId });
+    }
+  }
+  return out;
+}
+
+const MAX_DISPLAYED_FAILURES = 100;
+
+interface FailureDetailsSectionProps {
+  failures: Array<FailureDetail & { userId?: string | null }>;
+  showUserColumn: boolean;
+}
+
+const FailureDetailsSection: React.FC<FailureDetailsSectionProps> = ({
+  failures,
+  showUserColumn,
+}) => {
+  const { t } = useTranslation();
+  if (failures.length === 0) {
+    return (
+      <div
+        style={{
+          marginTop: theme.spacing.lg,
+          padding: theme.spacing.md,
+          backgroundColor: theme.colors.success.light,
+          color: theme.colors.success.main,
+          borderRadius: 4,
+        }}
+      >
+        {t('admin.reencryption.fanout.noFailures')}
+      </div>
+    );
+  }
+  const shown = failures.slice(0, MAX_DISPLAYED_FAILURES);
+  return (
+    <div style={{ marginTop: theme.spacing.lg }}>
+      <h3
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          fontWeight: theme.typography.fontWeight.semibold,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        {t('admin.reencryption.fanout.failuresTitle', {
+          shown: shown.length,
+          total: failures.length,
+        })}
+      </h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: theme.typography.fontSize.xs,
+            fontFamily: 'monospace',
+          }}
+        >
+          <thead>
+            <tr
+              style={{ borderBottom: `1px solid ${theme.colors.border.light}` }}
+            >
+              {showUserColumn && (
+                <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                  {t('admin.reencryption.fanout.failureColumns.user')}
+                </th>
+              )}
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.table')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.rowId')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.column')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.reason')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.shape')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.preview')}
+              </th>
+              <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+                {t('admin.reencryption.fanout.failureColumns.error')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((failure, i) => (
+              <tr
+                key={`${failure.table}-${failure.rowId}-${failure.column}-${i}`}
+                style={{
+                  borderBottom: `1px solid ${theme.colors.border.light}`,
+                }}
+              >
+                {showUserColumn && (
+                  <td style={{ padding: theme.spacing.sm }}>
+                    {failure.userId ?? '—'}
+                  </td>
+                )}
+                <td style={{ padding: theme.spacing.sm }}>{failure.table}</td>
+                <td style={{ padding: theme.spacing.sm }}>{failure.rowId}</td>
+                <td style={{ padding: theme.spacing.sm }}>{failure.column}</td>
+                <td
+                  style={{
+                    padding: theme.spacing.sm,
+                    color: theme.colors.error.main,
+                  }}
+                >
+                  {failure.reason}
+                </td>
+                <td style={{ padding: theme.spacing.sm }}>
+                  {failure.ivHexLen}/{failure.tagHexLen}/{failure.bodyHexLen}
+                </td>
+                <td style={{ padding: theme.spacing.sm }}>
+                  {failure.prefix}…{failure.suffix}
+                </td>
+                <td style={{ padding: theme.spacing.sm }}>
+                  {failure.errorMessage}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+interface FanoutAggregateSectionProps {
+  results: FanoutResultsResponse;
+  onRefresh: () => void;
+}
+
+const FanoutAggregateSection: React.FC<FanoutAggregateSectionProps> = ({
+  results,
+  onRefresh,
+}) => {
+  const { t } = useTranslation();
+  const inProgress = results.childrenTerminal < results.childrenTotal;
+  return (
+    <div style={{ marginTop: theme.spacing.xl }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        <h3
+          style={{
+            fontSize: theme.typography.fontSize.lg,
+            fontWeight: theme.typography.fontWeight.semibold,
+            margin: 0,
+          }}
+        >
+          {t('admin.reencryption.fanout.aggregateTitle')}
+        </h3>
+        <button
+          type="button"
+          onClick={onRefresh}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+            backgroundColor: theme.colors.background.paper,
+            border: `1px solid ${theme.colors.border.light}`,
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('admin.reencryption.fanout.refresh')}
+        </button>
+      </div>
+
+      <div
+        role="status"
+        style={{
+          padding: theme.spacing.sm,
+          marginBottom: theme.spacing.md,
+          backgroundColor: inProgress
+            ? theme.colors.warning.light
+            : theme.colors.success.light,
+          color: inProgress
+            ? theme.colors.warning.main
+            : theme.colors.success.main,
+          borderRadius: 4,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {inProgress
+          ? t('admin.reencryption.fanout.polling', {
+              terminal: results.childrenTerminal,
+              total: results.childrenTotal,
+            })
+          : t('admin.reencryption.fanout.complete', {
+              total: results.childrenTotal,
+            })}
+        {' · '}
+        {t('admin.reencryption.fanout.childrenCompleted')}:{' '}
+        {results.childrenCompleted}
+        {' · '}
+        {t('admin.reencryption.fanout.childrenFailed')}: {results.childrenFailed}
+        {' · '}
+        {t('admin.reencryption.fanout.usersWithRowFailures')}:{' '}
+        {results.usersWithRowFailures}
+      </div>
+
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        <thead>
+          <tr
+            style={{ borderBottom: `1px solid ${theme.colors.border.light}` }}
+          >
+            <th style={{ textAlign: 'left', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.table')}
+            </th>
+            <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.scanned')}
+            </th>
+            <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.rewritten')}
+            </th>
+            <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.alreadyMigrated')}
+            </th>
+            <th style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+              {t('admin.reencryption.columns.failed')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {results.tables.map((row) => (
+            <tr
+              key={row.table}
+              style={{
+                borderBottom: `1px solid ${theme.colors.border.light}`,
+              }}
+            >
+              <td style={{ padding: theme.spacing.sm }}>{row.table}</td>
+              <td style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+                {row.rowsScanned}
+              </td>
+              <td style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+                {row.rowsRewritten}
+              </td>
+              <td style={{ textAlign: 'right', padding: theme.spacing.sm }}>
+                {row.rowsAlreadyMigrated}
+              </td>
+              <td
+                style={{
+                  textAlign: 'right',
+                  padding: theme.spacing.sm,
+                  color:
+                    row.rowsFailed > 0
+                      ? theme.colors.error.main
+                      : theme.colors.text.primary,
+                }}
+              >
+                {row.rowsFailed}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <FailureDetailsSection failures={results.failures} showUserColumn />
+    </div>
+  );
+};

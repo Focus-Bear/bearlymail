@@ -15,18 +15,93 @@ import {
 
 const BATCH_SIZE = 100;
 
+/**
+ * Cap on retained per-row failure details per (user, table). Failures beyond
+ * this still count toward `rowsFailed` but their diagnostics are dropped so
+ * the PgBoss job output (a JSON blob in pg) cannot grow unbounded if a whole
+ * table is broken.
+ */
+const MAX_FAILURES_RETAINED_PER_TABLE = 20;
+
+/**
+ * Length (in hex chars) of the prefix and suffix snippets kept on each
+ * failure diagnostic. Long enough to be distinguishable in a UI cell,
+ * short enough to keep the JSON output bounded. Always pulled from
+ * ciphertext only — never plaintext, so this leaks nothing.
+ */
+const CIPHERTEXT_SAMPLE_HEX_CHARS = 12;
+
+export type ReencryptionFailureReason =
+  /** Ciphertext decrypts under neither the current user KMS key nor the legacy global key. */
+  | "neither_key"
+  /** All key attempts succeeded but EncryptionHelper.encrypt returned null when re-wrapping. */
+  | "encrypt_failed"
+  /** Catch-all for unexpected errors (shouldn't happen — investigate if seen). */
+  | "unknown";
+
+export interface ReencryptionFailureDetail {
+  table: string;
+  rowId: string;
+  column: string;
+  reason: ReencryptionFailureReason;
+  ivHexLen: number;
+  tagHexLen: number;
+  bodyHexLen: number;
+  totalLen: number;
+  prefix: string;
+  suffix: string;
+  errorMessage: string;
+}
+
 export interface TableReencryptionResult {
   table: string;
   rowsScanned: number;
   rowsRewritten: number;
   rowsAlreadyMigrated: number;
   rowsFailed: number;
+  failures: ReencryptionFailureDetail[];
 }
 
 export interface UserReencryptionResult {
   userId: string;
   dryRun: boolean;
   tables: TableReencryptionResult[];
+}
+
+interface FailureContext {
+  column: string;
+  reason: ReencryptionFailureReason;
+  ciphertext: string;
+  errorMessage: string;
+}
+
+type ReencryptColumnsResult =
+  | { kind: "alreadyMigrated" }
+  | { kind: "noEncryptedValues" }
+  | { kind: "rewriteNeeded"; values: Record<string, string> }
+  | { kind: "rowFailure"; failure: FailureContext };
+
+/**
+ * Decompose a stored ciphertext (`ivHex:tagHex:bodyHex`) for diagnostics.
+ * Pure — never reveals plaintext, only shape.
+ */
+function describeCiphertextShape(ciphertext: string): {
+  ivHexLen: number;
+  tagHexLen: number;
+  bodyHexLen: number;
+  totalLen: number;
+  prefix: string;
+  suffix: string;
+} {
+  const parts = ciphertext.split(":");
+  return {
+    ivHexLen: (parts[0] ?? "").length,
+    tagHexLen: (parts[1] ?? "").length,
+    bodyHexLen: (parts[2] ?? "").length,
+    totalLen: ciphertext.length,
+    prefix: ciphertext.slice(0, CIPHERTEXT_SAMPLE_HEX_CHARS),
+    suffix: ciphertext.slice(-CIPHERTEXT_SAMPLE_HEX_CHARS),
+  };
 }
 
 /**
@@ -138,6 +213,7 @@ export class DataReencryptionService {
     let rowsRewritten = 0;
     let rowsAlreadyMigrated = 0;
     let rowsFailed = 0;
+    const failures: ReencryptionFailureDetail[] = [];
 
     while (true) {
       const {
@@ -145,6 +221,7 @@ export class DataReencryptionService {
         batchRewritten,
         batchAlreadyMigrated,
         batchFailed,
+        batchFailures,
         lastId,
       } = await this.dataSource.transaction(async (txMgr) =>
         this.processBatch(txMgr, {
@@ -154,6 +231,7 @@ export class DataReencryptionService {
           globalKey,
           cursor,
           dryRun,
+          retainedFailuresSoFar: failures.length,
         }),
       );
 
@@ -161,6 +239,10 @@ export class DataReencryptionService {
       rowsRewritten += batchRewritten;
       rowsAlreadyMigrated += batchAlreadyMigrated;
       rowsFailed += batchFailed;
+      for (const failure of batchFailures) {
+        if (failures.length >= MAX_FAILURES_RETAINED_PER_TABLE) break;
+        failures.push(failure);
+      }
 
       if (batchScanned < BATCH_SIZE || lastId === null) break;
       cursor = lastId;
@@ -172,6 +254,7 @@ export class DataReencryptionService {
       rowsRewritten,
       rowsAlreadyMigrated,
       rowsFailed,
+      failures,
     };
   }
 
@@ -184,15 +267,25 @@ export class DataReencryptionService {
       globalKey: Buffer;
       cursor: string | null;
       dryRun: boolean;
+      retainedFailuresSoFar: number;
     },
   ): Promise<{
     batchScanned: number;
     batchRewritten: number;
     batchAlreadyMigrated: number;
     batchFailed: number;
+    batchFailures: ReencryptionFailureDetail[];
     lastId: string | null;
   }> {
-    const { userId, table, userKey, globalKey, cursor, dryRun } = opts;
+    const {
+      userId,
+      table,
+      userKey,
+      globalKey,
+      cursor,
+      dryRun,
+      retainedFailuresSoFar,
+    } = opts;
     const selectColumns = [
       table.primaryKeyColumn,
       ...table.columns.map((col) => col.databaseName),
@@ -217,35 +310,39 @@ export class DataReencryptionService {
     let batchRewritten = 0;
     let batchAlreadyMigrated = 0;
     let batchFailed = 0;
+    const batchFailures: ReencryptionFailureDetail[] = [];
 
     for (const row of rows) {
-      const rowId = row[table.primaryKeyColumn];
-      try {
-        const updates = this.computeReencryptedColumns(
-          table,
-          row,
-          userKey,
-          globalKey,
-        );
-        if (updates.kind === "alreadyMigrated") {
+      const rowId = row[table.primaryKeyColumn] as string;
+      const outcome = this.classifyRow(table, row, userKey, globalKey);
+
+      switch (outcome.kind) {
+        case "alreadyMigrated":
+        case "noEncryptedValues":
           batchAlreadyMigrated++;
-          continue;
+          break;
+        case "rewriteNeeded":
+          if (!dryRun) {
+            await this.applyUpdate(txMgr, table, rowId, outcome.values);
+          }
+          batchRewritten++;
+          break;
+        case "rowFailure": {
+          batchFailed++;
+          const failure = this.buildFailureDetail(
+            table.tableName,
+            rowId,
+            outcome.failure,
+          );
+          this.logFailure(failure);
+          if (
+            retainedFailuresSoFar + batchFailures.length <
+            MAX_FAILURES_RETAINED_PER_TABLE
+          ) {
+            batchFailures.push(failure);
+          }
+          break;
         }
-        if (updates.kind === "noEncryptedValues") {
-          batchAlreadyMigrated++;
-          continue;
-        }
-        if (!dryRun) {
-          await this.applyUpdate(txMgr, table, rowId as string, updates.values);
-        }
-        batchRewritten++;
-      } catch (err) {
-        batchFailed++;
-        this.logger.warn(
-          `Re-encrypt failed for ${table.tableName}.${rowId}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
       }
     }
 
@@ -259,7 +356,57 @@ export class DataReencryptionService {
       batchRewritten,
       batchAlreadyMigrated,
       batchFailed,
+      batchFailures,
       lastId,
+    };
+  }
+
+  /**
+   * Wraps `computeReencryptedColumns` so an unexpected synchronous throw
+   * (which shouldn't happen — the function returns tagged failures by
+   * design) is captured as a `failure` outcome with `reason: "unknown"`
+   * rather than aborting the whole batch.
+   */
+  private classifyRow(
+    table: EncryptedTable,
+    row: Record<string, string | null>,
+    userKey: Buffer,
+    globalKey: Buffer,
+  ): ReencryptColumnsResult {
+    try {
+      return this.computeReencryptedColumns(table, row, userKey, globalKey);
+    } catch (err) {
+      return {
+        kind: "rowFailure",
+        failure: {
+          column: "(unknown)",
+          reason: "unknown",
+          ciphertext: "",
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      };
+    }
+  }
+
+  private logFailure(failure: ReencryptionFailureDetail): void {
+    this.logger.warn(
+      `Re-encrypt failed for ${failure.table}.${failure.rowId} column="${failure.column}" reason=${failure.reason} ivHexLen=${failure.ivHexLen} tagHexLen=${failure.tagHexLen} bodyHexLen=${failure.bodyHexLen} prefix=${failure.prefix} suffix=${failure.suffix} err=${failure.errorMessage}`,
+    );
+  }
+
+  private buildFailureDetail(
+    tableName: string,
+    rowId: string,
+    failure: FailureContext,
+  ): ReencryptionFailureDetail {
+    const shape = describeCiphertextShape(failure.ciphertext);
+    return {
+      table: tableName,
+      rowId,
+      column: failure.column,
+      reason: failure.reason,
+      ...shape,
+      errorMessage: failure.errorMessage,
     };
   }
 
@@ -269,17 +416,17 @@ export class DataReencryptionService {
    * - null / not-ciphertext-shaped → leave alone
    * - decrypts under the active per-user key → already migrated, skip
    * - decrypts under the global key → re-encrypt with the active per-user key
-   * - decrypts under neither → throw (caller logs and counts as failed)
+   * - decrypts under neither → return a `failure` outcome with the column name
+   *   and ciphertext (caller records a structured failure detail). Failures
+   *   are *not* thrown so the per-row try/catch only handles truly unexpected
+   *   exceptions.
    */
   private computeReencryptedColumns(
     table: EncryptedTable,
     row: Record<string, string | null>,
     userKey: Buffer,
     globalKey: Buffer,
-  ):
-    | { kind: "alreadyMigrated" }
-    | { kind: "noEncryptedValues" }
-    | { kind: "rewrite"; values: Record<string, string> } {
+  ): ReencryptColumnsResult {
     const updates: Record<string, string> = {};
     let anyEncryptedColumn = false;
     let anyNeedingRewrite = false;
@@ -308,14 +455,28 @@ export class DataReencryptionService {
         globalKey,
       );
       if (globalKeyDecrypted === null || globalKeyDecrypted === ciphertext) {
-        throw new Error(
-          `column "${col.databaseName}" decrypts under neither user nor global key`,
-        );
+        return {
+          kind: "rowFailure",
+          failure: {
+            column: col.databaseName,
+            reason: "neither_key",
+            ciphertext,
+            errorMessage: `decrypts under neither user nor global key`,
+          },
+        };
       }
 
       const reencrypted = EncryptionHelper.encrypt(globalKeyDecrypted);
       if (reencrypted === null) {
-        throw new Error(`column "${col.databaseName}" failed to re-encrypt`);
+        return {
+          kind: "rowFailure",
+          failure: {
+            column: col.databaseName,
+            reason: "encrypt_failed",
+            ciphertext,
+            errorMessage: `EncryptionHelper.encrypt returned null when re-wrapping under user key`,
+          },
+        };
       }
       updates[col.databaseName] = reencrypted;
       anyNeedingRewrite = true;
@@ -323,7 +484,7 @@ export class DataReencryptionService {
 
     if (!anyEncryptedColumn) return { kind: "noEncryptedValues" };
     if (!anyNeedingRewrite) return { kind: "alreadyMigrated" };
-    return { kind: "rewrite", values: updates };
+    return { kind: "rewriteNeeded", values: updates };
   }
 
   private async applyUpdate(

@@ -108,11 +108,15 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
     return null;
   }
 
+  // Only count emails from expanded (visible) categories so the index matches
+  // what the user sees on screen. Collapsed categories are invisible and should
+  // not contribute to the globalIndex offset.
   let globalIndex = 0;
   for (let i = 0; i < catIdx; i++) {
     const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
-    const prevGroup = emailCategoryMap.get(prevKey);
-    globalIndex += prevGroup?.emails.length ?? 0;
+    if (expandedCategories.has(prevKey)) {
+      globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
+    }
   }
 
   const renderEmailItem = (email: Email, emailIndex: number) => {

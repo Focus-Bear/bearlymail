@@ -90,7 +90,7 @@ export function useInboxEmailHandlers({
   );
 
   const handleEmailSelect = useCallback(
-    (emailId: string, _event: React.MouseEvent | KeyboardEvent) => {
+    (emailId: string, _event: React.MouseEvent | KeyboardEvent, categoryIndex?: number) => {
       captureEvent(ANALYTICS_EVENTS.EMAIL_CLICKED, { email_id: emailId, mode });
       if (splitView.isMobile) {
         handleMarkAsRead(emailId);
@@ -98,14 +98,15 @@ export function useInboxEmailHandlers({
       } else {
         handleMarkAsRead(emailId);
         splitView.openEmail(emailId);
-        const visibleEmails = emails.filter(email => !email.isArchived);
-        const emailIndex = visibleEmails.findIndex(email => email.id === emailId);
-        if (emailIndex >= 0) {
-          setSelectedEmailIndex(emailIndex);
+        // Use the category view index passed from the click handler.
+        // When called from keyboard Enter, categoryIndex is undefined and selectedEmailIndex
+        // is already correct from arrow key navigation — leave it unchanged.
+        if (categoryIndex !== undefined) {
+          setSelectedEmailIndex(categoryIndex);
         }
       }
     },
-    [splitView, handleMarkAsRead, navigate, mode, basePath, emails, setSelectedEmailIndex]
+    [splitView, handleMarkAsRead, navigate, mode, basePath, setSelectedEmailIndex]
   );
 
   useInboxKeyboardNavigation({

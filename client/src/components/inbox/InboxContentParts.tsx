@@ -518,9 +518,11 @@ const InboxCategoryList: React.FC<InboxCategoryListProps> = ({
 
         let globalIndex = 0;
         for (let i = 0; i < catIdx; i++) {
-          const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
-          globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
-        }
+            const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
+            if (expandedCategories.has(prevKey)) {
+              globalIndex += emailCategoryMap.get(prevKey)?.emails.length ?? 0;
+         }
+}
 
         return (
           <InboxCategoryItem

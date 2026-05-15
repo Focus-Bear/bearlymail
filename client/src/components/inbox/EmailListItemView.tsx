@@ -55,7 +55,7 @@ export interface EmailListItemViewProps {
     clearSnooze: (emailId: string) => void;
   };
   onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent | KeyboardEvent, index?: number) => void;
   onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
   onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
   onBlockSender: (emailId: string, event: React.MouseEvent) => void;
@@ -117,7 +117,7 @@ export const EmailListItemView: React.FC<EmailListItemViewProps> = ({
     if (event.ctrlKey || event.metaKey || event.shiftKey) {
       onEmailClick(email.id, index, event);
     } else {
-      onEmailSelect(email.id, event);
+      onEmailSelect(email.id, event, index);
     }
   };
 

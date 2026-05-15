@@ -171,6 +171,7 @@ export function extractGreetingStyle(
 
   if (userName) {
     const firstName = userName.split(/\s+/)[0];
+    // nosemgrep
     const namePattern = new RegExp(
       `^\\s*(\\w+)\\s+${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[,!]?`,
       "im",

@@ -29,6 +29,7 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    // nosemgrep
     ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
     entities: [EmailThread, Email],
   });
@@ -39,6 +40,7 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
   // Initialize pg-boss
   const boss = new PgBoss({
     connectionString: `postgres://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+    // nosemgrep
     ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
   });
 

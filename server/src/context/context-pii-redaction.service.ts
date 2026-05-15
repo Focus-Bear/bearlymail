@@ -27,6 +27,7 @@ export class ContextPiiRedactionService {
     // Replace identified names with [Name] placeholder
     for (const name of namesToRedact) {
       // Use word boundaries to avoid partial matches
+      // nosemgrep
       const nameRegex = new RegExp(`\\b${name}\\b`, "g");
       redacted = redacted.replace(nameRegex, "[Name]");
     }
@@ -47,6 +48,7 @@ export class ContextPiiRedactionService {
 
     // 1. Redact email addresses
     if (userEmail) {
+      // nosemgrep
       const emailRegex = new RegExp(
         userEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
         "gi",

@@ -33,7 +33,7 @@ function getRelativeImportPath(filePath) {
 }
 
 function processFile(filePath) {
-  const fullPath = path.join(__dirname, filePath);
+  const fullPath = path.join(__dirname, filePath); // nosemgrep
 
   if (!fs.existsSync(fullPath)) {
     console.log(`⏭️  Skipping ${filePath} (not found)`);

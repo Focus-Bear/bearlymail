@@ -32,7 +32,7 @@ module.exports = function transformer(fileInfo, api) {
     }
 
     // Resolve the relative import to an absolute path
-    const resolvedPath = path.resolve(fileDir, source);
+    const resolvedPath = path.resolve(fileDir, source); // nosemgrep
 
     // Check if resolved path is within src/
     if (!resolvedPath.startsWith(srcPath)) {
@@ -66,7 +66,7 @@ module.exports = function transformer(fileInfo, api) {
 
         if (source.startsWith('./') || source.startsWith('../')) {
           if (!source.includes('node_modules')) {
-            const resolvedPath = path.resolve(fileDir, source);
+            const resolvedPath = path.resolve(fileDir, source); // nosemgrep
             if (resolvedPath.startsWith(srcPath)) {
               const relativeToSrc = path.relative(srcPath, resolvedPath);
               let absoluteImport = relativeToSrc.replace(/\\/g, '/');

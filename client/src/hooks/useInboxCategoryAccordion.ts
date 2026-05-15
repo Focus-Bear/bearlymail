@@ -80,7 +80,7 @@ function useCategoryFetchEffects({
     toFetch.forEach(categoryKey => {
       const item = keyToItem.get(categoryKey);
       fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined).catch(err =>
-        console.error(`Error fetching category key "${categoryKey}":`, err)
+        console.error(`Error fetching category key "${categoryKey}":`, err) // nosemgrep
       );
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails, loadedCategoryNamesRef, loadingCategoryNamesRef]);
@@ -153,7 +153,7 @@ function useCategoryFetchEffects({
       limboDispatchedRef.current.add(categoryKey);
       const item = keyToItem.get(categoryKey);
       fetchCategoryEmails(item?.name ?? categoryKey, item?.id ?? undefined)
-        .catch(err => console.error(`[limbo-recovery] Error re-fetching category key "${categoryKey}":`, err))
+        .catch(err => console.error(`[limbo-recovery] Error re-fetching category key "${categoryKey}":`, err)) // nosemgrep
         .finally(() => {
           limboDispatchedRef.current.delete(categoryKey);
         });

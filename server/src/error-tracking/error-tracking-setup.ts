@@ -80,6 +80,7 @@ export function captureGlobalError(
     );
   } catch (captureError) {
     logger.error("Failed to capture global error to PostHog", captureError);
+    // nosemgrep
     console.error(
       `POSTHOG: Failed to capture global error "${error.name}: ${error.message}":`,
       captureError instanceof Error

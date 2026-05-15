@@ -127,6 +127,7 @@ export class BlockedKeywordsService {
       if (blocked.exactMatch) {
         // Exact phrase match - check if the keyword appears as a complete phrase
         // Use word boundaries to match exact phrases
+        // nosemgrep
         const regex = new RegExp(
           `\\b${this.escapeRegex(blocked.keyword)}\\b`,
           "i",

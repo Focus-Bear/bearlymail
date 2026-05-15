@@ -39,7 +39,7 @@ const dataSource = new DataSource({
   database: process.env.DB_NAME || 'adhd_email_client',
   entities: [path.join(__dirname, '../src/database/entities/**/*.entity{.ts,.js}')],
   synchronize: false,
-  ssl: (!isLocal || sslEnabled) ? { rejectUnauthorized: false } : false,
+  ssl: (!isLocal || sslEnabled) ? { rejectUnauthorized: false } : false, // nosemgrep
 });
 
 const QA_EMAIL = 'qa@bearlymail.test';

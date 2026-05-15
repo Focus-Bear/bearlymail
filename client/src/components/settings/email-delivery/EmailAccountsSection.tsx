@@ -178,7 +178,7 @@ function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersPara
       );
       window.location.href = response.data.url;
     } catch (error) {
-      console.error(`Error connecting ${provider} account:`, error);
+      console.error(`Error connecting ${provider} account:`, error); // nosemgrep
       alert(`Failed to connect ${provider} account. Please try again.`);
     }
   };
@@ -194,7 +194,7 @@ function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersPara
         await axios.delete(`${API_URL}/${endpoint}-accounts/${id}`);
         await onFetchData();
       } catch (error) {
-        console.error(`Error disconnecting ${provider} account:`, error);
+        console.error(`Error disconnecting ${provider} account:`, error); // nosemgrep
       }
     }
   };
@@ -208,7 +208,7 @@ function useEmailAccountHandlers({ onFetchData, t }: UseEmailAccountHandlersPara
       await axios.post(`${API_URL}/${endpoint}-accounts/${id}/set-primary`);
       await onFetchData();
     } catch (error) {
-      console.error(`Error setting primary ${provider} account:`, error);
+      console.error(`Error setting primary ${provider} account:`, error); // nosemgrep
     }
   };
 

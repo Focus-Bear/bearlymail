@@ -15,7 +15,7 @@ function getAllFiles(dir, fileList = []) {
   const files = fs.readdirSync(dir);
 
   files.forEach(file => {
-    const filePath = path.join(dir, file);
+    const filePath = path.join(dir, file); // nosemgrep
     const stat = fs.statSync(filePath);
 
     if (stat.isDirectory()) {

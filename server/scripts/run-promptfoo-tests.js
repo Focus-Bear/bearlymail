@@ -161,7 +161,7 @@ function findYamlFiles(changedPromptsOnly = false) {
     return files
       .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
       .sort()
-      .map(f => path.join(PROMPTFOO_DIR, f));
+      .map(f => path.join(PROMPTFOO_DIR, f)); // nosemgrep
   }
 
   // New behavior: only return YAML files for changed prompts
@@ -176,7 +176,7 @@ function findYamlFiles(changedPromptsOnly = false) {
     return files
       .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
       .sort()
-      .map(f => path.join(PROMPTFOO_DIR, f));
+      .map(f => path.join(PROMPTFOO_DIR, f)); // nosemgrep
   }
 
   if (changedPrompts.size === 0 && changedYamlConfigs.size === 0) {

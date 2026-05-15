@@ -62,6 +62,7 @@ async function main() {
       success++;
       console.log(`Provisioned key for user ${user.id}`);
     } catch (err) {
+      // nosemgrep
       console.error(`Failed for user ${user.id}:`, err);
     }
   }

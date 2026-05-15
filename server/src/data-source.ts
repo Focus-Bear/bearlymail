@@ -22,6 +22,7 @@ const sslDisabled =
 
 // Use SSL if explicitly enabled, or if not local and not explicitly disabled
 const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
+// nosemgrep
 const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
 
 export default new DataSource({

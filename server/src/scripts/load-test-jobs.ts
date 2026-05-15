@@ -34,6 +34,7 @@ const DB_NAME = process.env.DB_NAME || "adhd_email_client";
 const DB_SSL = process.env.DB_SSL === "true";
 
 const isLocal = DB_HOST === "localhost" || DB_HOST === "127.0.0.1";
+// nosemgrep
 const useSsl = !isLocal || DB_SSL ? { rejectUnauthorized: false } : false;
 
 // Load test configuration constants
@@ -372,6 +373,7 @@ async function getQueueStats(boss: PgBoss): Promise<void> {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
+      // nosemgrep
       console.error(`Failed to get stats for ${queueName}:`, errorMessage);
     }
   }

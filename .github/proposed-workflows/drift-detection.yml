@@ -96,8 +96,10 @@ jobs:
       - name: CDK Drift Detection
         id: cdk_drift
         working-directory: infrastructure
+        env:
+          STACKS_INPUT: ${{ github.event.inputs.stacks }}
         run: |
-          STACKS="${{ github.event.inputs.stacks || env.ALL_STACKS }}"
+          STACKS="${STACKS_INPUT:-$ALL_STACKS}"
 
           echo "## CDK Drift Detection" >> "$GITHUB_STEP_SUMMARY"
           echo "Comparing checked-in CDK code with deployed CloudFormation stacks." >> "$GITHUB_STEP_SUMMARY"
@@ -133,8 +135,10 @@ jobs:
       # ============================================
       - name: CloudFormation Stack Drift Detection
         id: cfn_drift
+        env:
+          STACKS_INPUT: ${{ github.event.inputs.stacks }}
         run: |
-          STACKS="${{ github.event.inputs.stacks || env.ALL_STACKS }}"
+          STACKS="${STACKS_INPUT:-$ALL_STACKS}"
 
           echo "## CloudFormation Stack Drift Detection" >> "$GITHUB_STEP_SUMMARY"
           echo "Detecting resources modified outside of CloudFormation." >> "$GITHUB_STEP_SUMMARY"
@@ -241,11 +245,15 @@ jobs:
       # Summary footer
       # ============================================
       - name: Write summary footer
+        env:
+          CDK_DRIFT_FOUND: ${{ steps.cdk_drift.outputs.cdk_drift_found }}
+          CFN_DRIFT_FOUND: ${{ steps.cfn_drift.outputs.cfn_drift_found }}
+          NC_FOUND: ${{ steps.config_compliance.outputs.non_compliant_found }}
         run: |
           echo "---" >> "$GITHUB_STEP_SUMMARY"
-          CDK="${{ steps.cdk_drift.outputs.cdk_drift_found }}"
-          CFN="${{ steps.cfn_drift.outputs.cfn_drift_found }}"
-          NC="${{ steps.config_compliance.outputs.non_compliant_found }}"
+          CDK="$CDK_DRIFT_FOUND"
+          CFN="$CFN_DRIFT_FOUND"
+          NC="$NC_FOUND"
 
           if [ "$CDK" = "true" ] || [ "$CFN" = "true" ] || [ "$NC" = "true" ]; then
             echo "### 🚨 Action Required" >> "$GITHUB_STEP_SUMMARY"
@@ -268,6 +276,9 @@ jobs:
           ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ${{ secrets.ZOHO_CLIQ_BACKEND_BOT_WEBHOOK }}
           ZOHO_CLIQ_API_KEY: ${{ secrets.ZOHO_CLIQ_API_KEY }}
           ZOHO_CLIQ_CHANNEL: ${{ secrets.ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL }}
+          CDK_DRIFT_FOUND: ${{ steps.cdk_drift.outputs.cdk_drift_found }}
+          CFN_DRIFT_FOUND: ${{ steps.cfn_drift.outputs.cfn_drift_found }}
+          NC_FOUND: ${{ steps.config_compliance.outputs.non_compliant_found }}
         run: |
           if [ -z "$ZOHO_CLIQ_BACKEND_BOT_WEBHOOK" ] || [ -z "$ZOHO_CLIQ_API_KEY" ]; then
             echo "Cliq credentials not set — skipping notification"
@@ -277,9 +288,9 @@ jobs:
           CDK_MSG=""
           CFN_MSG=""
           NC_MSG=""
-          [ "${{ steps.cdk_drift.outputs.cdk_drift_found }}" = "true" ] && CDK_MSG="\n• CDK drift: deployed stacks differ from checked-in code"
-          [ "${{ steps.cfn_drift.outputs.cfn_drift_found }}" = "true" ] && CFN_MSG="\n• CFN drift: resources were modified outside CloudFormation"
-          [ "${{ steps.config_compliance.outputs.non_compliant_found }}" = "true" ] && NC_MSG="\n• AWS Config: one or more resources are non-compliant"
+          [ "$CDK_DRIFT_FOUND" = "true" ] && CDK_MSG="\n• CDK drift: deployed stacks differ from checked-in code"
+          [ "$CFN_DRIFT_FOUND" = "true" ] && CFN_MSG="\n• CFN drift: resources were modified outside CloudFormation"
+          [ "$NC_FOUND" = "true" ] && NC_MSG="\n• AWS Config: one or more resources are non-compliant"
 
           CLIQ_URL="${ZOHO_CLIQ_BACKEND_BOT_WEBHOOK}?zapikey=${ZOHO_CLIQ_API_KEY}"
 

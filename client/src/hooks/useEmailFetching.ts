@@ -443,7 +443,7 @@ function handleCategoryFetchError(
 
   const is429 = axios.isAxiosError(error) && error.response?.status === HTTP_TOO_MANY_REQUESTS;
   const delayMs = Math.max(0, backoffState.nextAllowedAt - Date.now());
-  console.warn(
+  console.warn( // nosemgrep
     `[Accordion] Category load failed (${is429 ? '429' : 'error'}), retry ${backoffState.retryCount}/${MAX_CATEGORY_FETCH_RETRIES} in ${Math.round(delayMs / MS_PER_SECOND)}s:`,
     categoryName
   );
@@ -652,7 +652,7 @@ async function refreshInPlaceImpl({
         setCachedCategoryEmails(mode, categoryKey, emails);
         return { categoryKey, emails };
       } catch (err) {
-        console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
+        console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err); // nosemgrep
         return null;
       }
     })

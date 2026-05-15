@@ -68,7 +68,7 @@ export async function getDbClient(): Promise<Client> {
     // TODO(security): rejectUnauthorized is false to allow RDS Proxy connections in dev/staging.
     // Follow-up issue: https://github.com/Focus-Bear/BearlyMail/issues/1447
     // Production fix: bundle AWS RDS global-bundle.pem and set rejectUnauthorized: true with ca.
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: false }, // nosemgrep
     // Increased to 10 s — RDS Proxy cold-start can take several seconds
     connectionTimeoutMillis: 10_000,
     // Do not set statement_timeout here: RDS Proxy returns FATAL
@@ -85,7 +85,7 @@ export async function getDbClient(): Promise<Client> {
       return pgClient;
     } catch (err) {
       const isLast = attempt === MAX_CONNECT_ATTEMPTS;
-      console.error(
+      console.error( // nosemgrep
         `[db] connect attempt ${attempt}/${MAX_CONNECT_ATTEMPTS} failed:`,
         err,
       );

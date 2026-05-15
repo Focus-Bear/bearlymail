@@ -18,7 +18,7 @@ function getAllTsFiles(dir, fileList = []) {
   const files = fs.readdirSync(dir);
 
   files.forEach(file => {
-    const filePath = path.join(dir, file);
+    const filePath = path.join(dir, file); // nosemgrep
     const stat = fs.statSync(filePath);
 
     if (stat.isDirectory()) {
@@ -61,7 +61,7 @@ function keyExistsInLocale(locale, key) {
 
   for (const part of parts) {
     if (current && typeof current === 'object' && part in current) {
-      current = current[part];
+      current = current[part]; // nosemgrep
     } else {
       return false;
     }

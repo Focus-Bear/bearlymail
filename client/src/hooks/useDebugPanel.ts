@@ -111,7 +111,7 @@ async function fetchDebugEndpoint<T>(
     const response = await axios.get(url);
     setData(response.data);
   } catch (error) {
-    console.error(`Error fetching ${label}:`, error);
+    console.error(`Error fetching ${label}:`, error); // nosemgrep
   } finally {
     setLoading(false);
   }

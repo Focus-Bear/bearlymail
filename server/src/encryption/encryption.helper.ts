@@ -22,7 +22,7 @@ const DECRYPT_FAILURE_EVENT_THROTTLE_MS = 60_000;
  * `getGlobalKey()` always returns the global derived key (used for the User entity itself).
  */
 class EncryptionHelper {
-  private static algorithm = "aes-256-gcm";
+  private static algorithm = "aes-256-gcm" as const;
   private static ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
   /**
    * Global fallback failure counter for worker/non-request contexts.
@@ -59,6 +59,7 @@ class EncryptionHelper {
       EncryptionHelper.algorithm,
       key,
       iv,
+      { authTagLength: 16 },
     ) as crypto.DecipherGCM;
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, "hex", "utf8");
@@ -151,6 +152,7 @@ class EncryptionHelper {
         this.algorithm,
         key,
         iv,
+        { authTagLength: 16 },
       ) as crypto.DecipherGCM;
       decipher.setAuthTag(authTag);
 
@@ -208,6 +210,7 @@ class EncryptionHelper {
       EncryptionHelper.algorithm,
       key,
       iv,
+      { authTagLength: 16 },
     ) as crypto.DecipherGCM;
     decipher.setAuthTag(authTag);
 

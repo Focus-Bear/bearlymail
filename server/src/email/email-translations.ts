@@ -65,11 +65,13 @@ export function translateEmail(
     emailTranslations.en;
 
   for (const key of keys) {
+    // nosemgrep
     translation = translation?.[key];
     if (!translation) {
       // Fallback to English
       translation = emailTranslations.en;
       for (const k2 of keys) {
+        // nosemgrep
         translation = translation?.[k2];
       }
       break;

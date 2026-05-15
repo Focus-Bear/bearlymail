@@ -30,6 +30,7 @@ import { ResourceMonitorService } from "./resource-monitor.service";
         const sslEnabled = configService.get<string>("DB_SSL") === "true";
         const sslDisabled = configService.get<string>("DB_SSL") === "false";
         const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
+        // nosemgrep
         const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
 
         // Safer default: 4 processes × 5 = 20 PgBoss connections

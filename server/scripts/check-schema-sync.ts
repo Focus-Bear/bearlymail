@@ -60,6 +60,6 @@ async function checkSchemaSync(): Promise<void> {
 }
 
 checkSchemaSync().catch((err: unknown) => {
-  console.error(`[${SCHEMA_SYNC_SCRIPT}] Fatal error:`, err);
+  console.error(`[${SCHEMA_SYNC_SCRIPT}] Fatal error:`, err); // nosemgrep
   process.exit(1);
 });

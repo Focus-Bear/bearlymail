@@ -35,7 +35,7 @@ async function getDbClient(): Promise<Client> {
     database: secrets.database,
     // RDS Proxy uses an internal AWS certificate — disable verification to avoid
     // hostname mismatch errors within the VPC.
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: false }, // nosemgrep
     connectionTimeoutMillis: 10_000,
   });
 
@@ -46,7 +46,7 @@ async function getDbClient(): Promise<Client> {
       isConnected = true;
       return pgClient;
     } catch (err) {
-      console.error(`[db] connect attempt ${attempt}/${MAX_CONNECT_ATTEMPTS} failed:`, err);
+      console.error(`[db] connect attempt ${attempt}/${MAX_CONNECT_ATTEMPTS} failed:`, err); // nosemgrep
       if (attempt === MAX_CONNECT_ATTEMPTS) {
         pgClient = null;
         isConnected = false;

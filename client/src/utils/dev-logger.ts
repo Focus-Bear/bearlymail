@@ -42,7 +42,7 @@ export function devLog(message: string, ...args: unknown[]): void {
     devLog._initialized = true;
   }
   if (isLocal) {
-    console.log(`[DEV] ${message}`, ...args);
+    console.log(`[DEV] ${message}`, ...args); // nosemgrep
   }
 }
 // Add a flag to track initialization
@@ -53,7 +53,7 @@ devLog._initialized = false;
  */
 export function devError(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
-    console.error(`[DEV ERROR] ${message}`, ...args);
+    console.error(`[DEV ERROR] ${message}`, ...args); // nosemgrep
   }
 }
 
@@ -62,7 +62,7 @@ export function devError(message: string, ...args: unknown[]): void {
  */
 export function devWarn(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
-    console.warn(`[DEV WARN] ${message}`, ...args);
+    console.warn(`[DEV WARN] ${message}`, ...args); // nosemgrep
   }
 }
 
@@ -71,6 +71,6 @@ export function devWarn(message: string, ...args: unknown[]): void {
  */
 export function devDebug(message: string, ...args: unknown[]): void {
   if (isLocalhost()) {
-    console.debug(`[DEV DEBUG] ${message}`, ...args);
+    console.debug(`[DEV DEBUG] ${message}`, ...args); // nosemgrep
   }
 }

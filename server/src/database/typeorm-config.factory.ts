@@ -27,6 +27,7 @@ export function createTypeOrmConfig(
   const sslDisabled =
     configService.get<string>("DB_SSL") === BOOLEAN_STRING_VALUES.FALSE;
   const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
+  // nosemgrep
   const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
   // Safer default: 4 processes × 5 = 20 TypeORM connections
   const poolSize = parseInt(

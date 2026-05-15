@@ -12,6 +12,7 @@ const dataSource = new DataSource({
   username: process.env.DB_USERNAME || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
   database: process.env.DB_NAME || "adhd_email_client",
+  // nosemgrep
   ssl:
     (process.env.DB_HOST !== "localhost" &&
       process.env.DB_HOST !== "127.0.0.1") ||

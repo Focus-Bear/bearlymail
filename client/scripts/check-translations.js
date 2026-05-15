@@ -98,7 +98,7 @@ function listLocaleTranslationFiles() {
 function walkFiles(dir, extensions, results = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
+    const fullPath = path.join(dir, entry.name); // nosemgrep
     if (entry.isDirectory()) {
       if (
         entry.name === 'node_modules' ||

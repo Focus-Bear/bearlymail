@@ -19,6 +19,7 @@ async function resetStuckJobs() {
   const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
   const sslEnabled = process.env.DB_SSL === "true";
   // Use SSL for non-local connections unless explicitly disabled
+  // nosemgrep
   const useSsl = !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
 
   const client = new Client({

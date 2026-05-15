@@ -421,7 +421,7 @@ async function runIndividualAnalysis(
   try {
     response = await callLlm(prompt, "", MAX_TOKENS_SMART, TEMPERATURE_SMART, undefined, true);
   } catch (err) {
-    console.error(`[LLM] Individual analysis failed for ${email.emailKey}:`, err);
+    console.error(`[LLM] Individual analysis failed for ${email.emailKey}:`, err); // nosemgrep
     return buildFallbackResult(email);
   }
 

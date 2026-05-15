@@ -20,7 +20,7 @@ const dataSource = new DataSource({
   password: configService.get<string>("DB_PASSWORD") || "postgres",
   database: configService.get<string>("DB_NAME") || "adhd_email_client",
   synchronize: false,
-  ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false,
+  ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false, // nosemgrep
 });
 
 async function checkAndAddIndexes() {

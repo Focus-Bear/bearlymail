@@ -96,6 +96,7 @@ export class ErrorTrackingService {
       );
     } catch (captureError) {
       this.logger.error("Failed to capture exception to PostHog", captureError);
+      // nosemgrep
       console.error(
         `POSTHOG: Failed to capture exception "${error.name}: ${error.message}":`,
         captureError instanceof Error

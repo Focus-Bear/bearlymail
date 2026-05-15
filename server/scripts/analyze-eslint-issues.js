@@ -14,7 +14,7 @@
  */
 
 const readline = require("readline");
-const { execSync } = require("child_process");
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -362,7 +362,7 @@ function runEslintOnFile(filePath) {
     // Resolve the file path relative to current working directory
     const resolvedPath = path.isAbsolute(filePath)
       ? filePath
-      : path.resolve(process.cwd(), filePath);
+      : path.resolve(process.cwd(), filePath); // nosemgrep
 
     if (!fs.existsSync(resolvedPath)) {
       console.error(`Error: File not found: ${resolvedPath}`);
@@ -371,13 +371,16 @@ function runEslintOnFile(filePath) {
 
     console.log(`Running ESLint on ${resolvedPath}...\n`);
 
-    const command = `npx eslint "${resolvedPath}" --format json`;
-    const output = execSync(command, {
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "pipe"],
-      cwd: process.cwd(),
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-    });
+    const output = execFileSync(
+      "npx",
+      ["eslint", resolvedPath, "--format", "json"],
+      {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: process.cwd(),
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      },
+    );
 
     return JSON.parse(output);
   } catch (error) {

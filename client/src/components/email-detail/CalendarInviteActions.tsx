@@ -143,7 +143,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
         await action();
         setResponseStatus(status);
       } catch (error) {
-        console.error(`Error ${status}:`, error);
+        console.error(`Error ${status}:`, error); // nosemgrep
         alert(t(`emailDetail.calendarInvite.${errorKey}`) || `Failed to ${status} invitation`);
       } finally {
         setResponding(false);

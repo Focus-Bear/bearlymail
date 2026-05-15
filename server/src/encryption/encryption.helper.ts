@@ -40,7 +40,14 @@ class EncryptionHelper {
     return encryptionKeyProvider.getGlobalKey();
   }
 
-  private static decryptWithExplicitKey(
+  /**
+   * Throwing counterpart of `silentDecryptWithKey`. Surfaces the underlying
+   * crypto error (auth tag mismatch, invalid key length, etc.) on failure.
+   * Use in boot checks and admin diagnostics where the specific error must
+   * bubble up. Caller is responsible for shape validation — use
+   * `looksLikeEncryptedPayload` first if the input might be plaintext.
+   */
+  static decryptWithExplicitKey(
     encryptedText: string,
     key: Buffer,
   ): string {

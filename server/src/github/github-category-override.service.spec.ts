@@ -29,11 +29,7 @@ describe("GitHubCategoryOverrideService.resolveCategoryKey", () => {
   });
 
   const callResolve = (links: Link[], githubUsername: string | null) =>
-    service.resolveCategoryKey(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      links as any,
-      githubUsername,
-    );
+    service.resolveCategoryKey(links as any, githubUsername);
 
   it("returns null for empty/missing links", () => {
     expect(callResolve([], "alice")).toBeNull();

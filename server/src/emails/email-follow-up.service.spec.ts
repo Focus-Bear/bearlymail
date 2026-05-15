@@ -112,7 +112,6 @@ describe("EmailFollowUpService", () => {
       expect(result.userSentLast).toBe(false);
       expect(result.replyReceived).toBe(true);
     });
-
   });
 
   describe("filterActionModeEmails", () => {

@@ -79,6 +79,8 @@ export class GitHubEmailInfoService {
       where: { userId, emailThreadId },
     });
 
+    // Dedupe keyed by lowercased URL so the same resource referenced with
+    // different casing across thread messages doesn't show up twice.
     const allLinks = new Map<string, ParsedGitHubLink>();
     for (const threadEmail of threadEmails) {
       // Defensive decrypt: TypeORM hydration can leak ciphertext (partial selects,
@@ -89,7 +91,7 @@ export class GitHubEmailInfoService {
         EncryptionHelper.tryDecrypt(threadEmail.htmlBody) ?? undefined;
       const links = this.githubService.parseGitHubLinks(body, htmlBody);
       for (const link of links) {
-        allLinks.set(link.url, link);
+        allLinks.set(link.url.toLowerCase(), link);
       }
 
       // Fallback: when body/HTML parsing found nothing, try the subject line.
@@ -106,7 +108,7 @@ export class GitHubEmailInfoService {
             body,
           );
           for (const link of subjectLinks) {
-            allLinks.set(link.url, link);
+            allLinks.set(link.url.toLowerCase(), link);
           }
         }
       }
@@ -314,9 +316,12 @@ export class GitHubEmailInfoService {
   }
 
   /**
-   * Process GitHub metadata for a background job: parse links from an email,
-   * fetch statuses, update the thread, and return info for repo auto-discovery.
-   * Returns null if no token or no links found.
+   * Process GitHub metadata for a background job: parse links from all emails
+   * in the thread, fetch statuses, update the thread, and return info for repo
+   * auto-discovery. Returns null if no token or no links found.
+   *
+   * Scans all thread emails (not just the triggering email) so that GitHub links
+   * in earlier messages are captured even when the newest email is a plain reply.
    */
   async processEmailGitHubMetadataForJob(
     userId: string,
@@ -329,21 +334,33 @@ export class GitHubEmailInfoService {
       return null;
     }
 
-    const links = await this.parseEmailGitHubLinks(userId, emailId);
+    const links = await this.parseThreadGitHubLinks(userId, threadId);
     if (links.length === 0) {
-      this.logger.debug(`No GitHub links found in email ${emailId}`);
+      this.logger.debug(
+        `No GitHub links found in thread ${threadId} (triggered by email ${emailId})`,
+      );
       return null;
     }
 
-    await this.fetchAndMergeThreadMetadata(userId, threadId, token, links);
-
+    // Fetch the thread once and reuse it for the cache freshness check and the
+    // category lookup — avoids two extra findOne round-trips (one inside
+    // fetchAndMergeThreadMetadata, one for the categoryId resolution below).
     const thread = await this.emailThreadRepository.findOne({
       where: { id: threadId, userId },
     });
+    if (!thread) {
+      this.logger.warn(`Thread ${threadId} not found for user ${userId}`);
+      return null;
+    }
+
+    // Skip the GitHub API round-trip when cached metadata is still fresh.
+    if (!this.isCacheFresh(thread, links)) {
+      await this.fetchAndMergeThreadMetadata(userId, threadId, token, links);
+    }
 
     // Resolve category display name from categoryId — downstream consumers do name-based matching.
     let categoryName: string | undefined;
-    if (thread?.categoryId) {
+    if (thread.categoryId) {
       const categoryCtx = await this.userContextRepository.findOne({
         where: {
           contextId: thread.categoryId,

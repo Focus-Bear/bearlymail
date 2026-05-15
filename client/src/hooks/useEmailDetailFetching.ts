@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { GitHubLink } from 'types/email';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
 import { API_URL } from 'config/api';
 import { useEmailDetailGithub } from 'hooks/useEmailDetailGithub';
+import { updateEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 interface Email {
   id: string;
@@ -77,6 +80,7 @@ function triggerEmailSideEffects(
 }
 
 export function useEmailDetailFetching(emailId: string) {
+  const dispatch = useDispatch<AppDispatch>();
   const [email, setEmail] = useState<Email | null>(null);
   const [threadEmails, setThreadEmails] = useState<Email[]>([]);
   const [expandedThreadItems, setExpandedThreadItems] = useState<Set<string>>(new Set());
@@ -103,6 +107,9 @@ export function useEmailDetailFetching(emailId: string) {
 
         if (emailData.githubMetadata?.links) {
           setGithubLinksRef.current(emailData.githubMetadata.links);
+          // Sync links from the server into Redux so the inbox badge reflects the
+          // latest data without requiring a full inbox refresh.
+          dispatch(updateEmail({ id: emailId, updates: { githubMetadata: emailData.githubMetadata } }));
         } else {
           if (emailMentionsGitHub(emailData.subject, emailData.body, emailData.htmlBody)) {
             fetchGithubInfoRef.current();
@@ -119,7 +126,7 @@ export function useEmailDetailFetching(emailId: string) {
         setLoading(false);
       }
     },
-    [emailId]
+    [emailId, dispatch]
   );
 
   const fetchThreadEmails = useCallback(

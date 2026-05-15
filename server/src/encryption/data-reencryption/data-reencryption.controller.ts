@@ -16,7 +16,10 @@ import { IsNull, Not, Repository } from "typeorm";
 
 import { AdminGuard } from "../../auth/admin.guard";
 import { JwtAuthGuard } from "../../auth/jwt-auth.guard";
-import { QUEUE_JOB_STATE, QueueJobState } from "../../constants/domain-statuses";
+import {
+  QUEUE_JOB_STATE,
+  QueueJobState,
+} from "../../constants/domain-statuses";
 import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
 import { User } from "../../database/entities/user.entity";

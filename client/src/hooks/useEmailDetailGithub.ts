@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { useUserProfileQuery } from 'queries/useUserProfileQuery';
 import { GitHubLink } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { updateEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 const deduplicateLinks = (links: GitHubLink[]): GitHubLink[] => {
   const seen = new Set<string>();
@@ -40,6 +43,7 @@ function useEmailChangeReset(
 
 export function useEmailDetailGithub(emailId: string) {
   const { data: userProfile } = useUserProfileQuery();
+  const dispatch = useDispatch<AppDispatch>();
   const [githubLinks, setGithubLinks] = useState<GitHubLink[]>([]);
   const [loadingGithub, setLoadingGithub] = useState(true);
   const [hasGithubToken, setHasGithubToken] = useState(() => !!userProfile?.githubToken);
@@ -82,8 +86,14 @@ export function useEmailDetailGithub(emailId: string) {
     try {
       const response = await axios.get(`${API_URL}/github/emails/${emailId}`, { signal: controller.signal });
       if (fetchedRef.current === emailId && !controller.signal.aborted) {
-        setGithubLinks(deduplicateLinks(response.data.links || []));
+        const links = deduplicateLinks(response.data.links || []);
+        setGithubLinks(links);
         setHasGithubToken(response.data.hasToken !== false);
+        // Sync discovered links back to Redux so the inbox badge updates without
+        // requiring a full inbox refresh.
+        if (links.length > 0) {
+          dispatch(updateEmail({ id: emailId, updates: { githubMetadata: { links } } }));
+        }
       }
     } catch (error: unknown) {
       if (axios.isCancel(error)) {
@@ -100,7 +110,7 @@ export function useEmailDetailGithub(emailId: string) {
         setLoadingGithub(false);
       }
     }
-  }, [emailId]);
+  }, [emailId, dispatch]);
 
   const refreshGithubInfo = useCallback(async () => {
     if (!emailId) {
@@ -123,7 +133,12 @@ export function useEmailDetailGithub(emailId: string) {
       );
       if (!controller.signal.aborted) {
         fetchedRef.current = emailId;
-        setGithubLinks(deduplicateLinks(response.data.links || []));
+        const links = deduplicateLinks(response.data.links || []);
+        setGithubLinks(links);
+        // Sync refreshed links back to Redux so the inbox badge stays current.
+        if (links.length > 0) {
+          dispatch(updateEmail({ id: emailId, updates: { githubMetadata: { links } } }));
+        }
       }
     } catch (error) {
       if (axios.isCancel(error)) {
@@ -136,7 +151,7 @@ export function useEmailDetailGithub(emailId: string) {
         setLoadingGithub(false);
       }
     }
-  }, [emailId]);
+  }, [emailId, dispatch]);
 
   const setGithubLinksWithDedup = useCallback(
     (links: GitHubLink[]) => {

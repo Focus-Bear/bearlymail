@@ -8,7 +8,23 @@ import {
   processForkWorkflowApprovals,
   summarizeCheckRuns,
 } from "./ci.mjs";
-import { maybeResolveConflictWithLocalClaude } from "./conflict-resolver.mjs";
+import {
+  localConflictResolutionTookOver,
+  maybeResolveConflictWithLocalClaude,
+} from "./conflict-resolver.mjs";
+import {
+  localCiResolutionTookOver,
+  maybeResolveCiFailuresWithLocalClaude,
+} from "./ci-failure-resolver.mjs";
+import {
+  localGeminiResolutionTookOver,
+  maybeResolveGeminiFeedbackWithLocalClaude,
+} from "./gemini-feedback-resolver.mjs";
+import {
+  consumeResultFile,
+  getMaxConcurrentResolvers,
+  listActiveResolvers,
+} from "./resolver-lock.mjs";
 import {
   DEFAULT_GEMINI_CLAUDE_ATTESTATION_SUBSTRING,
   DEFAULT_REPO,
@@ -44,6 +60,7 @@ import { createEmptySummary, formatUnknown, printConsoleSummary } from "./summar
 import {
   claudeTriagePingRecommended,
   computeDesiredTriageStateLabel,
+  describeNoBotPingReason,
   formatDecisionLine,
   getAllManagedTriageLabelNames,
   getTriageStateLabelConfig,
@@ -67,6 +84,7 @@ export function parseArgs(argv) {
     noEmptyCommitRetrigger: false,
     noReadyForReviewLabel: false,
     noTriageStateLabels: false,
+    noLocalResolvers: false,
     deleteMergedClaudeBranches: false,
     help: false,
   };
@@ -82,6 +100,7 @@ export function parseArgs(argv) {
     else if (a === "--no-empty-commit-retrigger") out.noEmptyCommitRetrigger = true;
     else if (a === "--no-ready-for-review-label") out.noReadyForReviewLabel = true;
     else if (a === "--no-triage-state-labels") out.noTriageStateLabels = true;
+    else if (a === "--no-local-resolvers") out.noLocalResolvers = true;
     else if (a === "--delete-merged-claude-branches") out.deleteMergedClaudeBranches = true;
     else if (a === "-h" || a === "--help") out.help = true;
     else if (a === "-R" || a === "--repo") {
@@ -117,6 +136,7 @@ Options:
   --no-empty-commit-retrigger    Do not push an empty commit to re-trigger CI (workflow, stalled-head, or any path)
   --no-triage-state-labels      Do not sync triage/* state labels (see PR_TRIAGE_STATE_LABELS)
   --no-ready-for-review-label   Do not use the "ready" slot (others still apply if triage labels are on)
+  --no-local-resolvers          Disable local \`claude -p\` resolvers (CI failures + Gemini); fall back to @claude github comment for everything
   --no-create-orphan-prs         List orphan claude/* branches only; do not open PRs for them
   --delete-merged-claude-branches  When orphan PR is skipped (already merged / already in base), delete the remote claude/* branch
   -h, --help                     This help
@@ -165,6 +185,24 @@ Environment:
     : [];
 
   const bots = geminiBotSet();
+
+  // Cleans stale lockfiles + worktrees from prior crashed runs and prints what's still live.
+  if (!args.json) {
+    const live = listActiveResolvers(gitCwd);
+    const cap = getMaxConcurrentResolvers();
+    if (live.length > 0) {
+      console.log(
+        `[resolvers] ${live.length}/${cap} active local resolver(s) on this machine: ${live
+          .map((l) => `${l.kind}#${l.prNumber}(pid ${l.pid})`)
+          .join(", ")}`,
+      );
+      console.log("");
+    } else {
+      console.log(`[resolvers] 0/${cap} active local resolver(s) on this machine`);
+      console.log("");
+    }
+  }
+
   const allOpenPulls = await listOpenPulls(owner, repo);
   const openHeadRefs = new Set(
     allOpenPulls.map((p) => p.head?.ref).filter((r) => typeof r === "string"),
@@ -253,26 +291,109 @@ Environment:
       gemini_claude_attestation_present,
     };
 
-    if (row.conflict === 1) {
-      if (!args.json) {
-        console.log(
-          `PR #${prMerge.number}: merge conflict detected — attempting local resolution via \`claude -p\`...`,
-        );
-      }
-      row.local_conflict_resolution = await maybeResolveConflictWithLocalClaude(
-        owner,
-        repo,
-        prMerge,
-        gitCwd,
-        { dryRun: args.dryRun },
+    // 1. Consume any completed-resolver result from a prior tick (the runner wrote it then exited).
+    const completedFromPriorTick = consumeResultFile(gitCwd, prMerge.number);
+    if (completedFromPriorTick && !args.json) {
+      const r = completedFromPriorTick;
+      console.log(
+        `  local ${r.kind} resolver completed (prior tick): ${r.action}${r.detail ? ` — ${r.detail.slice(0, 240)}` : ""}${
+          typeof r.threads_resolved === "number" ? ` (${r.threads_resolved} thread(s) Resolved)` : ""
+        }`,
       );
-      if (!args.json) {
-        const r = row.local_conflict_resolution;
-        const status = r.ok ? "took over" : "skipped";
-        console.log(`  local conflict resolution ${status}: ${r.action}${r.detail ? ` — ${r.detail}` : ""}`);
+    }
+    row.local_resolver_completed_prior_tick = completedFromPriorTick;
+
+    // 2. Check if a resolver is currently in flight for this PR (lockfile alive from earlier tick).
+    const liveResolvers = listActiveResolvers(gitCwd);
+    const inFlightForPr = liveResolvers.find((l) => l.prNumber === prMerge.number) ?? null;
+    if (inFlightForPr && !args.json) {
+      console.log(
+        `  local ${inFlightForPr.kind} resolver in flight: pid ${inFlightForPr.pid}, started ${inFlightForPr.startedAt}`,
+      );
+    }
+    row.local_resolver_in_flight = inFlightForPr;
+
+    // 3. Decide which (if any) NEW resolver to spawn this tick. Priority: conflict > CI > Gemini.
+    //    Always spawn detached — `maybeResolve*WithLocalClaude` returns `started_in_background`
+    //    immediately and the runner child writes `.result-pr-N.json` when it finishes.
+    row.local_conflict_resolution = { ok: false, action: "no_conflict" };
+    row.local_ci_resolution = { ok: false, action: "no_failures" };
+    row.local_gemini_resolution = { ok: false, action: "no_unresolved_threads" };
+
+    if (!args.noLocalResolvers && !inFlightForPr) {
+      if (row.conflict === 1) {
+        if (!args.json) {
+          console.log(
+            `PR #${prMerge.number}: merge conflict detected — spawning detached conflict resolver...`,
+          );
+        }
+        row.local_conflict_resolution = await maybeResolveConflictWithLocalClaude(
+          owner,
+          repo,
+          prMerge,
+          gitCwd,
+          { dryRun: args.dryRun },
+        );
+        if (!args.json) {
+          const r = row.local_conflict_resolution;
+          const status = r.ok ? "spawned" : "skipped";
+          console.log(`  local conflict resolver ${status}: ${r.action}${r.detail ? ` — ${r.detail.slice(0, 240)}` : ""}`);
+        }
       }
-    } else {
-      row.local_conflict_resolution = { ok: false, action: "no_conflict" };
+
+      // CI: only fire if conflict didn't just claim the per-PR lock this tick. (The conflict
+      // resolver releases on spawn-failure; on spawn-success the lock is held by the child.)
+      if (
+        !localConflictResolutionTookOver(row) &&
+        row.local_conflict_resolution.action !== "started_in_background" &&
+        (row.failures ?? 0) > 0
+      ) {
+        if (!args.json) {
+          console.log(
+            `PR #${prMerge.number}: ${row.failures} CI failure(s) — spawning detached CI resolver...`,
+          );
+        }
+        row.local_ci_resolution = await maybeResolveCiFailuresWithLocalClaude(
+          owner,
+          repo,
+          prMerge,
+          gitCwd,
+          checkRuns,
+          { dryRun: args.dryRun },
+        );
+        if (!args.json) {
+          const r = row.local_ci_resolution;
+          const status = r.ok ? "spawned" : "skipped";
+          console.log(`  local CI resolver ${status}: ${r.action}${r.detail ? ` — ${r.detail.slice(0, 240)}` : ""}`);
+        }
+      }
+
+      // Gemini: same constraint — defer if any earlier resolver this tick claimed the per-PR lock.
+      if (
+        row.local_conflict_resolution.action !== "started_in_background" &&
+        row.local_ci_resolution.action !== "started_in_background" &&
+        geminiUnresolvedBlocksTriage(row)
+      ) {
+        if (!args.json) {
+          console.log(
+            `PR #${prMerge.number}: ${row.gemini_unresolved_count} unresolved Gemini thread(s) — spawning detached Gemini resolver...`,
+          );
+        }
+        row.local_gemini_resolution = await maybeResolveGeminiFeedbackWithLocalClaude(
+          owner,
+          repo,
+          prMerge,
+          gitCwd,
+          bots,
+          { dryRun: args.dryRun },
+        );
+        if (!args.json) {
+          const r = row.local_gemini_resolution;
+          const status = r.ok ? "spawned" : "skipped";
+          const threadHint = typeof r.pending_threads === "number" ? ` (${r.pending_threads} threads queued)` : "";
+          console.log(`  local Gemini resolver ${status}: ${r.action}${r.detail ? ` — ${r.detail.slice(0, 240)}` : ""}${threadHint}`);
+        }
+      }
     }
 
     const ping = triagePingRecommended(row);
@@ -280,9 +401,29 @@ Environment:
     row.triage_ping_reasons = ping.triage_ping_reasons;
     row.claude_triage_ping_recommended = claudeTriagePingRecommended(row);
 
+    // The github @claude comment is suppressed for any PR where a local resolver is active
+    // *or* recently completed *or* was spawned this tick — even if `ok=false`, we don't want
+    // to double-post during the same tick. Genuine prereq-skips (no clone, no claude CLI)
+    // fall through to the github fallback.
+    const localResolverStartedThisTick =
+      row.local_conflict_resolution.action === "started_in_background" ||
+      row.local_ci_resolution.action === "started_in_background" ||
+      row.local_gemini_resolution.action === "started_in_background";
+    const localResolverDryRunThisTick =
+      args.dryRun &&
+      (row.local_conflict_resolution.action === "dry_run" ||
+        row.local_ci_resolution.action === "dry_run" ||
+        row.local_gemini_resolution.action === "dry_run");
+    const localTookOver =
+      localResolverStartedThisTick ||
+      localResolverDryRunThisTick ||
+      Boolean(inFlightForPr) ||
+      (completedFromPriorTick && completedFromPriorTick.ok === true);
+
     const commentResult = await maybePostTriageComment(owner, repo, prMerge.number, headSha, row, ping, {
       dryRun: args.dryRun,
       forceComment: args.forceComment,
+      suppressBecauseLocalTookOver: localTookOver,
     });
     row.triage_comment_action = commentResult.action;
     row.triage_comment_url = commentResult.url ?? null;
@@ -293,7 +434,56 @@ Environment:
       title: prMerge.title,
       url: prMerge.html_url,
     };
-    if (!ping.triage_ping_recommended) {
+    if (localTookOver) {
+      /** @type {Array<{ kind: string, state: string, action: string | null, detail: string | null, pid?: number, threads_resolved?: number | null }>} */
+      const events = [];
+      // a) result file from a prior tick — the resolver finished while we were idle
+      if (completedFromPriorTick) {
+        events.push({
+          kind: completedFromPriorTick.kind ?? "unknown",
+          state: completedFromPriorTick.ok ? "completed_ok" : "completed_failed",
+          action: completedFromPriorTick.action ?? null,
+          detail: completedFromPriorTick.detail ?? null,
+          threads_resolved: completedFromPriorTick.threads_resolved ?? null,
+        });
+      }
+      // b) lockfile still alive from a prior tick — child running right now
+      if (inFlightForPr) {
+        events.push({
+          kind: inFlightForPr.kind,
+          state: "in_flight",
+          action: "in_flight",
+          detail: `pid ${inFlightForPr.pid}, started ${inFlightForPr.startedAt}`,
+          pid: inFlightForPr.pid,
+        });
+      }
+      // c) freshly spawned this tick (or dry-run preview)
+      for (const [kind, r] of /** @type {Array<["conflict"|"ci"|"gemini", Record<string, unknown>]>} */ ([
+        ["conflict", row.local_conflict_resolution],
+        ["ci", row.local_ci_resolution],
+        ["gemini", row.local_gemini_resolution],
+      ])) {
+        if (r.action === "started_in_background") {
+          events.push({
+            kind,
+            state: "spawned_this_tick",
+            action: r.action,
+            detail: r.detail ?? null,
+            pid: typeof r.pid === "number" ? r.pid : undefined,
+            threads_resolved: null,
+          });
+        } else if (r.action === "dry_run") {
+          events.push({
+            kind,
+            state: "dry_run",
+            action: r.action,
+            detail: r.detail ?? null,
+            threads_resolved: null,
+          });
+        }
+      }
+      summary.localResolverActed.push({ ...prBrief, events });
+    } else if (!ping.triage_ping_recommended) {
       if ((row.queued_or_running ?? 0) > 0) {
         summary.ciInProgress.push(prBrief);
       } else {
@@ -302,7 +492,10 @@ Environment:
     } else if ((row.queued_or_running ?? 0) > 0 && !row.claude_triage_ping_recommended) {
       summary.ciInProgress.push(prBrief);
     } else if (!row.claude_triage_ping_recommended) {
-      summary.workflowApprovalPending.push(prBrief);
+      summary.workflowApprovalPending.push({
+        ...prBrief,
+        reason: describeNoBotPingReason(row),
+      });
     } else if (commentResult.action === "posted") {
       summary.reworkCommentPosted.push(prBrief);
     } else if (commentResult.action === "dry_run_would_post") {

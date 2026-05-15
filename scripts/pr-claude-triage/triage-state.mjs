@@ -293,10 +293,44 @@ export function claudeTriagePingRecommended(row) {
   // enough for a human to pick it up.
   if (row.mergeability_indeterminate) return true;
   if ((row.queued_or_running ?? 0) > 0) return false;
+  // Gemini unresolved threads are a code-fix signal independent of merge gates: a PR
+  // with required-review branch protection sits at mergeable_state=blocked precisely
+  // *because* Gemini's review request is one of the gates. Evaluate Gemini before
+  // BLOCKED/insufficient-success short-circuits, otherwise we never ping for
+  // Gemini-only work (e.g. PR #2002 had 1 Gemini thread + blocked merge → silent).
+  if (geminiUnresolvedBlocksTriage(row)) return true;
   if (mergeableStateIsBlockingGates(row.mergeable_state)) return false;
   if (hasInsufficientCompletedSuccessCount(row)) return false;
-  if (geminiUnresolvedBlocksTriage(row)) return true;
   return false;
+}
+
+/**
+ * Short, PR-specific reason for why we did NOT post an @claude comment, even though
+ * `triagePingRecommended` (the rollup) flagged the PR for human attention. Returns the
+ * primary *flag* reason (workflow approval, conflict-without-local-resolver, missing or
+ * insufficient CI). `mergeable_state=blocked` by itself never flags a PR (those land in
+ * "Ready to review"); it only co-occurs, so we don't surface it as a reason.
+ */
+export function describeNoBotPingReason(row) {
+  const wfAfter = row.workflows_awaiting_approval_after ?? 0;
+  if (wfAfter > 0) {
+    return `${wfAfter} workflow run(s) still awaiting approval after auto-approve attempt`;
+  }
+  if ((row.queued_or_running ?? 0) > 0) {
+    return `${row.queued_or_running} check run(s) still queued or in progress`;
+  }
+  if (row.conflict === 1) {
+    const lcr = row.local_conflict_resolution || {};
+    const action = lcr.action ? ` (local resolver: ${lcr.action})` : "";
+    return `merge conflict — local \`claude -p\` resolver could not run${action}`;
+  }
+  if ((row.ci_missing ?? 0) === 1) {
+    return "no check runs reported on the head SHA yet (CI not triggered or still attaching)";
+  }
+  if (hasInsufficientCompletedSuccessCount(row)) {
+    return `insufficient green check runs (${row.completed_ok ?? 0}/${getMinRequiredPassedCheckRuns()}) — waiting for more jobs to complete`;
+  }
+  return "this triage signal is not delegated to the bot (see triage_ping_reasons in --json)";
 }
 
 export function formatDecisionLine(prNumber, ping, row) {
@@ -411,6 +445,13 @@ export async function maybePostTriageComment(owner, repo, prNumber, headSha, row
   }
   if (!ping.triage_ping_recommended) {
     return { action: "none" };
+  }
+  if (options.suppressBecauseLocalTookOver) {
+    return {
+      action: "skipped",
+      detail:
+        "Local `claude -p` resolver took ownership of this PR; not posting a duplicate @claude github ping.",
+    };
   }
 
   if (!options.forceComment) {

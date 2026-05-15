@@ -2,16 +2,15 @@ import { execFileSync } from "node:child_process";
 
 import { LOCAL_CLAUDE_ALLOWED_TOOLS, LOCAL_CLAUDE_TIMEOUT_MS } from "./constants.mjs";
 import { gitInRepo, isInsideGitWorkTree, originRemoteMatchesRepository } from "./git-local.mjs";
+import {
+  RESOLVER_KIND_CONFLICT,
+  hasClaudeCli,
+  spawnResolverChild,
+  tryAcquireResolverLock,
+} from "./resolver-lock.mjs";
 
-/** True when `claude` (Claude Code CLI) is callable on the current PATH. */
-export function hasClaudeCli() {
-  try {
-    execFileSync("claude", ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Re-export so existing callers (cli.mjs, etc.) keep working without an import shuffle.
+export { hasClaudeCli };
 
 /** True when the local resolver actually took ownership of the conflict for this row. */
 export function localConflictResolutionTookOver(row) {
@@ -83,25 +82,56 @@ export async function maybeResolveConflictWithLocalClaude(owner, repo, prMerge, 
     return skip("skipped_missing_refs", "PR head or base ref missing");
   }
 
-  const worktreePath = `${gitCwd.replace(/\/$/, "")}/.claude/worktrees/conflict-pr-${prMerge.number}`;
-  const resolverBranch = `claude/resolve-conflicts/pr-${prMerge.number}`;
-
   if (options?.dryRun) {
     return {
       ok: true,
       action: "dry_run",
-      worktree: worktreePath,
-      detail: `Would create worktree ${worktreePath} from origin/${headRef}, attempt merge of origin/${baseRef}, then run \`claude -p\` to resolve conflicts and push to ${headRef}.`,
+      detail: `Would acquire conflict resolver lock for PR #${prMerge.number}, spawn detached resolver-runner that creates worktree from origin/${headRef}, attempts merge of origin/${baseRef}, then runs \`claude -p\` to resolve conflicts and push to ${headRef}.`,
     };
   }
 
-  // Best-effort cleanup of any previous attempt at the same path.
-  try {
-    gitInRepo(gitCwd, ["worktree", "remove", "--force", worktreePath]);
-  } catch {
-    /* not a registered worktree, continue */
+  const lock = tryAcquireResolverLock({
+    gitCwd,
+    kind: RESOLVER_KIND_CONFLICT,
+    prNumber: prMerge.number,
+  });
+  if (!lock.ok) {
+    return { ok: false, action: lock.action, detail: lock.detail };
   }
 
+  const spawnResult = spawnResolverChild(lock, { owner, repo, gitCwd });
+  if (!spawnResult.ok) {
+    lock.release();
+    return { ok: false, action: spawnResult.action, detail: spawnResult.detail };
+  }
+
+  return {
+    ok: true,
+    action: "started_in_background",
+    worktree: lock.worktreePath,
+    pid: spawnResult.pid,
+    logFile: spawnResult.logFile,
+    detail: `Spawned conflict resolver-runner (pid ${spawnResult.pid}) in background; result will land at ${lock.resultFilePath} when claude exits. Log: ${spawnResult.logFile}`,
+  };
+}
+
+/**
+ * The actual conflict-resolution work, invoked by resolver-runner.mjs in the detached
+ * child process. Performs: fetch refs → add worktree → attempt merge → run `claude -p`
+ * with conflict markers in the tree → push the resolved tip. Returns a result object;
+ * the caller (runner) writes it to `.result-pr-N.json` and cleans up worktree + lock.
+ *
+ * @param {{ owner: string, repo: string, prMerge: Record<string, unknown>, gitCwd: string, worktreePath: string }} args
+ * @returns {Promise<{ ok: boolean, action: string, detail?: string }>}
+ */
+export async function executeConflictResolverWork({ prMerge, gitCwd, worktreePath }) {
+  const headRef = prMerge.head?.ref;
+  const baseRef = prMerge.base?.ref;
+  if (!headRef || !baseRef) {
+    return { ok: false, action: "skipped_missing_refs", detail: "PR head or base ref missing in runner" };
+  }
+  const resolverBranch = `claude/resolve-conflicts/pr-${prMerge.number}`;
+  const skip = (action, detail) => ({ ok: false, action, detail });
   try {
     gitInRepo(gitCwd, ["fetch", "origin", headRef, baseRef]);
   } catch (e) {

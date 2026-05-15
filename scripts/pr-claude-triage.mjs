@@ -12,19 +12,28 @@
  *   node scripts/pr-claude-triage.mjs --pr 1852
  *   node scripts/pr-claude-triage.mjs --dry-run
  *
- * By default, posts an @claude triage comment when CI failures or Gemini threads need work.
- * Merge conflicts are **never** surfaced in the @claude github comment — they are routed to a
- * local `claude -p` session in an isolated git worktree (`.claude/worktrees/conflict-pr-{N}`)
- * when a usable local clone with matching origin and the `claude` CLI are available. When the
- * local resolver can't run, the script logs that and leaves the conflict for a human (the
- * `triage/merge-conflict` label still flags the PR). (Not for missing/under-counted check
- * runs; those are nudged via an **automatic**
- * empty commit in code — see `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW`). Not for workflow
- * approval or "wait for more green checks" / merge-block only (see PR_TRIAGE_MIN_PASSED_CHECKS). For blocked
- * workflow runs it tries POST …/actions/runs/{id}/approve
- * (where GitHub allows), then **pushes an empty commit** on the PR branch to re-trigger CI if runs stay
- * blocked (Git Data API by default; set `PR_TRIAGE_USE_LOCAL_GIT=1` to use your clone: empty commit, `push`,
- * then `git checkout -`). Use `--dry-run` to only print.
+ * By default, three local `claude -p` resolvers run on this machine ahead of any github
+ * @claude comment, each in its own isolated worktree under `.claude/worktrees/<kind>-pr-{N}`:
+ *   - **conflict** — base merged into head produced markers; claude resolves and pushes
+ *   - **ci** (CI failures) — fetches `gh run view --log-failed` for failing runs, fixes, pushes
+ *   - **gemini** — addresses each unresolved Gemini Code Assist thread in code, pushes, then
+ *     marks every thread Resolved via the GraphQL `resolveReviewThread` mutation
+ * Resolvers share a 5-concurrent cap (override with `PR_TRIAGE_MAX_CONCURRENT_RESOLVERS`) and
+ * a per-branch lock (see resolver-lock.mjs); only one resolver runs per PR per tick. Priority:
+ * conflict > CI > Gemini. When a local resolver takes ownership, no @claude github comment is
+ * posted for that PR. Pass `--no-local-resolvers` to disable local entirely and fall back to
+ * @claude comments for all three signals.
+ *
+ * Cron: scripts/pr-claude-triage/cron/install-cron.sh installs a launchd agent that fires the
+ * pipeline every 10 minutes, 09:00–16:50 local time, Mon–Fri. Logs land in
+ * `~/Library/Logs/pr-claude-triage/triage-YYYY-MM-DD.log`.
+ *
+ * Other paths (not local resolvers): missing/under-counted check runs are nudged via an
+ * **automatic** empty commit (see `PR_TRIAGE_AUTO_EMPTY_COMMIT_WHEN_CHECK_RUNS_BELOW`).
+ * Workflow approval is auto-attempted via POST …/actions/runs/{id}/approve (where GitHub
+ * allows), and if runs stay blocked the script **pushes an empty commit** on the PR branch to
+ * re-trigger CI (Git Data API by default; set `PR_TRIAGE_USE_LOCAL_GIT=1` to use your clone:
+ * empty commit, `push`, then `git checkout -`). Use `--dry-run` to only print.
  *
  * Fetches check runs for the head **before** workflow handling: if any are queued or in progress, this run
  * does not approve workflows or push any empty commit (it waits; next invocation re-evaluates).

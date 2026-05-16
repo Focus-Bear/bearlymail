@@ -328,8 +328,15 @@ function aggregateChildren(children: ChildJobSummary[]): {
     if (child.state === QUEUE_JOB_STATE.COMPLETED) childrenCompleted++;
     if (child.state === QUEUE_JOB_STATE.FAILED) childrenFailed++;
 
+    // Only COMPLETED children carry the `UserReencryptionResult` output shape.
+    // Failed jobs have whatever PgBoss persisted from the thrown error (e.g.
+    // `{ message: "..." }`), which has no `tables` field. The type cast at the
+    // call site (childJob.output as UserReencryptionResult | null) lies for
+    // that path, so we runtime-guard before iterating to avoid a 500.
+    if (child.state !== QUEUE_JOB_STATE.COMPLETED) continue;
+
     const out = child.output;
-    if (!out) continue;
+    if (!out || !Array.isArray(out.tables)) continue;
 
     let rowFailuresInThisUser = 0;
     for (const tableResult of out.tables) {

@@ -302,6 +302,102 @@ describe("DataReencryptionController", () => {
       expect(response.failures[0].reason).toBe("neither_key");
     });
 
+    it("does not crash when a failed child's output is a PgBoss error payload (no `tables` field)", async () => {
+      // Regression: PgBoss persists thrown errors as the job's `output`, so a
+      // FAILED child has e.g. `{ message: "boom" }` rather than a
+      // UserReencryptionResult. Iterating `out.tables` on that shape used to
+      // throw "TypeError: out.tables is not iterable" and return HTTP 500.
+      bossGetJobById.mockImplementation((id: string) => {
+        if (id === "fanout-mixed") {
+          return Promise.resolve({
+            state: "completed",
+            output: {
+              enqueued: 2,
+              dryRun: false,
+              childJobIds: ["child-ok", "child-failed"],
+            },
+          });
+        }
+        if (id === "child-ok") {
+          return Promise.resolve({
+            state: "completed",
+            data: { userId: "user-a", dryRun: false },
+            output: {
+              userId: "user-a",
+              dryRun: false,
+              tables: [
+                {
+                  table: "emails",
+                  rowsScanned: 10,
+                  rowsRewritten: 10,
+                  rowsAlreadyMigrated: 0,
+                  rowsFailed: 0,
+                  failures: [],
+                },
+              ],
+            },
+          });
+        }
+        if (id === "child-failed") {
+          return Promise.resolve({
+            state: "failed",
+            data: { userId: "user-b", dryRun: false },
+            output: { message: "boom: rds connection reset" },
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const response = await controller.getFanoutResults("fanout-mixed");
+
+      expect(response.childrenTotal).toBe(2);
+      expect(response.childrenCompleted).toBe(1);
+      expect(response.childrenFailed).toBe(1);
+      expect(response.childrenTerminal).toBe(2);
+      expect(response.tables).toEqual([
+        {
+          table: "emails",
+          rowsScanned: 10,
+          rowsRewritten: 10,
+          rowsAlreadyMigrated: 0,
+          rowsFailed: 0,
+        },
+      ]);
+      expect(response.failures).toEqual([]);
+    });
+
+    it("does not crash when a completed child output omits the `tables` field", async () => {
+      // Belt-and-braces for shape drift: even if a future code path returns a
+      // partial result on the COMPLETED path, aggregation should skip it
+      // rather than throw.
+      bossGetJobById.mockImplementation((id: string) => {
+        if (id === "fanout-partial") {
+          return Promise.resolve({
+            state: "completed",
+            output: {
+              enqueued: 1,
+              dryRun: false,
+              childJobIds: ["child-malformed"],
+            },
+          });
+        }
+        if (id === "child-malformed") {
+          return Promise.resolve({
+            state: "completed",
+            data: { userId: "user-c", dryRun: false },
+            output: { userId: "user-c", dryRun: false },
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const response = await controller.getFanoutResults("fanout-partial");
+
+      expect(response.childrenCompleted).toBe(1);
+      expect(response.tables).toEqual([]);
+      expect(response.failures).toEqual([]);
+    });
+
     it("counts in-progress children but reports them as not-yet-terminal", async () => {
       bossGetJobById.mockImplementation((id: string) => {
         if (id === "fanout-running") {

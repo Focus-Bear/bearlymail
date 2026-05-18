@@ -7,21 +7,23 @@ import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 // Only log to file during local development
 const isDevelopment = process.env.NODE_ENV !== NODE_ENV_VALUES.PRODUCTION;
 
-// Ensure logs directory exists
+// Logs dir is only used in development (writeErrorToFile() returns early in
+// production). We must not mkdirSync in production: under the hardened
+// `USER node` Dockerfile the container has no write perms on `/app`, so
+// creating `/app/logs` at module load throws EACCES and crashes boot.
 const LOGS_DIR = path.join(process.cwd(), "logs");
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
-
 const ERROR_LOG_FILE = path.join(LOGS_DIR, "errors.log");
 
-// Initialize log file with a header on first load (only in development)
-if (isDevelopment && !fs.existsSync(ERROR_LOG_FILE)) {
-  const initMessage = `[${new Date().toISOString()}] Error logging initialized\n`;
+if (isDevelopment) {
   try {
-    fs.writeFileSync(ERROR_LOG_FILE, initMessage, "utf8");
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+    if (!fs.existsSync(ERROR_LOG_FILE)) {
+      const initMessage = `[${new Date().toISOString()}] Error logging initialized\n`;
+      fs.writeFileSync(ERROR_LOG_FILE, initMessage, "utf8");
+    }
   } catch {
-    // Ignore initialization errors
+    // Best-effort: a dev environment with no write perms (e.g. sandboxed CI)
+    // shouldn't crash the app; writeErrorToFile() also catches per-write.
   }
 }
 
